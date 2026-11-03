@@ -1269,6 +1269,458 @@ namespace Opc.Ua.Server.Tests.Network
         }
 
         /// <summary>
+        /// Rejects duplicate SR-class identifiers before replacing the interface's published values.
+        /// </summary>
+        [Test]
+        [CancelAfter(60_000)]
+        public async Task CustomProviderDuplicateSrClassIdsAreRejectedBeforePublication(
+            CancellationToken cancellationToken)
+        {
+            NetworkModelSnapshot initial = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            NodeId physical = await FindInterfaceAsync("eth0", cancellationToken).ConfigureAwait(false);
+            NetworkInterfaceValues beforeInterface = await m_client.ReadInterfaceAsync(
+                physical, cancellationToken).ConfigureAwait(false);
+            ArrayOf<NetworkParameterValue> beforeParameters = await ReadParameterSetAsync(
+                physical, ObjectTypeIds.ISrClassType, cancellationToken).ConfigureAwait(false);
+            NetworkParameterValue beforeId = Parameter(beforeParameters, BrowseNames.Id);
+            NetworkParameterValue beforePriority = Parameter(beforeParameters, BrowseNames.Priority);
+            ArrayOf<ReferenceDescription> beforeChildren = await m_client.BrowseObjectsAsync(
+                physical, cancellationToken).ConfigureAwait(false);
+            NetworkModelNodeManager manager = m_server.Server.CurrentInstance.NodeManager.AsyncNodeManagers
+                .OfType<NetworkModelNodeManager>().Single();
+            BaseVariableState retainedId = manager.FindPredefinedNode<BaseVariableState>(beforeId.NodeId);
+            BaseVariableState retainedPriority = manager.FindPredefinedNode<BaseVariableState>(beforePriority.NodeId);
+
+            m_providerBoundary.WatchTransform = snapshot =>
+            {
+                NetworkInterfaceSnapshot[] interfaces = snapshot.Interfaces.Span.ToArray();
+                for (int index = 0; index < interfaces.Length; index++)
+                {
+                    if (interfaces[index].Id == "physical")
+                    {
+                        interfaces[index] = interfaces[index] with
+                        {
+                            Speed = 100_000_000,
+                            SrClasses =
+                            [
+                                new NetworkSrClassSnapshot(6, 2, 100),
+                                new NetworkSrClassSnapshot(6, 3, 200)
+                            ]
+                        };
+                    }
+                }
+                return snapshot with { Interfaces = ArrayOf.Wrapped(interfaces) };
+            };
+            m_provider.Publish(initial with { Timestamp = initial.Timestamp.AddSeconds(1) });
+            await WaitForAsync(async () =>
+                (await m_client.ReadInterfaceAsync(physical, cancellationToken).ConfigureAwait(false))
+                    .Speed.DataValue.StatusCode == StatusCodes.BadInvalidArgument,
+                cancellationToken).ConfigureAwait(false);
+
+            NetworkInterfaceValues rejected = await m_client.ReadInterfaceAsync(physical, cancellationToken)
+                .ConfigureAwait(false);
+            ArrayOf<NetworkParameterValue> rejectedParameters = await ReadParameterSetAsync(
+                physical, ObjectTypeIds.ISrClassType, cancellationToken).ConfigureAwait(false);
+            NetworkParameterValue rejectedId = Parameter(rejectedParameters, BrowseNames.Id);
+            NetworkParameterValue rejectedPriority = Parameter(rejectedParameters, BrowseNames.Priority);
+            Assert.That(rejected.Speed.DataValue.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(rejected.Speed.DataValue.WrappedValue.IsNull, Is.True);
+            Assert.That(rejected.Speed.DataValue.SourceTimestamp,
+                Is.EqualTo(beforeInterface.Speed.DataValue.SourceTimestamp));
+            Assert.That(rejectedId.DataValue.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(rejectedId.DataValue.WrappedValue.IsNull, Is.True);
+            Assert.That(rejectedId.DataValue.SourceTimestamp, Is.EqualTo(beforeId.DataValue.SourceTimestamp));
+            Assert.That(rejectedPriority.DataValue.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(rejectedPriority.DataValue.WrappedValue.IsNull, Is.True);
+            Assert.That(rejectedPriority.DataValue.SourceTimestamp,
+                Is.EqualTo(beforePriority.DataValue.SourceTimestamp));
+            Assert.That(retainedId.Value, Is.EqualTo(beforeId.DataValue.WrappedValue));
+            Assert.That(retainedPriority.Value, Is.EqualTo(beforePriority.DataValue.WrappedValue));
+            Assert.That(retainedId.Timestamp, Is.EqualTo(initial.Timestamp));
+            Assert.That(retainedPriority.Timestamp, Is.EqualTo(initial.Timestamp));
+            ArrayOf<ReferenceDescription> rejectedChildren = await m_client.BrowseObjectsAsync(
+                physical, cancellationToken).ConfigureAwait(false);
+            Assert.That(rejectedChildren.ToList().Select(child => child.NodeId),
+                Is.EquivalentTo(beforeChildren.ToList().Select(child => child.NodeId)));
+
+            m_providerBoundary.WatchTransform = null;
+            NetworkModelSnapshot current = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            DateTime recoveryTimestamp = initial.Timestamp.AddSeconds(2);
+            m_provider.Publish(current with { Timestamp = recoveryTimestamp });
+            await WaitForAsync(async () =>
+                (await m_client.ReadInterfaceAsync(physical, cancellationToken).ConfigureAwait(false))
+                    .Speed.DataValue.SourceTimestamp == (DateTimeUtc)recoveryTimestamp,
+                cancellationToken).ConfigureAwait(false);
+            NetworkInterfaceValues recovered = await m_client.ReadInterfaceAsync(physical, cancellationToken)
+                .ConfigureAwait(false);
+            Assert.That(recovered.Speed.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+            ArrayOf<NetworkParameterValue> recoveredParameters = await ReadParameterSetAsync(
+                physical, ObjectTypeIds.ISrClassType, cancellationToken).ConfigureAwait(false);
+            Assert.That(Parameter(recoveredParameters, BrowseNames.Id).DataValue.StatusCode,
+                Is.EqualTo(StatusCodes.Good));
+        }
+
+        /// <summary>
+        /// Allows the same SR-class identifier on separate interfaces.
+        /// </summary>
+        [Test]
+        [CancelAfter(60_000)]
+        public async Task CustomProviderSrClassIdsAreScopedPerInterface(CancellationToken cancellationToken)
+        {
+            NetworkModelSnapshot initial = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            NodeId physical = await FindInterfaceAsync("eth0", cancellationToken).ConfigureAwait(false);
+            NodeId vlan = await FindInterfaceAsync("eth0.2", cancellationToken).ConfigureAwait(false);
+            m_providerBoundary.WatchTransform = snapshot =>
+            {
+                NetworkInterfaceSnapshot[] interfaces = snapshot.Interfaces.Span.ToArray();
+                for (int index = 0; index < interfaces.Length; index++)
+                {
+                    interfaces[index] = interfaces[index] with
+                    {
+                        SrClasses = [new NetworkSrClassSnapshot(6, (byte)index, (ushort)(100 + index))]
+                    };
+                }
+                return snapshot with { Interfaces = ArrayOf.Wrapped(interfaces) };
+            };
+            DateTime publicationTimestamp = initial.Timestamp.AddSeconds(1);
+            m_provider.Publish(initial with { Timestamp = publicationTimestamp });
+            await WaitForAsync(async () =>
+            {
+                ArrayOf<NetworkParameterValue> values = await ReadParameterSetAsync(
+                    physical, ObjectTypeIds.ISrClassType, cancellationToken).ConfigureAwait(false);
+                return Parameter(values, BrowseNames.Id).DataValue.SourceTimestamp ==
+                    (DateTimeUtc)publicationTimestamp;
+            }, cancellationToken).ConfigureAwait(false);
+            foreach ((NodeId id, byte priority) in new[] { (physical, (byte)0), (vlan, (byte)1) })
+            {
+                ArrayOf<NetworkParameterValue> values = await ReadParameterSetAsync(
+                    id, ObjectTypeIds.ISrClassType, cancellationToken).ConfigureAwait(false);
+                Assert.That(Parameter(values, BrowseNames.Id).DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(Parameter(values, BrowseNames.Id).DataValue.WrappedValue,
+                    Is.EqualTo(new Variant((byte)6)));
+                Assert.That(Parameter(values, BrowseNames.Priority).DataValue.WrappedValue,
+                    Is.EqualTo(new Variant(priority)));
+                Assert.That(Parameter(values, BrowseNames.Priority).DataValue.SourceTimestamp,
+                    Is.EqualTo((DateTimeUtc)publicationTimestamp));
+            }
+        }
+
+        /// <summary>
+        /// Rejects duplicate stream-interface identities before any entity in the acquisition changes.
+        /// </summary>
+        [Test]
+        [CancelAfter(60_000)]
+        public async Task CustomProviderDuplicateStreamInterfaceIdsAreRejectedBeforePublication(
+            CancellationToken cancellationToken)
+        {
+            NetworkModelSnapshot initial = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            NodeId physical = await FindInterfaceAsync("eth0", cancellationToken).ConfigureAwait(false);
+            NodeId talker = (await m_client.DiscoverStreamsAsync(true, cancellationToken).ConfigureAwait(false))[0];
+            NetworkInterfaceValues beforeInterface = await m_client.ReadInterfaceAsync(
+                physical, cancellationToken).ConfigureAwait(false);
+            NetworkStreamValues beforeStream = await m_client.ReadStreamAsync(talker, cancellationToken)
+                .ConfigureAwait(false);
+            NetworkParameterValue beforeMac = Parameter(await ReadParameterSetAsync(
+                talker, ObjectTypeIds.IIeeeTsnInterfaceConfigurationTalkerType, cancellationToken)
+                .ConfigureAwait(false), BrowseNames.MacAddress);
+            ArrayOf<ReferenceDescription> beforeInterfaces = await m_client.BrowseObjectsAsync(
+                ObjectIds.NetworkInterfaces, cancellationToken).ConfigureAwait(false);
+            ArrayOf<ReferenceDescription> beforeTalkerChildren = await m_client.BrowseObjectsAsync(
+                talker, cancellationToken).ConfigureAwait(false);
+            NetworkModelNodeManager manager = m_server.Server.CurrentInstance.NodeManager.AsyncNodeManagers
+                .OfType<NetworkModelNodeManager>().Single();
+            BaseVariableState retainedSpeed = manager.FindPredefinedNode<BaseVariableState>(
+                beforeInterface.Speed.NodeId);
+            BaseVariableState retainedStreamId = manager.FindPredefinedNode<BaseVariableState>(
+                beforeStream.StreamId.NodeId);
+            BaseVariableState retainedMac = manager.FindPredefinedNode<BaseVariableState>(beforeMac.NodeId);
+
+            m_providerBoundary.WatchTransform = snapshot =>
+            {
+                NetworkInterfaceSnapshot[] interfaces = snapshot.Interfaces.Span.ToArray();
+                for (int index = 0; index < interfaces.Length; index++)
+                {
+                    if (interfaces[index].Id == "physical")
+                    {
+                        interfaces[index] = interfaces[index] with { Speed = 100_000_000 };
+                    }
+                }
+                NetworkStreamSnapshot[] streams = snapshot.Streams.Span.ToArray();
+                for (int index = 0; index < streams.Length; index++)
+                {
+                    if (streams[index].IsTalker)
+                    {
+                        streams[index] = streams[index] with
+                        {
+                            Interfaces =
+                            [
+                                new NetworkStreamInterfaceSnapshot("duplicate", "02:00:00:00:00:11")
+                                {
+                                    InterfaceName = "first"
+                                },
+                                new NetworkStreamInterfaceSnapshot("duplicate", "02:00:00:00:00:12")
+                                {
+                                    InterfaceName = "second"
+                                }
+                            ]
+                        };
+                    }
+                }
+                return snapshot with
+                {
+                    Interfaces = ArrayOf.Wrapped(interfaces),
+                    Streams = ArrayOf.Wrapped(streams)
+                };
+            };
+            m_provider.Publish(initial with { Timestamp = initial.Timestamp.AddSeconds(1) });
+            await WaitForAsync(async () =>
+                (await m_client.ReadInterfaceAsync(physical, cancellationToken).ConfigureAwait(false))
+                    .Speed.DataValue.StatusCode == StatusCodes.BadInvalidArgument,
+                cancellationToken).ConfigureAwait(false);
+
+            NetworkInterfaceValues rejectedInterface = await m_client.ReadInterfaceAsync(
+                physical, cancellationToken).ConfigureAwait(false);
+            NetworkStreamValues rejectedStream = await m_client.ReadStreamAsync(talker, cancellationToken)
+                .ConfigureAwait(false);
+            NetworkParameterValue rejectedMac = Parameter(await ReadParameterSetAsync(
+                talker, ObjectTypeIds.IIeeeTsnInterfaceConfigurationTalkerType, cancellationToken)
+                .ConfigureAwait(false), BrowseNames.MacAddress);
+            Assert.That(rejectedInterface.Speed.DataValue.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(rejectedInterface.Speed.DataValue.WrappedValue.IsNull, Is.True);
+            Assert.That(rejectedInterface.Speed.DataValue.SourceTimestamp,
+                Is.EqualTo(beforeInterface.Speed.DataValue.SourceTimestamp));
+            Assert.That(rejectedStream.StreamId.DataValue.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(rejectedStream.StreamId.DataValue.WrappedValue.IsNull, Is.True);
+            Assert.That(rejectedStream.StreamId.DataValue.SourceTimestamp,
+                Is.EqualTo(beforeStream.StreamId.DataValue.SourceTimestamp));
+            Assert.That(rejectedMac.DataValue.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(rejectedMac.DataValue.WrappedValue.IsNull, Is.True);
+            Assert.That(rejectedMac.DataValue.SourceTimestamp, Is.EqualTo(beforeMac.DataValue.SourceTimestamp));
+            Assert.That(retainedSpeed.Value, Is.EqualTo(beforeInterface.Speed.DataValue.WrappedValue));
+            Assert.That(retainedStreamId.Value, Is.EqualTo(beforeStream.StreamId.DataValue.WrappedValue));
+            Assert.That(retainedMac.Value, Is.EqualTo(beforeMac.DataValue.WrappedValue));
+            Assert.That(retainedSpeed.Timestamp, Is.EqualTo(initial.Timestamp));
+            Assert.That(retainedStreamId.Timestamp, Is.EqualTo(initial.Timestamp));
+            Assert.That(retainedMac.Timestamp, Is.EqualTo(initial.Timestamp));
+            Assert.That((await m_client.BrowseObjectsAsync(
+                ObjectIds.NetworkInterfaces, cancellationToken).ConfigureAwait(false)).ToList()
+                .Select(child => child.NodeId),
+                Is.EquivalentTo(beforeInterfaces.ToList().Select(child => child.NodeId)));
+            Assert.That((await m_client.BrowseObjectsAsync(talker, cancellationToken).ConfigureAwait(false)).ToList()
+                .Select(child => child.NodeId),
+                Is.EquivalentTo(beforeTalkerChildren.ToList().Select(child => child.NodeId)));
+
+            m_providerBoundary.WatchTransform = null;
+            NetworkModelSnapshot current = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            DateTime recoveryTimestamp = initial.Timestamp.AddSeconds(2);
+            m_provider.Publish(current with { Timestamp = recoveryTimestamp });
+            await WaitForAsync(async () =>
+                (await m_client.ReadInterfaceAsync(physical, cancellationToken).ConfigureAwait(false))
+                    .Speed.DataValue.SourceTimestamp == (DateTimeUtc)recoveryTimestamp,
+                cancellationToken).ConfigureAwait(false);
+            Assert.That((await m_client.ReadInterfaceAsync(physical, cancellationToken).ConfigureAwait(false))
+                .Speed.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That((await m_client.ReadStreamAsync(talker, cancellationToken).ConfigureAwait(false))
+                .StreamId.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+        }
+
+        /// <summary>
+        /// Allows the same stream-interface identity in separate stream scopes.
+        /// </summary>
+        [Test]
+        [CancelAfter(60_000)]
+        public async Task CustomProviderStreamInterfaceIdsAreScopedPerStream(CancellationToken cancellationToken)
+        {
+            NetworkModelSnapshot initial = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            NodeId talker = (await m_client.DiscoverStreamsAsync(true, cancellationToken).ConfigureAwait(false))[0];
+            NodeId listener = (await m_client.DiscoverStreamsAsync(false, cancellationToken).ConfigureAwait(false))[0];
+            m_providerBoundary.WatchTransform = snapshot =>
+            {
+                NetworkStreamSnapshot[] streams = snapshot.Streams.Span.ToArray();
+                for (int index = 0; index < streams.Length; index++)
+                {
+                    streams[index] = streams[index] with
+                    {
+                        Interfaces =
+                        [
+                            new NetworkStreamInterfaceSnapshot("shared", "02:00:00:00:00:11")
+                            {
+                                InterfaceName = streams[index].IsTalker ? "talker port" : "listener port"
+                            }
+                        ]
+                    };
+                }
+                return snapshot with { Streams = ArrayOf.Wrapped(streams) };
+            };
+            DateTime publicationTimestamp = initial.Timestamp.AddSeconds(1);
+            m_provider.Publish(initial with { Timestamp = publicationTimestamp });
+            await WaitForAsync(async () =>
+                (await m_client.ReadStreamAsync(talker, cancellationToken).ConfigureAwait(false))
+                    .StreamId.DataValue.SourceTimestamp == (DateTimeUtc)publicationTimestamp,
+                cancellationToken).ConfigureAwait(false);
+            foreach ((NodeId id, string name, NodeId interfaceType) in new[]
+            {
+                (talker, "talker port", ObjectTypeIds.IIeeeTsnInterfaceConfigurationTalkerType),
+                (listener, "listener port", ObjectTypeIds.IIeeeTsnInterfaceConfigurationListenerType)
+            })
+            {
+                ArrayOf<NetworkParameterValue> values = await ReadParameterSetAsync(
+                    id, interfaceType, cancellationToken).ConfigureAwait(false);
+                NetworkParameterValue interfaceName = Parameter(values, BrowseNames.InterfaceName);
+                Assert.That(interfaceName.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(interfaceName.DataValue.WrappedValue, Is.EqualTo(new Variant(name)));
+                Assert.That(interfaceName.DataValue.SourceTimestamp, Is.EqualTo((DateTimeUtc)publicationTimestamp));
+            }
+        }
+
+        /// <summary>
+        /// Validates the fixed LLDP destination-address size at the custom-provider publication boundary.
+        /// </summary>
+        [TestCase(0, false)]
+        [TestCase(5, false)]
+        [TestCase(6, true)]
+        [TestCase(7, false)]
+        [CancelAfter(60_000)]
+        public async Task CustomProviderLldpDestinationMacAddressRequiresSixBytes(
+            int addressLength, bool valid, CancellationToken cancellationToken)
+        {
+            NetworkModelSnapshot seeded = NetworkScenario.Advance(
+                await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false), 1);
+            m_provider.Publish(seeded);
+            NodeId port = (await m_client.DiscoverLldpPortsAsync(cancellationToken).ConfigureAwait(false))[0];
+            await WaitForAsync(async () =>
+                (await m_client.DiscoverNeighborsAsync(port, cancellationToken).ConfigureAwait(false)).Count == 1,
+                cancellationToken).ConfigureAwait(false);
+            NetworkModelSnapshot initial = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            NetworkParameterValue before = Parameter(await m_client.ReadParametersAsync(
+                port, cancellationToken).ConfigureAwait(false), BrowseNames.DestMacAddress);
+            Assert.That(before.DataValue.WrappedValue.TryGetValue(out ArrayOf<byte> previousAddress), Is.True);
+            Assert.That(previousAddress.Count, Is.EqualTo(6));
+            ArrayOf<ReferenceDescription> beforePorts = await m_client.BrowseObjectsAsync(
+                ObjectIds.LLDP_Ports, cancellationToken).ConfigureAwait(false);
+            ArrayOf<NodeId> beforeNeighbors = await m_client.DiscoverNeighborsAsync(
+                port, cancellationToken).ConfigureAwait(false);
+            NetworkModelNodeManager manager = m_server.Server.CurrentInstance.NodeManager.AsyncNodeManagers
+                .OfType<NetworkModelNodeManager>().Single();
+            BaseVariableState retained = manager.FindPredefinedNode<BaseVariableState>(before.NodeId);
+            byte[] addressBytes = Enumerable.Range(1, addressLength).Select(value => (byte)value).ToArray();
+            ByteString destinationAddress = ByteString.From(addressBytes.AsSpan());
+            m_providerBoundary.WatchTransform = snapshot =>
+            {
+                NetworkLldpSnapshot lldp = snapshot.Lldp
+                    ?? throw new InvalidOperationException("The test acquisition requires LLDP.");
+                NetworkLldpPortSnapshot[] ports = lldp.Ports.Span.ToArray();
+                ports[0] = ports[0] with { DestinationMacAddress = destinationAddress };
+                return snapshot with { Lldp = lldp with { Ports = ArrayOf.Wrapped(ports) } };
+            };
+            DateTime publicationTimestamp = initial.Timestamp.AddSeconds(1);
+            m_provider.Publish(initial with { Timestamp = publicationTimestamp });
+            await WaitForAsync(async () =>
+            {
+                DataValue value = Parameter(await m_client.ReadParametersAsync(
+                    port, cancellationToken).ConfigureAwait(false), BrowseNames.DestMacAddress).DataValue;
+                return valid
+                    ? value.SourceTimestamp == (DateTimeUtc)publicationTimestamp
+                    : value.StatusCode == StatusCodes.BadOutOfRange;
+            }, cancellationToken).ConfigureAwait(false);
+            NetworkParameterValue actual = Parameter(await m_client.ReadParametersAsync(
+                port, cancellationToken).ConfigureAwait(false), BrowseNames.DestMacAddress);
+            if (valid)
+            {
+                Assert.That(actual.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(actual.DataValue.WrappedValue.TryGetValue(out ArrayOf<byte> acceptedAddress), Is.True);
+                Assert.That(acceptedAddress.ToArray(), Is.EqualTo(addressBytes));
+            }
+            else
+            {
+                Assert.That(actual.DataValue.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
+                Assert.That(actual.DataValue.WrappedValue.IsNull, Is.True);
+                Assert.That(actual.DataValue.SourceTimestamp, Is.EqualTo(before.DataValue.SourceTimestamp));
+                Assert.That(retained.Value, Is.EqualTo(before.DataValue.WrappedValue));
+                Assert.That(retained.Timestamp, Is.EqualTo(initial.Timestamp));
+            }
+            Assert.That((await m_client.BrowseObjectsAsync(
+                ObjectIds.LLDP_Ports, cancellationToken).ConfigureAwait(false)).ToList()
+                .Select(child => child.NodeId),
+                Is.EquivalentTo(beforePorts.ToList().Select(child => child.NodeId)));
+            Assert.That((await m_client.DiscoverNeighborsAsync(port, cancellationToken).ConfigureAwait(false))
+                .ToArray(), Is.EqualTo(beforeNeighbors.ToArray()));
+
+            if (!valid)
+            {
+                m_providerBoundary.WatchTransform = null;
+                NetworkModelSnapshot current = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+                DateTime recoveryTimestamp = initial.Timestamp.AddSeconds(2);
+                m_provider.Publish(current with { Timestamp = recoveryTimestamp });
+                await WaitForAsync(async () =>
+                {
+                    DataValue value = Parameter(await m_client.ReadParametersAsync(
+                        port, cancellationToken).ConfigureAwait(false), BrowseNames.DestMacAddress).DataValue;
+                    return value.StatusCode == StatusCodes.Good &&
+                        value.SourceTimestamp == (DateTimeUtc)recoveryTimestamp;
+                }, cancellationToken).ConfigureAwait(false);
+                Assert.That(Parameter(await m_client.ReadParametersAsync(
+                    port, cancellationToken).ConfigureAwait(false), BrowseNames.DestMacAddress)
+                    .DataValue.WrappedValue, Is.EqualTo(before.DataValue.WrappedValue));
+            }
+        }
+
+        /// <summary>
+        /// Rejects non-UTC acquisition timestamps without interpreting them in the host time zone.
+        /// </summary>
+        [TestCase(DateTimeKind.Local)]
+        [TestCase(DateTimeKind.Unspecified)]
+        [CancelAfter(60_000)]
+        public async Task CustomProviderNonUtcTimestampsAreRejectedBeforePublication(
+            DateTimeKind kind, CancellationToken cancellationToken)
+        {
+            NetworkModelSnapshot initial = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            NodeId physical = await FindInterfaceAsync("eth0", cancellationToken).ConfigureAwait(false);
+            NetworkInterfaceValues before = await m_client.ReadInterfaceAsync(physical, cancellationToken)
+                .ConfigureAwait(false);
+            ArrayOf<ReferenceDescription> beforeInterfaces = await m_client.BrowseObjectsAsync(
+                ObjectIds.NetworkInterfaces, cancellationToken).ConfigureAwait(false);
+            BaseVariableState retained = m_server.Server.CurrentInstance.NodeManager.AsyncNodeManagers
+                .OfType<NetworkModelNodeManager>().Single()
+                .FindPredefinedNode<BaseVariableState>(before.Speed.NodeId);
+            m_providerBoundary.WatchTransform = snapshot => snapshot with
+            {
+                Timestamp = DateTime.SpecifyKind(snapshot.Timestamp.AddSeconds(1), kind)
+            };
+            m_provider.Publish(initial with { Timestamp = initial.Timestamp.AddSeconds(1) });
+            await WaitForAsync(async () =>
+                (await m_client.ReadInterfaceAsync(physical, cancellationToken).ConfigureAwait(false))
+                    .Speed.DataValue.StatusCode == StatusCodes.BadInvalidArgument,
+                cancellationToken).ConfigureAwait(false);
+
+            NetworkInterfaceValues rejected = await m_client.ReadInterfaceAsync(physical, cancellationToken)
+                .ConfigureAwait(false);
+            Assert.That(rejected.Speed.DataValue.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(rejected.Speed.DataValue.WrappedValue.IsNull, Is.True);
+            Assert.That(rejected.Speed.DataValue.SourceTimestamp,
+                Is.EqualTo(before.Speed.DataValue.SourceTimestamp));
+            Assert.That(retained.Value, Is.EqualTo(before.Speed.DataValue.WrappedValue));
+            Assert.That(retained.Timestamp, Is.EqualTo(initial.Timestamp));
+            Assert.That((await m_client.BrowseObjectsAsync(
+                ObjectIds.NetworkInterfaces, cancellationToken).ConfigureAwait(false)).ToList()
+                .Select(child => child.NodeId),
+                Is.EquivalentTo(beforeInterfaces.ToList().Select(child => child.NodeId)));
+
+            m_providerBoundary.WatchTransform = null;
+            NetworkModelSnapshot current = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            DateTime recoveryTimestamp = initial.Timestamp.AddSeconds(2);
+            m_provider.Publish(current with { Timestamp = recoveryTimestamp });
+            await WaitForAsync(async () =>
+                (await m_client.ReadInterfaceAsync(physical, cancellationToken).ConfigureAwait(false))
+                    .Speed.DataValue.SourceTimestamp == (DateTimeUtc)recoveryTimestamp,
+                cancellationToken).ConfigureAwait(false);
+            NetworkInterfaceValues recovered = await m_client.ReadInterfaceAsync(physical, cancellationToken)
+                .ConfigureAwait(false);
+            Assert.That(recovered.Speed.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(recovered.Speed.DataValue.WrappedValue, Is.EqualTo(before.Speed.DataValue.WrappedValue));
+        }
+
+        /// <summary>
         /// Publishes valid VLAN-tag boundaries and rejects malformed custom acquisitions without changing values.
         /// </summary>
         [TestCase((ushort)0, (byte)0, true)]
@@ -2484,6 +2936,17 @@ namespace Opc.Ua.Server.Tests.Network
         private static NetworkParameterValue Parameter(ArrayOf<NetworkParameterValue> parameters, string name)
         {
             return parameters.ToList().Single(value => value.BrowseName == new QualifiedName(name, 0));
+        }
+
+        /// <summary>
+        /// Finds an interface instance by its published ifName.
+        /// </summary>
+        private async Task<NodeId> FindInterfaceAsync(string ifName, CancellationToken cancellationToken)
+        {
+            ArrayOf<ReferenceDescription> interfaces = await m_client.BrowseObjectsAsync(
+                ObjectIds.NetworkInterfaces, cancellationToken).ConfigureAwait(false);
+            return ExpandedNodeId.ToNodeId(interfaces.ToList()
+                .Single(reference => reference.BrowseName.Name == ifName).NodeId, m_session.NamespaceUris);
         }
 
         /// <summary>

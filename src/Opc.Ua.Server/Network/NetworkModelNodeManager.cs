@@ -234,6 +234,13 @@ namespace Opc.Ua.Server.Network
                     return;
                 }
 
+                if (!NetworkModelSnapshotValidator.IsUtcTimestamp(snapshot.Timestamp))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidArgument,
+                        "Snapshot acquisition timestamps must be UTC.");
+                }
+
                 if (m_revision != long.MinValue && snapshot.Timestamp < m_timestamp)
                 {
                     NetworkModelNodeManagerLog.StaleSnapshotRejected(
@@ -326,6 +333,12 @@ namespace Opc.Ua.Server.Network
                 {
                     throw new ServiceResultException(StatusCodes.BadOutOfRange,
                         "Network interface and Ethernet enum values must be defined.");
+                }
+                if (!NetworkModelSnapshotValidator.AreUniqueSrClassIds(networkInterface.SrClasses))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidArgument,
+                        "SR class identifiers must be unique within an interface.");
                 }
                 foreach (NetworkSrClassSnapshot srClass in networkInterface.SrClasses)
                 {
@@ -561,6 +574,12 @@ namespace Opc.Ua.Server.Network
                 throw new ServiceResultException(StatusCodes.BadOutOfRange,
                     "Stream traffic interval denominators must be greater than zero.");
             }
+            if (!NetworkModelSnapshotValidator.AreUniqueStreamInterfaceIds(stream.Interfaces))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument,
+                    "Stream interface identifiers must be non-empty and unique within a stream.");
+            }
             var node = CreateObject(
                 stream.IsTalker ? "talker" : "listener",
                 stream.Id,
@@ -696,6 +715,12 @@ namespace Opc.Ua.Server.Network
                 {
                     throw new ServiceResultException(StatusCodes.BadOutOfRange,
                         "LLDP port identifier subtype values must be defined.");
+                }
+                if (!NetworkModelSnapshotValidator.IsValidLldpDestinationMacAddress(port.DestinationMacAddress))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadOutOfRange,
+                        "LLDP destination MAC addresses must contain exactly six bytes.");
                 }
                 BaseObjectState portNode = CreateObject(
                     "lldp-port",

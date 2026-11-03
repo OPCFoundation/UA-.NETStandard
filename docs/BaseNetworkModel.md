@@ -110,6 +110,11 @@ The SDK reports the supplied identifiers; its snapshot model does not identify
 the complete network or segment scope, and the server does not allocate these
 identifiers or enforce global uniqueness across snapshot entries.
 
+The reference provider and server require SR-class identifiers to be unique
+within each interface and stream-interface identifiers to be unique within
+each stream. An SR-class ID may recur on another interface, and a
+stream-interface ID may recur on another stream.
+
 The reference provider copies mutable generated structures and backing arrays
 on input and output. Each read and watch item carries the current revision.
 `Publish` accepts a complete replacement only when its revision matches the
@@ -131,9 +136,11 @@ speed in bit/s from IEEE Ethernet-port speed in Mbit/s. Stream identifiers have
 eight bytes, MAC-address arrays have six bytes, and traffic intervals have a
 nonzero denominator.
 
-The server validates each provider acquisition before publishing it. Present
-enumeration values must be defined by their OPC UA data type. Interface VLAN
-identifiers and SR-class VIDs must be in the range 0-4094; SR-class IDs and
+The server validates each provider acquisition before publishing it. It rejects
+an initial acquisition or newer revision whose timestamp kind is not UTC with
+`BadInvalidArgument` before building entities; stale revisions remain ignored.
+Present enumeration values must be defined by their OPC UA data type. Interface
+VLAN identifiers and SR-class VIDs must be in the range 0-4094; SR-class IDs and
 priorities must be in the range 0-7. A TSN VLAN tag has a separate domain:
 VlanId may be 0-4095 and PriorityCodePoint may be 0-7. Each priority-mapping
 entry must have nonblank `MappingUri` and `PriorityLabel` values, a PCP value
@@ -143,8 +150,10 @@ defines the TSN VLAN-tag and mapping-entry value domains in
 [§5.2.14](https://reference.opcfoundation.org/specs/OPC-10000-22/v1.05.04/5.2.14)
 and [§5.3.2.1](https://reference.opcfoundation.org/specs/OPC-10000-22/v1.05.04/5.3.2.1).
 The reference provider and server also apply the nonblank-key and per-table
-uniqueness checks. An invalid enum or network value rejects the acquisition
-with `BadOutOfRange`; an invalid mapping entry rejects it with
+uniqueness checks. Repeated SR-class IDs within an interface and repeated
+stream-interface IDs within a stream reject the acquisition with
+`BadInvalidArgument`. An invalid enum or network value rejects the acquisition
+with `BadOutOfRange`; an invalid mapping entry also rejects it with
 `BadInvalidArgument`. The server retains the previous values and timestamps
 while marking their quality bad. A later valid acquisition restores the
 published quality. Unsupported optional values remain absent.

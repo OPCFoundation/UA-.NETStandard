@@ -118,6 +118,64 @@ namespace Opc.Ua.Server.Network
         }
 
         /// <summary>
+        /// Determines whether an acquisition timestamp is explicitly UTC.
+        /// </summary>
+        /// <param name="timestamp">The acquisition timestamp.</param>
+        /// <returns>True when the timestamp kind is UTC.</returns>
+        internal static bool IsUtcTimestamp(DateTime timestamp)
+        {
+            return timestamp.Kind == DateTimeKind.Utc;
+        }
+
+        /// <summary>
+        /// Determines whether every SR class has a unique identifier within one interface.
+        /// </summary>
+        /// <param name="srClasses">The interface's SR classes.</param>
+        /// <returns>True when all SR-class identifiers are unique.</returns>
+        internal static bool AreUniqueSrClassIds(ArrayOf<NetworkSrClassSnapshot> srClasses)
+        {
+            var ids = new HashSet<byte>();
+            foreach (NetworkSrClassSnapshot srClass in srClasses)
+            {
+                if (srClass is null || !ids.Add(srClass.Id))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Determines whether every stream interface has a non-empty, unique identifier within one stream.
+        /// </summary>
+        /// <param name="interfaces">The stream's interface configurations.</param>
+        /// <returns>True when all identifiers are non-empty and unique.</returns>
+        internal static bool AreUniqueStreamInterfaceIds(ArrayOf<NetworkStreamInterfaceSnapshot> interfaces)
+        {
+            var ids = new HashSet<string>(StringComparer.Ordinal);
+            foreach (NetworkStreamInterfaceSnapshot streamInterface in interfaces)
+            {
+                if (streamInterface is null ||
+                    string.IsNullOrWhiteSpace(streamInterface.Id) ||
+                    !ids.Add(streamInterface.Id))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Determines whether an LLDP destination MAC address has its required six bytes.
+        /// </summary>
+        /// <param name="address">The destination MAC address.</param>
+        /// <returns>True when the address contains exactly six bytes.</returns>
+        internal static bool IsValidLldpDestinationMacAddress(ByteString address)
+        {
+            return address.Length == 6;
+        }
+
+        /// <summary>
         /// Determines whether an enum value is defined by its generated OPC UA enumeration.
         /// </summary>
         /// <typeparam name="TEnum">The generated enumeration type.</typeparam>

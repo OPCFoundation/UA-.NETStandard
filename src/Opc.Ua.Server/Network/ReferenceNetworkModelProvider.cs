@@ -218,7 +218,7 @@ namespace Opc.Ua.Server.Network
         /// </summary>
         private static void ValidateSnapshot(NetworkModelSnapshot snapshot)
         {
-            if (snapshot.Timestamp.Kind != DateTimeKind.Utc)
+            if (!NetworkModelSnapshotValidator.IsUtcTimestamp(snapshot.Timestamp))
             {
                 throw new ArgumentException("Snapshot acquisition timestamps must be UTC.", nameof(snapshot));
             }
@@ -249,10 +249,14 @@ namespace Opc.Ua.Server.Network
                     throw new ArgumentException(
                         "Interface VLAN identifiers must be between zero and 4094.", nameof(snapshot));
                 }
-                var classes = new HashSet<byte>();
+                if (!NetworkModelSnapshotValidator.AreUniqueSrClassIds(networkInterface.SrClasses))
+                {
+                    throw new ArgumentException(
+                        "SR class identifiers must be unique within an interface.", nameof(snapshot));
+                }
                 foreach (NetworkSrClassSnapshot srClass in networkInterface.SrClasses)
                 {
-                    if (srClass is null || srClass.Id > 7 || !classes.Add(srClass.Id) ||
+                    if (srClass is null || srClass.Id > 7 ||
                         srClass.Priority > 7)
                     {
                         throw new ArgumentException(
@@ -326,12 +330,14 @@ namespace Opc.Ua.Server.Network
                             "Failure-system identifiers must contain eight bytes.", nameof(snapshot));
                     }
                 }
-                var streamInterfaceIds = new HashSet<string>(StringComparer.Ordinal);
+                if (!NetworkModelSnapshotValidator.AreUniqueStreamInterfaceIds(stream.Interfaces))
+                {
+                    throw new ArgumentException(
+                        "Stream interface identities must be non-empty and unique.", nameof(snapshot));
+                }
                 foreach (NetworkStreamInterfaceSnapshot streamInterface in stream.Interfaces)
                 {
                     if (streamInterface is null ||
-                        string.IsNullOrWhiteSpace(streamInterface.Id) ||
-                        !streamInterfaceIds.Add(streamInterface.Id) ||
                         string.IsNullOrWhiteSpace(streamInterface.MacAddress))
                     {
                         throw new ArgumentException(
@@ -362,7 +368,8 @@ namespace Opc.Ua.Server.Network
                         string.IsNullOrWhiteSpace(port.IfName) ||
                         string.IsNullOrWhiteSpace(port.PortId) ||
                         !portIds.Add(port.Id) ||
-                        port.DestinationMacAddress.Length != 6)
+                        !NetworkModelSnapshotValidator.IsValidLldpDestinationMacAddress(
+                            port.DestinationMacAddress))
                     {
                         throw new ArgumentException("LLDP port identities and MAC addresses must be valid.",
                             nameof(snapshot));
