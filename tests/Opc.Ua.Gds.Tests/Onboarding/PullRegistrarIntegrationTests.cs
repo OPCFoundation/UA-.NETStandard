@@ -50,9 +50,11 @@ using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Server.UserDatabase;
 using Opc.Ua.Tests;
+using CoreDataTypeIds = Opc.Ua.DataTypeIds;
 using CoreNamespaces = Opc.Ua.Namespaces;
 using CoreObjectIds = Opc.Ua.ObjectIds;
 using CoreObjectTypeIds = Opc.Ua.ObjectTypeIds;
+using CoreReferenceTypeIds = Opc.Ua.ReferenceTypeIds;
 using ISession = Opc.Ua.Client.ISession;
 using OnboardingObjectIds = Opc.Ua.Onboarding.ObjectIds;
 
@@ -214,6 +216,97 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             if (errors.Count > 1)
             {
                 throw new AggregateException("Pull registrar integration cleanup failed.", errors);
+            }
+        }
+
+        /// <summary>
+        /// The hosted model advertises EncodedTicket as String and accepts String arrays over a real session,
+        /// reporting each ticket's status while retaining the signed JSON exactly as supplied.
+        /// </summary>
+        [Test]
+        public async Task HostedRegistrarRegistersStringTicketsAndAdvertisesStringSupertype()
+        {
+            string first = await WriteTicketAsync(m_signer, m_product, m_identity).ConfigureAwait(false);
+            string secondProduct = m_product + ":second";
+            string second = await WriteTicketAsync(m_signer, secondProduct, m_otherIdentity).ConfigureAwait(false);
+            Assert.That(m_provider.GetRequiredService<IUserDatabase>().CreateUser(
+                "ticket-admin", Encoding.UTF8.GetBytes(m_password),
+                [
+                    Role.AuthenticatedUser,
+                    new Role(OnboardingObjectIds.WellKnownRole_RegistrarAdmin, "RegistrarAdmin")
+                ]), Is.True);
+            ISession session = await ConnectAsync(
+                m_device, new UserIdentity("ticket-admin", Encoding.UTF8.GetBytes(m_password))).ConfigureAwait(false);
+            try
+            {
+                BrowseResponse supertypes = await session.BrowseAsync(null, null, 0,
+                [
+                    new BrowseDescription
+                    {
+                        NodeId = CoreDataTypeIds.EncodedTicket,
+                        BrowseDirection = BrowseDirection.Inverse,
+                        ReferenceTypeId = CoreReferenceTypeIds.HasSubtype,
+                        IncludeSubtypes = false,
+                        NodeClassMask = (uint)NodeClass.DataType,
+                        ResultMask = (uint)BrowseResultMask.All
+                    }
+                ]).ConfigureAwait(false);
+                Assert.That(supertypes.Results.Count, Is.EqualTo(1));
+                Assert.That(supertypes.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(supertypes.Results[0].ContinuationPoint.IsEmpty, Is.True);
+                Assert.That(supertypes.Results[0].References.Count, Is.EqualTo(1));
+                ReferenceDescription supertype = supertypes.Results[0].References[0];
+                Assert.That(supertype.IsForward, Is.False);
+                Assert.That(ExpandedNodeId.ToNodeId(supertype.NodeId, session.NamespaceUris),
+                    Is.EqualTo(CoreDataTypeIds.String));
+
+                BrowseResponse children = await session.BrowseAsync(null, null, 0,
+                [
+                    new BrowseDescription
+                    {
+                        NodeId = ExpandedNodeId.ToNodeId(OnboardingObjectIds.DeviceRegistrar, session.NamespaceUris),
+                        BrowseDirection = BrowseDirection.Forward,
+                        ReferenceTypeId = CoreReferenceTypeIds.HasComponent,
+                        IncludeSubtypes = false,
+                        NodeClassMask = (uint)NodeClass.Object,
+                        ResultMask = (uint)BrowseResultMask.All
+                    }
+                ]).ConfigureAwait(false);
+                Assert.That(children.Results.Count, Is.EqualTo(1));
+                Assert.That(children.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(children.Results[0].ContinuationPoint.IsEmpty, Is.True);
+                ReferenceDescription administration = children.Results[0].References.ToList().Single(
+                    reference => reference.BrowseName.Name == "Administration");
+                var client = new OnboardingClient(session,
+                    ExpandedNodeId.ToNodeId(administration.NodeId, session.NamespaceUris), m_telemetry);
+
+                ArrayOf<StatusCode> statuses = await client.RegisterTicketsAsync(
+                    [first, "not a JSON ticket", second]).ConfigureAwait(false);
+
+                Assert.That(statuses.ToList(), Is.EqualTo(new StatusCode[]
+                {
+                    StatusCodes.Good, StatusCodes.BadTicketInvalid, StatusCodes.Good
+                }));
+                ITicketStore store = m_provider.GetRequiredService<ITicketStore>();
+                TicketRecord? firstStored = await store.FindByProductInstanceUriAsync(m_product).ConfigureAwait(false);
+                TicketRecord? secondStored = await store.FindByProductInstanceUriAsync(secondProduct)
+                    .ConfigureAwait(false);
+                Assert.That(firstStored, Is.Not.Null);
+                Assert.That(secondStored, Is.Not.Null);
+                Assert.That(firstStored!.EncodedTicket, Is.EqualTo(Encoding.UTF8.GetBytes(first)));
+                Assert.That(secondStored!.EncodedTicket, Is.EqualTo(Encoding.UTF8.GetBytes(second)));
+                Assert.That(Encoding.UTF8.GetString(firstStored.EncodedTicket), Is.EqualTo(first));
+                Assert.That(Encoding.UTF8.GetString(secondStored.EncodedTicket), Is.EqualTo(second));
+                int count = 0;
+                await foreach (TicketRecord _ in store.ListAsync().ConfigureAwait(false))
+                {
+                    count++;
+                }
+                Assert.That(count, Is.EqualTo(2));
+            }
+            finally
+            {
+                await CloseSessionAsync(session).ConfigureAwait(false);
             }
         }
 
