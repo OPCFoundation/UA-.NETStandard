@@ -266,7 +266,7 @@ support gap.
 | [Cranes and Hoists](CranesHoists.md), OPC 40020-1 | Full | Robotics-derived topology, load/protection observations and authorized limit requests; not a motion or safety controller |
 | [Pumps](Pumps.md), OPC 40223 | Partial | Model, builders and typed clients; writable identification is not retained and pump-specific alarms, event notification and history are absent |
 | [AutoID Devices](AutoID.md), OPC 30010 | Partial | Reader hosting, scanning, RFID access, RTLS, events and clients; Full facet lacks `ScanActive` control/RuntimeParameters, and the optical-verifier Scan declaration is inconsistent upstream |
-| [Scales](Scales.md), OPC 40200 | Partial | Weighing, products, registered catchweigher/price-labeler items, completed hopper fills, recipes, PackML and typed clients; opt-in analog/edge waits use registered local sources, but recipe shutdown regression validation remains pending |
+| [Scales](Scales.md), OPC 40200 | Partial | Weighing, products, registered items, completed fills, recipes, PackML and typed clients; prior exact-head Scales artifacts passed 338/338 including shutdown regressions, but overall CI failed and package signing was not reached. Real-session analog/edge wait tests are added but unrun; see [Scales validation](Scales.md#conformance-matrix) |
 | [ISA-95](ISA95.md), OPC 10030 and OPC 10031-4 | Full | Common resources and Job Control V1/V2 server/client interfaces; providers supply execution, catalogues and persistence |
 | [Positioning](Positioning.md), OPC 10000-210/-211 | Full | RSL/GPOS models, spatial lists, model changes, positions, locations, zones and transforms; hardware observations require providers |
 | [Robotics](Robotics.md), OPC 40010-1 | Full | Released motion-device topology and controller/program interfaces; physical motion and safety behavior remain equipment responsibilities |
@@ -922,7 +922,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 40092-1: Flexible PUR Foam - Cutting Machines](https://reference.opcfoundation.org/specs/OPC-40092-1) | 1.0.0 | No | - |
 | [OPC 40100-1: Machine Vision - Control, Configuration, Recipe and Result Management](https://reference.opcfoundation.org/specs/OPC-40100-1) | 1.0 | Full | - |
 | [OPC 40100-2: Machine Vision - Asset Management and Condition Monitoring](https://reference.opcfoundation.org/specs/OPC-40100-2) | 1.00.0 | Full | - |
-| [OPC 40200: Weighing Technology](https://reference.opcfoundation.org/specs/OPC-40200) | 2.00 | Partial | Item processing, completed fills and opt-in recipe waits implemented; recipe shutdown regression validation pending |
+| [OPC 40200: Weighing Technology](https://reference.opcfoundation.org/specs/OPC-40200) | 2.00 | Partial | Real-session analog/edge condition tests were added after the exact-head Scales TRX run and remain unrun; overall CI failed and package signing was not reached |
 | [OPC 40210: Geometric Measurement Systems](https://reference.opcfoundation.org/specs/OPC-40210) | 1.0.1 | Partial | Production facet withheld: required GMS_ProductionStatisticsType undefined upstream |
 | [OPC 40223: Pumps and Vacuum Pumps](https://reference.opcfoundation.org/specs/OPC-40223) | 1.0 | Partial | Writable identification not retained; pump alarms, event notification and history missing |
 | [OPC 40250-1: Compressed Air Systems - Main Control Systems](https://reference.opcfoundation.org/specs/OPC-40250-1) | 1.00.1 | No | - |

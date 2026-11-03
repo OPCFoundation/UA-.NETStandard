@@ -79,6 +79,8 @@ namespace Opc.Ua.Scales.Tests
         }
 
         private readonly bool m_composed;
+        private const uint s_analogConditionSourceId = 41;
+        private const uint s_edgeConditionSourceId = 42;
         private static string s_endpointUrl = string.Empty;
         private readonly Dictionary<string, ScaleHandle> m_scales = [];
         private ScaleSystemHandle? m_system;
@@ -273,6 +275,19 @@ namespace Opc.Ua.Scales.Tests
                         .AddProduct("BATCH", new LocalizedText("Batch")).Select("BATCH"));
                 },
                 ct);
+            RecipeController recipes = m_scales["Recipe"].Recipes!;
+            recipes.EnableConditionWaits(TimeSpan.FromMinutes(5));
+            recipes.RegisterConditionSource(
+                s_analogConditionSourceId,
+                NodeId.Null,
+                new LocalizedText("Analog condition source"),
+                BuiltInType.Double,
+                ScaleUnits.Kilogram);
+            recipes.RegisterConditionSource(
+                s_edgeConditionSourceId,
+                NodeId.Null,
+                new LocalizedText("Boolean edge source"),
+                BuiltInType.Boolean);
             foreach ((string name, ScaleKind kind) in new[]
             {
                 ("Catch", ScaleKind.Catchweigher),
@@ -855,6 +870,202 @@ namespace Opc.Ua.Scales.Tests
                 break;
             }
             Assert.That(receivedReport, Is.True);
+        }
+
+        /// <summary>
+        /// Verifies an analog condition blocks a recipe until the registered source satisfies it.
+        /// </summary>
+        [Test]
+        public async Task ClientRecipeWaitsForAnalogSourceBeforeProgressingAsync()
+        {
+            ushort scalesNamespaceIndex = m_session.NamespaceUris.GetIndexOrAppend(Namespaces.Scales);
+            ScaleHandle scale = m_scales["Recipe"];
+            NodeId recipe = await m_client.AddRecipeAsync(
+                scale.NodeId, "AnalogCondition", new LocalizedText("Analog condition"));
+            NodeId conditionId = await m_client.AddRecipeElementAsync(
+                recipe,
+                new NodeId(ObjectTypes.AnalogConditionSleepType, scalesNamespaceIndex),
+                "AnalogWait",
+                [recipe]);
+            NodeId nextId = await m_client.AddRecipeElementAsync(
+                recipe,
+                new NodeId(ObjectTypes.TimerType, scalesNamespaceIndex),
+                "AfterAnalogWait",
+                [conditionId]);
+            Assert.That(conditionId.IsNull || nextId.IsNull, Is.False);
+
+            var product = (RecipeProductState)scale.ProductionPreset!.ActiveProduct!;
+            product.RecipeNodeId!.Value = recipe;
+            await WriteAnalogConditionAsync(conditionId);
+            ObserveConditionSource(s_analogConditionSourceId, Variant.From(0.0));
+
+            await m_client.ProcessRecipeAsync(scale.NodeId, BrowseNames.StartRecipe, recipe);
+            string[] waitingReport = await ReadRecipeMessagesAsync(product.NodeId);
+            Assert.That(waitingReport, Does.Contain("Element 'AnalogWait' started."));
+            Assert.That(waitingReport, Does.Not.Contain("Element 'AnalogWait' condition satisfied."));
+            Assert.That(waitingReport, Does.Not.Contain("Element 'AfterAnalogWait' started."));
+
+            ObserveConditionSource(s_analogConditionSourceId, Variant.From(10.0));
+            string[] progressedReport = await WaitForRecipeMessageAsync(
+                product.NodeId,
+                "Element 'AfterAnalogWait' started.");
+            Assert.That(progressedReport, Does.Contain("Element 'AnalogWait' condition satisfied."));
+        }
+
+        /// <summary>
+        /// Verifies a Boolean edge condition blocks a recipe until the registered source changes.
+        /// </summary>
+        [Test]
+        public async Task ClientRecipeWaitsForBooleanEdgeBeforeProgressingAsync()
+        {
+            ushort scalesNamespaceIndex = m_session.NamespaceUris.GetIndexOrAppend(Namespaces.Scales);
+            ScaleHandle scale = m_scales["Recipe"];
+            NodeId recipe = await m_client.AddRecipeAsync(
+                scale.NodeId, "EdgeCondition", new LocalizedText("Edge condition"));
+            NodeId conditionId = await m_client.AddRecipeElementAsync(
+                recipe,
+                new NodeId(ObjectTypes.EdgeTriggeredSleepType, scalesNamespaceIndex),
+                "EdgeWait",
+                [recipe]);
+            NodeId nextId = await m_client.AddRecipeElementAsync(
+                recipe,
+                new NodeId(ObjectTypes.TimerType, scalesNamespaceIndex),
+                "AfterEdgeWait",
+                [conditionId]);
+            Assert.That(conditionId.IsNull || nextId.IsNull, Is.False);
+
+            var product = (RecipeProductState)scale.ProductionPreset!.ActiveProduct!;
+            product.RecipeNodeId!.Value = recipe;
+            await WriteEdgeConditionAsync(conditionId);
+            ObserveConditionSource(s_edgeConditionSourceId, Variant.From(false));
+
+            await m_client.ProcessRecipeAsync(scale.NodeId, BrowseNames.StartRecipe, recipe);
+            string[] waitingReport = await ReadRecipeMessagesAsync(product.NodeId);
+            Assert.That(waitingReport, Does.Contain("Element 'EdgeWait' started."));
+            Assert.That(waitingReport, Does.Not.Contain("Element 'EdgeWait' condition satisfied."));
+            Assert.That(waitingReport, Does.Not.Contain("Element 'AfterEdgeWait' started."));
+
+            ObserveConditionSource(s_edgeConditionSourceId, Variant.From(true));
+            string[] progressedReport = await WaitForRecipeMessageAsync(
+                product.NodeId,
+                "Element 'AfterEdgeWait' started.");
+            Assert.That(progressedReport, Does.Contain("Element 'EdgeWait' condition satisfied."));
+        }
+
+        /// <summary>
+        /// Writes analog wait settings through the connected OPC UA client session.
+        /// </summary>
+        private async Task WriteAnalogConditionAsync(NodeId conditionId)
+        {
+            var condition = (AnalogConditionSleepState)m_runtime.Manager.FindPredefinedNode(conditionId)!;
+            WriteResponse response = await m_session.WriteAsync(
+                null,
+                new WriteValue[]
+                {
+                    new()
+                    {
+                        NodeId = condition.ThresholdValueId!.NodeId,
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue(Variant.From(
+                            s_analogConditionSourceId.ToString(CultureInfo.InvariantCulture)))
+                    },
+                    new()
+                    {
+                        NodeId = condition.TargetThresholdValue!.NodeId,
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue(Variant.From(10.0))
+                    },
+                    new()
+                    {
+                        NodeId = condition.TargetThresholdValue.EngineeringUnits!.NodeId,
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue(Variant.From(new ExtensionObject(ScaleUnits.Kilogram)))
+                    },
+                    new()
+                    {
+                        NodeId = condition.ConditionMode!.NodeId,
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue(Variant.From((int)EqualityAndRelationalOperator.Equal_0))
+                    }
+                }.ToArrayOf(),
+                CancellationToken.None);
+            Assert.That(response.Results.Count, Is.EqualTo(4));
+            Assert.That(response.Results.ToArray().All(StatusCode.IsGood), Is.True);
+        }
+
+        /// <summary>
+        /// Writes rising-edge wait settings through the connected OPC UA client session.
+        /// </summary>
+        private async Task WriteEdgeConditionAsync(NodeId conditionId)
+        {
+            var condition = (EdgeTriggeredSleepState)m_runtime.Manager.FindPredefinedNode(conditionId)!;
+            WriteResponse response = await m_session.WriteAsync(
+                null,
+                new WriteValue[]
+                {
+                    new()
+                    {
+                        NodeId = condition.ThresholdValueId!.NodeId,
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue(Variant.From(
+                            s_edgeConditionSourceId.ToString(CultureInfo.InvariantCulture)))
+                    },
+                    new()
+                    {
+                        NodeId = condition.TargetThresholdValue!.NodeId,
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue(Variant.From(true))
+                    },
+                    new()
+                    {
+                        NodeId = condition.ConditionMode!.NodeId,
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue(Variant.From((int)EdgeOperator.Rising_0))
+                    }
+                }.ToArrayOf(),
+                CancellationToken.None);
+            Assert.That(response.Results.Count, Is.EqualTo(3));
+            Assert.That(response.Results.ToArray().All(StatusCode.IsGood), Is.True);
+        }
+
+        /// <summary>
+        /// Publishes a fresh application-supplied sample to the recipe controller.
+        /// </summary>
+        private void ObserveConditionSource(uint sourceId, Variant value)
+        {
+            var sample = new DataValue(value, StatusCodes.Good, (DateTimeUtc)DateTime.UtcNow);
+            m_scales["Recipe"].Recipes!.ObserveConditionSource(sourceId, sample);
+        }
+
+        /// <summary>
+        /// Reads recipe progress from the active product through the typed client.
+        /// </summary>
+        private async Task<string[]> ReadRecipeMessagesAsync(
+            NodeId productId, CancellationToken cancellationToken = default)
+        {
+            ScaleRecipeStatus status = await m_client.ReadRecipeStatusAsync(productId, cancellationToken);
+            Assert.That(status.Report.HasValue, Is.True);
+            return status.Report.Value.ToArray()!
+                .Select(entry => entry.ReportMessage.Text ?? string.Empty)
+                .ToArray();
+        }
+
+        /// <summary>
+        /// Polls the typed client report until the expected recipe transition is visible.
+        /// </summary>
+        private async Task<string[]> WaitForRecipeMessageAsync(
+            NodeId productId, string expectedMessage)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            while (true)
+            {
+                string[] messages = await ReadRecipeMessagesAsync(productId, timeout.Token);
+                if (messages.Contains(expectedMessage, StringComparer.Ordinal))
+                {
+                    return messages;
+                }
+                await Task.Delay(TimeSpan.FromMilliseconds(20), timeout.Token);
+            }
         }
 
         [Test]

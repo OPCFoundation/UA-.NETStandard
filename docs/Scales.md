@@ -874,8 +874,25 @@ Status key: ✅ implemented and tested over a real session ·
 test · ❌ not shipped.
 
 The tables identify implementation paths and their tests, not certification.
-Remote validation of the corrected recipe shutdown regressions remains pending;
-the [published-specification matrix](Profiles.md#published-specification-support-matrix)
+The four Scales TRX artifacts for fork CI run `41599999425` at source
+`8e34fc31e21fe09f422adae8e66dc9e3b8a9053a` each report 338/338 passing:
+Windows net48 artifact `13219263694`, Windows net10 artifact `13232132588`,
+Linux net10 artifact `13235438540`, and macOS net10 artifact `13232716018`.
+All seven timer-failure, admitted-subscriber-drain and shared-disposal cases
+passed. The workflow failed overall. A Windows Client request-count test saw
+six requests where five were expected. Source review found a possible ABA
+interleaving in unchanged `ClassicSubscriptionEngine.TryReservePublishRequest`,
+but the CI thread schedule and any connection to Scales are unproven. A Linux
+runner exhausted disk, nine macOS jobs could not acquire hosted runners, and
+the summary marked build-and-test abandoned. Fork package run `41599997741`
+stopped at relevance detection because `origin/master` was unavailable; signing
+was not reached.
+
+Analog and edge condition waits have deterministic in-process tests. Real
+host/client tests have been added to exercise an unsatisfied wait and
+client-visible progression after the source changes, but those additions have
+not been run. The prior TRX results do not validate them. The
+[published-specification matrix](Profiles.md#published-specification-support-matrix)
 therefore retains Partial support for OPC 40200.
 
 OPC 40200 defines server facets only; there are no client facets or client
@@ -922,7 +939,7 @@ are left out (`ScaleFacetsBringTheMachineIdentificationTheyIncludeAsync`,
 | Machinery Machine Identification, Find Machines | ✅ | `IdentificationWithoutMandatoryFieldsIsRejectedAsync`; `ClientDiscoversEveryScaleOnceWithItsKindAsync` |
 | Machinery building blocks, MachineryItemState, OperationMode | 🧪 | `StateSettersPublishTheMachineryStatesAndProcessStateAsync` |
 | *RecipeManagment*, *DynamicRecipeManagement*, *FileRecipeManagement* | ✅ | as RecipeScale above |
-| Opt-in analog and edge recipe condition waits | 🧪 | `AnalogOperatorsObserveEqualityAndAdjacentBoundaries`; `BooleanEdgesRequireTransitionAfterActivation`; `TimeoutLatchesInterventionInsteadOfAutomaticSuccess`; `DisabledConditionWaitsRetainManualExecution` |
+| Opt-in analog and edge recipe condition waits | 🧪 | In-process: `AnalogOperatorsObserveEqualityAndAdjacentBoundaries`; `BooleanEdgesRequireTransitionAfterActivation`; `TimeoutLatchesInterventionInsteadOfAutomaticSuccess`; `DisabledConditionWaitsRetainManualExecution`. Real-session tests `ClientRecipeWaitsForAnalogSourceBeforeProgressingAsync` and `ClientRecipeWaitsForBooleanEdgeBeforeProgressingAsync` are added but unrun |
 | Method veto through `CommandInterceptor` | 🧪 | `CommandInterceptorCanVetoACommandAsync`; `PieceCountingLocalCallsMatchTheMethodsAsync` |
 | Runtime members thread-safe against method calls | 🧪 | `EquipmentReportsAreAtomicAgainstTheScaleLockAsync`; `CalibrationReportsAreAtomicAgainstTheScaleLockAsync` |
 | Local operator calls for piece counting and vehicle weighing | 🧪 | `PieceCountingLocalCallsMatchTheMethodsAsync`; `VehicleLocalCallsMatchTheMethodsAsync` |
@@ -963,7 +980,7 @@ dotnet test tests/Opc.Ua.Scales.Tests
 | `ScalesNodeManagerTests` | Every kind, the methods, PackML, presets, zones, facets, in-process |
 | `ScaleTypeControllerTests` | The type controllers, modules, recipes, recipe files and systems |
 | `ScalesCompositionTests` | Every scale kind on the stock Machinery owner, provider ordering, instance ownership, cancellation, and standalone/composed file-resource disposal |
-| `ScalesClientServerE2eTests` | Standalone and shared Machinery/Pumps/Scales hosts over real sessions, including AMB aliases, file methods, PackML, weight subscriptions and nested events |
+| `ScalesClientServerE2eTests` | Standalone and shared Machinery/Pumps/Scales hosts over real sessions, including AMB aliases, file methods, PackML, weight subscriptions, nested events, and analog/edge recipe condition waits (new wait tests are unrun) |
 
 The end-to-end fixture is the one that matters for anything a client sees.
 Two defects this work found passed every in-process assertion:
