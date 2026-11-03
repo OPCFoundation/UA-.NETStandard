@@ -196,6 +196,35 @@ namespace Opc.Ua.AutoID.Tests
         }
 
         /// <summary>
+        /// Normalizes present null and empty polarization strings without treating an absent field as available.
+        /// </summary>
+        [TestCase(null)]
+        [TestCase("")]
+        public async Task PolarizationPresencePreservesQualityForNullAndEmptyStringsAsync(string? polarization)
+        {
+            await using AutoIdReader reader = await CreateAsync().ConfigureAwait(false);
+            RfidAccessResult report = Access();
+            report.EncodingMask |= (uint)RfidAccessResultFields.Polarization;
+            report.Polarization = polarization;
+            await reader.ReportAccessAsync("Scan", "Controller", [report]).ConfigureAwait(false);
+            BaseVariableState variable = Variable(reader, "LastAccess", "Polarization");
+            Assert.Multiple(() =>
+            {
+                Assert.That(variable.Value, Is.EqualTo(Variant.From(string.Empty)));
+                Assert.That(variable.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(variable.Timestamp, Is.EqualTo(report.Timestamp));
+            });
+            report.EncodingMask &= ~(uint)RfidAccessResultFields.Polarization;
+            await reader.ReportAccessAsync("Scan", "Controller", [report]).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(variable.Value.IsNull, Is.True);
+                Assert.That(variable.StatusCode, Is.EqualTo(StatusCodes.BadNoData));
+                Assert.That(variable.Timestamp, Is.EqualTo(report.Timestamp));
+            });
+        }
+
+        /// <summary>
         /// Retains independent identifier and RWData storage after the provider reuses its buffers.
         /// </summary>
         [TestCase("Identifier", ScanDataFields.ByteString)]
