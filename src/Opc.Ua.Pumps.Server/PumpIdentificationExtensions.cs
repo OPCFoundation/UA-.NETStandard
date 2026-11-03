@@ -214,10 +214,14 @@ namespace Opc.Ua.Pumps.Server
         /// </summary>
         private sealed class IdentityRegistrations
         {
-            /// <summary>Serializes restoration and identity reservation.</summary>
+            /// <summary>
+            /// Serializes restoration and identity reservation.
+            /// </summary>
             public SemaphoreSlim Gate { get; } = new(1, 1);
 
-            /// <summary>Already bound stable identities.</summary>
+            /// <summary>
+            /// Already bound stable identities.
+            /// </summary>
             public Dictionary<string, NodeId> Identities { get; } = new(StringComparer.Ordinal);
         }
 
