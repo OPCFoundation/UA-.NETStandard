@@ -45,7 +45,8 @@ namespace Opc.Ua.AutoID.Server
             AutoIdScanParameters parameters,
             ArrayOf<string> codes,
             bool control,
-            ArrayOf<RolePermissionType> permissions)
+            ArrayOf<RolePermissionType> permissions,
+            AutoIdReaderParameterCapabilities? capabilities = null)
         {
             device.AddRuntimeParameters(context);
             BaseObjectState runtime = device.RuntimeParameters!;
@@ -63,24 +64,8 @@ namespace Opc.Ua.AutoID.Server
                 ExpandedNodeId.ToNodeId(DataTypeIds.CodeTypeDataType, context.NamespaceUris),
                 Variant.From(parameters.CodeType));
 
-            var selected = new MultiStateDiscreteState(runtime);
-            selected.Create(context, NodeId.Null, new QualifiedName("CodeTypes", ns),
-                new LocalizedText("CodeTypes"), true);
-            selected.ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasComponent;
-            selected.DataType = Opc.Ua.DataTypeIds.UInt32;
-            selected.ValueRank = ValueRanks.OneDimension;
-            selected.ArrayDimensions = [0];
-            selected.AccessLevel = selected.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-            selected.Value = Variant.From(parameters.CodeTypes);
-            selected.StatusCode = StatusCodes.Good;
-            selected.Timestamp = DateTimeUtc.Now;
-            var names = new LocalizedText[codes.Count];
-            for (int i = 0; i < names.Length; i++)
-            {
-                names[i] = new LocalizedText(codes[i]);
-            }
-            selected.EnumStrings!.Value = names.ToArrayOf();
-            runtime.AddChild(selected);
+            AddParameterSelection(context, runtime, "CodeTypes", codes, parameters.CodeTypes);
+            ConfigureReaderParameters(context, runtime, parameters, capabilities);
             if (control)
             {
                 device.AddScanActive(context);
@@ -184,7 +169,10 @@ namespace Opc.Ua.AutoID.Server
                 if (child is BaseVariableState variable &&
                     variable.BrowseName.NamespaceIndex ==
                         Runtime.SystemContext.NamespaceUris.GetIndex(AutoIdModel.NamespaceUri) &&
-                    variable.BrowseName.Name is "Duration" or "Cycles" or "DataAvailable" or "CodeType" or "CodeTypes")
+                    (variable.BrowseName.Name is
+                        "Duration" or "Cycles" or "DataAvailable" or "CodeType" or "CodeTypes" ||
+                        (variable.Parent == Device.RuntimeParameters &&
+                            SupportsReaderParameter(variable.BrowseName.Name))))
                 {
                     variable.OnWriteValueAsync = async (context, node, range, value, ct) =>
                     {
@@ -286,6 +274,11 @@ namespace Opc.Ua.AutoID.Server
                     }
                     try
                     {
+                        if (variable.BrowseName.Name == "EnableAntennas" &&
+                            value.TryGetValue(out uint antennaMask) && antennaMask == 0)
+                        {
+                            return ServiceResult.Good;
+                        }
                         AutoIdScanParameters next = variable.BrowseName.Name switch
                         {
                             "Duration" when value.TryGetValue(out double duration) =>
@@ -296,17 +289,38 @@ namespace Opc.Ua.AutoID.Server
                             "CodeType" when value.TryGetValue(out string code) =>
                                 m_parameters! with { CodeType = code },
                             "CodeTypes" when value.TryGetValue(out ArrayOf<uint> codes) =>
-                                m_parameters! with { CodeTypes = codes.ToArray().ToArrayOf() },
+                                m_parameters! with { CodeTypes = codes },
+                            "TagTypes" when value.TryGetValue(out ArrayOf<uint> tags) =>
+                                m_parameters! with { TagTypes = tags },
+                            "RfPower" when value.TryGetValue(out sbyte power) =>
+                                m_parameters! with { RfPower = power },
+                            "MinRssi" when value.TryGetValue(out int rssi) =>
+                                m_parameters! with { MinRssi = rssi },
+                            "EnableAntennas" when value.TryGetValue(out uint antennas) =>
+                                m_parameters! with { EnableAntennas = antennas },
+                            "TemplateName" when value.TryGetValue(out string template) =>
+                                m_parameters! with { TemplateName = template },
+                            "MatchCode" when value.TryGetValue(out string match) =>
+                                m_parameters! with { MatchCode = match },
                             _ => throw ServiceResultException.Create(
                                 StatusCodes.BadTypeMismatch, "Invalid parameter type.")
                         };
                         var provider = (IAutoIdScanParametersProvider)Provider;
                         ValidateParameters(next, provider.SupportedCodeTypes);
-                        await provider.WriteParametersAsync(next, linked.Token).ConfigureAwait(false);
-                        m_parameters = next;
-                        variable.WrappedValue = variable.BrowseName.Name == "CodeTypes"
-                            ? Variant.From(next.CodeTypes.ToArray().ToArrayOf())
-                            : value;
+                        ValidateReaderParameters(next, Kind, m_parameterCapabilities);
+                        next = SnapshotParameters(next);
+                        await provider.WriteParametersAsync(SnapshotParameters(next), linked.Token)
+                            .ConfigureAwait(false);
+                        lock (m_lock)
+                        {
+                            m_parameters = next;
+                        }
+                        variable.WrappedValue = variable.BrowseName.Name switch
+                        {
+                            "CodeTypes" => Variant.From(CopyParameterArray(next.CodeTypes)),
+                            "TagTypes" => Variant.From(CopyParameterArray(next.TagTypes)),
+                            _ => value
+                        };
                         variable.Timestamp = DateTimeUtc.Now;
                         variable.StatusCode = StatusCodes.Good;
                         variable.ClearChangeMasks(Runtime.SystemContext, false);

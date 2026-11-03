@@ -64,6 +64,7 @@ the reader publishes exactly those methods.
 | `IAutoIdRfidProvider` | `ReadTag`, `WriteTag`, `WriteTagID`, `KillTag`, `LockTag`, `SetTagPassword` (per `SupportedOperations`) |
 | `IAutoIdRtlsProvider` | `GetLocation`, `GetSupportedLocationTypes` |
 | `IAutoIdScanParametersProvider` | `WithRuntimeParameters()` publishes configuration; `WithRuntimeParameters(true)` also enables `ScanActive` with an asynchronous scan provider |
+| `IAutoIdReaderParametersProvider` | Adds explicitly supported standard RFID or OCR/optical parameters through the same snapshot and commit path |
 
 Providers report scans, completion, presence, logbook entries and device accesses
 through the `IAutoIdReaderSink` they receive on attach. The package ships
@@ -93,6 +94,19 @@ parameter variables. The in-memory RFID provider supports the EPC format;
 production hardware and persistent settings remain provider responsibilities.
 The optional `configure` callback adds application-namespace reader-specific
 parameters before registration, retaining their application-owned bindings.
+
+`IAutoIdReaderParametersProvider` supplies stable capability catalogues and
+optional values in `AutoIdScanParameters`. RFID supports the standard
+`TagTypes`, scalar `RfPower`, `MinRssi` and `EnableAntennas`
+bindings; OCR and optical readers, including verifiers, support configured
+`TemplateName` and `MatchCode`. Unsupported capabilities remain absent.
+`TagTypes` has a mandatory read-only `EnumStrings` property.
+`EnableAntennas` cannot exceed the provider's general configuration; a zero
+write has no effect. `CodeTypesRWData` remains absent because the existing
+method-report path has no selectable diagnostic formatting contract. No access-event
+payload behavior is changed. Provider-reported access results use the existing sink.
+See the guide for the scalar
+power boundary and complete provider contract.
 
 Use `WithDiagnostics()` to publish read-only Presence, Logbook and LastAccess
 from the existing sink and method-report paths. RFID LastAccess includes the

@@ -243,6 +243,158 @@ namespace Opc.Ua.AutoID.Tests
         }
 
         /// <summary>
+        /// Browses, reads and writes explicitly supported reader parameters through real services.
+        /// </summary>
+        [TestCase(AutoIdReaderKind.Rfid)]
+        [TestCase(AutoIdReaderKind.Ocr)]
+        [TestCase(AutoIdReaderKind.Optical)]
+        [TestCase(AutoIdReaderKind.OpticalVerifier)]
+        [TestCase(AutoIdReaderKind.Rtls)]
+        public async Task ReaderSpecificParametersUseRealServicesAndPreserveCoreWritesAsync(AutoIdReaderKind kind)
+        {
+            AutoIdParameterControlTests.ParameterProvider provider =
+                AutoIdParameterControlTests.SpecificProvider(kind);
+            await using AutoIdReader reader = await m_host.Runtime.Reader(Name(), provider)
+                .WithRuntimeParameters().BuildAsync().ConfigureAwait(false);
+            var children = new List<BaseInstanceState>();
+            reader.Device.RuntimeParameters!.GetChildren(m_host.Runtime.SystemContext, children);
+            foreach (BaseInstanceState child in children)
+            {
+                await AssertBrowsableChildAsync(reader.Device.RuntimeParameters, child).ConfigureAwait(false);
+            }
+            if (kind == AutoIdReaderKind.Rtls)
+            {
+                Assert.That(children.Count, Is.EqualTo(2));
+                return;
+            }
+            bool rfid = kind == AutoIdReaderKind.Rfid;
+            BaseVariableState variable = (BaseVariableState)children.Single(child =>
+                child.BrowseName.Name == (rfid ? "TagTypes" : "TemplateName"));
+            Variant selection = rfid ? Variant.From(new uint[] { 1 }.ToArrayOf()) : Variant.From("B");
+            WriteResponse write = await m_session.WriteAsync(null,
+                [new WriteValue
+                {
+                    NodeId = variable.NodeId,
+                    AttributeId = Attributes.Value,
+                    Value = new DataValue(selection)
+                }], CancellationToken.None).ConfigureAwait(false);
+            Assert.That(write.Results[0], Is.EqualTo(StatusCodes.Good));
+            AutoIdReaderEntry entry = await m_client.GetReaderAsync(reader.NodeId).ConfigureAwait(false);
+            AutoIdScanParameterReadResult core = await m_client.ReadScanParametersAsync(entry).ConfigureAwait(false);
+            AutoIdScanParameterStatus coreWrite = await m_client.WriteScanParametersAsync(
+                entry, core.Parameters with { Cycles = 2 }).ConfigureAwait(false);
+            Assert.That(coreWrite.Cycles, Is.EqualTo(StatusCodes.Good));
+            ReadResponse read = await m_session.ReadAsync(null, 0, TimestampsToReturn.Source,
+                [new ReadValueId { NodeId = variable.NodeId, AttributeId = Attributes.Value }],
+                CancellationToken.None).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(read.Results[0].WrappedValue, Is.EqualTo(selection));
+                Assert.That(read.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(read.Results[0].SourceTimestamp.IsNull, Is.False);
+                Assert.That(provider.Parameters.Cycles, Is.EqualTo(2));
+            });
+            WriteResponse invalid = await m_session.WriteAsync(null,
+                [new WriteValue
+                {
+                    NodeId = variable.NodeId,
+                    AttributeId = Attributes.Value,
+                    Value = new DataValue(rfid
+                        ? Variant.From(new uint[] { 99 }.ToArrayOf()) : Variant.From("Unknown"))
+                }], CancellationToken.None).ConfigureAwait(false);
+            Assert.That(invalid.Results[0], Is.EqualTo(StatusCodes.BadOutOfRange));
+            if (rfid)
+            {
+                var tags = (MultiStateDiscreteState)variable;
+                await AssertBrowsableChildAsync(tags, tags.EnumStrings!).ConfigureAwait(false);
+                ReadResponse labels = await m_session.ReadAsync(null, 0, TimestampsToReturn.Neither,
+                    [new ReadValueId { NodeId = tags.EnumStrings!.NodeId, AttributeId = Attributes.Value }],
+                    CancellationToken.None).ConfigureAwait(false);
+                Assert.That(labels.Results[0].WrappedValue.TryGetValue(out ArrayOf<LocalizedText> names), Is.True);
+                Assert.That(names[1].Text, Is.EqualTo("ISO 15693"));
+                WriteResponse denied = await m_session.WriteAsync(null,
+                    [new WriteValue
+                    {
+                        NodeId = tags.EnumStrings.NodeId,
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue(Variant.From(new LocalizedText[] { new("Changed") }.ToArrayOf()))
+                    }], CancellationToken.None).ConfigureAwait(false);
+                Assert.That(denied.Results[0], Is.EqualTo(StatusCodes.BadNotWritable));
+                BaseVariableState antennas = (BaseVariableState)children.Single(child =>
+                    child.BrowseName.Name == "EnableAntennas");
+                DateTimeUtc timestamp = antennas.Timestamp;
+                int commits = provider.Writes;
+                WriteResponse zero = await m_session.WriteAsync(null,
+                    [new WriteValue
+                    {
+                        NodeId = antennas.NodeId,
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue(Variant.From(0u))
+                    }], CancellationToken.None).ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(zero.Results[0], Is.EqualTo(StatusCodes.Good));
+                    Assert.That(antennas.Value, Is.EqualTo(Variant.From(3u)));
+                    Assert.That(antennas.Timestamp, Is.EqualTo(timestamp));
+                    Assert.That(provider.Writes, Is.EqualTo(commits));
+                    Assert.That(provider.Parameters.TagTypes[0], Is.EqualTo(1u));
+                });
+            }
+            else
+            {
+                Assert.That(provider.Parameters.TemplateName, Is.EqualTo("B"));
+            }
+        }
+
+        /// <summary>
+        /// Service authorization rejects optional writes before calling the shared commit handler.
+        /// </summary>
+        [TestCase(AutoIdReaderKind.Rfid)]
+        [TestCase(AutoIdReaderKind.Ocr)]
+        public async Task ReaderSpecificWritesHonorServerRolePermissionsAsync(AutoIdReaderKind kind)
+        {
+            AutoIdParameterControlTests.ParameterProvider provider =
+                AutoIdParameterControlTests.SpecificProvider(kind);
+            await using AutoIdReader reader = await m_host.Runtime.Reader(Name(), provider)
+                .WithRuntimeParameters()
+                .WithScanWritePermissions(
+                [
+                    new RolePermissionType
+                    {
+                        RoleId = Opc.Ua.ObjectIds.WellKnownRole_Anonymous,
+                        Permissions = (uint)(PermissionType.Browse | PermissionType.Read)
+                    },
+                    new RolePermissionType
+                    {
+                        RoleId = Opc.Ua.ObjectIds.WellKnownRole_AuthenticatedUser,
+                        Permissions = (uint)(PermissionType.Browse | PermissionType.Read)
+                    }
+                ]).BuildAsync().ConfigureAwait(false);
+            ISystemContext context = m_host.Runtime.SystemContext;
+            ushort ns = context.NamespaceUris.GetIndexOrAppend(AutoIdModel.NamespaceUri);
+            string name = kind == AutoIdReaderKind.Rfid ? "MinRssi" : "MatchCode";
+            var variable = (BaseVariableState)reader.Device.RuntimeParameters!.FindChildWithQualifiedName(
+                context, new QualifiedName(name, ns))!;
+            DateTimeUtc timestamp = variable.Timestamp;
+            Variant initial = variable.Value;
+            WriteResponse denied = await m_session.WriteAsync(null,
+                [new WriteValue
+                {
+                    NodeId = variable.NodeId,
+                    AttributeId = Attributes.Value,
+                    Value = new DataValue(kind == AutoIdReaderKind.Rfid
+                        ? Variant.From(-70) : Variant.From("New target"))
+                }], CancellationToken.None).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(denied.Results[0], Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                Assert.That(provider.Writes, Is.Zero);
+                Assert.That(variable.Value, Is.EqualTo(initial));
+                Assert.That(variable.Timestamp, Is.EqualTo(timestamp));
+            });
+        }
+
+        /// <summary>
         /// Reads projected reports and typed tag operations through a real session, including write denial.
         /// </summary>
         [Test]
@@ -396,5 +548,6 @@ namespace Opc.Ua.AutoID.Tests
         private AutoIdClient m_client = null!;
         private int m_sequence;
         private static readonly string[] s_codeTypeNames = ["EPC"];
+
     }
 }

@@ -335,7 +335,12 @@ namespace Opc.Ua.AutoID.Server
                     AutoIdScanParameters parameters = await parametersProvider.ReadParametersAsync(cancellationToken)
                         .ConfigureAwait(false);
                     AutoIdReader.ValidateParameters(parameters, parametersProvider.SupportedCodeTypes);
-                    builder.Parameters = parameters with { CodeTypes = parameters.CodeTypes.ToArray().ToArrayOf() };
+                    builder.ParameterCapabilities = builder.Provider is IAutoIdReaderParametersProvider specific
+                        ? AutoIdReader.SnapshotCapabilities(specific.ReaderParameterCapabilities)
+                        : null;
+                    AutoIdReader.ValidateReaderParameters(
+                        parameters, builder.Provider.Kind, builder.ParameterCapabilities);
+                    builder.Parameters = AutoIdReader.SnapshotParameters(parameters);
                 }
                 (device, applyIdentification) = await CreateDeviceOfKindAsync(builder, cancellationToken)
                     .ConfigureAwait(false);
@@ -369,7 +374,8 @@ namespace Opc.Ua.AutoID.Server
                     builder.Provider,
                     builder.OwnsProviderOnDispose,
                     builder.DeviceLocation != null,
-                    builder.Parameters);
+                    builder.Parameters,
+                    builder.ParameterCapabilities);
                 reader.Bind();
                 await Manager.RegisterRootNotifierAsync(device, cancellationToken).ConfigureAwait(false);
                 await reader.AttachAsync(cancellationToken).ConfigureAwait(false);

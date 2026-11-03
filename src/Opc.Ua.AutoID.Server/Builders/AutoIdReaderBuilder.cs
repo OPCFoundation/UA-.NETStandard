@@ -97,6 +97,11 @@ namespace Opc.Ua.AutoID.Server.Builders
         internal AutoIdScanParameters? Parameters { get; set; }
 
         /// <summary>
+        /// Gets or sets the reader-specific capabilities captured before registration.
+        /// </summary>
+        internal AutoIdReaderParameterCapabilities? ParameterCapabilities { get; set; }
+
+        /// <summary>
         /// Gets the reader-specific parameter composition callback.
         /// </summary>
         internal Action<ISystemContext, BaseObjectState>? ConfigureParameters { get; private set; }

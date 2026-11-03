@@ -84,6 +84,20 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(updated.Parameters.Cycles).IsEqualTo(2);
             await Assert.That(fixture.Provider.Parameters.Cycles).IsEqualTo(2);
 
+            ArrayOf<DataValue> specific = await fixture.WriteAndReadReaderParametersAsync().ConfigureAwait(false);
+            await Assert.That(specific.Count).IsEqualTo(4);
+            await Assert.That(specific[0].WrappedValue).IsEqualTo(Variant.From(new uint[] { 1 }.ToArrayOf()));
+            await Assert.That(specific[1].WrappedValue).IsEqualTo(Variant.From((sbyte)15));
+            await Assert.That(specific[2].WrappedValue).IsEqualTo(Variant.From(-70));
+            await Assert.That(specific[3].WrappedValue).IsEqualTo(Variant.From(1u));
+            for (int index = 0; index < specific.Count; index++)
+            {
+                await Assert.That(specific[index].StatusCode).IsEqualTo(StatusCodes.Good);
+                await Assert.That(specific[index].SourceTimestamp.IsNull).IsFalse();
+            }
+            await Assert.That(fixture.Provider.Parameters.TagTypes[0]).IsEqualTo(1u);
+            await Assert.That(fixture.Provider.Parameters.EnableAntennas).IsEqualTo(1u);
+
             AutoIdScanActiveReadResult idle =
                 await fixture.Client.ReadScanActiveAsync(fixture.Reader).ConfigureAwait(false);
             await Assert.That(idle.Status).IsEqualTo(StatusCodes.Good);
@@ -243,6 +257,47 @@ namespace Opc.Ua.Aot.Tests
                         }
                     ], CancellationToken.None).ConfigureAwait(false);
             return response.Results;
+        }
+
+        /// <summary>
+        /// Exercises the optional reader bindings and their wire encoding in the AOT executable.
+        /// </summary>
+        public async Task<ArrayOf<DataValue>> WriteAndReadReaderParametersAsync()
+        {
+            ISystemContext context = m_hostedReader.Runtime.SystemContext;
+            ushort ns = context.NamespaceUris.GetIndexOrAppend(AutoIdModel.NamespaceUri);
+            string[] names = ["TagTypes", "RfPower", "MinRssi", "EnableAntennas"];
+            Variant[] values =
+            [
+                Variant.From(new uint[] { 1 }.ToArrayOf()),
+                Variant.From((sbyte)15), Variant.From(-70), Variant.From(1u)
+            ];
+            var writes = new WriteValue[names.Length];
+            var reads = new ReadValueId[names.Length];
+            for (int index = 0; index < names.Length; index++)
+            {
+                NodeState node = m_hostedReader.Device.RuntimeParameters!.FindChildWithQualifiedName(
+                    context, new QualifiedName(names[index], ns))!;
+                writes[index] = new WriteValue
+                {
+                    NodeId = node.NodeId,
+                    AttributeId = Attributes.Value,
+                    Value = new DataValue(values[index])
+                };
+                reads[index] = new ReadValueId { NodeId = node.NodeId, AttributeId = Attributes.Value };
+            }
+            WriteResponse write = await m_session!.WriteAsync(null, writes.ToArrayOf(), CancellationToken.None)
+                .ConfigureAwait(false);
+            for (int index = 0; index < write.Results.Count; index++)
+            {
+                if (write.Results[index] != StatusCodes.Good)
+                {
+                    throw new ServiceResultException(write.Results[index]);
+                }
+            }
+            ReadResponse read = await m_session.ReadAsync(null, 0, TimestampsToReturn.Source,
+                reads.ToArrayOf(), CancellationToken.None).ConfigureAwait(false);
+            return read.Results;
         }
 
         /// <inheritdoc/>
@@ -429,7 +484,7 @@ namespace Opc.Ua.Aot.Tests
     /// <summary>
     /// Deterministic provider used by the NativeAOT AutoID integration test.
     /// </summary>
-    public sealed class AutoIdAotProvider : IAutoIdAsyncScanProvider, IAutoIdScanParametersProvider
+    public sealed class AutoIdAotProvider : IAutoIdAsyncScanProvider, IAutoIdReaderParametersProvider
     {
         /// <summary>
         /// Gets the configured RFID reader kind.
@@ -442,10 +497,29 @@ namespace Opc.Ua.Aot.Tests
         public ArrayOf<string> SupportedCodeTypes => ["EPC"];
 
         /// <summary>
+        /// Gets the explicitly simulated reader capabilities; these are not inferred hardware settings.
+        /// </summary>
+        public AutoIdReaderParameterCapabilities ReaderParameterCapabilities { get; } = new()
+        {
+            TagTypes = ["EPC Class1 Gen2 V2", "ISO 15693"],
+            SupportsRfPower = true,
+            SupportsMinRssi = true,
+            ConfiguredAntennas = 3
+        };
+
+        /// <summary>
         /// Gets the committed runtime parameters.
         /// </summary>
         public AutoIdScanParameters Parameters { get; private set; } =
-            new() { CodeType = "EPC", CodeTypes = [0] };
+            new()
+            {
+                CodeType = "EPC",
+                CodeTypes = [0],
+                TagTypes = [0],
+                RfPower = 10,
+                MinRssi = -60,
+                EnableAntennas = 3
+            };
 
         /// <summary>
         /// Gets the number of scan starts requested by the server.

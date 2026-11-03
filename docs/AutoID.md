@@ -383,6 +383,7 @@ implementing more interfaces:
 | `IAutoIdRfidProvider` (`SupportedOperations`) | `ReadTag`, `WriteTag`, `WriteTagID`, `KillTag`, `LockTag`, `SetTagPassword`, each only when listed |
 | `IAutoIdRtlsProvider` | `GetLocation`, `GetSupportedLocationTypes` |
 | `IAutoIdScanParametersProvider` | Opt-in `RuntimeParameters`; with `IAutoIdAsyncScanProvider`, opt-in `ScanActive` |
+| `IAutoIdReaderParametersProvider` | Optional standard reader-specific parameters through the same configuration snapshot and commit |
 
 The sink pushes `ReportScanAsync` (scan event and `LastScanData`),
 `CompleteScanAsync` (a termination condition ended the asynchronous scan),
@@ -465,7 +466,81 @@ Shutdown cancels queued operations, stops scanning and detaches the provider.
 `ScanActive` and every standard writable runtime parameter; the owning server enforces
 them through its normal write authorization.
 
-The optional `configure` callback of `WithRuntimeParameters` adds reader-specific
+#### Standard reader-specific parameters
+
+A provider can additionally implement `IAutoIdReaderParametersProvider`.
+`WithRuntimeParameters()` then binds the parameters declared in its
+`ReaderParameterCapabilities`; it does not infer support from the reader kind,
+antenna names or diagnostic values. Existing providers remain unchanged.
+
+| Reader kind | Optional standard parameters |
+|---|---|
+| RFID | `TagTypes`, `RfPower`, `MinRssi`, `EnableAntennas` |
+| OCR, optical and optical verifier | `TemplateName`, `MatchCode` |
+| RTLS | No additions to the common runtime parameters |
+
+Table 15 and the pinned NodeSet declare both `CodeTypesRWData` and `TagTypes`
+as `UInt32` arrays with `MultiStateDiscreteType`, ValueRank 1,
+ArrayDimensions `[0]` and mandatory namespace-zero `EnumStrings` properties.
+The binder implements `TagTypes` with a read-only `EnumStrings` property.
+The provider declares a stable tag-name catalogue and supplies the selected indexes in
+`AutoIdScanParameters`. Null arrays omit the capability; empty selected arrays
+select no entries. Invalid or duplicate indexes are rejected.
+
+`TemplateName` selects a template already configured on the device; it does not
+create or upload one. For example, an OCR provider with an existing
+`PalletLabel` template can declare the following capability and extend its
+otherwise valid common-parameter snapshot:
+
+```csharp
+public AutoIdReaderParameterCapabilities ReaderParameterCapabilities { get; } =
+    new() { TemplateNames = ["PalletLabel"], SupportsMatchCode = true };
+
+AutoIdScanParameters parameters = currentParameters with
+{
+    TemplateName = "PalletLabel",
+    MatchCode = "PALLET"
+};
+```
+
+The provider implements `ReadParametersAsync` and `WriteParametersAsync` from
+`IAutoIdScanParametersProvider` for the complete snapshot, including these
+fields. The SDK rejects unknown templates; the provider applies the selected
+template and match value to its actual decoding operation.
+
+RFID `RfPower` is scalar `SByte`, `MinRssi` is scalar `Int32` and
+`EnableAntennas` is scalar `UInt32`, matching Table 15 and the pinned NodeSet.
+The specification describes power adjustment per antenna but provides no
+antenna selector for this scalar parameter. The binding does not invent one:
+only a provider that implements the scalar setting can declare `SupportsRfPower`,
+and its antenna mapping remains device-specific. No generic power range or
+RSSI unit is imposed.
+
+`ConfiguredAntennas` is the provider's actual general device configuration.
+Runtime selections can only remove bits from that mask. Bit zero denotes
+antenna one; a zero write succeeds without committing or changing the cached
+value, quality or timestamp, as required by OPC 30010 6.5.3.1. The SDK never
+derives this mask from `AntennaNames`. Capability catalogues and the general
+mask remain fixed for the reader lifetime; recreate the reader when they change.
+
+`CodeTypesRWData` remains absent. OPC 30010 6.5.3.1 makes it configure the
+diagnostic `RWData` format, but the existing tag-method reporting path constructs
+`RAW:BYTES` data without a selectable formatting contract. A provider configuration
+commit alone cannot change that SDK-owned projection. No formatter or
+empty-selection behavior is introduced; access-event payloads and credential
+exclusions remain unchanged. Providers can still report their existing access
+results through the reader sink.
+
+All optional writes use the same authorization, scan-idle check, cancellation
+and complete-snapshot provider commit as the common parameters. Rejected or
+cancelled commits retain the previous published value, quality and timestamp.
+The SDK copies provider and caller arrays; a later array mutation does not
+change its saved configuration or catalogues. The typed client's
+`ReadScanParametersAsync` and `WriteScanParametersAsync` convenience methods
+cover the common fields; their writes preserve reader-specific values on the
+server. Use standard session Browse, Read and Write for the optional variables.
+
+The optional `configure` callback of `WithRuntimeParameters` adds application-specific
 variables under RuntimeParameters before registration. Use the application's
 namespace and supply their declared types, access metadata and value bindings;
 the standard parameter binder preserves those bindings. Reader-specific bindings
@@ -523,11 +598,12 @@ The runtime does not invent vendor IO definitions. OPC 30010 6.1.3.2 defines
 `IOData` as an optional FunctionalGroup for application or reader-specific sensor
 and actuator variables, without standard children. No such hardware points are
 defined by the simulated reader, so it does not publish that group.
-The generic runtime-parameter binder does not publish the standard RFID
-`CodeTypesRWData`, `EnableAntennas`, `MinRssi`, `RfPower` or `TagTypes` parameters.
-These still need provider-backed bindings for the reader's supported formats,
-antenna configuration and RF settings; `WithDiagnostics()` does not implement
-that writable configuration.
+Standard reader-specific runtime parameters require the explicit provider
+capability described above; `WithDiagnostics()` alone does not publish writable
+configuration. The sample's in-memory RFID provider does not implement RF
+configuration, tag-type filtering or selectable diagnostic formats, so those
+optional parameters remain absent rather than advertising simulated hardware
+capabilities it does not implement.
 
 ## Behavior of the methods
 
@@ -755,6 +831,15 @@ readers. These cases are implementation evidence, not OPC certification.
 | Validation and provider-commit failures preserve the old configuration | `InvalidCodeTypeAndIndexesAreRejectedWithoutChangingConfigurationAsync`, `ProviderCommitFailurePreservesPublishedAndProviderValuesAsync` |
 | Commit/start serialization and cancellation | `ParameterCommitSerializesStartAndCancelledCommitLeavesPreviousValuesAsync` |
 | Reader-specific parameter composition and standard role metadata | `ReaderSpecificParameterBindingsAndConfiguredRolePermissionsArePreservedAsync` |
+| Standard reader-kind metadata, ranks and mandatory EnumStrings | `ReaderParametersMatchKindCapabilitiesAndPublishedMetadataAsync` |
+| Unsupported capabilities and invalid initial declarations | `UnsupportedReaderParametersRemainAbsentAsync`, `InvalidInitialReaderParameterDeclarationsAreRejectedAsync` |
+| Complete reader-specific commits and rejected values | `ReaderParameterWritesCommitThroughTheExistingProviderAsync`, `InvalidReaderValuesPreserveConfigurationAndQualityAsync` |
+| Antenna zero and the general configuration boundary | `AntennaZeroIsNoOpAndUnconfiguredBitsAreRejectedAsync` |
+| Reader-specific cancellation, scan serialization and shutdown | `ReaderParameterCancellationSerializesStartAndShutdownRejectsWritesAsync` |
+| Provider rejection and unchanged quality/timestamps | `ReaderParameterCommitFailureCancellationAndActivityPreserveValuesAsync` |
+| Copied provider arrays and frozen catalogues | `CapabilityMismatchIsRejectedAndParameterArraysAreCopiedAsync` |
+| Real-service optional writes, EnumStrings write denial and common-client preservation | `ReaderSpecificParametersUseRealServicesAndPreserveCoreWritesAsync` |
+| Optional-variable access, index ranges and real-service role enforcement | `ReaderParameterAccessDenialAndIndexRangePreserveSettingsAsync`, `ReaderSpecificWritesHonorServerRolePermissionsAsync` |
 | Repeated control writes and session ownership | `RepeatedWritesDoNotRestartAndVariableScanSurvivesSessionClosureAsync`, `MethodAndVariableControlsShareActivityButPreserveMethodOwnershipAsync` |
 | Completion, startup rejection and shutdown | `RejectedStartAndImmediateCompletionNeverLeaveScanActiveTrueAsync`, `NaturalCompletionAndShutdownResetScanActiveAsync`, `WritesAfterShutdownAreRejectedWithoutTouchingDisposedResourcesAsync` |
 | Provider-stop failure retains the active scan | `RejectedStopKeepsTheScanTrackedUntilProviderConfirmationAsync` |
@@ -770,6 +855,8 @@ readers. These cases are implementation evidence, not OPC certification.
 
 `DiagnosticReportsExecuteAndReadThroughDataAccessAsync` in `tests/Opc.Ua.Aot.Tests`
 also exercises report projection and Data Access encoding in the NativeAOT test binary.
+`RuntimeParametersAndScanControlExecuteThroughTypedClientAsync` includes the
+four optional RFID parameter encodings and complete-snapshot commits.
 
 ## Provenance
 

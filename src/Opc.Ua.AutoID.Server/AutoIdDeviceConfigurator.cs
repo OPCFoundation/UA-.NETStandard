@@ -67,7 +67,7 @@ namespace Opc.Ua.AutoID.Server
             {
                 AutoIdReader.ConfigureParameters(context, device, builder.Parameters,
                     ((IAutoIdScanParametersProvider)provider).SupportedCodeTypes, builder.HasScanControl,
-                    builder.ScanWritePermissions);
+                    builder.ScanWritePermissions, builder.ParameterCapabilities);
                 builder.ConfigureParameters?.Invoke(context, device.RuntimeParameters!);
             }
             if (builder.HasDiagnostics)

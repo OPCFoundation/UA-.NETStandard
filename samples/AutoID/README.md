@@ -15,6 +15,10 @@ The server also enables `WithDiagnostics()`. Data Access clients can browse
 including RFID access fields. The values use the same reports as the events;
 clients must compare LastAccess source timestamps before combining fields.
 The simulated provider does not define hardware-specific IOData points.
+It also does not declare optional RF configuration, tag-type filtering or
+selectable diagnostic formats. Those standard runtime parameters require a
+provider that implements their behavior; the sample does not infer hardware
+capabilities from its simulated antenna names or signal measurements.
 
 | Sample | What it does |
 | --- | --- |

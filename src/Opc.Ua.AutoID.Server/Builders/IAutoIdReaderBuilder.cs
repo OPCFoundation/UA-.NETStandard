@@ -129,6 +129,8 @@ namespace Opc.Ua.AutoID.Server.Builders
         /// </param>
         /// <remarks>
         /// Requires IAutoIdScanParametersProvider and, for control, IAutoIdAsyncScanProvider.
+        /// An optional IAutoIdReaderParametersProvider declares supported standard reader-specific
+        /// variables, which use the same complete configuration commit. Undeclared capabilities remain absent.
         /// Settings cannot change during a scan. Variable-triggered scans are device-owned and
         /// survive session closure; method-triggered scans retain their starting session owner.
         /// </remarks>

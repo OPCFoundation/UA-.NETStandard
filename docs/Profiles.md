@@ -47,8 +47,10 @@ AutoID includes provider-backed runtime parameters, variable-triggered scanning
 and typed Data Access clients. Its support remains Partial because the published
 optical-verifier and RTLS method contracts disagree with the imported model.
 Opt-in Diagnostics projects the existing reports. Hardware-specific IOData
-definitions remain application-owned; standard RFID-specific runtime-parameter
-bindings are not supplied.
+definitions remain application-owned. Optional standard RFID and OCR/optical
+runtime parameters use explicitly declared provider capabilities and the existing
+configuration commit path. `CodeTypesRWData` remains unbound because the existing
+tag-method reporting path has no selectable diagnostic formatting contract.
 
 Support describes SDK functionality, not certification of every current
 feature, companion model or application. Historical reference-server
@@ -269,7 +271,7 @@ support gap.
 | [GMS](GMS.md), OPC 40210 | Partial | Systems, sensors, calibration observations, jobs/parts and results; Production facet withheld because upstream leaves `GMS_ProductionStatisticsType` undefined |
 | [Cranes and Hoists](CranesHoists.md), OPC 40020-1 | Full | Robotics-derived topology, load/protection observations and authorized limit requests; not a motion or safety controller |
 | [Pumps](Pumps.md), OPC 40223 | Partial | Model, builders and typed clients; writable identification is not retained and pump-specific alarms, event notification and history are absent |
-| [AutoID Devices](AutoID.md), OPC 30010 | Partial | Reader hosting, provider-backed RuntimeParameters/ScanActive, read-only Diagnostics from existing reports, scanning, RFID access, RTLS, events and typed Data Access clients; Full facet remains withheld for published optical-verifier/RTLS contract discrepancies; RFID-specific parameter bindings are absent and hardware IO definitions remain application-owned |
+| [AutoID Devices](AutoID.md), OPC 30010 | Partial | Reader hosting, provider-backed common and optional reader-specific RuntimeParameters/ScanActive, read-only Diagnostics from existing reports, scanning, RFID access, RTLS, events and typed Data Access clients; Full facet remains withheld for published optical-verifier/RTLS contract discrepancies; CodeTypesRWData remains unbound and hardware IO definitions remain application-owned |
 | [Scales](Scales.md), OPC 40200 | Partial | Weighing, zero/tare, products, statistics, recipes and clients; dedicated catchweigher, price-labeler and totalizing-hopper controllers are missing, as is server evaluation of recipe sleep thresholds |
 | [ISA-95](ISA95.md), OPC 10030 and OPC 10031-4 | Full | Common resources and Job Control V1/V2 server/client interfaces; providers supply execution, catalogues and persistence |
 | [Positioning](Positioning.md), OPC 10000-210/-211 | Full | RSL/GPOS models, spatial lists, model changes, positions, locations, zones and transforms; hardware observations require providers |
@@ -868,7 +870,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 11030: UA Modelling Best Practices](https://reference.opcfoundation.org/specs/OPC-11030) | 1.03.03 | Partial | Selected model-authoring/generator checks; no complete best-practices validator |
 | [OPC 30000: PLCs based on IEC 61131-3](https://reference.opcfoundation.org/specs/OPC-30000) | 1.02 | No | - |
 | [OPC 30001: Client Function Blocks for IEC 61131-3](https://reference.opcfoundation.org/specs/OPC-30001) | 1.02 | No | - |
-| [OPC 30010: AutoID Devices](https://reference.opcfoundation.org/specs/OPC-30010) | 1.01 | Partial | RuntimeParameters/ScanActive, read-only Diagnostics and typed Data Access implemented; Full facet withheld for optical-verifier/RTLS contract discrepancies; RFID-specific parameter bindings are absent and hardware IO definitions remain application-owned |
+| [OPC 30010: AutoID Devices](https://reference.opcfoundation.org/specs/OPC-30010) | 1.01 | Partial | Common and optional reader-specific RuntimeParameters/ScanActive, read-only Diagnostics and typed Data Access implemented; Full facet withheld for optical-verifier/RTLS contract discrepancies; CodeTypesRWData remains unbound and hardware IO definitions remain application-owned |
 | [OPC 30020: MDIS](https://reference.opcfoundation.org/specs/OPC-30020) | 1.3 | No | - |
 | [OPC 30030: BACnet](https://reference.opcfoundation.org/specs/OPC-30030) | 2.00.1 | No | - |
 | [OPC 30040: AutomationML](https://reference.opcfoundation.org/specs/OPC-30040) | 1.00 | No | - |

@@ -41,7 +41,7 @@ namespace Opc.Ua.AutoID.Tests
     /// </summary>
     [TestFixture]
     [Category("AutoID")]
-    public sealed class AutoIdParameterControlTests
+    public sealed partial class AutoIdParameterControlTests
     {
         [OneTimeSetUp]
         public async Task SetUpAsync()
@@ -425,13 +425,18 @@ namespace Opc.Ua.AutoID.Tests
         /// <summary>
         /// Scripted provider for deterministic parameter and completion tests.
         /// </summary>
-        private sealed class ParameterProvider : IAutoIdAsyncScanProvider, IAutoIdScanParametersProvider
+        internal sealed class ParameterProvider : IAutoIdAsyncScanProvider, IAutoIdReaderParametersProvider
         {
-            public AutoIdReaderKind Kind => AutoIdReaderKind.Rfid;
+            public AutoIdReaderKind Kind { get; init; } = AutoIdReaderKind.Rfid;
+
+            /// <summary>
+            /// Gets the explicitly scripted reader capabilities.
+            /// </summary>
+            public AutoIdReaderParameterCapabilities ReaderParameterCapabilities { get; init; } = new();
 
             public ArrayOf<string> SupportedCodeTypes => ["EPC"];
 
-            public AutoIdScanParameters Parameters { get; private set; } = new() { CodeType = "EPC", CodeTypes = [0] };
+            public AutoIdScanParameters Parameters { get; set; } = new() { CodeType = "EPC", CodeTypes = [0] };
 
             public IAutoIdReaderSink? Sink { get; private set; }
 

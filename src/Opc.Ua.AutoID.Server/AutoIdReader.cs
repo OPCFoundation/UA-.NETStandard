@@ -63,7 +63,8 @@ namespace Opc.Ua.AutoID.Server
             IAutoIdReaderProvider provider,
             bool ownsProvider,
             bool hasDeviceLocation,
-            AutoIdScanParameters? parameters = null)
+            AutoIdScanParameters? parameters = null,
+            AutoIdReaderParameterCapabilities? parameterCapabilities = null)
         {
             Runtime = runtime;
             Device = device;
@@ -76,6 +77,7 @@ namespace Opc.Ua.AutoID.Server
             m_rfidProvider = provider as IAutoIdRfidProvider;
             m_rtlsProvider = provider as IAutoIdRtlsProvider;
             m_parameters = parameters;
+            m_parameterCapabilities = parameterCapabilities;
         }
 
         /// <summary>
