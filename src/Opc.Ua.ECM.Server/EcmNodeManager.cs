@@ -160,6 +160,7 @@ namespace Opc.Ua.ECM.Server
                 }
                 EnergyStandbyManagementState standby =
                     SystemContext.CreateInstanceOfEnergyStandbyManagementType(owner, browseName);
+                standby.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent;
                 EcmPowerBinding? binding = null;
                 try
                 {
@@ -168,6 +169,7 @@ namespace Opc.Ua.ECM.Server
                     {
                         powerOff = SystemContext.CreateInstanceOfEnergyDevicePowerOffType(
                             standby, new QualifiedName("DevicePowerOff", InstanceNamespaceIndex));
+                        powerOff.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent;
                         standby.AddChild(powerOff);
                     }
                     binding = new EcmPowerBinding(
@@ -213,6 +215,7 @@ namespace Opc.Ua.ECM.Server
                 }
                 EnergyDevicePowerOffState powerOff =
                     SystemContext.CreateInstanceOfEnergyDevicePowerOffType(owner, browseName);
+                powerOff.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent;
                 EcmWolBinding? binding = null;
                 try
                 {

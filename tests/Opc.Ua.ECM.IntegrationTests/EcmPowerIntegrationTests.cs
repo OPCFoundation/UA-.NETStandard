@@ -293,6 +293,14 @@ namespace Opc.Ua.ECM.IntegrationTests
             }
             Assert.That(found, Has.Count.EqualTo(1));
             Assert.That(found[0].PowerOff.ObjectId, Is.EqualTo(m_wol.PowerOff.NodeId));
+            var composed = new List<EcmWolClient>();
+            await foreach (EcmWolClient client in EcmWolClient.DiscoverAsync(
+                m_session, m_binding.Standby.NodeId, NUnitTelemetryContext.Create()).ConfigureAwait(false))
+            {
+                composed.Add(client);
+            }
+            Assert.That(composed, Has.Count.EqualTo(1));
+            Assert.That(composed[0].PowerOff.ObjectId, Is.EqualTo(m_binding.PowerOff!.NodeId));
             var mac = await found[0].PowerOff.WOLMagicPacketVariable().ReadAsync().ConfigureAwait(false);
             Assert.That(mac.HasValue, Is.True);
             Assert.That(mac.Value.ToArray(), Is.EqualTo(new byte[] { 2, 0, 0, 0, 0, 1 }));

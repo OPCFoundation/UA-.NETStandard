@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -47,6 +48,68 @@ namespace Opc.Ua.ECM.Tests
     [Parallelizable(ParallelScope.All)]
     public sealed class EcmPowerBindingTests
     {
+        /// <summary>
+        /// Optional controls expose the published argument metadata and execute through service validation.
+        /// </summary>
+        [Test]
+        public async Task OptionalControlsRetainArgumentsAndDispatchThroughMethodService()
+        {
+            SystemContext context = CreateContext();
+            var types = new TypeTable(context.NamespaceUris);
+            types.AddSubtype(Opc.Ua.DataTypeIds.Duration, Opc.Ua.DataTypeIds.Double);
+            context.TypeTable = types;
+            await using EcmPowerBinding binding = CreateBinding(context, CreateProvider());
+            MethodState start = Required(binding.Standby.StartPause);
+            MethodState end = Required(binding.Standby.EndPause);
+            MethodState change = Required(binding.Standby.SwitchToEnergySavingMode);
+            var inputs = Required(start.InputArguments).Value;
+            Assert.That(inputs.Count, Is.EqualTo(1));
+            Assert.That(inputs[0].Name, Is.EqualTo("PauseTime"));
+            Assert.That(inputs[0].DataType, Is.EqualTo(Opc.Ua.DataTypeIds.Duration));
+            Assert.That(Required(start.OutputArguments).Value.Count, Is.EqualTo(5));
+            Assert.That(Required(end.OutputArguments).Value.Count, Is.EqualTo(2));
+            Assert.That(Required(change.InputArguments).Value.Count, Is.EqualTo(1));
+            Assert.That(Required(change.OutputArguments).Value.Count, Is.EqualTo(5));
+            Assert.That(start.ReferenceTypeId, Is.EqualTo(Opc.Ua.ReferenceTypeIds.HasComponent));
+            Assert.That(end.ReferenceTypeId, Is.EqualTo(Opc.Ua.ReferenceTypeIds.HasComponent));
+            Assert.That(change.ReferenceTypeId, Is.EqualTo(Opc.Ua.ReferenceTypeIds.HasComponent));
+            var errors = new List<ServiceResult>();
+            var outputs = new List<Variant>();
+            ServiceResult rejected = await start.CallAsync(
+                context, binding.Standby.NodeId, [new Variant(1d)], errors, outputs).ConfigureAwait(false);
+            Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.Uncertain));
+            Assert.That(errors, Has.Count.EqualTo(1));
+            Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(outputs, Has.Count.EqualTo(5));
+            Assert.That(outputs[4].TryGetValue(out byte rejectionCode), Is.True);
+            Assert.That(rejectionCode, Is.EqualTo(0x50));
+
+            errors.Clear();
+            outputs.Clear();
+            ServiceResult ended = await end.CallAsync(
+                context, binding.Standby.NodeId, [], errors, outputs).ConfigureAwait(false);
+            Assert.That(ended.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(errors, Is.Empty);
+            Assert.That(outputs, Has.Count.EqualTo(2));
+            Assert.That(outputs[0].TryGetValue(out double recovery), Is.True);
+            Assert.That(recovery, Is.Zero);
+            Assert.That(outputs[1].TryGetValue(out byte returnCode), Is.True);
+            Assert.That(returnCode, Is.Zero);
+
+            errors.Clear();
+            outputs.Clear();
+            ServiceResult changed = await change.CallAsync(
+                context, binding.Standby.NodeId, [new Variant((byte)1)], errors, outputs).ConfigureAwait(false);
+            Assert.That(changed.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(errors, Has.Count.EqualTo(1));
+            Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(outputs, Has.Count.EqualTo(5));
+            Assert.That(outputs[0].TryGetValue(out byte destination), Is.True);
+            Assert.That(destination, Is.EqualTo(1));
+            Assert.That(outputs[4].TryGetValue(out byte switchCode), Is.True);
+            Assert.That(switchCode, Is.Zero);
+        }
+
         /// <summary>
         /// Proves a nonzero variable write and zero reversal use the provider rather than a cached write.
         /// </summary>
@@ -505,6 +568,9 @@ namespace Opc.Ua.ECM.Tests
             EnergySavingModeState savingMode = Required(binding.Standby.EnergySavingModes).FindChild(
                 context, new QualifiedName("Pause", context.NamespaceUris.GetIndexOrAppend(Namespaces.ECM)))
                 as EnergySavingModeState ?? throw new InvalidOperationException("The mode was not published.");
+            Assert.That(savingMode.ReferenceTypeId, Is.EqualTo(Opc.Ua.ReferenceTypeIds.HasComponent));
+            Assert.That(Required(binding.Standby.EnergySavingModes).TypeDefinitionId, Is.EqualTo(NodeId.Create(
+                ObjectTypes.EnergySavingModesContainerType, Namespaces.ECM, context.NamespaceUris)));
             NodeId identity = savingMode.NodeId;
             var power = Required(savingMode.ModePowerConsumption);
 

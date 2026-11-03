@@ -71,11 +71,11 @@ namespace Opc.Ua.ECM.Server
             m_logger = context.Telemetry.CreateLogger<EcmPowerBinding>();
             m_ecmNamespace = context.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
 
-            EnsureChild(Standby, BrowseNames.StartPause);
-            EnsureChild(Standby, BrowseNames.EndPause);
-            EnsureChild(Standby, BrowseNames.SwitchToEnergySavingMode);
-            EnsureChild(Standby, BrowseNames.EnergySavingModes);
-            EnsureChild(Required(Standby.EnergySavingModeStatus), BrowseNames.CurrentTransitionData);
+            Standby.AddStartPause(context)
+                .AddEndPause(context)
+                .AddSwitchToEnergySavingMode(context)
+                .AddEnergySavingModes(context);
+            Required(Standby.EnergySavingModeStatus).AddCurrentTransitionData(context);
             Required(Required(Standby.StandbyManagementStatus).EnumStrings).Value = ArrayOf.Wrapped<LocalizedText>(
             [
                 new("Energy saving disabled"),
@@ -474,6 +474,7 @@ namespace Opc.Ua.ECM.Server
             {
                 node = m_context.CreateInstanceOfEnergySavingModeType(
                     Required(Standby.EnergySavingModes), new QualifiedName(mode.Name, m_ecmNamespace));
+                node.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent;
                 Required(Required(node.ModePowerConsumption).EngineeringUnits).Value = new EUInformation(
                     "kW", "kilowatt", "http://www.opcfoundation.org/UA/units/un/cefact") { UnitId = 0x4B5754 };
                 Required(Required(node.EnergyConsumptionToPause).EngineeringUnits).Value = new EUInformation(
@@ -494,17 +495,6 @@ namespace Opc.Ua.ECM.Server
             Required(node.EnergyConsumptionToPause).Value = mode.EnergyConsumptionToPause;
             Required(node.EnergyConsumptionToOperate).Value = mode.EnergyConsumptionToOperate;
             m_characteristics[mode.Id] = mode;
-        }
-
-        /// <summary>
-        /// Creates optional generated children with their declared metadata.
-        /// </summary>
-        private void EnsureChild(NodeState parent, string browseName)
-        {
-            if (parent.CreateChild(m_context, new QualifiedName(browseName, m_ecmNamespace)) == null)
-            {
-                throw new InvalidOperationException("The generated ECM model is missing a declared child.");
-            }
         }
 
         /// <summary>

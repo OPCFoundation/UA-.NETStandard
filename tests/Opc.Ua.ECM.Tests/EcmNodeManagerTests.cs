@@ -274,6 +274,7 @@ namespace Opc.Ua.ECM.Tests
             EcmPowerBinding binding = await manager.CreatePowerAsync(name, provider.Object, parent);
             Assert.That(parent.FindChild(manager.SystemContext, name), Is.SameAs(binding.Standby));
             Assert.That(manager.FindPredefinedNode(binding.Standby.NodeId), Is.SameAs(binding.Standby));
+            Assert.That(binding.Standby.ReferenceTypeId, Is.EqualTo(Opc.Ua.ReferenceTypeIds.HasComponent));
             Assert.That(Required(binding.Standby.StandbyManagementStatus).Value,
                 Is.EqualTo((byte)EcmStandbyStatus.ReadyToOperate));
             provider.Verify(service => service.ReadAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
@@ -340,6 +341,9 @@ namespace Opc.Ua.ECM.Tests
 
             Assert.That(parent.FindChild(manager.SystemContext, name), Is.SameAs(binding.PowerOff));
             Assert.That(manager.FindPredefinedNode(binding.PowerOff.NodeId), Is.SameAs(binding.PowerOff));
+            Assert.That(binding.PowerOff.ReferenceTypeId, Is.EqualTo(Opc.Ua.ReferenceTypeIds.HasComponent));
+            Assert.That(binding.PowerOff.TypeDefinitionId, Is.EqualTo(NodeId.Create(
+                ObjectTypes.EnergyDevicePowerOffType, Namespaces.ECM, manager.SystemContext.NamespaceUris)));
             Assert.That(Required(binding.PowerOff.SwitchOffWOL).OnCallAsync, Is.Not.Null);
             ServiceResultException duplicate = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await manager.CreateWolAsync(name, CreateProvider(), parent));
