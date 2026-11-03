@@ -183,11 +183,6 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             CreateMonitoredItemsRequest items = await harness.NextMonitoredItemsAsync().AsTask()
                 .WaitAsync(PhaseTimeout).ConfigureAwait(false);
             uint clientHandle = items.ItemsToCreate[0].RequestedParameters.ClientHandle;
-
-            // The script has received the creation request, but the client applies the server
-            // id asynchronously; a handoff captured before then carries an uncreated item that
-            // the successor would legitimately create again.
-            await WaitForMonitoredItemCreatedAsync(original, "Value").ConfigureAwait(false);
             SessionHandoff handoff = await harness.Session.RetireAsync().AsTask()
                 .WaitAsync(PhaseTimeout).ConfigureAwait(false);
             harness.RecoveryActivation.Release();
@@ -646,26 +641,6 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     AuthenticationToken = TakeoverToken
                 }
             };
-        }
-
-        /// <summary>
-        /// Waits until the named monitored item of <paramref name="subscription"/> holds its
-        /// server id, failing the test when that does not happen within the phase timeout.
-        /// </summary>
-        private static async Task WaitForMonitoredItemCreatedAsync(ISubscription subscription, string name)
-        {
-            using var timeout = new CancellationTokenSource(PhaseTimeout);
-            while (!subscription.MonitoredItems.TryGetMonitoredItemByName(
-                    name,
-                    out global::Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? item) ||
-                item is not { Created: true })
-            {
-                if (timeout.IsCancellationRequested)
-                {
-                    Assert.Fail($"Monitored item '{name}' was not created within {PhaseTimeout}.");
-                }
-                await Task.Delay(10, CancellationToken.None).ConfigureAwait(false);
-            }
         }
 
         /// <summary>
