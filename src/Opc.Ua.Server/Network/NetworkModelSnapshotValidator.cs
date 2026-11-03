@@ -83,5 +83,15 @@ namespace Opc.Ua.Server.Network
             }
             return true;
         }
+
+        /// <summary>
+        /// Determines whether an optional traffic specification has a non-zero interval denominator.
+        /// </summary>
+        /// <param name="traffic">The traffic specification to validate.</param>
+        /// <returns>True when the interval denominator is non-zero.</returns>
+        internal static bool IsValidTraffic(NetworkTrafficSnapshot traffic)
+        {
+            return traffic.Denominator != 0;
+        }
     }
 }

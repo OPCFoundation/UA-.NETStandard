@@ -1286,6 +1286,130 @@ namespace Opc.Ua.Server.Tests.Network
         }
 
         /// <summary>
+        /// Validates custom-provider traffic intervals while preserving absent values and recovery.
+        /// </summary>
+        [TestCase(false, 0u, 0u)]
+        [TestCase(true, 0u, 1u)]
+        [TestCase(true, uint.MaxValue, uint.MaxValue)]
+        [TestCase(true, 1u, 0u)]
+        [CancelAfter(60_000)]
+        public async Task CustomProviderTrafficIntervalsAreValidatedBeforePublication(
+            bool includeTraffic, uint numerator, uint denominator, CancellationToken cancellationToken)
+        {
+            NetworkModelSnapshot initial = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            NodeId talker = (await m_client.DiscoverStreamsAsync(true, cancellationToken).ConfigureAwait(false))[0];
+            ArrayOf<NetworkParameterValue> previousTraffic = await ReadParameterSetAsync(
+                talker, ObjectTypeIds.IIeeeBaseTsnTrafficSpecificationType, cancellationToken).ConfigureAwait(false);
+            NetworkParameterValue previousInterval = Parameter(previousTraffic, BrowseNames.Interval);
+            Assert.That(previousInterval.DataValue.WrappedValue
+                .TryGetStructure<UnsignedRationalNumber>(out UnsignedRationalNumber? previousRational), Is.True);
+            if (previousRational is null)
+            {
+                throw new InvalidOperationException("Decoded TSN traffic interval is null.");
+            }
+
+            NetworkTrafficSnapshot? desiredTraffic = includeTraffic
+                ? new NetworkTrafficSnapshot(1, 512, numerator, denominator)
+                : null;
+            bool invalid = includeTraffic && denominator == 0;
+            m_providerBoundary.WatchTransform = snapshot =>
+            {
+                NetworkStreamSnapshot[] streams = snapshot.Streams.Span.ToArray();
+                for (int index = 0; index < streams.Length; index++)
+                {
+                    if (streams[index].IsTalker)
+                    {
+                        streams[index] = streams[index] with { Traffic = desiredTraffic };
+                    }
+                }
+                return snapshot with { Streams = ArrayOf.Wrapped(streams) };
+            };
+            m_provider.Publish(initial with { Timestamp = initial.Timestamp.AddSeconds(1) });
+            await WaitForAsync(async () =>
+            {
+                NetworkStreamValues values = await m_client.ReadStreamAsync(talker, cancellationToken)
+                    .ConfigureAwait(false);
+                return invalid
+                    ? values.State.DataValue.StatusCode == StatusCodes.BadOutOfRange
+                    : values.State.DataValue.StatusCode == StatusCodes.Good &&
+                        values.State.DataValue.SourceTimestamp == (DateTimeUtc)initial.Timestamp.AddSeconds(1);
+            }, cancellationToken).ConfigureAwait(false);
+
+            NetworkStreamValues actual = await m_client.ReadStreamAsync(talker, cancellationToken)
+                .ConfigureAwait(false);
+            bool hasTrafficInterface = await HasInterfaceAsync(
+                talker, ObjectTypeIds.IIeeeBaseTsnTrafficSpecificationType, cancellationToken)
+                .ConfigureAwait(false);
+            if (invalid)
+            {
+                Assert.That(actual.State.DataValue.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
+                Assert.That(actual.State.DataValue.SourceTimestamp, Is.EqualTo(
+                    (DateTimeUtc)previousInterval.DataValue.SourceTimestamp));
+                Assert.That(hasTrafficInterface, Is.True);
+                ArrayOf<NetworkParameterValue> rejectedTraffic = await ReadParameterSetAsync(
+                    talker, ObjectTypeIds.IIeeeBaseTsnTrafficSpecificationType, cancellationToken)
+                    .ConfigureAwait(false);
+                NetworkParameterValue rejectedInterval = Parameter(rejectedTraffic, BrowseNames.Interval);
+                Assert.That(rejectedInterval.DataValue.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
+                Assert.That(rejectedInterval.DataValue.WrappedValue,
+                    Is.EqualTo(previousInterval.DataValue.WrappedValue));
+                Assert.That(rejectedInterval.DataValue.SourceTimestamp,
+                    Is.EqualTo(previousInterval.DataValue.SourceTimestamp));
+            }
+            else if (!includeTraffic)
+            {
+                Assert.That(actual.State.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(hasTrafficInterface, Is.False);
+            }
+            else
+            {
+                Assert.That(actual.State.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(hasTrafficInterface, Is.True);
+                ArrayOf<NetworkParameterValue> publishedTraffic = await ReadParameterSetAsync(
+                    talker, ObjectTypeIds.IIeeeBaseTsnTrafficSpecificationType, cancellationToken)
+                    .ConfigureAwait(false);
+                NetworkParameterValue interval = Parameter(publishedTraffic, BrowseNames.Interval);
+                Assert.That(interval.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(interval.DataValue.WrappedValue
+                    .TryGetStructure<UnsignedRationalNumber>(out UnsignedRationalNumber? publishedRational), Is.True);
+                if (publishedRational is null)
+                {
+                    throw new InvalidOperationException("Decoded TSN traffic interval is null.");
+                }
+                Assert.That(publishedRational.Numerator, Is.EqualTo(numerator));
+                Assert.That(publishedRational.Denominator, Is.EqualTo(denominator));
+            }
+
+            m_providerBoundary.WatchTransform = null;
+            NetworkModelSnapshot current = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            DateTime recoveryTimestamp = current.Timestamp.AddSeconds(1);
+            m_provider.Publish(current with { Timestamp = recoveryTimestamp });
+            await WaitForAsync(async () =>
+            {
+                NetworkStreamValues values = await m_client.ReadStreamAsync(talker, cancellationToken)
+                    .ConfigureAwait(false);
+                return values.State.DataValue.StatusCode == StatusCodes.Good &&
+                    values.State.DataValue.SourceTimestamp == (DateTimeUtc)recoveryTimestamp;
+            }, cancellationToken).ConfigureAwait(false);
+            Assert.That(await HasInterfaceAsync(
+                talker, ObjectTypeIds.IIeeeBaseTsnTrafficSpecificationType, cancellationToken)
+                .ConfigureAwait(false), Is.True);
+            ArrayOf<NetworkParameterValue> recoveredTraffic = await ReadParameterSetAsync(
+                talker, ObjectTypeIds.IIeeeBaseTsnTrafficSpecificationType, cancellationToken)
+                .ConfigureAwait(false);
+            NetworkParameterValue recoveredInterval = Parameter(recoveredTraffic, BrowseNames.Interval);
+            Assert.That(recoveredInterval.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(recoveredInterval.DataValue.WrappedValue
+                .TryGetStructure<UnsignedRationalNumber>(out UnsignedRationalNumber? recoveredRational), Is.True);
+            if (recoveredRational is null)
+            {
+                throw new InvalidOperationException("Decoded TSN traffic interval is null.");
+            }
+            Assert.That(recoveredRational.Numerator, Is.EqualTo(previousRational.Numerator));
+            Assert.That(recoveredRational.Denominator, Is.EqualTo(previousRational.Denominator));
+        }
+
+        /// <summary>
         /// Rejects timestamp regression even when the provider advances its revision.
         /// </summary>
         [Test]

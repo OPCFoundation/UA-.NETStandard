@@ -657,6 +657,65 @@ namespace Opc.Ua.Server.Tests.Network
         }
 
         /// <summary>
+        /// Rejects a zero traffic interval denominator without replacing the accepted acquisition.
+        /// </summary>
+        [Test]
+        public async Task PublishRejectsZeroTrafficDenominatorWithoutReplacingSnapshotAsync()
+        {
+            NetworkStreamSnapshot stream = new("stream-1", "test", true)
+            {
+                StreamId = ByteString.From(new byte[8].AsSpan()),
+                State = TsnStreamState.Disabled,
+                Traffic = new NetworkTrafficSnapshot(1, 512, 0, 1)
+            };
+            NetworkModelSnapshot initial = EmptySnapshot() with { Streams = [stream] };
+            var provider = new ReferenceNetworkModelProvider(initial);
+            NetworkStreamSnapshot malformedStream = stream with
+            {
+                Traffic = new NetworkTrafficSnapshot(1, 512, 1, 0)
+            };
+            NetworkModelSnapshot malformed = initial with
+            {
+                Timestamp = initial.Timestamp.AddSeconds(1),
+                Streams = [malformedStream]
+            };
+
+            Assert.That(() => new ReferenceNetworkModelProvider(malformed),
+                Throws.ArgumentException.With.Message.Contains("traffic/VLAN values"));
+            Assert.That(() => provider.Publish(malformed),
+                Throws.ArgumentException.With.Message.Contains("traffic/VLAN values"));
+            NetworkModelSnapshot current = await provider.ReadAsync().ConfigureAwait(false);
+
+            Assert.That(current.Revision, Is.Zero);
+            Assert.That(current.Timestamp, Is.EqualTo(initial.Timestamp));
+            Assert.That(current.Streams[0].Traffic, Is.EqualTo(stream.Traffic));
+        }
+
+        /// <summary>
+        /// Accepts the lowest and highest non-zero traffic interval denominators.
+        /// </summary>
+        [TestCase(0u, 1u)]
+        [TestCase(uint.MaxValue, uint.MaxValue)]
+        public async Task TrafficIntervalDenominatorBoundariesSurviveConstructionAndPublicationAsync(
+            uint numerator, uint denominator)
+        {
+            NetworkStreamSnapshot stream = new("stream-1", "test", true)
+            {
+                StreamId = ByteString.From(new byte[8].AsSpan()),
+                State = TsnStreamState.Disabled,
+                Traffic = new NetworkTrafficSnapshot(1, 512, numerator, denominator)
+            };
+            NetworkModelSnapshot initial = EmptySnapshot() with { Streams = [stream] };
+            var provider = new ReferenceNetworkModelProvider(initial);
+
+            provider.Publish(initial with { Timestamp = initial.Timestamp.AddSeconds(1) });
+            NetworkModelSnapshot current = await provider.ReadAsync().ConfigureAwait(false);
+
+            Assert.That(current.Revision, Is.EqualTo(1));
+            Assert.That(current.Streams[0].Traffic, Is.EqualTo(stream.Traffic));
+        }
+
+        /// <summary>
         /// Requires UTC acquisition timestamps and retains the previous revision on rejection.
         /// </summary>
         [Test]

@@ -516,6 +516,11 @@ namespace Opc.Ua.Server.Network
                 throw new ServiceResultException(StatusCodes.BadOutOfRange,
                     "Failure-system identifiers must each contain exactly eight bytes.");
             }
+            if (stream.Traffic is { } traffic && !NetworkModelSnapshotValidator.IsValidTraffic(traffic))
+            {
+                throw new ServiceResultException(StatusCodes.BadOutOfRange,
+                    "Stream traffic interval denominators must be greater than zero.");
+            }
             var node = CreateObject(
                 stream.IsTalker ? "talker" : "listener",
                 stream.Id,

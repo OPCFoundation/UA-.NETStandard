@@ -309,7 +309,7 @@ namespace Opc.Ua.Server.Network
                     !NetworkModelSnapshotValidator.AreValidStreamMacAddresses(
                         stream.SourceAddress, stream.DestinationAddress) ||
                     (stream.VlanTag is { } tag && (tag.VlanId > 4095 || tag.PriorityCodePoint > 7)) ||
-                    (stream.Traffic is { } traffic && traffic.Denominator == 0))
+                    (stream.Traffic is { } traffic && !NetworkModelSnapshotValidator.IsValidTraffic(traffic)))
                 {
                     throw new ArgumentException(
                         "Stream identities, fixed-size fields and traffic/VLAN values must be valid.",
