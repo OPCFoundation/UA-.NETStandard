@@ -589,8 +589,8 @@ namespace Opc.Ua.PADIM.Tests
                 PadimPublishedSample patMeasurand = samples.Samples.Single(
                     sample => sample.BrowseName.Name == "PatMeasurandDescription" &&
                         sample.Binding.Variable.Parent is BaseInstanceState parent &&
-                        parent.Parent?.NodeId ==
-                            expectedSignals["FacetMeasurementPat"].NodeId);
+                        parent.Parent is { } signal &&
+                        signal.NodeId == expectedSignals["FacetMeasurementPat"].NodeId);
                 Assert.That(patMeasurand.Sample.WrappedValue.TypeInfo.ValueRank, Is.EqualTo(ValueRanks.Scalar));
                 Assert.That(patMeasurand.Sample.WrappedValue.TryGetStructure<ChemicalSubstance>(
                     out ChemicalSubstance? patSubstance), Is.True);
@@ -861,7 +861,9 @@ namespace Opc.Ua.PADIM.Tests
             throw new InvalidOperationException("The condition stream ended before the expected condition.");
         }
 
-        /// <summary>Maps a server-side NodeId by URI into the connected client's namespace table.</summary>
+        /// <summary>
+        /// Maps a server-side NodeId by URI into the connected client's namespace table.
+        /// </summary>
         private static NodeId MapNodeId(PadimDevice catalog, NamespaceTable clientNamespaces, NodeId nodeId)
         {
             string uri = catalog.Context.NamespaceUris.GetString(nodeId.NamespaceIndex) ??
@@ -871,7 +873,9 @@ namespace Opc.Ua.PADIM.Tests
             return nodeId.WithNamespaceIndex((ushort)index);
         }
 
-        /// <summary>Creates a PA-DIM model-qualified BrowseName using the device's runtime namespace table.</summary>
+        /// <summary>
+        /// Creates a PA-DIM model-qualified BrowseName using the device's runtime namespace table.
+        /// </summary>
         private static QualifiedName ModelName(PadimDevice device, string name)
         {
             int index = device.Context.NamespaceUris.GetIndex(Namespaces.PADIM);
@@ -896,7 +900,9 @@ namespace Opc.Ua.PADIM.Tests
             device.State.RevisionCounter!.Value = 0;
         }
 
-        /// <summary>Returns the generated primary variable BrowseName for a signal family.</summary>
+        /// <summary>
+        /// Returns the generated primary variable BrowseName for a signal family.
+        /// </summary>
         private static string PrimaryVariableName(PadimSignalKind kind)
         {
             return kind switch
@@ -910,7 +916,9 @@ namespace Opc.Ua.PADIM.Tests
             };
         }
 
-        /// <summary>Returns the published type BrowseName expected for each signal family.</summary>
+        /// <summary>
+        /// Returns the published type BrowseName expected for each signal family.
+        /// </summary>
         private static string PublishedSignalTypeName(PadimSignalKind kind)
         {
             return kind switch
@@ -921,13 +929,17 @@ namespace Opc.Ua.PADIM.Tests
             };
         }
 
-        /// <summary>Returns the exact PADIM object type BrowseName for a device family.</summary>
+        /// <summary>
+        /// Returns the exact PADIM object type BrowseName for a device family.
+        /// </summary>
         private static string PublishedDeviceTypeName(PadimDeviceKind kind)
         {
             return kind == PadimDeviceKind.Device ? "PADIMType" : $"{kind}Type";
         }
 
-        /// <summary>Returns the exact generated variable type BrowseName for a measurement family.</summary>
+        /// <summary>
+        /// Returns the exact generated variable type BrowseName for a measurement family.
+        /// </summary>
         private static string MeasurementVariableTypeName(PadimMeasurementKind kind)
         {
             return kind switch
@@ -948,7 +960,9 @@ namespace Opc.Ua.PADIM.Tests
             };
         }
 
-        /// <summary>Returns the mandatory generated values for each control signal specialization.</summary>
+        /// <summary>
+        /// Returns the mandatory generated values for each control signal specialization.
+        /// </summary>
         private static (string Name, NodeId DataType)[] RequiredSignalChildren(PadimSignalKind kind)
         {
             return kind switch
@@ -972,7 +986,9 @@ namespace Opc.Ua.PADIM.Tests
             };
         }
 
-        /// <summary>Returns the mandatory generated values for specialized measurement variables.</summary>
+        /// <summary>
+        /// Returns the mandatory generated values for specialized measurement variables.
+        /// </summary>
         private static (string Name, NodeId DataType)[] RequiredMeasurementChildren(PadimMeasurementKind kind)
         {
             return kind switch
@@ -995,7 +1011,9 @@ namespace Opc.Ua.PADIM.Tests
             };
         }
 
-        /// <summary>Acquires a mandatory generated child without converting its declared raw value type.</summary>
+        /// <summary>
+        /// Acquires a mandatory generated child without converting its declared raw value type.
+        /// </summary>
         private static void BindRequiredChild(
             PadimDevice device,
             BaseVariableState parent,

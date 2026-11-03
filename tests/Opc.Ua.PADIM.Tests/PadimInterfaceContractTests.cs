@@ -258,7 +258,9 @@ namespace Opc.Ua.PADIM.Tests
             return id.WithNamespaceIndex(PublishedNamespace(device, id.NamespaceIndex));
         }
 
-        /// <summary>Resolves a published model type by its source browse name and namespace URI.</summary>
+        /// <summary>
+        /// Resolves a published model type by its source browse name and namespace URI.
+        /// </summary>
         internal static NodeId PublishedTypeId(PadimDevice device, string browseName)
         {
             XElement source = s_sourceNodes.Values.Single(node =>
@@ -267,7 +269,9 @@ namespace Opc.Ua.PADIM.Tests
             return PublishedNodeId(device, source.Attribute("NodeId")!.Value);
         }
 
-        /// <summary>Resolves a published model type directly in a client's live namespace table.</summary>
+        /// <summary>
+        /// Resolves a published model type directly in a client's live namespace table.
+        /// </summary>
         internal static NodeId PublishedTypeId(NamespaceTable namespaceUris, string browseName)
         {
             XElement source = s_sourceNodes.Values.Single(node =>
@@ -276,7 +280,9 @@ namespace Opc.Ua.PADIM.Tests
             return PublishedNodeId(namespaceUris, source.Attribute("NodeId")!.Value);
         }
 
-        /// <summary>Maps a published numeric or string node id through an arbitrary live namespace table.</summary>
+        /// <summary>
+        /// Maps a published numeric or string node id through an arbitrary live namespace table.
+        /// </summary>
         internal static NodeId PublishedNodeId(NamespaceTable namespaceUris, string text)
         {
             if (s_aliases.TryGetValue(text, out string? expanded))
@@ -295,7 +301,9 @@ namespace Opc.Ua.PADIM.Tests
             return id.WithNamespaceIndex((ushort)mapped);
         }
 
-        /// <summary>Resolves the declared variable type from a published object's inherited declarations.</summary>
+        /// <summary>
+        /// Resolves the declared variable type from a published object's inherited declarations.
+        /// </summary>
         internal static NodeId PublishedVariableTypeId(
             PadimDevice device,
             NodeId ownerTypeId,
@@ -386,25 +394,35 @@ namespace Opc.Ua.PADIM.Tests
     /// </summary>
     internal sealed class PadimPublishedSampleSet
     {
-        /// <summary>Gets the strict provider shared by this bounded fixture.</summary>
+        /// <summary>
+        /// Gets the strict provider shared by this bounded fixture.
+        /// </summary>
         internal IPadimValueProvider Provider => m_provider.Object;
 
-        /// <summary>Gets the bindings and exact samples for hosted client reads.</summary>
+        /// <summary>
+        /// Gets the bindings and exact samples for hosted client reads.
+        /// </summary>
         internal IReadOnlyList<PadimPublishedSample> Samples => m_samples;
 
-        /// <summary>Returns a unique provider key for the next fixture binding.</summary>
+        /// <summary>
+        /// Returns a unique provider key for the next fixture binding.
+        /// </summary>
         internal string NextKey()
         {
             return $"published-{++m_nextKey:D5}";
         }
 
-        /// <summary>Binds a primary family variable with a sample matching its generated declaration.</summary>
+        /// <summary>
+        /// Binds a primary family variable with a sample matching its generated declaration.
+        /// </summary>
         internal PadimValueBinding Bind(PadimDevice device, BaseVariableState variable)
         {
             return Track(device, device.BindValue(variable, NextKey(), Provider));
         }
 
-        /// <summary>Tracks a binding created by a published group selector.</summary>
+        /// <summary>
+        /// Tracks a binding created by a published group selector.
+        /// </summary>
         internal PadimValueBinding Track(PadimDevice device, PadimValueBinding binding)
         {
             Variant value = CreateValue(device, binding.Variable, binding.Key);
@@ -419,7 +437,7 @@ namespace Opc.Ua.PADIM.Tests
                 binding,
                 binding.Key,
                 binding.Variable.NodeId,
-                binding.Variable.Parent?.NodeId ?? NodeId.Null,
+                binding.Variable.Parent is { } parent ? parent.NodeId : NodeId.Null,
                 binding.Variable.BrowseName,
                 binding.Variable.TypeDefinitionId,
                 sample,
@@ -427,7 +445,9 @@ namespace Opc.Ua.PADIM.Tests
             return binding;
         }
 
-        /// <summary>Asserts every selected binding published its exact value, quality and source time once.</summary>
+        /// <summary>
+        /// Asserts every selected binding published its exact value, quality and source time once.
+        /// </summary>
         internal void AssertPublished()
         {
             foreach (PadimPublishedSample expected in m_samples)
@@ -479,7 +499,9 @@ namespace Opc.Ua.PADIM.Tests
             AssertSample(expected, actual, context);
         }
 
-        /// <summary>Asserts an exact Variant raw type and value, including PAT structure members.</summary>
+        /// <summary>
+        /// Asserts an exact Variant raw type and value, including PAT structure members.
+        /// </summary>
         internal static void AssertSample(Variant expected, Variant actual, string context)
         {
             Assert.Multiple(() =>
@@ -511,7 +533,9 @@ namespace Opc.Ua.PADIM.Tests
             Assert.That(actual, Is.EqualTo(expected), context);
         }
 
-        /// <summary>Checks every scalar field of the structured PAT test value.</summary>
+        /// <summary>
+        /// Checks every scalar field of the structured PAT test value.
+        /// </summary>
         private static void AssertChemicalSubstance(
             ChemicalSubstance expected,
             ChemicalSubstance actual,
@@ -525,7 +549,9 @@ namespace Opc.Ua.PADIM.Tests
             });
         }
 
-        /// <summary>Builds a sample using only the variable's declared UA type and rank.</summary>
+        /// <summary>
+        /// Builds a sample using only the variable's declared UA type and rank.
+        /// </summary>
         private static Variant CreateValue(PadimDevice device, BaseVariableState variable, string key)
         {
             if (IsDeviceHealth(device, variable.DataType))
@@ -616,7 +642,9 @@ namespace Opc.Ua.PADIM.Tests
             throw Unsupported(variable, $"value rank {variable.ValueRank}");
         }
 
-        /// <summary>Wraps the supported scalar sample in a strongly typed one-dimensional OPC UA array.</summary>
+        /// <summary>
+        /// Wraps the supported scalar sample in a strongly typed one-dimensional OPC UA array.
+        /// </summary>
         private static Variant CreateArray(
             PadimDevice device,
             BaseVariableState variable,
@@ -664,7 +692,9 @@ namespace Opc.Ua.PADIM.Tests
             };
         }
 
-        /// <summary>Ensures a selected multi-state value has valid raw enum values and dictionary rows.</summary>
+        /// <summary>
+        /// Ensures a selected multi-state value has valid raw enum values and dictionary rows.
+        /// </summary>
         private static void EnsureMultiStateMetadata(
             PadimDevice device,
             MultiStateValueDiscreteState enumeration)
@@ -694,7 +724,9 @@ namespace Opc.Ua.PADIM.Tests
             }
         }
 
-        /// <summary>Gets the display text associated with the selected raw multi-state enum value.</summary>
+        /// <summary>
+        /// Gets the display text associated with the selected raw multi-state enum value.
+        /// </summary>
         private static string? GetExpectedEnumText(PadimDevice device, BaseVariableState variable, Variant value)
         {
             if (variable is not MultiStateValueDiscreteState enumeration)
@@ -716,7 +748,9 @@ namespace Opc.Ua.PADIM.Tests
             throw Unsupported(variable, "multi-state sample did not retain its raw integer type");
         }
 
-        /// <summary>Creates explicit typed array variants for wildcard or scalar declarations.</summary>
+        /// <summary>
+        /// Creates explicit typed array variants for wildcard or scalar declarations.
+        /// </summary>
         private static Variant RankValue(BaseVariableState variable, Variant scalar, Variant array)
         {
             return variable.ValueRank switch
@@ -727,7 +761,9 @@ namespace Opc.Ua.PADIM.Tests
             };
         }
 
-        /// <summary>Identifies the published structured PAT data type by namespace URI and numeric identifier.</summary>
+        /// <summary>
+        /// Identifies the published structured PAT data type by namespace URI and numeric identifier.
+        /// </summary>
         private static bool IsChemicalSubstance(PadimDevice device, NodeId dataType)
         {
             int padimNamespace = device.Context.NamespaceUris.GetIndex(Namespaces.PADIM);
@@ -736,7 +772,9 @@ namespace Opc.Ua.PADIM.Tests
                 identifier == 1275;
         }
 
-        /// <summary>Identifies the DI-defined device-health enumeration using its namespace URI.</summary>
+        /// <summary>
+        /// Identifies the DI-defined device-health enumeration using its namespace URI.
+        /// </summary>
         private static bool IsDeviceHealth(PadimDevice device, NodeId dataType)
         {
             int diNamespace = device.Context.NamespaceUris.GetIndex(Di.Namespaces.OpcUaDi);
@@ -745,7 +783,9 @@ namespace Opc.Ua.PADIM.Tests
                 identifier == 6244;
         }
 
-        /// <summary>Creates a test failure instead of silently publishing a null or mismatched value.</summary>
+        /// <summary>
+        /// Creates a test failure instead of silently publishing a null or mismatched value.
+        /// </summary>
         private static InvalidOperationException Unsupported(BaseVariableState variable, string detail)
         {
             return new InvalidOperationException(
@@ -758,7 +798,9 @@ namespace Opc.Ua.PADIM.Tests
         private int m_nextKey;
     }
 
-    /// <summary>The exact provider sample and server-side binding tracked by a PA-DIM fixture.</summary>
+    /// <summary>
+    /// The exact provider sample and server-side binding tracked by a PA-DIM fixture.
+    /// </summary>
     internal sealed record PadimPublishedSample(
         PadimValueBinding Binding,
         string Key,
