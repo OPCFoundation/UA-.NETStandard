@@ -396,6 +396,7 @@ namespace Opc.Ua.LADS.Server
                     run, CancellationTokenSource.CreateLinkedTokenSource(Runtime.Stopping));
                 LadsStoredFunctionalUnitData stored = CaptureStoredData();
                 stored.InterruptedRunId = runId;
+                bool executionStarted = false;
                 try
                 {
                     await m_unit.Device.CommitProgramDataAsync(stored, false, TimeSpan.Zero, () =>
@@ -408,7 +409,19 @@ namespace Opc.Ua.LADS.Server
                     m_unit.Device.StartProgram(this, active);
                     Node.ActiveProgram!.ClearChangeMasks(Runtime.Context, true);
                     Runtime.Logger.ProgramStarted(m_unit.Name, runId, template.Id);
-                    active.Completion = Task.Run(() => ExecuteAsync(active), CancellationToken.None);
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await ExecuteAsync(active).ConfigureAwait(false);
+                            active.Complete();
+                        }
+                        catch (Exception failure)
+                        {
+                            active.Complete(failure);
+                        }
+                    }, CancellationToken.None);
+                    executionStarted = true;
                     m_unit.UpdateRunningExecutability();
                 }
                 catch (Exception startFailure)
@@ -416,16 +429,19 @@ namespace Opc.Ua.LADS.Server
                     var failures = new List<Exception> { startFailure };
                     try
                     {
-                        if (active.Completion == null)
+                        if (!executionStarted)
                         {
+                            TaskCompletionSource<ILadsResult>? waiter;
                             lock (m_lock)
                             {
                                 if (ReferenceEquals(m_active, active))
                                 {
                                     m_active = null;
                                 }
+                                m_waiters.TryGetValue(runId, out waiter);
                                 m_waiters.Remove(runId);
                             }
+                            waiter?.TrySetException(startFailure);
                             active.Cancellation.Dispose();
                             ResetActiveProgram();
                         }
@@ -445,6 +461,12 @@ namespace Opc.Ua.LADS.Server
                     catch (Exception stateFailure)
                     {
                         failures.Add(stateFailure);
+                    }
+                    if (!executionStarted)
+                    {
+                        active.Complete(failures.Count > 1
+                            ? new AggregateException("The LADS program start and cleanup failed.", failures)
+                            : startFailure);
                     }
                     if (failures.Count > 1)
                     {
@@ -745,19 +767,17 @@ namespace Opc.Ua.LADS.Server
                 return false;
             }
             bool accepted = active.RequestEnd(outcome);
-            Task? completion = active.Completion;
-            if (completion != null)
+            Task completion = active.Completion;
+            var cancelled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using (cancellationToken.Register(() => cancelled.TrySetResult(true)))
             {
-                var cancelled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-                using (cancellationToken.Register(() => cancelled.TrySetResult(true)))
+                Task completed = await Task.WhenAny(completion, cancelled.Task).ConfigureAwait(false);
+                if (!ReferenceEquals(completed, completion))
                 {
-                    Task completed = await Task.WhenAny(completion, cancelled.Task).ConfigureAwait(false);
-                    if (!ReferenceEquals(completed, completion))
-                    {
-                        throw new OperationCanceledException(cancellationToken);
-                    }
+                    throw new OperationCanceledException(cancellationToken);
                 }
             }
+            await completion.ConfigureAwait(false);
             return accepted;
         }
 
@@ -780,7 +800,29 @@ namespace Opc.Ua.LADS.Server
             }
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(
                 cancellationToken, active.Cancellation.Token);
-            return await executor.ChangeExecutionAsync(run, target, linked.Token).ConfigureAwait(false);
+            try
+            {
+                ServiceResult acknowledgment = await executor.ChangeExecutionAsync(run, target, linked.Token)
+                    .ConfigureAwait(false);
+                if (target == LadsRunningStateValue.Completing && ServiceResult.IsBad(acknowledgment))
+                {
+                    active.RecordExecutionFailure();
+                }
+                return acknowledgment;
+            }
+            catch (OperationCanceledException failure) when (linked.IsCancellationRequested)
+            {
+                throw new OperationCanceledException(
+                    "The LADS execution-control request was cancelled.", failure, linked.Token);
+            }
+            catch
+            {
+                if (target == LadsRunningStateValue.Completing)
+                {
+                    active.RecordExecutionFailure();
+                }
+                throw;
+            }
         }
 
         /// <summary>
@@ -836,16 +878,13 @@ namespace Opc.Ua.LADS.Server
                 {
                     failures.Add(failure);
                 }
-                if (active.Completion != null)
+                try
                 {
-                    try
-                    {
-                        await active.Completion.ConfigureAwait(false);
-                    }
-                    catch (Exception failure)
-                    {
-                        failures.Add(failure);
-                    }
+                    await active.Completion.ConfigureAwait(false);
+                }
+                catch (Exception failure)
+                {
+                    failures.Add(failure);
                 }
             }
             LadsResult[] results;
@@ -1400,6 +1439,10 @@ namespace Opc.Ua.LADS.Server
             NodeId templateNode = default;
             lock (m_lock)
             {
+                if (m_disposed)
+                {
+                    throw new ObjectDisposedException(nameof(LadsProgramManager));
+                }
                 if (m_templates.TryGetValue(run.Template.Id, out TemplateEntry? template))
                 {
                     templateNode = template.Node.NodeId;
@@ -1696,9 +1739,9 @@ namespace Opc.Ua.LADS.Server
             public CancellationTokenSource Cancellation { get; }
 
             /// <summary>
-            /// Gets or sets the task that completes after the result was published.
+            /// Gets the lifetime task, available before the active entry is published.
             /// </summary>
-            public Task? Completion { get; set; }
+            public Task Completion => m_completion.Task;
 
             /// <summary>
             /// Gets the outcome requested by a stop or abort.
@@ -1737,7 +1780,34 @@ namespace Opc.Ua.LADS.Server
                 lock (m_lock)
                 {
                     m_finalizing = true;
-                    return executionFailed ? LadsProgramOutcome.Aborted : m_requested ?? outcome;
+                    return executionFailed || m_executionFailed
+                        ? LadsProgramOutcome.Aborted : m_requested ?? outcome;
+                }
+            }
+
+            /// <summary>
+            /// Retains a provider failure before cancellation can interrupt its acknowledgment publication.
+            /// </summary>
+            public void RecordExecutionFailure()
+            {
+                lock (m_lock)
+                {
+                    m_executionFailed = true;
+                }
+            }
+
+            /// <summary>
+            /// Completes the lifetime after execution or startup cleanup has finished.
+            /// </summary>
+            public void Complete(Exception? failure = null)
+            {
+                if (failure == null)
+                {
+                    m_completion.TrySetResult(true);
+                }
+                else
+                {
+                    m_completion.TrySetException(failure);
                 }
             }
 
@@ -1767,8 +1837,11 @@ namespace Opc.Ua.LADS.Server
             }
 
             private readonly Lock m_lock = new();
+            private readonly TaskCompletionSource<bool> m_completion =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
             private LadsProgramOutcome? m_requested;
             private bool m_finalizing;
+            private bool m_executionFailed;
         }
 
         private readonly Lock m_lock = new();

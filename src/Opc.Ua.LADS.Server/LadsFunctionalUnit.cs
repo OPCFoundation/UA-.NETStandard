@@ -408,6 +408,7 @@ namespace Opc.Ua.LADS.Server
         {
             LadsProgramRun run;
             CancellationTokenSource command;
+            bool acknowledgmentCancelled = false;
             TaskCompletionSource<bool>? completionAcknowledgment = null;
             await Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
@@ -485,6 +486,11 @@ namespace Opc.Ua.LADS.Server
                     Gate.Release();
                 }
             }
+            catch (OperationCanceledException failure) when (failure.CancellationToken.IsCancellationRequested)
+            {
+                acknowledgmentCancelled = true;
+                throw;
+            }
             finally
             {
                 await Gate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
@@ -494,9 +500,9 @@ namespace Opc.Ua.LADS.Server
                     {
                         m_executionCancellation = null;
                     }
-                    if (command.IsCancellationRequested)
+                    if (acknowledgmentCancelled)
                     {
-                        completionAcknowledgment?.TrySetCanceled(command.Token);
+                        completionAcknowledgment?.TrySetCanceled();
                     }
                     else
                     {

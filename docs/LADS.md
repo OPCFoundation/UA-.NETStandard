@@ -480,6 +480,10 @@ without end-request cancellation, or an invalid completion state records
 `Aborted`, even when Stop was accepted before finalization. Such failures take
 precedence over the requested end outcome; cancellation caused by an accepted
 Stop or Abort does not itself constitute an execution failure.
+The run's lifetime task exists before its active-program nodes are published.
+An end request or shutdown during startup waits for execution and result cleanup,
+or receives the startup failure after cleanup. Provider rejection is retained
+when observed; a later cancellation cannot reinterpret it as a cancelled request.
 `DelayAsync` uses the runtime clock. Set
 `LadsServerOptions.TimeProvider` to advance LADS execution in tests without
 advancing session expiry; otherwise the runtime uses the registered
