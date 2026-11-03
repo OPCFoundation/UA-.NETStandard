@@ -139,16 +139,21 @@ namespace Opc.Ua.AMB.Tests
             VerifyNoMutationOrDisposal(session);
         }
 
-        [TestCase("missing", StatusCodes.BadNotConnected)]
-        [TestCase("wrong-server", StatusCodes.BadNodeIdInvalid)]
-        [TestCase("unknown-server", StatusCodes.BadNodeIdInvalid)]
-        [TestCase("denied", StatusCodes.BadUserAccessDenied)]
-        [TestCase("namespace", StatusCodes.BadNodeIdInvalid)]
-        [TestCase("browse", StatusCodes.BadUserAccessDenied)]
+        [TestCase("missing")]
+        [TestCase("wrong-server")]
+        [TestCase("unknown-server")]
+        [TestCase("denied")]
+        [TestCase("namespace")]
+        [TestCase("browse")]
         public async Task RemoteSubAssetResolutionPropagatesFailuresWithoutReturningCandidatesAsync(
-            string scenario,
-            uint expected)
+            string scenario)
         {
+            uint expected = scenario switch
+            {
+                "missing" => StatusCodes.BadNotConnected,
+                "denied" or "browse" => StatusCodes.BadUserAccessDenied,
+                _ => StatusCodes.BadNodeIdInvalid
+            };
             Mock<ISession> local = CreateSession();
             Mock<ISession> remote = CreateSession();
             local.SetupGet(s => s.ServerUris).Returns(new StringTable(["urn:test:local", "urn:test:remote"]));
