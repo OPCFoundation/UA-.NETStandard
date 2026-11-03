@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -424,7 +425,7 @@ namespace Opc.Ua.Server
                 if (e is NodeState eventState)
                 {
                     eventTarget = (IFilterTarget)eventState.Clone();
-                    m_server.EventManager?.TransferEventIdentity(e, eventTarget);
+                    m_server.EventManager?.TransferEventIdentity(context, e, eventTarget);
                 }
 
                 var notification = new EventSnapshot
@@ -1465,9 +1466,8 @@ namespace Opc.Ua.Server
                 NotificationAuthorization? notificationAuthorization = NotificationAuthorization.Capture(
                     authorization.Session);
                 ServiceResult result;
-                using OperationContext context = MonitoredReadAuthorization.CreateContext(monitoredItem);
-                ServiceResult restrictions = await MonitoredReadAuthorization.ValidateEventRestrictionsAsync(
-                    m_server, Node, context, cancellationToken).ConfigureAwait(false);
+                ServiceResult restrictions = await ValidateEventRestrictionsAsync(
+                    monitoredItem, cancellationToken).ConfigureAwait(false);
                 if (ServiceResult.IsBad(restrictions))
                 {
                     return (restrictions, authorization.Session, notificationAuthorization);
@@ -1494,6 +1494,59 @@ namespace Opc.Ua.Server
                     return (result, authorization.Session, notificationAuthorization);
                 }
             }
+        }
+
+        /// <summary>
+        /// Applies the notifier's current channel restrictions to the delivery of an event to
+        /// one monitored item.
+        /// </summary>
+        /// <remarks>
+        /// The verdict only depends on the subscriber's accepted endpoint, the notifier's
+        /// restrictions and the namespace default restrictions, not on the item or the identity.
+        /// A good verdict is therefore kept per endpoint, and reused by every item and event
+        /// until one of these inputs moves, so a delivery creates no subscriber context. Defaults
+        /// behind read callbacks or access levels are not keyed by any version, so a verdict is
+        /// only kept while the defaults are static, as for the exact-source read verdicts.
+        /// </remarks>
+        private async ValueTask<ServiceResult> ValidateEventRestrictionsAsync(
+            IEventMonitoredItem monitoredItem,
+            CancellationToken cancellationToken)
+        {
+            ISession? session = monitoredItem.Session;
+            EndpointDescription? endpoint = MonitoredReadAuthorization.GetEndpoint(session);
+            long generation = Volatile.Read(ref m_permissionGeneration);
+            long defaultsGeneration = NamespaceDefaultPermissionReader.Generation;
+            AccessRestrictionType? restrictions = Node.AccessRestrictions;
+            NamespaceMetadataState? defaults = null;
+            EventRestrictionVerdictSlot? slot = null;
+            if (endpoint != null &&
+                Node.OnReadAccessRestrictions == null &&
+                NamespaceDefaultPermissionReader.TryGetStaticDefaults(
+                    m_server, Node.NodeId.NamespaceIndex, out defaults))
+            {
+                slot = m_eventRestrictionVerdicts.GetValue(endpoint, static _ => new EventRestrictionVerdictSlot());
+                EventRestrictionVerdict? verdict = Volatile.Read(ref slot.Current);
+                if (verdict != null &&
+                    verdict.Matches(generation, defaultsGeneration, defaults, endpoint, restrictions))
+                {
+                    return ServiceResult.Good;
+                }
+            }
+
+            using OperationContext context = MonitoredReadAuthorization.CreateContext(monitoredItem);
+            ServiceResult result = await MonitoredReadAuthorization.ValidateEventRestrictionsAsync(
+                m_server, Node, context, cancellationToken).ConfigureAwait(false);
+            if (slot != null &&
+                ServiceResult.IsGood(result) &&
+                ReferenceEquals(context.ChannelContext?.EndpointDescription, endpoint) &&
+                defaultsGeneration == NamespaceDefaultPermissionReader.Generation &&
+                NamespaceDefaultPermissionReader.AreDefaultsStatic(defaults))
+            {
+                Volatile.Write(
+                    ref slot.Current,
+                    new EventRestrictionVerdict(generation, defaultsGeneration, defaults, endpoint!, restrictions));
+            }
+            return result;
         }
 
         /// <summary>
@@ -2094,6 +2147,12 @@ namespace Opc.Ua.Server
             EventPermissionCacheKey, (MonitoredItemPermissionContext Context, ServiceResult Result)>
             m_eventPermissionCache = new();
 
+        /// <summary>
+        /// The good event restriction verdicts of the notifier, one per subscriber endpoint.
+        /// </summary>
+        private readonly ConditionalWeakTable<EndpointDescription, EventRestrictionVerdictSlot>
+            m_eventRestrictionVerdicts = new();
+
         private long m_permissionGeneration;
 
 
@@ -2259,6 +2318,46 @@ namespace Opc.Ua.Server
                     ReferenceEquals(Identity, other.Identity) &&
                     IdentityGeneration == other.IdentityGeneration;
             }
+        }
+
+        /// <summary>
+        /// A good event restriction verdict for one endpoint and the inputs it was computed
+        /// with. The namespace metadata node (or its absence) is kept, so metadata linked later
+        /// or a read callback attached to one of its defaults later retires the verdict.
+        /// </summary>
+        private sealed class EventRestrictionVerdict(
+            long generation,
+            long defaultsGeneration,
+            NamespaceMetadataState? defaults,
+            EndpointDescription endpoint,
+            AccessRestrictionType? restrictions)
+        {
+            private readonly MessageSecurityMode m_securityMode = endpoint.SecurityMode;
+            private readonly string? m_transport = endpoint.TransportProfileUri;
+
+            public bool Matches(
+                long currentGeneration,
+                long currentDefaultsGeneration,
+                NamespaceMetadataState? currentDefaults,
+                EndpointDescription currentEndpoint,
+                AccessRestrictionType? currentRestrictions)
+            {
+                return generation == currentGeneration &&
+                    defaultsGeneration == currentDefaultsGeneration &&
+                    ReferenceEquals(defaults, currentDefaults) &&
+                    ReferenceEquals(endpoint, currentEndpoint) &&
+                    m_securityMode == currentEndpoint.SecurityMode &&
+                    string.Equals(m_transport, currentEndpoint.TransportProfileUri, StringComparison.Ordinal) &&
+                    restrictions == currentRestrictions;
+            }
+        }
+
+        /// <summary>
+        /// Holds the current event restriction verdict of an endpoint.
+        /// </summary>
+        private sealed class EventRestrictionVerdictSlot
+        {
+            public EventRestrictionVerdict? Current;
         }
 
         private sealed class NotificationFence : INodeNotification
