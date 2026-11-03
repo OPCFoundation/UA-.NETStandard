@@ -364,6 +364,40 @@ namespace Opc.Ua.PADIM.Tests
         }
 
         /// <summary>
+        /// A dual-interface activator cannot make an opposite-kind identifier registration compatible.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ConstructionRejectsDualInterfaceActivatorInOppositeLookup(bool enumIdentifier)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            IEncodeableFactory backing = ServiceMessageContext.CreateEmpty(telemetry).Factory;
+            backing.Builder.AddOpcUaPADIM().Commit();
+            var dual = new Mock<IEncodeableType>();
+            Mock<IEnumeratedType> enumeration = dual.As<IEnumeratedType>();
+            dual.SetupGet(value => value.Type).Returns(
+                enumIdentifier ? typeof(PatDictionaryEnum) : typeof(ChemicalSubstance));
+            dual.SetupGet(value => value.XmlName).Returns(
+                new System.Xml.XmlQualifiedName("DualActivator", "urn:padim:caller"));
+            ExpandedNodeId id = enumIdentifier
+                ? DataTypeIds.PatDictionaryEnum
+                : ObjectIds.ChemicalSubstance_Encoding_DefaultBinary;
+            backing.Builder.AddEncodeableType(id, dual.Object)
+                .AddEnumeratedType(id, enumeration.Object).Commit();
+            Mock<IEncodeableFactory> legacy = CreateLegacyFactory(backing);
+            Mock<ISession> session = CreateSession(legacy.Object);
+
+            Assert.Throws<InvalidOperationException>(() => new PadimClient(session.Object, telemetry));
+
+            Assert.That(backing.TryGetEncodeableType(id, out IEncodeableType? retainedStructure), Is.True);
+            Assert.That(retainedStructure, Is.SameAs(dual.Object));
+            Assert.That(backing.TryGetEnumeratedType(id, out IEnumeratedType? retainedEnum), Is.True);
+            Assert.That(retainedEnum, Is.SameAs(enumeration.Object));
+            Mock.Get(legacy.Object.Builder).VerifyNoOtherCalls();
+            session.Verify(value => value.Dispose(), Times.Never);
+        }
+
+        /// <summary>
         /// Rejects an opposite-kind binary identifier or XML-name collision without replacing it.
         /// </summary>
         [TestCase(false)]

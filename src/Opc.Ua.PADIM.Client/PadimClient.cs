@@ -373,9 +373,9 @@ namespace Opc.Ua.PADIM.Client
                 {
                     bool incompatibleId =
                         (factory.TryGetEncodeableType(id, out IEncodeableType? actualStructure) &&
-                            !IsCompatibleType(expected, actualStructure)) ||
+                            (expected is not IEncodeableType || !IsCompatibleType(expected, actualStructure))) ||
                         (factory.TryGetEnumeratedType(id, out IEnumeratedType? actualEnumeration) &&
-                            !IsCompatibleType(expected, actualEnumeration));
+                            (expected is not IEnumeratedType || !IsCompatibleType(expected, actualEnumeration)));
                     bool incompatibleXml = factory.TryGetType(expected.XmlName, out IType? actualXml) &&
                         !IsCompatibleType(expected, actualXml);
                     if (incompatibleId || incompatibleXml)
