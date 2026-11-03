@@ -3,6 +3,7 @@
     <OutputType>Exe</OutputType>
     <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
     <RootNamespace>Opc.Ua.ECM.IntegrationTests</RootNamespace>
+    <AssemblyName>Opc.Ua.ECM.IntegrationTests</AssemblyName>
     <GenerateProgramFile>false</GenerateProgramFile>
   </PropertyGroup>
   <ItemGroup>
