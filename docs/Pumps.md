@@ -7,6 +7,13 @@ OPC 40001-1 Machinery and OPC 10000-100 Device Integration. A server
 publishes pumps with a fluent builder; a client discovers them and reads
 them back into typed snapshots. Both sides share one set of contracts.
 
+Support remains Partial in the [specification support matrix](Profiles.md#published-specification-support-matrix).
+Retained identification, diagnostic and limit conditions, event notification
+and raw/processed/event history are available through explicit configuration.
+Neither profile URI is advertised: complete inherited-facet evidence and the
+published Base-profile URI discrepancy remain unresolved, as described under
+[profiles and conformance units](#profiles-and-conformance-units).
+
 ## Contents
 
 - [Library layout](#library-layout)
