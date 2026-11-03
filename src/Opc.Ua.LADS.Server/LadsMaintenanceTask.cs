@@ -259,8 +259,8 @@ namespace Opc.Ua.LADS.Server
                     State = State,
                     LastExecutionDate = m_lastExecution,
                     LastResult = m_lastResult,
-                    PlannedDate = Node.PlannedDate?.Value ?? default,
-                    Comment = Node.Message?.Value ?? LocalizedText.Null
+                    PlannedDate = Node.PlannedDate is { } plannedDate ? plannedDate.Value : default,
+                    Comment = Node.Message is { } message ? message.Value : LocalizedText.Null
                 };
             }
         }

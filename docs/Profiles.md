@@ -894,7 +894,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 30400-1: Cloud Library - Architecture and Use Cases](https://reference.opcfoundation.org/specs/OPC-30400-1) | 1.00.1 | No | - |
 | [OPC 30400-2: Cloud Library - API Definition](https://reference.opcfoundation.org/specs/OPC-30400-2) | 1.00.0 | No | - |
 | [OPC 30450-1: Digital Product Passport - Information Model](https://reference.opcfoundation.org/specs/OPC-30450-1) | 1.0.0 | No | - |
-| [OPC 30500-1: Laboratory and Analytical Device Standard (LADS) - Basics](https://reference.opcfoundation.org/specs/OPC-30500-1) | 1.0.0 | Full | Optional running operations require an acknowledging provider; stored data is restored without resuming physical execution |
+| [OPC 30500-1: Laboratory and Analytical Device Standard (LADS) - Basics](https://reference.opcfoundation.org/specs/OPC-30500-1) | 1.0.0 | Full | - |
 | [OPC 34100: Energy Consumption Management](https://reference.opcfoundation.org/specs/OPC-34100) | 1.0.1 | Partial | Generated model and Machinery energy bindings; no complete standalone ECM runtime |
 | [OPC 40001-1: Machinery - Basic Building Blocks](https://reference.opcfoundation.org/specs/OPC-40001-1) | 1.04.2 | Full | - |
 | [OPC 40001-2: Machinery - Process Values](https://reference.opcfoundation.org/specs/OPC-40001-2) | 1.00 | Full | - |

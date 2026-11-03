@@ -718,7 +718,7 @@ namespace Opc.Ua.LADS.Tests.Server
                 throw failure;
             }
             var executor = new ControlledExecutor(
-                (_, _, _) => ValueTask.FromResult(ServiceResult.Good),
+                (_, _, _) => new ValueTask<ServiceResult>(ServiceResult.Good),
                 async (run, cancellationToken) =>
                 {
                     run.AddResultFile("failure-evidence.txt", "text/plain", ByteString.From("evidence"u8));
@@ -776,7 +776,7 @@ namespace Opc.Ua.LADS.Tests.Server
                     .ConfigureAwait(false);
             }
             await Assert.ThatAsync(
-                async () => await result.WaitAsync(s_timeout).ConfigureAwait(false),
+                () => result.WaitAsync(s_timeout),
                 Throws.TypeOf<InvalidOperationException>().With.Message.EqualTo(failure.Message)).ConfigureAwait(false);
             Assert.That(programs.ActiveRun, Is.Null);
             Assert.That(programs.Results.Count, Is.Zero);
@@ -855,7 +855,7 @@ namespace Opc.Ua.LADS.Tests.Server
             var cancelled = NewSignal();
             var release = NewSignal();
             var executor = new ControlledExecutor(
-                (_, _, _) => ValueTask.FromResult<ServiceResult>(StatusCodes.BadInvalidState),
+                (_, _, _) => new ValueTask<ServiceResult>(StatusCodes.BadInvalidState),
                 async (_, cancellationToken) =>
                 {
                     using CancellationTokenRegistration registration = cancellationToken.Register(
@@ -904,7 +904,7 @@ namespace Opc.Ua.LADS.Tests.Server
             var entered = NewSignal();
             var release = NewSignal();
             var executor = new ControlledExecutor(
-                (_, _, _) => ValueTask.FromResult(ServiceResult.Good),
+                (_, _, _) => new ValueTask<ServiceResult>(ServiceResult.Good),
                 async (_, cancellationToken) =>
                 {
                     entered.TrySetResult(true);
@@ -990,7 +990,7 @@ namespace Opc.Ua.LADS.Tests.Server
                     Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
                 Assert.That(resultWaiter, Is.Not.Null);
                 await Assert.ThatAsync(
-                    async () => await resultWaiter!.WaitAsync(s_timeout).ConfigureAwait(false),
+                    () => resultWaiter!.WaitAsync(s_timeout),
                     Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
                 Assert.That(programs.ActiveRun, Is.Null);
                 Assert.That(programs.Results.Count, Is.Zero);
@@ -1013,7 +1013,7 @@ namespace Opc.Ua.LADS.Tests.Server
             var cancelled = NewSignal();
             var release = NewSignal();
             var executor = new ControlledExecutor(
-                (_, _, _) => ValueTask.FromResult(ServiceResult.Good),
+                (_, _, _) => new ValueTask<ServiceResult>(ServiceResult.Good),
                 async (_, cancellationToken) =>
                 {
                     using CancellationTokenRegistration registration = cancellationToken.Register(
@@ -1060,7 +1060,7 @@ namespace Opc.Ua.LADS.Tests.Server
             var finish = NewSignal();
             var executorReturned = NewSignal();
             var executor = new ControlledExecutor(
-                (_, _, _) => ValueTask.FromResult(ServiceResult.Good),
+                (_, _, _) => new ValueTask<ServiceResult>(ServiceResult.Good),
                 async (_, _) =>
                 {
                     await finish.Task.ConfigureAwait(false);
@@ -1157,7 +1157,7 @@ namespace Opc.Ua.LADS.Tests.Server
                     return default;
                 });
             var executor = new ControlledExecutor(
-                (_, _, _) => ValueTask.FromResult(ServiceResult.Good),
+                (_, _, _) => new ValueTask<ServiceResult>(ServiceResult.Good),
                 async (_, _) => await finish.Task.ConfigureAwait(false));
             await using LadsClientConnection connection = await StartAsync(
                 nameof(EndDuringResultPublicationWaitsThenTransitionsStandaloneAsync),
