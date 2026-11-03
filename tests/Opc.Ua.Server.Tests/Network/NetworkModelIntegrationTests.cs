@@ -1118,7 +1118,7 @@ namespace Opc.Ua.Server.Tests.Network
                 else
                 {
                     Assert.That(actualVlan.DataValue.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
-                    Assert.That(actualVlan.DataValue.WrappedValue, Is.EqualTo(beforeVlan.DataValue.WrappedValue));
+                    Assert.That(actualVlan.DataValue.WrappedValue.IsNull, Is.True);
                     Assert.That(actualVlan.DataValue.SourceTimestamp,
                         Is.EqualTo(beforeVlan.DataValue.SourceTimestamp));
                     Assert.That(retained.Value, Is.EqualTo(beforeVlan.DataValue.WrappedValue));
@@ -1126,8 +1126,7 @@ namespace Opc.Ua.Server.Tests.Network
                     NetworkInterfaceValues failed = await m_client.ReadInterfaceAsync(
                         vlanInterface, cancellationToken).ConfigureAwait(false);
                     Assert.That(failed.Speed.DataValue.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
-                    Assert.That(failed.Speed.DataValue.WrappedValue,
-                        Is.EqualTo(beforeInterface.Speed.DataValue.WrappedValue));
+                    Assert.That(failed.Speed.DataValue.WrappedValue.IsNull, Is.True);
                     Assert.That(failed.Speed.DataValue.SourceTimestamp,
                         Is.EqualTo(beforeInterface.Speed.DataValue.SourceTimestamp));
                 }
@@ -1234,7 +1233,7 @@ namespace Opc.Ua.Server.Tests.Network
                 else
                 {
                     Assert.That(actualVid.DataValue.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
-                    Assert.That(actualVid.DataValue.WrappedValue, Is.EqualTo(beforeVid.DataValue.WrappedValue));
+                    Assert.That(actualVid.DataValue.WrappedValue.IsNull, Is.True);
                     Assert.That(actualVid.DataValue.SourceTimestamp,
                         Is.EqualTo(beforeVid.DataValue.SourceTimestamp));
                     Assert.That(retained.Value, Is.EqualTo(beforeVid.DataValue.WrappedValue));
@@ -1242,8 +1241,7 @@ namespace Opc.Ua.Server.Tests.Network
                     NetworkInterfaceValues failed = await m_client.ReadInterfaceAsync(
                         physical, cancellationToken).ConfigureAwait(false);
                     Assert.That(failed.Speed.DataValue.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
-                    Assert.That(failed.Speed.DataValue.WrappedValue,
-                        Is.EqualTo(beforeInterface.Speed.DataValue.WrappedValue));
+                    Assert.That(failed.Speed.DataValue.WrappedValue.IsNull, Is.True);
                     Assert.That(failed.Speed.DataValue.SourceTimestamp,
                         Is.EqualTo(beforeInterface.Speed.DataValue.SourceTimestamp));
                     Assert.That(actualChildren.ToList().Select(child => child.NodeId),
