@@ -105,6 +105,22 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(fixture.Provider.Starts).IsEqualTo(1);
             await Assert.That(fixture.Provider.Stops).IsEqualTo(1);
         }
+
+        /// <summary>
+        /// Executes the standard diagnostics projection and reads its encoded values over a session.
+        /// </summary>
+        [Test]
+        public async Task DiagnosticReportsExecuteAndReadThroughDataAccessAsync()
+        {
+            ArrayOf<DataValue> values = await fixture.ReportAndReadDiagnosticsAsync().ConfigureAwait(false);
+            await Assert.That(values.Count).IsEqualTo(3);
+            await Assert.That(values[0].StatusCode).IsEqualTo(StatusCodes.Good);
+            await Assert.That(values[0].WrappedValue).IsEqualTo(Variant.From((ushort)2));
+            await Assert.That(values[1].StatusCode).IsEqualTo(StatusCodes.Good);
+            await Assert.That(values[1].WrappedValue).IsEqualTo(Variant.From("AOT reader ready"));
+            await Assert.That(values[2].StatusCode).IsEqualTo(StatusCodes.Good);
+            await Assert.That(values[2].WrappedValue).IsEqualTo(Variant.From("Tag"));
+        }
     }
 
     /// <summary>
@@ -145,9 +161,11 @@ namespace Opc.Ua.Aot.Tests
                             new QualifiedName("AotRfidReader", context.Runtime.InstanceNamespaceIndex),
                             Provider)
                         .WithRuntimeParameters(enableScanControl: true)
+                        .WithDiagnostics()
                         .BuildAsync(context.CancellationToken)
                         .ConfigureAwait(false);
                     m_readerId = reader.NodeId;
+                    m_hostedReader = reader;
                 })
                 .AddStartupTask((_, _, _) =>
                 {
@@ -180,6 +198,51 @@ namespace Opc.Ua.Aot.Tests
                 .ConfigureAwait(false);
             Client = new AutoIdClient(m_session, m_telemetry);
             Reader = await Client.GetReaderAsync(m_readerId).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Reports through the reader sink and reads the registered standard diagnostics over UA.
+        /// </summary>
+        public async Task<ArrayOf<DataValue>> ReportAndReadDiagnosticsAsync()
+        {
+            await m_hostedReader.ReportPresenceAsync(2).ConfigureAwait(false);
+            await m_hostedReader.ReportLogEntryAsync("AOT reader ready").ConfigureAwait(false);
+            await m_hostedReader.ReportAccessAsync("Scan", "Device",
+                [new RfidAccessResult
+                {
+                    EncodingMask = (uint)(RfidAccessResultFields.Identifier | RfidAccessResultFields.Timestamp),
+                    Identifier = new ScanData { SwitchField = ScanDataFields.String, String = "Tag" },
+                    Timestamp = DateTimeUtc.Now
+                }]).ConfigureAwait(false);
+            ISystemContext context = m_hostedReader.Runtime.SystemContext;
+            ushort ns = context.NamespaceUris.GetIndexOrAppend(AutoIdModel.NamespaceUri);
+            NodeState diagnostics = m_hostedReader.Device.Diagnostics!;
+            NodeState logbook = diagnostics.FindChildWithQualifiedName(context, new QualifiedName("Logbook", ns))!;
+            NodeState access = diagnostics.FindChildWithQualifiedName(context, new QualifiedName("LastAccess", ns))!;
+            ReadResponse response = await (m_session ??
+                throw new InvalidOperationException("The AutoID session is not connected.")).ReadAsync(
+                    null, 0, TimestampsToReturn.Source,
+                    [
+                        new ReadValueId
+                        {
+                            NodeId = diagnostics.FindChildWithQualifiedName(
+                                context, new QualifiedName("Presence", ns))!.NodeId,
+                            AttributeId = Attributes.Value
+                        },
+                        new ReadValueId
+                        {
+                            NodeId = logbook.FindChildWithQualifiedName(
+                                context, new QualifiedName("LastLogEntry", ns))!.NodeId,
+                            AttributeId = Attributes.Value
+                        },
+                        new ReadValueId
+                        {
+                            NodeId = access.FindChildWithQualifiedName(
+                                context, new QualifiedName("Identifier", ns))!.NodeId,
+                            AttributeId = Attributes.Value
+                        }
+                    ], CancellationToken.None).ConfigureAwait(false);
+            return response.Results;
         }
 
         /// <inheritdoc/>
@@ -323,6 +386,9 @@ namespace Opc.Ua.Aot.Tests
         /// </summary>
         private readonly TaskCompletionSource m_serverReady =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        /// <summary>The hosted reader used to report deterministic diagnostics.</summary>
+        private AutoIdReader m_hostedReader = null!;
 
         /// <summary>
         /// Holds the NodeId of the configured test reader.

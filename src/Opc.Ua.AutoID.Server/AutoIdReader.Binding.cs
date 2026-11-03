@@ -40,6 +40,7 @@ namespace Opc.Ua.AutoID.Server
             BindScanMethods();
             BindDeviceMethods();
             BindParameters();
+            BindDiagnostics();
             switch (Device)
             {
                 case RfidReaderDeviceState rfid:

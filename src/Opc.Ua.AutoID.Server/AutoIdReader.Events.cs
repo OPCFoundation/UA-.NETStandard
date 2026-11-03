@@ -58,6 +58,7 @@ namespace Opc.Ua.AutoID.Server
             try
             {
                 ISystemContext context = Runtime.SystemContext;
+                PublishPresence(presence);
                 AutoIdPresenceEventState e = context.CreateInstanceOfAutoIdPresenceEventType(Device, default);
                 e.Initialize(context, Device, EventSeverity.Low, new LocalizedText("Presence changed"));
                 e.DeviceName!.Value = DeviceNameOf();
@@ -86,6 +87,7 @@ namespace Opc.Ua.AutoID.Server
             try
             {
                 ISystemContext context = Runtime.SystemContext;
+                PublishLogEntry(entry);
                 AutoIdLogEntryEventState e = context.CreateInstanceOfAutoIdLogEntryEventType(Device, default);
                 e.Initialize(context, Device, EventSeverity.Low, new LocalizedText(entry));
                 e.DeviceName!.Value = DeviceNameOf();
@@ -206,12 +208,12 @@ namespace Opc.Ua.AutoID.Server
         }
 
         /// <summary>
-        /// Raises the access event (OPC 30010 7.10 and 7.11) when access events are enabled.
+        /// Projects the access report and raises its event (OPC 30010 7.10 and 7.11) when enabled.
         /// </summary>
         /// <exception cref="ArgumentException"></exception>
         private void TryRaiseAccessEvent(string client, string command, ArrayOf<AccessResult> results)
         {
-            // The operation has already happened: a failure to publish its audit event must not
+            // The operation has already happened: a failure to publish its diagnostics or event must not
             // turn an executed command into a failed call.
             try
             {
@@ -219,13 +221,33 @@ namespace Opc.Ua.AutoID.Server
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                m_logger.ReaderShutdownStepFailed(ex, Name.Name, "publishing the access event");
+                m_logger.ReaderShutdownStepFailed(ex, Name.Name, "publishing the access diagnostics or event");
             }
         }
 
+        /// <summary>
+        /// Validates the report before projecting its first result and optionally publishing its event.
+        /// </summary>
         private void RaiseAccessEvent(string client, string command, ArrayOf<AccessResult> results)
         {
-            if (!Runtime.Options.PublishAccessEvents || results.Count == 0)
+            if (results.Count == 0)
+            {
+                return;
+            }
+            if (Device.Diagnostics != null || Runtime.Options.PublishAccessEvents)
+            {
+                for (int index = 0; index < results.Count; index++)
+                {
+                    if (results[index] is null ||
+                        (Kind == AutoIdReaderKind.Rfid && results[index] is not RfidAccessResult))
+                    {
+                        throw new ArgumentException(
+                            "The access result type does not match the reader.", nameof(results));
+                    }
+                }
+            }
+            PublishLastAccess(client, command, results[0]);
+            if (!Runtime.Options.PublishAccessEvents)
             {
                 return;
             }

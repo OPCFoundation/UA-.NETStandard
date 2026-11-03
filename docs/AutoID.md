@@ -4,7 +4,7 @@ The AutoID packages implement
 [OPC 30010 OPC UA for AutoID Devices](https://reference.opcfoundation.org/AutoID/v101/docs/)
 (release 1.01, 2020-06-18): RFID readers, OCR readers, optical (barcode) readers
 and verifiers, and real-time locating systems (RTLS), with their scan results,
-tag access methods and diagnostics events.
+tag access methods, diagnostics events and optional read-only diagnostic variables.
 
 | Package | What it adds |
 | --- | --- |
@@ -26,6 +26,8 @@ The [AutoID sample](../samples/AutoID/) runs a simulated RFID reader end to end.
   - [Placement](#placement)
   - [Direct composition and lifetime](#direct-composition-and-lifetime)
 - [Providers](#providers)
+  - [Runtime parameters and Data Access control](#runtime-parameters-and-data-access-control)
+  - [Diagnostics through Data Access](#diagnostics-through-data-access)
 - [Behavior of the methods](#behavior-of-the-methods)
 - [Events](#events)
 - [Conformance](#conformance)
@@ -469,18 +471,61 @@ namespace and supply their declared types, access metadata and value bindings;
 the standard parameter binder preserves those bindings. Reader-specific bindings
 also enforce their own policy for writes during scanning.
 
-The runtime does not fabricate vendor IO or reader-specific parameters.
-Presence, logbook and access diagnostics continue through the existing sink
-and event APIs; this parameter capability does not add a second diagnostics
-pipeline or publish diagnostic-variable groups.
+### Diagnostics through Data Access
 
-The imported model declares `IOData` as an optional FunctionalGroup without
-standard children; its variables therefore require application or reader-specific
-definitions. `Diagnostics` has optional `Presence`, `LastAccess` and `Logbook`
-members, with an RFID `RWData` extension. These variable projections are not
-implemented by this runtime. Existing events do not substitute for those
-variables, and their absence remains an SDK gap separate from the disputed
-verifier and RTLS method contracts.
+`WithDiagnostics()` publishes the read-only standard diagnostic variables of
+[OPC 30010 6.1.3.3](https://reference.opcfoundation.org/specs/OPC-30010/6.1.3.3).
+It uses the reader's existing reports and method results; no additional provider
+interface or event source is required.
+
+```csharp
+AutoIdReader reader = await runtime
+    .Reader(new QualifiedName("Portal", runtime.InstanceNamespaceIndex), hardware)
+    .WithRuntimeParameters(enableScanControl: true)
+    .WithDiagnostics()
+    .BuildAsync(ct);
+```
+
+`ReportPresenceAsync` updates `Diagnostics/Presence`. A scan does not imply a
+presence count: the provider reports that measurement separately.
+`ReportLogEntryAsync` updates `Diagnostics/Logbook/LastLogEntry`, with
+`LogColumns` set to `"Message"` for the sink's single text column. These reports
+retain their existing events; the projection does not keep a second logbook.
+
+`Diagnostics/LastAccess` contains `Client`, `Command`, `Identifier` and
+`Timestamp`. Scans, tag methods and `ReportAccessAsync` update it through the
+same access-report path. As with `LastScanData`, the first result of a multi-result
+report is selected. `Identifier` contains the selected `ScanData` union arm,
+not an encoded union wrapper. All fields in an access update have the same
+source timestamp. Clients reading several fields must compare their
+`SourceTimestamp` values before treating them as one acquisition; use access
+events when all results are needed.
+
+RFID readers also publish `RWData`, `Antenna`, `CurrentPowerLevel`, `PC`,
+`Polarization` and `Strength`, as defined in
+[Table 15](https://reference.opcfoundation.org/specs/OPC-30010/6.5.2).
+Optional fields absent from a later report become null with `Bad_NoData`;
+they do not retain an earlier tag's data. Unreported measurements start with
+`Uncertain_InitialValue`. Method `RWData` uses the existing
+`IAutoIdRfidAccessEventPolicy` classification, including the reserved-bank
+credential exclusion; password changes never populate it. Providers reporting
+autonomous access results remain responsible for excluding credentials from
+those reports.
+
+Diagnostics is opt-in and does not depend on `PublishAccessEvents`. Disabling
+access events does not disable an explicitly configured Data Access projection.
+Normal server read authorization applies to the variables, which reject writes.
+Disposal rejects further reports through the existing reader lifetime checks.
+The [server sample](../samples/AutoID/) enables the projection on its simulated
+RFID portal.
+
+The runtime does not invent vendor IO definitions. OPC 30010 6.1.3.2 defines
+`IOData` as an optional FunctionalGroup for application or reader-specific sensor
+and actuator variables, without standard children. No such hardware points are
+defined by the simulated reader, so it does not publish that group. Hardware
+configuration such as RFID power, tag selection and supported `RWData` format
+selection still requires provider-specific parameters; `WithDiagnostics()` does
+not add writable configuration for those capabilities.
 
 ## Behavior of the methods
 
@@ -714,6 +759,15 @@ readers. These cases are implementation evidence, not OPC certification.
 | Real-session parameter/control workflow without scan method calls | `ParametersControlAndCoherentResultsWorkWithoutScanMethodCallsAsync` |
 | Caller-owned ScanActive subscription and session lifetime | `ScanActiveObservationUsesTheSharedSubscriptionWithoutOwningItsSessionAsync` |
 | Mixed acquisition timestamps and bad RFID value statuses | `InconsistentAcquisitionTimestampsAreRejectedAndBadAntennaStatusIsPreservedAsync` |
+| Opt-in Diagnostics metadata across all reader kinds | `DiagnosticsAreOptInReadOnlyAndUseStandardQualifiedMetadataAsync` |
+| Existing reports update variables without duplicate events or invented presence | `PresenceAndLogReportsUpdateValuesAndRetainSingleEventsAsync`, `ScanReportsShareAccessProjectionAndDoNotInventPresenceAsync` |
+| Timestamp consistency and removal of absent RFID values with events disabled | `AccessProjectionIsIndependentOfEventsAndClearsAbsentRfidFieldsAsync` |
+| Invalid, cancelled and disposed reports retain previous diagnostics | `InvalidCancelledAndDisposedReportsDoNotReplacePreviousDiagnosticsAsync` |
+| RFID credential exclusions also govern projected method data | `SecurityR14ReservedBankReadAndWriteNeverPublishCredentialsAsync`, `SecurityR14CredentialRangeOverlapAndUnknownClassificationFailSafeAsync` |
+| Real-session diagnostic browsing, typed tag access and write denial | `DiagnosticsAreBrowsableReadOnlyAndProjectTypedClientAccessAsync` |
+
+`DiagnosticReportsExecuteAndReadThroughDataAccessAsync` in `tests/Opc.Ua.Aot.Tests`
+also exercises report projection and Data Access encoding in the NativeAOT test binary.
 
 ## Provenance
 

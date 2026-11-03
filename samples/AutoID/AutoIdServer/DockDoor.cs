@@ -81,6 +81,7 @@ namespace AutoIdSample
                 .Reader(new QualifiedName(ReaderName, context.Manager.InstanceNamespaceIndex), Hardware)
                 .WithDeviceInfo("Dock door antenna portal")
                 .WithRuntimeParameters(enableScanControl: true)
+                .WithDiagnostics()
                 .WithDeviceLocationName("Dock 1, gate A")
                 .WithDeviceLocation(new Location { SwitchField = LocationFields.Name, Name = "Dock 1" })
                 .WithAntennaNames(

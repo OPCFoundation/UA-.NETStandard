@@ -243,7 +243,131 @@ namespace Opc.Ua.AutoID.Tests
         }
 
         /// <summary>
-        /// Checks that configured parameter children are discoverable with their published identity.
+        /// Reads projected reports and typed tag operations through a real session, including write denial.
+        /// </summary>
+        [Test]
+        public async Task DiagnosticsAreBrowsableReadOnlyAndProjectTypedClientAccessAsync()
+        {
+            var provider = new FakeProvider();
+            await using AutoIdReader reader = await m_host.Runtime.Reader(Name(), provider)
+                .WithDiagnostics().BuildAsync().ConfigureAwait(false);
+            ISystemContext context = m_host.Runtime.SystemContext;
+            ushort ns = context.NamespaceUris.GetIndexOrAppend(AutoIdModel.NamespaceUri);
+            BaseObjectState diagnostics = reader.Device.Diagnostics!;
+            await AssertBrowsableChildAsync(reader.Device, diagnostics).ConfigureAwait(false);
+            var nodes = new Dictionary<string, BaseVariableState>(StringComparer.Ordinal);
+            var children = new List<BaseInstanceState>();
+            diagnostics.GetChildren(context, children);
+            foreach (BaseInstanceState child in children)
+            {
+                await AssertBrowsableChildAsync(diagnostics, child).ConfigureAwait(false);
+                if (child is BaseVariableState variable)
+                {
+                    nodes.Add(child.BrowseName.Name!, variable);
+                    continue;
+                }
+                var nested = new List<BaseInstanceState>();
+                child.GetChildren(context, nested);
+                foreach (BaseInstanceState field in nested)
+                {
+                    await AssertBrowsableChildAsync(child, field).ConfigureAwait(false);
+                    nodes.Add(child.BrowseName.Name + "/" + field.BrowseName.Name, (BaseVariableState)field);
+                    Assert.That(field.BrowseName.NamespaceIndex, Is.EqualTo(ns));
+                }
+            }
+
+            async Task<DataValue> ReadAsync(string path)
+            {
+                ReadResponse response = await m_session.ReadAsync(null, 0, TimestampsToReturn.Source,
+                    [new ReadValueId { NodeId = nodes[path].NodeId, AttributeId = Attributes.Value }],
+                    CancellationToken.None).ConfigureAwait(false);
+                Assert.That(response.Results.Count, Is.EqualTo(1));
+                return response.Results[0];
+            }
+
+            DataValue initial = await ReadAsync("Presence").ConfigureAwait(false);
+            Assert.That(initial.StatusCode, Is.EqualTo(StatusCodes.UncertainInitialValue));
+            await reader.ReportPresenceAsync(7).ConfigureAwait(false);
+            await reader.ReportLogEntryAsync("Ready over UA").ConfigureAwait(false);
+            AutoIdReaderEntry entry = await m_client.GetReaderAsync(reader.NodeId).ConfigureAwait(false);
+            ScanData identifier = AutoIdTestData.Epc(ByteString.From([5, 6]));
+            AutoIdTagReadResponse read = await m_client.ReadTagAsync(entry, identifier, "EPC", 3, 0, 2)
+                .ConfigureAwait(false);
+            Assert.That(read.Status, Is.EqualTo(AutoIdOperationStatusEnumeration.SUCCESS));
+            DataValue presence = await ReadAsync("Presence").ConfigureAwait(false);
+            DataValue log = await ReadAsync("Logbook/LastLogEntry").ConfigureAwait(false);
+            DataValue command = await ReadAsync("LastAccess/Command").ConfigureAwait(false);
+            DataValue client = await ReadAsync("LastAccess/Client").ConfigureAwait(false);
+            DataValue tag = await ReadAsync("LastAccess/Identifier").ConfigureAwait(false);
+            DataValue timestamp = await ReadAsync("LastAccess/Timestamp").ConfigureAwait(false);
+            DataValue data = await ReadAsync("LastAccess/RWData").ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(presence.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(presence.WrappedValue, Is.EqualTo(Variant.From((ushort)7)));
+                Assert.That(log.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(log.WrappedValue, Is.EqualTo(Variant.From("Ready over UA")));
+                Assert.That(command.WrappedValue, Is.EqualTo(Variant.From("ReadTag")));
+                Assert.That(client.WrappedValue, Is.EqualTo(Variant.From("AutoIdDataAccess")));
+                Assert.That(tag.WrappedValue, Is.EqualTo(Variant.FromStructure(identifier.Epc)));
+                Assert.That(data.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(data.WrappedValue, Is.EqualTo(Variant.From(read.Data)));
+                Assert.That(timestamp.WrappedValue, Is.EqualTo(Variant.From(timestamp.SourceTimestamp)));
+                Assert.That(command.SourceTimestamp, Is.EqualTo(timestamp.SourceTimestamp));
+                Assert.That(client.SourceTimestamp, Is.EqualTo(timestamp.SourceTimestamp));
+                Assert.That(tag.SourceTimestamp, Is.EqualTo(timestamp.SourceTimestamp));
+                Assert.That(data.SourceTimestamp, Is.EqualTo(timestamp.SourceTimestamp));
+            });
+            ReadResponse ranges = await m_session.ReadAsync(null, 0, TimestampsToReturn.Source,
+                [
+                    new ReadValueId
+                    {
+                        NodeId = nodes["LastAccess/Client"].NodeId,
+                        AttributeId = Attributes.Value,
+                        IndexRange = "0:3"
+                    },
+                    new ReadValueId
+                    {
+                        NodeId = nodes["Presence"].NodeId,
+                        AttributeId = Attributes.Value,
+                        IndexRange = "0"
+                    }
+                ], CancellationToken.None).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(ranges.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(ranges.Results[0].WrappedValue, Is.EqualTo(Variant.From("Auto")));
+                Assert.That(ranges.Results[0].SourceTimestamp, Is.EqualTo(timestamp.SourceTimestamp));
+                Assert.That(ranges.Results[1].StatusCode, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
+            });
+            WriteResponse denied = await m_session.WriteAsync(null,
+                [new WriteValue
+                {
+                    NodeId = nodes["Presence"].NodeId,
+                    AttributeId = Attributes.Value,
+                    Value = new DataValue(Variant.From((ushort)99))
+                }], CancellationToken.None).ConfigureAwait(false);
+            Assert.That(denied.Results[0], Is.EqualTo(StatusCodes.BadNotWritable));
+            Assert.That((await ReadAsync("Presence").ConfigureAwait(false)).WrappedValue,
+                Is.EqualTo(Variant.From((ushort)7)));
+
+            provider.OnRead = _ => new ValueTask<AutoIdTagReadOutcome>(
+                new AutoIdTagReadOutcome(ByteString.Empty, AutoIdOperationStatusEnumeration.NO_IDENTIFIER));
+            read = await m_client.ReadTagAsync(entry, identifier, "EPC", 3, 0, 2).ConfigureAwait(false);
+            Assert.That(read.Status, Is.EqualTo(AutoIdOperationStatusEnumeration.NO_IDENTIFIER));
+            Assert.That((await ReadAsync("LastAccess/Timestamp").ConfigureAwait(false)).SourceTimestamp,
+                Is.EqualTo(timestamp.SourceTimestamp));
+            await reader.ReportAccessAsync("Scan", "Device", [new RfidAccessResult()]).ConfigureAwait(false);
+            DataValue absent = await ReadAsync("LastAccess/RWData").ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(absent.StatusCode, Is.EqualTo(StatusCodes.BadNoData));
+                Assert.That(absent.WrappedValue.IsNull, Is.True);
+            });
+        }
+
+        /// <summary>
+        /// Checks that configured children are discoverable with their published identity.
         /// </summary>
         private async Task AssertBrowsableChildAsync(NodeState parent, BaseInstanceState child)
         {

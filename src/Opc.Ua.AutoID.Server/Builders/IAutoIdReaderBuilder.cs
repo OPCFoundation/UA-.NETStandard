@@ -143,6 +143,17 @@ namespace Opc.Ua.AutoID.Server.Builders
         IAutoIdReaderBuilder WithScanWritePermissions(ArrayOf<RolePermissionType> permissions);
 
         /// <summary>
+        /// Publishes read-only Diagnostics from the existing presence, log and access reports.
+        /// </summary>
+        /// <remarks>
+        /// Includes Presence, a single Message column in Logbook, and LastAccess. RFID readers
+        /// also expose the optional RFID access fields. Unreported measurements have UncertainInitialValue;
+        /// fields absent from a subsequent access report have BadNoData rather than
+        /// retaining an earlier access. Access-event publication is configured independently.
+        /// </remarks>
+        IAutoIdReaderBuilder WithDiagnostics();
+
+        /// <summary>
         /// Publishes the optional <c>DeviceLocation</c> variable and the <c>GetDeviceLocation</c>
         /// method (OPC 30010 6.1.3.7 and 6.1.3.12). <see cref="AutoIdReader.SetDeviceLocation"/>
         /// updates it for a mobile reader.

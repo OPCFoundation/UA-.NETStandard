@@ -94,4 +94,12 @@ production hardware and persistent settings remain provider responsibilities.
 The optional `configure` callback adds application-namespace reader-specific
 parameters before registration, retaining their application-owned bindings.
 
+Use `WithDiagnostics()` to publish read-only Presence, Logbook and LastAccess
+from the existing sink and method-report paths. RFID LastAccess includes the
+optional RFID fields and only the method data permitted by the existing
+access-event classification policy. Omitted fields become Bad_NoData instead
+of retaining an earlier access; clients must compare source timestamps across
+the fields they read. This projection is independent of access-event publication
+and does not define hardware-specific IO points or a second event source.
+
 See the [AutoID guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/AutoID.md).

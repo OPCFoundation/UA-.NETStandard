@@ -70,6 +70,10 @@ namespace Opc.Ua.AutoID.Server
                     builder.ScanWritePermissions);
                 builder.ConfigureParameters?.Invoke(context, device.RuntimeParameters!);
             }
+            if (builder.HasDiagnostics)
+            {
+                AutoIdReader.ConfigureDiagnostics(context, device);
+            }
 
             if (builder.DeviceInfo != null)
             {

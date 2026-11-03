@@ -87,6 +87,11 @@ namespace Opc.Ua.AutoID.Server.Builders
         internal bool HasScanControl { get; private set; }
 
         /// <summary>
+        /// Gets whether the reader exposes standard diagnostics.
+        /// </summary>
+        internal bool HasDiagnostics { get; private set; }
+
+        /// <summary>
         /// Gets or sets the initial provider configuration.
         /// </summary>
         internal AutoIdScanParameters? Parameters { get; set; }
@@ -105,6 +110,13 @@ namespace Opc.Ua.AutoID.Server.Builders
         public IAutoIdReaderBuilder WithScanWritePermissions(ArrayOf<RolePermissionType> permissions)
         {
             ScanWritePermissions = permissions.ToArray().ToArrayOf();
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IAutoIdReaderBuilder WithDiagnostics()
+        {
+            HasDiagnostics = true;
             return this;
         }
 

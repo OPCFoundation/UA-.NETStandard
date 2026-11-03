@@ -10,6 +10,12 @@ reader through the variable, reads timestamp-consistent acquisition data and
 stops it through the variable. No Scan or ScanStart call is needed for this
 first workflow; the later examples retain both method access styles.
 
+The server also enables `WithDiagnostics()`. Data Access clients can browse
+`DockDoor1/Diagnostics` for read-only Presence, Logbook and LastAccess values,
+including RFID access fields. The values use the same reports as the events;
+clients must compare LastAccess source timestamps before combining fields.
+The simulated provider does not define hardware-specific IOData points.
+
 | Sample | What it does |
 | --- | --- |
 | [AutoIdServer](AutoIdServer/) | Serves the reader `DockDoor1` backed by `InMemoryRfidReaderProvider`: two pallets in range, a third entering and leaving every two seconds, a triggered scan every six |
