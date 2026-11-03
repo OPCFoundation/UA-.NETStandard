@@ -552,6 +552,9 @@ namespace Opc.Ua.LADS.Tests.Server
             }
         }
 
+        /// <summary>
+        /// Preserves requested outcomes when a completed false acknowledgment wins over cancellation.
+        /// </summary>
         [TestCase("Stop", LadsProgramOutcome.Stopped)]
         [TestCase("Abort", LadsProgramOutcome.Aborted)]
         [TestCase("Reject", LadsProgramOutcome.Aborted)]
@@ -684,9 +687,13 @@ namespace Opc.Ua.LADS.Tests.Server
             }
         }
 
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task ResultStoreFailureFaultsAcceptedEndAndResultWaiterAfterCleanupAsync(bool abort)
+        /// <summary>
+        /// Reports finalization failure to end and disposal callers after execution and resource cleanup.
+        /// </summary>
+        [TestCase("Stop")]
+        [TestCase("Abort")]
+        [TestCase("Dispose")]
+        public async Task ResultStoreFailureFaultsAcceptedEndAndResultWaiterAfterCleanupAsync(string action)
         {
             var entered = NewSignal();
             var saving = NewSignal();
@@ -712,8 +719,9 @@ namespace Opc.Ua.LADS.Tests.Server
             }
             var executor = new ControlledExecutor(
                 (_, _, _) => ValueTask.FromResult(ServiceResult.Good),
-                async (_, cancellationToken) =>
+                async (run, cancellationToken) =>
                 {
+                    run.AddResultFile("failure-evidence.txt", "text/plain", ByteString.From("evidence"u8));
                     entered.TrySetResult(true);
                     try
                     {
@@ -737,7 +745,12 @@ namespace Opc.Ua.LADS.Tests.Server
             try
             {
                 await entered.Task.WaitAsync(s_timeout).ConfigureAwait(false);
-                end = abort ? unit.AbortAsync().AsTask() : unit.StopAsync().AsTask();
+                end = action switch
+                {
+                    "Dispose" => programs.DisposeAsync().AsTask(),
+                    "Abort" => unit.AbortAsync().AsTask(),
+                    _ => unit.StopAsync().AsTask()
+                };
                 await saving.Task.WaitAsync(s_timeout).ConfigureAwait(false);
                 Assert.That(executorExited.Task.IsCompleted, Is.True);
                 Assert.That(end.IsCompleted, Is.False);
@@ -747,9 +760,21 @@ namespace Opc.Ua.LADS.Tests.Server
             {
                 release.TrySetResult(true);
             }
-            await Assert.ThatAsync(
-                async () => await end!.WaitAsync(s_timeout).ConfigureAwait(false),
-                Throws.TypeOf<InvalidOperationException>().With.Message.EqualTo(failure.Message)).ConfigureAwait(false);
+            if (action == "Dispose")
+            {
+                AggregateException? disposalFailure = await Assert.ThrowsAsync<AggregateException>(
+                    async () => await end!.WaitAsync(s_timeout).ConfigureAwait(false));
+                Assert.That(disposalFailure!.Flatten().InnerExceptions, Has.Count.EqualTo(1));
+                Assert.That(disposalFailure.Flatten().InnerExceptions[0], Is.SameAs(failure));
+                await programs.DisposeAsync().ConfigureAwait(false);
+            }
+            else
+            {
+                await Assert.ThatAsync(
+                    async () => await end!.WaitAsync(s_timeout).ConfigureAwait(false),
+                    Throws.TypeOf<InvalidOperationException>().With.Message.EqualTo(failure.Message))
+                    .ConfigureAwait(false);
+            }
             await Assert.ThatAsync(
                 async () => await result.WaitAsync(s_timeout).ConfigureAwait(false),
                 Throws.TypeOf<InvalidOperationException>().With.Message.EqualTo(failure.Message)).ConfigureAwait(false);
@@ -767,6 +792,9 @@ namespace Opc.Ua.LADS.Tests.Server
             await device.SaveStoredDataAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Distinguishes active-run cancellation from rejection before execution finishes.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task ActiveRunCancellationPublishesCancelledAcknowledgmentBeforeExecutionEndsAsync(bool abort)
@@ -817,6 +845,9 @@ namespace Opc.Ua.LADS.Tests.Server
             Assert.That(device.OperationCycleCounter, Is.Zero);
         }
 
+        /// <summary>
+        /// Retains a provider rejection when Stop subsequently cancels execution.
+        /// </summary>
         [Test]
         public async Task ProviderRejectionRetainsFailureWhenStopCancelsExecutionAsync()
         {
@@ -862,6 +893,9 @@ namespace Opc.Ua.LADS.Tests.Server
             Assert.That(device.OperationCycleCounter, Is.Zero);
         }
 
+        /// <summary>
+        /// Waits for run cleanup when an observer ends or disposes a newly published active run.
+        /// </summary>
         [TestCase("Stop")]
         [TestCase("Abort")]
         [TestCase("Dispose")]
@@ -923,6 +957,9 @@ namespace Opc.Ua.LADS.Tests.Server
             }
         }
 
+        /// <summary>
+        /// Faults early lifetime and result waiters when startup publication fails.
+        /// </summary>
         [Test]
         public async Task StartupPublicationFailureCompletesEarlyEndWaiterAsync()
         {
@@ -965,6 +1002,9 @@ namespace Opc.Ua.LADS.Tests.Server
             }
         }
 
+        /// <summary>
+        /// Preserves genuine executor failures despite an overlapping accepted end request.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task ExecutorFailureOverridesOverlappingEndRequestAsync(bool abort)
@@ -1010,6 +1050,9 @@ namespace Opc.Ua.LADS.Tests.Server
             Assert.That(device.OperationCycleCounter, Is.Zero);
         }
 
+        /// <summary>
+        /// Publishes an accepted end outcome when finalization has not yet frozen the candidate.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task EndRequestBeforeFinalizationOverridesCompletedCandidateAsync(bool abort)
@@ -1054,6 +1097,9 @@ namespace Opc.Ua.LADS.Tests.Server
             Assert.That(device.OperationCycleCounter, Is.Zero);
         }
 
+        /// <summary>
+        /// Enforces first-request precedence and rejects stale requests after finalization starts.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public void FinalizationArbitratesCandidateAndStaleEndRequests(bool abort)
@@ -1088,6 +1134,9 @@ namespace Opc.Ua.LADS.Tests.Server
             Assert.That(active.RequestEnd(LadsProgramOutcome.Stopped), Is.False);
         }
 
+        /// <summary>
+        /// Waits for frozen-result publication before applying a standalone end transition.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task EndDuringResultPublicationWaitsThenTransitionsStandaloneAsync(bool abort)
