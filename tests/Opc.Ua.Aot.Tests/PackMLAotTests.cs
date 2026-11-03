@@ -170,11 +170,11 @@ namespace Opc.Ua.Aot.Tests
                 services.AddOpcUa().AddClient(options => options.ApplicationName = "PackMLAotClient")
                     .AddPackMLClient();
                 int borrowed = 0;
-                services.AddSingleton<Func<CancellationToken, Task<ManagedSession>>>(_ => ct =>
+                services.AddSingleton<Func<CancellationToken, Task<ManagedSession>>>(_ => async ct =>
                 {
                     ct.ThrowIfCancellationRequested();
                     borrowed++;
-                    return Task.FromResult(session);
+                    return await Task.FromResult(session).ConfigureAwait(false);
                 });
                 await using (ServiceProvider provider = services.BuildServiceProvider())
                 {
