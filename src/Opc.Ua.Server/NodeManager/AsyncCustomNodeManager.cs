@@ -4849,12 +4849,8 @@ namespace Opc.Ua.Server
             // do not cache target parameters for remote nodes.
             if (reference.TargetId.IsAbsolute)
             {
-                // only return remote references if no node class filter is specified.
-                if (continuationPoint.NodeClassMask != 0)
-                {
-                    return null!;
-                }
-
+                // The NodeClass of a remote target is unknown here, so OPC 10000-4 §5.9.2.2
+                // requires the nodeClassMask to be ignored for it.
                 return description;
             }
 

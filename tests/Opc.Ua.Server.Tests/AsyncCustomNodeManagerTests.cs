@@ -2394,6 +2394,69 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// OPC 10000-4 §5.9.2.2 ignores the nodeClassMask for a remote target whose NodeClass is
+        /// unknown, while local targets remain filtered by their NodeClass.
+        /// </summary>
+        [TestCase(NodeClass.Object)]
+        [TestCase(NodeClass.Variable)]
+        public async Task BrowseAsyncIgnoresNodeClassMaskForRemoteTargetsAsync(NodeClass mask)
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var parent = new BaseObjectState(null);
+            parent.CreateAsPredefinedNode(context);
+            parent.NodeId = new NodeId("MaskParent", nsIdx);
+            parent.BrowseName = new QualifiedName("MaskParent", nsIdx);
+            await manager.AddNodeAsync(context, default, parent).ConfigureAwait(false);
+
+            var child = new BaseObjectState(null);
+            child.CreateAsPredefinedNode(context);
+            child.NodeId = new NodeId("MaskObject", nsIdx);
+            child.BrowseName = new QualifiedName("MaskObject", nsIdx);
+            await manager.AddNodeAsync(context, parent.NodeId, child).ConfigureAwait(false);
+
+            var variable = new BaseDataVariableState(null);
+            variable.CreateAsPredefinedNode(context);
+            variable.NodeId = new NodeId("MaskVariable", nsIdx);
+            variable.BrowseName = new QualifiedName("MaskVariable", nsIdx);
+            variable.DataType = DataTypeIds.Int32;
+            variable.ValueRank = ValueRanks.Scalar;
+            await manager.AddNodeAsync(context, parent.NodeId, variable).ConfigureAwait(false);
+
+            var remote = new ExpandedNodeId("RemoteTarget", "urn:test:remote", 1);
+            parent.AddReference(ReferenceTypeIds.Organizes, false, remote);
+
+            object handle = await manager.GetManagerHandleAsync(parent.NodeId).ConfigureAwait(false);
+            var continuationPoint = new ContinuationPoint
+            {
+                NodeToBrowse = handle,
+                Manager = manager,
+                View = new ViewDescription(),
+                BrowseDirection = BrowseDirection.Forward,
+                IncludeSubtypes = true,
+                NodeClassMask = (uint)mask,
+                ResultMask = BrowseResultMask.All
+            };
+            var references = new List<ReferenceDescription>();
+
+            ContinuationPoint result = (await manager.BrowseAsync(
+                new OperationContext(new RequestHeader(), null, RequestType.Browse, RequestLifetime.None),
+                continuationPoint,
+                references).ConfigureAwait(false))!;
+
+            Assert.That(result, Is.Null);
+            ExpandedNodeId expectedLocal = new(mask == NodeClass.Object ? child.NodeId : variable.NodeId);
+            ExpandedNodeId excludedLocal = new(mask == NodeClass.Object ? variable.NodeId : child.NodeId);
+            Assert.That(references.Select(reference => reference.NodeId),
+                Is.EquivalentTo(new[] { expectedLocal, remote }));
+            Assert.That(references.Select(reference => reference.NodeId), Does.Not.Contain(excludedLocal));
+            ReferenceDescription remoteDescription = references.Single(reference => reference.NodeId == remote);
+            Assert.That(remoteDescription.NodeClass, Is.EqualTo(NodeClass.Unspecified));
+            Assert.That(remoteDescription.Unfiltered, Is.False);
+        }
+
+        /// <summary>
         /// A Timestamp or ViewVersion without a ViewId selects a version of the
         /// entire AddressSpace, which is not available: OPC 10000-4 Table 178
         /// requires Bad_ViewTimestampInvalid / Bad_ViewVersionInvalid rather than

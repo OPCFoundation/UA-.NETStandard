@@ -147,13 +147,12 @@ namespace Opc.Ua.AMB.Tests
                 {
                     references.Add(reference);
                 }
-                // The legacy hierarchical browse sets an Object NodeClassMask; this server
-                // cannot classify a remote target and omits it, as before the URI-aware API.
-                Assert.That(references, Does.Not.Contain(groupId),
-                    "the masked legacy browse neither follows nor reports the remote target");
+                // OPC 10000-4 §5.9.2.2 ignores the Object NodeClassMask for a remote target of unknown class.
+                Assert.That(references, Does.Contain(groupId),
+                    "both constructors report the published remote reference without following it");
                 Assert.That(references.Any(node => node.ServerIndex == 0), Is.True,
                     "an unresolved remote reference must not discard local sub-assets");
-                Assert.That(references.Count(node => node.ServerIndex != 0), Is.Zero);
+                Assert.That(references.Count(node => node.ServerIndex != 0), Is.EqualTo(1));
                 ArrayOf<AssetRelation> relations = await referenceClient.ReadRelationsAsync(local.Pump!.NodeId)
                     .ConfigureAwait(false);
                 Assert.That(relations.ToList().Any(relation => relation.Target == groupId), Is.True);
