@@ -1062,7 +1062,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(first.ContinuationPoint.IsEmpty, Is.False);
                 HistoryReadResult resumed = await ReadEventIdPageAsync(
                     session, notifier.NodeId, first.ContinuationPoint, timeout.Token).ConfigureAwait(false);
-                Assert.That(resumed.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(resumed.StatusCode, Is.EqualTo(StatusCodes.GoodNoData));
                 Assert.That(ReadEventIdsOrEmpty(resumed), Is.Empty,
                     "a live foreign SourceNode that denies ReceiveEvents must not expose its event");
                 Assert.That(resumed.ContinuationPoint.IsEmpty, Is.True);
@@ -1128,7 +1128,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
                 HistoryReadResult resumed = await ReadEventIdPageAsync(
                     session, notifier.NodeId, first.ContinuationPoint, timeout.Token).ConfigureAwait(false);
-                Assert.That(resumed.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(resumed.StatusCode, Is.EqualTo(StatusCodes.GoodNoData));
                 Assert.That(ReadEventIdsOrEmpty(resumed), Is.Empty,
                     "a retained owner that denies ReceiveEvents must not defer to a permissive live replacement");
                 Assert.That(resumed.ContinuationPoint.IsEmpty, Is.True);
