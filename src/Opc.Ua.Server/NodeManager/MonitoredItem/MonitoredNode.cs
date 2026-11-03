@@ -719,66 +719,24 @@ namespace Opc.Ua.Server
         /// </summary>
         private async Task ProcessChannelAsync(CancellationToken cancellationToken)
         {
+            ChannelReader<INodeNotification> reader = m_channel.Reader;
             try
             {
-                await foreach (INodeNotification notification in m_channel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+                // Drains everything pending per wake-up. The wait takes no token so the channel reuses
+                // one waiter instead of allocating one per wake-up; Dispose completes the writer before
+                // it cancels, which ends the wait, and the drain checks the token per notification.
+                while (await reader.WaitToReadAsync(CancellationToken.None).ConfigureAwait(false))
                 {
-                    try
+                    while (reader.TryRead(out INodeNotification? notification))
                     {
-                        if (notification is EventSnapshot eventSnapshot)
+                        if (cancellationToken.IsCancellationRequested)
                         {
-                            EventSnapshot? next = eventSnapshot;
-                            while (next is not null)
-                            {
-                                using var emission = next.SourceEmission;
-                                next = await ProcessEventSnapshotAsync(next, cancellationToken).ConfigureAwait(false);
-                            }
+                            notification.SourceEmission?.Dispose();
+                            return;
                         }
-                        else
+                        if (!await ProcessNotificationAsync(notification, cancellationToken).ConfigureAwait(false))
                         {
-                            using var emission = notification.SourceEmission;
-                            if (notification is DataChangeSnapshot dataChangeSnapshot)
-                            {
-                                await ProcessDataChangeSnapshotAsync(dataChangeSnapshot, cancellationToken)
-                                    .ConfigureAwait(false);
-                            }
-                            else if (notification is SemanticResample semanticResample)
-                            {
-                                await ProcessSemanticResampleAsync(semanticResample, cancellationToken)
-                                    .ConfigureAwait(false);
-                            }
-                            else if (notification is SemanticResampleSignal)
-                            {
-                            }
-                            else if (notification is NotificationFence fence)
-                            {
-                                await ProcessPendingSemanticResamplesAsync(cancellationToken).ConfigureAwait(false);
-                                fence.Completion.TrySetResult(true);
-                            }
-                        }
-                    }
-                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-                    {
-                        break;
-                    }
-                    catch (Exception ex)
-                    {
-                        m_logger?.MonitoredNode2ConsumerEncounteredAnErrorProcessing(ex);
-                    }
-
-                    if (!m_channel.Reader.TryPeek(out _))
-                    {
-                        try
-                        {
-                            await ProcessPendingSemanticResamplesAsync(cancellationToken).ConfigureAwait(false);
-                        }
-                        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-                        {
-                            break;
-                        }
-                        catch (Exception ex)
-                        {
-                            m_logger?.MonitoredNode2ConsumerEncounteredAnErrorProcessing(ex);
+                            return;
                         }
                     }
                 }
@@ -791,6 +749,75 @@ namespace Opc.Ua.Server
             {
                 m_logger?.MonitoredNode2ConsumerTerminatedUnexpectedly(ex);
             }
+        }
+
+        /// <summary>
+        /// Processes one notification taken from the channel.
+        /// </summary>
+        /// <returns><c>false</c> when the consumer was cancelled.</returns>
+        private async ValueTask<bool> ProcessNotificationAsync(
+            INodeNotification notification,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                if (notification is EventSnapshot eventSnapshot)
+                {
+                    EventSnapshot? next = eventSnapshot;
+                    while (next is not null)
+                    {
+                        using var emission = next.SourceEmission;
+                        next = await ProcessEventSnapshotAsync(next, cancellationToken).ConfigureAwait(false);
+                    }
+                }
+                else
+                {
+                    using var emission = notification.SourceEmission;
+                    if (notification is DataChangeSnapshot dataChangeSnapshot)
+                    {
+                        await ProcessDataChangeSnapshotAsync(dataChangeSnapshot, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    else if (notification is SemanticResample semanticResample)
+                    {
+                        await ProcessSemanticResampleAsync(semanticResample, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    else if (notification is SemanticResampleSignal)
+                    {
+                    }
+                    else if (notification is NotificationFence fence)
+                    {
+                        await ProcessPendingSemanticResamplesAsync(cancellationToken).ConfigureAwait(false);
+                        fence.Completion.TrySetResult(true);
+                    }
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                return false;
+            }
+            catch (Exception ex)
+            {
+                m_logger?.MonitoredNode2ConsumerEncounteredAnErrorProcessing(ex);
+            }
+
+            if (!m_channel.Reader.TryPeek(out _))
+            {
+                try
+                {
+                    await ProcessPendingSemanticResamplesAsync(cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    return false;
+                }
+                catch (Exception ex)
+                {
+                    m_logger?.MonitoredNode2ConsumerEncounteredAnErrorProcessing(ex);
+                }
+            }
+            return true;
         }
 
         /// <summary>
