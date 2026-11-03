@@ -122,14 +122,13 @@ matrices, byte strings, opaque identifiers, nested variants and extension object
 type identifiers are copied into new storage with their type and dimensions
 unchanged. A decoded structure is binary encoded and decoded into a new
 instance, because its generated clone shares array, byte string and variant
-fields. Register every structure type a provider publishes, including types
-nested in another structure, with the server's encodeable factory. When a
-decoded copy differs from the original, the refresh throws `BadNotSupported`
-and the binding publishes nothing. An unregistered nested type causes this,
-because it decodes as an opaque binary body. Statistics with such a type are
-therefore not supported, even though the specification admits statistics of
-any kind. Calibration feature and operational-condition readings use the same
-copy.
+fields. When the decoded copy differs from the original, the refresh throws
+`BadNotSupported` and the binding publishes nothing. A structure nested in
+another structure causes this when its type is not registered with the
+server's encodeable factory, because it decodes as an opaque binary body. Such
+statistics are not supported, even though the specification admits statistics
+of any kind. Calibration feature and operational-condition readings use the
+same copy.
 
 For vendor-defined grouping ObjectTypes, supply
 `.WithGroupTypeResolver(nodeId => manager.FindPredefinedNode<BaseObjectTypeState>(nodeId))`.
@@ -292,7 +291,7 @@ The IA test project separates provider/topology tests from the encrypted
 client/server scenario. NativeAOT, supported-framework solution results, and
 companion compatibility results must be recorded before changing a support
 rating to Full. IA support is **Partial**. OPC 10000-200 §6.2.1.1 admits
-statistics of any kind, but the binding rejects a structure value with
-`BadNotSupported` when it cannot copy the value without loss. This happens
-when one of the value's structure types is not registered with the
-encodeable factory.
+statistics of any kind, but the statistics binding rejects a decoded structure
+with `BadNotSupported` when its binary copy differs from the original. This
+happens, for example, when a structure nested in the value has a type that is
+not registered with the encodeable factory.

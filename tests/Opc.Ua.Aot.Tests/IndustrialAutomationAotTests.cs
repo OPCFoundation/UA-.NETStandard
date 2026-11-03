@@ -107,5 +107,226 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(nodes.Any(node => node.NodeId == ExpandedNodeId.ToNodeId(
                 IA.ObjectTypeIds.CalibrationTargetType, messages.NamespaceUris))).IsTrue();
         }
+
+        /// <summary>
+        /// Publishes decoded structures through the public statistics binding and verifies that
+        /// the published copies stay detached after the provider changes its source buffers.
+        /// </summary>
+        [Test]
+        public async Task StatisticsPublishDetachedDecodedStructuresAsync()
+        {
+            ITelemetryContext telemetry = DefaultTelemetry.Create(
+                builder => builder.SetMinimumLevel(LogLevel.Warning));
+            ServiceMessageContext messages = ServiceMessageContext.Create(telemetry);
+            var namespaces = new NamespaceTable();
+            var ids = new InstanceIds(namespaces.GetIndexOrAppend("urn:tests:ia:aot:instances"));
+            namespaces.GetIndexOrAppend(DiNodeManager.DiNamespaceUri);
+            namespaces.GetIndexOrAppend(IA.Namespaces.IA);
+            var context = new SystemContext(telemetry)
+            {
+                NamespaceUris = namespaces,
+                NodeIdFactory = ids,
+                TypeTable = new TypeTable(namespaces),
+                EncodeableFactory = messages.Factory
+            };
+            context.EncodeableFactory.Builder.AddOpcUaIA().Commit();
+
+            var owner = new BaseObjectState(null);
+            owner.Create(context, NodeId.Null, new QualifiedName("Statistics", ids.Namespace),
+                new LocalizedText("Statistics"), true);
+            BaseDataVariableState registered = Quantity(context, owner, ids, "Registered");
+            BaseDataVariableState custom = Quantity(context, owner, ids, "Custom");
+
+            uint[] dimensions = [2, 3];
+            double[] values = [1, 2];
+            byte[] payload = [3, 4];
+            uint[] nested = [5, 6];
+            var argument = new Argument
+            {
+                Name = "Input",
+                ArrayDimensions = new ArrayOf<uint>(dimensions.AsMemory())
+            };
+            var structure = new MutableStructure
+            {
+                Values = new ArrayOf<double>(values.AsMemory()),
+                Payload = new ByteString(payload.AsMemory()),
+                Nested = Variant.From(new ArrayOf<uint>(nested.AsMemory()))
+            };
+            DateTimeUtc timestamp = new DateTime(2026, 1, 2, 3, 4, 5, DateTimeKind.Utc);
+            var provider = new SnapshotProvider(new IaStatisticsSnapshot
+            {
+                StartTime = timestamp,
+                Values =
+                [
+                    new DataValue(new Variant(new ExtensionObject(argument)), StatusCodes.Good, timestamp),
+                    new DataValue(new Variant(new ExtensionObject(structure)), StatusCodes.Good, timestamp)
+                ]
+            });
+            using (var binding = new IaStatistics(context, owner, [registered, custom], provider))
+            {
+                await binding.RefreshAsync().ConfigureAwait(false);
+            }
+            dimensions[0] = 99;
+            values[0] = 99;
+            payload[0] = 99;
+            nested[0] = 99;
+
+            await Assert.That(registered.WrappedValue.TryGetValue(out ExtensionObject first)).IsTrue();
+            await Assert.That(first.TryGetValue(out Argument? argumentCopy)).IsTrue();
+            await Assert.That(ReferenceEquals(argumentCopy, argument)).IsFalse();
+            await Assert.That(argumentCopy!.Name).IsEqualTo("Input");
+            await Assert.That(argumentCopy.ArrayDimensions.Span.SequenceEqual(new uint[] { 2, 3 })).IsTrue();
+
+            await Assert.That(custom.WrappedValue.TryGetValue(out ExtensionObject second)).IsTrue();
+            await Assert.That(second.TryGetValue(out MutableStructure? structureCopy)).IsTrue();
+            await Assert.That(ReferenceEquals(structureCopy, structure)).IsFalse();
+            await Assert.That(structureCopy!.Values.Span.SequenceEqual(new double[] { 1, 2 })).IsTrue();
+            await Assert.That(structureCopy.Payload.Span.SequenceEqual(new byte[] { 3, 4 })).IsTrue();
+            await Assert.That(structureCopy.Nested.TryGetValue(out ArrayOf<uint> nestedCopy)).IsTrue();
+            await Assert.That(nestedCopy.Span.SequenceEqual(new uint[] { 5, 6 })).IsTrue();
+        }
+
+        /// <summary>
+        /// Creates an application-defined statistic that accepts any structure.
+        /// </summary>
+        private static BaseDataVariableState Quantity(
+            SystemContext context, BaseObjectState owner, InstanceIds ids, string name)
+        {
+            var value = new BaseDataVariableState(owner);
+            value.Create(context, NodeId.Null, new QualifiedName(name, ids.Namespace), new LocalizedText(name), true);
+            value.DataType = Opc.Ua.DataTypeIds.BaseDataType;
+            value.ValueRank = ValueRanks.Scalar;
+            owner.AddChild(value);
+            return value;
+        }
+
+        /// <summary>
+        /// Allocates unique instance identities in a test-local namespace.
+        /// </summary>
+        private sealed class InstanceIds : INodeIdFactory
+        {
+            /// <summary>
+            /// Creates the factory for one instance namespace.
+            /// </summary>
+            public InstanceIds(ushort namespaceIndex)
+            {
+                Namespace = namespaceIndex;
+            }
+
+            /// <summary>
+            /// Gets the instance namespace index.
+            /// </summary>
+            public ushort Namespace { get; }
+
+            /// <inheritdoc/>
+            public NodeId New(ISystemContext context, NodeState node)
+            {
+                return node.NodeId.IsNull
+                    ? new NodeId((uint)Interlocked.Increment(ref m_nextId), Namespace)
+                    : node.NodeId;
+            }
+
+            /// <summary>The next instance identity.</summary>
+            private int m_nextId;
+        }
+
+        /// <summary>
+        /// Returns one fixed snapshot.
+        /// </summary>
+        private sealed class SnapshotProvider : IIaStatisticsProvider
+        {
+            /// <summary>
+            /// Creates the provider for a snapshot.
+            /// </summary>
+            public SnapshotProvider(IaStatisticsSnapshot snapshot)
+            {
+                m_snapshot = snapshot;
+            }
+
+            /// <inheritdoc/>
+            public ValueTask<IaStatisticsSnapshot> ReadAsync(CancellationToken cancellationToken = default)
+            {
+                return new ValueTask<IaStatisticsSnapshot>(m_snapshot);
+            }
+
+            /// <inheritdoc/>
+            public ValueTask<ServiceResult> AuthorizeResetAsync(
+                ISystemContext requestContext,
+                CancellationToken cancellationToken = default)
+            {
+                return new ValueTask<ServiceResult>(new ServiceResult(StatusCodes.BadUserAccessDenied));
+            }
+
+            /// <inheritdoc/>
+            public ValueTask<IaStatisticsSnapshot> ResetAsync(CancellationToken cancellationToken = default)
+            {
+                return new ValueTask<IaStatisticsSnapshot>(m_snapshot);
+            }
+
+            /// <summary>The fixed snapshot.</summary>
+            private readonly IaStatisticsSnapshot m_snapshot;
+        }
+
+        /// <summary>
+        /// A structure unknown to the encodeable factory whose member-wise clone shares a
+        /// primitive array, a byte string and a nested variant with the provider.
+        /// </summary>
+        private sealed class MutableStructure : IEncodeable
+        {
+            /// <summary>
+            /// The primitive-array field.
+            /// </summary>
+            public ArrayOf<double> Values { get; set; }
+
+            /// <summary>
+            /// The byte string field.
+            /// </summary>
+            public ByteString Payload { get; set; }
+
+            /// <summary>
+            /// The nested variant field.
+            /// </summary>
+            public Variant Nested { get; set; }
+
+            /// <inheritdoc/>
+            public ExpandedNodeId TypeId => new(9101u, 1);
+
+            /// <inheritdoc/>
+            public ExpandedNodeId BinaryEncodingId => new(9102u, 1);
+
+            /// <inheritdoc/>
+            public ExpandedNodeId XmlEncodingId => new(9103u, 1);
+
+            /// <inheritdoc/>
+            public void Encode(IEncoder encoder)
+            {
+                encoder.WriteDoubleArray(nameof(Values), Values);
+                encoder.WriteByteString(nameof(Payload), Payload);
+                encoder.WriteVariant(nameof(Nested), Nested);
+            }
+
+            /// <inheritdoc/>
+            public void Decode(IDecoder decoder)
+            {
+                Values = decoder.ReadDoubleArray(nameof(Values));
+                Payload = decoder.ReadByteString(nameof(Payload));
+                Nested = decoder.ReadVariant(nameof(Nested));
+            }
+
+            /// <inheritdoc/>
+            public bool IsEqual(IEncodeable? encodeable)
+            {
+                return encodeable is MutableStructure other &&
+                    Values.Span.SequenceEqual(other.Values.Span) &&
+                    Payload.Span.SequenceEqual(other.Payload.Span) &&
+                    Nested.Equals(other.Nested);
+            }
+
+            /// <inheritdoc/>
+            public object Clone()
+            {
+                return MemberwiseClone();
+            }
+        }
     }
 }
