@@ -600,8 +600,10 @@ OPC UA Part 12 areas:
   certificate issuance, typed pull/push workflows, and a singleton device host
   with retained factory credentials and security reset. Providers own software
   approval and durable state. Registrar push provisions managed Client
-  applications; managed Server applications, standard Resources placement and
-  complete connected evidence remain incomplete. See
+  applications whose default group supports the registrar's certificate type;
+  managed Server applications, heterogeneous certificate types,
+  `ConfigurationFile` updates, standard Resources placement and complete
+  connected evidence remain incomplete. See
   [the implemented scope](GDS.md#opc-10000-21-onboardingclient).
 
 See the [GDS Developer Guide](GDS.md) for the implemented facets, provider-dependent
@@ -844,7 +846,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 10000-18: Role-Based Security](https://reference.opcfoundation.org/specs/OPC-10000-18) | 1.05.06 | Full | - |
 | [OPC 10000-19: Dictionary Reference](https://reference.opcfoundation.org/specs/OPC-10000-19) | 1.05.03 | Full | - |
 | [OPC 10000-20: File Transfer](https://reference.opcfoundation.org/specs/OPC-10000-20) | 1.05.06 | Full | - |
-| [OPC 10000-21: Device Onboarding](https://reference.opcfoundation.org/specs/OPC-10000-21) | 1.05.04 | Partial | Ticket validation, registrar runtime and pull/push workflows implemented, including push to managed Client applications; managed Server applications, Part 22 Resources placement and complete connected evidence remain incomplete |
+| [OPC 10000-21: Device Onboarding](https://reference.opcfoundation.org/specs/OPC-10000-21) | 1.05.04 | Partial | Ticket validation, registrar runtime and pull/push workflows implemented, including push to managed Client applications; managed Server applications, heterogeneous managed certificate types, `ConfigurationFile` updates, Part 22 Resources placement and complete connected evidence remain incomplete |
 | [OPC 10000-22: Base Network Model](https://reference.opcfoundation.org/specs/OPC-10000-22) | 1.05.04 | Partial | Generated network model types; no complete network-management runtime |
 | [OPC 10000-23: Common ReferenceTypes](https://reference.opcfoundation.org/specs/OPC-10000-23) | 1.05.02 | Full | - |
 | [OPC 10000-24: Scheduler](https://reference.opcfoundation.org/specs/OPC-10000-24) | 1.05.02 | No | - |

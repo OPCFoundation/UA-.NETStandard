@@ -30,6 +30,7 @@ using System.Collections.Generic;
 using System.Formats.Asn1;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -237,11 +238,20 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 bool applyTrust = await WriteTrustListAsync(
                     dispatch.Session, connection.TrustListId, retained.TrustList, cancellationToken)
                     .ConfigureAwait(false);
-                await RequireApprovalAsync(identity, applicationId, singleton, cancellationToken).ConfigureAwait(false);
-                RequirePeer(dispatch, peer);
                 if (applyTrust)
                 {
-                    await server.ApplyChangesAsync(cancellationToken).ConfigureAwait(false);
+                    await CommitStagedChangesAsync(server, async () =>
+                    {
+                        await RequireApprovalAsync(identity, applicationId, singleton, cancellationToken)
+                            .ConfigureAwait(false);
+                        RequirePeer(dispatch, peer);
+                    }, null, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    await RequireApprovalAsync(identity, applicationId, singleton, cancellationToken)
+                        .ConfigureAwait(false);
+                    RequirePeer(dispatch, peer);
                 }
                 configuringPeer = peer;
                 issuerCertificates = issuance.IssuerCertificates.ToList()
@@ -271,10 +281,12 @@ namespace Opc.Ua.Gds.Server.Onboarding
                         issuerCertificates, string.Empty, default, cancellationToken).ConfigureAwait(false);
                     if (applyCertificate)
                     {
-                        await RequireApprovalAsync(
-                            identity, applicationId, singleton, cancellationToken).ConfigureAwait(false);
-                        RequirePeer(dispatch, configuringPeer);
-                        await server.ApplyChangesAsync(cancellationToken).ConfigureAwait(false);
+                        await CommitStagedChangesAsync(server, async () =>
+                        {
+                            await RequireApprovalAsync(identity, applicationId, singleton, cancellationToken)
+                                .ConfigureAwait(false);
+                            RequirePeer(dispatch, configuringPeer);
+                        }, null, cancellationToken).ConfigureAwait(false);
                     }
                 }, cancellationToken).ConfigureAwait(false);
             }
@@ -320,12 +332,13 @@ namespace Opc.Ua.Gds.Server.Onboarding
             List<NodeId> nodes = await FindManagedApplicationsAsync(
                 dispatch.Session, connection.ProvisionableDeviceId, ct).ConfigureAwait(false);
             List<Exception>? failures = null;
+            var uncancelled = new StrongBox<bool>();
             foreach (NodeId node in nodes)
             {
                 try
                 {
                     await PushManagedApplicationAsync(connection, dispatch, identity, dcaApplicationId,
-                        dcaApplicationUri, peer, node, ct).ConfigureAwait(false);
+                        dcaApplicationUri, peer, node, uncancelled, ct).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
                 {
@@ -334,7 +347,9 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 catch (Exception error)
                 {
                     (failures ??= []).Add(error);
-                    if (dispatch.Invalidated.IsCompleted)
+                    // ApplyChanges commits every change queued in the session, so a later application
+                    // must not run while a rejected application's staged changes remain.
+                    if (uncancelled.Value || dispatch.Invalidated.IsCompleted)
                     {
                         break;
                     }
@@ -399,7 +414,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// <summary>
         /// Registers, authorizes and approves one managed Client application, then installs its retained
         /// GDS issuance through the application's own ApplicationConfiguration methods and TrustList.
-        /// An application that already holds the issued certificate is left unchanged.
+        /// The certificate and the TrustList are each replaced only when the application does not already
+        /// report the retained value, and each replacement is read back before the push succeeds.
         /// </summary>
         private async ValueTask PushManagedApplicationAsync(
             IDeviceRegistrarPushConnection connection,
@@ -409,6 +425,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             string dcaApplicationUri,
             ByteString peer,
             NodeId node,
+            StrongBox<bool> uncancelled,
             CancellationToken ct)
         {
             ISession session = dispatch.Session;
@@ -436,6 +453,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
             NodeId group = await RequireChildAsync(session, groups, BrowseNames.DefaultApplicationGroup, ct)
                 .ConfigureAwait(false);
             NodeId trustListId = await RequireChildAsync(session, group, BrowseNames.TrustList, ct)
+                .ConfigureAwait(false);
+            await RequireSupportedCertificateTypeAsync(session, group, connection.CertificateTypeId, ct)
                 .ConfigureAwait(false);
             var configuration = new ServerConfigurationTypeClient(session, node, m_telemetry);
             ByteString createdSigningRequest = ByteString.Empty;
@@ -469,37 +488,136 @@ namespace Opc.Ua.Gds.Server.Onboarding
             }
             CertificateRequestIssuance issuance = await ReadIssuanceAsync(retained, ct).ConfigureAwait(false);
             RequireSigningResult(retained, issuance, record.ApplicationUri!, connection.CertificateTypeId);
-            if (await HoldsCertificateAsync(configuration, issuance.Certificate, ct).ConfigureAwait(false))
+            // Application setup is the certificate and the TrustList; each is replaced only when it differs.
+            bool holdsCertificate = await HoldsCertificateAsync(
+                configuration, group, connection.CertificateTypeId, issuance.Certificate, ct).ConfigureAwait(false);
+            bool holdsTrustList = await HoldsTrustListAsync(session, trustListId, retained.TrustList, ct)
+                .ConfigureAwait(false);
+            if (holdsCertificate && holdsTrustList)
             {
                 return;
             }
 
-            await RequireManagedApprovalAsync(identity, dcaApplicationId, applicationId, ct).ConfigureAwait(false);
-            RequirePeer(dispatch, peer);
-            if (await WriteTrustListAsync(session, trustListId, retained.TrustList, ct).ConfigureAwait(false))
+            if (!holdsTrustList)
             {
                 await RequireManagedApprovalAsync(identity, dcaApplicationId, applicationId, ct)
                     .ConfigureAwait(false);
                 RequirePeer(dispatch, peer);
-                await configuration.ApplyChangesAsync(ct).ConfigureAwait(false);
+                if (await WriteTrustListAsync(session, trustListId, retained.TrustList, ct).ConfigureAwait(false))
+                {
+                    await CommitStagedChangesAsync(configuration, async () =>
+                    {
+                        await RequireManagedApprovalAsync(identity, dcaApplicationId, applicationId, ct)
+                            .ConfigureAwait(false);
+                        RequirePeer(dispatch, peer);
+                    }, uncancelled, ct).ConfigureAwait(false);
+                }
             }
-            ArrayOf<ByteString> issuers = issuance.IssuerCertificates.ToList()
-                .Select(static issuer => ByteString.From(issuer.Span)).ToArrayOf();
-            await RequireManagedApprovalAsync(identity, dcaApplicationId, applicationId, ct).ConfigureAwait(false);
-            RequirePeer(dispatch, peer);
-            bool applyCertificate = await configuration.UpdateCertificateAsync(
-                NodeId.Null, connection.CertificateTypeId, issuance.Certificate, issuers, string.Empty, default, ct)
-                .ConfigureAwait(false);
-            if (applyCertificate)
+            if (!holdsCertificate)
             {
+                ArrayOf<ByteString> issuers = issuance.IssuerCertificates.ToList()
+                    .Select(static issuer => ByteString.From(issuer.Span)).ToArrayOf();
+                await RequireManagedApprovalAsync(identity, dcaApplicationId, applicationId, ct)
+                    .ConfigureAwait(false);
                 RequirePeer(dispatch, peer);
-                await configuration.ApplyChangesAsync(ct).ConfigureAwait(false);
+                bool applyCertificate = await configuration.UpdateCertificateAsync(
+                    NodeId.Null, connection.CertificateTypeId, issuance.Certificate, issuers, string.Empty, default,
+                    ct).ConfigureAwait(false);
+                if (applyCertificate)
+                {
+                    // Approval or association can be revoked while the device stages the credential.
+                    await CommitStagedChangesAsync(configuration, async () =>
+                    {
+                        await RequireManagedApprovalAsync(identity, dcaApplicationId, applicationId, ct)
+                            .ConfigureAwait(false);
+                        RequirePeer(dispatch, peer);
+                    }, uncancelled, ct).ConfigureAwait(false);
+                }
+                if (!await HoldsCertificateAsync(
+                    configuration, group, connection.CertificateTypeId, issuance.Certificate, ct).ConfigureAwait(false))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidState,
+                        "The managed application did not report the pushed certificate.");
+                }
             }
-            if (!await HoldsCertificateAsync(configuration, issuance.Certificate, ct).ConfigureAwait(false))
+            if (!holdsTrustList &&
+                !await HoldsTrustListAsync(session, trustListId, retained.TrustList, ct).ConfigureAwait(false))
             {
                 throw new ServiceResultException(
-                    StatusCodes.BadInvalidState, "The managed application did not report the pushed certificate.");
+                    StatusCodes.BadInvalidState, "The managed application did not report the pushed TrustList.");
             }
+        }
+
+        /// <summary>
+        /// Reads the application's complete TrustList and checks that every list selected by the retained
+        /// TrustList holds exactly the retained entries, independent of order.
+        /// </summary>
+        private async ValueTask<bool> HoldsTrustListAsync(
+            ISession session,
+            NodeId trustListId,
+            TrustListDataType intended,
+            CancellationToken ct)
+        {
+            var file = new FileTypeClient(session, trustListId, m_telemetry);
+            using var stream = new MemoryStream();
+            await file.DownloadToStreamAsync(stream, MaxTrustListBytes, 4096, ct).ConfigureAwait(false);
+            stream.Position = 0;
+            TrustListDataType actual;
+            using (var decoder = new BinaryDecoder(stream, session.MessageContext, true))
+            {
+                actual = decoder.ReadEncodeable<TrustListDataType>(null);
+            }
+            return HoldsList(actual, intended, TrustListMasks.TrustedCertificates,
+                    actual.TrustedCertificates, intended.TrustedCertificates) &&
+                HoldsList(actual, intended, TrustListMasks.TrustedCrls, actual.TrustedCrls, intended.TrustedCrls) &&
+                HoldsList(actual, intended, TrustListMasks.IssuerCertificates,
+                    actual.IssuerCertificates, intended.IssuerCertificates) &&
+                HoldsList(actual, intended, TrustListMasks.IssuerCrls, actual.IssuerCrls, intended.IssuerCrls);
+        }
+
+        /// <summary>
+        /// Compares one TrustList member as a multiset when the retained TrustList specifies it.
+        /// </summary>
+        private static bool HoldsList(
+            TrustListDataType actual,
+            TrustListDataType intended,
+            TrustListMasks mask,
+            ArrayOf<ByteString> actualEntries,
+            ArrayOf<ByteString> intendedEntries)
+        {
+            if ((intended.SpecifiedLists & (uint)mask) == 0)
+            {
+                return true;
+            }
+            if ((actual.SpecifiedLists & (uint)mask) == 0 || actualEntries.Count != intendedEntries.Count)
+            {
+                return false;
+            }
+            var remaining = new List<ByteString>(actualEntries.Count);
+            for (int index = 0; index < actualEntries.Count; index++)
+            {
+                remaining.Add(actualEntries[index]);
+            }
+            for (int index = 0; index < intendedEntries.Count; index++)
+            {
+                ByteString wanted = intendedEntries[index];
+                int match = -1;
+                for (int candidate = 0; candidate < remaining.Count; candidate++)
+                {
+                    if (remaining[candidate] == wanted)
+                    {
+                        match = candidate;
+                        break;
+                    }
+                }
+                if (match < 0)
+                {
+                    return false;
+                }
+                remaining.RemoveAt(match);
+            }
+            return true;
         }
 
         /// <summary>
@@ -600,23 +718,115 @@ namespace Opc.Ua.Gds.Server.Onboarding
         }
 
         /// <summary>
-        /// Checks whether the application's default application group reports the exact certificate.
+        /// Checks whether the resolved certificate group reports the exact certificate for the pushed type.
+        /// GetCertificates is optional in Part 12; a device without it fails the push with the returned
+        /// status, because the registrar cannot otherwise prove which credential the application holds.
         /// </summary>
         private static async ValueTask<bool> HoldsCertificateAsync(
             ServerConfigurationTypeClient configuration,
+            NodeId group,
+            NodeId certificateType,
             ByteString certificate,
             CancellationToken ct)
         {
-            var (_, certificates) = await configuration.GetCertificatesAsync(NodeId.Null, ct)
+            var (types, certificates) = await configuration.GetCertificatesAsync(group, ct)
                 .ConfigureAwait(false);
             for (int index = 0; index < certificates.Count; index++)
             {
-                if (certificates[index] == certificate)
+                if (certificates[index] == certificate &&
+                    (index >= types.Count || types[index] == certificateType))
                 {
                     return true;
                 }
             }
             return false;
+        }
+
+        /// <summary>
+        /// Rechecks authorization before ApplyChanges commits the changes staged in the session.
+        /// A rejected check cancels the staged changes and rethrows the original error. When
+        /// <paramref name="uncancelled"/> is supplied, because later applications share the session, a failed
+        /// ApplyChanges is cancelled the same way. If CancelChanges also fails, both errors are thrown together
+        /// and <paramref name="uncancelled"/> is set, so the caller stops before a later ApplyChanges in the
+        /// same session commits the rejected changes.
+        /// </summary>
+        private static async ValueTask CommitStagedChangesAsync(
+            ServerConfigurationTypeClient configuration,
+            Func<ValueTask> authorize,
+            StrongBox<bool>? uncancelled,
+            CancellationToken ct)
+        {
+            try
+            {
+                await authorize().ConfigureAwait(false);
+            }
+            catch (Exception error)
+            {
+                await CancelStagedChangesAsync(configuration, error, uncancelled).ConfigureAwait(false);
+                throw;
+            }
+            try
+            {
+                await configuration.ApplyChangesAsync(ct).ConfigureAwait(false);
+            }
+            catch (Exception error) when (uncancelled != null)
+            {
+                await CancelStagedChangesAsync(configuration, error, uncancelled).ConfigureAwait(false);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Discards the changes staged in the session after a failure, preserving the failure and any
+        /// cleanup error together.
+        /// </summary>
+        private static async ValueTask CancelStagedChangesAsync(
+            ServerConfigurationTypeClient configuration,
+            Exception error,
+            StrongBox<bool>? uncancelled)
+        {
+            try
+            {
+                // Cleanup must run even when the push itself was cancelled.
+                await configuration.CancelChangesAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception cleanup)
+            {
+                if (uncancelled != null)
+                {
+                    uncancelled.Value = true;
+                }
+                throw new AggregateException(
+                    "The staged configuration changes were not committed and could not be cancelled.",
+                    error, cleanup);
+            }
+        }
+
+        /// <summary>
+        /// Requires the application's certificate group to list the registrar's configured certificate type,
+        /// because CreateSigningRequest and UpdateCertificate reject a type outside the group's CertificateTypes.
+        /// </summary>
+        private static async ValueTask RequireSupportedCertificateTypeAsync(
+            ISession session,
+            NodeId group,
+            NodeId certificateType,
+            CancellationToken ct)
+        {
+            Variant value = await ReadChildAsync(session, group, BrowseNames.CertificateTypes, ct)
+                .ConfigureAwait(false);
+            if (value.TryGetValue(out ArrayOf<NodeId> types))
+            {
+                for (int index = 0; index < types.Count; index++)
+                {
+                    if (types[index] == certificateType)
+                    {
+                        return;
+                    }
+                }
+            }
+            throw new ServiceResultException(
+                StatusCodes.BadNotSupported,
+                "The managed application's certificate group does not support the registrar's certificate type.");
         }
 
         /// <summary>
@@ -840,7 +1050,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             {
                 encoder.WriteEncodeable(null, trustList);
             }
-            if (stream.Length > 4 * 1024 * 1024)
+            if (stream.Length > MaxTrustListBytes)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
@@ -1150,6 +1360,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
         private readonly ITelemetryContext m_telemetry;
 
         /// <summary>The standard ManagedApplications folder (OPC 10000-21, i=16706).</summary>
+        private const int MaxTrustListBytes = 4 * 1024 * 1024;
         private static readonly NodeId s_managedApplicationsFolderId = new(16706u);
 
         /// <summary>Serializes direct invocations as well as work admitted by the default push scheduler.</summary>

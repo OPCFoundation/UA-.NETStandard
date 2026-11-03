@@ -593,25 +593,52 @@ relation to that application. It performs the standard Part 12 sequence on the
 application's own `ApplicationConfiguration`: `CreateSigningRequest` for the
 default application group, issuance through the registrar's retained push
 enrollment, a TrustList write completed with `CloseAndUpdate`, and
-`UpdateCertificate`. `ApplyChanges` follows each method that reports it is
-required. An application whose `GetCertificates` result already contains the
-issued certificate receives no TrustList or certificate update, so repeating
-the push does not replace an installed credential.
+`UpdateCertificate`. `CreateSigningRequest` and `UpdateCertificate` pass a null
+group, which Part 12 assigns to `DefaultApplicationGroup`.
+
+Before it creates the signing request, the processor reads that group's
+`CertificateTypes` and rejects the application with `BadNotSupported` when the
+registrar's configured certificate type is absent. The registrar issues one
+certificate type for every application of a device, so a device whose
+applications support different types is rejected rather than served.
+
+Part 21 §4.3.3 defines application setup as both the certificate and the
+TrustList, so the processor checks each separately. It calls `GetCertificates`
+with the resolved `DefaultApplicationGroup` and reads the TrustList file. It
+replaces only what differs: an application that holds the issued certificate
+with a missing or stale TrustList receives the TrustList alone, and repeating
+the push does not replace an installed credential. Each replaced value is read
+back before the application counts as provisioned.
+
+`ApplyChanges` commits every change queued in the session, so the processor
+rechecks approval and the actual peer immediately before each `ApplyChanges`.
+Revocation while the device stages a TrustList or certificate therefore leads
+to `CancelChanges` instead of activation. When `ApplyChanges` itself fails, the
+processor also calls `CancelChanges`, so a later application's `ApplyChanges`
+cannot commit the rejected changes.
 
 A denial or failure for one application leaves the confirmed DCA credential and
 the other applications unchanged. The processor attempts every application and
 reports the failures together in one `AggregateException`; cancellation and an
-invalidated session stop the loop. A singleton device provisions no managed
-applications. The sample policy's `CanManageAsync` returns `false`, so the
-sample registrar provisions only the DCA.
+invalidated session stop the loop. When `CancelChanges` fails, for example on a
+device without transaction support, the staged changes are still queued. The
+processor then stops before the next application and reports the original
+error and the cleanup error together in a nested `AggregateException`. It does
+not close the borrowed session and does not assume the device rolled back. A
+singleton device provisions no managed applications. The sample policy's
+`CanManageAsync` returns `false`, so the sample registrar provisions only the
+DCA.
 
 The processor rejects managed `Server` and `ClientAndServer` applications with
 `BadNotSupported`. A GDS server record requires `DiscoveryUrls`, and Part 21
 exposes none for a managed application. The processor does not update
-`ConfigurationFile` contents; that Part 12 transaction remains outside
-registrar push. `GetCertificates` is the only evidence that the application
-uses its new certificate; the registrar does not connect to the application to
-prove it.
+`ConfigurationFile` contents with `CloseAndUpdate` and `ConfirmUpdate`; that
+Part 12 transaction remains outside registrar push, and managed application
+configuration through it stays partial. `GetCertificates` is optional in
+Part 12, but the processor needs it as evidence: a device without it fails the
+push with the device's status. Even with it, the result shows what the
+application reports, not that the application uses the certificate; the
+registrar does not connect to the application to prove it.
 
 `AddDeviceRegistrarPush` selects the bounded host-owned queue and one processor;
 register it before `AddDeviceRegistrarRuntime`. Queue acceptance remains

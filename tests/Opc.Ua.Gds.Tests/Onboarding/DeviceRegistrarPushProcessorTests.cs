@@ -27,6 +27,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -368,15 +369,167 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             await using var harness = new Harness(m_bootstrap, m_issued);
             ManagedApplication application = harness.AddManaged("managed-a", ManagedUriA, m_managedA);
             application.Installed = true;
+            application.InstallTrustList(application.CreateTrustList());
 
             await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false);
 
             Assert.That(application.Calls, Does.Contain(Ua.MethodIds.ServerConfigurationType_GetCertificates));
-            Assert.That(application.Calls, Does.Not.Contain(Ua.MethodIds.FileType_Open));
+            Assert.That(application.Calls, Does.Contain(Ua.MethodIds.FileType_Read));
+            Assert.That(application.Calls, Does.Not.Contain(Ua.MethodIds.FileType_Write));
+            Assert.That(application.Calls, Does.Not.Contain(Ua.MethodIds.TrustListType_CloseAndUpdate));
             Assert.That(application.Calls,
                 Does.Not.Contain(Ua.MethodIds.ServerConfigurationType_UpdateCertificate));
             Assert.That(application.Calls, Does.Not.Contain(Ua.MethodIds.ServerConfigurationType_ApplyChanges));
             Assert.That(harness.AuthorizedUris, Is.EqualTo(new[] { ManagedUriA }));
+        }
+
+        /// <summary>
+        /// Application setup is the certificate and the TrustList, so an application that holds the issued
+        /// certificate with a missing or stale TrustList receives only the TrustList.
+        /// </summary>
+        [TestCase("missing")]
+        [TestCase("different")]
+        public async Task ManagedApplicationHoldingCertificateReceivesMissingOrStaleTrustList(string trust)
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued);
+            ManagedApplication application = harness.AddManaged("managed-a", ManagedUriA, m_managedA);
+            application.Installed = true;
+            if (trust == "different")
+            {
+                application.InstallTrustList(new TrustListDataType
+                {
+                    SpecifiedLists = (uint)TrustListMasks.All,
+                    TrustedCertificates = [ByteString.From(m_managedB.RawData.AsSpan())]
+                });
+            }
+
+            await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false);
+
+            Assert.That(application.Calls, Does.Contain(Ua.MethodIds.TrustListType_CloseAndUpdate));
+            Assert.That(application.Calls, Does.Contain(Ua.MethodIds.ServerConfigurationType_ApplyChanges));
+            Assert.That(application.Calls,
+                Does.Not.Contain(Ua.MethodIds.ServerConfigurationType_UpdateCertificate));
+            Assert.That(application.HasPendingChanges, Is.False);
+            Assert.That(application.InstalledTrustList.TrustedCertificates.ToList(),
+                Is.EqualTo(new[] { application.Certificate }));
+        }
+
+        /// <summary>
+        /// A revocation while the application stages its certificate cancels the staged change instead of
+        /// applying it.
+        /// </summary>
+        [Test]
+        public async Task ManagedRevocationDuringCertificateUpdateCancelsStagedCredential()
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued);
+            ManagedApplication application = harness.AddManaged("managed-a", ManagedUriA, m_managedA);
+            application.OnUpdateCertificate = () => SetSoftwareStatus(harness, false, "revoked");
+
+            AggregateException? error = await Assert.ThrowsAsync<AggregateException>(async () =>
+                await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false));
+
+            Assert.That(error!.InnerExceptions, Has.Count.EqualTo(1));
+            Assert.That(error.InnerExceptions[0], Is.TypeOf<ServiceResultException>());
+            Assert.That(((ServiceResultException)error.InnerExceptions[0]).StatusCode,
+                Is.EqualTo(StatusCodes.BadRequestNotAllowed));
+            int update = application.Calls.IndexOf(Ua.MethodIds.ServerConfigurationType_UpdateCertificate);
+            Assert.That(update, Is.GreaterThanOrEqualTo(0));
+            List<NodeId> after = application.Calls.GetRange(update + 1, application.Calls.Count - update - 1);
+            Assert.That(after, Does.Contain(Ua.MethodIds.ServerConfigurationType_CancelChanges));
+            Assert.That(after, Does.Not.Contain(Ua.MethodIds.ServerConfigurationType_ApplyChanges));
+            Assert.That(application.Installed, Is.False);
+            Assert.That(application.HasPendingChanges, Is.False);
+        }
+
+        /// <summary>
+        /// A rejected application's staged changes are cancelled before the next application runs, so its
+        /// ApplyChanges cannot commit them.
+        /// </summary>
+        [Test]
+        public async Task CancelledManagedChangesDoNotReachTheNextApplication()
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued);
+            ManagedApplication rejected = harness.AddManaged("managed-a", ManagedUriA, m_managedA);
+            ManagedApplication next = harness.AddManaged("managed-b", ManagedUriB, m_managedB);
+            rejected.OnUpdateCertificate = () => SetSoftwareStatus(harness, false, "revoked");
+            rejected.OnCancelChanges = () => SetSoftwareStatus(harness, true, "restored");
+
+            AggregateException? error = await Assert.ThrowsAsync<AggregateException>(async () =>
+                await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false));
+
+            Assert.That(error!.InnerExceptions, Has.Count.EqualTo(1));
+            Assert.That(((ServiceResultException)error.InnerExceptions[0]).StatusCode,
+                Is.EqualTo(StatusCodes.BadRequestNotAllowed));
+            Assert.That(rejected.Installed, Is.False);
+            Assert.That(rejected.HasPendingChanges, Is.False);
+            Assert.That(next.Installed, Is.True);
+            Assert.That(harness.AuthorizedUris, Is.EqualTo(new[] { ManagedUriA, ManagedUriB }));
+        }
+
+        /// <summary>
+        /// A server that cannot cancel staged changes stops the push, keeping the original and cleanup errors,
+        /// so no later ApplyChanges commits the rejected application's changes.
+        /// </summary>
+        [Test]
+        public async Task UncancellableManagedChangesStopLaterApplications()
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued);
+            ManagedApplication rejected = harness.AddManaged("managed-a", ManagedUriA, m_managedA);
+            ManagedApplication next = harness.AddManaged("managed-b", ManagedUriB, m_managedB);
+            rejected.OnUpdateCertificate = () => SetSoftwareStatus(harness, false, "revoked");
+            rejected.CancelError = new ServiceResultException(StatusCodes.BadNotSupported);
+
+            AggregateException? error = await Assert.ThrowsAsync<AggregateException>(async () =>
+                await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false));
+
+            Assert.That(error!.InnerExceptions, Has.Count.EqualTo(1));
+            Assert.That(error.InnerExceptions[0], Is.TypeOf<AggregateException>());
+            var cleanup = (AggregateException)error.InnerExceptions[0];
+            Assert.That(cleanup.InnerExceptions, Has.Count.EqualTo(2));
+            Assert.That(((ServiceResultException)cleanup.InnerExceptions[0]).StatusCode,
+                Is.EqualTo(StatusCodes.BadRequestNotAllowed));
+            Assert.That(((ServiceResultException)cleanup.InnerExceptions[1]).StatusCode,
+                Is.EqualTo(StatusCodes.BadNotSupported));
+            Assert.That(rejected.HasPendingChanges, Is.True);
+            Assert.That(rejected.Installed, Is.False);
+            Assert.That(next.Calls, Is.Empty);
+            Assert.That(harness.AuthorizedUris, Is.EqualTo(new[] { ManagedUriA }));
+        }
+
+        /// <summary>
+        /// GetCertificates names the resolved group, so a server that rejects a null group is still verified.
+        /// </summary>
+        [Test]
+        public async Task ManagedVerificationNamesTheResolvedCertificateGroup()
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued);
+            ManagedApplication application = harness.AddManaged("managed-a", ManagedUriA, m_managedA);
+            application.RejectNullGroup = true;
+
+            await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false);
+
+            Assert.That(application.Installed, Is.True);
+            Assert.That(application.HasPendingChanges, Is.False);
+        }
+
+        /// <summary>
+        /// An application whose group does not support the issued certificate type is rejected before a CSR.
+        /// </summary>
+        [Test]
+        public async Task ManagedGroupWithoutIssuedCertificateTypeIsRejectedBeforeCsr()
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued);
+            ManagedApplication application = harness.AddManaged("managed-a", ManagedUriA, m_managedA);
+            application.CertificateTypes = [Ua.ObjectTypeIds.EccNistP256ApplicationCertificateType];
+
+            AggregateException? error = await Assert.ThrowsAsync<AggregateException>(async () =>
+                await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false));
+
+            Assert.That(error!.InnerExceptions, Has.Count.EqualTo(1));
+            Assert.That(((ServiceResultException)error.InnerExceptions[0]).StatusCode,
+                Is.EqualTo(StatusCodes.BadNotSupported));
+            Assert.That(application.CsrCalls, Is.Zero);
+            Assert.That(application.Installed, Is.False);
         }
 
         /// <summary>
@@ -894,6 +1047,18 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
+        /// Changes the product's software approval from inside a scripted device call; the in-memory lifecycle
+        /// completes synchronously.
+        /// </summary>
+        private static void SetSoftwareStatus(Harness harness, bool status, string softwareRevision)
+        {
+            ValueTask<bool> update = harness.Lifecycle.UpdateSoftwareStatusAsync(
+                Harness.Product, status, softwareRevision);
+            Assert.That(update.IsCompletedSuccessfully, Is.True);
+            Assert.That(update.Result, Is.True);
+        }
+
+        /// <summary>
         /// Owns deterministic sessions and real lifecycle state while mocking only host and issuance boundaries.
         /// </summary>
         private sealed class Harness : IAsyncDisposable
@@ -1246,7 +1411,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                             Assert.That(csr, Is.EqualTo(application.Csr));
                             return new DeviceRegistrarPushEnrollment(Identity, application.Id,
                                 application.RequestId, "DefaultApplicationGroup", "RsaSha256",
-                                new TrustListDataType { SpecifiedLists = (uint)TrustListMasks.All }, csr);
+                                application.CreateTrustList(), csr);
                         });
                 m_issuances.Setup(store => store.GetOrCreateAsync(
                     application.Id, application.RequestId,
@@ -1356,9 +1521,22 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 {
                     if (method.ObjectId == application.Node || method.ObjectId == application.TrustList)
                     {
+                        ArrayOf<Variant> results = application.Call(method);
+                        // ApplyChanges and CancelChanges act on every change queued in the session.
+                        foreach (ManagedApplication queued in Managed)
+                        {
+                            if (method.MethodId == Ua.MethodIds.ServerConfigurationType_ApplyChanges)
+                            {
+                                queued.Commit();
+                            }
+                            else if (method.MethodId == Ua.MethodIds.ServerConfigurationType_CancelChanges)
+                            {
+                                queued.Discard();
+                            }
+                        }
                         return new CallResponse
                         {
-                            Results = [new CallMethodResult { OutputArguments = application.Call(method) }]
+                            Results = [new CallMethodResult { OutputArguments = results }]
                         };
                     }
                 }
@@ -1459,6 +1637,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     {
                         references.Add(Reference(application.TrustList, BrowseNames.TrustList,
                             NodeClass.Object, Ua.ObjectTypeIds.TrustListType));
+                        references.Add(Reference(application.CertificateTypesNode, BrowseNames.CertificateTypes,
+                            NodeClass.Variable, Ua.VariableTypeIds.PropertyType));
                     }
                 }
                 return references.ToArrayOf();
@@ -1487,6 +1667,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     {
                         ArrayOf<LocalizedText> names = [new LocalizedText(application.Name)];
                         return Variant.From(names);
+                    }
+                    if (node == application.CertificateTypesNode)
+                    {
+                        return Variant.From(application.CertificateTypes);
                     }
                 }
                 return Variant.From(Singleton);
@@ -1644,6 +1828,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Groups = new NodeId(name + ":groups", 1);
                 Group = new NodeId(name + ":group", 1);
                 TrustList = new NodeId(name + ":trust-list", 1);
+                CertificateTypesNode = new NodeId(name + ":certificate-types", 1);
                 Id = new NodeId(name + ":application", 1);
                 RequestId = new NodeId(name + ":request", 1);
                 Certificate = ByteString.From(certificate.RawData.AsSpan());
@@ -1683,6 +1868,39 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             /// <summary>Gets the DefaultApplicationGroup TrustList.</summary>
             public NodeId TrustList { get; }
 
+            /// <summary>Gets the DefaultApplicationGroup CertificateTypes property.</summary>
+            public NodeId CertificateTypesNode { get; }
+
+            /// <summary>Gets or sets the certificate types the DefaultApplicationGroup supports.</summary>
+            public ArrayOf<NodeId> CertificateTypes { get; set; } =
+                [Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType];
+
+            /// <summary>Gets or sets whether GetCertificates rejects a null CertificateGroupId.</summary>
+            public bool RejectNullGroup { get; set; }
+
+            /// <summary>Gets or sets the error CancelChanges returns, for a server without transactions.</summary>
+            public ServiceResultException? CancelError { get; set; }
+
+            /// <summary>Gets or sets work after UpdateCertificate stages the credential.</summary>
+            public Action? OnUpdateCertificate { get; set; }
+
+            /// <summary>Gets or sets work after CancelChanges succeeds.</summary>
+            public Action? OnCancelChanges { get; set; }
+
+            /// <summary>Gets whether staged TrustList or certificate changes await ApplyChanges.</summary>
+            public bool HasPendingChanges => m_trustPending != null || m_certificatePending;
+
+            /// <summary>Gets the committed TrustList the application reports.</summary>
+            public TrustListDataType InstalledTrustList
+            {
+                get
+                {
+                    using var stream = new MemoryStream(m_trustBytes);
+                    using var decoder = new BinaryDecoder(stream, s_context, true);
+                    return decoder.ReadEncodeable<TrustListDataType>(null);
+                }
+            }
+
             /// <summary>Gets the shared registry identifier assigned on registration.</summary>
             public NodeId Id { get; }
 
@@ -1714,6 +1932,50 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             public int CsrCalls { get; private set; }
 
             /// <summary>
+            /// Creates the TrustList that trusts this application's issued certificate.
+            /// </summary>
+            public TrustListDataType CreateTrustList()
+            {
+                return new TrustListDataType
+                {
+                    SpecifiedLists = (uint)TrustListMasks.All,
+                    TrustedCertificates = [Certificate]
+                };
+            }
+
+            /// <summary>
+            /// Replaces the committed TrustList the application reports.
+            /// </summary>
+            public void InstallTrustList(TrustListDataType trustList)
+            {
+                m_trustBytes = Encode(trustList);
+                m_trustApplied = true;
+            }
+
+            /// <summary>
+            /// Commits the staged TrustList and certificate, as ApplyChanges does for the whole session.
+            /// </summary>
+            public void Commit()
+            {
+                if (m_trustPending != null)
+                {
+                    m_trustBytes = m_trustPending;
+                    m_trustApplied = true;
+                }
+                Installed |= m_certificatePending;
+                Discard();
+            }
+
+            /// <summary>
+            /// Discards the staged TrustList and certificate, as CancelChanges does for the whole session.
+            /// </summary>
+            public void Discard()
+            {
+                m_trustPending = null;
+                m_certificatePending = false;
+            }
+
+            /// <summary>
             /// Applies one generated method call with staged TrustList and certificate semantics.
             /// </summary>
             public ArrayOf<Variant> Call(CallMethodRequest method)
@@ -1726,6 +1988,18 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 }
                 if (method.MethodId == Ua.MethodIds.ServerConfigurationType_GetCertificates)
                 {
+                    NodeId group = method.InputArguments[0].TryGetValue(out NodeId value) ? value : NodeId.Null;
+                    if (group.IsNull)
+                    {
+                        if (RejectNullGroup)
+                        {
+                            throw new ServiceResultException(StatusCodes.BadInvalidArgument);
+                        }
+                    }
+                    else
+                    {
+                        Assert.That(group, Is.EqualTo(Group));
+                    }
                     ArrayOf<NodeId> types = Installed
                         ? [Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType]
                         : ArrayOf<NodeId>.Empty;
@@ -1734,11 +2008,36 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 }
                 if (method.MethodId == Ua.MethodIds.FileType_Open)
                 {
+                    Assert.That(method.InputArguments[0].TryGetValue(out byte mode), Is.True);
+                    if ((mode & (byte)OpenFileMode.Write) != 0)
+                    {
+                        m_written = [];
+                    }
+                    else
+                    {
+                        m_readOffset = 0;
+                    }
                     return [Variant.From(42u)];
+                }
+                if (method.MethodId == Ua.MethodIds.FileType_Read)
+                {
+                    Assert.That(method.InputArguments[1].TryGetValue(out int length), Is.True);
+                    int count = Math.Min(length, m_trustBytes.Length - m_readOffset);
+                    ByteString chunk = count > 0
+                        ? ByteString.From(m_trustBytes.AsSpan(m_readOffset, count))
+                        : ByteString.Empty;
+                    m_readOffset += count;
+                    return [Variant.From(chunk)];
+                }
+                if (method.MethodId == Ua.MethodIds.FileType_Write)
+                {
+                    Assert.That(method.InputArguments[1].TryGetValue(out ByteString data), Is.True);
+                    m_written.AddRange(data.Span.ToArray());
+                    return [];
                 }
                 if (method.MethodId == Ua.MethodIds.TrustListType_CloseAndUpdate)
                 {
-                    m_trustPending = true;
+                    m_trustPending = m_written.ToArray();
                     return [Variant.From(true)];
                 }
                 if (method.MethodId == Ua.MethodIds.ServerConfigurationType_UpdateCertificate)
@@ -1748,20 +2047,48 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                         throw new ServiceResultException(StatusCodes.BadCertificateChainIncomplete);
                     }
                     m_certificatePending = true;
+                    OnUpdateCertificate?.Invoke();
                     return [Variant.From(true)];
                 }
-                if (method.MethodId == Ua.MethodIds.ServerConfigurationType_ApplyChanges)
+                if (method.MethodId == Ua.MethodIds.ServerConfigurationType_CancelChanges)
                 {
-                    m_trustApplied |= m_trustPending;
-                    m_trustPending = false;
-                    Installed |= m_certificatePending;
-                    m_certificatePending = false;
+                    if (CancelError != null)
+                    {
+                        throw CancelError;
+                    }
+                    OnCancelChanges?.Invoke();
                 }
                 return [];
             }
 
-            /// <summary>Whether a complete TrustList transfer still needs ApplyChanges.</summary>
-            private bool m_trustPending;
+            /// <summary>
+            /// Encodes a TrustList as the body of a TrustList file.
+            /// </summary>
+            private static byte[] Encode(TrustListDataType trustList)
+            {
+                using var stream = new MemoryStream();
+                using (var encoder = new BinaryEncoder(stream, s_context, true))
+                {
+                    encoder.WriteEncodeable(null, trustList);
+                }
+                return stream.ToArray();
+            }
+
+            /// <summary>The message context used to encode the scripted TrustList file.</summary>
+            private static readonly ServiceMessageContext s_context =
+                ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
+
+            /// <summary>The committed TrustList file content.</summary>
+            private byte[] m_trustBytes = Encode(new TrustListDataType { SpecifiedLists = (uint)TrustListMasks.All });
+
+            /// <summary>The staged TrustList file content awaiting ApplyChanges, or null.</summary>
+            private byte[]? m_trustPending;
+
+            /// <summary>The bytes written to the open TrustList writer.</summary>
+            private List<byte> m_written = [];
+
+            /// <summary>The position of the open TrustList reader.</summary>
+            private int m_readOffset;
 
             /// <summary>Whether UpdateCertificate can validate against the committed TrustList.</summary>
             private bool m_trustApplied;
