@@ -498,11 +498,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
         /// <summary>
         /// A CloseAndUpdate or UpdateCertificate reply can fail after the server staged the change, so the
-        /// session's changes are cancelled before the next application's ApplyChanges.
+        /// session's changes are cancelled and the lease is retired before another application's ApplyChanges.
         /// </summary>
         [TestCase("trust")]
         [TestCase("certificate")]
-        public async Task AmbiguousManagedStagingFailureIsCancelledBeforeTheNextApplication(string stage)
+        public async Task AmbiguousManagedStagingFailureRetiresSessionBeforeTheNextApplication(string stage)
         {
             await using var harness = new Harness(m_bootstrap, m_issued);
             ManagedApplication failed = harness.AddManaged("managed-a", ManagedUriA, m_managedA);
@@ -519,8 +519,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(failed.Calls, Does.Contain(Ua.MethodIds.ServerConfigurationType_CancelChanges));
             Assert.That(failed.HasPendingChanges, Is.False);
             Assert.That(failed.Installed, Is.False);
-            Assert.That(next.Installed, Is.True);
+            Assert.That(next.Installed, Is.False);
+            Assert.That(next.Calls, Is.Empty);
             Assert.That(next.HasPendingChanges, Is.False);
+            Assert.That(harness.LeasesDisposed, Is.EqualTo(3));
         }
 
         /// <summary>
@@ -556,10 +558,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
         /// <summary>
         /// Bad_NothingToDo from CancelChanges means the session has no transaction, so the original error is
-        /// reported alone and the next application is still provisioned.
+        /// reported alone. It does not prove that the earlier request has finished, so the lease is retired.
         /// </summary>
         [Test]
-        public async Task CancelChangesWithoutTransactionReportsOnlyTheOriginalError()
+        public async Task CancelChangesWithoutTransactionReportsOnlyTheOriginalErrorAndRetiresSession()
         {
             await using var harness = new Harness(m_bootstrap, m_issued);
             ManagedApplication failed = harness.AddManaged("managed-a", ManagedUriA, m_managedA);
@@ -575,8 +577,85 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(((ServiceResultException)error.InnerExceptions[0]).StatusCode,
                 Is.EqualTo(StatusCodes.BadTimeout));
             Assert.That(failed.Calls, Does.Contain(Ua.MethodIds.ServerConfigurationType_CancelChanges));
-            Assert.That(next.Installed, Is.True);
-            Assert.That(harness.AuthorizedUris, Is.EqualTo(new[] { ManagedUriA, ManagedUriB }));
+            Assert.That(next.Installed, Is.False);
+            Assert.That(next.Calls, Is.Empty);
+            Assert.That(harness.AuthorizedUris, Is.EqualTo(new[] { ManagedUriA }));
+        }
+
+        /// <summary>
+        /// A timed-out server request can stage its change after cancellation replies. The lease is retired
+        /// even after Good or BadNothingToDo, preventing another application's ApplyChanges from committing it.
+        /// </summary>
+        [TestCase("trust", false)]
+        [TestCase("trust", true)]
+        [TestCase("certificate", false)]
+        [TestCase("certificate", true)]
+        public async Task LateManagedStagingAfterCancelCannotReachAnotherApplicationsApply(
+            string stage, bool nothingToDo)
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued);
+            ManagedApplication failed = harness.AddManaged("managed-a", ManagedUriA, m_managedA);
+            ManagedApplication next = harness.AddManaged("managed-b", ManagedUriB, m_managedB);
+            SetStagedError(failed, stage, new ServiceResultException(StatusCodes.BadTimeout));
+            if (nothingToDo)
+            {
+                failed.CancelError = new ServiceResultException(StatusCodes.BadNothingToDo);
+            }
+            Func<ValueTask> clearBeforeTimeout = () =>
+            {
+                failed.Discard();
+                return default;
+            };
+            if (stage == "trust")
+            {
+                failed.OnCloseAndUpdate = clearBeforeTimeout;
+            }
+            else
+            {
+                failed.OnUpdateCertificate = clearBeforeTimeout;
+            }
+            var releaseLateRequest = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task lateRequest = StageLateAsync();
+            next.OnUpdateCertificate = CompleteLateRequestAsync;
+            harness.BeforeLeaseDisposal = CompleteLateRequestAsync;
+            try
+            {
+                AggregateException? error = await Assert.ThrowsAsync<AggregateException>(async () =>
+                    await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false));
+
+                Assert.That(lateRequest.IsCompleted, Is.True);
+                await lateRequest.ConfigureAwait(false);
+                Assert.That(error!.Flatten().InnerExceptions, Has.Count.EqualTo(1));
+                Assert.That(((ServiceResultException)error.Flatten().InnerExceptions[0]).StatusCode,
+                    Is.EqualTo(StatusCodes.BadTimeout));
+                Assert.That(failed.Calls, Does.Contain(Ua.MethodIds.ServerConfigurationType_CancelChanges));
+                Assert.That(failed.HasPendingChanges, Is.True);
+                Assert.That(failed.Installed, Is.False);
+                Assert.That(next.Calls, Is.Empty);
+                Assert.That(next.Installed, Is.False);
+                Assert.That(harness.LeasesDisposed, Is.EqualTo(3));
+            }
+            finally
+            {
+                releaseLateRequest.TrySetResult(true);
+                await lateRequest.ConfigureAwait(false);
+            }
+
+            async Task StageLateAsync()
+            {
+                await releaseLateRequest.Task.ConfigureAwait(false);
+                failed.StageLateChange(stage);
+            }
+
+            async ValueTask CompleteLateRequestAsync()
+            {
+                // Both entry points occur after CancelChanges has returned to the processor.
+                if (failed.Calls.Contains(Ua.MethodIds.ServerConfigurationType_CancelChanges))
+                {
+                    releaseLateRequest.TrySetResult(true);
+                    await lateRequest.ConfigureAwait(false);
+                }
+            }
         }
 
         /// <summary>
@@ -1663,6 +1742,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             public Exception? CleanupError { get; set; }
 
             /// <summary>
+            /// Gets or sets work after processing finishes and before the provider releases its lease.
+            /// </summary>
+            public Func<ValueTask>? BeforeLeaseDisposal { get; set; }
+
+            /// <summary>
             /// Gets or sets an explicit generated trust-file Write failure.
             /// </summary>
             public Exception? TrustWriteError { get; set; }
@@ -1850,14 +1934,17 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 lease.SetupGet(value => value.CertificateTypeId)
                     .Returns(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType);
                 lease.SetupGet(value => value.TrustListId).Returns(new NodeId("trust-list", 1));
-                lease.Setup(value => value.DisposeAsync()).Returns(() =>
+                lease.Setup(value => value.DisposeAsync()).Returns(async () =>
                 {
                     LeasesDisposed++;
+                    if (BeforeLeaseDisposal != null)
+                    {
+                        await BeforeLeaseDisposal().ConfigureAwait(false);
+                    }
                     if (CleanupError != null)
                     {
                         throw CleanupError;
                     }
-                    return default;
                 });
                 return lease;
             }
@@ -2313,6 +2400,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             /// <summary>Gets or sets work after CancelChanges succeeds.</summary>
             public Func<ValueTask>? OnCancelChanges { get; set; }
 
+            /// <summary>
+            /// Gets or sets work after CloseAndUpdate stages its TrustList.
+            /// </summary>
+            public Func<ValueTask>? OnCloseAndUpdate { get; set; }
+
             /// <summary>Gets or sets a CloseAndUpdate failure raised after the TrustList is staged.</summary>
             public Exception? TrustStagedError { get; set; }
 
@@ -2406,6 +2498,24 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             }
 
             /// <summary>
+            /// Completes a remote staging request after its client has already observed a timeout.
+            /// </summary>
+            public void StageLateChange(string stage)
+            {
+                switch (stage)
+                {
+                    case "trust":
+                        m_trustPending = m_written.ToArray();
+                        break;
+                    case "certificate":
+                        m_certificatePending = true;
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException(nameof(stage));
+                }
+            }
+
+            /// <summary>
             /// Applies one generated method call with staged TrustList and certificate semantics.
             /// </summary>
             public async ValueTask<ArrayOf<Variant>> CallAsync(CallMethodRequest method)
@@ -2471,6 +2581,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 if (method.MethodId == Ua.MethodIds.TrustListType_CloseAndUpdate)
                 {
                     m_trustPending = m_written.ToArray();
+                    if (OnCloseAndUpdate != null)
+                    {
+                        await OnCloseAndUpdate().ConfigureAwait(false);
+                    }
                     if (TrustStagedError != null)
                     {
                         throw TrustStagedError;

@@ -626,28 +626,35 @@ arrays differ in length fails with `BadUnknownResponse` and changes nothing.
 rechecks approval and the actual peer immediately before each `ApplyChanges`.
 Revocation while the device stages a TrustList or certificate therefore leads
 to `CancelChanges` instead of activation. When `ApplyChanges` itself fails, the
-processor also calls `CancelChanges`, so a later application's `ApplyChanges`
-cannot commit the rejected changes.
+processor also calls `CancelChanges` and retires the lease before another
+application can use it.
 
 A failed reply does not prove that nothing was staged. Opening the TrustList
 for writing starts a transaction (Part 12 §7.8.2.2), and a device can stage
 `CloseAndUpdate` or `UpdateCertificate` and then lose or fail the reply. Any
 failure or cancellation of the TrustList transfer, `CloseAndUpdate` or
-`UpdateCertificate` therefore leads to `CancelChanges` before the processor
-continues; the DCA and managed paths behave the same way. `Bad_NothingToDo`
-from `CancelChanges` means the session holds no transaction, so only the
-original error is reported. `CancelChanges` runs without the caller's
-cancellation token.
+`UpdateCertificate` therefore leads to `CancelChanges`, followed by lease
+retirement; the DCA and managed paths behave the same way. A successful
+cancellation or `Bad_NothingToDo` reports the transaction state when
+cancellation executes, not completion of the earlier request. A timed-out
+request can still stage its changes after cancellation returns. Part 4 §7.32
+defines `timeoutHint` as a hint to the server, not a completion barrier, so the
+processor never proceeds to another application on that lease after an
+uncertain staging or apply result. `CancelChanges` runs without the caller's
+cancellation token. `Bad_NothingToDo` adds no cleanup error to the original
+failure.
 
-A denial or failure for one application leaves the confirmed DCA credential and
-the other applications unchanged. The processor attempts every application and
-reports the failures together in one `AggregateException`; cancellation and an
-invalidated session stop the loop. When `CancelChanges` fails, for example on a
-device without transaction support, the staged changes are still queued. The
-processor then stops before the next application and reports the original
-error and the cleanup error together in a nested `AggregateException`. It does
-not assume the device rolled back. It releases the lease, whose provider must
-attempt session close and disposal while retaining any cleanup errors.
+A denial or failure before mutation does not stop the processor from trying
+other applications. An approval rejection after a completed staging request
+can also continue when cancellation succeeds. Uncertain staging or apply
+results, failed cancellation, caller cancellation and an invalidated session
+stop the loop. Application failures are reported together in one
+`AggregateException`. When `CancelChanges` fails, for example on a device
+without transaction support, changes may remain queued. The processor reports
+the original error and the cleanup error together in a nested
+`AggregateException`; it does not assume the device rolled back. It releases
+the lease, whose provider must attempt session close and disposal while
+retaining any cleanup errors.
 
 Every `IDeviceRegistrarPushConnectionProvider.ConnectAsync` call must create a
 fresh session exclusively owned by the returned lease. Custom providers must

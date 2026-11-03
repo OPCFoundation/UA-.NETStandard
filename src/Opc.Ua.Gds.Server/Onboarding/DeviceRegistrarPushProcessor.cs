@@ -362,13 +362,13 @@ namespace Opc.Ua.Gds.Server.Onboarding
             List<NodeId> nodes = await FindManagedApplicationsAsync(
                 dispatch.Session, connection.ProvisionableDeviceId, ct).ConfigureAwait(false);
             List<Exception>? failures = null;
-            var uncancelled = new StrongBox<bool>();
+            var retireSession = new StrongBox<bool>();
             foreach (NodeId node in nodes)
             {
                 try
                 {
                     await PushManagedApplicationAsync(connection, dispatch, identity, dcaApplicationId,
-                        dcaApplicationUri, peer, node, uncancelled, ct).ConfigureAwait(false);
+                        dcaApplicationUri, peer, node, retireSession, ct).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
                 {
@@ -378,8 +378,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 {
                     (failures ??= []).Add(error);
                     // ApplyChanges commits every change queued in the session, so a later application
-                    // must not run while a rejected application's staged changes remain.
-                    if (uncancelled.Value || dispatch.Invalidated.IsCompleted)
+                    // must not run when changes remain or an earlier request can still stage them.
+                    if (retireSession.Value || dispatch.Invalidated.IsCompleted)
                     {
                         break;
                     }
@@ -455,7 +455,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             string dcaApplicationUri,
             ByteString peer,
             NodeId node,
-            StrongBox<bool> uncancelled,
+            StrongBox<bool> retireSession,
             CancellationToken ct)
         {
             ISession session = dispatch.Session;
@@ -535,14 +535,14 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 RequirePeer(dispatch, peer);
                 if (await StageChangesAsync(configuration,
                     () => WriteTrustListAsync(session, trustListId, retained.TrustList, ct),
-                    uncancelled).ConfigureAwait(false))
+                    retireSession).ConfigureAwait(false))
                 {
                     await CommitStagedChangesAsync(configuration, async () =>
                     {
                         await RequireManagedApprovalAsync(identity, dcaApplicationId, applicationId, ct)
                             .ConfigureAwait(false);
                         RequirePeer(dispatch, peer);
-                    }, uncancelled, ct).ConfigureAwait(false);
+                    }, retireSession, ct).ConfigureAwait(false);
                 }
             }
             if (!holdsCertificate)
@@ -556,7 +556,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     async () => await configuration.UpdateCertificateAsync(
                         NodeId.Null, connection.CertificateTypeId, issuance.Certificate, issuers, string.Empty,
                         default, ct).ConfigureAwait(false),
-                    uncancelled).ConfigureAwait(false);
+                    retireSession).ConfigureAwait(false);
                 if (applyCertificate)
                 {
                     // Approval or association can be revoked while the device stages the credential.
@@ -565,7 +565,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                         await RequireManagedApprovalAsync(identity, dcaApplicationId, applicationId, ct)
                             .ConfigureAwait(false);
                         RequirePeer(dispatch, peer);
-                    }, uncancelled, ct).ConfigureAwait(false);
+                    }, retireSession, ct).ConfigureAwait(false);
                 }
                 if (!await HoldsCertificateAsync(
                     configuration, group, connection.CertificateTypeId, issuance.Certificate, ct).ConfigureAwait(false))
@@ -786,13 +786,14 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// <summary>
         /// Runs one call that can stage changes in the session transaction: Open(write) through CloseAndUpdate,
         /// or UpdateCertificate. If the call fails or is cancelled, the server may already have staged the
-        /// change before the reply was lost, so the session's changes are cancelled before the error is
-        /// rethrown. A failed cancellation is reported together with the original error.
+        /// change before the reply was lost, or may still stage it after cancellation completes.
+        /// Cancellation is attempted, but the session must be retired even if it succeeds.
+        /// A failed cancellation is reported together with the original error.
         /// </summary>
         private static async ValueTask<bool> StageChangesAsync(
             ServerConfigurationTypeClient configuration,
             Func<ValueTask<bool>> stage,
-            StrongBox<bool>? uncancelled)
+            StrongBox<bool>? retireSession)
         {
             try
             {
@@ -800,7 +801,11 @@ namespace Opc.Ua.Gds.Server.Onboarding
             }
             catch (Exception error)
             {
-                await CancelStagedChangesAsync(configuration, error, uncancelled).ConfigureAwait(false);
+                if (retireSession != null)
+                {
+                    retireSession.Value = true;
+                }
+                await CancelStagedChangesAsync(configuration, error, retireSession).ConfigureAwait(false);
                 throw;
             }
         }
@@ -808,15 +813,14 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// <summary>
         /// Rechecks authorization before ApplyChanges commits the changes staged in the session.
         /// A rejected check cancels the staged changes and rethrows the original error. When
-        /// <paramref name="uncancelled"/> is supplied, because later applications share the session, a failed
-        /// ApplyChanges is cancelled the same way. If CancelChanges also fails, both errors are thrown together
-        /// and <paramref name="uncancelled"/> is set, so the caller stops before a later ApplyChanges in the
-        /// same session commits the rejected changes.
+        /// <paramref name="retireSession"/> is supplied, because later applications share the session, a failed
+        /// ApplyChanges is cancelled the same way and the session is retired because the request may still run.
+        /// If CancelChanges also fails, both errors are thrown together and the session is retired.
         /// </summary>
         private static async ValueTask CommitStagedChangesAsync(
             ServerConfigurationTypeClient configuration,
             Func<ValueTask> authorize,
-            StrongBox<bool>? uncancelled,
+            StrongBox<bool>? retireSession,
             CancellationToken ct)
         {
             try
@@ -825,29 +829,30 @@ namespace Opc.Ua.Gds.Server.Onboarding
             }
             catch (Exception error)
             {
-                await CancelStagedChangesAsync(configuration, error, uncancelled).ConfigureAwait(false);
+                await CancelStagedChangesAsync(configuration, error, retireSession).ConfigureAwait(false);
                 throw;
             }
             try
             {
                 await configuration.ApplyChangesAsync(ct).ConfigureAwait(false);
             }
-            catch (Exception error) when (uncancelled != null)
+            catch (Exception error) when (retireSession != null)
             {
-                await CancelStagedChangesAsync(configuration, error, uncancelled).ConfigureAwait(false);
+                retireSession.Value = true;
+                await CancelStagedChangesAsync(configuration, error, retireSession).ConfigureAwait(false);
                 throw;
             }
         }
 
         /// <summary>
         /// Discards the changes staged in the session after a failure, preserving the failure and any
-        /// cleanup error together. Bad_NothingToDo means the session has no active transaction, so there is
-        /// nothing left to discard (OPC 10000-12, 7.10.11).
+        /// cleanup error together. Bad_NothingToDo means no transaction is active when cancellation executes
+        /// (OPC 10000-12, 7.10.11), not that an earlier timed-out request cannot stage changes later.
         /// </summary>
         private static async ValueTask CancelStagedChangesAsync(
             ServerConfigurationTypeClient configuration,
             Exception error,
-            StrongBox<bool>? uncancelled)
+            StrongBox<bool>? retireSession)
         {
             try
             {
@@ -856,16 +861,16 @@ namespace Opc.Ua.Gds.Server.Onboarding
             }
             catch (ServiceResultException cleanup) when (cleanup.StatusCode == StatusCodes.BadNothingToDo)
             {
-                // No transaction is active in the session, so no staged change can remain.
+                // This response does not establish completion of an earlier timed-out request.
             }
             catch (Exception cleanup)
             {
-                if (uncancelled != null)
+                if (retireSession != null)
                 {
-                    uncancelled.Value = true;
+                    retireSession.Value = true;
                 }
                 throw new AggregateException(
-                    "The staged configuration changes were not committed and could not be cancelled.",
+                    "Configuration processing failed and transaction cancellation also failed.",
                     error, cleanup);
             }
         }
