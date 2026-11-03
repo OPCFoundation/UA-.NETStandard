@@ -873,6 +873,11 @@ Status key: ✅ implemented and tested over a real session ·
 🧪 implemented, tested in-process only · 🔧 implemented, not covered by a
 test · ❌ not shipped.
 
+The tables identify implementation paths and their tests, not certification.
+Remote validation of the corrected recipe shutdown regressions remains pending;
+the [published-specification matrix](Profiles.md#published-specification-support-matrix)
+therefore retains Partial support for OPC 40200.
+
 OPC 40200 defines server facets only; there are no client facets or client
 conformance units (§12). The server advertises the facets and CUs of what
 it actually built through `ServerProfiles` and `ConformanceUnits`
