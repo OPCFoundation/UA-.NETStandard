@@ -543,14 +543,27 @@ namespace Opc.Ua.AMB.Tests
         public async Task PatchIdentifiersRequireASoftwareRevisionWhenSoftwareUpdateIsAbsentAsync()
         {
             ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
-                async () => await HealthAlarmTests.StartWithSensorAsync(
-                    nameof(PatchIdentifiersRequireASoftwareRevisionWhenSoftwareUpdateIsAbsentAsync),
-                    builder => builder.WithVersionInformation(
-                        hardwareRevision: null,
-                        softwareRevision: null,
-                        revisionCounter: null,
-                        patchIdentifiers: ["fixture-only-patch"]))
-                    .ConfigureAwait(false)))!;
+                async () =>
+                {
+                    await using AmbHostedServer server = await AmbHostedServer.StartAsync(
+                        nameof(PatchIdentifiersRequireASoftwareRevisionWhenSoftwareUpdateIsAbsentAsync),
+                        builder => builder
+                            .AddOpcUaDi()
+                            .AddAssetManagement()
+                            .ConfigureAssetManagement(async context =>
+                            {
+                                INodeBuilder<BaseObjectState> node = AssetRegistrationTests.CreateMachine(
+                                    context, "urn:acme:press:no-software-revision");
+                                await context.Assets.RegisterAssetAsync(
+                                    node,
+                                    asset => asset.WithVersionInformation(
+                                        hardwareRevision: null,
+                                        softwareRevision: null,
+                                        revisionCounter: null,
+                                        patchIdentifiers: ["fixture-only-patch"]),
+                                    context.CancellationToken).ConfigureAwait(false);
+                            })).ConfigureAwait(false);
+                }).ConfigureAwait(false))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
