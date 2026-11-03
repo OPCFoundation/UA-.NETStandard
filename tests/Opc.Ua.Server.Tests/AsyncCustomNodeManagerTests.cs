@@ -2396,7 +2396,10 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// OPC 10000-4 §5.9.2.2 ignores the nodeClassMask for a remote target whose NodeClass is
         /// unknown, while local targets remain filtered by their NodeClass. A URI-qualified target
-        /// on this server (ServerIndex 0) is not remote and keeps the previous masked behavior.
+        /// with ServerIndex 0 identifies a local node, so it is resolved and filtered like one;
+        /// a ServerIndex above 0 stays remote even when its NamespaceUri is registered locally.
+        /// A ServerIndex 0 target in an unregistered namespace has no local NodeClass, so it is
+        /// returned only when no nodeClassMask is set.
         /// </summary>
         [TestCase(NodeClass.Object)]
         [TestCase(NodeClass.Variable)]
@@ -2426,11 +2429,16 @@ namespace Opc.Ua.Server.Tests
             variable.ValueRank = ValueRanks.Scalar;
             await manager.AddNodeAsync(context, parent.NodeId, variable).ConfigureAwait(false);
 
+            string localUri = m_namespaceTable.GetString(nsIdx)!;
             var remote = new ExpandedNodeId("RemoteTarget", "urn:test:remote", 1);
             parent.AddReference(ReferenceTypeIds.Organizes, false, remote);
-            var sameServer = new ExpandedNodeId("MaskVariable", m_namespaceTable.GetString(nsIdx), 0);
+            var remoteLocalUri = new ExpandedNodeId("MaskObject", localUri, 1);
+            parent.AddReference(ReferenceTypeIds.Organizes, false, remoteLocalUri);
+            var sameServer = new ExpandedNodeId("MaskVariable", localUri, 0);
             Assert.That(sameServer.IsAbsolute, Is.True);
             parent.AddReference(ReferenceTypeIds.Organizes, false, sameServer);
+            var unregistered = new ExpandedNodeId("Unregistered", "urn:test:unregistered", 0);
+            parent.AddReference(ReferenceTypeIds.Organizes, false, unregistered);
 
             object handle = await manager.GetManagerHandleAsync(parent.NodeId).ConfigureAwait(false);
             var continuationPoint = new ContinuationPoint
@@ -2455,14 +2463,31 @@ namespace Opc.Ua.Server.Tests
             var variableChild = new ExpandedNodeId(variable.NodeId);
             ExpandedNodeId[] expected = mask switch
             {
-                NodeClass.Object => [objectChild, remote],
-                NodeClass.Variable => [variableChild, remote],
-                _ => [objectChild, variableChild, remote, sameServer]
+                NodeClass.Object => [objectChild, remote, remoteLocalUri],
+                NodeClass.Variable => [variableChild, variableChild, remote, remoteLocalUri],
+                _ => [objectChild, variableChild, variableChild, remote, remoteLocalUri, unregistered]
             };
             Assert.That(references.Select(reference => reference.NodeId), Is.EquivalentTo(expected));
-            ReferenceDescription remoteDescription = references.Single(reference => reference.NodeId.Equals(remote));
-            Assert.That(remoteDescription.NodeClass, Is.EqualTo(NodeClass.Unspecified));
-            Assert.That(remoteDescription.Unfiltered, Is.False);
+            foreach (ExpandedNodeId remoteId in references
+                .Select(reference => reference.NodeId)
+                .Where(nodeId => nodeId.IsAbsolute))
+            {
+                ReferenceDescription remoteDescription = references.Single(
+                    reference => reference.NodeId.Equals(remoteId));
+                Assert.That(remoteDescription.NodeClass, Is.EqualTo(NodeClass.Unspecified));
+                Assert.That(remoteDescription.Unfiltered, Is.False);
+            }
+
+            // The URI-qualified same-server reference resolves to the local MaskVariable, so it is
+            // returned with the same local id and target attributes as the child reference.
+            foreach (ReferenceDescription sameServerDescription in references.Where(
+                reference => reference.NodeId.Equals(variableChild)))
+            {
+                Assert.That(sameServerDescription.NodeId.IsAbsolute, Is.False);
+                Assert.That(sameServerDescription.NodeClass, Is.EqualTo(NodeClass.Variable));
+                Assert.That(sameServerDescription.BrowseName, Is.EqualTo(variable.BrowseName));
+                Assert.That(sameServerDescription.Unfiltered, Is.False);
+            }
         }
 
         /// <summary>

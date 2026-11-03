@@ -2335,18 +2335,30 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            // do not cache target parameters for remote nodes.
+            NodeId targetId;
             if (reference.TargetId.IsAbsolute)
             {
                 // The NodeClass of a target on another server is unknown here, so
-                // OPC 10000-4 §5.9.2.2 requires the nodeClassMask to be ignored for it. A
-                // URI-qualified target on this server is not remote and keeps the class filter.
-                if (reference.TargetId.ServerIndex == 0 && continuationPoint.NodeClassMask != 0)
+                // OPC 10000-4 §5.9.2.2 requires the nodeClassMask to be ignored for it.
+                if (reference.TargetId.ServerIndex != 0)
                 {
-                    return null;
+                    return description;
                 }
 
-                return description;
+                // A URI-qualified target on this server identifies a local node and is filtered
+                // by its NodeClass like any other local target.
+                targetId = ExpandedNodeId.ToNodeId(reference.TargetId, Server.NamespaceUris);
+                if (targetId.IsNull)
+                {
+                    // The namespace is not registered on this server, so no local NodeClass exists.
+                    return continuationPoint.NodeClassMask != 0 ? null : description;
+                }
+
+                description.NodeId = targetId;
+            }
+            else
+            {
+                targetId = (NodeId)reference.TargetId;
             }
 
             NodeState? target = null;
@@ -2361,7 +2373,7 @@ namespace Opc.Ua.Server
             // check for internal reference.
             if (target == null)
             {
-                NodeHandle? handle = GetManagerHandle(context, (NodeId)reference.TargetId, null!);
+                NodeHandle? handle = GetManagerHandle(context, targetId, null!);
 
                 if (handle != null)
                 {
