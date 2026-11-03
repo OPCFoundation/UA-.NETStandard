@@ -874,6 +874,7 @@ namespace Opc.Ua.LADS.Server
         private async Task ExecuteAsync(ActiveRunEntry active)
         {
             LadsProgramOutcome outcome;
+            bool executionFailed = false;
             try
             {
                 m_unit.Device.RequireStorageHealthy();
@@ -887,6 +888,7 @@ namespace Opc.Ua.LADS.Server
                     active.Run.ExecutionFinished();
                     bool acknowledged = await m_unit.WaitForCompletionAcknowledgmentAsync(active.Cancellation.Token)
                         .ConfigureAwait(false);
+                    executionFailed = !acknowledged;
                     outcome = active.GetCompletionOutcome(acknowledged);
                 }
             }
@@ -898,16 +900,18 @@ namespace Opc.Ua.LADS.Server
             {
                 Runtime.Logger.ProgramFailed(active.Run.RunId, ex);
                 outcome = LadsProgramOutcome.Aborted;
+                executionFailed = true;
             }
             active.Run.ExecutionFinished();
             if (outcome == LadsProgramOutcome.Completed &&
                 m_unit.Running.Current is not (LadsRunningStateValue.Execute or LadsRunningStateValue.Completing))
             {
                 outcome = LadsProgramOutcome.Aborted;
+                executionFailed = true;
             }
             try
             {
-                await FinishAsync(active, outcome).ConfigureAwait(false);
+                await FinishAsync(active, outcome, executionFailed).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -932,7 +936,7 @@ namespace Opc.Ua.LADS.Server
         /// <summary>
         /// Moves the state machines to the end state of the run and publishes the result.
         /// </summary>
-        private async Task FinishAsync(ActiveRunEntry active, LadsProgramOutcome outcome)
+        private async Task FinishAsync(ActiveRunEntry active, LadsProgramOutcome outcome, bool executionFailed)
         {
             LadsProgramRun run = active.Run;
             await m_unit.Gate.WaitAsync().ConfigureAwait(false);
@@ -941,7 +945,7 @@ namespace Opc.Ua.LADS.Server
             Exception? failure = null;
             try
             {
-                outcome = active.BeginFinalization(outcome);
+                outcome = active.BeginFinalization(outcome, executionFailed);
                 if (outcome != LadsProgramOutcome.Completed)
                 {
                     m_unit.CancelExecutionControl();
@@ -1726,13 +1730,14 @@ namespace Opc.Ua.LADS.Server
             /// <summary>
             /// Freezes the result outcome before changing state or publishing stored data.
             /// Later end requests must wait for publication and use the standalone unit transition.
+            /// Execution failures take precedence over accepted end requests.
             /// </summary>
-            public LadsProgramOutcome BeginFinalization(LadsProgramOutcome outcome)
+            public LadsProgramOutcome BeginFinalization(LadsProgramOutcome outcome, bool executionFailed = false)
             {
                 lock (m_lock)
                 {
                     m_finalizing = true;
-                    return m_requested ?? outcome;
+                    return executionFailed ? LadsProgramOutcome.Aborted : m_requested ?? outcome;
                 }
             }
 

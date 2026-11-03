@@ -686,6 +686,51 @@ namespace Opc.Ua.LADS.Tests.Server
 
         [TestCase(false)]
         [TestCase(true)]
+        public async Task ExecutorFailureOverridesOverlappingEndRequestAsync(bool abort)
+        {
+            var entered = NewSignal();
+            var cancelled = NewSignal();
+            var release = NewSignal();
+            var executor = new ControlledExecutor(
+                (_, _, _) => ValueTask.FromResult(ServiceResult.Good),
+                async (_, cancellationToken) =>
+                {
+                    using CancellationTokenRegistration registration = cancellationToken.Register(
+                        () => cancelled.TrySetResult(true));
+                    entered.SetResult(true);
+                    await release.Task.ConfigureAwait(false);
+                    throw new InvalidOperationException("The equipment failed after the end request.");
+                });
+            await using LadsClientConnection connection = await StartAsync(
+                nameof(ExecutorFailureOverridesOverlappingEndRequestAsync), executor).ConfigureAwait(false);
+            ILadsDevice device = await connection.Server.DeviceAsync().ConfigureAwait(false);
+            ILadsFunctionalUnit unit = device.GetFunctionalUnit(UnitName);
+            ILadsProgramManager programs = unit.Programs!;
+            string runId = await programs.StartProgramAsync(TemplateName).ConfigureAwait(false);
+            Task? end = null;
+            try
+            {
+                await entered.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+                end = abort ? unit.AbortAsync().AsTask() : unit.StopAsync().AsTask();
+                await cancelled.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+                Assert.That(end.IsCompleted, Is.False);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+            await end!.WaitAsync(s_timeout).ConfigureAwait(false);
+            ILadsResult result = await programs.WaitForResultAsync(runId).ConfigureAwait(false);
+            Assert.That(result.Outcome, Is.EqualTo(LadsProgramOutcome.Aborted));
+            Assert.That(unit.State, Is.EqualTo(LadsFunctionalStateValue.Aborted));
+            Assert.That(unit.RunningState, Is.EqualTo(LadsRunningStateValue.Idle));
+            Assert.That(programs.Results.Count, Is.EqualTo(1));
+            Assert.That(programs.ActiveRun, Is.Null);
+            Assert.That(device.OperationCycleCounter, Is.Zero);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
         public async Task EndRequestBeforeFinalizationOverridesCompletedCandidateAsync(bool abort)
         {
             var finish = NewSignal();

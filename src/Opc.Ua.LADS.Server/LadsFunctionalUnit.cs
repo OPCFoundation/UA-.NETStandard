@@ -494,8 +494,15 @@ namespace Opc.Ua.LADS.Server
                     {
                         m_executionCancellation = null;
                     }
+                    if (command.IsCancellationRequested)
+                    {
+                        completionAcknowledgment?.TrySetCanceled(command.Token);
+                    }
+                    else
+                    {
+                        completionAcknowledgment?.TrySetResult(false);
+                    }
                     command.Dispose();
-                    completionAcknowledgment?.TrySetResult(false);
                     if (--m_pendingExecutionCommands == 0)
                     {
                         m_executionIdle!.TrySetResult(true);

@@ -475,8 +475,12 @@ and then applies its standalone functional-unit transition; it does not rewrite
 the completed result or cancel a disposed execution token. Cancellation of a
 pending completion acknowledgment preserves an accepted end request's outcome;
 provider rejection without an end request records Aborted.
-An exception from the executor also records
-`Aborted`. `DelayAsync` uses the runtime clock. Set
+A non-cancellation executor exception, a rejected completion acknowledgment
+without end-request cancellation, or an invalid completion state records
+`Aborted`, even when Stop was accepted before finalization. Such failures take
+precedence over the requested end outcome; cancellation caused by an accepted
+Stop or Abort does not itself constitute an execution failure.
+`DelayAsync` uses the runtime clock. Set
 `LadsServerOptions.TimeProvider` to advance LADS execution in tests without
 advancing session expiry; otherwise the runtime uses the registered
 `TimeProvider`.
