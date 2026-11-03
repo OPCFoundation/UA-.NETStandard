@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -242,7 +243,11 @@ namespace Opc.Ua.AutoID.Server
                 !result.Timestamp.IsNull;
             DateTimeUtc timestamp = hasTimestamp ? result.Timestamp : DateTimeUtc.Now;
             bool hasIdentifier = (result.EncodingMask & (uint)AccessResultFields.Identifier) != 0;
-            Variant identifier = hasIdentifier ? VariantOf(result.Identifier) : Variant.Null;
+            Variant identifier = hasIdentifier ? SnapshotDiagnosticData(result.Identifier) : Variant.Null;
+            Variant data = Kind == AutoIdReaderKind.Rfid && result is RfidAccessResult rfidData &&
+                (rfidData.EncodingMask & (uint)RfidAccessResultFields.RWData) != 0
+                ? SnapshotDiagnosticData(rfidData.RWData)
+                : Variant.Null;
             lock (m_lock)
             {
                 SetDiagnostic(access, "Client", Variant.From(client), timestamp);
@@ -251,7 +256,7 @@ namespace Opc.Ua.AutoID.Server
                 SetDiagnostic(access, "Timestamp", Variant.From(result.Timestamp), timestamp, hasTimestamp);
                 if (Kind == AutoIdReaderKind.Rfid && result is RfidAccessResult rfid)
                 {
-                    SetRfidDiagnostics(access, rfid, timestamp);
+                    SetRfidDiagnostics(access, rfid, data, timestamp);
                 }
             }
             access.ClearChangeMasks(Runtime.SystemContext, true);
@@ -260,10 +265,10 @@ namespace Opc.Ua.AutoID.Server
         /// <summary>
         /// Projects only present RFID fields, clearing previous data when a field is omitted.
         /// </summary>
-        private void SetRfidDiagnostics(BaseObjectState access, RfidAccessResult result, DateTimeUtc timestamp)
+        private void SetRfidDiagnostics(
+            BaseObjectState access, RfidAccessResult result, Variant data, DateTimeUtc timestamp)
         {
             uint fields = result.EncodingMask;
-            Variant data = VariantOf(result.RWData);
             SetDiagnostic(access, "RWData", data, timestamp,
                 (fields & (uint)RfidAccessResultFields.RWData) != 0 && !data.IsNull);
             SetDiagnostic(access, "Antenna", Variant.From(result.Antenna), timestamp,
@@ -276,6 +281,53 @@ namespace Opc.Ua.AutoID.Server
                 (fields & (uint)RfidAccessResultFields.Polarization) != 0);
             SetDiagnostic(access, "Strength", Variant.From(result.Strength), timestamp,
                 (fields & (uint)RfidAccessResultFields.Strength) != 0);
+        }
+
+        /// <summary>
+        /// Copies mutable report storage before retaining it in the diagnostic projection.
+        /// </summary>
+        private Variant SnapshotDiagnosticData(ScanData? data)
+        {
+            if (data is null)
+            {
+                return Variant.Null;
+            }
+            switch (data.SwitchField)
+            {
+                case ScanDataFields.ByteString:
+                    return Variant.From(SnapshotDiagnosticBytes(data.ByteString));
+                case ScanDataFields.Epc:
+                    return Variant.FromStructure(new ScanDataEpc
+                    {
+                        PC = data.Epc.PC,
+                        UId = SnapshotDiagnosticBytes(data.Epc.UId),
+                        XPC_W1 = data.Epc.XPC_W1,
+                        XPC_W2 = data.Epc.XPC_W2
+                    });
+                case ScanDataFields.Custom:
+                    // Variant.Copy does not copy scalar ByteString or every nested mutable payload.
+                    IServiceMessageContext context = Runtime.SystemContext.AsMessageContext();
+                    using (var stream = new MemoryStream())
+                    {
+                        using (var encoder = new BinaryEncoder(stream, context, true))
+                        {
+                            encoder.WriteVariant(null, data.Custom);
+                        }
+                        stream.Position = 0;
+                        using var decoder = new BinaryDecoder(stream, context, true);
+                        return decoder.ReadVariant(null);
+                    }
+                default:
+                    return VariantOf(data);
+            }
+        }
+
+        /// <summary>
+        /// Copies the bytes while preserving the distinction between null and empty.
+        /// </summary>
+        private static ByteString SnapshotDiagnosticBytes(ByteString value)
+        {
+            return value.IsNull ? default : ByteString.From(value.Span);
         }
     }
 }

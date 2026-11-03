@@ -194,6 +194,192 @@ namespace Opc.Ua.AutoID.Tests
         }
 
         /// <summary>
+        /// Retains independent identifier and RWData storage after the provider reuses its buffers.
+        /// </summary>
+        [TestCase("Identifier", ScanDataFields.ByteString)]
+        [TestCase("RWData", ScanDataFields.ByteString)]
+        [TestCase("Identifier", ScanDataFields.Epc)]
+        [TestCase("RWData", ScanDataFields.Epc)]
+        [TestCase("Identifier", ScanDataFields.Custom)]
+        [TestCase("RWData", ScanDataFields.Custom)]
+        public async Task AccessDiagnosticsSnapshotProviderBuffersAsync(string field, ScanDataFields arm)
+        {
+            await using AutoIdReader reader = await CreateAsync().ConfigureAwait(false);
+            byte[] bytes = [0x12, 0x34, 0x56];
+            var epc = new ScanDataEpc { PC = 7, UId = ByteString.From(bytes), XPC_W1 = 8, XPC_W2 = 9 };
+            var data = new ScanData { SwitchField = arm };
+            switch (arm)
+            {
+                case ScanDataFields.ByteString:
+                    data.ByteString = ByteString.From(bytes);
+                    break;
+                case ScanDataFields.Epc:
+                    data.Epc = epc;
+                    break;
+                case ScanDataFields.Custom:
+                    data.Custom = Variant.From(ByteString.From(bytes));
+                    break;
+            }
+            RfidAccessResult report = Access();
+            report.EncodingMask |= (uint)RfidAccessResultFields.RWData;
+            if (field == "Identifier")
+            {
+                report.Identifier = data;
+            }
+            else
+            {
+                report.RWData = data;
+            }
+            await reader.ReportAccessAsync("ReadTag", "Controller", [report]).ConfigureAwait(false);
+            BaseVariableState variable = Variable(reader, "LastAccess", field);
+            DateTimeUtc timestamp = variable.Timestamp;
+            bytes[0] = 0xFF;
+            epc.PC = 77;
+            epc.XPC_W1 = 88;
+            epc.XPC_W2 = 99;
+            Variant expected = arm == ScanDataFields.Epc
+                ? Variant.FromStructure(new ScanDataEpc
+                {
+                    PC = 7, UId = ByteString.From(0x12, 0x34, 0x56), XPC_W1 = 8, XPC_W2 = 9
+                })
+                : Variant.From(ByteString.From(0x12, 0x34, 0x56));
+            Assert.Multiple(() =>
+            {
+                Assert.That(variable.Value, Is.EqualTo(expected));
+                Assert.That(variable.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(variable.Timestamp, Is.EqualTo(timestamp));
+                Assert.That(variable.Timestamp, Is.EqualTo(report.Timestamp));
+            });
+            AttributeReadResult read = await variable.OnReadValueAsync!(
+                m_fixture.Context, variable, default, default, default).ConfigureAwait(false);
+            Assert.That(read.Value, Is.EqualTo(expected));
+            Assert.That(read.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(read.SourceTimestamp, Is.EqualTo(timestamp));
+            AssertAcquisition(reader, report.Timestamp);
+        }
+
+        /// <summary>
+        /// Copies nested custom Variant arrays instead of retaining their containers or ByteString values.
+        /// </summary>
+        [TestCase("Identifier")]
+        [TestCase("RWData")]
+        public async Task AccessDiagnosticsSnapshotNestedCustomValuesAsync(string field)
+        {
+            await using AutoIdReader reader = await CreateAsync().ConfigureAwait(false);
+            byte[] bytes = [1, 2, 3];
+            Variant[] values = [Variant.From(ByteString.From(bytes)), Variant.From(42)];
+            var data = new ScanData
+            {
+                SwitchField = ScanDataFields.Custom,
+                Custom = Variant.From(values.ToArrayOf())
+            };
+            RfidAccessResult report = Access();
+            report.EncodingMask |= (uint)RfidAccessResultFields.RWData;
+            if (field == "Identifier")
+            {
+                report.Identifier = data;
+            }
+            else
+            {
+                report.RWData = data;
+            }
+            await reader.ReportAccessAsync("ReadTag", "Controller", [report]).ConfigureAwait(false);
+            BaseVariableState variable = Variable(reader, "LastAccess", field);
+            DateTimeUtc timestamp = variable.Timestamp;
+            bytes[0] = 9;
+            values[1] = Variant.From(99);
+            Assert.Multiple(() =>
+            {
+                Assert.That(variable.Value.TryGetValue(out ArrayOf<Variant> stored), Is.True);
+                Assert.That(stored.Count, Is.EqualTo(2));
+                Assert.That(stored[0], Is.EqualTo(Variant.From(ByteString.From(1, 2, 3))));
+                Assert.That(stored[1], Is.EqualTo(Variant.From(42)));
+                Assert.That(variable.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(variable.Timestamp, Is.EqualTo(timestamp));
+                Assert.That(variable.Timestamp, Is.EqualTo(report.Timestamp));
+            });
+        }
+
+        /// <summary>
+        /// Preserves null versus empty byte strings and their existing diagnostic availability policy.
+        /// </summary>
+        [TestCase("Identifier", false)]
+        [TestCase("Identifier", true)]
+        [TestCase("RWData", false)]
+        [TestCase("RWData", true)]
+        public async Task AccessDiagnosticsPreserveNullAndEmptyByteStringsAsync(string field, bool empty)
+        {
+            await using AutoIdReader reader = await CreateAsync().ConfigureAwait(false);
+            var data = new ScanData
+            {
+                SwitchField = ScanDataFields.ByteString,
+                ByteString = empty ? ByteString.Empty : default
+            };
+            RfidAccessResult report = Access();
+            report.EncodingMask |= (uint)RfidAccessResultFields.RWData;
+            if (field == "Identifier")
+            {
+                report.Identifier = data;
+            }
+            else
+            {
+                report.RWData = data;
+            }
+            await reader.ReportAccessAsync("ReadTag", "Controller", [report]).ConfigureAwait(false);
+            BaseVariableState variable = Variable(reader, "LastAccess", field);
+            Assert.That(variable.Value, Is.EqualTo(Variant.From(empty ? ByteString.Empty : default)));
+            Assert.That(variable.Value.TryGetValue(out ByteString stored), Is.True);
+            Assert.That(stored.IsNull, Is.EqualTo(!empty));
+            Assert.That(variable.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(variable.Timestamp, Is.EqualTo(report.Timestamp));
+        }
+
+        /// <summary>
+        /// Rejects a custom value exceeding codec limits before replacing any LastAccess field.
+        /// </summary>
+        [TestCase("Identifier")]
+        [TestCase("RWData")]
+        public async Task CustomSnapshotFailurePreservesPreviousDiagnosticsAsync(string field)
+        {
+            await using AutoIdReader reader = await CreateAsync().ConfigureAwait(false);
+            await reader.ReportAccessAsync("Previous", "Controller", [Access()]).ConfigureAwait(false);
+            var children = new List<BaseInstanceState>();
+            Group(reader, "LastAccess").GetChildren(m_fixture.Context, children);
+            var previous = children.Cast<BaseVariableState>()
+                .Select(variable => (Variable: variable, variable.Value, variable.StatusCode, variable.Timestamp))
+                .ToArray();
+            Variant nested = Variant.From(42);
+            int limit = m_fixture.Context.AsMessageContext().MaxEncodingNestingLevels;
+            for (int index = 0; index < limit + 2; index++)
+            {
+                nested = Variant.From(new[] { nested }.ToArrayOf());
+            }
+            var data = new ScanData { SwitchField = ScanDataFields.Custom, Custom = nested };
+            RfidAccessResult report = Access();
+            report.EncodingMask |= (uint)RfidAccessResultFields.RWData;
+            if (field == "Identifier")
+            {
+                report.Identifier = data;
+            }
+            else
+            {
+                report.RWData = data;
+            }
+            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await reader.ReportAccessAsync("Replacement", "Other controller", [report]).ConfigureAwait(false));
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+            foreach (var snapshot in previous)
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(snapshot.Variable.Value, Is.EqualTo(snapshot.Value));
+                    Assert.That(snapshot.Variable.StatusCode, Is.EqualTo(snapshot.StatusCode));
+                    Assert.That(snapshot.Variable.Timestamp, Is.EqualTo(snapshot.Timestamp));
+                });
+            }
+        }
+
+        /// <summary>
         /// Projects the first report result consistently with LastScanData, without fabricating presence.
         /// </summary>
         [Test]

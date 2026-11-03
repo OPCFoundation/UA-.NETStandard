@@ -127,13 +127,20 @@ namespace Opc.Ua.Aot.Tests
         public async Task DiagnosticReportsExecuteAndReadThroughDataAccessAsync()
         {
             ArrayOf<DataValue> values = await fixture.ReportAndReadDiagnosticsAsync().ConfigureAwait(false);
-            await Assert.That(values.Count).IsEqualTo(3);
+            await Assert.That(values.Count).IsEqualTo(4);
             await Assert.That(values[0].StatusCode).IsEqualTo(StatusCodes.Good);
             await Assert.That(values[0].WrappedValue).IsEqualTo(Variant.From((ushort)2));
             await Assert.That(values[1].StatusCode).IsEqualTo(StatusCodes.Good);
             await Assert.That(values[1].WrappedValue).IsEqualTo(Variant.From("AOT reader ready"));
             await Assert.That(values[2].StatusCode).IsEqualTo(StatusCodes.Good);
-            await Assert.That(values[2].WrappedValue).IsEqualTo(Variant.From("Tag"));
+            await Assert.That(values[2].WrappedValue).IsEqualTo(Variant.From(ByteString.From(1, 2)));
+            await Assert.That(values[3].StatusCode).IsEqualTo(StatusCodes.Good);
+            await Assert.That(values[3].WrappedValue).IsEqualTo(Variant.FromStructure(new ScanDataEpc
+            {
+                PC = 7, UId = ByteString.From(3, 4), XPC_W1 = 8, XPC_W2 = 9
+            }));
+            await Assert.That(values[2].SourceTimestamp).IsEqualTo(values[3].SourceTimestamp);
+            await Assert.That(values[2].SourceTimestamp.IsNull).IsFalse();
         }
     }
 
@@ -221,13 +228,27 @@ namespace Opc.Ua.Aot.Tests
         {
             await m_hostedReader.ReportPresenceAsync(2).ConfigureAwait(false);
             await m_hostedReader.ReportLogEntryAsync("AOT reader ready").ConfigureAwait(false);
+            byte[] identifier = [1, 2];
+            byte[] data = [3, 4];
+            var epc = new ScanDataEpc { PC = 7, UId = ByteString.From(data), XPC_W1 = 8, XPC_W2 = 9 };
             await m_hostedReader.ReportAccessAsync("Scan", "Device",
                 [new RfidAccessResult
                 {
-                    EncodingMask = (uint)(RfidAccessResultFields.Identifier | RfidAccessResultFields.Timestamp),
-                    Identifier = new ScanData { SwitchField = ScanDataFields.String, String = "Tag" },
+                    EncodingMask = (uint)(RfidAccessResultFields.Identifier | RfidAccessResultFields.Timestamp |
+                        RfidAccessResultFields.RWData),
+                    Identifier = new ScanData
+                    {
+                        SwitchField = ScanDataFields.ByteString, ByteString = ByteString.From(identifier)
+                    },
+                    RWData = new ScanData
+                    {
+                        SwitchField = ScanDataFields.Custom, Custom = Variant.FromStructure(epc)
+                    },
                     Timestamp = DateTimeUtc.Now
                 }]).ConfigureAwait(false);
+            identifier[0] = 99;
+            data[0] = 99;
+            epc.PC = 99;
             ISystemContext context = m_hostedReader.Runtime.SystemContext;
             ushort ns = context.NamespaceUris.GetIndexOrAppend(AutoIdModel.NamespaceUri);
             NodeState diagnostics = m_hostedReader.Device.Diagnostics!;
@@ -253,6 +274,12 @@ namespace Opc.Ua.Aot.Tests
                         {
                             NodeId = access.FindChildWithQualifiedName(
                                 context, new QualifiedName("Identifier", ns))!.NodeId,
+                            AttributeId = Attributes.Value
+                        },
+                        new ReadValueId
+                        {
+                            NodeId = access.FindChildWithQualifiedName(
+                                context, new QualifiedName("RWData", ns))!.NodeId,
                             AttributeId = Attributes.Value
                         }
                     ], CancellationToken.None).ConfigureAwait(false);

@@ -584,6 +584,15 @@ source timestamp. Clients reading several fields must compare their
 `SourceTimestamp` values before treating them as one acquisition; use access
 events when all results are needed.
 
+The diagnostic cache copies ByteString buffers and EPC fields before retaining
+them. Custom values are snapshotted through the existing UA binary codec and the
+runtime's encodeable factory, including nested mutable values. A custom value
+that exceeds codec limits or cannot be encoded rejects the report before any
+LastAccess field changes. Providers must keep the report stable until the
+reporting operation completes; later buffer reuse does not change diagnostic
+values, quality or timestamps. This copying applies only to the diagnostic
+projection and does not change access-event payloads.
+
 RFID readers also publish `RWData`, `Antenna`, `CurrentPowerLevel`, `PC`,
 `Polarization` and `Strength`, as defined in
 [Table 15](https://reference.opcfoundation.org/specs/OPC-30010/6.5.2).
