@@ -217,7 +217,7 @@ namespace Opc.Ua.AutoID.Server
             // turn an executed command into a failed call.
             try
             {
-                RaiseAccessEvent(client, command, results);
+                RaiseAccessEvent(client, command, results, tolerateDiagnosticCopyFailure: true);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -228,7 +228,8 @@ namespace Opc.Ua.AutoID.Server
         /// <summary>
         /// Validates the report before projecting its first result and optionally publishing its event.
         /// </summary>
-        private void RaiseAccessEvent(string client, string command, ArrayOf<AccessResult> results)
+        private void RaiseAccessEvent(
+            string client, string command, ArrayOf<AccessResult> results, bool tolerateDiagnosticCopyFailure = false)
         {
             if (results.Count == 0)
             {
@@ -246,7 +247,17 @@ namespace Opc.Ua.AutoID.Server
                     }
                 }
             }
-            PublishLastAccess(client, command, results[0]);
+            try
+            {
+                PublishLastAccess(client, command, results[0]);
+            }
+            catch (ServiceResultException ex) when (tolerateDiagnosticCopyFailure &&
+                (ex.StatusCode == StatusCodes.BadEncodingError ||
+                    ex.StatusCode == StatusCodes.BadDecodingError ||
+                    ex.StatusCode == StatusCodes.BadEncodingLimitsExceeded))
+            {
+                m_logger.ReaderShutdownStepFailed(ex, Name.Name, "copying the access diagnostics");
+            }
             if (!Runtime.Options.PublishAccessEvents)
             {
                 return;

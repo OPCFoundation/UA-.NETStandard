@@ -420,7 +420,7 @@ namespace Opc.Ua.AutoID.Server
                 }
                 PublishLastScan(validated[0]);
                 RaiseScanEvent(validated);
-                RaiseAccessEvent(client, "Scan", AccessResultsOf(validated));
+                RaiseAccessEvent(client, "Scan", AccessResultsOf(validated), tolerateDiagnosticCopyFailure: true);
             }
             finally
             {

@@ -590,13 +590,23 @@ runtime's encodeable factory, then compared with the original Variant using
 the existing semantic equality rules, including nested structures and arrays.
 Custom structures encoded as ExtensionObjects require compatible registered
 activators. If a decoded structure becomes an opaque ExtensionObject, or the copied value
-otherwise compares unequal, the report throws `Bad_EncodingError` before any
+otherwise compares unequal, the diagnostic copy throws `Bad_EncodingError` before any
 LastAccess field changes. Already-opaque values are accepted when their type
 and body round-trip unchanged; a representation change that compares unequal
 is rejected rather than silently retained with Good quality. Codec errors and
-encoding limits also reject the report without changing the previous values,
-quality or timestamps. Custom structures must implement `IEncodeable.IsEqual`
+encoding limits leave the previous LastAccess values, quality and timestamps
+unchanged. Custom structures must implement `IEncodeable.IsEqual`
 according to their value semantics.
+
+For provider scan reports and completed physical commands, the runtime logs
+`Bad_EncodingError`, `Bad_DecodingError` or `Bad_EncodingLimitsExceeded` from this
+projection and continues publishing the enabled access event. A provider scan
+report still updates LastScan and raises its scan event; a completed Scan
+retains its provider result and operation status. LastAccess retains its previous
+acquisition rather than retaining caller-owned data or an unequal copy.
+Direct `ReportAccessAsync` calls still propagate these errors before publishing
+their access event. Diagnostic isolation does not suppress validation errors
+for invalid report types.
 
 Providers must keep the report stable until the reporting operation completes;
 later buffer reuse does not change diagnostic

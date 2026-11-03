@@ -633,6 +633,87 @@ namespace Opc.Ua.AutoID.Tests
         }
 
         /// <summary>
+        /// Diagnostic copy rejection does not suppress scan publication or change a completed physical command.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ScanDiagnosticCopyRejectionPreservesEventsAndOutcomeAsync(bool command)
+        {
+            await using var fixture = new AutoIdManagerFixture();
+            await fixture.StartAsync(new AutoIdServerOptions { PublishAccessEvents = true }).ConfigureAwait(false);
+            var provider = new FakeProvider();
+            await using AutoIdReader reader = await fixture.Runtime.Reader(fixture.Name("CopyRejection"), provider)
+                .WithDiagnostics().BuildAsync().ConfigureAwait(false);
+            await reader.ReportAccessAsync("Previous", "Controller", [Access()]).ConfigureAwait(false);
+            var children = new List<BaseInstanceState>();
+            reader.Device.Diagnostics!.FindChildWithQualifiedName(fixture.Context,
+                new QualifiedName("LastAccess",
+                    fixture.Context.NamespaceUris.GetIndexOrAppend(AutoIdModel.NamespaceUri)))!
+                .GetChildren(fixture.Context, children);
+            var previous = children.Cast<BaseVariableState>()
+                .Select(variable => (Variable: variable, variable.Value, variable.StatusCode, variable.Timestamp))
+                .ToArray();
+            const string uri = "urn:opcfoundation:autoid:scan-copy-rejection";
+            fixture.Context.NamespaceUris.GetIndexOrAppend(uri);
+            var payload = new DiagnosticPayload(uri) { PC = 7, UId = ByteString.From(1, 2, 3) };
+            Assert.That(fixture.Context.EncodeableFactory.TryGetEncodeableType(
+                payload.BinaryEncodingId, out _), Is.False);
+            RfidScanResult scan = AutoIdTestData.RfidResult(AutoIdTestData.Bytes(1));
+            scan.ScanData = new ScanData
+            {
+                SwitchField = ScanDataFields.Custom, Custom = Variant.FromStructure(payload)
+            };
+            var events = new EventCapture(reader.Device);
+            if (command)
+            {
+                provider.OnScan = (settings, ct) => new ValueTask<AutoIdScanOutcome>(
+                    new AutoIdScanOutcome(new ScanResult[] { scan }.ToArrayOf(),
+                        AutoIdOperationStatusEnumeration.SUCCESS));
+                var device = (RfidReaderDeviceState)reader.Device;
+                ScanRfidReaderDeviceTypeMethodStateResult result = await device.Scan!.OnCallAsync!(
+                    fixture.Context, device.Scan, device.NodeId,
+                    AutoIdTestData.Settings(duration: 100), CancellationToken.None).ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
+                    Assert.That(result.Status, Is.EqualTo(AutoIdOperationStatusEnumeration.SUCCESS));
+                    Assert.That(result.ResultsOut.Count, Is.EqualTo(1));
+                    Assert.That(result.ResultsOut[0], Is.SameAs(scan));
+                    Assert.That(device.DeviceStatus!.Value, Is.EqualTo(DeviceStatusEnumeration.Idle));
+                });
+            }
+            else
+            {
+                await reader.ReportScanAsync([scan]).ConfigureAwait(false);
+            }
+            Assert.Multiple(() =>
+            {
+                Assert.That(reader.Device.LastScanData!.Value, Is.EqualTo(scan.ScanData.Custom));
+                Assert.That(reader.Device.LastScanData.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(reader.Device.LastScanTimestamp!.Value, Is.EqualTo(scan.Timestamp));
+                Assert.That(events.Of<RfidScanEventState>().Count(), Is.EqualTo(command ? 0 : 1));
+                Assert.That(events.Of<RfidAccessEventState>().Count(), Is.EqualTo(1));
+                Assert.That(events.Events.Count, Is.EqualTo(command ? 1 : 2));
+            });
+            RfidAccessResult access = events.Of<RfidAccessEventState>().Single().AccessResult!.Value[0];
+            Assert.That(access.Identifier.Custom, Is.EqualTo(scan.ScanData.Custom));
+            foreach (var snapshot in previous)
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(snapshot.Variable.Value, Is.EqualTo(snapshot.Value));
+                    Assert.That(snapshot.Variable.StatusCode, Is.EqualTo(snapshot.StatusCode));
+                    Assert.That(snapshot.Variable.Timestamp, Is.EqualTo(snapshot.Timestamp));
+                });
+            }
+            payload.PC = 99;
+            foreach (var snapshot in previous)
+            {
+                Assert.That(snapshot.Variable.Value, Is.EqualTo(snapshot.Value));
+            }
+        }
+
+        /// <summary>
         /// Places the value directly, in a Variant array, or inside a registered generated structure.
         /// </summary>
         private static Variant NestDiagnosticValue(Variant value, string nesting)
