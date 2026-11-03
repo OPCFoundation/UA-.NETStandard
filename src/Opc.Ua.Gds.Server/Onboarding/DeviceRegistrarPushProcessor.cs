@@ -172,7 +172,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                             await RequireApprovalAsync(identity, applicationId, singleton, ct).ConfigureAwait(false);
                             ByteString csr = await configuration.CreateSigningRequestAsync(
                                 connection.CertificateGroupId, connection.CertificateTypeId, string.Empty,
-                                true, default, ct).ConfigureAwait(false);
+                                true, Nonce.CreateRandomNonceData(32).ToByteString(), ct).ConfigureAwait(false);
                             if (csr.IsEmpty)
                             {
                                 throw new ServiceResultException(StatusCodes.BadInvalidState);

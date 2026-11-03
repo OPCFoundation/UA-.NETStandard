@@ -62,7 +62,9 @@ can still supply `IDeviceRegistrarPushEnrollmentProvider`.
 `ProvisionableDeviceSecurityInstaller` supplies local application-certificate
 installation, explicit endpoint activation and reset through a separate retained
 device-identity key and captured TrustList defaults. The selected secret and
-certificate stores own restart durability. Standard push configuration methods
+certificate stores own restart durability. The device security gate retains
+the first authorized registrar before protected configuration proceeds; restart
+preserves that owner, and reset releases it. Standard push configuration methods
 are not yet routed through that device security transition, so this registration
 alone does not complete connected device provisioning.
 

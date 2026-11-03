@@ -67,7 +67,12 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// <summary>
         /// Security reset was requested and must finish before any new registrar is accepted.
         /// </summary>
-        Resetting
+        Resetting,
+
+        /// <summary>
+        /// The first authorized registrar owns configuration before complete credentials are available.
+        /// </summary>
+        Configuring
     }
 
     /// <summary>
@@ -112,7 +117,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
         ValueTask<ProvisionableDeviceSecurityStage> GetStageAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Requires actual authenticated channel evidence, pending peer ownership, and applicable installed trust.
+        /// Requires actual authenticated channel evidence and applicable installed trust.
+        /// An unconfigured device retains its first SecurityAdmin registrar before configuration proceeds.
         /// </summary>
         ValueTask RequireRegistrarAsync(ISystemContext context, CancellationToken cancellationToken = default);
 
@@ -191,7 +197,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
         }
 
         /// <summary>
-        /// Checks the actual authenticated channel peer against pending ownership or the installed trust list.
+        /// Retains the first SecurityAdmin registrar before configuration and checks subsequent calls against
+        /// pending ownership or the installed trust list.
         /// Hosts invoke this gate on registrar operations; it does not replace SecureChannel certificate validation.
         /// </summary>
         public async ValueTask RequireRegistrarAsync(
@@ -205,6 +212,12 @@ namespace Opc.Ua.Gds.Server.Onboarding
             {
                 Checkpoint checkpoint = await LoadAsync(cancellationToken).ConfigureAwait(false);
                 await RequireRegistrarAsync(checkpoint, peer, cancellationToken).ConfigureAwait(false);
+                if (checkpoint.Stage == ProvisionableDeviceSecurityStage.Unconfigured)
+                {
+                    AuthorizationHelper.HasAuthorization(context, [Role.SecurityAdmin]);
+                    await SaveAsync(new(ProvisionableDeviceSecurityStage.Configuring, peer, null), cancellationToken)
+                        .ConfigureAwait(false);
+                }
             }
             finally
             {
@@ -276,6 +289,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                         await CompleteResetAsync(cancellationToken).ConfigureAwait(false);
                         break;
                     case ProvisionableDeviceSecurityStage.Unconfigured:
+                    case ProvisionableDeviceSecurityStage.Configuring:
                         if (m_installer is IProvisionableDeviceSecurityDefaults defaults)
                         {
                             await defaults.PreserveDefaultsAsync(cancellationToken).ConfigureAwait(false);
@@ -357,6 +371,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 case ProvisionableDeviceSecurityStage.Unconfigured:
                     return;
                 case ProvisionableDeviceSecurityStage.Installing:
+                case ProvisionableDeviceSecurityStage.Configuring:
                     if (checkpoint.Peer != peer)
                     {
                         throw new ServiceResultException(StatusCodes.BadUserAccessDenied);
@@ -478,9 +493,17 @@ namespace Opc.Ua.Gds.Server.Onboarding
             using var buffer = new MemoryStream();
             using (var encoder = new BinaryEncoder(buffer, m_context, leaveOpen: true))
             {
-                encoder.WriteUInt32(null, 1);
+                encoder.WriteUInt32(null, 2);
                 encoder.WriteString(null, m_applicationUri);
                 encoder.WriteInt32(null, (int)checkpoint.Stage);
+                if (checkpoint.Stage == ProvisionableDeviceSecurityStage.Configuring)
+                {
+                    if (checkpoint.Peer.IsEmpty)
+                    {
+                        throw new InvalidDataException("Device configuration ownership is missing.");
+                    }
+                    encoder.WriteByteString(null, checkpoint.Peer);
+                }
                 if (checkpoint.Stage is ProvisionableDeviceSecurityStage.Installing or
                     ProvisionableDeviceSecurityStage.Installed)
                 {
@@ -516,18 +539,28 @@ namespace Opc.Ua.Gds.Server.Onboarding
             {
                 using var buffer = new MemoryStream(bytes.ToArray(), writable: false);
                 using var decoder = new BinaryDecoder(buffer, m_context);
-                if (decoder.ReadUInt32(null) != 1 || decoder.ReadString(null) != m_applicationUri)
+                uint version = decoder.ReadUInt32(null);
+                if (version is not (1 or 2) || decoder.ReadString(null) != m_applicationUri)
                 {
                     throw new InvalidDataException("The device security checkpoint version or application is invalid.");
                 }
                 int stageCode = decoder.ReadInt32(null);
-                if (stageCode is < 0 or > 3)
+                if (stageCode < 0 || stageCode > (int)ProvisionableDeviceSecurityStage.Configuring ||
+                    (version == 1 && stageCode == (int)ProvisionableDeviceSecurityStage.Configuring))
                 {
                     throw new InvalidDataException("The device security checkpoint stage is invalid.");
                 }
                 var stage = (ProvisionableDeviceSecurityStage)stageCode;
                 ByteString peer = default;
                 ProvisionableDeviceCredentials? credentials = null;
+                if (stage == ProvisionableDeviceSecurityStage.Configuring)
+                {
+                    peer = decoder.ReadByteString(null);
+                    if (peer.IsEmpty)
+                    {
+                        throw new InvalidDataException("The device security checkpoint lacks its registrar owner.");
+                    }
+                }
                 if (stage is ProvisionableDeviceSecurityStage.Installing or ProvisionableDeviceSecurityStage.Installed)
                 {
                     peer = decoder.ReadByteString(null);

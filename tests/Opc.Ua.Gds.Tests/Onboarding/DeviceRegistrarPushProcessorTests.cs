@@ -1025,6 +1025,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 }
                 else if (method.MethodId == Ua.MethodIds.ServerConfigurationType_CreateSigningRequest)
                 {
+                    Assert.That(method.InputArguments[3].TryGetValue(out bool regenerate), Is.True);
+                    Assert.That(regenerate, Is.True);
+                    Assert.That(method.InputArguments[4].TryGetValue(out ByteString nonce), Is.True);
+                    Assert.That(nonce.Length, Is.GreaterThanOrEqualTo(32));
                     CsrCalls++;
                     outputs = [Variant.From(m_csr)];
                 }

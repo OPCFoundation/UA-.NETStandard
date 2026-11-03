@@ -23,6 +23,7 @@
  * ======================================================================*/
 
 using System;
+using System.Buffers.Binary;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -130,6 +131,148 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Is.EqualTo(ProvisionableDeviceSecurityStage.Unconfigured));
             m_installer.Verify(value => value.InstallAsync(
                 It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// The first configuration owner survives restart before any credentials or installer effects exist.
+        /// </summary>
+        [Test]
+        public async Task FirstConfigurationPinsRegistrarBeforeInstallationAcrossRestart()
+        {
+            Mock<IProvisionableDeviceSecurityDefaults> defaults =
+                m_installer.As<IProvisionableDeviceSecurityDefaults>();
+            defaults.Setup(value => value.PreserveDefaultsAsync(It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            using (var first = Create())
+            {
+                await first.RequireRegistrarAsync(Context(m_firstRegistrar)).ConfigureAwait(false);
+                Assert.That(await first.GetStageAsync().ConfigureAwait(false),
+                    Is.EqualTo(ProvisionableDeviceSecurityStage.Configuring));
+            }
+            using var restarted = Create();
+            await restarted.RecoverAsync().ConfigureAwait(false);
+            await restarted.RequireRegistrarAsync(Context(m_firstRegistrar)).ConfigureAwait(false);
+            ServiceResultException? denied = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await restarted.RequireRegistrarAsync(Context(m_otherRegistrar)).ConfigureAwait(false));
+            ServiceResultException? installation = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await restarted.InstallAsync(Context(m_otherRegistrar), Credentials()).ConfigureAwait(false));
+
+            Assert.That(denied!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(installation!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(await restarted.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Configuring));
+            defaults.Verify(value => value.PreserveDefaultsAsync(It.IsAny<CancellationToken>()), Times.Once);
+            m_installer.Verify(value => value.InstallAsync(
+                It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()), Times.Never);
+            m_certificates.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// The configuring owner can install, and both supported checkpoint versions retain installation evidence.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ConfigurationOwnerInstallsAndRecoversCompatibleCheckpoint(bool legacyVersion)
+        {
+            Mock<ISecretStore> storage = ForwardStorage();
+            SecretIdentifier captured = default;
+            byte[] checkpoint = [];
+            storage.Setup(value => value.SetAsync(
+                    It.IsAny<SecretIdentifier>(), It.IsAny<ReadOnlyMemory<byte>>(), It.IsAny<CancellationToken>()))
+                .Returns((SecretIdentifier id, ReadOnlyMemory<byte> bytes, CancellationToken ct) =>
+                {
+                    captured = id;
+                    checkpoint = bytes.ToArray();
+                    return m_secrets.SetAsync(id, bytes, ct);
+                });
+            using (var first = Create(storage.Object))
+            {
+                await first.RequireRegistrarAsync(Context(m_firstRegistrar)).ConfigureAwait(false);
+                await first.InstallAsync(Context(m_firstRegistrar), Credentials()).ConfigureAwait(false);
+                Assert.That(await first.GetStageAsync().ConfigureAwait(false),
+                    Is.EqualTo(ProvisionableDeviceSecurityStage.Installed));
+            }
+            if (legacyVersion)
+            {
+                BinaryPrimitives.WriteUInt32LittleEndian(checkpoint, 1);
+                await m_secrets.SetAsync(captured, checkpoint).ConfigureAwait(false);
+            }
+            using var restarted = Create();
+
+            await restarted.RecoverAsync().ConfigureAwait(false);
+
+            Assert.That(await restarted.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Installed));
+            m_installer.Verify(value => value.InstallAsync(
+                It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+        }
+
+        /// <summary>
+        /// Reset releases a pre-installation registrar claim without requiring installed credentials.
+        /// </summary>
+        [Test]
+        public async Task ResetReleasesConfigurationOwnerBeforeCredentialInstallation()
+        {
+            using var security = Create();
+            await security.RequireRegistrarAsync(Context(m_firstRegistrar)).ConfigureAwait(false);
+
+            await security.ResetToServerDefaultsAsync().ConfigureAwait(false);
+
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Unconfigured));
+            await security.RequireRegistrarAsync(Context(m_otherRegistrar)).ConfigureAwait(false);
+            ServiceResultException? denied = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await security.RequireRegistrarAsync(Context(m_firstRegistrar)).ConfigureAwait(false));
+            Assert.That(denied!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            m_installer.Verify(value => value.ResetToServerDefaultsAsync(It.IsAny<CancellationToken>()), Times.Once);
+            m_installer.Verify(value => value.InstallAsync(
+                It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// An authenticated peer without SecurityAdmin cannot reserve the unconfigured device.
+        /// </summary>
+        [Test]
+        public async Task MissingSecurityAdminCannotClaimConfigurationOwnership()
+        {
+            using var security = Create();
+
+            ServiceResultException? denied = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await security.RequireRegistrarAsync(Context(m_firstRegistrar, "role")).ConfigureAwait(false));
+
+            Assert.That(denied!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Unconfigured));
+            await security.RequireRegistrarAsync(Context(m_otherRegistrar)).ConfigureAwait(false);
+            m_installer.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Failed ownership publication cannot permit configuration or reserve the device through volatile state.
+        /// </summary>
+        [Test]
+        public async Task ConfigurationOwnershipWriteFailureDoesNotClaimOrRunPlatformEffects()
+        {
+            Mock<ISecretStore> storage = ForwardStorage();
+            var failure = new IOException("Registrar ownership publication failed.");
+            storage.Setup(value => value.SetAsync(
+                    It.IsAny<SecretIdentifier>(), It.IsAny<ReadOnlyMemory<byte>>(), It.IsAny<CancellationToken>()))
+                .Throws(failure);
+            using (var first = Create(storage.Object))
+            {
+                IOException? error = await Assert.ThrowsAsync<IOException>(async () =>
+                    await first.RequireRegistrarAsync(Context(m_firstRegistrar)).ConfigureAwait(false));
+                Assert.That(error, Is.SameAs(failure));
+                Assert.That(await first.GetStageAsync().ConfigureAwait(false),
+                    Is.EqualTo(ProvisionableDeviceSecurityStage.Unconfigured));
+            }
+            using var restarted = Create();
+            await restarted.RequireRegistrarAsync(Context(m_otherRegistrar)).ConfigureAwait(false);
+
+            Assert.That(await restarted.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Configuring));
+            m_installer.VerifyNoOtherCalls();
+            m_certificates.VerifyNoOtherCalls();
         }
 
         /// <summary>
@@ -517,6 +660,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         [TestCase("version")]
         [TestCase("application")]
         [TestCase("stage")]
+        [TestCase("owner")]
+        [TestCase("legacyOwner")]
         [TestCase("trailing")]
         public async Task CorruptCheckpointRejectsRecoveryRegistrarAccessAndReset(string corruption)
         {
@@ -536,15 +681,27 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 await first.InstallAsync(Context(m_firstRegistrar), Credentials()).ConfigureAwait(false);
             }
             byte[] damaged;
-            if (corruption is "version" or "application" or "stage")
+            if (corruption is "version" or "application" or "stage" or "owner" or "legacyOwner")
             {
                 using var buffer = new MemoryStream();
                 using (var encoder = new BinaryEncoder(
                     buffer, ServiceMessageContext.Create(NUnitTelemetryContext.Create()), true))
                 {
-                    encoder.WriteUInt32(null, corruption == "version" ? 9u : 1u);
+                    uint version = corruption switch
+                    {
+                        "version" => 9,
+                        "owner" => 2,
+                        _ => 1
+                    };
+                    int stage = corruption switch
+                    {
+                        "stage" => 99,
+                        "owner" or "legacyOwner" => (int)ProvisionableDeviceSecurityStage.Configuring,
+                        _ => 0
+                    };
+                    encoder.WriteUInt32(null, version);
                     encoder.WriteString(null, corruption == "application" ? "urn:other:dca" : kApplicationUri);
-                    encoder.WriteInt32(null, corruption == "stage" ? 99 : 0);
+                    encoder.WriteInt32(null, stage);
                 }
                 damaged = buffer.ToArray();
             }

@@ -792,8 +792,16 @@ recovery/reset remain incomplete.
 
 `ProvisionableDeviceSecurity` supplies device-side installation and reset
 orchestration with an explicit `IProvisionableDeviceSecurityInstaller`. Its
-pending checkpoint records the certificate from the actual authenticated
-registrar channel before invoking the installer. If installation fails, only
+`RequireRegistrarAsync` gate retains the first SecurityAdmin registrar's actual
+channel certificate in a `Configuring` checkpoint before permitting a protected
+configuration operation. A failed checkpoint write rejects the operation.
+Restart preserves that owner without invoking credential installation, and
+security reset releases the claim. Security checkpoints support versions 1 and
+2; the configuration-owner state requires version 2.
+
+The installation checkpoint retains complete credentials and the actual
+registrar channel certificate before invoking the installer. If installation
+fails, only
 that peer can retry the same credentials; another peer or different material
 cannot replace the pending operation. After installation, registrar access is
 validated against the installed TrustList through an isolated certificate
@@ -804,7 +812,8 @@ configured device, as specified by
 
 `ProvisionableDeviceSecurityInstaller` retains the initial certificate and
 private key in a separate identity store before configuration listeners open.
-Unconfigured startup calls its `IProvisionableDeviceSecurityDefaults` capability;
+Unconfigured and configuring startup call its
+`IProvisionableDeviceSecurityDefaults` capability;
 failure to retain defaults aborts startup. Direct hosts call
 `PreserveDefaultsAsync` before exposing configuration methods.
 It captures the original TrustList once in the selected secret
@@ -939,7 +948,7 @@ has passed.
 |---|---|---|
 | §§4.2.2, 4.3.2: software approval before operational provisioning | `DeviceRegistrarRuntime`, lifecycle providers, `IPullDcaSoftwareUpdateProvider` | `ProvideIdentitiesRuntimeTests`, `PullDcaWorkflowTests`, `PullRegistrarIntegrationTests`; the connected fixture exercises approval roles and issuance gates, not software-manager execution or a device endpoint gate; remote execution remains required |
 | §§4.3.3, 7.2: DCA and managed-application credentials | `PullDcaWorkflow`, generated certificate-directory proxies, application-specific authorization | `PullDcaWorkflowTests`, `ApplicationsNodeManagerOnboardingTests`, `PullRegistrarIntegrationTests`; the connected fixture exercises one DCA's issuance, local installation and new-channel proof; connected multi-application setup and remote execution remain required |
-| §§4.3.6, 7.3: security reset and return to onboarding | `ProvisionableDeviceSecurity`, existing `IServerConfigurationResetProvider` path | `ProvisionableDeviceSecurityTests`; platform reset, preservation of device-identity keys and installed software, and connected re-onboarding still need an installer and integration evidence |
+| §§4.3.6, 7.3: security reset and return to onboarding | `ProvisionableDeviceSecurity`, retained configuration owner, concrete installer and existing `IServerConfigurationResetProvider` path | `ProvisionableDeviceSecurityTests` and `ProvisionableDeviceSecurityInstallerTests` authored; connected reset and re-onboarding still need integration evidence |
 | §§5.1-5.3, 7.1: exact device/composite identity and private-key proof | `OnboardingIdentitySelector`, scoped identity trust, actual-channel registrar authorization, `OnboardingPushIdentityValidator` | `OnboardingIdentitySelectorTests`, `OnboardingIdentityTrustProviderTests`, `DeviceRegistrarRuntimeTests`, `OnboardingPushIdentityValidatorTests`; discovery alone never proves possession |
 | §6.4: source-dependent ticket authority trust | `OnboardingTicketValidator`, `OnboardingTicketTrustProvider` | `OnboardingTicketValidatorTests`, `OnboardingTicketTrustProviderTests`; online authority-revocation services are not supplied by these adapters |
 | §7.2 and Part 12 §§7.9.5, 7.9.8: request retry and certificate recovery | issuance receipts, client receipts, `IPullDcaSigningRecoveryProvider`, sample signing journal with one fresh retained key per request | issuance-store, receipt-store, pull-workflow and `OnboardingSigningJournalTests` fixtures; remote execution and connected response-loss evidence remain required |
