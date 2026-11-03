@@ -78,13 +78,17 @@ namespace Opc.Ua.Scales.Tests
         public async Task TearDownAsync()
         {
             m_controller?.Dispose();
-            try
+            if (m_expectedShutdownFailure == null)
             {
                 await m_fixture.DisposeAsync().ConfigureAwait(false);
             }
-            catch (InvalidOperationException ex) when (ReferenceEquals(ex, m_expectedShutdownFailure))
+            else
             {
-                // The injected timer-disposal failure propagates to the runtime's asynchronous shutdown.
+                AggregateException? failure = await Assert.ThrowsAsync<AggregateException>(
+                    async () => await m_fixture.DisposeAsync().ConfigureAwait(false)).ConfigureAwait(false);
+                var failures = failure!.Flatten().InnerExceptions;
+                Assert.That(failures, Has.Count.EqualTo(1));
+                Assert.That(failures[0], Is.SameAs(m_expectedShutdownFailure));
             }
         }
 
