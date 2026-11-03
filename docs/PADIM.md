@@ -304,8 +304,19 @@ for (int ii = 0; ii < devices.Count; ii++)
 The injectable factory borrows the cached session registered by `AddClient`;
 consumers must not close or dispose that session. Direct construction accepts
 an existing `ISession` and `ITelemetryContext` with the same borrowing rule.
-Client construction registers the generated PA-DIM structure decoders in that
-session's message context so PAT values can be read as `ChemicalSubstance`.
+Client construction adds missing generated PA-DIM datatype, encoding, enum and
+XML-name mappings to that session's message context so PAT values can be read
+as `ChemicalSubstance`. The built-in factory checks for existing mappings under
+the same commit gate used by other registrations; construction does not replace
+caller-provided mappings, including mappings committed concurrently by another
+library. A later ordinary `Commit()` can still replace them.
+
+A third-party factory with every required PA-DIM mapping is reused without
+modification. If mappings are missing and its builder does not implement
+`IAdditiveEncodeableFactoryBuilder`, construction throws `NotSupportedException`
+instead of calling an ordinary commit that could overwrite custom mappings.
+The host can register the complete model before constructing the client or
+provide a builder that supports additive commits.
 
 Discovery follows the DI hierarchy, recognizes vendor subtypes and prevents
 cycles. Its default limit is 4,096 visited nodes; exceeding the configured

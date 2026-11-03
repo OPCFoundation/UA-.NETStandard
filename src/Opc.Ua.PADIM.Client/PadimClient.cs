@@ -59,13 +59,7 @@ namespace Opc.Ua.PADIM.Client
             m_maximumNodes = maximumNodes;
             IServiceMessageContext messageContext = session.MessageContext ??
                 throw new ArgumentException("The session must provide a message context.", nameof(session));
-            lock (s_registrationLock)
-            {
-                if (!messageContext.Factory.ContainsEncodeableType(DataTypeIds.ChemicalSubstance))
-                {
-                    messageContext.Factory.Builder.AddOpcUaPADIM().Commit();
-                }
-            }
+            RegisterDataTypes(messageContext.Factory, telemetry);
         }
 
         /// <summary>
@@ -360,8 +354,39 @@ namespace Opc.Ua.PADIM.Client
             }
         }
 
-        /// <summary>Serializes generated type registration across clients borrowing one session.</summary>
-        private static readonly System.Threading.Lock s_registrationLock = new();
+        /// <summary>
+        /// Registers missing PA-DIM mappings or reuses a complete caller-provided factory.
+        /// </summary>
+        private static void RegisterDataTypes(IEncodeableFactory factory, ITelemetryContext telemetry)
+        {
+            IEncodeableFactoryBuilder builder = factory.Builder;
+            if (builder is IAdditiveEncodeableFactoryBuilder)
+            {
+                builder.AddOpcUaPADIM().CommitIfAbsent();
+                return;
+            }
+            IEncodeableFactory required = ServiceMessageContext.CreateEmpty(telemetry).Factory;
+            required.Builder.AddOpcUaPADIM().Commit();
+            foreach (ExpandedNodeId id in required.KnownTypeIds)
+            {
+                if (required.TryGetEncodeableType(id, out IEncodeableType? structure) &&
+                    factory.TryGetEncodeableType(id, out _) &&
+                    factory.TryGetType(structure.XmlName, out IType? xmlStructure) &&
+                    xmlStructure is IEncodeableType)
+                {
+                    continue;
+                }
+                if (required.TryGetEnumeratedType(id, out IEnumeratedType? enumeration) &&
+                    factory.TryGetEnumeratedType(id, out _) &&
+                    factory.TryGetType(enumeration.XmlName, out IType? xmlEnumeration) &&
+                    xmlEnumeration is IEnumeratedType)
+                {
+                    continue;
+                }
+                throw new NotSupportedException(
+                    $"The session factory is missing PA-DIM mapping '{id}' and does not support additive commits.");
+            }
+        }
 
         /// <summary>The per-discovery and per-browse node bound.</summary>
         private readonly int m_maximumNodes;

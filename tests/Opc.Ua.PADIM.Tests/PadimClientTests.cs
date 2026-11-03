@@ -51,13 +51,10 @@ namespace Opc.Ua.PADIM.Tests
         [Test]
         public void ConstructionRegistersPatTypesOnBorrowedSession()
         {
-            Mock<ISession> session = CreateSession();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            Mock<ISession> session = CreateSession(ServiceMessageContext.CreateEmpty(telemetry).Factory);
             IEncodeableFactory factory = session.Object.MessageContext.Factory;
             Assert.That(factory.ContainsEncodeableType(DataTypeIds.ChemicalSubstance), Is.False);
-            var client = new PadimClient(session.Object, NUnitTelemetryContext.Create());
-            Assert.That(factory.ContainsEncodeableType(DataTypeIds.ChemicalSubstance), Is.True);
-            var secondClient = new PadimClient(session.Object, NUnitTelemetryContext.Create());
-            Assert.That(client.Session, Is.SameAs(secondClient.Session));
             using var encoder = new BinaryEncoder(session.Object.MessageContext);
             encoder.WriteVariant(null, Variant.From(new ExtensionObject(new ChemicalSubstance
             {
@@ -65,9 +62,18 @@ namespace Opc.Ua.PADIM.Tests
                 Label = new LocalizedText("borrowed-session substance"),
                 Id = new LocalizedText("PAT-001")
             })));
-            using var decoder = new BinaryDecoder(
-                encoder.CloseAndReturnBuffer() ?? throw new InvalidOperationException("No encoded PAT sample."),
-                session.Object.MessageContext);
+            byte[] encoded = encoder.CloseAndReturnBuffer() ??
+                throw new InvalidOperationException("No encoded PAT sample.");
+            using (var unregisteredDecoder = new BinaryDecoder(encoded, session.Object.MessageContext))
+            {
+                Variant unregistered = unregisteredDecoder.ReadVariant(null);
+                Assert.That(unregistered.TryGetStructure<ChemicalSubstance>(out _), Is.False);
+            }
+            var client = new PadimClient(session.Object, telemetry);
+            Assert.That(factory.ContainsEncodeableType(DataTypeIds.ChemicalSubstance), Is.True);
+            var secondClient = new PadimClient(session.Object, telemetry);
+            Assert.That(client.Session, Is.SameAs(secondClient.Session));
+            using var decoder = new BinaryDecoder(encoded, session.Object.MessageContext);
             Variant decoded = decoder.ReadVariant(null);
             Assert.That(decoded.TryGetStructure<ChemicalSubstance>(out ChemicalSubstance? substance), Is.True);
             Assert.Multiple(() =>
@@ -76,6 +82,97 @@ namespace Opc.Ua.PADIM.Tests
                 Assert.That(substance.Label.Text, Is.EqualTo("borrowed-session substance"));
                 Assert.That(substance.Id.Text, Is.EqualTo("PAT-001"));
             });
+            session.Verify(s => s.Dispose(), Times.Never);
+        }
+
+        /// <summary>
+        /// Completes partial mappings without replacing caller-provided structure, enum or XML registrations.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        public void ConstructionCompletesPartialFactoryAndPreservesCustomMappings(int structureIdIndex)
+        {
+            Mock<ISession> session = CreateSession(
+                ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()).Factory);
+            IEncodeableFactory factory = session.Object.MessageContext.Factory;
+            IEncodeableFactory required = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()).Factory;
+            required.Builder.AddOpcUaPADIM().Commit();
+            ExpandedNodeId[] structureIds =
+            [
+                DataTypeIds.ChemicalSubstance,
+                ObjectIds.ChemicalSubstance_Encoding_DefaultBinary,
+                ObjectIds.ChemicalSubstance_Encoding_DefaultXml
+            ];
+            Assert.That(required.TryGetEncodeableType(structureIds[0], out IEncodeableType? generated), Is.True);
+            Assert.That(required.TryGetEnumeratedType(
+                DataTypeIds.PatDictionaryEnum, out IEnumeratedType? generatedEnum), Is.True);
+            var custom = new Mock<IEncodeableType>();
+            custom.SetupGet(type => type.XmlName).Returns(generated!.XmlName);
+            var customEnum = new Mock<IEnumeratedType>();
+            customEnum.SetupGet(type => type.XmlName).Returns(generatedEnum!.XmlName);
+            ExpandedNodeId registeredId = structureIds[structureIdIndex];
+            factory.Builder.AddEncodeableType(registeredId, custom.Object)
+                .AddEnumeratedType(DataTypeIds.PatDictionaryEnum, customEnum.Object).Commit();
+
+            var client = new PadimClient(session.Object, NUnitTelemetryContext.Create());
+            _ = new PadimClient(session.Object, NUnitTelemetryContext.Create());
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(client.Session, Is.SameAs(session.Object));
+                foreach (ExpandedNodeId id in required.KnownTypeIds)
+                {
+                    Assert.That(required.TryGetEncodeableType(id, out _)
+                        ? factory.TryGetEncodeableType(id, out _)
+                        : factory.TryGetEnumeratedType(id, out _), Is.True, id.ToString());
+                }
+                Assert.That(factory.TryGetEncodeableType(registeredId, out IEncodeableType? retained), Is.True);
+                Assert.That(retained, Is.SameAs(custom.Object));
+                Assert.That(factory.TryGetEnumeratedType(
+                    DataTypeIds.PatDictionaryEnum, out IEnumeratedType? retainedEnum), Is.True);
+                Assert.That(retainedEnum, Is.SameAs(customEnum.Object));
+                Assert.That(factory.TryGetType(custom.Object.XmlName, out IType? xmlStructure), Is.True);
+                Assert.That(xmlStructure, Is.SameAs(custom.Object));
+                Assert.That(factory.TryGetType(customEnum.Object.XmlName, out IType? xmlEnum), Is.True);
+                Assert.That(xmlEnum, Is.SameAs(customEnum.Object));
+            }
+            session.Verify(s => s.Dispose(), Times.Never);
+        }
+
+        /// <summary>
+        /// Reuses a complete third-party factory whose builder only implements the original interface.
+        /// </summary>
+        [Test]
+        public void ConstructionReusesCompleteFactoryWithoutAdditiveBuilder()
+        {
+            IEncodeableFactory backing = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()).Factory;
+            backing.Builder.AddOpcUaPADIM().Commit();
+            Mock<IEncodeableFactory> legacy = CreateLegacyFactory(backing);
+            Mock<ISession> session = CreateSession(legacy.Object);
+
+            var client = new PadimClient(session.Object, NUnitTelemetryContext.Create());
+
+            Assert.That(client.Session, Is.SameAs(session.Object));
+            Mock.Get(legacy.Object.Builder).VerifyNoOtherCalls();
+            session.Verify(s => s.Dispose(), Times.Never);
+        }
+
+        /// <summary>
+        /// Reports missing third-party factory mappings instead of calling an overwriting commit.
+        /// </summary>
+        [Test]
+        public void ConstructionRejectsIncompleteFactoryWithoutAdditiveBuilder()
+        {
+            IEncodeableFactory backing = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()).Factory;
+            Mock<IEncodeableFactory> legacy = CreateLegacyFactory(backing);
+            Mock<ISession> session = CreateSession(legacy.Object);
+
+            Assert.Throws<NotSupportedException>(() =>
+                new PadimClient(session.Object, NUnitTelemetryContext.Create()));
+
+            Assert.That(backing.KnownTypeIds, Is.Empty);
+            Mock.Get(legacy.Object.Builder).VerifyNoOtherCalls();
             session.Verify(s => s.Dispose(), Times.Never);
         }
 
@@ -317,9 +414,12 @@ namespace Opc.Ua.PADIM.Tests
         /// <summary>
         /// Creates a mock with the same namespace-aware browsing context as a connected session.
         /// </summary>
-        private static Mock<ISession> CreateSession()
+        private static Mock<ISession> CreateSession(IEncodeableFactory? factory = null)
         {
-            var context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ServiceMessageContext context = factory == null
+                ? ServiceMessageContext.Create(telemetry)
+                : new ServiceMessageContext(telemetry, factory);
             context.NamespaceUris.GetIndexOrAppend(Namespaces.PADIM);
             context.NamespaceUris.GetIndexOrAppend(Di.Namespaces.OpcUaDi);
             var session = new Mock<ISession>();
@@ -328,6 +428,25 @@ namespace Opc.Ua.PADIM.Tests
             session.SetupGet(s => s.OperationLimits).Returns(new OperationLimits());
             session.SetupGet(s => s.ServerCapabilities).Returns(new ServerCapabilities());
             return session;
+        }
+
+        /// <summary>
+        /// Exposes existing mappings through a factory with only the original builder capability.
+        /// </summary>
+        private static Mock<IEncodeableFactory> CreateLegacyFactory(IEncodeableFactory backing)
+        {
+            var factory = new Mock<IEncodeableFactory>();
+            factory.SetupGet(value => value.Builder).Returns(new Mock<IEncodeableFactoryBuilder>().Object);
+            factory.Setup(value => value.TryGetEncodeableType(
+                It.IsAny<ExpandedNodeId>(), out It.Ref<IEncodeableType?>.IsAny))
+                .Returns((ExpandedNodeId id, out IEncodeableType? type) => backing.TryGetEncodeableType(id, out type));
+            factory.Setup(value => value.TryGetEnumeratedType(
+                It.IsAny<ExpandedNodeId>(), out It.Ref<IEnumeratedType?>.IsAny))
+                .Returns((ExpandedNodeId id, out IEnumeratedType? type) => backing.TryGetEnumeratedType(id, out type));
+            factory.Setup(value => value.TryGetType(
+                It.IsAny<System.Xml.XmlQualifiedName>(), out It.Ref<IType?>.IsAny))
+                .Returns((System.Xml.XmlQualifiedName name, out IType? type) => backing.TryGetType(name, out type));
+            return factory;
         }
 
         /// <summary>

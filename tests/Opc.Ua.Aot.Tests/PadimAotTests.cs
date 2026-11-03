@@ -51,7 +51,7 @@ namespace Opc.Ua.Aot.Tests
             var context = ServiceMessageContext.Create(telemetry);
             context.NamespaceUris.GetIndexOrAppend("urn:padim:aot:shift");
             context.NamespaceUris.GetIndexOrAppend(PADIM.Namespaces.PADIM);
-            context.Factory.Builder.AddOpcUaPADIM().Commit();
+            context.Factory.Builder.AddOpcUaPADIM().CommitIfAbsent();
             using var encoder = new BinaryEncoder(context);
             encoder.WriteVariant(null, Variant.From(new ExtensionObject(new PADIM.ChemicalSubstance
             {
