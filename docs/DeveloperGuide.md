@@ -125,7 +125,7 @@ Conventions and requirements:
       -f net10.0 `
       -p:CustomTestTarget=net10.0
   ```
-- **Before a pull request** the `UA.slnx` suite must pass on at least **.NET Framework 4.8** and **.NET 10.0**.
+- **Before a pull request that changes C# source files**, the `UA.slnx` suite must pass on at least **.NET Framework 4.8** and **.NET 10.0**. Pull requests changing only non-C# files do not require these .NET test runs before opening.
 - **Testing a specific target framework.** The libraries multi-target, but the test executables run on one framework at a time. To run the suite against a non-default framework, set `CustomTestTarget` (supported values: `net48`, `net8.0`, `net9.0`, `net10.0`). The batch file [`tests/customtest.bat`](../tests/customtest.bat) cleans, restores, and runs the tests for a chosen target; in Visual Studio, uncomment and set the `CustomTestTarget` property in [`targets.props`](../targets.props). A clean build for the target is recommended when switching.
 - **CI matrix.** The pull-request gate runs the test suite on **net48** and **net10.0**, and compiles the solution for *every* supported target framework; the remaining test matrices (Debug, .NET 9/8) run in scheduled or manual CI. Fix all failing, flaky, and CodeQL findings in the pipelines. See [Continuous integration](#continuous-integration).
 
@@ -752,8 +752,8 @@ GitHub Actions applies its "Approve and run workflows" gate to outside contribut
 ## Contributing and pull requests
 
 - Fork the repository (or, if you have write access, push a branch prefixed with your username) and open a pull request. You must agree to the [Contributor License Agreement](https://opcfoundation.org/license/cla/ContributorLicenseAgreementv1.0.pdf); the "I AGREE" prompt appears automatically on your first PR. See [CONTRIBUTING.md](../CONTRIBUTING.md).
-- Before submitting: all tests pass, code analysis is clean (no new warnings), the change keeps backward compatibility, and security implications are reviewed.
-- The pull-request template asks you to confirm the CLA, added tests/coverage, documentation, a warning-free build, that the `UA.slnx` suite passed on **.NET Framework 4.8** and **.NET 10.0**, and that CI and CodeQL are green.
+- Before submitting: relevant tests pass, code analysis is clean (no new warnings), the change keeps backward compatibility, and security implications are reviewed.
+- The pull-request template asks you to confirm the CLA, added tests/coverage, documentation, a warning-free build, and green CI and CodeQL. For a pull request that changes C# source files, it also asks you to run the `UA.slnx` suite on **.NET Framework 4.8** and **.NET 10.0** before opening the pull request.
 - You can run the `opc-ua-codestyle-enforcer` agent to drive analyzer warnings to zero before opening the PR.
 
 ## Related documentation
