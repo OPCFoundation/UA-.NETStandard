@@ -57,6 +57,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// <summary>
         /// Creates an owned-session adapter using the existing session factory and explicit target selection.
         /// Trust anchors and registrar application credentials must already be configured by the host.
+        /// The supplied factory must create a fresh, exclusively owned session for every call, never a cached
+        /// or borrowed session. Each returned session is permanently retired when its lease is disposed.
         /// </summary>
         public SessionDeviceRegistrarPushConnectionProvider(
             ApplicationConfiguration configuration,

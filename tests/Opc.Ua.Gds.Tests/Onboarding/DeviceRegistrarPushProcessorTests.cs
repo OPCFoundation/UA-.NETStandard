@@ -1211,6 +1211,34 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
+        /// Staging, transaction cancellation and lease cleanup errors survive together; no later lease is opened.
+        /// </summary>
+        [Test]
+        public async Task StagingCancellationAndLeaseCleanupFailuresAreAllPreserved()
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued);
+            var primary = new ServiceResultException(StatusCodes.BadTimeout);
+            var cancellation = new ServiceResultException(StatusCodes.BadNotSupported);
+            var disposal = new InvalidOperationException("owned session cleanup failed");
+            harness.TrustStagedError = primary;
+            harness.CancelError = cancellation;
+            harness.CleanupError = disposal;
+
+            AggregateException? error = await Assert.ThrowsAsync<AggregateException>(async () =>
+                await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false));
+
+            Assert.That(error!.Flatten().InnerExceptions, Is.EquivalentTo(new Exception[]
+            {
+                primary, cancellation, disposal
+            }));
+            Assert.That(harness.CancelCalls, Is.EqualTo(1));
+            Assert.That(harness.LeasesDisposed, Is.EqualTo(1));
+            Assert.That(harness.Update.Requests, Is.Empty);
+            Assert.That(harness.Proof.Requests, Is.Empty);
+            Assert.That(harness.ApplyCalls, Is.Zero);
+        }
+
+        /// <summary>
         /// Primary processing and provider lease cleanup failures are both observable.
         /// </summary>
         [Test]

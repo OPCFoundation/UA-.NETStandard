@@ -37,6 +37,7 @@ using Opc.Ua.Client;
 using Opc.Ua.Client.Tests.SessionContexts;
 using Opc.Ua.Gds.Server.Onboarding;
 using Opc.Ua.Security.Certificates;
+using Opc.Ua.Server;
 using Opc.Ua.Tests;
 using Ua = global::Opc.Ua;
 
@@ -119,6 +120,130 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             await connection.DisposeAsync().ConfigureAwait(false);
             Assert.That(context.Requests, Has.Count.EqualTo(calls));
             Assert.That(context.Requests.OfType<CloseSessionRequest>(), Has.Exactly(1).Items);
+        }
+
+        /// <summary>
+        /// Concurrent leases have distinct sessions, and disposing either lease closes only its own session.
+        /// </summary>
+        [Test]
+        public async Task EveryLeaseOwnsADistinctSessionUntilDisposal()
+        {
+            await using var first = new SessionRequestContextTestContext(
+                securityMode: MessageSecurityMode.SignAndEncrypt);
+            await using var second = new SessionRequestContextTestContext(
+                securityMode: MessageSecurityMode.SignAndEncrypt);
+            first.Channel.SetupGet(channel => channel.ServerChannelCertificate).Returns(m_certificate.RawData);
+            second.Channel.SetupGet(channel => channel.ServerChannelCertificate).Returns(m_certificate.RawData);
+            second.InnerSession.SessionCreated(new NodeId("second-session"), new NodeId("second-token"));
+            Mock<ISessionFactory> factory = Factory(first.InnerSession);
+            factory.SetupSequence(value => value.CreateAsync(
+                It.IsAny<ApplicationConfiguration>(), It.IsAny<ConfiguredEndpoint>(), false, true,
+                It.IsAny<string>(), 60000, It.IsAny<IUserIdentity>(), It.IsAny<ArrayOf<string>>(),
+                It.IsAny<CancellationToken>()))
+                .ReturnsAsync(first.InnerSession)
+                .ReturnsAsync(second.InnerSession);
+            var provider = Provider(factory.Object, Target(first));
+
+            await using IDeviceRegistrarPushConnection firstLease = await provider.ConnectAsync(
+                Application(), ByteString.Empty).ConfigureAwait(false);
+            await using IDeviceRegistrarPushConnection secondLease = await provider.ConnectAsync(
+                Application(), ByteString.Empty).ConfigureAwait(false);
+
+            Assert.That(firstLease.Session, Is.SameAs(first.InnerSession));
+            Assert.That(secondLease.Session, Is.SameAs(second.InnerSession));
+            Assert.That(secondLease.Session, Is.Not.SameAs(firstLease.Session));
+            Assert.That(secondLease.Session.SessionId, Is.Not.EqualTo(firstLease.Session.SessionId));
+            await firstLease.DisposeAsync().ConfigureAwait(false);
+            Assert.That(first.Requests.OfType<CloseSessionRequest>(), Has.Exactly(1).Items);
+            Assert.That(second.Requests, Is.Empty);
+            await secondLease.DisposeAsync().ConfigureAwait(false);
+            await firstLease.DisposeAsync().ConfigureAwait(false);
+            Assert.That(first.Requests.OfType<CloseSessionRequest>(), Has.Exactly(1).Items);
+            Assert.That(second.Requests.OfType<CloseSessionRequest>(), Has.Exactly(1).Items);
+        }
+
+        /// <summary>
+        /// Session close discards a transaction in the real server coordinator. If close fails, a retry uses a
+        /// different session and the coordinator rejects its attempt to commit the abandoned transaction.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RetryUsesFreshSessionAfterTransactionCleanup(bool closeFails)
+        {
+            await using var first = new SessionRequestContextTestContext(
+                securityMode: MessageSecurityMode.SignAndEncrypt);
+            await using var second = new SessionRequestContextTestContext(
+                securityMode: MessageSecurityMode.SignAndEncrypt);
+            first.Channel.SetupGet(channel => channel.ServerChannelCertificate).Returns(m_certificate.RawData);
+            second.Channel.SetupGet(channel => channel.ServerChannelCertificate).Returns(m_certificate.RawData);
+            second.InnerSession.SessionCreated(new NodeId("retry-session"), new NodeId("retry-token"));
+            NodeId owner = first.InnerSession.SessionId;
+            var coordinator = new PushConfigurationTransactionCoordinator(NUnitTelemetryContext.Create());
+            bool committed = false;
+            bool released = false;
+            coordinator.Stage(owner, new PushConfigurationOperation
+            {
+                CommitAsync = _ =>
+                {
+                    committed = true;
+                    return Task.CompletedTask;
+                },
+                DisposeStaged = () => released = true
+            });
+            first.Handler = (request, _) =>
+            {
+                Assert.That(request, Is.TypeOf<CloseSessionRequest>());
+                if (!closeFails)
+                {
+                    coordinator.CancelForSessionClose(owner);
+                }
+                return new ValueTask<IServiceResponse>(new CloseSessionResponse
+                {
+                    ResponseHeader = new ResponseHeader
+                    {
+                        ServiceResult = closeFails ? StatusCodes.BadCommunicationError : StatusCodes.Good
+                    }
+                });
+            };
+            Mock<ISessionFactory> factory = Factory(first.InnerSession);
+            factory.SetupSequence(value => value.CreateAsync(
+                It.IsAny<ApplicationConfiguration>(), It.IsAny<ConfiguredEndpoint>(), false, true,
+                It.IsAny<string>(), 60000, It.IsAny<IUserIdentity>(), It.IsAny<ArrayOf<string>>(),
+                It.IsAny<CancellationToken>()))
+                .ReturnsAsync(first.InnerSession)
+                .ReturnsAsync(second.InnerSession);
+            var provider = Provider(factory.Object, Target(first));
+            IDeviceRegistrarPushConnection lease = await provider.ConnectAsync(
+                Application(), ByteString.Empty).ConfigureAwait(false);
+
+            if (closeFails)
+            {
+                ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await lease.DisposeAsync().ConfigureAwait(false));
+                Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadCommunicationError));
+            }
+            else
+            {
+                await lease.DisposeAsync().ConfigureAwait(false);
+            }
+
+            await lease.DisposeAsync().ConfigureAwait(false);
+            Assert.That(coordinator.IsTransactionActive, Is.EqualTo(closeFails));
+            Assert.That(released, Is.EqualTo(!closeFails));
+            int abandonedRequests = first.Requests.Count;
+            await using IDeviceRegistrarPushConnection retry = await provider.ConnectAsync(
+                Application(), ByteString.Empty).ConfigureAwait(false);
+            Assert.That(retry.Session, Is.SameAs(second.InnerSession));
+            Assert.That(retry.Session, Is.Not.SameAs(lease.Session));
+            ServiceResult apply = await coordinator.ApplyChangesAsync(retry.Session.SessionId).ConfigureAwait(false);
+            Assert.That(apply.StatusCode, Is.EqualTo(closeFails
+                ? StatusCodes.BadSessionIdInvalid : StatusCodes.BadNothingToDo));
+            Assert.That(committed, Is.False);
+            await retry.DisposeAsync().ConfigureAwait(false);
+            Assert.That(first.Requests, Has.Count.EqualTo(abandonedRequests));
+            Assert.That(first.Requests.OfType<CloseSessionRequest>(), Has.Exactly(1).Items);
+            Assert.That(second.Requests.OfType<CloseSessionRequest>(), Has.Exactly(1).Items);
+            coordinator.Reset();
         }
 
         /// <summary>

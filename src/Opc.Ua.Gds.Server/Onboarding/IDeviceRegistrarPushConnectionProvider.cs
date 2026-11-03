@@ -39,10 +39,13 @@ namespace Opc.Ua.Gds.Server.Onboarding
     {
         /// <summary>
         /// Discovers and selects an encrypted endpoint, authenticates the registrar, and returns an owned lease.
+        /// Every call must create a fresh session exclusively owned by that lease, with no other users.
+        /// Borrowed, shared, pooled and previously leased sessions are not supported, including on retries.
         /// An empty expected certificate requests bootstrap admission, not anonymous trust or auto-acceptance.
         /// A nonempty certificate requires a fresh authenticated channel proving that exact installed credential.
-        /// The provider owns connection cleanup on failure before returning a lease. It must not silently recover
-        /// or replace the returned generation while an attempt is using it.
+        /// The provider owns connection cleanup on failure before returning a lease. It must attempt session close
+        /// and disposal, preserve the original and cleanup errors, and never reuse a session even if cleanup fails.
+        /// It must not silently recover or replace the returned generation while an attempt is using it.
         /// </summary>
         ValueTask<IDeviceRegistrarPushConnection> ConnectAsync(
             ApplicationDescription application,
@@ -51,12 +54,15 @@ namespace Opc.Ua.Gds.Server.Onboarding
     }
 
     /// <summary>
-    /// An explicitly owned push connection and model identifiers resolved in that connection's namespace table.
+    /// An exclusively owned push session and model identifiers resolved in that session's namespace table.
+    /// Disposal must attempt to close and dispose the session, preserve both errors if these operations fail,
+    /// and permanently retire the session regardless of cleanup success. The session must never be reused.
     /// </summary>
     public interface IDeviceRegistrarPushConnection : IAsyncDisposable
     {
         /// <summary>
-        /// Gets the authenticated session. Disposing the lease releases only resources owned by its provider.
+        /// Gets the fresh authenticated session owned exclusively by this lease.
+        /// No other caller may use it, and the provider must not return it from another connection request.
         /// </summary>
         ISession Session { get; }
 

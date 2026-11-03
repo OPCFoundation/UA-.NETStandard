@@ -646,12 +646,22 @@ invalidated session stop the loop. When `CancelChanges` fails, for example on a
 device without transaction support, the staged changes are still queued. The
 processor then stops before the next application and reports the original
 error and the cleanup error together in a nested `AggregateException`. It does
-not close the borrowed session and does not assume the device rolled back.
-Only this processing run knows that the changes remain queued; another user of
-a custom lease over a shared session could still commit them with its own
-`ApplyChanges`. Use the default connection provider, which opens a dedicated
-session for each lease, unless the custom session has no other users. A
-singleton device provisions no managed applications. The sample policy's
+not assume the device rolled back. It releases the lease, whose provider must
+attempt session close and disposal while retaining any cleanup errors.
+
+Every `IDeviceRegistrarPushConnectionProvider.ConnectAsync` call must create a
+fresh session exclusively owned by the returned lease. Custom providers must
+not borrow container-owned sessions, share sessions with other callers, or pool
+sessions for later attempts. Disposal permanently retires the session even if
+close or disposal fails; a retry must create another session. This prevents a
+later caller's `ApplyChanges` from committing changes left on a session whose
+`CancelChanges` failed. A failed close still leaves remote transaction state
+uncertain, but no subsequent lease may use that session. The default provider
+already creates and closes dedicated sessions; custom providers must implement
+the same ownership contract. Operation, cancellation and lease cleanup errors
+are reported together rather than replacing one another.
+
+A singleton device provisions no managed applications. The sample policy's
 `CanManageAsync` returns `false`, so the sample registrar provisions only the
 DCA.
 
