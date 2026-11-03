@@ -279,6 +279,31 @@ namespace Opc.Ua.IA.Tests.Calibration
         }
 
         /// <summary>
+        /// A published matrix keeps its values and dimensions after the provider reuses its buffer.
+        /// </summary>
+        [Test]
+        public async Task PublishedMatrixDoesNotAliasProviderBuffer()
+        {
+            var fixture = new IaTestContext();
+            IaCalibrationFeature feature = Feature(fixture) with { ValueRank = 2 };
+            double[] buffer = [10, 20, 30, 40];
+            IaCalibrationTargetSnapshot snapshot = new([new IaCalibrationReading(feature.BrowseName,
+                new DataValue(Variant.From(new ArrayOf<double>(buffer.AsMemory()).ToMatrix(2, 2)),
+                    StatusCodes.Good, IaTestContext.Timestamp))]);
+            CalibrationTargetState node = fixture.Context.CreateInstanceOfCalibrationTargetType(
+                browseName: fixture.Name("Target"));
+            var binding = new IaCalibrationTarget(fixture.Context, node,
+                Provider(Configuration(IaCalibrationTargetCategory.Dynamic, feature), snapshot).Object);
+            await binding.RefreshAsync().ConfigureAwait(false);
+            buffer[0] = 99;
+            BaseVariableState actual = fixture.Children(node.CalibrationTargetFeatures!)
+                .OfType<BaseVariableState>().Single();
+            Assert.That(actual.WrappedValue.TryGetValue(out MatrixOf<double> published), Is.True);
+            Assert.That(published.Span.ToArray(), Is.EqualTo(new double[] { 10, 20, 30, 40 }));
+            Assert.That(published.Dimensions, Is.EqualTo(new[] { 2, 2 }));
+        }
+
+        /// <summary>
         /// Range endpoints are finite and inclusive; reversed endpoints cannot replace the last valid range.
         /// </summary>
         [TestCase(10.0, 10.0, true)]

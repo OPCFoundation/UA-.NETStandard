@@ -697,6 +697,100 @@ namespace Opc.Ua.IA.Tests.Statistics
         }
 
         /// <summary>
+        /// A published matrix keeps its values and dimensions after the provider reuses its buffer.
+        /// </summary>
+        [Test]
+        public async Task PublishedStatisticsDoNotAliasProviderMatrices()
+        {
+            double[] buffer = [1, 2, 3, 4, 5, 6];
+            Variant published = await PublishThenMutateAsync(Opc.Ua.DataTypeIds.Double, ValueRanks.TwoDimensions,
+                Variant.From(new ArrayOf<double>(buffer.AsMemory()).ToMatrix(2, 3)),
+                () => buffer[0] = 99).ConfigureAwait(false);
+            Assert.That(published.TryGetValue(out MatrixOf<double> matrix), Is.True);
+            Assert.That(matrix.Span.ToArray(), Is.EqualTo(new double[] { 1, 2, 3, 4, 5, 6 }));
+            Assert.That(matrix.Dimensions, Is.EqualTo(new[] { 2, 3 }));
+        }
+
+        /// <summary>
+        /// Published byte strings own their bytes as scalars and as array elements.
+        /// </summary>
+        [TestCase(ValueRanks.Scalar)]
+        [TestCase(ValueRanks.OneDimension)]
+        public async Task PublishedStatisticsDoNotAliasProviderByteStrings(int rank)
+        {
+            byte[] bytes = [1, 2, 3];
+            var value = new ByteString(bytes.AsMemory());
+            ArrayOf<ByteString> values = [value];
+            Variant published = await PublishThenMutateAsync(Opc.Ua.DataTypeIds.ByteString, rank,
+                rank == ValueRanks.Scalar ? Variant.From(value) : Variant.From(values),
+                () => bytes[0] = 99).ConfigureAwait(false);
+            ByteString actual;
+            if (rank == ValueRanks.Scalar)
+            {
+                Assert.That(published.TryGetValue(out actual), Is.True);
+            }
+            else
+            {
+                Assert.That(published.TryGetValue(out ArrayOf<ByteString> array), Is.True);
+                Assert.That(array, Has.Count.EqualTo(1));
+                actual = array[0];
+            }
+            Assert.That(actual.Span.ToArray(), Is.EqualTo(new byte[] { 1, 2, 3 }));
+        }
+
+        /// <summary>
+        /// A published opaque node id owns its identifier bytes.
+        /// </summary>
+        [Test]
+        public async Task PublishedStatisticsDoNotAliasOpaqueNodeIds()
+        {
+            byte[] bytes = [4, 5, 6];
+            Variant published = await PublishThenMutateAsync(Opc.Ua.DataTypeIds.NodeId, ValueRanks.Scalar,
+                new Variant(new NodeId(new ByteString(bytes.AsMemory()), 1)),
+                () => bytes[0] = 99).ConfigureAwait(false);
+            Assert.That(published.TryGetValue(out NodeId nodeId), Is.True);
+            Assert.That(nodeId.TryGetValue(out ByteString identifier), Is.True);
+            Assert.That(identifier.Span.ToArray(), Is.EqualTo(new byte[] { 4, 5, 6 }));
+            Assert.That(nodeId.NamespaceIndex, Is.EqualTo((ushort)1));
+        }
+
+        /// <summary>
+        /// A published Variant array owns the arrays nested in its elements.
+        /// </summary>
+        [Test]
+        public async Task PublishedStatisticsDoNotAliasNestedVariantArrays()
+        {
+            uint[] values = [7, 8];
+            ArrayOf<Variant> outer = [Variant.From(new ArrayOf<uint>(values.AsMemory()))];
+            Variant published = await PublishThenMutateAsync(Opc.Ua.DataTypeIds.BaseDataType, ValueRanks.OneDimension,
+                Variant.From(outer), () => values[0] = 99).ConfigureAwait(false);
+            Assert.That(published.TryGetValue(out ArrayOf<Variant> elements), Is.True);
+            Assert.That(elements, Has.Count.EqualTo(1));
+            Assert.That(elements[0].TryGetValue(out ArrayOf<uint> nested), Is.True);
+            Assert.That(nested.Span.ToArray(), Is.EqualTo(new uint[] { 7, 8 }));
+        }
+
+        /// <summary>
+        /// Publishes one statistic, lets the provider mutate its buffer and returns the published value.
+        /// </summary>
+        private static async Task<Variant> PublishThenMutateAsync(
+            NodeId dataType, int valueRank, Variant value, Action mutate)
+        {
+            var fixture = new IaTestContext();
+            BaseObjectState owner = fixture.Owner();
+            BaseVariableState quantity = fixture.Quantity(owner);
+            quantity.DataType = dataType;
+            quantity.ValueRank = valueRank;
+            var provider = new Mock<IIaStatisticsProvider>();
+            provider.Setup(source => source.ReadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(
+                Snapshot(0) with { Values = [new DataValue(value, StatusCodes.Good, IaTestContext.Timestamp)] });
+            using var binding = new IaStatistics(fixture.Context, owner, [quantity], provider.Object);
+            await binding.RefreshAsync().ConfigureAwait(false);
+            mutate();
+            return quantity.WrappedValue;
+        }
+
+        /// <summary>
         /// Creates a fixed collection snapshot.
         /// </summary>
         private static IaStatisticsSnapshot Snapshot(uint value)
