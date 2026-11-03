@@ -505,9 +505,9 @@ namespace Opc.Ua.LADS.Tests.Server
                 "target" => ((AnalogControlFunctionState)temperature.Node).TargetValue!,
                 "enabled" => temperature.Node.IsEnabled!,
                 "counter" => device.Counters.OperationCycleCounter!,
-                "maintenance" => maintenance.Machine.Driver.StateMachine,
+                "maintenance" => maintenance.Machine.Driver.StateMachine.CurrentState!.Id!,
                 "maintenance-condition" => maintenance.Node.Severity!,
-                _ => device.DeviceState.Driver.StateMachine
+                _ => device.DeviceState.Driver.StateMachine.CurrentState!.Id!
             };
             using var finished = new ManualResetEventSlim();
             Exception? workerFailure = null;
@@ -1016,7 +1016,11 @@ namespace Opc.Ua.LADS.Tests.Server
             Assert.That(device.State, Is.EqualTo(LadsDeviceStateValue.Operate));
             var children = new List<BaseInstanceState>();
             programs.Node.ResultSet!.GetChildren(device.Runtime.Context, children);
-            Assert.That(children, Is.Empty);
+            Assert.That(children.OfType<ResultState>(), Is.Empty);
+            Assert.That(children, Has.Count.EqualTo(1));
+            Assert.That(children[0], Is.SameAs(programs.Node.ResultSet.NodeVersion));
+            Assert.That(device.Runtime.Manager.FindPredefinedNode(programs.Node.ResultSet.NodeVersion!.NodeId),
+                Is.SameAs(programs.Node.ResultSet.NodeVersion));
             LadsStoredDeviceData saved = (await store.LoadAsync(device.StoreIdentity).ConfigureAwait(false))!;
             Assert.That(saved.OperationCycles, Is.Zero);
             Assert.That(saved.FunctionalUnits[0].Results.Count, Is.Zero);
@@ -1070,7 +1074,11 @@ namespace Opc.Ua.LADS.Tests.Server
             Assert.That(programs.Results.Count, Is.Zero);
             var children = new List<BaseInstanceState>();
             programs.Node.ResultSet!.GetChildren(device.Runtime.Context, children);
-            Assert.That(children, Is.Empty);
+            Assert.That(children.OfType<ResultState>(), Is.Empty);
+            Assert.That(children, Has.Count.EqualTo(1));
+            Assert.That(children[0], Is.SameAs(programs.Node.ResultSet.NodeVersion));
+            Assert.That(device.Runtime.Manager.FindPredefinedNode(programs.Node.ResultSet.NodeVersion!.NodeId),
+                Is.SameAs(programs.Node.ResultSet.NodeVersion));
             LadsStoredDeviceData saved = (await store.LoadAsync(device.StoreIdentity).ConfigureAwait(false))!;
             Assert.That(saved.OperationCycles, Is.Zero);
             Assert.That(saved.FunctionalUnits[0].Results.Count, Is.Zero);
