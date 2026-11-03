@@ -155,7 +155,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Does.Contain(new NodeId(Ua.MethodIds.ServerConfigurationType_UpdateCertificate)));
             Assert.That(harness.CallMethods[harness.CallMethods.Count - 2],
                 Is.EqualTo(new NodeId(Ua.MethodIds.ServerConfigurationType_ApplyChanges)));
-            Assert.That(harness.LeasesDisposed, Is.EqualTo(2));
+            Assert.That(harness.LeasesDisposed, Is.EqualTo(3));
+            Assert.That(harness.ApplyCalls, Is.EqualTo(2));
+            Assert.That(harness.CallMethods.IndexOf(new NodeId(Ua.MethodIds.ServerConfigurationType_ApplyChanges)),
+                Is.LessThan(harness.CallMethods.IndexOf(
+                    new NodeId(Ua.MethodIds.ServerConfigurationType_UpdateCertificate))));
             Assert.That(harness.Initial.Requests.Exists(request => request is CloseSessionRequest), Is.False);
             Assert.That(harness.Proof.Requests.Exists(request => request is CloseSessionRequest), Is.False);
             harness.Identities.Verify(selector => selector.SelectAsync(
@@ -182,7 +186,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 .ConfigureAwait(false);
             Assert.That(device!.DcaCertificate.IsEmpty, Is.True);
             Assert.That(device.PendingDcaCertificate, Is.EqualTo(harness.Issued));
-            Assert.That(harness.LeasesDisposed, Is.EqualTo(2));
+            Assert.That(harness.LeasesDisposed, Is.EqualTo(3));
         }
 
         /// <summary>
@@ -408,7 +412,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 await first.ConfigureAwait(false);
             }
             Assert.That(harness.CsrCalls, Is.EqualTo(1));
-            Assert.That(harness.LeasesDisposed, Is.EqualTo(2));
+            Assert.That(harness.LeasesDisposed, Is.EqualTo(3));
         }
 
         /// <summary>
@@ -489,22 +493,73 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         /// <summary>
         /// An uncertain apply result retains pending issuance and never triggers blind reconnect or promotion.
         /// </summary>
-        [Test]
-        public async Task ApplyFailureRetainsPendingReceiptForExplicitRecovery()
+        [TestCase(1)]
+        [TestCase(2)]
+        public async Task ApplyFailureRetainsPendingReceiptForExplicitRecovery(int failedApply)
         {
             await using var harness = new Harness(m_bootstrap, m_issued);
             var failure = new ServiceResultException(StatusCodes.BadTimeout);
             harness.ApplyError = failure;
+            harness.ApplyErrorOnCall = failedApply;
 
             ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false));
 
             Assert.That(error, Is.SameAs(failure));
-            Assert.That(harness.LeasesDisposed, Is.EqualTo(1));
+            Assert.That(harness.LeasesDisposed, Is.EqualTo(failedApply));
+            Assert.That(harness.ApplyCalls, Is.EqualTo(failedApply));
             DeviceRegistrarDevice? device = await harness.Lifecycle.FindDeviceAsync(Harness.Product)
                 .ConfigureAwait(false);
             Assert.That(device!.PendingDcaCertificate, Is.EqualTo(harness.Issued));
             Assert.That(device.DcaCertificate.IsEmpty, Is.True);
+        }
+
+        /// <summary>
+        /// Trust application may close the first channel, but a different peer cannot receive the certificate.
+        /// </summary>
+        [Test]
+        public async Task WrongActualConfiguringPeerStopsBeforeCertificateUpdate()
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued);
+            harness.Update.Channel.SetupGet(channel => channel.ServerChannelCertificate).Returns(m_issued.RawData);
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelIdInvalid));
+            Assert.That(harness.ApplyCalls, Is.EqualTo(1));
+            Assert.That(harness.LeasesDisposed, Is.EqualTo(2));
+            Assert.That(harness.CallMethods,
+                Does.Not.Contain(new NodeId(Ua.MethodIds.ServerConfigurationType_UpdateCertificate)));
+            DeviceRegistrarDevice? state = await harness.Lifecycle.FindDeviceAsync(Harness.Product)
+                .ConfigureAwait(false);
+            Assert.That(state!.DcaCertificate.IsEmpty, Is.True);
+            Assert.That(state.PendingDcaCertificate, Is.EqualTo(harness.Issued));
+        }
+
+        /// <summary>
+        /// The fresh certificate-transfer session rechecks software approval after trust was committed.
+        /// </summary>
+        [Test]
+        public async Task SoftwareRevocationBeforeCertificateUpdateStopsAfterTrustApply()
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued);
+            harness.BeforeUpdate = async () =>
+                await harness.Lifecycle.UpdateSoftwareStatusAsync(Harness.Product, false, "revoked")
+                    .ConfigureAwait(false);
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
+            Assert.That(harness.ApplyCalls, Is.EqualTo(1));
+            Assert.That(harness.LeasesDisposed, Is.EqualTo(2));
+            Assert.That(harness.CallMethods,
+                Does.Not.Contain(new NodeId(Ua.MethodIds.ServerConfigurationType_UpdateCertificate)));
+            DeviceRegistrarDevice? state = await harness.Lifecycle.FindDeviceAsync(Harness.Product)
+                .ConfigureAwait(false);
+            Assert.That(state!.DcaCertificate.IsEmpty, Is.True);
+            Assert.That(state.PendingDcaCertificate, Is.EqualTo(harness.Issued));
         }
 
         /// <summary>
@@ -715,8 +770,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     DiscoveryUrls = ["opc.tcp://localhost:4840"]
                 };
                 Initial = CreateSession(bootstrap);
+                Update = CreateSession(bootstrap);
                 Proof = CreateSession(issued);
                 InitialLease = Lease(Initial);
+                Mock<IDeviceRegistrarPushConnection> updateLease = Lease(Update);
                 Mock<IDeviceRegistrarPushConnection> proofLease = Lease(Proof);
                 var connections = new Mock<IDeviceRegistrarPushConnectionProvider>(MockBehavior.Strict);
                 connections.Setup(provider => provider.ConnectAsync(
@@ -726,6 +783,14 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                         if (expected.IsEmpty)
                         {
                             return InitialLease.Object;
+                        }
+                        if (expected == Bootstrap)
+                        {
+                            if (BeforeUpdate != null)
+                            {
+                                await BeforeUpdate().ConfigureAwait(false);
+                            }
+                            return updateLease.Object;
                         }
                         Assert.That(expected, Is.EqualTo(Issued));
                         if (BeforeProof != null)
@@ -837,6 +902,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             public SessionRequestContextTestContext Initial { get; }
 
             /// <summary>
+            /// Gets the independent certificate-transfer transport after committing the TrustList.
+            /// </summary>
+            public SessionRequestContextTestContext Update { get; }
+
+            /// <summary>
             /// Gets the independent installed-proof transport fixture.
             /// </summary>
             public SessionRequestContextTestContext Proof { get; }
@@ -902,6 +972,16 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             public Exception? ApplyError { get; set; }
 
             /// <summary>
+            /// Gets or sets the one-based apply call that loses its response.
+            /// </summary>
+            public int ApplyErrorOnCall { get; set; } = 1;
+
+            /// <summary>
+            /// Gets the number of trust and certificate apply requests.
+            /// </summary>
+            public int ApplyCalls { get; private set; }
+
+            /// <summary>
             /// Gets or sets a provider lease cleanup failure.
             /// </summary>
             public Exception? CleanupError { get; set; }
@@ -925,6 +1005,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             /// Gets or sets an assertion or lifecycle mutation immediately before installed-channel proof.
             /// </summary>
             public Func<ValueTask>? BeforeProof { get; set; }
+
+            /// <summary>
+            /// Gets or sets work after trust application and before the independent certificate-transfer session.
+            /// </summary>
+            public Func<ValueTask>? BeforeUpdate { get; set; }
 
             /// <summary>
             /// Gets the number of leases actually disposed.
@@ -952,6 +1037,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             {
                 Processor.Dispose();
                 await Initial.DisposeAsync().ConfigureAwait(false);
+                await Update.DisposeAsync().ConfigureAwait(false);
                 await Proof.DisposeAsync().ConfigureAwait(false);
             }
 
@@ -1036,14 +1122,31 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 {
                     outputs = [Variant.From(42u)];
                 }
-                else if (method.MethodId == Ua.MethodIds.TrustListType_CloseAndUpdate ||
-                    method.MethodId == Ua.MethodIds.ServerConfigurationType_UpdateCertificate)
+                else if (method.MethodId == Ua.MethodIds.TrustListType_CloseAndUpdate)
                 {
+                    m_trustApplyPending = true;
                     outputs = [Variant.From(true)];
                 }
-                else if (method.MethodId == Ua.MethodIds.ServerConfigurationType_ApplyChanges && ApplyError != null)
+                else if (method.MethodId == Ua.MethodIds.ServerConfigurationType_UpdateCertificate)
                 {
-                    throw ApplyError;
+                    if (!m_trustApplied)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadCertificateChainIncomplete);
+                    }
+                    outputs = [Variant.From(true)];
+                }
+                else if (method.MethodId == Ua.MethodIds.ServerConfigurationType_ApplyChanges)
+                {
+                    ApplyCalls++;
+                    if (ApplyError != null && ApplyCalls == ApplyErrorOnCall)
+                    {
+                        throw ApplyError;
+                    }
+                    if (m_trustApplyPending)
+                    {
+                        m_trustApplied = true;
+                        m_trustApplyPending = false;
+                    }
                 }
                 else if (method.MethodId == Ua.MethodIds.FileType_Write && TrustWriteError != null)
                 {
@@ -1130,6 +1233,12 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             /// <summary>The shared application record created or seeded by this harness.</summary>
             private ApplicationRecordDataType? m_record;
+
+            /// <summary>Whether a complete TrustList transfer still needs ApplyChanges.</summary>
+            private bool m_trustApplyPending;
+
+            /// <summary>Whether UpdateCertificate can validate against committed issuer stores.</summary>
+            private bool m_trustApplied;
         }
 
         /// <summary>The fixture-owned bootstrap identity.</summary>

@@ -117,6 +117,9 @@ namespace Opc.Ua.Gds.Server.Onboarding
             CancellationToken cancellationToken)
         {
             ByteString installed = default;
+            ByteString configuringPeer = default;
+            ArrayOf<ByteString> issuerCertificates = default;
+            bool updateRequired = false;
             NodeId applicationId = NodeId.Null;
             OnboardingIdentitySelection? acceptedIdentity = null;
             await WithConnectionAsync(snapshot, default, async (connection, dispatch) =>
@@ -219,20 +222,50 @@ namespace Opc.Ua.Gds.Server.Onboarding
 
                 var server = new ServerConfigurationTypeClient(
                     dispatch.Session, connection.ServerConfigurationId, m_telemetry);
-                bool apply = await WriteTrustListAsync(
+                bool applyTrust = await WriteTrustListAsync(
                     dispatch.Session, connection.TrustListId, retained.TrustList, cancellationToken)
                     .ConfigureAwait(false);
                 await RequireApprovalAsync(identity, applicationId, singleton, cancellationToken).ConfigureAwait(false);
                 RequirePeer(dispatch, peer);
-                apply |= await server.UpdateCertificateAsync(
-                    connection.CertificateGroupId, connection.CertificateTypeId, installed,
-                    issuance.IssuerCertificates, string.Empty, default, cancellationToken).ConfigureAwait(false);
-                if (apply)
+                if (applyTrust)
                 {
-                    RequirePeer(dispatch, peer);
                     await server.ApplyChangesAsync(cancellationToken).ConfigureAwait(false);
                 }
+                configuringPeer = peer;
+                issuerCertificates = issuance.IssuerCertificates.ToList()
+                    .Select(static issuer => ByteString.From(issuer.Span)).ToArrayOf();
+                updateRequired = true;
             }, cancellationToken).ConfigureAwait(false);
+
+            if (updateRequired)
+            {
+                // Application-group UpdateCertificate validates against the committed TrustList.
+                // Applying trust may close the first channel, so certificate transfer uses a new lease.
+                await WithConnectionAsync(snapshot, configuringPeer, async (connection, dispatch) =>
+                {
+                    ValidateConnection(snapshot, connection, dispatch.Session);
+                    RequirePeer(dispatch, configuringPeer);
+                    bool singleton = await ReadSingletonAsync(
+                        dispatch.Session, connection.IsSingletonId, cancellationToken).ConfigureAwait(false);
+                    OnboardingIdentitySelection identity = acceptedIdentity ??
+                        throw new ServiceResultException(StatusCodes.BadInvalidState);
+                    await RequireApprovalAsync(
+                        identity, applicationId, singleton, cancellationToken).ConfigureAwait(false);
+                    RequirePeer(dispatch, configuringPeer);
+                    var server = new ServerConfigurationTypeClient(
+                        dispatch.Session, connection.ServerConfigurationId, m_telemetry);
+                    bool applyCertificate = await server.UpdateCertificateAsync(
+                        connection.CertificateGroupId, connection.CertificateTypeId, installed,
+                        issuerCertificates, string.Empty, default, cancellationToken).ConfigureAwait(false);
+                    if (applyCertificate)
+                    {
+                        await RequireApprovalAsync(
+                            identity, applicationId, singleton, cancellationToken).ConfigureAwait(false);
+                        RequirePeer(dispatch, configuringPeer);
+                        await server.ApplyChangesAsync(cancellationToken).ConfigureAwait(false);
+                    }
+                }, cancellationToken).ConfigureAwait(false);
+            }
 
             // A new connection is required even if ApplyChanges did not request a restart.
             await WithConnectionAsync(snapshot, installed, async (connection, proof) =>

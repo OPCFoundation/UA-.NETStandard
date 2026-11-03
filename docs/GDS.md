@@ -467,10 +467,14 @@ or implement the supervised `IDeviceRegistrarPushScheduler`.
 `DeviceRegistrarPushProcessor` supplies the registrar's generated-client
 operation sequence. It validates the actual device peer and tickets, records
 the policy-selected application in the shared GDS database, and checks persisted
-software approval before requesting a CSR or changing credentials. It writes the
-complete trust list and issued certificate, applies changes when required, then
-opens a new connection to prove the exact installed certificate before
-confirming the lifecycle transition. A transport failure leaves the retained
+software approval before requesting a CSR or changing credentials. It writes
+the complete trust list and applies that change first: application-group
+`UpdateCertificate` validates against committed issuer stores, not the
+registrar's supplied issuer argument. Trust application can close the first
+channel, so certificate transfer uses a new connection pinned to the same
+device peer and rechecks software approval. After certificate application, a
+third connection proves the exact installed certificate before confirming the
+lifecycle transition. A transport failure leaves the retained
 request and pending certificate available for explicit recovery; the scheduler
 does not repeat an uncertain operation automatically.
 
@@ -990,7 +994,7 @@ has passed.
 | §§5.1-5.3, 7.1: exact device/composite identity and private-key proof | `OnboardingIdentitySelector`, scoped identity trust, actual-channel registrar authorization, `OnboardingPushIdentityValidator` | `OnboardingIdentitySelectorTests`, `OnboardingIdentityTrustProviderTests`, `DeviceRegistrarRuntimeTests`, `OnboardingPushIdentityValidatorTests`; discovery alone never proves possession |
 | §6.4: source-dependent ticket authority trust | `OnboardingTicketValidator`, `OnboardingTicketTrustProvider` | `OnboardingTicketValidatorTests`, `OnboardingTicketTrustProviderTests`; online authority-revocation services are not supplied by these adapters |
 | §7.2 and Part 12 §§7.9.5, 7.9.8: request retry and certificate recovery | issuance receipts, client receipts, `IPullDcaSigningRecoveryProvider`, sample signing journal with one fresh retained key per request | issuance-store, receipt-store, pull-workflow and `OnboardingSigningJournalTests` fixtures; remote execution and connected response-loss evidence remain required |
-| §7.3: push provisioning, first registrar and installed trust | device security transition provider, actual-peer push validation, generated-client push processor, fresh-session connection adapter, secret-store enrollment journal and retained singleton scope | `DeviceRegistrarPushProcessorTests`, `SessionDeviceRegistrarPushConnectionProviderTests`, `ApplicationsNodeManagerOnboardingTests` and lifecycle fixtures authored; standard device push-method routing and multi-application provisioning remain incomplete; no executed push integration evidence |
+| §7.3: push provisioning, first registrar and installed trust | device security transition provider, standard push authorization and transaction completion, generated-client processor with separate trust/certificate apply connections, secret-store enrollment journal and retained singleton scope | `DeviceRegistrarPushProcessorTests`, `ProvisionableDeviceSecurityTests`, `SessionDeviceRegistrarPushConnectionProviderTests`, `ApplicationsNodeManagerOnboardingTests` and lifecycle fixtures authored; connected multi-application provisioning and sample coverage remain incomplete; no executed push integration evidence |
 | §7.4: alternate authentication/FDO | OPC UA ticket/identity authentication is implemented; no FDO protocol or external-authentication handoff is supplied | §7.4 describes an alternate authentication path, not a prerequisite for ticket-based pull/push; no FDO interoperability evidence |
 | §§8.1-8.2: signed JSON tickets and String-subtype `EncodedTicket` | `OnboardingTicketWriter`, ticket validator, standard model and strict-UTF-8 compatibility wrappers | writer, validator, onboarding-client and stack-generation fixtures; vendor-specific unprotected metadata is not interpreted and cannot extend signing-certificate validity |
 | §§9.2.2-9.2.8: registrar methods and application ownership | registrar runtime, async bindings, shared GDS database and certificate authorization | `DeviceRegistrarRuntimeTests`, `ProvideIdentitiesRuntimeTests`, `ApplicationsNodeManagerOnboardingTests`; database/lifecycle publication is not a distributed transaction |
