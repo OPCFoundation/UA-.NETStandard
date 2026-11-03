@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -65,6 +64,8 @@ namespace Opc.Ua.Server.Tests
         public async Task OneTimeSetUpAsync()
         {
             m_fixture = new ServerFixture<StandardServer>(t => new StandardServer(t));
+            await m_fixture.LoadConfigurationAsync().ConfigureAwait(false);
+            m_fixture.Config.ServerConfiguration!.MaxBrowseContinuationPoints = 1;
             m_server = await m_fixture.StartAsync().ConfigureAwait(false);
         }
 
@@ -455,40 +456,31 @@ namespace Opc.Ua.Server.Tests
         {
             var sut = (MasterNodeManager)m_server.CurrentInstance.NodeManager;
             using OperationContext ctx = CreateContextWithContinuationStore();
-            uint originalLimit = GetMaxBrowseContinuationPointsPerBrowse(sut);
+            Assert.That(sut.MaxContinuationPointsPerBrowse, Is.EqualTo(1u));
 
-            try
+            var nodeToBrowse = new BrowseDescription
             {
-                SetMaxBrowseContinuationPointsPerBrowse(sut, 1u);
+                NodeId = ObjectIds.RootFolder,
+                BrowseDirection = BrowseDirection.Forward
+            };
 
-                var nodeToBrowse = new BrowseDescription
-                {
-                    NodeId = ObjectIds.RootFolder,
-                    BrowseDirection = BrowseDirection.Forward
-                };
+            (ArrayOf<BrowseResult> results, _) = await sut.BrowseAsync(
+                ctx,
+                new ViewDescription(),
+                1u,
+                [nodeToBrowse, nodeToBrowse],
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
-                (ArrayOf<BrowseResult> results, _) = await sut.BrowseAsync(
-                    ctx,
-                    new ViewDescription(),
-                    1u,
-                    [nodeToBrowse, nodeToBrowse],
-                    cancellationToken: CancellationToken.None).ConfigureAwait(false);
+            Assert.That(results.Count, Is.EqualTo(2));
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(results[0].References, Has.Count.EqualTo(1));
+            Assert.That(results[0].ContinuationPoint.IsEmpty, Is.False);
+            Assert.That(results[1].StatusCode, Is.EqualTo(StatusCodes.BadNoContinuationPoints));
+            Assert.That(results[1].ContinuationPoint.IsEmpty, Is.True);
 
-                Assert.That(results.Count, Is.EqualTo(2));
-                Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
-                Assert.That(results[0].References, Has.Count.EqualTo(1));
-                Assert.That(results[0].ContinuationPoint.IsEmpty, Is.False);
-                Assert.That(results[1].StatusCode, Is.EqualTo(StatusCodes.BadNoContinuationPoints));
-                Assert.That(results[1].ContinuationPoint.IsEmpty, Is.True);
-
-                (ArrayOf<BrowseResult> released, _) = await sut.BrowseNextAsync(
-                    ctx, true, [results[0].ContinuationPoint]).ConfigureAwait(false);
-                Assert.That(released[0].StatusCode, Is.EqualTo(StatusCodes.Good));
-            }
-            finally
-            {
-                SetMaxBrowseContinuationPointsPerBrowse(sut, originalLimit);
-            }
+            (ArrayOf<BrowseResult> released, _) = await sut.BrowseNextAsync(
+                ctx, true, [results[0].ContinuationPoint]).ConfigureAwait(false);
+            Assert.That(released[0].StatusCode, Is.EqualTo(StatusCodes.Good));
         }
 
         [Test]
@@ -570,55 +562,49 @@ namespace Opc.Ua.Server.Tests
         {
             var sut = (MasterNodeManager)m_server.CurrentInstance.NodeManager;
             using OperationContext ctx = CreateContextWithContinuationStore();
-            uint originalLimit = GetMaxBrowseContinuationPointsPerBrowse(sut);
-
-            try
+            Assert.That(sut.MaxContinuationPointsPerBrowse, Is.EqualTo(1u));
+            var nodeToBrowse = new BrowseDescription
             {
-                SetMaxBrowseContinuationPointsPerBrowse(sut, 2u);
-                var nodeToBrowse = new BrowseDescription
-                {
-                    NodeId = ObjectIds.RootFolder,
-                    BrowseDirection = BrowseDirection.Forward
-                };
+                NodeId = ObjectIds.RootFolder,
+                BrowseDirection = BrowseDirection.Forward
+            };
 
-                (ArrayOf<BrowseResult> firstResults, _) = await sut.BrowseAsync(
+            var firstResults = new List<BrowseResult>();
+            for (int ii = 0; ii < 2; ii++)
+            {
+                (ArrayOf<BrowseResult> results, _) = await sut.BrowseAsync(
                     ctx,
                     new ViewDescription(),
                     1u,
-                    [nodeToBrowse, nodeToBrowse],
+                    [nodeToBrowse],
                     cancellationToken: CancellationToken.None).ConfigureAwait(false);
-
-                Assert.That(firstResults.Count, Is.EqualTo(2));
-                foreach (BrowseResult result in firstResults)
-                {
-                    Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
-                    Assert.That(result.References, Has.Count.EqualTo(1));
-                    Assert.That(result.ContinuationPoint.IsEmpty, Is.False);
-                }
-
-                SetMaxBrowseContinuationPointsPerBrowse(sut, 1u);
-
-                (ArrayOf<BrowseResult> finalResults, _) = await sut.BrowseNextAsync(
-                    ctx,
-                    false,
-                    [firstResults[0].ContinuationPoint, firstResults[1].ContinuationPoint],
-                    cancellationToken: CancellationToken.None).ConfigureAwait(false);
-
-                Assert.That(finalResults.Count, Is.EqualTo(2));
-                Assert.That(finalResults[0].StatusCode, Is.EqualTo(StatusCodes.Good));
-                Assert.That(finalResults[0].References, Has.Count.EqualTo(1));
-                Assert.That(finalResults[0].ContinuationPoint.IsEmpty, Is.False);
-                Assert.That(finalResults[1].StatusCode, Is.EqualTo(StatusCodes.BadNoContinuationPoints));
-                Assert.That(finalResults[1].ContinuationPoint.IsEmpty, Is.True);
-
-                (ArrayOf<BrowseResult> released, _) = await sut.BrowseNextAsync(
-                    ctx, true, [finalResults[0].ContinuationPoint]).ConfigureAwait(false);
-                Assert.That(released[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                firstResults.AddRange(results.ToList());
             }
-            finally
+
+            Assert.That(firstResults, Has.Count.EqualTo(2));
+            foreach (BrowseResult result in firstResults)
             {
-                SetMaxBrowseContinuationPointsPerBrowse(sut, originalLimit);
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(result.References, Has.Count.EqualTo(1));
+                Assert.That(result.ContinuationPoint.IsEmpty, Is.False);
             }
+
+            (ArrayOf<BrowseResult> finalResults, _) = await sut.BrowseNextAsync(
+                ctx,
+                false,
+                [firstResults[0].ContinuationPoint, firstResults[1].ContinuationPoint],
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(finalResults.Count, Is.EqualTo(2));
+            Assert.That(finalResults[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(finalResults[0].References, Has.Count.EqualTo(1));
+            Assert.That(finalResults[0].ContinuationPoint.IsEmpty, Is.False);
+            Assert.That(finalResults[1].StatusCode, Is.EqualTo(StatusCodes.BadNoContinuationPoints));
+            Assert.That(finalResults[1].ContinuationPoint.IsEmpty, Is.True);
+
+            (ArrayOf<BrowseResult> released, _) = await sut.BrowseNextAsync(
+                ctx, true, [finalResults[0].ContinuationPoint]).ConfigureAwait(false);
+            Assert.That(released[0].StatusCode, Is.EqualTo(StatusCodes.Good));
         }
 
         [Test]
@@ -1899,24 +1885,5 @@ namespace Opc.Ua.Server.Tests
                 new RequestHeader(), null!, RequestType.Read, RequestLifetime.None, session.Object);
         }
 
-        private static void SetMaxBrowseContinuationPointsPerBrowse(MasterNodeManager sut, uint value)
-        {
-            FieldInfo? field = typeof(MasterNodeManager).GetField(
-                "m_maxContinuationPointsPerBrowse",
-                BindingFlags.Instance | BindingFlags.NonPublic);
-
-            Assert.That(field, Is.Not.Null);
-            field!.SetValue(sut, value);
-        }
-
-        private static uint GetMaxBrowseContinuationPointsPerBrowse(MasterNodeManager sut)
-        {
-            FieldInfo? field = typeof(MasterNodeManager).GetField(
-                "m_maxContinuationPointsPerBrowse",
-                BindingFlags.Instance | BindingFlags.NonPublic);
-
-            Assert.That(field, Is.Not.Null);
-            return (uint)field!.GetValue(sut)!;
-        }
     }
 }

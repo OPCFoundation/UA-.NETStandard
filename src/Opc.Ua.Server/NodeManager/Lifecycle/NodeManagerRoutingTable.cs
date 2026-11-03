@@ -1166,8 +1166,8 @@ namespace Opc.Ua.Server
                 NodeManagers = nodeManagers;
                 NamespaceManagers = namespaceManagers;
                 HiddenNodeManagers = hiddenNodeManagers;
-                TypeTree = typeTree;
-                Factory = factory;
+                TypeTree = typeTree?.CaptureImmutableSnapshot();
+                Factory = factory?.CaptureSnapshot(out _, out _);
                 ReadImages = readImages is null
                     ? new Dictionary<IAsyncNodeManager, INodeManagerReadImage>(ReadImageOwnerComparer.Instance)
                     : readImages.Where(entry => Array.Exists(nodeManagers, owner => ReferenceEquals(owner, entry.Key)))
@@ -1481,12 +1481,12 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Gets the shared canonical type table.
+        /// Gets the type registration image captured by this routing revision.
         /// </summary>
         internal TypeTable? TypeTree => Revision.TypeTree;
 
         /// <summary>
-        /// Gets the shared canonical encodeable registrations.
+        /// Gets the encodeable registration image captured by this routing revision.
         /// </summary>
         internal EncodeableFactory? Factory => Revision.Factory;
 

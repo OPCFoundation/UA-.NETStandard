@@ -290,10 +290,28 @@ namespace Opc.Ua.Server
         public ArrayOf<NodeManagerSlot> Slots { get; }
 
         /// <inheritdoc/>
-        public ArrayOf<NodeManagerRegistration> Registrations => m_prepared.Registrations;
+        public ArrayOf<NodeManagerRegistration> Registrations
+        {
+            get
+            {
+                lock (m_state)
+                {
+                    return m_prepared is { } prepared ? prepared.Registrations : m_registrations;
+                }
+            }
+        }
 
         /// <inheritdoc/>
-        public bool IsCommitted => m_prepared.IsCommitted;
+        public bool IsCommitted
+        {
+            get
+            {
+                lock (m_state)
+                {
+                    return m_prepared is { } prepared ? prepared.IsCommitted : m_committed;
+                }
+            }
+        }
 
         /// <inheritdoc/>
         public void SetMetadata(INodeManagerReadImage metadata)
@@ -386,10 +404,25 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public ValueTask DisposeAsync()
+        public async ValueTask DisposeAsync()
         {
             Seal();
-            return m_prepared.DisposeAsync();
+            IPreparedNodeManagerBatch? prepared;
+            lock (m_state)
+            {
+                prepared = m_prepared;
+            }
+            if (prepared is null)
+            {
+                return;
+            }
+            await prepared.DisposeAsync().ConfigureAwait(false);
+            lock (m_state)
+            {
+                m_registrations = prepared.Registrations;
+                m_committed = prepared.IsCommitted;
+                m_prepared = null;
+            }
         }
 
         /// <summary>
@@ -418,7 +451,7 @@ namespace Opc.Ua.Server
                 m_consumed = true;
                 if (m_metadata.Count != 0)
                 {
-                    m_prepared.BindReadImages(m_metadata.Values.ToArrayOf());
+                    GetPrepared().BindReadImages(m_metadata.Values.ToArrayOf());
                 }
                 m_metadata.Clear();
             }
@@ -442,16 +475,36 @@ namespace Opc.Ua.Server
                 throw new InvalidOperationException("A validation candidate cannot be committed.");
             }
             ConsumeMetadata();
+            IPreparedNodeManagerBatch prepared = GetPrepared();
             decideAsync ??= static _ => default;
             NodeManagerBatchResult result = publishCommittedState is null
-                ? await m_prepared.CommitAsync(decideAsync, cancellationToken).ConfigureAwait(false)
-                : await m_prepared.CommitAsync(decideAsync, publishCommittedState, cancellationToken)
+                ? await prepared.CommitAsync(decideAsync, cancellationToken).ConfigureAwait(false)
+                : await prepared.CommitAsync(decideAsync, publishCommittedState, cancellationToken)
                     .ConfigureAwait(false);
             return result.CommittedResult;
         }
 
-        /// <summary>The existing prepared lifetime owner.</summary>
-        private readonly IPreparedNodeManagerBatch m_prepared;
+        /// <summary>
+        /// Gets the unpublished owner while this adapter has not completed disposal.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">The prepared changes have been disposed.</exception>
+        private IPreparedNodeManagerBatch GetPrepared()
+        {
+            lock (m_state)
+            {
+                return m_prepared ??
+                    throw new InvalidOperationException("The prepared changes have been disposed.");
+            }
+        }
+
+        /// <summary>The prepared lifetime owner until successful disposal.</summary>
+        private IPreparedNodeManagerBatch? m_prepared;
+
+        /// <summary>The exact candidate handles retained as caller-visible facts after disposal.</summary>
+        private ArrayOf<NodeManagerRegistration> m_registrations;
+
+        /// <summary>Whether the disposed preparation crossed the publication commit point.</summary>
+        private bool m_committed;
 
         /// <summary>Serializes local metadata binding with consumption.</summary>
         private readonly Lock m_state = new();

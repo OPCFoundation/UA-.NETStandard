@@ -32,7 +32,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -1122,12 +1121,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 });
             NodeManagerRegistration targetRegistration = await lifecycle.AddAsync(
                 targetFactory, null, timeout.Token).ConfigureAwait(false);
-            var server = (ServerInternalData)m_server.CurrentInstance;
-            IMasterNodeManager master = server.NodeManager;
-            PropertyInfo nodeManagerProperty = typeof(ServerInternalData).GetProperty(
-                nameof(ServerInternalData.NodeManager)) ??
-                throw new AssertionException("The bound master NodeManager property was not found.");
-            Mock<IMasterNodeManager>? proxy = null;
             Task<CloseSessionResponse>? close = null;
             Task<NodeManagerRegistration>? concurrentAdd = null;
             NodeManagerRegistration? nestedRegistration = null;
@@ -1144,11 +1137,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     RequestLifetime.None).AsTask();
                 await callbackEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
 
-                proxy = CreatePostSwapPublicationFailureHost(
-                    master, () => false, notifyBeforeFailure: false,
-                    new InvalidOperationException("Unused publication failure."),
-                    onReferencePreparationAttempt: () => concurrentAdmissionEntered.TrySetResult(true));
-                nodeManagerProperty.SetValue(server, proxy.Object);
+                m_server.HostBoundary.ReferencePreparation = () => concurrentAdmissionEntered.TrySetResult(true);
                 concurrentAdd = lifecycle.AddAsync(
                     CreateTrackingNodeManagementFactory(
                         kFirstRegistrationValue,
@@ -1180,7 +1169,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 finally
                 {
                     Volatile.Write(ref callbacksEnabled, 0);
-                    nodeManagerProperty.SetValue(server, master);
+                    m_server.HostBoundary.ReferencePreparation = null;
                 }
             }
 
@@ -1361,23 +1350,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"),
                 SecurityPolicies.None).ConfigureAwait(false);
             NodeId addedNodeId = new(8405, targetNamespaceIndex);
-            var server = (ServerInternalData)m_server.CurrentInstance;
-            IMasterNodeManager master = server.NodeManager;
-            PropertyInfo nodeManagerProperty = typeof(ServerInternalData).GetProperty(
-                nameof(ServerInternalData.NodeManager)) ??
-                throw new AssertionException("The bound master NodeManager property was not found.");
             var addNodesEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            Mock<IMasterNodeManager> proxy = CreatePostSwapPublicationFailureHost(
-                master, () => false, notifyBeforeFailure: false,
-                new InvalidOperationException("Unused publication failure."));
-            proxy.Setup(value => value.AddNodesAsync(
-                It.IsAny<OperationContext>(), It.IsAny<ArrayOf<AddNodesItem>>(), It.IsAny<CancellationToken>()))
-                .Returns<OperationContext, ArrayOf<AddNodesItem>, CancellationToken>((context, nodes, token) =>
-                {
-                    var response = master.AddNodesAsync(context, nodes, token);
-                    addNodesEntered.TrySetResult(true);
-                    return response;
-                });
             var batchLifecycle = (INodeManagerBatchLifecycle)lifecycle;
             await using IPreparedNodeManagerBatch prepared = await batchLifecycle.PrepareAsync(
                 [
@@ -1408,7 +1381,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     await releaseDecision.Task.WaitAsync(token).ConfigureAwait(false);
                 }, timeout.Token).AsTask();
                 await decisionEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                nodeManagerProperty.SetValue(server, proxy.Object);
+                m_server.HostBoundary.AddNodes = () => addNodesEntered.TrySetResult(true);
                 addNodes = clientSession.AddNodesAsync(
                     null,
                     [
@@ -1424,7 +1397,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     ],
                     timeout.Token).AsTask();
                 await addNodesEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                nodeManagerProperty.SetValue(server, master);
+                m_server.HostBoundary.AddNodes = null;
                 validAddNodesWaitedForDecision = !addNodes.IsCompleted;
 
                 m_requestHeader.Timestamp = DateTimeUtc.Now;
@@ -1453,7 +1426,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             finally
             {
-                nodeManagerProperty.SetValue(server, master);
+                m_server.HostBoundary.AddNodes = null;
                 releaseDecision.TrySetResult(true);
                 rescue.Cancel();
                 if (commit is not null)

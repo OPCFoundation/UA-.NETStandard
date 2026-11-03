@@ -173,12 +173,28 @@ namespace Opc.Ua.Server
             }
         }
 
-        async ValueTask<PreparedAddressSpaceReferences> IDynamicNodeManagerBatchHost.PrepareReferencesAsync(
+        ValueTask<PreparedAddressSpaceReferences> IDynamicNodeManagerBatchHost.PrepareReferencesAsync(
             ArrayOf<PreparedNodeManager> candidates,
             ArrayOf<IAsyncNodeManager> removed,
             NodeManagerRoutingTable.RoutingSnapshot view,
             CancellationToken cancellationToken,
             NodeManagerCallbackPermit? callbackPermit)
+        {
+            ValueTask<PreparedAddressSpaceReferences> preparation =
+                PrepareReferencesAsync(candidates, removed, view, callbackPermit, cancellationToken);
+            m_hostBoundary?.ReferencePreparationDispatched();
+            return preparation;
+        }
+
+        /// <summary>
+        /// Prepares reference owners under the captured routing view.
+        /// </summary>
+        private async ValueTask<PreparedAddressSpaceReferences> PrepareReferencesAsync(
+            ArrayOf<PreparedNodeManager> candidates,
+            ArrayOf<IAsyncNodeManager> removed,
+            NodeManagerRoutingTable.RoutingSnapshot view,
+            NodeManagerCallbackPermit? callbackPermit,
+            CancellationToken cancellationToken)
         {
             if (!view.TryPin(out int stripe))
             {
@@ -252,6 +268,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Acquires the host capabilities required by a lifecycle commit.
+        /// </summary>
         async ValueTask<INodeManagerBatchAdmission> IDynamicNodeManagerBatchHost.AcquireCommitAdmissionAsync(
             NodeManagerCallbackPermit? callbackPermit,
             CancellationToken cancellationToken)
@@ -347,7 +366,18 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="context">The prepared batch and its atomic lifecycle bookkeeping.</param>
         /// <returns>Reference reconciliation owned independently of the publication reservation.</returns>
-        async ValueTask<PublishedReferenceChanges?> IDynamicNodeManagerBatchHost.CommitBatchAsync(
+        ValueTask<PublishedReferenceChanges?> IDynamicNodeManagerBatchHost.CommitBatchAsync(
+            NodeManagerPublicationPlan context)
+        {
+            return m_hostBoundary is { } boundary
+                ? boundary.CommitBatchAsync(context, CommitBatchAsync)
+                : CommitBatchAsync(context);
+        }
+
+        /// <summary>
+        /// Publishes the batch through the canonical routing and lifecycle owners.
+        /// </summary>
+        private async ValueTask<PublishedReferenceChanges?> CommitBatchAsync(
             NodeManagerPublicationPlan context)
         {
             if (context is null)
@@ -524,7 +554,7 @@ namespace Opc.Ua.Server
                             m_nodeManagers.Select(manager => m_nodeManagers.GetGeneration(manager)).ToArray();
                         committedReferences = new PublishedReferenceChanges(
                             candidates, publishedOwners, referenceAdditions, referenceOwners);
-                        context.CaptureCommittedReferences(committedReferences);
+                        commit.CaptureCommittedReferences(committedReferences);
                         // Callbacks may mutate the committed image after internal publication bookkeeping.
                         namespaces.Dispose();
                         serverUris.Dispose();

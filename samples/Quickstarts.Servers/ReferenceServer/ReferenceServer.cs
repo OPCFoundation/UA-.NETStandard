@@ -64,8 +64,22 @@ namespace Quickstarts.ReferenceServer
         /// Create reference server
         /// </summary>
         public ReferenceServer(ITelemetryContext telemetry)
+            : this(telemetry, null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a reference server with a master factory fixed before startup.
+        /// </summary>
+        internal ReferenceServer(
+            ITelemetryContext telemetry,
+            Func<IServerInternal, ApplicationConfiguration,
+                ArrayOf<IAsyncNodeManagerFactory>, MasterNodeManager>? masterNodeManagerFactory)
             : base(telemetry)
         {
+            m_masterNodeManagerFactory = masterNodeManagerFactory ??
+                (static (server, configuration, factories) =>
+                    new MasterNodeManager(server, configuration, null, factories));
             m_telemetry = telemetry;
             m_userDatabase = new LinqUserDatabase();
             m_userDatabase.CreateUser("sysadmin", "demo"u8, [Role.SecurityAdmin, Role.AuthenticatedUser]);
@@ -166,8 +180,8 @@ namespace Quickstarts.ReferenceServer
             // service of standard categories; apps wanting their own
             // categories with full Add/Delete support add an
             // AliasNameNodeManager configured with their own namespace.
-            var master = new MasterNodeManager(
-                server, configuration, null, GetReferenceInitialNodeManagerFactories());
+            ArrayOf<IAsyncNodeManagerFactory> initialFactories = GetReferenceInitialNodeManagerFactories();
+            MasterNodeManager master = m_masterNodeManagerFactory(server, configuration, initialFactories);
             try
             {
                 ConfigureAliasNameStore(server);
@@ -970,6 +984,11 @@ namespace Quickstarts.ReferenceServer
         private CertificateManager? m_userCertificateValidator;
         private string? m_rejectedUserStorePath;
         private readonly ITelemetryContext m_telemetry;
+
+        /// <summary>The master factory supplied at construction, before host binding.</summary>
+        private readonly Func<IServerInternal, ApplicationConfiguration,
+            ArrayOf<IAsyncNodeManagerFactory>, MasterNodeManager> m_masterNodeManagerFactory;
+
         private readonly LinqUserDatabase m_userDatabase;
         private readonly UserManagement m_userManagement;
     }

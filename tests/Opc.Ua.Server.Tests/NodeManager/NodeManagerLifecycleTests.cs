@@ -32,7 +32,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -184,12 +183,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task EmptyRetiredGenerationDrainDoesNotBlockShutdownAsync()
         {
             NodeManagerLifecycle lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
-            MethodInfo scheduleDrain = typeof(NodeManagerLifecycle).GetMethod(
-                "ScheduleRetiredGenerationDrainCleanup",
-                BindingFlags.Instance | BindingFlags.NonPublic) ??
-                throw new AssertionException("The retired-generation drain scheduler was not found.");
-
-            scheduleDrain.Invoke(lifecycle, null);
+            var master = (MasterNodeManager)m_server.CurrentInstance.NodeManager;
+            Assert.That(lifecycle.RetiredNodeManagerCount, Is.Zero);
+            master.NotifyRetiredGenerationDrainObserver();
 
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(3));
             await lifecycle.BeginShutdownAsync(m_server.CurrentInstance, timeout.Token)
@@ -275,12 +271,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var batchHost = (IDynamicNodeManagerBatchHost)master;
             bool failPublication = false;
             var failure = new InvalidOperationException("The host failed around its publication notification.");
-            Mock<IMasterNodeManager> proxy = CreatePostSwapPublicationFailureHost(
-                master, () => failPublication, notifyBeforeFailure, failure);
-            PropertyInfo nodeManagerProperty = typeof(ServerInternalData).GetProperty(nameof(ServerInternalData.NodeManager))
-                ?? throw new AssertionException("The bound master NodeManager property was not found.");
-            // Adapt only the existing host notification seam; the real master still performs the routing swap.
-            nodeManagerProperty.SetValue(server, proxy.Object);
+            m_server.HostBoundary.Publication = CreatePostSwapPublicationFailure(
+                () => failPublication, notifyBeforeFailure, failure);
             NodeManagerBatchResult? result = null;
             try
             {
@@ -339,7 +331,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             finally
             {
-                nodeManagerProperty.SetValue(server, master);
+                m_server.HostBoundary.Publication = null;
             }
         }
 
@@ -355,18 +347,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             const string unsupportedUri = kModelNamespaceUri + ":ReferencePublicationRetryUnsupported";
             const string candidateUri = kModelNamespaceUri + ":ReferencePublicationRetryCandidate";
 
-            var server = (ServerInternalData)m_server.CurrentInstance;
-            IMasterNodeManager master = server.NodeManager;
             bool failPublication = false;
             bool failAddReferences = true;
             bool failObserverNotification = true;
             var failure = new InvalidOperationException("The host failed after committing reference changes.");
-            Mock<IMasterNodeManager> proxy = CreatePostSwapPublicationFailureHost(
-                master, () => failPublication, notifyBeforeFailure: true, failure);
-            PropertyInfo nodeManagerProperty = typeof(ServerInternalData).GetProperty(
-                nameof(ServerInternalData.NodeManager)) ??
-                throw new AssertionException("The bound master NodeManager property was not found.");
-            nodeManagerProperty.SetValue(server, proxy.Object);
+            m_server.HostBoundary.Publication = CreatePostSwapPublicationFailure(
+                () => failPublication, notifyBeforeFailure: true, failure);
 
             try
             {
@@ -520,7 +506,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             finally
             {
-                nodeManagerProperty.SetValue(server, master);
+                m_server.HostBoundary.Publication = null;
             }
         }
 
@@ -1038,7 +1024,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using (var requestLifetime = new RequestLifetime())
             using (OperationContext callerContext = CreateExecutingRequest(server, requestLifetime))
             {
-                callerContext.PinRouting(GetRoutingTable((MasterNodeManager)server.NodeManager));
+                ((IRequestRouting)server.NodeManager).PinRequest(callerContext);
                 await using IPreparedNodeManagerBatch replacement = await m_server.NodeManagerLifecycle.PrepareAsync(
                     [NodeManagerBatchChange.Replace(
                         registration, new RuntimeNodeSetNodeManagerFactory(CreateGenerationOptions(generation: 2)))],
@@ -2975,7 +2961,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             lateItem.SetupGet(item => item.NodeManager).Returns(original.NodeManager);
             lateItem.SetupGet(item => item.IsDurable).Returns(false);
 
-            bool lateItemAdded = false;
+            IDisposable? lateItemMembership = null;
             try
             {
                 replacementTask = RunWithoutExecutionContext(
@@ -2997,10 +2983,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
                 // A late item still naming the retired manager does not suspend the retired generation's
                 // bindings: the retiring generation keeps receiving deletion fan-out through its binding record.
-                AddSyntheticMonitoredItem(
-                    (Subscription)dataSubscription,
-                    lateItem.Object);
-                lateItemAdded = true;
+                lateItemMembership = ((Subscription)dataSubscription)
+                    .IncludeExternalMonitoredItem(lateItem.Object);
+                Assert.That(
+                    ((ISubscriptionMonitoredItemLifecycle)dataSubscription).ContainsMonitoredItem(lateItem.Object),
+                    Is.True);
 
                 replacement = await replacementTask
                     .WaitAsync(TimeSpan.FromSeconds(10))
@@ -3022,12 +3009,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             finally
             {
-                if (lateItemAdded)
-                {
-                    RemoveSyntheticMonitoredItem(
-                        (Subscription)dataSubscription,
-                        lateItem.Object);
-                }
+                lateItemMembership?.Dispose();
                 heldAdmission?.Dispose();
                 if (replacementTask is not null)
                 {
@@ -3035,6 +3017,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
             }
 
+            Assert.That(
+                ((ISubscriptionMonitoredItemLifecycle)dataSubscription).ContainsMonitoredItem(lateItem.Object),
+                Is.False);
             Assert.That(replacement, Is.Not.Null);
             await DeleteSubscriptionAsync(services, dataSubscriptionId).ConfigureAwait(false);
             await DeleteSubscriptionAsync(services, eventSubscriptionId).ConfigureAwait(false);
@@ -6548,13 +6533,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 FactoryRevision: preparation.FactoryRevision,
                 ReadImages: [],
                 Commit: commit.Object,
-                CaptureCommittedReferences: _ => Assert.Fail(
-                    "An unprepared candidate must not capture committed references."),
                 Preparation: preparation,
                 CancellationToken: CancellationToken.None,
                 Admission: admission);
             await Assert.ThatAsync(async () => await batchHost.CommitBatchAsync(context).ConfigureAwait(false),
                 Throws.InvalidOperationException.With.Message.Contains("no prepared generation")).ConfigureAwait(false);
+            commit.Verify(value => value.CaptureCommittedReferences(It.IsAny<PublishedReferenceChanges>()), Times.Never);
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(decisions, Is.Zero);
@@ -7154,97 +7138,38 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Injects a publication notification failure while preserving the real host's routing and cleanup.
         /// </summary>
-        private static Mock<IMasterNodeManager> CreatePostSwapPublicationFailureHost(
-            IMasterNodeManager master,
+        private static Func<NodeManagerPublicationPlan,
+            Func<NodeManagerPublicationPlan, ValueTask<PublishedReferenceChanges?>>,
+            ValueTask<PublishedReferenceChanges?>> CreatePostSwapPublicationFailure(
             Func<bool> shouldFail,
             bool notifyBeforeFailure,
-            Exception failure,
-            Action? onAdmissionAttempt = null,
-            Action? onReferencePreparationAttempt = null)
+            Exception failure)
         {
-            var host = (IDynamicNodeManagerHost)master;
-            var batchHost = (IDynamicNodeManagerBatchHost)master;
-            var proxy = new Mock<IMasterNodeManager>();
-            Mock<IDynamicNodeManagerHost> dynamicProxy = proxy.As<IDynamicNodeManagerHost>();
-            Mock<IDynamicNodeManagerBatchHost> batchProxy = proxy.As<IDynamicNodeManagerBatchHost>();
-            proxy.SetupGet(value => value.AsyncNodeManagers).Returns(() => master.AsyncNodeManagers);
-            proxy.SetupGet(value => value.ConfigurationNodeManager).Returns(master.ConfigurationNodeManager);
-            proxy.SetupGet(value => value.DiagnosticsNodeManager).Returns(master.DiagnosticsNodeManager);
-            proxy.SetupGet(value => value.CoreNodeManager).Returns(master.CoreNodeManager);
-            dynamicProxy.SetupGet(value => value.GenerationReconciler).Returns(host.GenerationReconciler);
-            dynamicProxy.Setup(value => value.PrepareAsync(
-                It.IsAny<IAsyncNodeManager>(), It.IsAny<NodeManagerGeneration>(),
-                It.IsAny<IAsyncNodeManager?>(), It.IsAny<CancellationToken>()))
-                .Returns<IAsyncNodeManager, NodeManagerGeneration, IAsyncNodeManager?, CancellationToken>(
-                    host.PrepareAsync);
-            dynamicProxy.Setup(value => value.AbortAsync(
-                It.IsAny<PreparedNodeManager>(), It.IsAny<CancellationToken>()))
-                .Returns<PreparedNodeManager, CancellationToken>((prepared, ct) => host.AbortAsync(prepared, ct));
-            dynamicProxy.Setup(value => value.DestroyAddressSpaceAsync(
-                It.IsAny<IAsyncNodeManager>(), It.IsAny<CancellationToken>()))
-                .Returns<IAsyncNodeManager, CancellationToken>((manager, ct) => host.DestroyAddressSpaceAsync(manager, ct));
-            dynamicProxy.Setup(value => value.RemoveDestroyedExternalReferencesAsync(
-                It.IsAny<IAsyncNodeManager>(), It.IsAny<CancellationToken>()))
-                .Returns<IAsyncNodeManager, CancellationToken>(
-                    (manager, ct) => host.RemoveDestroyedExternalReferencesAsync(manager, ct));
-            dynamicProxy.Setup(value => value.FinalizeRetiredGenerationNotificationsAsync(
-                It.IsAny<IAsyncNodeManager>(), It.IsAny<CancellationToken>()))
-                .Returns<IAsyncNodeManager, CancellationToken>(
-                    (manager, ct) => host.FinalizeRetiredGenerationNotificationsAsync(manager, ct));
-            batchProxy.SetupGet(value => value.RoutingRevision).Returns(() => batchHost.RoutingRevision);
-            batchProxy.Setup(value => value.CaptureLifecycleCallbackPermit())
-                .Returns(() => batchHost.CaptureLifecycleCallbackPermit());
-            batchProxy.Setup(value => value.PrepareReferencesAsync(
-                It.IsAny<ArrayOf<PreparedNodeManager>>(), It.IsAny<ArrayOf<IAsyncNodeManager>>(),
-                It.IsAny<NodeManagerRoutingTable.RoutingSnapshot>(), It.IsAny<CancellationToken>(),
-                It.IsAny<NodeManagerCallbackPermit?>()))
-                .Returns<ArrayOf<PreparedNodeManager>, ArrayOf<IAsyncNodeManager>,
-                    NodeManagerRoutingTable.RoutingSnapshot, CancellationToken, NodeManagerCallbackPermit?>(
-                    (candidates, removed, view, token, callbackPermit) =>
-                    {
-                        ValueTask<PreparedAddressSpaceReferences> preparation =
-                            batchHost.PrepareReferencesAsync(candidates, removed, view, token, callbackPermit);
-                        onReferencePreparationAttempt?.Invoke();
-                        return preparation;
-                    });
-            batchProxy.Setup(value => value.AcquireCommitAdmissionAsync(
-                It.IsAny<NodeManagerCallbackPermit?>(), It.IsAny<CancellationToken>()))
-                .Returns<NodeManagerCallbackPermit?, CancellationToken>((callbackPermit, token) =>
+            return async (context, publish) =>
+            {
+                bool fail = shouldFail();
+                if (fail && !notifyBeforeFailure)
                 {
-                    ValueTask<INodeManagerBatchAdmission> admission =
-                        batchHost.AcquireCommitAdmissionAsync(callbackPermit, token);
-                    onAdmissionAttempt?.Invoke();
-                    return admission;
-                });
-            batchProxy.Setup(value => value.ReleaseRetiringEventGeneration(It.IsAny<NodeManagerGeneration>()))
-                .Callback<NodeManagerGeneration>(batchHost.ReleaseRetiringEventGeneration);
-            batchProxy.Setup(value => value.CommitBatchAsync(It.IsAny<NodeManagerPublicationPlan>()))
-                .Returns<NodeManagerPublicationPlan>(async context =>
-                {
-                    bool fail = shouldFail();
-                    if (fail && !notifyBeforeFailure)
+                    var commit = new Mock<INodeManagerPublicationCommit>();
+                    commit.SetupGet(value => value.HasDecision).Returns(() => context.Commit.HasDecision);
+                    commit.Setup(value => value.DecideAsync(It.IsAny<CancellationToken>()))
+                        .Returns<CancellationToken>(context.Commit.DecideAsync);
+                    commit.Setup(value => value.CaptureCommittedReferences(It.IsAny<PublishedReferenceChanges>()))
+                        .Callback<PublishedReferenceChanges>(context.Commit.CaptureCommittedReferences);
+                    commit.Setup(value => value.Publish()).Callback(() =>
                     {
-                        var commit = new Mock<INodeManagerPublicationCommit>();
-                        commit.SetupGet(value => value.HasDecision).Returns(() => context.Commit.HasDecision);
-                        commit.Setup(value => value.DecideAsync(It.IsAny<CancellationToken>()))
-                            .Returns<CancellationToken>(context.Commit.DecideAsync);
-                        commit.Setup(value => value.Publish()).Callback(() =>
-                        {
-                            context.Commit.Publish();
-                            throw failure;
-                        });
-                        return await batchHost.CommitBatchAsync(
-                            context with { Commit = commit.Object }).ConfigureAwait(false);
-                    }
-                    PublishedReferenceChanges? references = await batchHost.CommitBatchAsync(context)
-                        .ConfigureAwait(false);
-                    if (fail)
-                    {
+                        context.Commit.Publish();
                         throw failure;
-                    }
-                    return references;
-                });
-            return proxy;
+                    });
+                    return await publish(context with { Commit = commit.Object }).ConfigureAwait(false);
+                }
+                PublishedReferenceChanges? references = await publish(context).ConfigureAwait(false);
+                if (fail)
+                {
+                    throw failure;
+                }
+                return references;
+            };
         }
 
         private async Task FinishShutdownTestAsync()
@@ -7369,49 +7294,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(nodeManager);
             return [.. generation.MonitoredItems.Keys.Where(subscription.ContainsMonitoredItem)];
-        }
-
-        private static void AddSyntheticMonitoredItem(
-            Subscription subscription,
-            IMonitoredItem monitoredItem)
-        {
-            Lock subscriptionLock = GetSubscriptionLock(subscription);
-            lock (subscriptionLock)
-            {
-                GetSubscriptionMonitoredItems(subscription).Add(
-                    monitoredItem.Id,
-                    new LinkedListNode<IMonitoredItem>(monitoredItem));
-            }
-        }
-
-        private static void RemoveSyntheticMonitoredItem(
-            Subscription subscription,
-            IMonitoredItem monitoredItem)
-        {
-            Lock subscriptionLock = GetSubscriptionLock(subscription);
-            lock (subscriptionLock)
-            {
-                GetSubscriptionMonitoredItems(subscription).Remove(monitoredItem.Id);
-            }
-        }
-
-        private static Dictionary<uint, LinkedListNode<IMonitoredItem>>
-            GetSubscriptionMonitoredItems(Subscription subscription)
-        {
-            FieldInfo field = typeof(Subscription).GetField(
-                "m_monitoredItems",
-                BindingFlags.Instance | BindingFlags.NonPublic)!;
-            Assert.That(field, Is.Not.Null);
-            return (Dictionary<uint, LinkedListNode<IMonitoredItem>>)field.GetValue(subscription)!;
-        }
-
-        private static Lock GetSubscriptionLock(Subscription subscription)
-        {
-            FieldInfo field = typeof(Subscription).GetField(
-                "m_lock",
-                BindingFlags.Instance | BindingFlags.NonPublic)!;
-            Assert.That(field, Is.Not.Null);
-            return (Lock)field.GetValue(subscription)!;
         }
 
         private static async Task WaitForConditionRefreshCountAsync(
@@ -8274,6 +8156,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             return factory.Object;
         }
 
+        // TODO: Remove when CA1812 recognizes construction by the NUnit test methods.
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Performance",
+            "CA1812:Avoid uninstantiated internal classes",
+            Justification = "The test methods instantiate this private helper directly.")]
         private sealed class CountingNodeManagerFactory :
             IAsyncNodeManagerFactory
         {
@@ -8415,12 +8302,32 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        // TODO: Remove when CA1812 recognizes construction through ServerFixture<T>.
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Performance",
+            "CA1812:Avoid uninstantiated internal classes",
+            Justification = "ServerFixture<T> creates this server from the test factory.")]
         private sealed class LifecycleTestServer : ReferenceServer
         {
             public LifecycleTestServer(ITelemetryContext telemetry)
-                : base(telemetry)
+                : this(telemetry, new LifecycleHostBoundary())
             {
             }
+
+            /// <summary>
+            /// Creates the fixture server with its observer fixed before startup.
+            /// </summary>
+            private LifecycleTestServer(ITelemetryContext telemetry, LifecycleHostBoundary boundary)
+                : base(telemetry, (server, configuration, factories) =>
+                    new MasterNodeManager(boundary, server, configuration, null, factories))
+            {
+                HostBoundary = boundary;
+            }
+
+            /// <summary>
+            /// Gets the observer installed when the master is constructed.
+            /// </summary>
+            public LifecycleHostBoundary HostBoundary { get; }
 
             /// <summary>
             /// Gets or sets an observer of explicitly admitted service requests.
@@ -8447,6 +8354,50 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     await callback(context).ConfigureAwait(false);
                 }
                 await base.OnRequestValidatedAsync(context).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Controls fault injection and dispatch barriers on the fixture's original bound master.
+        /// </summary>
+        private sealed class LifecycleHostBoundary : INodeManagerHostBoundary
+        {
+            /// <summary>
+            /// Gets or sets the publication decorator for the current test.
+            /// </summary>
+            public Func<NodeManagerPublicationPlan,
+                Func<NodeManagerPublicationPlan, ValueTask<PublishedReferenceChanges?>>,
+                ValueTask<PublishedReferenceChanges?>>? Publication
+            { get; set; }
+
+            /// <summary>
+            /// Gets or sets the observer of reference preparation dispatch.
+            /// </summary>
+            public Action? ReferencePreparation { get; set; }
+
+            /// <summary>
+            /// Gets or sets the observer of AddNodes dispatch.
+            /// </summary>
+            public Action? AddNodes { get; set; }
+
+            /// <inheritdoc/>
+            public ValueTask<PublishedReferenceChanges?> CommitBatchAsync(
+                NodeManagerPublicationPlan plan,
+                Func<NodeManagerPublicationPlan, ValueTask<PublishedReferenceChanges?>> publish)
+            {
+                return Publication is { } publication ? publication(plan, publish) : publish(plan);
+            }
+
+            /// <inheritdoc/>
+            public void ReferencePreparationDispatched()
+            {
+                ReferencePreparation?.Invoke();
+            }
+
+            /// <inheritdoc/>
+            public void AddNodesDispatched()
+            {
+                AddNodes?.Invoke();
             }
         }
 
@@ -8604,6 +8555,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// </summary>
             public Func<OperationContext, bool, CancellationToken, ValueTask> AllEventsContextCallback
             { get; set; } = null!;
+
             /// <summary>
             /// Gets or sets a callback observing or delaying the condition-refresh item batch.
             /// </summary>

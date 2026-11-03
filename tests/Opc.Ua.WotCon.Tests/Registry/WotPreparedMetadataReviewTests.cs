@@ -53,7 +53,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         public void SetUp()
         {
             m_root = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory, "metadata-review", Guid.NewGuid().ToString("N"));
+                Path.GetTempPath(), "metadata-review", Guid.NewGuid().ToString("N"));
             TestContext.Out.WriteLine(
                 $"Runtime={RuntimeInformation.FrameworkDescription}; CLR={Environment.Version}; " +
                 $"ServerGC={GCSettings.IsServerGC}; Assembly={typeof(WotRegistryService).Assembly.Location}");

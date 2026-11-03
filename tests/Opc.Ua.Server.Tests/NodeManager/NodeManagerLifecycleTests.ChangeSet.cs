@@ -537,10 +537,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             prepared.SetMetadata(candidate.Slot, candidateImage.Object);
             Assert.That(() => prepared.SetMetadata(stable.Slot, stableImage.Object), Throws.InvalidOperationException);
             var host = (IDynamicNodeManagerBatchHost)m_server.CurrentInstance.NodeManager;
-            NodeManagerRoutingTable routing = GetRoutingTable((MasterNodeManager)m_server.CurrentInstance.NodeManager);
             using var pinnedContext = new OperationContext(
                 new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
-            pinnedContext.PinRouting(routing);
+            ((IRequestRouting)m_server.CurrentInstance.NodeManager).PinRequest(pinnedContext);
             NodeManagerRoutingTable.RoutingSnapshot before = pinnedContext.RoutingSnapshot!;
             Assert.That(host.RoutingRevision.ReadImages.ContainsKey(stable.NodeManager), Is.False);
             Assert.That(Array.IndexOf(before.NodeManagers, candidate.NodeManager), Is.EqualTo(-1));

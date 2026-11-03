@@ -104,9 +104,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await using INodeManagerPublication publication =
                 await lifecycle.CapturePublication().BeginAsync(null).ConfigureAwait(false);
             INodeManagerPublication validation = publication;
-            NodeManagerRoutingTable routing = GetRoutingTable(
-                (MasterNodeManager)m_server.CurrentInstance.NodeManager);
-            NodeManagerRoutingTable.RoutingSnapshot routingBeforeValidation = routing.Revision;
+            var host = (IDynamicNodeManagerBatchHost)m_server.CurrentInstance.NodeManager;
+            NodeManagerRoutingTable.RoutingSnapshot routingBeforeValidation = host.RoutingRevision;
             long lifecycleRevision = lifecycle.Revision;
             ArrayOf<string> namespaces = m_server.CurrentInstance.NamespaceUris.ToArrayOf();
             int decisions = 0;
@@ -129,8 +128,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(validatedManager.DisposeCount, Is.EqualTo(1));
             Assert.That(GetBranchRegistrations(lifecycle).IsEmpty, Is.True);
             Assert.That(lifecycle.Revision, Is.EqualTo(lifecycleRevision));
-            Assert.That(routing.Revision, Is.SameAs(routingBeforeValidation));
-            Assert.That(Array.IndexOf(routing.Revision.NodeManagers, validatedManager), Is.EqualTo(-1));
+            Assert.That(host.RoutingRevision, Is.SameAs(routingBeforeValidation));
+            Assert.That(Array.IndexOf(host.RoutingRevision.NodeManagers, validatedManager), Is.EqualTo(-1));
             Assert.That(m_server.CurrentInstance.NamespaceUris.ToArrayOf(), Is.EqualTo(namespaces));
             await using IPreparedNodeManagerBatch next = await publication.PrepareAsync(
                 [NodeManagerBatchChange.Add(factory)]).ConfigureAwait(false);

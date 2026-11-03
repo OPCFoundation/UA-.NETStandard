@@ -78,7 +78,7 @@ namespace Opc.Ua.Server
             if (owner.GetType() != typeof(MasterNodeManager))
             {
                 m_handleLookupOverride = lookup;
-                m_legacyLookupContext = new AsyncLocal<OperationContext?>();
+                m_legacyLookupContext = new AsyncLocal<LegacyLookupScope?>();
             }
         }
 
@@ -126,26 +126,25 @@ namespace Opc.Ua.Server
             NodeManagerRoutingTable.RoutingSnapshot snapshot = GetRouting(context);
             return m_handleLookupOverride is null
                 ? ResolveManagerHandleAsync(nodeId, snapshot, cancellationToken)
-                : GetOverriddenManagerHandleAsync(context, nodeId, snapshot, cancellationToken);
+                : GetOverriddenManagerHandleAsync(nodeId, snapshot, cancellationToken);
         }
 
         /// <summary>
         /// Honors external legacy lookup owners without crossing managed routing revisions.
         /// </summary>
-        /// <param name="context">The operation selecting routes.</param>
         /// <param name="nodeId">The node to resolve.</param>
         /// <param name="snapshot">The view selecting eligible owners.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The handle and owning manager, if found.</returns>
         private async ValueTask<(object? handle, IAsyncNodeManager? nodeManager)> GetOverriddenManagerHandleAsync(
-            OperationContext context,
             NodeId nodeId,
             NodeManagerRoutingTable.RoutingSnapshot snapshot,
             CancellationToken cancellationToken)
         {
-            AsyncLocal<OperationContext?> lookupContext = m_legacyLookupContext!;
-            OperationContext? previousContext = lookupContext.Value;
-            lookupContext.Value = context;
+            AsyncLocal<LegacyLookupScope?> lookupContext = m_legacyLookupContext!;
+            LegacyLookupScope? previousContext = lookupContext.Value;
+            var scope = new LegacyLookupScope(snapshot);
+            lookupContext.Value = scope;
             (object? handle, IAsyncNodeManager? nodeManager) result;
             try
             {
@@ -153,6 +152,7 @@ namespace Opc.Ua.Server
             }
             finally
             {
+                scope.Expire();
                 lookupContext.Value = previousContext;
             }
             if (result.nodeManager is null)
@@ -245,8 +245,8 @@ namespace Opc.Ua.Server
             NodeId nodeId,
             CancellationToken cancellationToken = default)
         {
-            OperationContext? context = m_legacyLookupContext?.Value;
-            return ResolveManagerHandleAsync(nodeId, context is null ? null : GetRouting(context), cancellationToken);
+            return ResolveManagerHandleAsync(
+                nodeId, m_legacyLookupContext?.Value?.Snapshot, cancellationToken);
         }
 
         /// <summary>
@@ -4722,7 +4722,30 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Carries the captured view through a legacy virtual lookup that delegates to the base implementation.
         /// </summary>
-        private readonly AsyncLocal<OperationContext?>? m_legacyLookupContext;
+        private readonly AsyncLocal<LegacyLookupScope?>? m_legacyLookupContext;
+
+        /// <summary>
+        /// Carries only the caller-pinned routing image and revokes escaped legacy lookup contexts on return.
+        /// </summary>
+        /// <param name="snapshot">The image pinned by the calling operation.</param>
+        private sealed class LegacyLookupScope(NodeManagerRoutingTable.RoutingSnapshot snapshot)
+        {
+            /// <summary>
+            /// Gets the caller's routing image while its legacy override is active.
+            /// </summary>
+            internal NodeManagerRoutingTable.RoutingSnapshot? Snapshot => Volatile.Read(ref m_snapshot);
+
+            /// <summary>
+            /// Releases routing selection in every execution context that captured this invocation.
+            /// </summary>
+            internal void Expire()
+            {
+                Volatile.Write(ref m_snapshot, null);
+            }
+
+            /// <summary>The caller-pinned image, or null after the override returns.</summary>
+            private NodeManagerRoutingTable.RoutingSnapshot? m_snapshot = snapshot;
+        }
 
         /// <summary>
         /// The namespace routes of the valid operations of one service call, so that the call

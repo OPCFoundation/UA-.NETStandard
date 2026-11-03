@@ -423,6 +423,39 @@ namespace Opc.Ua.Types.Tests.Nodes
         }
 
         /// <summary>
+        /// Verifies concurrent additive preparations cannot publish against the same stale revision.
+        /// </summary>
+        [Test]
+        public async Task ConcurrentAdditivePreparationsRejectTheStalePublicationAsync()
+        {
+            TypeTable first = m_typeTable.CaptureSnapshot(out TypeTable source, out long revision);
+            TypeTable second = m_typeTable.CaptureSnapshot(out _, out _);
+            NodeId firstType = new(6002);
+            NodeId secondType = new(6003);
+            first.AddSubtype(firstType, s_rootTypeId);
+            second.AddSubtype(secondType, s_rootTypeId);
+
+            TypeTable[] merged = await Task.WhenAll(
+                Task.Run(() => m_typeTable.PrepareAdditiveMerge(first, source, revision)),
+                Task.Run(() => m_typeTable.PrepareAdditiveMerge(second, source, revision)))
+                .ConfigureAwait(false);
+
+            using (TypeTable.Publication publication = m_typeTable.BeginPublication(source, revision))
+            {
+                publication.Complete(merged[0]);
+            }
+
+            Assert.Throws<OptimisticPublicationConflictException>(
+                () => m_typeTable.BeginPublication(source, revision));
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(m_typeTable.IsKnown(firstType), Is.True);
+                Assert.That(m_typeTable.IsKnown(secondType), Is.False);
+                Assert.That(merged[1].IsKnown(secondType), Is.True);
+            }
+        }
+
+        /// <summary>
         /// Verifies that publication rejects another owner and releases exactly once.
         /// </summary>
         [Test]

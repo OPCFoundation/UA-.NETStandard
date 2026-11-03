@@ -28,9 +28,11 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
 using System.Xml;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Types.Tests.Encoders
 {
@@ -41,6 +43,57 @@ namespace Opc.Ua.Types.Tests.Encoders
     [Parallelizable]
     public sealed class EncodeableFactorySnapshotTests
     {
+        /// <summary>
+        /// Binary decoding uses the captured registration image after publication, abort, and later writes.
+        /// </summary>
+        /// <param name="publish">Whether to publish before capturing the serving image.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void BinaryDecodingPreservesCapturedRegistrationsAfterPublicationDecision(bool publish)
+        {
+            var factory = new EncodeableFactory();
+            EncodeableFactory before = factory.CaptureSnapshot(out EncodeableFactory source, out long revision);
+            EncodeableFactory proposed = factory.CaptureSnapshot(out _, out _);
+            proposed.Builder.AddEncodeableType(typeof(Argument)).Commit();
+            EncodeableFactory merged = factory.PrepareAdditiveMerge(
+                proposed, source, revision, new NamespaceTable());
+            if (publish)
+            {
+                using EncodeableFactory.Publication publication = factory.BeginPublication(source, revision);
+                publication.Complete(merged);
+            }
+            EncodeableFactory after = factory.CaptureSnapshot(out _, out _);
+            factory.Builder.AddEncodeableType(typeof(Argument)).Commit();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var value = new Argument { Name = "captured", DataType = DataTypeIds.Int32, ValueRank = ValueRanks.Scalar };
+            byte[] bytes;
+            using (var encoder = new BinaryEncoder(new ServiceMessageContext(telemetry, proposed)))
+            {
+                encoder.WriteExtensionObject("Value", new ExtensionObject(value));
+                bytes = encoder.CloseAndReturnBuffer()!;
+            }
+            Assert.That(Decode(before).TryGetValue(out Argument? _), Is.False);
+            Assert.That(Decode(after).TryGetValue(out Argument? _), Is.EqualTo(publish));
+            Assert.That(Decode(proposed).TryGetValue(out Argument? preparedValue), Is.True);
+            Assert.That(preparedValue!.Name, Is.EqualTo("captured"));
+            Assert.That(preparedValue.DataType, Is.EqualTo(DataTypeIds.Int32));
+            Assert.That(preparedValue.ValueRank, Is.EqualTo(ValueRanks.Scalar));
+            Assert.That(Decode(factory).TryGetValue(out Argument? servingValue), Is.True);
+            Assert.That(servingValue!.Name, Is.EqualTo("captured"));
+            if (publish)
+            {
+                Assert.That(Decode(after).TryGetValue(out Argument? publishedValue), Is.True);
+                Assert.That(publishedValue!.Name, Is.EqualTo("captured"));
+            }
+
+            ExtensionObject Decode(EncodeableFactory image)
+            {
+                using var stream = new MemoryStream(bytes, writable: false);
+                using var decoder = new BinaryDecoder(stream, new ServiceMessageContext(telemetry, image));
+                return decoder.ReadExtensionObject("Value");
+            }
+        }
+
         /// <summary>
         /// Verifies that the unchanged-capture shortcut still produces independently owned registration maps.
         /// </summary>

@@ -167,6 +167,37 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Failed initial readiness stops startup without advertising an online server or scheduling discovery.
+        /// </summary>
+        [Test]
+        public async Task FailedInitialReadinessNeverAdvertisesOnlineOrSchedulesDiscoveryAsync()
+        {
+            var readiness = new ReadinessGate();
+            var failure = new InvalidOperationException("Initial readiness failed before online discovery.");
+            readiness.Release.TrySetException(failure);
+            await using var harness = new RegistrationHarness(succeeds: true, readiness: readiness);
+            harness.Release.TrySetResult(true);
+            LdsServer lds = await harness.Discovery.StartAsync().ConfigureAwait(false);
+            EndpointDescription endpoint = lds.GetEndpoints().ToArray()!.First(value =>
+                value.SecurityPolicyUri == SecurityPolicies.Basic256Sha256 &&
+                value.SecurityMode == MessageSecurityMode.SignAndEncrypt);
+            await harness.Application.LoadConfigurationAsync().ConfigureAwait(false);
+            ServerConfiguration configuration = harness.Application.Config.ServerConfiguration!;
+            configuration.MaxRegistrationInterval = 60_000;
+            configuration.RegistrationEndpoint = endpoint;
+
+            Exception? observed = await Assert.CatchAsync<Exception>(
+                async () => await harness.Application.StartAsync()
+                    .WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false)).ConfigureAwait(false);
+
+            Assert.That(observed, Is.Not.Null);
+            Assert.That(observed!.ToString(), Does.Contain(failure.Message));
+            Assert.That(readiness.Entered.Task.IsCompleted, Is.True);
+            Assert.That(harness.OnlineRegistrationCalls, Is.Zero);
+            Assert.That(GetRegistrationTimer(harness.Server), Is.Null);
+        }
+
+        /// <summary>
         /// Reads the server's current registration timer to check replacement and shutdown state.
         /// </summary>
         private static ManualTimer? GetRegistrationTimer(StandardServer server)
@@ -253,6 +284,10 @@ namespace Opc.Ua.Server.Tests
                     .Returns(async (RegisteredServer server, MdnsDiscoveryConfiguration mdns, CancellationToken ct) =>
                     {
                         Interlocked.Increment(ref m_registrationCalls);
+                        if (server.IsOnline)
+                        {
+                            Interlocked.Increment(ref m_onlineRegistrationCalls);
+                        }
                         Entered.TrySetResult(true);
                         await Release.Task.ConfigureAwait(false);
                         if (!succeeds)
@@ -315,6 +350,11 @@ namespace Opc.Ua.Server.Tests
             /// Gets the number of registration requests observed by the discovery store.
             /// </summary>
             public int RegistrationCalls => Volatile.Read(ref m_registrationCalls);
+
+            /// <summary>
+            /// Gets how often the application advertised itself online to discovery.
+            /// </summary>
+            public int OnlineRegistrationCalls => Volatile.Read(ref m_onlineRegistrationCalls);
 
             /// <summary>
             /// Fires the supplied registration timer and retains its completion task.
@@ -393,6 +433,11 @@ namespace Opc.Ua.Server.Tests
             /// Counts requests reaching the controlled discovery store.
             /// </summary>
             private int m_registrationCalls;
+
+            /// <summary>
+            /// Counts online announcements separately from shutdown's offline registration.
+            /// </summary>
+            private int m_onlineRegistrationCalls;
 
             /// <summary>
             /// Retains the application server while its startup readiness callback is pending.

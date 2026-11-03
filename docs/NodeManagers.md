@@ -231,6 +231,12 @@ the current view. Continuous overlap can extend this shared view and delay retir
 bounded-retirement guarantee for a context that never reaches quiescence. Independent contexts retain
 independent views, and callbacks receive the original context instance.
 
+A derived master's legacy `GetManagerHandleAsync` override can delegate to the
+base lookup using the caller's routing view while that override is active.
+The compatibility scope carries no `OperationContext` and releases its image
+on return, cancellation or failure, including in captured execution contexts.
+A later contextless lookup reads live routes.
+
 An explicit internal `PinRouting` call transfers the current view to context ownership, even if a
 borrowed service scope acquired it first. Service return does not release that explicit pin.
 Disposing a context is terminal: no new service scope or explicit pin may enter afterward, but
@@ -1182,6 +1188,14 @@ The decision callback runs once and cannot re-enter lifecycle mutation.
 If its external outcome is uncertain, resolve that uncertainty before starting
 another transaction.
 
+Dispose a committed prepared unit as well, normally through `await using`. The
+modern adapter releases its underlying prepared provider after successful
+disposal and preserves its `Registrations`, `Slots` and `IsCommitted` facts.
+If provider cleanup throws, disposal reports that failure and retains the provider
+for a later disposal attempt. Explicit registration handles and published
+generation snapshots still reference their managers; retaining those handles
+does not extend resource admission or make a retired generation usable again.
+
 The routing swap commits the transaction. A later callback failure cannot
 abort it. Retain `LifecycleResult` and retry unfinished
 [reconciliation](#retrying-committed-reconciliation), not the change set.
@@ -1270,6 +1284,53 @@ registry remove matching direct and generation-owned bindings for that scope.
 They do not change other scopes or retained candidate overlays, dispose a
 published provider, or release the registry's shutdown ownership.
 A later candidate publication can register the scope again.
+
+Declare candidate historian bindings through the server or builder supplied to
+that candidate. Do not retain the live server's registry and write through it
+from a factory: those writes would bypass preparation ownership.
+
+For a generated manager, the existing fluent builder records the declarations
+during `Configure`. The manager must still participate in readiness, even when
+it has no additional initialization:
+
+```csharp
+partial void Configure(INodeManagerBuilder builder)
+{
+    builder.UseHistorian()
+        .UseInMemoryProvider()
+        .RegisterForNamespace("urn:example:plant");
+    builder.Variable<double>("Temperature").Historize();
+}
+
+ValueTask INodeManagerReadinessNotification.OnServerReadyAsync(
+    CancellationToken cancellationToken)
+{
+    return CompletePublishedConfigurationAsync(cancellationToken);
+}
+```
+
+Declare `INodeManagerReadinessNotification` on the manager's partial class.
+Register it through its generated DI extension or construct its factory directly;
+both paths receive the candidate server during lifecycle preparation.
+Use `DeferPublishedAuthoringUntilReady` instead when the callback also needs
+published nodes or another serving subsystem. Both declaration timings remain
+supported; neither requires accessing the canonical registry during preparation.
+
+Without the fluent node-manager builder, construct the historian builder over
+the `IServerInternal` passed to the manager factory:
+
+```csharp
+var historian = new HistorianBuilder(candidateServer);
+historian.UseInMemoryProvider()
+    .RegisterForNamespace("urn:example:plant");
+```
+
+Keep the manager's readiness implementation on this path as well. The candidate
+server retains the builder for abort and retirement cleanup; do not dispose it
+at the end of the factory. After successful readiness, the serving registry owns
+the published providers. If readiness fails after routing publication, inspect
+`LifecycleResult.Issues` and retry through `RetryReconciliationAsync`; do not
+recreate providers or register them directly in the serving registry.
 
 ### Node manager lifecycle impact on clients
 
@@ -1480,7 +1541,8 @@ the serving capabilities. The server retains ownership of the catalog.
 
 Publication merges compatible additions into the shared metadata tables and rebinds the candidate's
 cached handles to their canonical storage. Those handles also observe subsequent compatible additions.
-Metadata is not pinned per request; application-value images and routing generations still are.
+Each routing snapshot captures independent type and encodeable registration images, including its
+namespace mapping. Later canonical additions do not change an already captured routing image.
 Type-table captures share a registration graph until their first mutation,
 which copies the type, encoding and reference-name indexes and their connected
 hierarchy. This keeps candidate writes private without copying every graph at
@@ -1620,12 +1682,16 @@ transactional.
 
 #### Invocation publication units
 
-`INodeManagerLifecycle.CapturePublication` records the serving revisions; `BeginAsync(ct)`
+`lifecycle.CaptureChanges()` records the serving revisions; `BeginAsync(ct)`
 reserves the invocation, and `IsCurrent` reports whether the revisions still match. A stale
 invocation must be disposed and recaptured. Units are prepared with
-`INodeManagerPublication.PrepareAsync` and follow the same decision and cleanup contracts.
+`ILifecycleWriter.PrepareAsync` and follow the same decision and cleanup contracts.
 `SupportsPreparedPublication` and `SupportsPublicationIsolation` report whether the attached host
 supports the corresponding transaction operations.
+
+Providers and exact-generation consumers can continue to use
+`INodeManagerLifecycle.CapturePublication` and `INodeManagerPublication.PrepareAsync`;
+the slot-targeted API adapts that same transaction rather than introducing a second writer.
 
 Admission stays held across every unit. Other lifecycle mutations fail `BadServerTooBusy` before
 effects and can retry after disposal, so callback code should defer conflicting lifecycle work

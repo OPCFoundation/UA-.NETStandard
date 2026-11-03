@@ -32,7 +32,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -54,10 +53,51 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         public void MasterDoesNotStoreAmbientSourceGeneration()
         {
-            Assert.That(
-                typeof(MasterNodeManager).GetFields(BindingFlags.NonPublic | BindingFlags.Instance)
-                    .Where(field => field.FieldType == typeof(AsyncLocal<NodeManagerGeneration>)),
-                Is.Empty);
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                IAsyncNodeManager source = Mock.Of<IAsyncNodeManager>();
+                using MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(server, [source]);
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(source);
+                NodeManagerGeneration core = NodeManagerGenerationRegistry.GetOrCreate(master.CoreNodeManager!);
+                Assert.That(MasterNodeManager.TryCaptureSourceEmission(
+                    server.Object, source, out MasterNodeManager.SourceEmissionAdmission? admission), Is.True);
+                using MasterNodeManager.SourceEmissionOrigin? origin = admission?.TransferToOrigin();
+                ISystemContext context = origin!.CreateContext(server.Object.DefaultSystemContext);
+                generation.Gate.Retire();
+
+                ExecutionContext.Run(ExecutionContext.Capture()!, _ =>
+                {
+                    bool explicitSource = MasterNodeManager.TryCaptureSourceEmission(
+                        server.Object, master.CoreNodeManager,
+                        out MasterNodeManager.SourceEmissionAdmission? explicitAdmission,
+                        isGlobalServerEventSink: true, context: context);
+                    bool implicitSource = MasterNodeManager.TryCaptureSourceEmission(
+                        server.Object, master.CoreNodeManager,
+                        out MasterNodeManager.SourceEmissionAdmission? implicitAdmission,
+                        isGlobalServerEventSink: true);
+                    try
+                    {
+                        Assert.Multiple(() =>
+                        {
+                            Assert.That(explicitSource, Is.True);
+                            Assert.That(explicitAdmission?.Generation, Is.SameAs(generation));
+                            Assert.That(implicitSource, Is.True);
+                            Assert.That(implicitAdmission?.Generation, Is.SameAs(core));
+                            Assert.That(generation.Gate.ActiveCount, Is.EqualTo(2));
+                            Assert.That(core.Gate.ActiveCount, Is.EqualTo(1));
+                        });
+                    }
+                    finally
+                    {
+                        explicitAdmission?.Dispose();
+                        implicitAdmission?.Dispose();
+                    }
+                }, null);
+
+                Assert.That(generation.Gate.ActiveCount, Is.EqualTo(1));
+                Assert.That(core.Gate.ActiveCount, Is.Zero);
+            }
         }
 
         /// <summary>
@@ -197,15 +237,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 for (int iteration = 0; iteration < 10000; iteration++)
                 {
-                    var gate = new GenerationGate(NodeManagerGenerationState.Live);
-                    var counter = (StripedCounter)typeof(GenerationGate)
-                        .GetField("m_active", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(gate)!;
-                    var counts = (long[])typeof(StripedCounter)
-                        .GetField("m_counts", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(counter)!;
+                    var counter = new StripedCounter();
+                    var gate = new GenerationGate(NodeManagerGenerationState.Live, counter);
 
                     // Model admission on the last real processor stripe, before closing the gate.
-                    int parentSlot = counts.Length - 16;
-                    Interlocked.Increment(ref counts[parentSlot]);
+                    int parentSlot = counter.LastSlot;
+                    counter.Enter(parentSlot);
                     parent = new GenerationGate.Lease(gate, parentSlot);
                     gate.Retire();
                     Assert.That(barrier.SignalAndWait(TimeSpan.FromSeconds(10), cancellation.Token), Is.True);
@@ -246,7 +283,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         public async Task ConfirmedDrainAllowsDisposalWhileLateEntryIsBeingRefusedAsync()
         {
-            var gate = new GenerationGate(NodeManagerGenerationState.Live);
+            var counter = new StripedCounter();
+            var gate = new GenerationGate(NodeManagerGenerationState.Live, counter);
             Assert.That(gate.TryEnter(out GenerationGate.Lease? parent), Is.True);
             gate.Retire();
             Task drained = gate.WaitForDrainAsync();
@@ -254,8 +292,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await drained.ConfigureAwait(false);
 
             // Reproduce the counter state of a fork paused between its increment and parent recheck.
-            var counter = (StripedCounter)typeof(GenerationGate)
-                .GetField("m_active", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(gate)!;
             int pending = counter.Enter();
             try
             {

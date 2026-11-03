@@ -30,14 +30,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using Opc.Ua.Schema;
 using Opc.Ua.Server.RuntimeNodeSet;
-using RetiredGeneration = Opc.Ua.Server.GenerationReclaimer.RetiredGeneration;
 using OperationLifetime = Opc.Ua.Server.LifecycleWriter.OperationLifetime;
+using RetiredGeneration = Opc.Ua.Server.GenerationReclaimer.RetiredGeneration;
 
 namespace Opc.Ua.Server
 {
@@ -2302,7 +2300,6 @@ namespace Opc.Ua.Server
                         FactoryRevision: batch.FactoryRevision,
                         ReadImages: batch.ReadImages,
                         Commit: lifecycleCommit,
-                        CaptureCommittedReferences: committed => committedReferences = committed,
                         CancellationToken: cancellationToken,
                         Preparation: batch.Preparation,
                         References: references,
@@ -2313,6 +2310,10 @@ namespace Opc.Ua.Server
                 catch (Exception failure) when (batch.IsCommitted && failure is not OutOfMemoryException)
                 {
                     reconciliation.ReportOwnedFailure(NodeManagerReconciliationStage.Publication, failure);
+                }
+                finally
+                {
+                    committedReferences ??= lifecycleCommit.CommittedReferences;
                 }
                 if (decideAsync is null)
                 {
@@ -2536,6 +2537,11 @@ namespace Opc.Ua.Server
             /// </summary>
             public bool ReadinessClaimed { get; private set; }
 
+            /// <summary>
+            /// Gets the committed reference changes retained if host reservation cleanup fails.
+            /// </summary>
+            public PublishedReferenceChanges? CommittedReferences { get; private set; }
+
             /// <inheritdoc/>
             public ValueTask DecideAsync(CancellationToken cancellationToken)
             {
@@ -2594,6 +2600,22 @@ namespace Opc.Ua.Server
                     m_owner.m_server.ComplexTypeResolverHolder?.SetResolver(m_batch.Resolver);
                 }
                 m_reconciler.SupersedeReconciliations();
+            }
+
+            /// <inheritdoc/>
+            public void CaptureCommittedReferences(PublishedReferenceChanges references)
+            {
+                if (!m_batch.IsCommitted)
+                {
+                    throw new InvalidOperationException(
+                        "Reference reconciliation requires a committed publication.");
+                }
+                if (CommittedReferences is not null)
+                {
+                    throw new InvalidOperationException(
+                        "Reference reconciliation is already owned by this publication.");
+                }
+                CommittedReferences = references ?? throw new ArgumentNullException(nameof(references));
             }
 
             /// <summary>The registration owner.</summary>
@@ -3002,7 +3024,6 @@ namespace Opc.Ua.Server
                     {
                         return;
                     }
-                    using IDisposable ambientOperation = operation.Activate();
                     if (!IsCommitted)
                     {
                         Exception? failure = await m_owner.AbortBatchEntriesAsync(
@@ -3053,9 +3074,10 @@ namespace Opc.Ua.Server
                 }
                 try
                 {
-                    using IDisposable ambientOperation = (m_operation ??
-                        throw new InvalidOperationException("The prepared batch no longer owns its lifecycle operation."))
-                        .Activate();
+                    if (m_operation is null)
+                    {
+                        throw new InvalidOperationException("The prepared batch no longer owns its lifecycle operation.");
+                    }
                     return await m_owner.CompleteBatchAsync(
                         this, decideAsync, cancellationToken, publishCommittedState).ConfigureAwait(false);
                 }

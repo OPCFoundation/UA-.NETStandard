@@ -49,19 +49,41 @@ namespace Opc.Ua
             out long revision,
             NamespaceTable? namespaceUris = null)
         {
+            return CaptureSnapshot(out source, out revision, namespaceUris, copyNamespaceUris: false);
+        }
+
+        private TypeTable CaptureSnapshot(
+            out TypeTable source,
+            out long revision,
+            NamespaceTable? namespaceUris,
+            bool copyNamespaceUris)
+        {
             lock (m_lock)
             {
                 source = this;
                 revision = m_revision;
                 var storage = new Storage();
                 storage.ShareGraphFrom(m_storage);
-                return new TypeTable(namespaceUris ?? m_namespaceUris)
+                NamespaceTable capturedNamespaces = namespaceUris
+                    ?? (copyNamespaceUris
+                        ? new NamespaceTable(m_namespaceUris.GetSnapshot(out _).ToArray()!)
+                        : m_namespaceUris);
+                return new TypeTable(capturedNamespaces)
                 {
                     m_captureSource = new WeakReference<TypeTable>(this),
                     m_captureRevision = m_revision,
                     m_storage = storage
                 };
             }
+        }
+
+        /// <summary>
+        /// Captures a type image with an independent namespace mapping for immutable published views.
+        /// </summary>
+        /// <returns>The isolated type image.</returns>
+        internal TypeTable CaptureImmutableSnapshot()
+        {
+            return CaptureSnapshot(out _, out _, namespaceUris: null, copyNamespaceUris: true);
         }
 
         private static RegistrationGraph CopyGraph(RegistrationGraph source)

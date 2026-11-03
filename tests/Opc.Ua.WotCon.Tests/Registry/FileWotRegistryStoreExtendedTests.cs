@@ -29,7 +29,6 @@
 
 using System;
 using System.IO;
-using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.WotCon.Server.Registry;
@@ -49,7 +48,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         private static string MakeRoot()
         {
             string root = Path.Combine(
-                TestContext.CurrentContext.TestDirectory,
+                Path.GetTempPath(),
                 "wot-store-ext-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(root);
             return root;

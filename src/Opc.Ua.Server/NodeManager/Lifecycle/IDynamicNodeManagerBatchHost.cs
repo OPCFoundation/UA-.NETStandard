@@ -150,6 +150,12 @@ namespace Opc.Ua.Server
         /// Installs committed registration and retirement bookkeeping at the routing swap.
         /// </summary>
         void Publish();
+
+        /// <summary>
+        /// Takes ownership of committed reference reconciliation before host reservations are released.
+        /// </summary>
+        /// <param name="references">The reference changes installed by publication.</param>
+        void CaptureCommittedReferences(PublishedReferenceChanges references);
     }
 
     /// <summary>
@@ -166,9 +172,6 @@ namespace Opc.Ua.Server
     /// <param name="FactoryRevision">The revision of the original factory.</param>
     /// <param name="ReadImages">The read images to bind when the batch is published.</param>
     /// <param name="Commit">The owner of the durable decision and registration publication.</param>
-    /// <param name="CaptureCommittedReferences">
-    /// Captures reference reconciliation ownership immediately after publication.
-    /// </param>
     /// <param name="CancellationToken">The token to cancel the operation.</param>
     /// <param name="Preparation">The explicit private metadata staging context.</param>
     /// <param name="References">Reference edits discovered before publication serialization.</param>
@@ -185,12 +188,34 @@ namespace Opc.Ua.Server
         long FactoryRevision,
         ArrayOf<INodeManagerReadImage> ReadImages,
         INodeManagerPublicationCommit Commit,
-        Action<PublishedReferenceChanges> CaptureCommittedReferences,
         ChangePreparer Preparation,
         CancellationToken CancellationToken,
         PreparedAddressSpaceReferences? References = null,
         NodeManagerCallbackPermit? CallbackPermit = null,
         INodeManagerBatchAdmission? Admission = null);
+
+    /// <summary>
+    /// Decorates publication and observes dispatch without replacing the bound host or its owners.
+    /// </summary>
+    internal interface INodeManagerHostBoundary
+    {
+        /// <summary>
+        /// Executes publication through the real host, optionally decorating its commit notification.
+        /// </summary>
+        ValueTask<PublishedReferenceChanges?> CommitBatchAsync(
+            NodeManagerPublicationPlan plan,
+            Func<NodeManagerPublicationPlan, ValueTask<PublishedReferenceChanges?>> publish);
+
+        /// <summary>
+        /// Observes reference preparation after the host has returned its pending or completed operation.
+        /// </summary>
+        void ReferencePreparationDispatched();
+
+        /// <summary>
+        /// Observes AddNodes after the host has returned its pending or completed operation.
+        /// </summary>
+        void AddNodesDispatched();
+    }
 
     /// <summary>
     /// Publication responsibilities of the unified dynamic NodeManager host.

@@ -232,6 +232,24 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Enabling weak-key caching releases a first copy already held by the operation.
+        /// </summary>
+        [Test]
+        public void EnablingWeakCacheReleasesFirstTemplateAndCopy()
+        {
+            (OperationContext operation, WeakReference template, WeakReference copy) =
+                CreateWeakCacheTransitionReferences();
+            CollectGarbage();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(template.IsAlive, Is.False);
+                Assert.That(copy.IsAlive, Is.False);
+            });
+            GC.KeepAlive(operation);
+        }
+
+        /// <summary>
         /// A template copy is isolated to the operation's identity and secure-channel context.
         /// </summary>
         [Test]
@@ -378,6 +396,21 @@ namespace Opc.Ua.Server.Tests
                 new WeakReference(firstCopy),
                 new WeakReference(cachedTemplate),
                 new WeakReference(cachedCopy));
+        }
+
+        /// <summary>
+        /// Creates an ordinary operation, then switches it to weak-key template caching.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static (OperationContext Operation, WeakReference Template, WeakReference Copy)
+            CreateWeakCacheTransitionReferences()
+        {
+            OperationContext operation = CreateOperation();
+            ServerSystemContext template = CreateTemplate(systemHandle: "first");
+            ServerSystemContext copy = operation.GetSystemContext(template);
+            operation.EnableWeakSystemContextCache();
+
+            return (operation, new WeakReference(template), new WeakReference(copy));
         }
 
         /// <summary>

@@ -136,6 +136,108 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Diagnostic identities and counts follow admissions and pins without changing their ownership.
+        /// </summary>
+        [Test]
+        public void QuiescenceDiagnosticsIdentifyAdmissionsAndPinnedEpochs()
+        {
+            NodeManagerGeneration generation = CreateGeneration();
+            var firstEpoch = new AddressSpaceEpoch();
+            var secondEpoch = new AddressSpaceEpoch();
+            var idleEpoch = new AddressSpaceEpoch();
+            generation.RegisterViewEpoch(firstEpoch);
+            generation.RegisterViewEpoch(secondEpoch);
+            generation.RegisterViewEpoch(idleEpoch);
+            Assert.That(generation.Gate.TryEnter(out GenerationGate.Lease? admission), Is.True);
+            Assert.That(firstEpoch.TryPin(out int firstPin), Is.True);
+            Assert.That(firstEpoch.TryPin(out int additionalPin), Is.True);
+            Assert.That(secondEpoch.TryPin(out int secondPin), Is.True);
+            try
+            {
+                string context = generation.GetQuiescenceWaitContext();
+                Assert.That(context, Is.EqualTo(
+                    $"slot={generation.Slot.Id}; generation={generation.Number}; " +
+                    $"manager={generation.NodeManager.GetType().FullName}; " +
+                    $"activeAdmissions=1; pinnedEpochs=[{firstEpoch.Id}=2, {secondEpoch.Id}=1]"));
+                Assert.That(generation.HasActiveQuiescenceBlockers, Is.True);
+                Assert.That(generation.Gate.ActiveCount, Is.EqualTo(1));
+                Assert.That(firstEpoch.ActiveCount, Is.EqualTo(2));
+                Assert.That(secondEpoch.ActiveCount, Is.EqualTo(1));
+
+                firstEpoch.Exit(additionalPin);
+                additionalPin = -1;
+                Assert.That(generation.GetQuiescenceWaitContext(), Does.EndWith(
+                    $"activeAdmissions=1; pinnedEpochs=[{firstEpoch.Id}=1, {secondEpoch.Id}=1]"));
+            }
+            finally
+            {
+                if (additionalPin >= 0)
+                {
+                    firstEpoch.Exit(additionalPin);
+                }
+                firstEpoch.Exit(firstPin);
+                secondEpoch.Exit(secondPin);
+                admission!.Dispose();
+            }
+            Assert.That(generation.HasActiveQuiescenceBlockers, Is.False);
+            Assert.That(generation.GetQuiescenceWaitContext(), Does.EndWith(
+                "activeAdmissions=0; pinnedEpochs=[none]"));
+        }
+
+        /// <summary>
+        /// Canceling a quiescence wait leaves epoch pins and admissions owned until their callers release them.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task CancelingQuiescenceWaitDoesNotReleaseBlockersAsync(bool pinEpoch)
+        {
+            NodeManagerGeneration generation = CreateGeneration();
+            var epoch = new AddressSpaceEpoch();
+            generation.RegisterViewEpoch(epoch);
+            Assert.That(generation.Gate.TryEnter(out GenerationGate.Lease? admission), Is.True);
+            int pin = -1;
+            if (pinEpoch)
+            {
+                Assert.That(epoch.TryPin(out pin), Is.True);
+            }
+            epoch.Close();
+            generation.Gate.Retire();
+            using var cancellation = new CancellationTokenSource();
+            try
+            {
+                Task canceledWait = generation.WaitForQuiescenceAsync(cancellation.Token).AsTask();
+                Task survivingWait = generation.WaitForQuiescenceAsync(CancellationToken.None).AsTask();
+                Assert.That(canceledWait.IsCompleted, Is.False);
+                await cancellation.CancelAsync().ConfigureAwait(false);
+                await Assert.CatchAsync<OperationCanceledException>(
+                    async () => await canceledWait.ConfigureAwait(false)).ConfigureAwait(false);
+                Assert.That(survivingWait.IsCompleted, Is.False);
+                Assert.That(generation.Gate.ActiveCount, Is.EqualTo(1));
+                Assert.That(epoch.ActiveCount, Is.EqualTo(pinEpoch ? 1 : 0));
+                Assert.That(generation.IsQuiescent, Is.False);
+                Assert.That(generation.HasActiveQuiescenceBlockers, Is.True);
+                if (pinEpoch)
+                {
+                    epoch.Exit(pin);
+                    pin = -1;
+                    Assert.That(survivingWait.IsCompleted, Is.False);
+                }
+                admission!.Dispose();
+                await survivingWait.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.That(generation.IsQuiescent, Is.True);
+                Assert.That(generation.HasActiveQuiescenceBlockers, Is.False);
+            }
+            finally
+            {
+                if (pin >= 0)
+                {
+                    epoch.Exit(pin);
+                }
+                admission!.Dispose();
+            }
+        }
+
+        /// <summary>
         /// A failed retained event is retried before later events to preserve emission order.
         /// </summary>
         [Test]

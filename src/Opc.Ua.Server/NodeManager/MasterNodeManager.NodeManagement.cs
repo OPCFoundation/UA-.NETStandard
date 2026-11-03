@@ -163,11 +163,26 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public virtual async ValueTask<(ArrayOf<AddNodesResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)>
+        public virtual ValueTask<(ArrayOf<AddNodesResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)>
             AddNodesAsync(
                 OperationContext context,
                 ArrayOf<AddNodesItem> nodesToAdd,
                 CancellationToken cancellationToken = default)
+        {
+            ValueTask<(ArrayOf<AddNodesResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)> response =
+                AddNodesCoreAsync(context, nodesToAdd, cancellationToken);
+            m_hostBoundary?.AddNodesDispatched();
+            return response;
+        }
+
+        /// <summary>
+        /// Dispatches AddNodes under address-space mutation admission.
+        /// </summary>
+        private async ValueTask<(ArrayOf<AddNodesResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)>
+            AddNodesCoreAsync(
+                OperationContext context,
+                ArrayOf<AddNodesItem> nodesToAdd,
+                CancellationToken cancellationToken)
         {
             bool isLifecycleDecision = m_currentLifecycleDecision.Value is { IsCompleted: false };
             if (isLifecycleDecision &&

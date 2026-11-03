@@ -104,6 +104,12 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        OperationContext.RoutingScope IRequestRouting.CaptureRequest(OperationContext context)
+        {
+            return m_serviceDispatch.CaptureRouting(context);
+        }
+
+        /// <inheritdoc/>
         void IRequestRouting.PinRequest(OperationContext context)
         {
             // These services recapture routing after their mutation-admission wait.

@@ -59,10 +59,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
 
             IServerInternal server = m_server.CurrentInstance;
-            NodeManagerRoutingTable routing = GetRoutingTable((MasterNodeManager)server.NodeManager);
+            var host = (IDynamicNodeManagerBatchHost)server.NodeManager;
             using var pinnedContext = new OperationContext(
                 new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
-            pinnedContext.PinRouting(routing);
+            ((IRequestRouting)server.NodeManager).PinRequest(pinnedContext);
             NodeManagerRoutingTable.RoutingSnapshot before = pinnedContext.RoutingSnapshot!;
             var nextImage = new LifecycleReadImage(unchanged.NodeManager, 2);
             TrackingLifecycleNodeManager? candidateManager = null;
@@ -75,7 +75,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             using (Assert.EnterMultipleScope())
             {
-                Assert.That(routing.Revision, Is.SameAs(before));
+                Assert.That(host.RoutingRevision, Is.SameAs(before));
                 Assert.That(before.ReadImages[unchanged.NodeManager], Is.SameAs(previousImage));
                 Assert.That(Array.IndexOf(before.NodeManagers, candidate), Is.EqualTo(-1));
             }
@@ -83,7 +83,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             if (commit)
             {
                 await batch.CommitAsync(_ => default, timeout.Token).ConfigureAwait(false);
-                NodeManagerRoutingTable.RoutingSnapshot after = routing.Revision;
+                NodeManagerRoutingTable.RoutingSnapshot after = host.RoutingRevision;
                 using (Assert.EnterMultipleScope())
                 {
                     Assert.That(after, Is.Not.SameAs(before));
@@ -101,9 +101,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await batch.DisposeAsync().ConfigureAwait(false);
                 using (Assert.EnterMultipleScope())
                 {
-                    Assert.That(routing.Revision, Is.SameAs(before));
-                    Assert.That(routing.Revision.ReadImages[unchanged.NodeManager], Is.SameAs(previousImage));
-                    Assert.That(Array.IndexOf(routing.Revision.NodeManagers, candidate), Is.EqualTo(-1));
+                    Assert.That(host.RoutingRevision, Is.SameAs(before));
+                    Assert.That(host.RoutingRevision.ReadImages[unchanged.NodeManager], Is.SameAs(previousImage));
+                    Assert.That(Array.IndexOf(host.RoutingRevision.NodeManagers, candidate), Is.EqualTo(-1));
                     Assert.That(candidateManager?.DeleteAddressSpaceCount, Is.EqualTo(1));
                     Assert.That(candidateManager?.DisposeCount, Is.EqualTo(1));
                 }

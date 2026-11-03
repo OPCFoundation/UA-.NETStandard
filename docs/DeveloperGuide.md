@@ -106,6 +106,14 @@ Conventions and requirements:
   repository assets there; no asset or assembly copying is needed. An invalid
   configured root fails explicitly instead of falling back to another checkout.
 - **NUnit 5 async assertions.** Always await `Assert.ThrowsAsync`, `Assert.CatchAsync`, and `Assert.DoesNotThrowAsync`; these methods return tasks and no longer block until the assertion completes. The enclosing test or helper must return `Task`.
+- **WoT registry test storage.** File-backed registry and certificate fixtures
+  create unique directories under `Path.GetTempPath()` and delete their own
+  directories during cleanup. On Windows, select a short writable temporary
+  root before starting the runner (for example, set `TEMP` and `TMP` to
+  `D:\temp`). Registry staging keys and certificate names can otherwise exceed
+  the .NET Framework path limit when appended to a long checkout directory.
+  Keep repository assets in their existing locations; only writable test
+  storage belongs under the temporary root.
 - **Ordered NUnit fixtures.** Use `DependsOnTest` rather than the obsolete `Order` attribute. Existing sequencing-only dependencies use `AllowFailure = true` so one failed test does not suppress later tests. Filtering a dependent test also runs its prerequisites; dependency chains must not use fixture-level `Parallelizable`.
 - **Coverage.** Coverage is measured with **Coverlet** and must not regress; every non-application, non-test project should stay at or above **80 %**. Two gates enforce this in CI — see [Continuous integration](#continuous-integration).
 - **Integration tests.** Client/server and pub/sub features need integration tests as well as unit tests. A feature library's integration tests normally live with its unit tests in `<Component>.Tests`, for example `Opc.Ua.Robotics.Tests`, and every test project name ends in `.Tests`. Split integration tests into a separate project only when they run long, destabilise the unit tests, or the suite needs further division. Keep them deterministic: allocate a free port per fixture rather than hard-coding one, wait on the actual signal instead of using `Thread.Sleep` as a synchronisation primitive, and dispose every session, subscription and server in teardown including on failure. A flaky integration test is worse than none.
@@ -236,6 +244,34 @@ dotnet test tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj -f net48 --filt
 Use fully qualified fixture or method names to select a narrower regression.
 The `Server` and `NodeManagerLifecycle` categories include both component and
 hosted lifecycle tests.
+
+For an exact-stripe admission race, inject a `StripedCounter` into `GenerationGate`
+and enter its `LastSlot`. Do not reflect over either component's private storage.
+Use `SamplingGroupManager.SamplingGroupCount` for retained-group assertions;
+the manager synchronizes the snapshot internally.
+
+Use `IRequestRouting.CaptureRequest` for a borrowed routing scope and `PinRequest`
+for request-lifetime ownership. When a standalone test must control managed
+membership before and after a pin, supply its routing table to the internal master
+constructor; namespace-route registration alone does not add managed membership.
+For historian capture cleanup, observe the builder's weak callback target and
+keep the variable alive through collection. Collecting both the publisher and
+its callback does not prove that the subscription was detached.
+Use the internal operation-context bootstrap checkpoint to force a stale
+null-cohort decision across a borrow/drain or ownership upgrade; assert epoch
+ownership and disposal rejection instead of reading private pin-state values.
+
+For publication failures and dispatch barriers, install `INodeManagerHostBoundary`
+when constructing the master. Keep the original master bound throughout the test;
+do not replace `ServerInternalData.NodeManager` after startup. Decorate the actual
+session or subscription worker at construction when a shutdown test needs to retain
+its drain. Register throwing cancellation callbacks on the owner's read-only token,
+not on a replacement cancellation source.
+
+Use `Subscription.IncludeExternalMonitoredItem` only when testing membership of an
+externally owned item without source creation or rebinding. Dispose its membership
+lease before deleting the subscription. Normal monitored-item tests must use the
+service creation and deletion paths.
 
 ### Testing UaLens
 

@@ -27,7 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
@@ -42,6 +44,78 @@ namespace Opc.Ua.Server.Tests.NodeManager
     [Parallelizable(ParallelScope.All)]
     public sealed class PreparedNodeManagerTests
     {
+        /// <summary>
+        /// A retained disposed adapter keeps its exposed facts but releases its unpublished provider.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DisposedChangesReleaseProviderAndPreserveCandidateFactsAsync(bool committed)
+        {
+            (IPreparedChanges changes, WeakReference provider, NodeManagerRegistration registration) =
+                await CreateDisposedChangesAsync(committed).ConfigureAwait(false);
+            try
+            {
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+                Assert.That(provider.IsAlive, Is.False);
+                Assert.That(changes.IsCommitted, Is.EqualTo(committed));
+                Assert.That(changes.Registrations.Count, Is.EqualTo(1));
+                Assert.That(changes.Registrations[0], Is.SameAs(registration));
+                Assert.That(changes.Slots[0], Is.SameAs(registration.Slot));
+                await changes.DisposeAsync().ConfigureAwait(false);
+                Assert.That(changes.IsCommitted, Is.EqualTo(committed));
+            }
+            finally
+            {
+                GC.KeepAlive(changes);
+            }
+        }
+
+        /// <summary>
+        /// Failed provider cleanup remains observable and retryable instead of dropping the outstanding owner.
+        /// </summary>
+        [Test]
+        public async Task FailedChangesDisposalRetainsProviderUntilRetryAsync()
+        {
+            var failure = new InvalidOperationException("The private provider cleanup failed.");
+            var provider = new Mock<IPreparedNodeManagerBatch>(MockBehavior.Strict);
+            provider.SetupGet(value => value.Registrations).Returns([]);
+            provider.SetupGet(value => value.IsCommitted).Returns(false);
+            provider.SetupSequence(value => value.DisposeAsync())
+                .Throws(failure)
+                .Returns(default(ValueTask));
+            var changes = new PreparedLifecycleChanges(provider.Object, ArrayOf<LifecycleChange>.Empty);
+            InvalidOperationException? observed = await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await changes.DisposeAsync().ConfigureAwait(false)).ConfigureAwait(false);
+            Assert.That(observed, Is.SameAs(failure));
+            Assert.That(changes.IsCommitted, Is.False);
+            await changes.DisposeAsync().ConfigureAwait(false);
+            await changes.DisposeAsync().ConfigureAwait(false);
+            provider.Verify(value => value.DisposeAsync(), Times.Exactly(2));
+            Assert.That(changes.Registrations.IsEmpty, Is.True);
+        }
+
+        /// <summary>
+        /// Separates provider construction and completed disposal from the collection assertion.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static async Task<(IPreparedChanges Changes, WeakReference Provider, NodeManagerRegistration Registration)>
+            CreateDisposedChangesAsync(bool committed)
+        {
+            IAsyncNodeManager manager = Mock.Of<IAsyncNodeManager>();
+            var registration = new NodeManagerRegistration(Guid.NewGuid(), 1, manager);
+            var provider = new Mock<IPreparedNodeManagerBatch>(MockBehavior.Strict);
+            provider.SetupGet(value => value.Registrations).Returns(new ArrayOf<NodeManagerRegistration>([registration]));
+            provider.SetupGet(value => value.IsCommitted).Returns(committed);
+            provider.Setup(value => value.DisposeAsync()).Returns(default(ValueTask));
+            var changes = new PreparedLifecycleChanges(
+                provider.Object, [LifecycleChange.Add(Mock.Of<IAsyncNodeManagerFactory>())]);
+            await changes.DisposeAsync().ConfigureAwait(false);
+            provider.Verify(value => value.DisposeAsync(), Times.Once);
+            return (changes, new WeakReference(provider.Object), registration);
+        }
+
         /// <summary>
         /// Every required construction input is checked before candidate ownership is established.
         /// </summary>

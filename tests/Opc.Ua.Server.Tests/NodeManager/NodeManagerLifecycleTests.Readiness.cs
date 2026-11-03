@@ -29,11 +29,13 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
+using System.IO;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Historian;
@@ -46,6 +48,131 @@ namespace Opc.Ua.Server.Tests.NodeManager
         private static readonly TimeSpan s_readinessTimeout = TimeSpan.FromSeconds(5);
 
         private const string kReadinessProbeNamespaceUri = kModelNamespaceUri + ":ReadinessProbe";
+
+        /// <summary>
+        /// A delayed readiness participant logs its published identity once without completing or destroying it.
+        /// </summary>
+        [Test]
+        [Category("NodeManagerReadiness")]
+        public async Task ReadinessWarningReportsPublishedGenerationWithoutForcingCompletionAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var timerReady = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var warning = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var timeProvider = new Mock<TimeProvider>();
+            timeProvider.Setup(value => value.GetUtcNow()).Returns(clock.GetUtcNow);
+            timeProvider.Setup(value => value.GetTimestamp()).Returns(clock.GetTimestamp);
+            timeProvider.SetupGet(value => value.TimestampFrequency).Returns(clock.TimestampFrequency);
+            timeProvider.Setup(value => value.CreateTimer(
+                It.IsAny<TimerCallback>(), It.IsAny<object?>(), It.IsAny<TimeSpan>(), It.IsAny<TimeSpan>()))
+                .Returns((TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period) =>
+                {
+                    ITimer timer = clock.CreateTimer(callback, state, dueTime, period);
+                    if (entered.Task.IsCompleted && dueTime == LifecycleWaitDiagnostics.WarningThreshold)
+                    {
+                        timerReady.TrySetResult(true);
+                    }
+                    return timer;
+                });
+            var logger = new Mock<ILogger>();
+            logger.Setup(value => value.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
+            logger.Setup(value => value.Log(
+                LogLevel.Warning, It.IsAny<EventId>(), It.IsAny<It.IsAnyType>(),
+                It.IsAny<Exception?>(), It.IsAny<Func<It.IsAnyType, Exception?, string>>()))
+                .Callback(new InvocationAction(invocation =>
+                    warning.TrySetResult(invocation.Arguments[2]?.ToString()
+                        ?? throw new InvalidOperationException("The warning did not contain log state."))));
+            var loggerProvider = new Mock<ILoggerProvider>();
+            loggerProvider.Setup(value => value.CreateLogger(It.IsAny<string>()))
+                .Returns(NullLogger.Instance);
+            loggerProvider.Setup(value => value.CreateLogger(typeof(NodeManagerLifecycle).FullName!))
+                .Returns(logger.Object);
+            var fixture = new ServerFixture<StandardServer>(
+                telemetry =>
+                {
+                    telemetry.LoggerFactory.AddProvider(loggerProvider.Object);
+                    return new StandardServer(telemetry, timeProvider.Object);
+                })
+            {
+                UriScheme = Utils.UriSchemeOpcTcp,
+                SecurityNone = true,
+                AutoAccept = true
+            };
+            StandardServer? server = null;
+            Task<NodeManagerRegistration>? add = null;
+            try
+            {
+                server = await fixture.StartAsync(Path.Combine(m_pkiRoot, "readiness-warning"))
+                    .ConfigureAwait(false);
+                INodeManagerLifecycle lifecycle = server.NodeManagerLifecycle;
+                ReadinessLifecycleNodeManager? participant = null;
+                var factory = new CountingNodeManagerFactory(
+                    [kModelNamespaceUri],
+                    (internalServer, configuration, _) =>
+                    {
+                        participant = new ReadinessLifecycleNodeManager(
+                            internalServer, configuration, m_logger, kGeneration1Value)
+                        {
+                            ReadinessCallback = async ct =>
+                            {
+                                entered.TrySetResult(true);
+                                await release.Task.WaitAsync(ct).ConfigureAwait(false);
+                            }
+                        };
+                        return new ValueTask<IAsyncNodeManager>(participant);
+                    });
+                add = lifecycle.AddAsync(factory, null, timeout.Token).AsTask();
+                await timerReady.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                AssertLifecycleValue(participant);
+                NodeManagerRegistration registration = RequireLifecycleValue(lifecycle.Registrations.Find(
+                    candidate => candidate.NamespaceUris.Contains(kModelNamespaceUri)));
+                long publishedRevision = lifecycle.Revision;
+                clock.Advance(LifecycleWaitDiagnostics.WarningThreshold);
+                string message = await warning.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(message, Does.Contain("NodeManager readiness callback"));
+                    Assert.That(message, Does.Contain(LifecycleWaitDiagnostics.WarningThreshold.ToString()));
+                    Assert.That(message, Does.Contain(registration.Identity.GetQuiescenceWaitContext()));
+                    Assert.That(message, Does.Contain("pendingReadinessCount=1"));
+                    Assert.That(registration.NodeManager, Is.SameAs(participant));
+                    Assert.That(add.IsCompleted, Is.False);
+                    Assert.That(participant.ReadinessCount, Is.EqualTo(1));
+                    Assert.That(participant.ReadinessCompletedCount, Is.Zero);
+                    Assert.That(participant.DeleteAddressSpaceCount, Is.Zero);
+                    Assert.That(participant.DisposeCount, Is.Zero);
+                }
+                clock.Advance(TimeSpan.FromMinutes(1));
+                release.TrySetResult(true);
+                Assert.That(await add.WaitAsync(timeout.Token).ConfigureAwait(false), Is.SameAs(registration));
+                Assert.That(lifecycle.Revision, Is.EqualTo(publishedRevision));
+                Assert.That(participant.ReadinessCompletedCount, Is.EqualTo(1));
+                Assert.That(participant.DeleteAddressSpaceCount, Is.Zero);
+                Assert.That(participant.DisposeCount, Is.Zero);
+                logger.Verify(value => value.Log(
+                    LogLevel.Warning, It.IsAny<EventId>(), It.IsAny<It.IsAnyType>(),
+                    It.IsAny<Exception?>(), It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Once);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                try
+                {
+                    if (add is not null)
+                    {
+                        await add.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    server?.Dispose();
+                    await fixture.StopAsync().ConfigureAwait(false);
+                }
+            }
+        }
 
         /// <summary>
         /// Reconciliation permits a nested writer while its result retains the revision and slots it published.
@@ -483,9 +610,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(readinessAttempts, Is.EqualTo(1));
             AssertCandidateHistorianRegistrationsArePrivate(candidate, serving);
             Assert.That(
-                ContainsStateChangedHandler(candidate.Variable, candidate.CaptureHandler),
+                IsCaptureHandlerTargetAlive(candidate.CaptureHandlerTarget),
                 Is.True,
                 "The candidate builder must retain its capture handler while the committed readiness result is retryable.");
+            candidate.Variable.Value = new Variant(42);
+            await candidate.Variable.ClearChangeMasksAsync(participant!.SystemContext, includeChildren: false)
+                .ConfigureAwait(false);
+            ArrayOf<HistorianDataBatch> capturedBatch =
+                await candidate.NodeProvider.FirstInsert.WaitAsync(s_readinessTimeout).ConfigureAwait(false);
+            Assert.That(capturedBatch, Has.Count.EqualTo(1));
+            Assert.That(capturedBatch[0].NodeId, Is.EqualTo(candidate.ExactNode));
+            Assert.That(capturedBatch[0].Values, Has.Count.EqualTo(1));
+            Assert.That(capturedBatch[0].Values[0].WrappedValue.GetInt32(), Is.EqualTo(42));
+            AssertCandidateHistorianRegistrationsArePrivate(candidate, serving);
 
             NodeManagerBatchResult readinessResult = failure.Result ??
                 throw new AssertionException("The failed readiness operation did not retain its retry result.");
@@ -556,14 +693,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(serving.Resolve(candidate.ExactNode), Is.SameAs(candidate.BaselineExactProvider));
             Assert.That(serving.Resolve(candidate.NamespaceNode), Is.SameAs(candidate.BaselineNamespaceProvider));
             Assert.That(serving.Resolve(candidate.DefaultNode), Is.SameAs(candidate.BaselineDefaultProvider));
-            Assert.That(
-                ContainsStateChangedHandler(candidate.Variable, candidate.CaptureHandler),
-                Is.False,
-                "Retiring the ready generation must detach its builder-owned capture handler.");
-            Assert.That(
-                ContainsStateChangedHandler(replacementCandidate.Variable, replacementCandidate.CaptureHandler),
-                Is.False,
-                "Retiring the replacement generation must detach its builder-owned capture handler.");
+            await AssertCaptureHandlerTargetCollectedAsync(
+                candidate.CaptureHandlerTarget,
+                candidate.Variable).ConfigureAwait(false);
+            await AssertCaptureHandlerTargetCollectedAsync(
+                replacementCandidate.CaptureHandlerTarget,
+                replacementCandidate.Variable).ConfigureAwait(false);
             Assert.That(candidate.NodeProvider.DisposeCount, Is.Zero,
                 "The serving registry retains disposal responsibility for a published provider.");
             Assert.That(candidate.NamespaceProvider.DisposeCount, Is.Zero);
@@ -630,11 +765,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(serving.Providers.Contains(otherOwnerProvider), Is.True);
                 Assert.That(legacyProvider.DisposeCount, Is.Zero);
                 Assert.That(otherOwnerProvider.DisposeCount, Is.Zero);
-                Assert.That(ContainsStateChangedHandler(candidate.Variable, candidate.CaptureHandler), Is.False);
                 Assert.That(candidate.NodeProvider.DisposeCount, Is.EqualTo(1));
                 Assert.That(candidate.NamespaceProvider.DisposeCount, Is.EqualTo(1));
                 Assert.That(candidate.DefaultProvider.DisposeCount, Is.EqualTo(1));
             }
+            await AssertCaptureHandlerTargetCollectedAsync(
+                candidate.CaptureHandlerTarget,
+                candidate.Variable).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1534,7 +1671,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             var nodeBuilder = new HistorianBuilder(stagingServer).UseProvider(nodeProvider);
             nodeBuilder.RegisterForNode(exactNode);
-            Delegate[] initialHandlers = GetStateChangedHandlers(variable);
             nodeBuilder.Historize(
                 variable,
                 systemContext: manager.SystemContext,
@@ -1543,25 +1679,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     BatchTarget = 1,
                     BatchWindow = TimeSpan.FromSeconds(1)
                 });
+            WeakReference<object> captureHandlerTarget =
+                nodeBuilder.CreateCaptureHandlerTargetReference(variable);
             new HistorianBuilder(stagingServer)
                 .UseProvider(namespaceProvider)
                 .RegisterForNamespace(kModelNamespaceUri);
             new HistorianBuilder(stagingServer)
                 .UseProvider(defaultProvider)
                 .RegisterAsDefault();
-
-            Delegate? captureHandler = null;
-            foreach (Delegate handler in GetStateChangedHandlers(variable))
-            {
-                if (!initialHandlers.Any(initial => ReferenceEquals(initial, handler)))
-                {
-                    Assert.That(captureHandler, Is.Null,
-                        "Historize must install exactly one capture handler on this variable.");
-                    captureHandler = handler;
-                }
-            }
-            Assert.That(captureHandler, Is.Not.Null,
-                "Historize must install the candidate builder's value-capture handler.");
 
             return new StagedHistorianState(
                 localRegistry,
@@ -1575,7 +1700,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 namespaceProvider,
                 defaultProvider,
                 variable,
-                captureHandler!);
+                captureHandlerTarget);
         }
 
         private static void AssertCandidateHistorianRegistrationsArePrivate(
@@ -1593,26 +1718,45 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(serving.Providers.Contains(staged.DefaultProvider), Is.False);
         }
 
-        private static Delegate[] GetStateChangedHandlers(BaseVariableState variable)
+        /// <summary>
+        /// Verifies detachment while keeping the event publisher alive throughout collection.
+        /// </summary>
+        private static async Task AssertCaptureHandlerTargetCollectedAsync(
+            WeakReference<object> captureHandlerTarget,
+            BaseDataVariableState variable)
         {
-            var handlersField = typeof(NodeState).GetField(
-                nameof(NodeState.StateChanged),
-                BindingFlags.Instance | BindingFlags.NonPublic);
-            Assert.That(handlersField, Is.Not.Null,
-                "The StateChanged backing delegate is required to verify builder cleanup.");
-            return ((Delegate?)handlersField!.GetValue(variable))?.GetInvocationList() ?? [];
+            try
+            {
+                for (int attempt = 0; attempt < 20; attempt++)
+                {
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                    GC.Collect();
+                    if (!IsCaptureHandlerTargetAlive(captureHandlerTarget))
+                    {
+                        return;
+                    }
+                    await Task.Delay(TimeSpan.FromMilliseconds(10)).ConfigureAwait(false);
+                }
+
+                Assert.That(
+                    IsCaptureHandlerTargetAlive(captureHandlerTarget),
+                    Is.False,
+                    "The retained variable event subscription must no longer root its capture handler.");
+            }
+            finally
+            {
+                GC.KeepAlive(variable);
+            }
         }
 
-        private static bool ContainsStateChangedHandler(BaseVariableState variable, Delegate expected)
+        /// <summary>
+        /// Checks the callback lifetime without extending it into the caller's collection attempt.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static bool IsCaptureHandlerTargetAlive(WeakReference<object> captureHandlerTarget)
         {
-            foreach (Delegate handler in GetStateChangedHandlers(variable))
-            {
-                if (ReferenceEquals(handler, expected))
-                {
-                    return true;
-                }
-            }
-            return false;
+            return captureHandlerTarget.TryGetTarget(out _);
         }
 
         private static void AssertReadinessManager(
@@ -1850,8 +1994,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             /// <summary>The provider staged during address-space creation.</summary>
             private readonly IHistorianProvider m_provider;
+
             /// <summary>The number of historian registrations made during creation.</summary>
             private int m_addressSpaceRegistrationCount;
+
             /// <summary>The number of completed disposal callbacks.</summary>
             private int m_disposeCount;
         }
@@ -1868,7 +2014,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             LifecycleHistorianProvider NamespaceProvider,
             LifecycleHistorianProvider DefaultProvider,
             BaseDataVariableState Variable,
-            Delegate CaptureHandler);
+            WeakReference<object> CaptureHandlerTarget);
 
         private sealed class LifecycleHistorianProvider :
             HistorianProviderBase,
@@ -1877,11 +2023,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             public int DisposeCount { get; private set; }
 
+            /// <summary>
+            /// Gets the first captured batch submitted to the provider.
+            /// </summary>
+            internal Task<ArrayOf<HistorianDataBatch>> FirstInsert => m_firstInsert.Task;
+
             public ValueTask<ArrayOf<HistorianUpdateOutcome<DataValue>>> InsertBatchAsync(
                 HistorianOperationContext context,
                 ArrayOf<HistorianDataBatch> batch,
                 CancellationToken cancellationToken)
             {
+                m_firstInsert.TrySetResult(batch);
                 return new ValueTask<ArrayOf<HistorianUpdateOutcome<DataValue>>>(
                     Array.Empty<HistorianUpdateOutcome<DataValue>>());
             }
@@ -1890,6 +2042,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 DisposeCount++;
             }
+
+            /// <summary>The first observed historian batch.</summary>
+            private readonly TaskCompletionSource<ArrayOf<HistorianDataBatch>> m_firstInsert =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
         }
 
         /// <summary>

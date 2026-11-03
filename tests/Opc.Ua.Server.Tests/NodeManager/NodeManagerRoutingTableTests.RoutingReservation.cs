@@ -184,8 +184,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 case "Initialize":
                     Assert.That(table.NamespaceManagers.Keys, Is.EqualTo(ConcurrentNamespaceIndexes));
                     AssertSingleManagerRoute(table.NamespaceManagers, 9, writer);
-                    Assert.That(table.TypeTree, Is.SameAs(initializedTypes));
-                    Assert.That(table.Factory, Is.SameAs(initializedFactory));
+                    Assert.That(table.TypeTree, Is.Not.SameAs(initializedTypes));
+                    Assert.That(table.Factory, Is.Not.SameAs(initializedFactory));
                     break;
                 case "Add":
                 case "AddHidden":

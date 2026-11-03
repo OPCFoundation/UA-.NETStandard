@@ -192,6 +192,22 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Creates an internal read context with a construction-bound routing bootstrap checkpoint.
+        /// </summary>
+        /// <param name="requestHeader">The request header.</param>
+        /// <param name="beforeRoutingBootstrap">Observes null-cohort selection before reading its pin state.</param>
+        /// <param name="requestLifetime">The request lifetime.</param>
+        internal OperationContext(
+            RequestHeader requestHeader,
+            Action beforeRoutingBootstrap,
+            RequestLifetime requestLifetime)
+            : this(requestHeader, null, RequestType.Read, requestLifetime)
+        {
+            m_beforeRoutingBootstrap =
+                beforeRoutingBootstrap ?? throw new ArgumentNullException(nameof(beforeRoutingBootstrap));
+        }
+
+        /// <summary>
         /// The context for the secure channel used to send the request.
         /// </summary>
         /// <value>The channel context.</value>
@@ -467,6 +483,7 @@ namespace Opc.Ua.Server
                     cohort.PinRouting(routingTable);
                     return;
                 }
+                m_beforeRoutingBootstrap?.Invoke();
                 int state = Volatile.Read(ref m_routingPinState);
                 if (state == kRoutingPinReleased)
                 {
@@ -514,6 +531,7 @@ namespace Opc.Ua.Server
                 {
                     return cohort.Enter(routingTable);
                 }
+                m_beforeRoutingBootstrap?.Invoke();
                 int state = Volatile.Read(ref m_routingPinState);
                 if (state == kRoutingPinReleased)
                 {
@@ -593,6 +611,7 @@ namespace Opc.Ua.Server
                     cohort.DisposeContext();
                     return;
                 }
+                m_beforeRoutingBootstrap?.Invoke();
                 int state = Volatile.Read(ref m_routingPinState);
                 if (state == kRoutingPinReleased)
                 {
@@ -690,7 +709,7 @@ namespace Opc.Ua.Server
             {
                 // Ordinary request contexts keep their first copy directly, avoiding a cache entry
                 // on the single-manager hot path. Shared subscriber contexts use weak keys instead.
-                ServerSystemContext? first = m_firstSystemContext;
+                ServerSystemContext? first = Volatile.Read(ref m_firstSystemContext);
                 if (first != null && ReferenceEquals(first.CopiedFrom, template))
                 {
                     return first;
@@ -703,7 +722,13 @@ namespace Opc.Ua.Server
 
                     // a concurrent caller may have published a copy for another template.
                     first = System.Threading.Interlocked.CompareExchange(ref m_firstSystemContext, firstCopy, null);
-                    if (first == null || ReferenceEquals(first.CopiedFrom, template))
+                    if (Volatile.Read(ref m_weakSystemContextCache) != 0)
+                    {
+                        // Weak-cache mode may have been enabled after the first check above.
+                        // Do not leave a newly published strong reference behind.
+                        _ = Interlocked.CompareExchange(ref m_firstSystemContext, null, firstCopy);
+                    }
+                    else if (first == null || ReferenceEquals(first.CopiedFrom, template))
                     {
                         return first ?? firstCopy;
                     }
@@ -1041,6 +1066,9 @@ namespace Opc.Ua.Server
         private int m_routingPinSlot = -1;
         private int m_routingPinState;
         private RoutingCohort? m_routingCohort;
+
+        /// <summary>The construction-bound null-cohort routing checkpoint.</summary>
+        private readonly Action? m_beforeRoutingBootstrap;
         private SystemContextCache? m_systemContextCache;
         private NamespaceDefaultPermissions[]? m_defaultPermissions;
         private bool m_defaultPermissionCacheDisabled;

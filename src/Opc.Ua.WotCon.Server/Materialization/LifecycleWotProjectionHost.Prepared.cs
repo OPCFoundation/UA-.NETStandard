@@ -74,7 +74,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <inheritdoc/>
         /// <param name="changes">The source projection changes to prepare.</param>
         /// <param name="views">The WoT prepared view publication.</param>
-        /// <param name="callerContext">The executing request's context, or <c>null</c>.</param>
+        /// <param name="callerContext">The compatibility request context, ignored by this host.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public ValueTask<IWotPreparedProjectionPublication> PrepareAsync(
             ArrayOf<WotProjectionChange> changes,
@@ -255,7 +255,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             /// <summary>
             /// Begins a publication invocation for the executing request on the captured source-owner revisions.
             /// </summary>
-            /// <param name="callerContext">The executing request's context, or <c>null</c>.</param>
+            /// <param name="callerContext">The compatibility request context, ignored by this host.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public async ValueTask<IWotProjectionPublication> BeginAsync(
                 IOperationContext? callerContext,
