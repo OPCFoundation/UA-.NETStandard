@@ -62,7 +62,12 @@ namespace Opc.Ua.PADIM.Server
             var units = new HashSet<string>(StringComparer.Ordinal);
             var profiles = new HashSet<string>(StringComparer.Ordinal);
             bool health = false;
-            var signals = new HashSet<SignalState>();
+            var signals = new HashSet<SignalState>(RefEqualityComparer.Default);
+            var bound = new HashSet<BaseVariableState>(RefEqualityComparer.Default);
+            foreach (PadimValueBinding binding in bindings)
+            {
+                bound.Add(binding.Variable);
+            }
             foreach (PadimValueBinding binding in bindings)
             {
                 BaseVariableState variable = binding.Variable;
@@ -109,7 +114,8 @@ namespace Opc.Ua.PADIM.Server
                         {
                             Add("BaseSignalCalibration", $"ICalibration {variable.BrowseName.Name}");
                         }
-                        if (calibrationPoint)
+                        if (calibrationPoint && variable.Parent is BaseObjectState point &&
+                            HasBoundFields(point, "CalibrationSetpoint", "CalibrationActualValue"))
                         {
                             Add("BaseSignalCalibration", "ICalibration CalibrationPointSet");
                         }
@@ -122,8 +128,14 @@ namespace Opc.Ua.PADIM.Server
                     }
                     if (instance.BrowseName.Name == BrowseNames.DeviceConditionSet)
                     {
-                        Add("BaseDeviceCondition", "Device Condition Set", "IGeneralDeviceConditionSet");
-                        if (componentConditions)
+                        Add("BaseDeviceCondition", "Device Condition Set");
+                        if (FindMember(instance, "GeneralDeviceConditions") is BaseObjectState general &&
+                            HasType(general, ObjectTypeIds.GeneralDeviceConditionSetType))
+                        {
+                            Add("BaseDeviceCondition", "IGeneralDeviceConditionSet");
+                        }
+                        if (componentConditions && variable.Parent is BaseObjectState component &&
+                            HasType(component, ObjectTypeIds.GeneralDeviceConditionSetType))
                         {
                             Add("BaseDeviceCondition", "IGeneralDeviceConditionSet DeviceComponentConditions");
                         }
@@ -132,16 +144,51 @@ namespace Opc.Ua.PADIM.Server
                 }
                 AddMeasurement(variable);
             }
-            if (health && HasIdentity())
+            bool baseDeviceSupported = health && HasIdentity();
+            bool nanoEmbeddedSupported = baseDeviceSupported && SupportsNanoEmbeddedProfile();
+            if (baseDeviceSupported)
             {
-                Add("Core", "Base", "Nano Embedded");
+                units.Add("PA-DIM Base");
+                if (nanoEmbeddedSupported)
+                {
+                    Add("Core", "Nano Embedded");
+                }
                 Add("BaseDeviceCondition");
                 foreach ((PadimDeviceKind kind, string suffix) in s_deviceFacets)
                 {
-                    if (HasType(State, PadimFactories.DeviceType(kind)))
+                    if (HasType(State, PadimFactories.DeviceType(kind)) &&
+                        (kind != PadimDeviceKind.TocAnalyser ||
+                            SupportsGroup(State, "DeviceConditionSet", ObjectTypeIds.ITocDeviceConditionSetType,
+                                "ReactorTemperature", "CoolerTemperature",
+                                "CarrierGasVolumeFlow", "ReferenceInjectionVolume")))
                     {
                         Add(suffix, "ProcessAnalyserType", $"{kind}Type");
+                        AddOptionalMembers(suffix, $"{kind}Type", FindMember(State, "DeviceConditionSet"));
                     }
+                }
+                if (nanoEmbeddedSupported && signals.Count != 0)
+                {
+                    Add("Core", "ISignal", "SignalSet");
+                }
+                if (nanoEmbeddedSupported && State.SubDevices != null)
+                {
+                    var children = new List<BaseInstanceState>();
+                    State.SubDevices.GetChildren(Context, children);
+                    foreach (BaseInstanceState child in children)
+                    {
+                        if (child is PADIMState && ReferenceEquals(Manager.FindPredefinedNode(child.NodeId), child))
+                        {
+                            Add("Core", "SubDevices");
+                            break;
+                        }
+                    }
+                }
+                if (nanoEmbeddedSupported &&
+                    FindMember(State, "DeviceRevision", "http://opcfoundation.org/UA/DI/") is BaseVariableState revision &&
+                    revision.WrappedValue.TryGetValue(out string deviceRevision) &&
+                    !string.IsNullOrWhiteSpace(deviceRevision))
+                {
+                    Add("Core", "DeviceRevision");
                 }
             }
             if (m_healthAlarms != null)
@@ -156,9 +203,36 @@ namespace Opc.Ua.PADIM.Server
             {
                 foreach ((ExpandedNodeId type, string suffix, string unit, bool analytical) in s_signalFacets)
                 {
-                    if (!HasType(signal, type))
+                    bool requiresPat = analytical && suffix is not ("AmperometricGasDetectorSignal" or
+                        "GasChromatographSignal" or "InfraredSensorSignal");
+                    if (!HasType(signal, type) || !HasRequiredSignalMembers(signal, unit, requiresPat))
                     {
                         continue;
+                    }
+                    AddOptionalMembers(suffix, unit, FindMember(signal, "SignalConditionSet"));
+                    AddSignalOptions(suffix, signal);
+                    if (signal is AnalogSignalObjectState analog)
+                    {
+                        AddProcessOptions(suffix, analog.AnalogSignal);
+                        var children = new List<BaseInstanceState>();
+                        signal.GetChildren(Context, children);
+                        foreach (BaseInstanceState child in children)
+                        {
+                            if (child is BaseObjectState calibration &&
+                                Implements(calibration, ObjectTypeIds.ICalibrationType))
+                            {
+                                string calibrationPrefix = unit switch
+                                {
+                                    "AmperometricSignalType" => "IAmperometricCalibration",
+                                    "OpticalFluorescenseQuenchingSignalType" =>
+                                        "IOpticalFluorescenseQuenchingCalibration",
+                                    "PhSignalType" => "IPhCalibration",
+                                    "GasChromatographSignalType" => "GasChromatograph",
+                                    _ => string.Empty
+                                };
+                                AddOptionalMembers(suffix, calibrationPrefix, calibration);
+                            }
+                        }
                     }
                     Add(suffix, unit);
                     if (analytical)
@@ -217,19 +291,242 @@ namespace Opc.Ua.PADIM.Server
 
             void AddMeasurement(BaseVariableState variable)
             {
-                if (variable.Parent is not AnalogSignalObjectState)
+                if (variable.Parent is not AnalogSignalObjectState signal)
                 {
                     return;
                 }
                 foreach ((ExpandedNodeId type, string suffix, string unit) in s_measurementFacets)
                 {
-                    if (HasType(variable, type))
+                    string[] required = unit switch
+                    {
+                        "TemperatureMeasurementVariable" => ["SensorType"],
+                        "FlowMeasurementVariable" or "MassFlowRateVariable" => ["LowFlowCutOff"],
+                        "TotalizerVariable" => ["PulseValue", "PulseWidth"],
+                        _ => []
+                    };
+                    if (HasType(variable, type) && HasBoundFields(variable, required))
                     {
                         Add(suffix, "Analog Signal", "AnalogSignalVariableType", unit);
                         Add("BaseSignalCalibration");
+                        AddOptionalMembers(suffix, unit, variable);
+                        AddProcessOptions(suffix, variable);
+                        AddSignalOptions(suffix, signal);
+                        if (HasType(variable, VariableTypeIds.ActualVolumeFlowRateVariableType))
+                        {
+                            Add(suffix, "ActualVolumeFlowRateVariable");
+                        }
+                        if (HasType(variable, VariableTypeIds.NormalizedVolumeFlowRateVariableType))
+                        {
+                            Add(suffix, "NormalizedVolumeFlowRateVariable");
+                        }
                     }
                 }
             }
+
+            void AddSignalOptions(string facet, SignalState signal)
+            {
+                if (FindMember(signal, "SignalConditionSet") is BaseObjectState conditions)
+                {
+                    var children = new List<BaseInstanceState>();
+                    conditions.GetChildren(Context, children);
+                    foreach (BaseInstanceState child in children)
+                    {
+                        if (child is BaseVariableState field && bound.Contains(field))
+                        {
+                            Add(facet, "Signal Condition Set");
+                            break;
+                        }
+                    }
+                }
+                if (FindMember(signal, "ControlSignal") is BaseVariableState control)
+                {
+                    AddProcessOptions(facet, control);
+                }
+                if (FindMember(signal, "ZeroPointAdjustment") is MethodState { OnCallMethod2Async: not null })
+                {
+                    Add(facet, "ZeroPointAdjustment method");
+                }
+                if (FindMember(signal, "AutoAdjustPositioner") is MethodState { OnCallMethod2Async: not null })
+                {
+                    Add(facet, "AutoAdjustPositioner method");
+                }
+            }
+
+            bool HasBoundFields(NodeState scope, params string[] fields)
+            {
+                foreach (string field in fields)
+                {
+                    if (FindMember(scope, field) is not BaseVariableState variable || !bound.Contains(variable))
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
+
+            bool SupportsGroup(
+                NodeState owner, string name, ExpandedNodeId requiredInterface, params string[] fields)
+            {
+                return FindMember(owner, name) is BaseObjectState group &&
+                    Implements(group, requiredInterface) && HasBoundFields(group, fields);
+            }
+
+            bool HasRequiredSignalMembers(SignalState signal, string unit, bool requiresPat)
+            {
+                string[] requiredControlFields = unit switch
+                {
+                    "Control Signal" => ["Setpoint", "OperatingDirection", "ActuatorType"],
+                    "TwoStateDiscreteControl Signal" => ["Setpoint", "OperatingDirection"],
+                    "MultiStateDiscreteControl Signal" => ["Setpoint"],
+                    _ => []
+                };
+                if (requiredControlFields.Length != 0 &&
+                    (FindMember(signal, "ControlSignal") is not BaseVariableState control ||
+                        !HasBoundFields(control, requiredControlFields)))
+                {
+                    return false;
+                }
+                (ExpandedNodeId conditionInterface, string[] conditions,
+                    ExpandedNodeId calibrationInterface, string[] calibrationFields) = unit switch
+                {
+                    "AmperometricSignalType" => (ObjectTypeIds.IAmperometricSignalConditionSetType,
+                        ["SensingElementTemperature"], ObjectTypeIds.IAmperometricCalibrationType,
+                        ["AmperometricSensorSlope", "AmperometricSensorZeroPoint"]),
+                    "ConductivitySignalType" => (ObjectTypeIds.IConductivitySignalConditionSetType,
+                        ["ConductivityMeasuringMethod", "TemperatureCompensationStyle", "SensingElementTemperature"],
+                        ObjectTypeIds.IConductivityCalibrationType, ["ConductivityCellConstant"]),
+                    "OpticalFluorescenseQuenchingSignalType" =>
+                        (ObjectTypeIds.IOpticalFluorescenseQuenchingSignalConditionSetType,
+                            ["SensingElementTemperature"], ObjectTypeIds.IOpticalFluorescenseQuenchingCalibrationType,
+                            ["OpticalFluorescenseQuenchingSensorSlope", "OpticalFluorescenseQuenchingSensorZeroPoint"]),
+                    "PhSignalType" => (ObjectTypeIds.IPhSignalConditionSetType,
+                        ["PhMeasuringMethod", "SensingElementTemperature"], ObjectTypeIds.IPhCalibrationType,
+                        ["SensorSlope", "SensorAsymmetryPotential"]),
+                    "NonDispersiveInfraredSignalType" => (ObjectTypeIds.INonDispersiveInfraredSignalConditionSetType,
+                        ["SourceResidualLife", "SampleCellTemperature"], ExpandedNodeId.Null, []),
+                    "ParamagneticSignalType" => (ObjectTypeIds.IParamagneticSignalConditionSetType,
+                        ["SampleTemperature", "SensingElementTemperature"], ExpandedNodeId.Null, []),
+                    "ThermalConductivitySignalType" => (ObjectTypeIds.IThermalConductivitySignalConditionSetType,
+                        ["SampleTemperature"], ExpandedNodeId.Null, []),
+                    "TocSignalType" => (ObjectTypeIds.ITocSignalConditionSetType,
+                        ["DetectorZeroSignal", "SourceResidualLife", "SampleCellTemperature"], ExpandedNodeId.Null, []),
+                    "TunableDiodeLaserSignalType" => (ObjectTypeIds.ITunableDiodeLaserSignalConditionSetType,
+                        ["SampleTemperature"], ExpandedNodeId.Null, []),
+                    "ZirconiumDioxideSignalType" => (ObjectTypeIds.IZirconiumDioxideSignalConditionSetType,
+                        ["SensingElementTemperature"], ExpandedNodeId.Null, []),
+                    "DiodeArraySignalType" => (ObjectTypeIds.IDiodeArraySignalConditionSetType,
+                        ["SensingElementTemperature"], ExpandedNodeId.Null, []),
+                    "FtnirOrFtirSignalType" => (ObjectTypeIds.IFtnirOrFtirSignalConditionSetType,
+                        ["SensingElementTemperature"], ExpandedNodeId.Null, []),
+                    "AmperometricGasDetectorSignalType" =>
+                        (ObjectTypeIds.IAmperometricGasDetectorSignalConditionSetType, [], ExpandedNodeId.Null, []),
+                    "GasChromatographSignalType" => (ObjectTypeIds.IGasChromatographSignalConditionSetType,
+                        [], ExpandedNodeId.Null, []),
+                    "InfraredSignalType" => (ObjectTypeIds.IInfraredSignalConditionSetType,
+                        [], ExpandedNodeId.Null, []),
+                    "RamanSignalType" => (ObjectTypeIds.IRamanSignalConditionSetType,
+                        [], ExpandedNodeId.Null, []),
+                    "CatalyticBeadSignalType" => (ObjectTypeIds.ICatalyticBeadSignalConditionSetType,
+                        [], ExpandedNodeId.Null, []),
+                    _ => (ExpandedNodeId.Null, [], ExpandedNodeId.Null, [])
+                };
+                if (!conditionInterface.IsNull &&
+                    !SupportsGroup(signal, "SignalConditionSet", conditionInterface, conditions))
+                {
+                    return false;
+                }
+                if (!calibrationInterface.IsNull)
+                {
+                    var children = new List<BaseInstanceState>();
+                    signal.GetChildren(Context, children);
+                    bool found = false;
+                    foreach (BaseInstanceState child in children)
+                    {
+                        if (child is BaseObjectState calibration && Implements(calibration, calibrationInterface) &&
+                            HasBoundFields(calibration, calibrationFields))
+                        {
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found)
+                    {
+                        return false;
+                    }
+                }
+                return !requiresPat || signal is AnalogSignalObjectState analog &&
+                    analog.AnalogSignal != null &&
+                    HasType(analog.AnalogSignal, VariableTypeIds.PatMeasurementVariableType) &&
+                    HasBoundFields(analog.AnalogSignal, "PatMeasurandDescription");
+            }
+
+            void AddOptionalMembers(string facet, string prefix, NodeState? scope)
+            {
+                if (scope == null || prefix.Length == 0)
+                {
+                    return;
+                }
+                foreach (string unit in s_optionalMemberUnits)
+                {
+                    if (!unit.StartsWith($"{prefix} ", StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+                    string suffix = unit.Substring(prefix.Length + 1);
+                    string[] fields = suffix switch
+                    {
+                        "Peak" => ["PeakWidth", "PeakHeight", "PeakArea", "TailingFactor"],
+                        "RetentionTime" => ["ExpectedRetentionTime", "ActualRetentionTime"],
+                        "RangeExceedance" => ["RangeExceedancePeakValue", "RangeExceedanceDuration"],
+                        "Valve" => ["ValveName", "ValveSwitchingCyclesCounter"],
+                        "CalibrationRange1" or "CalibrationRange2" or "CalibrationRange3" =>
+                            [$"{suffix}ResponseFactor", $"{suffix}LowerRangeValue", $"{suffix}UpperRangeValue"],
+                        "Connection" => ["SensorConnection"],
+                        "Reference" => ["SensorReference"],
+                        _ => [suffix]
+                    };
+                    if (HasBoundFields(scope, fields))
+                    {
+                        Add(facet, unit);
+                    }
+                }
+            }
+
+            void AddProcessOptions(string facet, BaseVariableState? variable)
+            {
+                if (variable == null)
+                {
+                    return;
+                }
+                if (HasBoundFields(variable, "Damping"))
+                {
+                    Add(facet, "AnalogSignalVariable Damping");
+                }
+                if (HasBoundFields(variable, "PatMeasurandDescription"))
+                {
+                    units.Add("PA-DIM PatMeasurementVariableType");
+                }
+                if (HasBoundFields(variable, "PatMatrixDescription"))
+                {
+                    Add(facet, "PatMeasurementVariableType PatMatrixDescription");
+                }
+                AddOptionalMembers(facet, variable is MultiStateDiscreteControlVariableState
+                    ? "MultiStateDiscreteControlVariable" : "TwoStateDiscreteControlVariable", variable);
+            }
+        }
+
+        /// <summary>
+        /// Resolves a declared PA-DIM member by its namespace URI rather than the source NodeSet index.
+        /// </summary>
+        private BaseInstanceState? FindMember(NodeState owner, string name)
+        {
+            return FindMember(owner, name, Namespaces.PADIM);
+        }
+
+        private BaseInstanceState? FindMember(NodeState owner, string name, string namespaceUri)
+        {
+            return owner.FindChild(Context,
+                new QualifiedName(name, (ushort)Context.NamespaceUris.GetIndex(namespaceUri)));
         }
 
         /// <summary>
@@ -275,14 +572,171 @@ namespace Opc.Ua.PADIM.Server
         }
 
         /// <summary>
-        /// Requires actual manufacturer, model and serial identity before advertising the device core facet.
+        /// Checks the populated identity and mandatory base values of a PA-DIM device.
         /// </summary>
         private bool HasIdentity()
         {
-            return !string.IsNullOrWhiteSpace(State.Manufacturer?.Value.Text) &&
-                !string.IsNullOrWhiteSpace(State.Model?.Value.Text) &&
-                !string.IsNullOrWhiteSpace(State.SerialNumber?.Value);
+            return HasLocalizedText(State, "Manufacturer") &&
+                HasStringValue(State, "ManufacturerUri") &&
+                HasLocalizedText(State, "Model") &&
+                HasStringValue(State, "SerialNumber") &&
+                HasStringValue(State, "SoftwareRevision") &&
+                HasStringValue(State, "HardwareRevision") &&
+                HasStringValue(State, "ProductCode") &&
+                HasStringValue(State, "ProductInstanceUri") &&
+                HasStringValue(State, "AssetId", "http://opcfoundation.org/UA/DI/") &&
+                HasUInt32Value(State, "RevisionCounter");
         }
+
+        /// <summary>
+        /// Checks the host's configured profile declaration for a PA-DIM-supported Nano Embedded profile.
+        /// </summary>
+        private bool SupportsNanoEmbeddedProfile()
+        {
+            BaseVariableState? profileArray = Manager.Server.DiagnosticsNodeManager.FindPredefinedNode<BaseVariableState>(
+                VariableIds.Server_ServerCapabilities_ServerProfileArray);
+            if (profileArray == null ||
+                !profileArray.Value.TryGetValue(out ArrayOf<string> profiles) ||
+                profiles.IsNull)
+            {
+                return false;
+            }
+            for (int ii = 0; ii < profiles.Count; ii++)
+            {
+                if (profiles[ii] is
+                    "http://opcfoundation.org/UA-Profile/Server/NanoEmbeddedDevice2017" or
+                    "http://opcfoundation.org/UA-Profile/Server/NanoEmbeddedDevice2022" or
+                    "http://opcfoundation.org/UA-Profile/Server/StandardUA2017")
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private bool HasLocalizedText(NodeState owner, string name)
+        {
+            return FindMember(owner, name) is BaseVariableState variable &&
+                variable.WrappedValue.TryGetValue(out LocalizedText value) &&
+                !string.IsNullOrWhiteSpace(value.Text);
+        }
+
+        private bool HasStringValue(NodeState owner, string name, string namespaceUri = Namespaces.PADIM)
+        {
+            return FindMember(owner, name, namespaceUri) is BaseVariableState variable &&
+                variable.WrappedValue.TryGetValue(out string value) &&
+                !string.IsNullOrWhiteSpace(value);
+        }
+
+        private bool HasUInt32Value(NodeState owner, string name)
+        {
+            return FindMember(owner, name) is BaseVariableState variable &&
+                variable.WrappedValue.TryGetValue(out uint _);
+        }
+
+        /// <summary>Published optional member units with names relative to their owning condition or value.</summary>
+        private static readonly string[] s_optionalMemberUnits =
+        [
+            "AmperometricGasDetectorSignalType ConsumedSensorCapacity",
+            "AmperometricGasDetectorSignalType PowerOnDurationSensor",
+            "AmperometricGasDetectorSignalType RangeExceedance",
+            "AmperometricGasDetectorSignalType RelativeGasFlowRate",
+            "AmperometricGasDetectorSignalType SensingElementResidualLife",
+            "AmperometricGasDetectorSignalType SensingElementResidualSensitivity",
+            "AmperometricGasDetectorSignalType SensorNextCalibrationDynamic",
+            "AmperometricGasDetectorSignalType SensorNextCalibrationFixed",
+            "AmperometricSignalType SensorCleaningsCounter",
+            "AmperometricSignalType SensorNextCalibration",
+            "AmperometricSignalType SensorSterilisationsCounter",
+            "CatalyticBeadSignalType PowerOnDurationSensor",
+            "CatalyticBeadSignalType RangeExceedance",
+            "CatalyticBeadSignalType RelativeGasFlowRate",
+            "CatalyticBeadSignalType SensingElementResidualLife",
+            "CatalyticBeadSignalType SensingElementResidualSensitivity",
+            "CatalyticBeadSignalType SensorNextCalibrationDynamic",
+            "CatalyticBeadSignalType SensorNextCalibrationFixed",
+            "CatalyticBeadSignalType SensorValue",
+            "ConductivitySignalType SensorCleaningsCounter",
+            "ConductivitySignalType SensorSterilisationsCounter",
+            "DiodeArraySignalType ElectronicsReadNoise",
+            "DiodeArraySignalType MahalanobisDistance",
+            "DiodeArraySignalType SourceResidualLife",
+            "DiodeArraySignalType SpectralResidual",
+            "DiodeArraySpectrometerType RemainingDataStorageCapacity",
+            "DiodeArraySpectrometerType Watchdog",
+            "FlameIonisationDetectorType BlockTemperature",
+            "FlameIonisationDetectorType CatalystTemperature",
+            "FlameIonisationDetectorType CombustionAirPressure",
+            "FlameIonisationDetectorType FuelGasPressure",
+            "FlowMeasurementVariable FlowDirection",
+            "FtnirOrFtirSignalType ElectronicsReadNoise",
+            "FtnirOrFtirSignalType LaserResidualLife",
+            "FtnirOrFtirSignalType MahalanobisDistance",
+            "FtnirOrFtirSignalType SpectralResidual",
+            "FtnirOrFtirSignalType TransmissionRatio",
+            "FtnirOrFtirSpectrometerType RemainingDataStorageCapacity",
+            "FtnirOrFtirSpectrometerType Watchdog",
+            "GasChromatograph CalibrationRange1",
+            "GasChromatograph CalibrationRange2",
+            "GasChromatograph CalibrationRange3",
+            "GasChromatographSignalType ComponentName",
+            "GasChromatographSignalType InjectionTime",
+            "GasChromatographSignalType Peak",
+            "GasChromatographSignalType RetentionTime",
+            "GasChromatographType BaselineNoise",
+            "GasChromatographType TotalAreaMeasuredPeaks",
+            "GasChromatographType Valve",
+            "IAmperometricCalibration AbsoluteAirPressure",
+            "IAmperometricCalibration SensorT90",
+            "InfraredSignalType PowerOnDurationSensor",
+            "InfraredSignalType SensingElementResidualLife",
+            "InfraredSignalType SensorNextCalibrationDynamic",
+            "InfraredSignalType SensorNextCalibrationFixed",
+            "InfraredSignalType SourceResidualLife",
+            "InfraredSignalType TransmissionRatio",
+            "IOpticalFluorescenseQuenchingCalibration AbsoluteAirPressure",
+            "IOpticalFluorescenseQuenchingCalibration SensorT90",
+            "IPhCalibration SensorT90",
+            "MultiStateDiscreteControlVariable FaultState",
+            "MultiStateDiscreteControlVariable OperatingDirection",
+            "NonDispersiveInfraredSignalType AbsoluteSampleGasPressure",
+            "NonDispersiveInfraredSignalType ChopperFrequencyDeviation",
+            "OpticalFluorescenseQuenchingSignalType SensorCleaningsCounter",
+            "OpticalFluorescenseQuenchingSignalType SensorNextCalibration",
+            "OpticalFluorescenseQuenchingSignalType SensorSterilisationsCounter",
+            "PhSignalType SensingElementImpedance",
+            "PhSignalType SensorCleaningsCounter",
+            "PhSignalType SensorNextCalibration",
+            "PhSignalType SensorReferenceImpedance",
+            "PhSignalType SensorSterilisationsCounter",
+            "RamanSignalType ElectronicsReadNoise",
+            "RamanSignalType MahalanobisDistance",
+            "RamanSignalType SensingElementTemperature",
+            "RamanSignalType SourceResidualLife",
+            "RamanSignalType SpectralResidual",
+            "RamanSpectrometerType RemainingDataStorageCapacity",
+            "RamanSpectrometerType Watchdog",
+            "TemperatureMeasurementVariable Connection",
+            "TemperatureMeasurementVariable Reference",
+            "TemperatureMeasurementVariable SensorClass",
+            "TocAnalyserType ActualInjectedVolume",
+            "TocAnalyserType CarrierGasGaugePressure",
+            "TocAnalyserType SampleWaterVolumeFlow",
+            "TocSignalType AbsoluteSampleGasPressure",
+            "TocSignalType ChopperFrequencyDeviation",
+            "TocSignalType RelativeReagentLevel",
+            "TocSignalType SampleGasVolumeFlow",
+            "TunableDiodeLaserSignalType AbsoluteSampleGasPressure",
+            "TunableDiodeLaserSignalType LaserTemperature",
+            "TunableDiodeLaserSignalType SignalFitQuality",
+            "TunableDiodeLaserSignalType SignalNoiseRatio",
+            "TunableDiodeLaserSignalType TransmissionRatio",
+            "TwoStateDiscreteControlVariable FaultState",
+            "ZirconiumDioxideSignalType CellResistance",
+            "ZirconiumDioxideSignalType RelativeHeatOutput",
+            "ZirconiumDioxideSignalType SampleGasVolumeFlow",
+            "ZirconiumDioxideSignalType SensingElementResidualLife"
+        ];
 
         /// <summary>Device-family facet suffixes from the released PADIM 1.02 catalogue.</summary>
         private static readonly (PadimDeviceKind Kind, string Facet)[] s_deviceFacets =

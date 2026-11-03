@@ -105,6 +105,8 @@ OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector.Viewer
 OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Server
 OPCFoundation.NetStandard.Opc.Ua.PackML
 OPCFoundation.NetStandard.Opc.Ua.PADIM
+OPCFoundation.NetStandard.Opc.Ua.PADIM.Client
+OPCFoundation.NetStandard.Opc.Ua.PADIM.Server
 OPCFoundation.NetStandard.Opc.Ua.PlasticsRubber
 OPCFoundation.NetStandard.Opc.Ua.PlasticsRubber.Client
 OPCFoundation.NetStandard.Opc.Ua.PlasticsRubber.Server

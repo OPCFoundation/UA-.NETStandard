@@ -132,7 +132,11 @@ ushort ns = context.Manager.SystemContext.NamespaceUris.GetIndexOrAppend(Namespa
 QualifiedName Member(string name) => new(name, ns);
 
 await device.ConfigureSignalConditionsAsync(phSignal, group =>
-    group.Bind(Member("SensingElementImpedance"), "ph/impedance", provider));
+{
+    group.Bind(Member("PhMeasuringMethod"), "ph/method", provider);
+    group.Bind(Member("SensingElementTemperature"), "ph/temperature", provider);
+    group.Bind(Member("SensingElementImpedance"), "ph/impedance", provider);
+});
 await device.AddCalibrationAsync(
     phSignal,
     new QualifiedName("Calibration", context.Manager.InstanceNamespaceIndex),
@@ -140,6 +144,7 @@ await device.AddCalibrationAsync(
     {
         group.Bind(Member("CalibrationTimestamp"), "ph/calibratedAt", provider);
         group.Bind(Member("SensorSlope"), "ph/slope", provider);
+        group.Bind(Member("SensorAsymmetryPotential"), "ph/asymmetry", provider);
     });
 ```
 
@@ -311,8 +316,9 @@ The client prints device identity and health, pH condition fields and calibratio
 metadata, including the neutral calibration point. Reading these fields does not
 require enabling the demonstration writes.
 
-The pH signal includes calibration timestamp/slope, a calibration point and
-sensing-element impedance. The optional demonstration positioner operation
+The pH signal includes its measuring method, sensing-element temperature and
+impedance, PAT measurand description, calibration timestamp/slope/asymmetry
+potential, and a calibration point. The optional demonstration positioner operation
 accepts Start and completes after two refresh cycles; readback then becomes
 50 percent and the provider advances `DateOfLastChange`. Abort cancels a
 pending cycle. Starting an already pending cycle or aborting an idle one
@@ -335,22 +341,102 @@ For an isolated demonstration, `--insecure true --auto-accept true` explicitly
 enables insecure endpoints and automatic certificate trust. Neither option is
 the default.
 
-The released PADIM 1.02 catalogue contains 56 server facets. Runtime family
-selection and a loaded NodeSet do not by themselves establish all-facet
-conformance. The family/provider tests and semantic-inheritance generator
-regression are the executable evidence under development; no OPC Foundation
-certification is implied. Physical calibration algorithms, field-protocol
-adapters, optional MCP tools and UA Lens integration are outside this SDK
-runtime's scope.
+## Facet requirements and evidence
+
+The support rating remains **Partial**. The released
+[PADIM 1.02 catalogue](https://profiles.opcfoundation.org/?pg=219) contains
+56 server facets and 194 distinct conformance units: 65 are mandatory in at
+least one facet, while 129 are optional everywhere they occur. An optional
+unit does not become mandatory merely because another facet includes its
+parent facet. In particular, Base Signal Calibration has four optional units
+and no mandatory units.
 
 `PadimDevice` contributes configured capabilities through the DI owner's
 existing `IConformanceContributor` aggregation. A signal-family facet requires
 a provider binding for its primary process variable, not merely its tag or a
-loaded type. Device-family and Core facets also require a health provider and
-populated manufacturer, model and serial identity. Administration, simulation
-and alarming facets follow their explicit provider-backed configuration.
-Disposing a device withdraws its contribution. The facet catalogue preserves
-the published URI spellings, including the two infrared signal facets.
+loaded type. Analytical facets additionally require the condition interfaces
+and fields named by their mandatory family unit; four families also require
+a complete calibration on one calibration instance. Where the facet requires
+`PatMeasurementVariableType`, bind the generated `PatMeasurandDescription`
+property with a `ChemicalSubstanceDataType` value. Generated defaults and a
+primary measurement binding cannot substitute for these capabilities.
+
+The following requirements are additional to the primary measurement and its
+published VariableType. The names identify provider-bound members of
+`SignalConditionSet` and a named calibration instance, respectively.
+
+| Analytical family | Required condition fields | Required calibration fields |
+| --- | --- | --- |
+| Amperometric | `SensingElementTemperature` | `AmperometricSensorSlope`, `AmperometricSensorZeroPoint` |
+| Conductivity | `ConductivityMeasuringMethod`, `TemperatureCompensationStyle`, `SensingElementTemperature` | `ConductivityCellConstant` |
+| Fluorescence quenching | `SensingElementTemperature` | `OpticalFluorescenseQuenchingSensorSlope`, `OpticalFluorescenseQuenchingSensorZeroPoint` |
+| pH | `PhMeasuringMethod`, `SensingElementTemperature` | `SensorSlope`, `SensorAsymmetryPotential` |
+| NDIR | `SourceResidualLife`, `SampleCellTemperature` | None |
+| Paramagnetic | `SampleTemperature`, `SensingElementTemperature` | None |
+| Thermal conductivity, tunable diode laser | `SampleTemperature` | None |
+| TOC | `DetectorZeroSignal`, `SourceResidualLife`, `SampleCellTemperature` | None |
+| Zirconium dioxide, diode array, FTNIR/FTIR | `SensingElementTemperature` | None |
+| Amperometric gas detector, gas chromatograph, Raman, infrared, catalytic bead | The family's declared condition interface and object; its individual fields are optional | None |
+| Flame ionisation | No additional condition group required by the family unit | None |
+
+`AmperometricGasDetectorSignal`, `GasChromatographSignal` and
+`InfraredSensorSignal` do not require the PAT measurement unit. The separate
+`InfraredSignal` facet does. Both infrared facet URIs retain their published
+spelling.
+
+Measurement and control facets also require acquisition for the mandatory
+parameters of their VariableType. Temperature requires `SensorType`; flow and
+its mass/actual-volume/normalized-volume specialisations require
+`LowFlowCutOff`; totalizers require `PulseValue` and `PulseWidth`.
+Continuous control requires `Setpoint`, `OperatingDirection` and `ActuatorType`;
+two-state control requires `Setpoint` and `OperatingDirection`; multi-state
+control requires `Setpoint`. An unbound generated default does not establish
+support for these configuration parameters.
+
+Device-family and Core facets require a health provider and all mandatory
+base identity values: `Manufacturer`, `ManufacturerUri`, `Model`,
+`SerialNumber`, `SoftwareRevision`, `HardwareRevision`, `ProductCode`,
+`ProductInstanceUri`, `AssetId` and `RevisionCounter`. The TOC analyser
+additionally requires its device-condition interface and
+`ReactorTemperature`, `CoolerTemperature`, `CarrierGasVolumeFlow` and
+`ReferenceInjectionVolume` bindings.
+Administration, simulation and alarming facets follow their explicit
+provider-backed configuration. Optional multi-field units require the complete
+set on the same owning instance: for example, one gas-chromatograph signal's
+expected retention time cannot be combined with another signal's actual
+retention time. Disposing a device withdraws its contribution.
+
+Evidence must distinguish the following checks rather than treating a passing
+suite or a list of advertised URIs as verification of every published unit:
+
+| Scope | Evidence and remaining limit |
+| --- | --- |
+| All 20 device selections and 26 signal selections | XML contract fixtures check inherited condition/calibration fields, interfaces, types, ranks, instance registration and IRDI identity. `HostedAllPublishedFamiliesDiscoverAndReadTypedFacetSamples` reads every configured acquisition sample through a client, including values, quality and source timestamps; it also checks mandatory identity and configured administration values. |
+| All 12 measurement selections | Structural fixtures retain published types, numeric restrictions and units. The hosted client reads each primary value, required measurement parameter and structured PAT value; optional-only measurement properties are not all instantiated. |
+| 56 facet URIs | `ConfiguredFamiliesCoverAllFiftySixReleasedFacetUris` checks the exact URI set. The hosted test reads `ServerProfileArray` and `ConformanceUnits` and compares their PA-DIM entries with the configured contributors. These tests do not constitute a 194-unit behavioral conformance test. |
+| Simulation, authorization, operations and alarms | Runtime tests exercise accepted/rejected writes, cancellation, provider drain, simulation reversal, health-category transitions, acknowledgement and retained-condition refresh. Physical adjustment success remains the provider's responsibility. |
+| Required family members | Contributor tests withhold incomplete pH and TOC configurations and reject combining different calibration or signal instances. These checks do not replace acquisition/readback evidence. |
+
+Two catalogue inconsistencies remain unresolved. The `CatalyticBeadSensor`
+facet lists seven optional `CatalyticBeadSignalType` condition units, but its
+published device-condition declaration has neither that signal interface nor
+those fields. The `InfraredSignalType PowerOnDurationSensor` and
+`InfraredSignalType SensingElementResidualLife` descriptions both refer to
+`SourceResidualLife`, although the NodeSet declares three distinct members.
+The SDK retains the published model and uses the named members; it does not
+invent device fields or treat these descriptions as interchangeable.
+
+The Core facet is contributed only when the host's `ServerProfileArray`
+declares Nano Embedded 2017, Nano Embedded 2022 or Standard UA 2017. This
+checks the host's declaration; it does not verify the host's behavior against
+every Nano Embedded requirement. Loading PA-DIM alone does not establish host
+profile support. The hosted fixture exercises all configured PA-DIM facet
+contributions and reads them back, but it does not independently test the
+host's Nano Embedded behavior or every optional-only conformance unit. Keep the
+rating at Partial until those evidence limits and the catalogue
+interpretations above are resolved. No OPC Foundation certification is implied.
+Physical calibration algorithms, field-protocol adapters, optional MCP tools
+and UA Lens integration are outside this SDK runtime's scope.
 
 Existing Machinery process-value simulation remains implemented by
 `ProcessValueBuilder`; this runtime does not replace it.

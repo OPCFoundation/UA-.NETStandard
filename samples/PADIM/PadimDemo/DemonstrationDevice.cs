@@ -89,6 +89,9 @@ namespace PadimSample
                     new Opc.Ua.Range { Low = -40, High = 150 })
                 .WithSimulation(Variant.From(25f), this, this)
                 .WithDamping(this, this, this);
+            device.BindValue(
+                ((TemperatureMeasurementVariableState)temperature.AnalogSignal!).SensorType!,
+                "temperature/sensor", this);
             AnalogSignalObjectState pressure = await device.AddMeasurementAsync(
                 Name("Pressure"), PadimMeasurementKind.Pressure, "PT-001").ConfigureAwait(false);
             device.BindValue(pressure.AnalogSignal!, "pressure", this).WithEngineeringUnits(
@@ -133,16 +136,33 @@ namespace PadimSample
             var phSignal = (PhSignalState)await ph.AddSignalAsync(
                 Name("Ph"), PadimSignalKind.Ph, "AT-001").ConfigureAwait(false);
             ph.BindValue(phSignal.AnalogSignal!, "ph", this);
+            var pat = (PatMeasurementVariableState)phSignal.AnalogSignal!;
+            pat.AddPatMeasurandDescription(manager.SystemContext, property =>
+                property.Value = new()
+                {
+                    PatDictionary = (PatDictionaryEnum)2,
+                    Label = LocalizedText.From("pH"),
+                    Id = LocalizedText.From("urn:OPCFoundation:PadimDemo:measurand:ph")
+                });
+            lock (m_gate)
+            {
+                m_values["ph/measurand"] = pat.PatMeasurandDescription!.WrappedValue;
+            }
+            ph.BindValue(pat.PatMeasurandDescription!, "ph/measurand", this);
             ph.WithZeroPointAdjustment(phSignal, "ph", this, this);
             ushort padimNamespace = manager.SystemContext.NamespaceUris.GetIndexOrAppend(Opc.Ua.PADIM.Namespaces.PADIM);
             QualifiedName Member(string value) => new(value, padimNamespace);
             await ph.ConfigureSignalConditionsAsync(phSignal, conditions =>
-                conditions.Bind(Member("SensingElementImpedance"), "ph/impedance", this),
-                context.CancellationToken).ConfigureAwait(false);
+            {
+                conditions.Bind(Member("PhMeasuringMethod"), "ph/method", this);
+                conditions.Bind(Member("SensingElementTemperature"), "ph/temperature", this);
+                conditions.Bind(Member("SensingElementImpedance"), "ph/impedance", this);
+            }, context.CancellationToken).ConfigureAwait(false);
             await ph.AddCalibrationAsync(phSignal, Name("Calibration"), calibration =>
             {
                 calibration.Bind(Member("CalibrationTimestamp"), "ph/calibratedAt", this);
                 calibration.Bind(Member("SensorSlope"), "ph/slope", this);
+                calibration.Bind(Member("SensorAsymmetryPotential"), "ph/asymmetry", this);
                 calibration.Group(Member("CalibrationPointSet"), points =>
                     points.Group(Member("<CalibrationPointIdentifier>"), point =>
                     {
@@ -303,6 +323,7 @@ namespace PadimSample
             ["temperature"] = Variant.From(21.5f),
             ["health"] = Variant.From(0),
             ["temperature/Damping"] = Variant.From(1f),
+            ["temperature/sensor"] = Variant.From(0u),
             ["displayLanguage"] = Variant.From("en"),
             ["dateOfLastChange"] = Variant.From(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)),
             ["pressure"] = Variant.From(101325f),
@@ -312,8 +333,11 @@ namespace PadimSample
             ["position/direction"] = Variant.From(0u),
             ["switch"] = Variant.From(true),
             ["ph"] = Variant.From(7f),
+            ["ph/method"] = Variant.From(0u),
+            ["ph/temperature"] = Variant.From(25f),
             ["ph/impedance"] = Variant.From(100f),
             ["ph/slope"] = Variant.From(59.16f),
+            ["ph/asymmetry"] = Variant.From(0f),
             ["ph/calibratedAt"] = Variant.From(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)),
             ["ph/point/actual"] = Variant.From(7f),
             ["ph/point/setpoint"] = Variant.From(7f)
