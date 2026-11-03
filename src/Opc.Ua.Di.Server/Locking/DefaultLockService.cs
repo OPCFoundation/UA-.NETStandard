@@ -336,7 +336,7 @@ namespace Opc.Ua.Di.Server.Locking
         /// </summary>
         private static NodeId ResolveSessionId(ISystemContext context)
         {
-            return (context as ISessionSystemContext)?.SessionId ?? NodeId.Null;
+            return context is ISessionSystemContext { SessionId: NodeId sessionId } ? sessionId : NodeId.Null;
         }
 
         /// <summary>Default duration for a newly acquired or renewed lock.</summary>
