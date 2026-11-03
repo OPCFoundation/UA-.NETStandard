@@ -53,6 +53,7 @@ using Opc.Ua.Tests;
 using CoreNamespaces = Opc.Ua.Namespaces;
 using CoreObjectIds = Opc.Ua.ObjectIds;
 using CoreObjectTypeIds = Opc.Ua.ObjectTypeIds;
+using ISession = Opc.Ua.Client.ISession;
 using OnboardingObjectIds = Opc.Ua.Onboarding.ObjectIds;
 
 namespace Opc.Ua.Gds.Tests.Onboarding

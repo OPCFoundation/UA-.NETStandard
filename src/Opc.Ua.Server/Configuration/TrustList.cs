@@ -2783,9 +2783,9 @@ namespace Opc.Ua.Server
         /// </summary>
         private ValueTask HasSecureReadAccessAsync(ISystemContext context, CancellationToken cancellationToken)
         {
-            cancellationToken.ThrowIfCancellationRequested();
             if (m_authorizeReadAsync != null)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 return m_authorizeReadAsync(context, m_trustedStore, cancellationToken);
             }
             if (m_readAccess != null)
@@ -2804,9 +2804,9 @@ namespace Opc.Ua.Server
         /// </summary>
         private ValueTask HasSecureWriteAccessAsync(ISystemContext context, CancellationToken cancellationToken)
         {
-            cancellationToken.ThrowIfCancellationRequested();
             if (m_authorizeWriteAsync != null)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 return m_authorizeWriteAsync(context, m_trustedStore, cancellationToken);
             }
             if (m_writeAccess != null)

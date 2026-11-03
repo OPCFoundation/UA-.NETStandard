@@ -35,6 +35,19 @@ using Opc.Ua.Server;
 namespace Opc.Ua.Gds.Server.Onboarding
 {
     /// <summary>
+    /// Verifies the device's software-update prerequisite using its existing software-management provider.
+    /// </summary>
+    public interface IProvisionableDeviceSoftwareUpdatePolicy
+    {
+        /// <summary>
+        /// Returns only when required software updates for the specified DCA have completed.
+        /// Reads the provider's durable state; missing approval or incomplete updates must throw.
+        /// Security reset does not clear or modify this state.
+        /// </summary>
+        ValueTask RequireReadyAsync(string applicationUri, CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
     /// Selects the application-certificate slot and an independent private-key store for device reset.
     /// </summary>
     public sealed class ProvisionableDeviceSecurityInstallerOptions
@@ -88,13 +101,15 @@ namespace Opc.Ua.Gds.Server.Onboarding
             IPendingCertificateKeyStore pendingKeys,
             IServerApplicationCertificateActivator activator,
             ProvisionableDeviceSecurityInstallerOptions options,
-            ITelemetryContext telemetry)
+            ITelemetryContext telemetry,
+            IProvisionableDeviceSoftwareUpdatePolicy? softwareUpdates = null)
         {
             m_secrets = secrets ?? throw new ArgumentNullException(nameof(secrets));
             m_certificates = certificates ?? throw new ArgumentNullException(nameof(certificates));
             m_stores = stores ?? throw new ArgumentNullException(nameof(stores));
             m_pendingKeys = pendingKeys ?? throw new ArgumentNullException(nameof(pendingKeys));
             m_activator = activator ?? throw new ArgumentNullException(nameof(activator));
+            m_softwareUpdates = softwareUpdates;
             if (options == null)
             {
                 throw new ArgumentNullException(nameof(options));
@@ -221,6 +236,11 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     return null;
                 }
                 ValidateCertificate(current.Certificate);
+                if (m_softwareUpdates != null)
+                {
+                    await m_softwareUpdates.RequireReadyAsync(m_applicationUri, cancellationToken)
+                        .ConfigureAwait(false);
+                }
                 using TrustListData trust = await m_certificates.ReadTrustListAsync(
                     TrustListIdentifier.Peers, TrustListMasks.All, cancellationToken).ConfigureAwait(false);
                 return new(
@@ -336,6 +356,10 @@ namespace Opc.Ua.Gds.Server.Onboarding
             using Certificate publicCertificate = Certificate.FromRawData(credentials.Certificate);
             ValidateCertificate(publicCertificate);
             ValidateTrustList(credentials.TrustList);
+            if (m_softwareUpdates != null)
+            {
+                await m_softwareUpdates.RequireReadyAsync(m_applicationUri, ct).ConfigureAwait(false);
+            }
 
             using CertificateEntry? current = m_certificates
                 .AcquireApplicationCertificateByType(ApplicationCertificateType);
@@ -892,6 +916,9 @@ namespace Opc.Ua.Gds.Server.Onboarding
 
         /// <summary>The server's explicit runtime endpoint-activation path.</summary>
         private readonly IServerApplicationCertificateActivator m_activator;
+
+        /// <summary>The host's existing software-management readiness policy, when updates are required.</summary>
+        private readonly IProvisionableDeviceSoftwareUpdatePolicy? m_softwareUpdates;
 
         /// <summary>The configured application-certificate store.</summary>
         private readonly string m_applicationStorePath;

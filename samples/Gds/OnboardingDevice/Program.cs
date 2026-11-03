@@ -197,7 +197,8 @@ namespace OnboardingDevice
                     services.GetRequiredService<ICertificateStoreResolver>(),
                     services.GetRequiredService<IPendingCertificateKeyStore>(),
                     services.GetRequiredService<IServerApplicationCertificateActivator>(),
-                    installerOptions, services.GetRequiredService<ITelemetryContext>())));
+                    installerOptions, services.GetRequiredService<ITelemetryContext>(),
+                    services.GetService<IProvisionableDeviceSoftwareUpdatePolicy>())));
             builder.Services.Replace(ServiceDescriptor.Singleton<ProvisionableDeviceSecurity>(services =>
                 new ProvisionableDeviceSecurity(
                     checkpoints, options.ApplicationUri, options.ApplicationUri,

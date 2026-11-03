@@ -34,6 +34,7 @@ using OnboardingClientSample;
 using Opc.Ua.Gds.Client;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
+using ManagerDescription = Opc.Ua.Onboarding.ManagerDescription;
 using ValidationOptions = Opc.Ua.Security.Certificates.CertificateValidationOptions;
 
 namespace Opc.Ua.Gds.Tests.Onboarding

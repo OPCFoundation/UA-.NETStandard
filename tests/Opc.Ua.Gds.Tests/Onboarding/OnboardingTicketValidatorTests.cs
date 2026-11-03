@@ -89,16 +89,17 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             }
         }
 
-        [TestCase("ES256", ECCurveName.P256)]
-        [TestCase("ES384", ECCurveName.P384)]
-        [TestCase("ES512", ECCurveName.P521)]
-        public async Task ValidateAsyncAcceptsEcdsaJws(string algorithm, ECCurveName curveName)
+        [TestCase("ES256", 256)]
+        [TestCase("ES384", 384)]
+        [TestCase("ES512", 521)]
+        public async Task ValidateAsyncAcceptsEcdsaJws(string algorithm, int curveBits)
         {
-            ECCurve curve = curveName switch
+            ECCurve curve = curveBits switch
             {
-                ECCurveName.P256 => ECCurve.NamedCurves.nistP256,
-                ECCurveName.P384 => ECCurve.NamedCurves.nistP384,
-                _ => ECCurve.NamedCurves.nistP521
+                256 => ECCurve.NamedCurves.nistP256,
+                384 => ECCurve.NamedCurves.nistP384,
+                521 => ECCurve.NamedCurves.nistP521,
+                _ => throw new ArgumentOutOfRangeException(nameof(curveBits))
             };
             using Certificate certificate = CreateEcdsaCertificate(curve, $"CN=Ticket {algorithm} signer");
             var trust = TrustedProvider();
@@ -966,13 +967,6 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 async () => await validator.ValidateAsync(
                     encoded, OnboardingTicketSource.OutOfBand).ConfigureAwait(false))!;
             Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadTicketInvalid));
-        }
-
-        private enum ECCurveName
-        {
-            P256,
-            P384,
-            P521
         }
 
         private IServiceMessageContext m_messageContext = null!;

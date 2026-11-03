@@ -111,16 +111,17 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 identifier, null, null, It.IsAny<CancellationToken>()), Times.Once);
         }
 
-        [TestCase(ECCurveName.P256, "ES256")]
-        [TestCase(ECCurveName.P384, "ES384")]
-        [TestCase(ECCurveName.P521, "ES512")]
-        public async Task WriteAsyncSelectsEcdsaAlgorithmByCurve(ECCurveName curveName, string expectedAlgorithm)
+        [TestCase(256, "ES256")]
+        [TestCase(384, "ES384")]
+        [TestCase(521, "ES512")]
+        public async Task WriteAsyncSelectsEcdsaAlgorithmByCurve(int curveBits, string expectedAlgorithm)
         {
-            ECCurve curve = curveName switch
+            ECCurve curve = curveBits switch
             {
-                ECCurveName.P256 => ECCurve.NamedCurves.nistP256,
-                ECCurveName.P384 => ECCurve.NamedCurves.nistP384,
-                _ => ECCurve.NamedCurves.nistP521
+                256 => ECCurve.NamedCurves.nistP256,
+                384 => ECCurve.NamedCurves.nistP384,
+                521 => ECCurve.NamedCurves.nistP521,
+                _ => throw new ArgumentOutOfRangeException(nameof(curveBits))
             };
             using Certificate certificate = CreateEcdsaCertificate(curve, $"CN=Ticket writer {expectedAlgorithm}");
             var provider = PrivateKeyProvider(certificate);
@@ -704,13 +705,6 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 .SetNotAfter(new DateTime(2090, 1, 1, 0, 0, 0, DateTimeKind.Utc))
                 .SetECCurve(curve)
                 .CreateForECDsa();
-        }
-
-        private enum ECCurveName
-        {
-            P256,
-            P384,
-            P521
         }
 
         private IServiceMessageContext m_messageContext = null!;

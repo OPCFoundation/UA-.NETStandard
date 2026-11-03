@@ -855,6 +855,20 @@ errors. The old application certificate is removed only after activation
 completes. This is a local activation acknowledgement, not evidence that a
 remote client has connected with the new certificate.
 
+When a deployment requires software updates, register an
+`IProvisionableDeviceSoftwareUpdatePolicy` with
+`.AddProvisionableDeviceSoftwareUpdatePolicy(provider => deviceSoftwarePolicy)`,
+or pass it to the installer's constructor. The policy reads the existing
+software manager's durable state for the DCA application URI and throws if an
+update or its approval is incomplete. Direct installation checks the policy
+before changing stores or activating endpoints. Standard push completion and
+startup recovery also check it before accepting a non-factory certificate.
+Factory identity capture, default preservation and security reset remain
+available without software approval; these operations do not change software
+state. Omitting the provider means that the deployment requires no software
+update, not that an update has been performed. This adapter does not provide a
+software-update engine or replace the registrar's `UpdateSoftwareStatus` flow.
+
 Select the application slot, identity store and existing pending-key provider:
 
 ```csharp

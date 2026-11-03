@@ -334,8 +334,53 @@ namespace Microsoft.Extensions.DependencyInjection
                     provider.GetRequiredService<IPendingCertificateKeyStore>(),
                     provider.GetRequiredService<IServerApplicationCertificateActivator>(),
                     provider.GetRequiredService<ProvisionableDeviceSecurityInstallerOptions>(),
-                    provider.GetRequiredService<ITelemetryContext>()));
+                    provider.GetRequiredService<ITelemetryContext>(),
+                    provider.GetService<IProvisionableDeviceSoftwareUpdatePolicy>()));
             return services.AddProvisionableDeviceSecurity(scope, applicationUri);
+        }
+
+        /// <summary>
+        /// Requires the host's existing software-management policy before installing or accepting DCA credentials.
+        /// Register this before the service provider is built whenever the deployment requires software updates.
+        /// </summary>
+        public static IOpcUaServerBuilder AddProvisionableDeviceSoftwareUpdatePolicy(
+            this IOpcUaServerBuilder builder,
+            Func<IServiceProvider, IProvisionableDeviceSoftwareUpdatePolicy> factory)
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            builder.Services.AddProvisionableDeviceSoftwareUpdatePolicy(factory);
+            return builder;
+        }
+
+        /// <summary>
+        /// Selects one container-owned readiness policy without replacing the device's software-update engine.
+        /// </summary>
+        public static IServiceCollection AddProvisionableDeviceSoftwareUpdatePolicy(
+            this IServiceCollection services,
+            Func<IServiceProvider, IProvisionableDeviceSoftwareUpdatePolicy> factory)
+        {
+            if (services == null)
+            {
+                throw new ArgumentNullException(nameof(services));
+            }
+            if (factory == null)
+            {
+                throw new ArgumentNullException(nameof(factory));
+            }
+            foreach (ServiceDescriptor descriptor in services)
+            {
+                if (!descriptor.IsKeyedService &&
+                    descriptor.ServiceType == typeof(IProvisionableDeviceSoftwareUpdatePolicy))
+                {
+                    throw new InvalidOperationException("Select only one device software-update policy.");
+                }
+            }
+            services.AddSingleton(provider => factory(provider) ??
+                throw new InvalidOperationException("The device software-update policy factory returned null."));
+            return services;
         }
 
         /// <summary>

@@ -29,6 +29,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Gds.Server.Onboarding;
@@ -164,6 +165,134 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 It.IsAny<PendingCertificateKeyContext>(),
                 It.IsAny<Certificate>(),
                 It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
+        /// Software approval is required before changing keys, trust or endpoints, and a later approval permits retry.
+        /// </summary>
+        [Test]
+        public async Task IncompleteSoftwarePreventsInstallationUntilPolicyApproves()
+        {
+            bool ready = false;
+            using var deadline = new CancellationTokenSource();
+            var policy = new Mock<IProvisionableDeviceSoftwareUpdatePolicy>(MockBehavior.Strict);
+            policy.Setup(value => value.RequireReadyAsync(kApplicationUri, deadline.Token))
+                .Returns(() => ready ? default : new ValueTask(Task.FromException(
+                    new ServiceResultException(StatusCodes.BadInvalidState, "Software installation is incomplete."))));
+            using var installer = CreateInstaller(softwareUpdates: policy.Object);
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await installer.InstallAsync(Credentials(m_identity), deadline.Token)
+                    .ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(m_events, Is.Empty);
+            Assert.That(m_activeCertificate.Thumbprint, Is.EqualTo(m_identity.Thumbprint));
+            m_pendingKeys.Verify(value => value.TryPeekMatchingAsync(
+                It.IsAny<PendingCertificateKeyContext>(), It.IsAny<Certificate>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+            ready = true;
+
+            await installer.InstallAsync(Credentials(m_identity), deadline.Token).ConfigureAwait(false);
+
+            policy.Verify(value => value.RequireReadyAsync(kApplicationUri, deadline.Token), Times.Exactly(2));
+            m_activator.Verify(value => value.ActivateAsync(
+                It.IsAny<NodeId>(), m_identity.Thumbprint, deadline.Token), Times.Once);
+        }
+
+        /// <summary>
+        /// Standard push completion and a fresh installer's recovery cannot accept a DCA certificate without approval.
+        /// </summary>
+        [Test]
+        public async Task AppliedCredentialsRequireSoftwareApprovalAfterInstallerRestart()
+        {
+            bool ready = false;
+            var policy = new Mock<IProvisionableDeviceSoftwareUpdatePolicy>(MockBehavior.Strict);
+            policy.Setup(value => value.RequireReadyAsync(kApplicationUri, It.IsAny<CancellationToken>()))
+                .Returns(() => ready ? default : new ValueTask(Task.FromException(
+                    new ServiceResultException(StatusCodes.BadInvalidState, "Software installation is incomplete."))));
+            using (var original = CreateInstaller(softwareUpdates: policy.Object))
+            {
+                await original.PreserveDefaultsAsync().ConfigureAwait(false);
+            }
+            using Certificate replacement = CreateCertificate(kApplicationUri);
+            Certificate previous = m_activeCertificate;
+            m_activeCertificate = replacement.AddRef();
+            previous.Dispose();
+            m_events.Clear();
+            using var restarted = CreateInstaller(softwareUpdates: policy.Object);
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await restarted.CaptureAsync().ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(m_events, Is.Empty);
+            ready = true;
+
+            ProvisionableDeviceCredentials? captured = await restarted.CaptureAsync().ConfigureAwait(false);
+
+            Assert.That(captured, Is.Not.Null);
+            Assert.That(captured!.Certificate.Span.ToArray(), Is.EqualTo(replacement.RawData));
+            Assert.That(m_events, Is.Empty);
+            policy.Verify(value => value.RequireReadyAsync(kApplicationUri, It.IsAny<CancellationToken>()),
+                Times.Exactly(2));
+            m_activator.Verify(value => value.ActivateAsync(
+                It.IsAny<NodeId>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// Bootstrap defaults, factory identity capture and security reset do not require or alter software approval.
+        /// </summary>
+        [Test]
+        public async Task FactorySecurityRemainsAvailableWhileSoftwareIsIncomplete()
+        {
+            var policy = new Mock<IProvisionableDeviceSoftwareUpdatePolicy>(MockBehavior.Strict);
+            using var installer = CreateInstaller(softwareUpdates: policy.Object);
+
+            await installer.PreserveDefaultsAsync().ConfigureAwait(false);
+            ProvisionableDeviceCredentials? captured = await installer.CaptureAsync().ConfigureAwait(false);
+            await installer.ResetToServerDefaultsAsync().ConfigureAwait(false);
+
+            Assert.That(captured, Is.Null);
+            Assert.That(m_activeCertificate.Thumbprint, Is.EqualTo(m_identity.Thumbprint));
+            policy.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Fluent policy registration reaches the container-owned installer and cannot be silently replaced.
+        /// </summary>
+        [Test]
+        public async Task FluentSoftwarePolicyAppliesToContainerOwnedInstaller()
+        {
+            var policy = new Mock<IProvisionableDeviceSoftwareUpdatePolicy>(MockBehavior.Strict);
+            policy.Setup(value => value.RequireReadyAsync(kApplicationUri, It.IsAny<CancellationToken>()))
+                .Throws(new ServiceResultException(StatusCodes.BadInvalidState, "Software approval is missing."));
+            var services = new ServiceCollection();
+            services.AddSingleton<ISecretStore>(m_secrets);
+            services.AddSingleton(m_certificates.Object);
+            services.AddSingleton(m_stores.Object);
+            services.AddSingleton(m_pendingKeys.Object);
+            services.AddSingleton<IPendingCertificateKeyStore>(m_pendingKeys.Object);
+            services.AddSingleton(m_activator.Object);
+            services.AddSingleton(NUnitTelemetryContext.Create());
+            Assert.That(services.AddProvisionableDeviceSoftwareUpdatePolicy(_ => policy.Object), Is.SameAs(services));
+            int count = services.Count;
+            Assert.That(() => services.AddProvisionableDeviceSoftwareUpdatePolicy(_ => policy.Object),
+                Throws.InvalidOperationException);
+            Assert.That(services.Count, Is.EqualTo(count));
+            services.AddProvisionableDeviceSecurity("device", kApplicationUri, CreateOptions());
+            using ServiceProvider provider = services.BuildServiceProvider();
+            IProvisionableDeviceSecurityInstaller installer = provider
+                .GetRequiredService<IProvisionableDeviceSecurityInstaller>();
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await installer.InstallAsync(Credentials(m_identity)).ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(provider.GetRequiredService<IProvisionableDeviceSoftwareUpdatePolicy>(),
+                Is.SameAs(policy.Object));
+            Assert.That(m_events, Is.Empty);
+            policy.Verify(value => value.RequireReadyAsync(kApplicationUri, It.IsAny<CancellationToken>()), Times.Once);
         }
 
         /// <summary>
@@ -768,7 +897,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         /// </summary>
         private ProvisionableDeviceSecurityInstaller CreateInstaller(
             NodeId certificateType = default,
-            ProvisionableDeviceSecurityInstallerOptions? options = null)
+            ProvisionableDeviceSecurityInstallerOptions? options = null,
+            IProvisionableDeviceSoftwareUpdatePolicy? softwareUpdates = null)
         {
             options ??= CreateOptions(certificateType);
             return new ProvisionableDeviceSecurityInstaller(
@@ -780,7 +910,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 m_pendingKeys.Object,
                 m_activator.Object,
                 options,
-                NUnitTelemetryContext.Create());
+                NUnitTelemetryContext.Create(),
+                softwareUpdates);
         }
 
         /// <summary>
