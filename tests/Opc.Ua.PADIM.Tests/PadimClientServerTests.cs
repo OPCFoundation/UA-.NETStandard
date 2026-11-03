@@ -323,7 +323,8 @@ namespace Opc.Ua.PADIM.Tests
                         SignalState signal = await catalog.AddSignalAsync(
                             new QualifiedName(browseName, catalog.Manager.InstanceNamespaceIndex), kind, $"TAG-{kind}");
                         string primaryName = PrimaryVariableName(kind);
-                        var primary = signal.FindChild(catalog.Context, ModelName(catalog, primaryName)) as BaseVariableState ??
+                        var primary =
+                            signal.FindChild(catalog.Context, ModelName(catalog, primaryName)) as BaseVariableState ??
                             throw new InvalidOperationException($"The {kind} primary value '{primaryName}' is absent.");
                         NodeId primaryType = PadimRuntimeTests.PublishedVariableTypeId(
                             catalog, signal.TypeDefinitionId, primaryName);
@@ -457,7 +458,7 @@ namespace Opc.Ua.PADIM.Tests
                         profile.StartsWith("http://opcfoundation.org/UA-Profile/PADIM/Server/",
                             StringComparison.Ordinal)),
                     Is.EquivalentTo(expectedPadimProfiles),
-                    "The live ServerProfileArray contains every configured PA-DIM facet and no unsupported PA-DIM facet.");
+                    "The live ServerProfileArray contains exactly the configured PA-DIM facets.");
                 QualifiedName[] expectedPadimUnits = deviceStates.Values
                     .SelectMany(device => device.ConformanceUnits.ToList())
                     .Distinct()
@@ -591,10 +592,99 @@ namespace Opc.Ua.PADIM.Tests
                 Assert.That(patMatrix.Sample.WrappedValue.TypeInfo.ValueRank, Is.EqualTo(ValueRanks.OneDimension));
                 Assert.That(patMatrix.Sample.WrappedValue.TryGetValue(out ArrayOf<ExtensionObject> matrix), Is.True);
                 Assert.That(matrix.Count, Is.EqualTo(1));
+                await AssertDynamicMembersRequireRegistrationAsync(
+                    namespaceSource, session, client, timeout.Token);
             }
             finally
             {
                 await host.StopAsync(CancellationToken.None);
+            }
+        }
+
+        /// <summary>
+        /// Verifies that late-bound dynamic members contribute only after registration and are readable over UA.
+        /// </summary>
+        private static async Task AssertDynamicMembersRequireRegistrationAsync(
+            PadimDevice namespaceSource, ISession session, PadimClient client, CancellationToken cancellationToken)
+        {
+            var builder = await namespaceSource.Manager.CreatePadimDeviceAsync(
+                new QualifiedName("LateRegisteredDevice", namespaceSource.Manager.InstanceNamespaceIndex),
+                cancellationToken: cancellationToken);
+            PadimDevice device = builder.BindPadim();
+            SetIdentity(device);
+            device.State.DeviceHealth!.BrowseName =
+                new QualifiedName("OriginalHealth", device.Manager.InstanceNamespaceIndex);
+            var health = new BaseDataVariableState(device.State)
+            {
+                NodeId = new NodeId("LateHealth", device.Manager.InstanceNamespaceIndex),
+                BrowseName = new QualifiedName(
+                    "DeviceHealth", (ushort)device.Context.NamespaceUris.GetIndex(Di.Namespaces.OpcUaDi)),
+                DataType = device.State.DeviceHealth.DataType,
+                TypeDefinitionId = device.State.DeviceHealth.TypeDefinitionId,
+                ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasComponent,
+                AccessLevel = AccessLevels.CurrentRead,
+                UserAccessLevel = AccessLevels.CurrentRead
+            };
+            AnalogSignalObjectState signal = await device.AddMeasurementAsync(
+                new QualifiedName("LateTemperature", device.Manager.InstanceNamespaceIndex),
+                PadimMeasurementKind.Temperature, "TT-LATE", cancellationToken: cancellationToken);
+            device.State.AddChild(health);
+            signal.AnalogSignal!.BrowseName =
+                new QualifiedName("OriginalMeasurement", device.Manager.InstanceNamespaceIndex);
+            ushort padimNamespace = (ushort)device.Context.NamespaceUris.GetIndex(Namespaces.PADIM);
+            TemperatureMeasurementVariableState primary =
+                device.Context.CreateInstanceOfTemperatureMeasurementVariableType(
+                    signal, new QualifiedName("AnalogSignal", padimNamespace));
+            primary.NodeId = new NodeId("LatePrimary", device.Manager.InstanceNamespaceIndex);
+            primary.ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasComponent;
+            signal.AddChild(primary);
+            var samples = new PadimPublishedSampleSet();
+            samples.Bind(device, health);
+            samples.Bind(device, primary);
+            samples.Bind(device, primary.SensorType!);
+            Assert.Multiple(() =>
+            {
+                Assert.That(device.Manager.FindPredefinedNode(health.NodeId), Is.Null);
+                Assert.That(device.Manager.FindPredefinedNode(primary.NodeId), Is.Null);
+                Assert.That(device.ConformanceUnits.ToArray(),
+                    Does.Not.Contain(new QualifiedName("PA-DIM Base")));
+                Assert.That(device.ServerProfiles.ToArray(),
+                    Does.Not.Contain("http://opcfoundation.org/UA-Profile/PADIM/Server/TemperatureSignal"));
+            });
+            (ArrayOf<DataValue> _, ArrayOf<ServiceResult> errors) = await session.ReadValuesAsync(
+                [MapNodeId(device, session.NamespaceUris, health.NodeId),
+                    MapNodeId(device, session.NamespaceUris, primary.NodeId)], cancellationToken);
+            Assert.That(errors.Count, Is.EqualTo(2));
+            for (int ii = 0; ii < errors.Count; ii++)
+            {
+                Assert.That(errors[ii].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            }
+            await device.RegisterAsync(cancellationToken);
+            await device.RefreshAsync(cancellationToken);
+            Assert.Multiple(() =>
+            {
+                Assert.That(device.Manager.FindPredefinedNode(health.NodeId), Is.SameAs(health));
+                Assert.That(device.Manager.FindPredefinedNode(primary.NodeId), Is.SameAs(primary));
+                Assert.That(device.ConformanceUnits.ToArray(),
+                    Does.Contain(new QualifiedName("PA-DIM Base")));
+                Assert.That(device.ServerProfiles.ToArray(),
+                    Does.Contain("http://opcfoundation.org/UA-Profile/PADIM/Server/TemperatureSignal"));
+            });
+            foreach (PadimPublishedSample expected in samples.Samples)
+            {
+                BaseVariableState variable = expected.Binding.Variable;
+                NodeId parentId = MapNodeId(device, session.NamespaceUris, variable.Parent!.NodeId);
+                NodeId variableId = MapNodeId(device, session.NamespaceUris, variable.NodeId);
+                ArrayOf<ReferenceDescription> children = await client.BrowseChildrenAsync(parentId, cancellationToken);
+                Assert.That(children.ToList().Any(child =>
+                    ExpandedNodeId.ToNodeId(child.NodeId, session.NamespaceUris) == variableId), Is.True);
+                (ArrayOf<DataValue> values, ArrayOf<ServiceResult> readErrors) =
+                    await session.ReadValuesAsync([variableId], cancellationToken);
+                Assert.That(ServiceResult.IsGood(readErrors[0]), Is.True);
+                PadimPublishedSampleSet.AssertSample(
+                    expected.Sample.WrappedValue, values[0].WrappedValue, expected.Key);
+                Assert.That(values[0].StatusCode, Is.EqualTo(expected.Sample.StatusCode), expected.Key);
+                Assert.That(values[0].SourceTimestamp, Is.EqualTo(expected.Sample.SourceTimestamp), expected.Key);
             }
         }
 

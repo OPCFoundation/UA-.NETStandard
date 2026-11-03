@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.PADIM.Server
@@ -65,7 +66,10 @@ namespace Opc.Ua.PADIM.Server
             var bound = new HashSet<BaseVariableState>(RefEqualityComparer.Default);
             foreach (PadimValueBinding binding in bindings)
             {
-                bound.Add(binding.Variable);
+                if (IsRegisteredPath(binding.Variable))
+                {
+                    bound.Add(binding.Variable);
+                }
             }
             bool health =
                 FindMember(State, "DeviceHealth", Di.Namespaces.OpcUaDi) is BaseVariableState healthVariable &&
@@ -73,6 +77,10 @@ namespace Opc.Ua.PADIM.Server
             foreach (PadimValueBinding binding in bindings)
             {
                 BaseVariableState variable = binding.Variable;
+                if (!bound.Contains(variable))
+                {
+                    continue;
+                }
                 if (ReferenceEquals(variable, State.DisplayLanguage))
                 {
                     Add("Admin", "IAdmin DisplayLanguage");
@@ -81,7 +89,10 @@ namespace Opc.Ua.PADIM.Server
                 {
                     Add("Admin", "IAdmin DateOfChange");
                 }
-                if (binding.SupportsSimulation)
+                if (binding.SupportsSimulation &&
+                    FindMember(variable, "ActualValue") != null &&
+                    FindMember(variable, "SimulationValue") != null &&
+                    FindMember(variable, "SimulationState") != null)
                 {
                     string family = variable switch
                     {
@@ -172,10 +183,10 @@ namespace Opc.Ua.PADIM.Server
                 {
                     Add("Core", "ISignal", "SignalSet");
                 }
-                if (nanoEmbeddedSupported && State.SubDevices != null)
+                if (nanoEmbeddedSupported && FindMember(State, "SubDevices") is BaseObjectState subDevices)
                 {
                     var children = new List<BaseInstanceState>();
-                    State.SubDevices.GetChildren(Context, children);
+                    subDevices.GetChildren(Context, children);
                     foreach (BaseInstanceState child in children)
                     {
                         if (child is PADIMState && ReferenceEquals(Manager.FindPredefinedNode(child.NodeId), child))
@@ -193,11 +204,12 @@ namespace Opc.Ua.PADIM.Server
                     Add("Core", "DeviceRevision");
                 }
             }
-            if (m_healthAlarms != null)
+            if (m_healthAlarms != null && FindMember(State, "DeviceHealthAlarms", Di.Namespaces.OpcUaDi) != null &&
+                m_healthAlarms.All(IsRegisteredPath))
             {
                 Add("Alarming", "Base Alarming", "Browsable Alarms");
             }
-            if (State.FactoryReset?.OnCallMethod2Async != null)
+            if (FindMember(State, "FactoryReset") is MethodState { OnCallMethod2Async: not null })
             {
                 Add("Admin", "IAdmin FactoryReset");
             }
@@ -215,7 +227,7 @@ namespace Opc.Ua.PADIM.Server
                     AddSignalOptions(suffix, signal);
                     if (signal is AnalogSignalObjectState analog)
                     {
-                        AddProcessOptions(suffix, analog.AnalogSignal);
+                        AddProcessOptions(suffix, FindMember(analog, "AnalogSignal") as BaseVariableState);
                         var children = new List<BaseInstanceState>();
                         signal.GetChildren(Context, children);
                         foreach (BaseInstanceState child in children)
@@ -446,7 +458,8 @@ namespace Opc.Ua.PADIM.Server
                     bool found = false;
                     foreach (BaseInstanceState child in children)
                     {
-                        if (child is BaseObjectState calibration && Implements(calibration, calibrationInterface) &&
+                        if (child is BaseObjectState calibration && IsRegisteredPath(calibration) &&
+                            Implements(calibration, calibrationInterface) &&
                             HasBoundFields(calibration, calibrationFields))
                         {
                             found = true;
@@ -458,10 +471,10 @@ namespace Opc.Ua.PADIM.Server
                         return false;
                     }
                 }
-                return !requiresPat || signal is AnalogSignalObjectState analog &&
-                    analog.AnalogSignal != null &&
-                    HasType(analog.AnalogSignal, VariableTypeIds.PatMeasurementVariableType) &&
-                    HasBoundFields(analog.AnalogSignal, "PatMeasurandDescription");
+                return !requiresPat || signal is AnalogSignalObjectState &&
+                    FindMember(signal, "AnalogSignal") is BaseVariableState primary &&
+                    HasType(primary, VariableTypeIds.PatMeasurementVariableType) &&
+                    HasBoundFields(primary, "PatMeasurandDescription");
             }
 
             void AddOptionalMembers(string facet, string prefix, NodeState? scope)
@@ -539,12 +552,33 @@ namespace Opc.Ua.PADIM.Server
             owner.GetChildren(Context, children);
             foreach (BaseInstanceState child in children)
             {
-                if (child.BrowseName == browseName)
+                if (child.BrowseName == browseName && IsRegisteredPath(child))
                 {
                     return child;
                 }
             }
             return null;
+        }
+
+        /// <summary>
+        /// Requires the instance and its complete ownership path to be indexed by the DI manager.
+        /// </summary>
+        private bool IsRegisteredPath(BaseInstanceState instance)
+        {
+            BaseInstanceState? current = instance;
+            while (current != null)
+            {
+                if (!ReferenceEquals(Manager.FindPredefinedNode(current.NodeId), current))
+                {
+                    return false;
+                }
+                if (ReferenceEquals(current, State))
+                {
+                    return true;
+                }
+                current = current.Parent as BaseInstanceState;
+            }
+            return false;
         }
 
         /// <summary>

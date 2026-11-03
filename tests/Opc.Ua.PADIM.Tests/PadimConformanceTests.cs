@@ -325,12 +325,18 @@ namespace Opc.Ua.PADIM.Tests
                 new QualifiedName("Manufacturer", device.Manager.InstanceNamespaceIndex);
             Assert.That(device.ConformanceUnits.ToArray(),
                 Does.Not.Contain(new QualifiedName("PA-DIM Base")));
-            device.State.AddChild(new BaseDataVariableState(device.State)
+            var dynamicManufacturer = new BaseDataVariableState(device.State)
             {
                 NodeId = new NodeId("DynamicDiManufacturer", device.Manager.InstanceNamespaceIndex),
                 BrowseName = new QualifiedName("Manufacturer", (ushort)diNamespace),
                 WrappedValue = Variant.From(LocalizedText.From("Dynamic DI manufacturer"))
-            });
+            };
+            device.State.AddChild(dynamicManufacturer);
+            Assert.That(device.Manager.FindPredefinedNode(dynamicManufacturer.NodeId), Is.Null);
+            Assert.That(device.ConformanceUnits.ToArray(),
+                Does.Not.Contain(new QualifiedName("PA-DIM Base")));
+            await device.RegisterAsync();
+            Assert.That(device.Manager.FindPredefinedNode(dynamicManufacturer.NodeId), Is.SameAs(dynamicManufacturer));
             Assert.That(device.ConformanceUnits.ToArray(),
                 Does.Contain(new QualifiedName("PA-DIM Base")),
                 "A correct DI-qualified dynamic child must not be hidden by a generated same-name slot.");
@@ -399,6 +405,12 @@ namespace Opc.Ua.PADIM.Tests
                 Does.Not.Contain(new QualifiedName("PA-DIM Base")),
                 "A correctly named but unbound health child is insufficient.");
             device.BindValue(dynamicHealth, "dynamicHealth", provider.Object);
+            Assert.That(device.Manager.FindPredefinedNode(dynamicHealth.NodeId), Is.Null);
+            Assert.That(device.ConformanceUnits.ToArray(),
+                Does.Not.Contain(new QualifiedName("PA-DIM Base")),
+                "A bound health child must be registered before it contributes.");
+            await device.RegisterAsync();
+            Assert.That(device.Manager.FindPredefinedNode(dynamicHealth.NodeId), Is.SameAs(dynamicHealth));
             Assert.That(device.ConformanceUnits.ToArray(),
                 Does.Contain(new QualifiedName("PA-DIM Base")));
             provider.VerifyNoOtherCalls();
@@ -672,6 +684,7 @@ namespace Opc.Ua.PADIM.Tests
             signal.AddChild(sibling);
             device.BindValue(sibling, "sibling", provider.Object);
             BindRequiredValueMembers(device, sibling, provider.Object);
+            await device.RegisterAsync();
             Assert.That(device.ServerProfiles.ToArray(),
                 Does.Not.Contain("http://opcfoundation.org/UA-Profile/PADIM/Server/TemperatureSignal"),
                 "A bound same-type sibling must not substitute for the unbound primary measurement.");
@@ -686,6 +699,72 @@ namespace Opc.Ua.PADIM.Tests
             Assert.That(device.ServerProfiles.ToArray(),
                 Does.Contain("http://opcfoundation.org/UA-Profile/PADIM/Server/TemperatureSignal"),
                 "A bound dynamic child at the exact primary path is valid despite the old generated slot.");
+            provider.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Indexing a primary and its parameters cannot substitute for registering its signal ownership path.
+        /// </summary>
+        [Test]
+        public async Task RegisteredPrimaryCannotBypassUnregisteredSignalAncestor()
+        {
+            PadimDevice device = await CreateDeviceAsync("UnregisteredSignalRequirements");
+            AnalogSignalObjectState signal = device.Context.CreateInstanceOfAnalogSignalType(
+                device.State.SignalSet!, Name("LateSignal"));
+            signal.NodeId = new NodeId("LateSignalAncestor", device.Manager.InstanceNamespaceIndex);
+            device.State.SignalSet!.AddChild(signal);
+            TemperatureMeasurementVariableState primary =
+                device.Context.CreateInstanceOfTemperatureMeasurementVariableType(signal, ModelName("AnalogSignal"));
+            signal.CreateOrReplaceAnalogSignal(device.Context, primary);
+            var provider = new Mock<IPadimValueProvider>(MockBehavior.Strict);
+            device.BindValue(primary, "primary", provider.Object);
+            BindRequiredValueMembers(device, primary, provider.Object);
+            await device.Manager.AddPredefinedNodeAsync(primary);
+            Assert.Multiple(() =>
+            {
+                Assert.That(device.Manager.FindPredefinedNode(primary.NodeId), Is.SameAs(primary));
+                Assert.That(device.Manager.FindPredefinedNode(signal.NodeId), Is.Null);
+                Assert.That(device.ServerProfiles.ToArray(),
+                    Does.Not.Contain("http://opcfoundation.org/UA-Profile/PADIM/Server/TemperatureSignal"));
+                Assert.That(device.ConformanceUnits.ToArray(),
+                    Does.Not.Contain(new QualifiedName("PA-DIM Analog Signal")));
+            });
+            await device.RegisterAsync();
+            Assert.That(device.Manager.FindPredefinedNode(signal.NodeId), Is.SameAs(signal));
+            Assert.That(device.ServerProfiles.ToArray(),
+                Does.Contain("http://opcfoundation.org/UA-Profile/PADIM/Server/TemperatureSignal"));
+            provider.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// A registered primary requires its mandatory provider-bound parameter to be registered as well.
+        /// </summary>
+        [Test]
+        public async Task MeasurementFacetWaitsForRegisteredRequiredParameter()
+        {
+            PadimDevice device = await CreateDeviceAsync("UnregisteredParameterRequirements");
+            AnalogSignalObjectState signal = await device.AddMeasurementAsync(
+                Name("Value"), PadimMeasurementKind.Temperature, "TT-PARAMETER");
+            var primary = (TemperatureMeasurementVariableState)signal.AnalogSignal!;
+            var provider = new Mock<IPadimValueProvider>(MockBehavior.Strict);
+            device.BindValue(primary, "primary", provider.Object);
+            primary.SensorType!.BrowseName = Name("OriginalSensorType");
+            var parameter = new BaseDataVariableState(primary)
+            {
+                NodeId = new NodeId("LateSensorType", device.Manager.InstanceNamespaceIndex),
+                BrowseName = ModelName("SensorType"),
+                DataType = primary.SensorType.DataType,
+                TypeDefinitionId = primary.SensorType.TypeDefinitionId
+            };
+            primary.AddChild(parameter);
+            device.BindValue(parameter, "sensorType", provider.Object);
+            Assert.That(device.Manager.FindPredefinedNode(parameter.NodeId), Is.Null);
+            Assert.That(device.ServerProfiles.ToArray(),
+                Does.Not.Contain("http://opcfoundation.org/UA-Profile/PADIM/Server/TemperatureSignal"));
+            await device.RegisterAsync();
+            Assert.That(device.Manager.FindPredefinedNode(parameter.NodeId), Is.SameAs(parameter));
+            Assert.That(device.ServerProfiles.ToArray(),
+                Does.Contain("http://opcfoundation.org/UA-Profile/PADIM/Server/TemperatureSignal"));
             provider.VerifyNoOtherCalls();
         }
 

@@ -110,6 +110,11 @@ calibration variable below the device. It rejects a member belonging to another
 device. Call `RegisterAsync` after adding optional members to an already
 registered device; assigning a local object alone does not make its NodeId
 readable or subscribable.
+Facet contributions also require the relevant members and every node on their
+ownership path to be indexed by the DI manager. Adding a child and binding its
+provider after registration does not contribute its capability until
+`RegisterAsync` registers that addition; configuration before initial
+registration uses the same check.
 
 The generated family accessors retain the specification's spelling, including
 `Ph` and `OpticalFluorescenseQuenching`.
@@ -419,7 +424,7 @@ suite or a list of advertised URIs as verification of every published unit:
 | All 12 measurement selections | Structural fixtures retain published types, numeric restrictions and units. The hosted client reads each primary value, required measurement parameter and structured PAT value; optional-only measurement properties are not all instantiated. |
 | 56 facet URIs | `ConfiguredFamiliesCoverAllFiftySixReleasedFacetUris` checks the exact URI set. The hosted test reads `ServerProfileArray` and `ConformanceUnits` and compares their PA-DIM entries with the configured contributors. These tests do not constitute a 194-unit behavioral conformance test. |
 | Simulation, authorization, operations and alarms | Runtime tests exercise accepted/rejected writes, cancellation, provider drain, simulation reversal, health-category transitions, acknowledgement and retained-condition refresh. Physical adjustment success remains the provider's responsibility. |
-| Required family members | Contributor tests withhold incomplete pH and TOC configurations and reject combining different calibration or signal instances. These checks do not replace acquisition/readback evidence. |
+| Required family members | Contributor tests withhold incomplete pH and TOC configurations, unregistered dynamic members and unregistered ownership paths, and reject combining different calibration or signal instances. The hosted fixture checks that late-bound health and primary measurement nodes return `BadNodeIdUnknown` before registration, then browses and reads their exact provider samples after registration. |
 
 Two catalogue inconsistencies remain unresolved. The `CatalyticBeadSensor`
 facet lists seven optional `CatalyticBeadSignalType` condition units, but its
