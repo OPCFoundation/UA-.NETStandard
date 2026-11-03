@@ -1021,7 +1021,9 @@ namespace Opc.Ua.Gds.Server.Onboarding
             }
         }
 
-        /// <summary>The private serialized state, never exposed as a mutable recovery contract.</summary>
+        /// <summary>
+        /// The private serialized state, never exposed as a mutable recovery contract.
+        /// </summary>
         private sealed record Checkpoint(
             ProvisionableDeviceSecurityStage Stage,
             ByteString Peer,

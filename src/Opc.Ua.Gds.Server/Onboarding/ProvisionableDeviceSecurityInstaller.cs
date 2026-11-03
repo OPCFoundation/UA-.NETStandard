@@ -874,7 +874,9 @@ namespace Opc.Ua.Gds.Server.Onboarding
             return m_passwordProvider?.GetPassword(identifier);
         }
 
-        /// <summary>The selected OPC UA application certificate slot.</summary>
+        /// <summary>
+        /// The selected OPC UA application certificate slot.
+        /// </summary>
         private CertificateIdentifier ApplicationCertificateIdentifier => new()
         {
             StorePath = m_applicationStorePath,
@@ -882,7 +884,9 @@ namespace Opc.Ua.Gds.Server.Onboarding
             CertificateType = m_applicationCertificateType
         };
 
-        /// <summary>The selected immutable device identity store entry.</summary>
+        /// <summary>
+        /// The selected immutable device identity store entry.
+        /// </summary>
         private CertificateIdentifier IdentityCertificateIdentifier => new()
         {
             StorePath = m_identityStorePath,
@@ -890,13 +894,19 @@ namespace Opc.Ua.Gds.Server.Onboarding
             CertificateType = m_applicationCertificateType
         };
 
-        /// <summary>The selected OPC UA application certificate type.</summary>
+        /// <summary>
+        /// The selected OPC UA application certificate type.
+        /// </summary>
         private NodeId ApplicationCertificateType => m_applicationCertificateType;
 
-        /// <summary>The selected application certificate store path.</summary>
+        /// <summary>
+        /// The selected application certificate store path.
+        /// </summary>
         private string ApplicationStorePath => m_applicationStorePath;
 
-        /// <summary>The selected application certificate store type.</summary>
+        /// <summary>
+        /// The selected application certificate store type.
+        /// </summary>
         private string ApplicationStoreType => m_applicationStoreType;
 
         /// <summary>The maximum retained pre-onboarding trust-list checkpoint size.</summary>

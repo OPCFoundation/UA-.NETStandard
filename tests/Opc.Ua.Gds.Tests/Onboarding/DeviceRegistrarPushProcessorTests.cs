@@ -2463,56 +2463,90 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Csr = ByteString.From(DefaultCertificateFactory.Instance.CreateSigningRequest(certificate).AsSpan());
             }
 
-            /// <summary>Gets the browse and application name.</summary>
+            /// <summary>
+            /// Gets the browse and application name.
+            /// </summary>
             public string Name { get; }
 
-            /// <summary>Gets the ApplicationUri reported by the configuration.</summary>
+            /// <summary>
+            /// Gets the ApplicationUri reported by the configuration.
+            /// </summary>
             public string ApplicationUri { get; }
 
-            /// <summary>Gets the reported ApplicationType.</summary>
+            /// <summary>
+            /// Gets the reported ApplicationType.
+            /// </summary>
             public ApplicationType Type { get; }
 
-            /// <summary>Gets the ApplicationConfiguration object.</summary>
+            /// <summary>
+            /// Gets the ApplicationConfiguration object.
+            /// </summary>
             public NodeId Node { get; }
 
-            /// <summary>Gets the ApplicationUri property.</summary>
+            /// <summary>
+            /// Gets the ApplicationUri property.
+            /// </summary>
             public NodeId UriNode { get; }
 
-            /// <summary>Gets the ProductUri property.</summary>
+            /// <summary>
+            /// Gets the ProductUri property.
+            /// </summary>
             public NodeId ProductNode { get; }
 
-            /// <summary>Gets the ApplicationType property.</summary>
+            /// <summary>
+            /// Gets the ApplicationType property.
+            /// </summary>
             public NodeId TypeNode { get; }
 
-            /// <summary>Gets the optional ApplicationNames property.</summary>
+            /// <summary>
+            /// Gets the optional ApplicationNames property.
+            /// </summary>
             public NodeId NamesNode { get; }
 
-            /// <summary>Gets the CertificateGroups folder.</summary>
+            /// <summary>
+            /// Gets the CertificateGroups folder.
+            /// </summary>
             public NodeId Groups { get; }
 
-            /// <summary>Gets the DefaultApplicationGroup.</summary>
+            /// <summary>
+            /// Gets the DefaultApplicationGroup.
+            /// </summary>
             public NodeId Group { get; }
 
-            /// <summary>Gets the DefaultApplicationGroup TrustList.</summary>
+            /// <summary>
+            /// Gets the DefaultApplicationGroup TrustList.
+            /// </summary>
             public NodeId TrustList { get; }
 
-            /// <summary>Gets the DefaultApplicationGroup CertificateTypes property.</summary>
+            /// <summary>
+            /// Gets the DefaultApplicationGroup CertificateTypes property.
+            /// </summary>
             public NodeId CertificateTypesNode { get; }
 
-            /// <summary>Gets or sets the certificate types the DefaultApplicationGroup supports.</summary>
+            /// <summary>
+            /// Gets or sets the certificate types the DefaultApplicationGroup supports.
+            /// </summary>
             public ArrayOf<NodeId> CertificateTypes { get; set; } =
                 [Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType];
 
-            /// <summary>Gets or sets whether GetCertificates rejects a null CertificateGroupId.</summary>
+            /// <summary>
+            /// Gets or sets whether GetCertificates rejects a null CertificateGroupId.
+            /// </summary>
             public bool RejectNullGroup { get; set; }
 
-            /// <summary>Gets or sets the error CancelChanges returns, for a server without transactions.</summary>
+            /// <summary>
+            /// Gets or sets the error CancelChanges returns, for a server without transactions.
+            /// </summary>
             public ServiceResultException? CancelError { get; set; }
 
-            /// <summary>Gets or sets work after UpdateCertificate stages the credential.</summary>
+            /// <summary>
+            /// Gets or sets work after UpdateCertificate stages the credential.
+            /// </summary>
             public Func<ValueTask>? OnUpdateCertificate { get; set; }
 
-            /// <summary>Gets or sets work after CancelChanges succeeds.</summary>
+            /// <summary>
+            /// Gets or sets work after CancelChanges succeeds.
+            /// </summary>
             public Func<ValueTask>? OnCancelChanges { get; set; }
 
             /// <summary>
@@ -2520,10 +2554,14 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             /// </summary>
             public Func<ValueTask>? OnCloseAndUpdate { get; set; }
 
-            /// <summary>Gets or sets a CloseAndUpdate failure raised after the TrustList is staged.</summary>
+            /// <summary>
+            /// Gets or sets a CloseAndUpdate failure raised after the TrustList is staged.
+            /// </summary>
             public Exception? TrustStagedError { get; set; }
 
-            /// <summary>Gets or sets an UpdateCertificate failure raised after the certificate is staged.</summary>
+            /// <summary>
+            /// Gets or sets an UpdateCertificate failure raised after the certificate is staged.
+            /// </summary>
             public Exception? CertificateStagedError { get; set; }
 
             /// <summary>
@@ -2532,40 +2570,64 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             /// </summary>
             public int ReportedTypeCount { get; set; } = 1;
 
-            /// <summary>Gets whether staged TrustList or certificate changes await ApplyChanges.</summary>
+            /// <summary>
+            /// Gets whether staged TrustList or certificate changes await ApplyChanges.
+            /// </summary>
             public bool HasPendingChanges => m_trustPending != null || m_certificatePending;
 
-            /// <summary>Gets the committed TrustList the application reports.</summary>
+            /// <summary>
+            /// Gets the committed TrustList the application reports.
+            /// </summary>
             public TrustListDataType InstalledTrustList => Decode(m_trustBytes);
 
-            /// <summary>Gets the shared registry identifier assigned on registration.</summary>
+            /// <summary>
+            /// Gets the shared registry identifier assigned on registration.
+            /// </summary>
             public NodeId Id { get; }
 
-            /// <summary>Gets the retained request identifier.</summary>
+            /// <summary>
+            /// Gets the retained request identifier.
+            /// </summary>
             public NodeId RequestId { get; }
 
-            /// <summary>Gets the issued certificate for this application's key.</summary>
+            /// <summary>
+            /// Gets the issued certificate for this application's key.
+            /// </summary>
             public ByteString Certificate { get; }
 
-            /// <summary>Gets the application-generated signing request.</summary>
+            /// <summary>
+            /// Gets the application-generated signing request.
+            /// </summary>
             public ByteString Csr { get; }
 
-            /// <summary>Gets or sets whether the application exposes the optional ApplicationNames.</summary>
+            /// <summary>
+            /// Gets or sets whether the application exposes the optional ApplicationNames.
+            /// </summary>
             public bool IncludeNames { get; set; } = true;
 
-            /// <summary>Gets or sets whether the device object references the application.</summary>
+            /// <summary>
+            /// Gets or sets whether the device object references the application.
+            /// </summary>
             public bool OnDevice { get; set; } = true;
 
-            /// <summary>Gets or sets whether the ManagedApplications folder references the application.</summary>
+            /// <summary>
+            /// Gets or sets whether the ManagedApplications folder references the application.
+            /// </summary>
             public bool InFolder { get; set; }
 
-            /// <summary>Gets or sets whether the application already uses the issued certificate.</summary>
+            /// <summary>
+            /// Gets or sets whether the application already uses the issued certificate.
+            /// </summary>
             public bool Installed { get; set; }
 
-            /// <summary>Gets the methods called on this application, in order.</summary>
+            /// <summary>
+            /// Gets the methods called on this application, in order.
+            /// </summary>
             public List<NodeId> Calls { get; } = [];
 
-            /// <summary>Gets the number of signing requests the application created.</summary>
+            /// <summary>
+            /// Gets the number of signing requests the application created.
+            /// </summary>
             public int CsrCalls { get; private set; }
 
             /// <summary>
