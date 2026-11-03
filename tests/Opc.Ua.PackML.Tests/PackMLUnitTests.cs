@@ -725,6 +725,40 @@ namespace Opc.Ua.PackML.Tests
             Assert.That(conformanceUnits, Does.Not.Contain("PackML StateModel extensions"));
         }
 
+        /// <summary>
+        /// Verifies an optional Hold transition is omitted when its source state is not configured.
+        /// </summary>
+        [Test]
+        public async Task HoldTransitionIsUnavailableWhenItsSourceStateIsNotConfigured()
+        {
+            SystemContext context = PackMLTestSupport.CreateContext();
+            var options = new PackMLUnitOptions
+            {
+                Modes =
+                [
+                    new PackMLMode
+                    {
+                        States =
+                        [
+                            PackMLStateNumbers.Cleared, PackMLStateNumbers.Stopped, PackMLStateNumbers.Running,
+                            PackMLStateNumbers.Starting, PackMLStateNumbers.Execute, PackMLStateNumbers.Holding,
+                            PackMLStateNumbers.Held, PackMLStateNumbers.Unholding, PackMLStateNumbers.Suspending,
+                            PackMLStateNumbers.Suspended
+                        ]
+                    }
+                ]
+            };
+            await using Unit unit = await Unit.CreateAsync(
+                context, null, PackMLTestSupport.Name(context), new EquipmentProvider(), options);
+            PackMLExecuteStateMachineState execute =
+                unit.Node.BaseStateMachine.Required().MachineState.Required().ExecuteState.Required();
+            ushort namespaceIndex = checked((ushort)context.NamespaceUris.GetIndex(Namespaces.PackML));
+            NodeId unavailableTransition =
+                new(Objects.PackMLExecuteStateMachineType_UnsuspendingToHolding, namespaceIndex);
+            Assert.That(execute.AvailableTransitions.Required().Value.Span.ToArray(),
+                Does.Not.Contain(unavailableTransition));
+        }
+
         [TestCase(0, 0)]
         [TestCase(1, 0)]
         [TestCase(2, 0)]
