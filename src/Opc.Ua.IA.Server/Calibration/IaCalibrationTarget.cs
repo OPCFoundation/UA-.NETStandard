@@ -363,7 +363,7 @@ namespace Opc.Ua.IA.Server
         /// <summary>
         /// Copies mutable structured and array payloads out of provider-owned buffers.
         /// </summary>
-        private static ArrayOf<IaCalibrationReading> CopyReadings(ArrayOf<IaCalibrationReading> readings)
+        private ArrayOf<IaCalibrationReading> CopyReadings(ArrayOf<IaCalibrationReading> readings)
         {
             var copy = new IaCalibrationReading[readings.Count];
             for (int ii = 0; ii < readings.Count; ii++)
@@ -371,7 +371,7 @@ namespace Opc.Ua.IA.Server
                 IaCalibrationReading reading = readings[ii];
                 copy[ii] = reading with
                 {
-                    Value = reading.Value.WithWrappedValue(IaValueCopy.Own(reading.Value.WrappedValue))
+                    Value = reading.Value.WithWrappedValue(IaValueCopy.Own(reading.Value.WrappedValue, m_context))
                 };
             }
             return copy;

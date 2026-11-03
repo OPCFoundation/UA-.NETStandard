@@ -771,6 +771,137 @@ namespace Opc.Ua.IA.Tests.Statistics
         }
 
         /// <summary>
+        /// A published decoded structure owns its primitive-array, ByteString and nested Variant
+        /// fields and its opaque type identifier.
+        /// </summary>
+        [Test]
+        public async Task PublishedStatisticsDoNotAliasDecodedStructures()
+        {
+            double[] values = [1, 2];
+            byte[] payload = [3, 4];
+            uint[] nested = [5, 6];
+            byte[] typeBytes = [7, 8];
+            var structure = new MutableStructure
+            {
+                Values = new ArrayOf<double>(values.AsMemory()),
+                Payload = new ByteString(payload.AsMemory()),
+                Nested = Variant.From(new ArrayOf<uint>(nested.AsMemory()))
+            };
+            var typeId = new ExpandedNodeId(new ByteString(typeBytes.AsMemory()), 1);
+            Variant published = await PublishThenMutateAsync(Opc.Ua.DataTypeIds.BaseDataType, ValueRanks.Scalar,
+                new Variant(new ExtensionObject(typeId, structure)), () =>
+                {
+                    values[0] = 99;
+                    payload[0] = 99;
+                    nested[0] = 99;
+                    typeBytes[0] = 99;
+                }).ConfigureAwait(false);
+            Assert.That(published.TryGetValue(out ExtensionObject extension), Is.True);
+            AssertOpaqueTypeId(extension, [7, 8]);
+            Assert.That(extension.TryGetValue(out MutableStructure? copy), Is.True);
+            Assert.That(copy, Is.Not.SameAs(structure));
+            Assert.That(copy!.Values.Span.ToArray(), Is.EqualTo(new double[] { 1, 2 }));
+            Assert.That(copy.Payload.Span.ToArray(), Is.EqualTo(new byte[] { 3, 4 }));
+            Assert.That(copy.Nested.TryGetValue(out ArrayOf<uint> nestedCopy), Is.True);
+            Assert.That(nestedCopy.Span.ToArray(), Is.EqualTo(new uint[] { 5, 6 }));
+        }
+
+        /// <summary>
+        /// A published structure registered with the encodeable factory owns its primitive arrays.
+        /// </summary>
+        [Test]
+        public async Task PublishedStatisticsDoNotAliasRegisteredStructures()
+        {
+            uint[] dimensions = [2, 3];
+            var argument = new Argument
+            {
+                Name = "Input",
+                ArrayDimensions = new ArrayOf<uint>(dimensions.AsMemory())
+            };
+            Variant published = await PublishThenMutateAsync(Opc.Ua.DataTypeIds.BaseDataType, ValueRanks.Scalar,
+                new Variant(new ExtensionObject(argument)), () => dimensions[0] = 99).ConfigureAwait(false);
+            Assert.That(published.TryGetValue(out ExtensionObject extension), Is.True);
+            Assert.That(extension.TryGetValue(out Argument? copy), Is.True);
+            Assert.That(copy, Is.Not.SameAs(argument));
+            Assert.That(copy!.Name, Is.EqualTo("Input"));
+            Assert.That(copy.ArrayDimensions.Span.ToArray(), Is.EqualTo(new uint[] { 2, 3 }));
+        }
+
+        /// <summary>
+        /// An extension object with an XML, JSON or null body owns its opaque type identifier.
+        /// </summary>
+        [TestCase("xml")]
+        [TestCase("json")]
+        [TestCase("null")]
+        public async Task PublishedStatisticsDoNotAliasExtensionObjectTypeIds(string body)
+        {
+            byte[] typeBytes = [7, 8];
+            var typeId = new ExpandedNodeId(new ByteString(typeBytes.AsMemory()), 1);
+            ExtensionObject extension = body switch
+            {
+                "xml" => new ExtensionObject(typeId, XmlElement.From("<Value>1</Value>")),
+                "json" => new ExtensionObject(typeId, "{\"Value\":1}"),
+                _ => new ExtensionObject(typeId)
+            };
+            Variant published = await PublishThenMutateAsync(Opc.Ua.DataTypeIds.BaseDataType, ValueRanks.Scalar,
+                new Variant(extension), () => typeBytes[0] = 99).ConfigureAwait(false);
+            Assert.That(published.TryGetValue(out ExtensionObject copy), Is.True);
+            AssertOpaqueTypeId(copy, [7, 8]);
+            switch (body)
+            {
+                case "xml":
+                    Assert.That(copy.TryGetAsXml(out XmlElement xml), Is.True);
+                    Assert.That(xml.OuterXml, Is.EqualTo("<Value>1</Value>"));
+                    break;
+                case "json":
+                    Assert.That(copy.TryGetAsJson(out string? json), Is.True);
+                    Assert.That(json, Is.EqualTo("{\"Value\":1}"));
+                    break;
+                default:
+                    Assert.That(copy.TryGetValue(out IEncodeable? _), Is.False);
+                    Assert.That(copy.TryGetAsBinary(out ByteString _), Is.False);
+                    Assert.That(copy.TryGetAsXml(out XmlElement _), Is.False);
+                    Assert.That(copy.TryGetAsJson(out string? _), Is.False);
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// A structure that does not survive the copy is rejected rather than published aliased.
+        /// </summary>
+        [Test]
+        public async Task StructuresThatCannotBeDetachedAreRejected()
+        {
+            var fixture = new IaTestContext();
+            BaseObjectState owner = fixture.Owner();
+            BaseVariableState quantity = fixture.Quantity(owner);
+            quantity.DataType = Opc.Ua.DataTypeIds.BaseDataType;
+            quantity.ValueRank = ValueRanks.Scalar;
+            var provider = new Mock<IIaStatisticsProvider>();
+            provider.Setup(source => source.ReadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(
+                Snapshot(0) with
+                {
+                    Values = [new DataValue(new Variant(new ExtensionObject(new LossyStructure { Value = 1 })),
+                        StatusCodes.Good, IaTestContext.Timestamp)]
+                });
+            using var binding = new IaStatistics(fixture.Context, owner, [quantity], provider.Object);
+            await Assert.ThatAsync(async () => await binding.RefreshAsync().ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo((StatusCode)StatusCodes.BadNotSupported));
+            Assert.That(quantity.WrappedValue.TryGetValue(out ExtensionObject _), Is.False);
+        }
+
+        /// <summary>
+        /// Asserts that an extension object keeps its opaque type identifier bytes.
+        /// </summary>
+        private static void AssertOpaqueTypeId(ExtensionObject extension, byte[] expected)
+        {
+            Assert.That(extension.TypeId.TryGetValue(out ByteString identifier), Is.True);
+            Assert.That(identifier.Span.ToArray(), Is.EqualTo(expected));
+            Assert.That(extension.TypeId.NamespaceIndex, Is.EqualTo((ushort)1));
+        }
+
+        /// <summary>
         /// Publishes one statistic, lets the provider mutate its buffer and returns the published value.
         /// </summary>
         private static async Task<Variant> PublishThenMutateAsync(
@@ -813,6 +944,112 @@ namespace Opc.Ua.IA.Tests.Statistics
         {
             Assert.That(variable.WrappedValue.TryGetValue(out uint actual), Is.True);
             Assert.That(actual, Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// A structure that the encodeable factory does not know, with fields whose
+        /// generated clone would share provider storage.
+        /// </summary>
+        private sealed class MutableStructure : IEncodeable
+        {
+            /// <summary>
+            /// The primitive-array field.
+            /// </summary>
+            public ArrayOf<double> Values { get; set; }
+
+            /// <summary>
+            /// The byte string field.
+            /// </summary>
+            public ByteString Payload { get; set; }
+
+            /// <summary>
+            /// The nested variant field.
+            /// </summary>
+            public Variant Nested { get; set; }
+
+            /// <inheritdoc/>
+            public ExpandedNodeId TypeId => new(9001u, 1);
+
+            /// <inheritdoc/>
+            public ExpandedNodeId BinaryEncodingId => new(9002u, 1);
+
+            /// <inheritdoc/>
+            public ExpandedNodeId XmlEncodingId => new(9003u, 1);
+
+            /// <inheritdoc/>
+            public void Encode(IEncoder encoder)
+            {
+                encoder.WriteDoubleArray(nameof(Values), Values);
+                encoder.WriteByteString(nameof(Payload), Payload);
+                encoder.WriteVariant(nameof(Nested), Nested);
+            }
+
+            /// <inheritdoc/>
+            public void Decode(IDecoder decoder)
+            {
+                Values = decoder.ReadDoubleArray(nameof(Values));
+                Payload = decoder.ReadByteString(nameof(Payload));
+                Nested = decoder.ReadVariant(nameof(Nested));
+            }
+
+            /// <inheritdoc/>
+            public bool IsEqual(IEncodeable? encodeable)
+            {
+                return encodeable is MutableStructure other &&
+                    Values.Span.SequenceEqual(other.Values.Span) &&
+                    Payload.Span.SequenceEqual(other.Payload.Span) &&
+                    Nested.Equals(other.Nested);
+            }
+
+            /// <inheritdoc/>
+            public object Clone()
+            {
+                return MemberwiseClone();
+            }
+        }
+
+        /// <summary>
+        /// A structure whose encoding does not reproduce its value.
+        /// </summary>
+        private sealed class LossyStructure : IEncodeable
+        {
+            /// <summary>
+            /// The value that is changed by the encoding.
+            /// </summary>
+            public int Value { get; set; }
+
+            /// <inheritdoc/>
+            public ExpandedNodeId TypeId => new(9011u, 1);
+
+            /// <inheritdoc/>
+            public ExpandedNodeId BinaryEncodingId => new(9012u, 1);
+
+            /// <inheritdoc/>
+            public ExpandedNodeId XmlEncodingId => new(9013u, 1);
+
+            /// <inheritdoc/>
+            public void Encode(IEncoder encoder)
+            {
+                encoder.WriteInt32(nameof(Value), Value + 1);
+            }
+
+            /// <inheritdoc/>
+            public void Decode(IDecoder decoder)
+            {
+                Value = decoder.ReadInt32(nameof(Value));
+            }
+
+            /// <inheritdoc/>
+            public bool IsEqual(IEncodeable? encodeable)
+            {
+                return encodeable is LossyStructure other && other.Value == Value;
+            }
+
+            /// <inheritdoc/>
+            public object Clone()
+            {
+                return MemberwiseClone();
+            }
         }
     }
 }

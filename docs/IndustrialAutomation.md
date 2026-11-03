@@ -116,6 +116,17 @@ Use `.AddGroup(group)` alongside `.AddComponent(...)` for indirect quantities
 under application-owned grouping objects. Every grouped quantity needs a provider
 snapshot slot; a group cannot introduce another statistics owner.
 
+The binding publishes a copy of each provider value, so a provider can reuse its
+buffers after `RefreshAsync` returns without changing the address space. Arrays,
+matrices, byte strings, opaque identifiers, nested variants and extension object
+type identifiers are copied into new storage with their type and dimensions
+unchanged. A decoded structure is binary encoded and decoded into a new
+instance, because its generated clone shares array, byte string and variant
+fields. A structure whose decoded copy differs from the original, for example
+because a nested type is not registered with the encodeable factory, fails the
+refresh with `BadNotSupported` and is not published. Calibration feature and
+operational-condition readings use the same copy.
+
 For vendor-defined grouping ObjectTypes, supply
 `.WithGroupTypeResolver(nodeId => manager.FindPredefinedNode<BaseObjectTypeState>(nodeId))`.
 The lookup must return the actual type with the requested identity, including

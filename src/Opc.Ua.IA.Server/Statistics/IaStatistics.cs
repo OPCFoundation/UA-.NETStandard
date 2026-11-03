@@ -490,7 +490,7 @@ namespace Opc.Ua.IA.Server
                     throw new ServiceResultException(StatusCodes.BadConfigurationError,
                         "A statistic requires a source timestamp and explicit quality.");
                 }
-                value = value.WithWrappedValue(IaValueCopy.Own(value.WrappedValue));
+                value = value.WithWrappedValue(IaValueCopy.Own(value.WrappedValue, m_context));
                 if ((value.WrappedValue.IsNull && !StatusCode.IsBad(value.StatusCode)) ||
                     !value.WrappedValue.IsNull &&
                     TypeInfo.IsInstanceOfDataType(value.WrappedValue, m_components[i].DataType,

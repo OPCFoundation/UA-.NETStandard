@@ -36,12 +36,15 @@ namespace Opc.Ua.IA.Server
     /// <para>
     /// Every built-in scalar, array and matrix is detached with its type,
     /// rank and dimensions preserved. Nested <see cref="Variant"/> and
-    /// <see cref="DataValue"/> payloads are detached recursively, and an
-    /// undecoded binary <see cref="ExtensionObject"/> body is copied. A
-    /// decoded structure is copied through <see cref="System.ICloneable.Clone"/>:
-    /// the generated implementation allocates new arrays but shares the
-    /// buffers of <see cref="ByteString"/> and <see cref="Variant"/> fields,
-    /// so a provider must not mutate such fields after publication.
+    /// <see cref="DataValue"/> payloads are detached recursively. An
+    /// <see cref="ExtensionObject"/> gets a copied type identifier and body.
+    /// A decoded structure is binary encoded and decoded into a new instance,
+    /// because the generated clone shares the buffers of primitive-array,
+    /// <see cref="ByteString"/> and <see cref="Variant"/> fields. The decoder
+    /// allocates every field afresh. If the decoded copy differs from the
+    /// structure, for example because a nested type is not registered with
+    /// the encodeable factory, the value is rejected with
+    /// <see cref="StatusCodes.BadNotSupported"/> instead of being published.
     /// </para>
     /// </remarks>
     internal static class IaValueCopy
@@ -51,7 +54,7 @@ namespace Opc.Ua.IA.Server
         /// </summary>
         /// <exception cref="ServiceResultException">The value has a built-in
         /// type whose ownership cannot be established.</exception>
-        public static Variant Own(in Variant value)
+        public static Variant Own(in Variant value, ISystemContext context)
         {
             if (value.IsNull || value.IsEmptyArray)
             {
@@ -60,15 +63,15 @@ namespace Opc.Ua.IA.Server
             }
             if (value.TypeInfo.IsScalar)
             {
-                return OwnScalar(value);
+                return OwnScalar(value, context);
             }
-            return value.TypeInfo.IsMatrix ? OwnMatrix(value) : OwnArray(value);
+            return value.TypeInfo.IsMatrix ? OwnMatrix(value, context) : OwnArray(value, context);
         }
 
         /// <summary>
         /// Detaches a scalar; other built-in scalars are immutable.
         /// </summary>
-        private static Variant OwnScalar(in Variant value)
+        private static Variant OwnScalar(in Variant value, ISystemContext context)
         {
             switch (value.TypeInfo.BuiltInType)
             {
@@ -79,9 +82,9 @@ namespace Opc.Ua.IA.Server
                 case BuiltInType.ExpandedNodeId when value.TryGetValue(out ExpandedNodeId v):
                     return new Variant(Own(v));
                 case BuiltInType.ExtensionObject when value.TryGetValue(out ExtensionObject v):
-                    return new Variant(Own(v));
+                    return new Variant(Own(v, context));
                 case BuiltInType.DataValue when value.TryGetValue(out DataValue v):
-                    return new Variant(Own(v));
+                    return new Variant(Own(v, context));
                 default:
                     return value;
             }
@@ -90,7 +93,7 @@ namespace Opc.Ua.IA.Server
         /// <summary>
         /// Copies a one-dimensional array and the mutable payload of its elements.
         /// </summary>
-        private static Variant OwnArray(in Variant value)
+        private static Variant OwnArray(in Variant value, ISystemContext context)
         {
             switch (value.TypeInfo.BuiltInType)
             {
@@ -139,11 +142,11 @@ namespace Opc.Ua.IA.Server
                 case BuiltInType.LocalizedText when value.TryGetValue(out ArrayOf<LocalizedText> v):
                     return new Variant(Detach(v));
                 case BuiltInType.ExtensionObject when value.TryGetValue(out ArrayOf<ExtensionObject> v):
-                    return new Variant(v.ConvertAll(Own));
+                    return new Variant(v.ConvertAll(e => Own(e, context)));
                 case BuiltInType.DataValue when value.TryGetValue(out ArrayOf<DataValue> v):
-                    return new Variant(v.ConvertAll(Own));
+                    return new Variant(v.ConvertAll(e => Own(e, context)));
                 case BuiltInType.Variant when value.TryGetValue(out ArrayOf<Variant> v):
-                    return new Variant(v.ConvertAll(e => Own(e)));
+                    return new Variant(v.ConvertAll(e => Own(e, context)));
                 case BuiltInType.Number:
                 case BuiltInType.Integer:
                 case BuiltInType.UInteger:
@@ -158,7 +161,7 @@ namespace Opc.Ua.IA.Server
         /// Copies a multi-dimensional matrix with its dimensions and the mutable
         /// payload of its elements.
         /// </summary>
-        private static Variant OwnMatrix(in Variant value)
+        private static Variant OwnMatrix(in Variant value, ISystemContext context)
         {
             switch (value.TypeInfo.BuiltInType)
             {
@@ -207,11 +210,11 @@ namespace Opc.Ua.IA.Server
                 case BuiltInType.LocalizedText when value.TryGetValue(out MatrixOf<LocalizedText> v):
                     return new Variant(Detach(v));
                 case BuiltInType.ExtensionObject when value.TryGetValue(out MatrixOf<ExtensionObject> v):
-                    return new Variant(v.ConvertAll(Own));
+                    return new Variant(v.ConvertAll(e => Own(e, context)));
                 case BuiltInType.DataValue when value.TryGetValue(out MatrixOf<DataValue> v):
-                    return new Variant(v.ConvertAll(Own));
+                    return new Variant(v.ConvertAll(e => Own(e, context)));
                 case BuiltInType.Variant when value.TryGetValue(out MatrixOf<Variant> v):
-                    return new Variant(v.ConvertAll(e => Own(e)));
+                    return new Variant(v.ConvertAll(e => Own(e, context)));
                 case BuiltInType.Number:
                 case BuiltInType.Integer:
                 case BuiltInType.UInteger:
@@ -251,28 +254,72 @@ namespace Opc.Ua.IA.Server
         }
 
         /// <summary>
-        /// Copies an extension object and its undecoded binary body.
+        /// Copies an extension object, its type identifier and its body.
         /// </summary>
-        private static ExtensionObject Own(ExtensionObject value)
+        private static ExtensionObject Own(ExtensionObject value, ISystemContext context)
         {
+            if (value.IsNull)
+            {
+                return value;
+            }
+            ExpandedNodeId typeId = Own(value.TypeId);
             if (value.TryGetValue(out IEncodeable? body))
             {
-                return new ExtensionObject(Own(value.TypeId), body, true);
+                return new ExtensionObject(typeId, Own(body, context));
             }
             if (value.TryGetAsBinary(out ByteString binary))
             {
-                return new ExtensionObject(Own(value.TypeId), Own(binary));
+                return new ExtensionObject(typeId, Own(binary));
             }
-            // A null, XML or JSON body is immutable.
-            return value;
+            // XML and JSON bodies are immutable strings.
+            if (value.TryGetAsXml(out XmlElement xml))
+            {
+                return new ExtensionObject(typeId, xml);
+            }
+            if (value.TryGetAsJson(out string? json))
+            {
+                return new ExtensionObject(typeId, json);
+            }
+            return new ExtensionObject(typeId);
+        }
+
+        /// <summary>
+        /// Copies a decoded structure by encoding it and decoding the result into a
+        /// new instance, so every field reads freshly allocated storage.
+        /// </summary>
+        /// <exception cref="ServiceResultException">The copy is not equal to the
+        /// structure, for example because a nested type is not registered.</exception>
+        private static IEncodeable Own(IEncodeable body, ISystemContext context)
+        {
+            IServiceMessageContext messageContext = context.AsMessageContext();
+            byte[] encoded;
+            using (var encoder = new BinaryEncoder(messageContext))
+            {
+                body.Encode(encoder);
+                encoded = encoder.CloseAndReturnBuffer() ?? [];
+            }
+            // A registered type starts from a default instance; a clone is only the
+            // container, because decoding replaces every field it encoded.
+            IEncodeable copy = messageContext.Factory.TryGetEncodeableType(body.TypeId,
+                out IEncodeableType? type) ? type.CreateInstance() : (IEncodeable)body.Clone();
+            using (var decoder = new BinaryDecoder(encoded, messageContext))
+            {
+                copy.Decode(decoder);
+            }
+            if (copy.GetType() != body.GetType() || !copy.IsEqual(body))
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported,
+                    $"A {body.TypeId} structure cannot be detached from its provider.");
+            }
+            return copy;
         }
 
         /// <summary>
         /// Detaches the value wrapped by a data value.
         /// </summary>
-        private static DataValue Own(DataValue value)
+        private static DataValue Own(DataValue value, ISystemContext context)
         {
-            return value.IsNull ? value : value.WithWrappedValue(Own(value.WrappedValue));
+            return value.IsNull ? value : value.WithWrappedValue(Own(value.WrappedValue, context));
         }
 
         /// <summary>
