@@ -31,6 +31,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client.Network;
@@ -52,8 +53,8 @@ namespace Opc.Ua.Client.Tests.Network
         [SetUp]
         public void SetUp()
         {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ServiceMessageContext context = ServiceMessageContext.Create(telemetry);
+            m_telemetry = NUnitTelemetryContext.Create();
+            ServiceMessageContext context = ServiceMessageContext.Create(m_telemetry);
             context.NamespaceUris.GetIndexOrAppend("urn:unrelated");
             context.NamespaceUris.GetIndexOrAppend("urn:network:vendor");
             m_session = new Mock<ISessionClient>(MockBehavior.Strict);
@@ -105,7 +106,7 @@ namespace Opc.Ua.Client.Tests.Network
                         Results = [m_callResult]
                     });
                 });
-            m_client = new NetworkModelClient(m_session.Object, telemetry);
+            m_client = new NetworkModelClient(m_session.Object, m_telemetry);
         }
 
         /// <summary>
@@ -421,6 +422,8 @@ namespace Opc.Ua.Client.Tests.Network
         [Test]
         public async Task BrowseReleaseFailureDoesNotReplaceTheOriginalBrowseFailure()
         {
+            using var logs = new RecordingLoggerProvider();
+            m_telemetry.LoggerFactory.AddProvider(logs);
             ByteString point = ByteString.From(new byte[] { 1, 2, 3 }.AsSpan());
             m_session.Setup(session => session.BrowseAsync(
                     It.IsAny<RequestHeader>(), It.IsAny<ViewDescription>(), It.IsAny<uint>(),
@@ -446,6 +449,12 @@ namespace Opc.Ua.Client.Tests.Network
                 Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
                     .EqualTo(StatusCodes.BadCommunicationError)).ConfigureAwait(false);
 
+            RecordedLogRecord warning = logs.Records.Single(record =>
+                record.EventId.Id == ClientEventIds.NetworkModelClient);
+            Assert.That(warning.LogLevel, Is.EqualTo(LogLevel.Warning));
+            Assert.That(warning.Exception,
+                Is.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadContinuationPointInvalid));
             m_session.Verify(session => session.BrowseNextAsync(It.IsAny<RequestHeader>(), true,
                 It.Is<ArrayOf<ByteString>>(points => points.Count == 1 && points[0] == point),
                 CancellationToken.None), Times.Once);
@@ -887,6 +896,9 @@ namespace Opc.Ua.Client.Tests.Network
 
         /// <summary>Strict service boundary for the current test.</summary>
         private Mock<ISessionClient> m_session = null!;
+
+        /// <summary>Telemetry context used by the client and captured logs.</summary>
+        private ITelemetryContext m_telemetry = null!;
 
         /// <summary>Client bound to the current service boundary.</summary>
         private NetworkModelClient m_client = null!;
