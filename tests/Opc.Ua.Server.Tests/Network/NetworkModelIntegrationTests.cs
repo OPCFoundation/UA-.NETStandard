@@ -1740,7 +1740,7 @@ namespace Opc.Ua.Server.Tests.Network
             DateTimeKind kind, CancellationToken cancellationToken)
         {
             string pkiRoot = Path.Combine(
-                "D:\\temp", "OpcUaNetworkTests", Guid.NewGuid().ToString("N")[..8]);
+                Path.GetTempPath(), "OpcUaNetworkTests", Guid.NewGuid().ToString("N")[..8]);
             ReferenceNetworkModelProvider provider = NetworkScenario.Create();
             var watchRelease = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var providerBoundary = new FaultInjectingProvider(provider)
