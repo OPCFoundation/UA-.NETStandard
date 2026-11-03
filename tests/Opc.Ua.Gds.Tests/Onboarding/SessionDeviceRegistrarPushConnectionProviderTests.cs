@@ -293,6 +293,69 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
+        /// Configuration is resolved once from the owning container, after asynchronous host initialization.
+        /// </summary>
+        [Test]
+        public void FluentConfigurationFactoryIsDeferredAndUsesContainerServices()
+        {
+            var services = new ServiceCollection();
+            var factory = new Mock<ISessionFactory>(MockBehavior.Strict);
+            ApplicationConfiguration configuration = Configuration();
+            services.AddSingleton(configuration);
+            services.AddSingleton(factory.Object);
+            int calls = 0;
+            services.AddDeviceRegistrarPushConnections(provider =>
+            {
+                calls++;
+                return provider.GetRequiredService<ApplicationConfiguration>();
+            }, static (_, _) => throw new AssertionException("Target selection must not run."));
+            Assert.That(calls, Is.Zero);
+            using ServiceProvider container = services.BuildServiceProvider();
+
+            IDeviceRegistrarPushConnectionProvider first =
+                container.GetRequiredService<IDeviceRegistrarPushConnectionProvider>();
+            IDeviceRegistrarPushConnectionProvider repeated =
+                container.GetRequiredService<IDeviceRegistrarPushConnectionProvider>();
+
+            Assert.That(first, Is.TypeOf<SessionDeviceRegistrarPushConnectionProvider>());
+            Assert.That(repeated, Is.SameAs(first));
+            Assert.That(calls, Is.EqualTo(1));
+            factory.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// A host configuration error propagates from provider resolution without opening a session.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void FluentConfigurationFactoryRejectsMissingOrUntrustedConfiguration(bool autoAccept)
+        {
+            var services = new ServiceCollection();
+            var factory = new Mock<ISessionFactory>(MockBehavior.Strict);
+            services.AddSingleton(factory.Object);
+            ApplicationConfiguration configuration = Configuration();
+            configuration.SecurityConfiguration.AutoAcceptUntrustedCertificates = true;
+            services.AddDeviceRegistrarPushConnections(
+                _ => autoAccept ? configuration : null!,
+                static (_, _) => throw new AssertionException("Target selection must not run."));
+            using ServiceProvider container = services.BuildServiceProvider();
+
+            if (autoAccept)
+            {
+                ServiceResultException? error = Assert.Throws<ServiceResultException>(() =>
+                    container.GetRequiredService<IDeviceRegistrarPushConnectionProvider>());
+                Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+            }
+            else
+            {
+                InvalidOperationException? error = Assert.Throws<InvalidOperationException>(() =>
+                    container.GetRequiredService<IDeviceRegistrarPushConnectionProvider>());
+                Assert.That(error!.Message, Does.Contain("configuration factory returned null"));
+            }
+            factory.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
         /// Supplies a configured factory that returns one owned session without opening a socket.
         /// </summary>
         private static Mock<ISessionFactory> Factory(ISession session)

@@ -498,13 +498,36 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 throw new ArgumentNullException(nameof(configuration));
             }
+            return services.AddDeviceRegistrarPushConnections(_ => configuration, selectTarget, sessionFactory);
+        }
+
+        /// <summary>
+        /// Resolves an initialized client configuration when the push connection provider is first requested.
+        /// The host completes asynchronous configuration initialization before resolving its push services.
+        /// Configuration resolution opens no session and does not infer certificate trust.
+        /// </summary>
+        public static IServiceCollection AddDeviceRegistrarPushConnections(
+            this IServiceCollection services,
+            Func<IServiceProvider, ApplicationConfiguration> configurationFactory,
+            Func<ApplicationDescription, CancellationToken, ValueTask<DeviceRegistrarPushTarget>> selectTarget,
+            ISessionFactory? sessionFactory = null)
+        {
+            if (services == null)
+            {
+                throw new ArgumentNullException(nameof(services));
+            }
+            if (configurationFactory == null)
+            {
+                throw new ArgumentNullException(nameof(configurationFactory));
+            }
             if (selectTarget == null)
             {
                 throw new ArgumentNullException(nameof(selectTarget));
             }
             services.AddSingleton<IDeviceRegistrarPushConnectionProvider>(provider =>
                 new SessionDeviceRegistrarPushConnectionProvider(
-                    configuration,
+                    configurationFactory(provider) ??
+                        throw new InvalidOperationException("The push client configuration factory returned null."),
                     sessionFactory ?? provider.GetService<ISessionFactory>() ??
                         new DefaultSessionFactory(provider.GetRequiredService<ITelemetryContext>()),
                     selectTarget));

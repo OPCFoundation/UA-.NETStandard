@@ -478,6 +478,15 @@ lifecycle transition. A transport failure leaves the retained
 request and pending certificate available for explicit recovery; the scheduler
 does not repeat an uncertain operation automatically.
 
+`AddDeviceRegistrarPushConnections` accepts either an initialized
+`ApplicationConfiguration` or a configuration factory resolved from the owning
+service provider. The factory overload lets an asynchronously initialized host
+select its configuration without constructing a second container or blocking on
+initialization. Complete configuration initialization before resolving the push
+provider; resolution creates no session, and target selection still runs for
+each new connection. Both overloads reject automatic certificate acceptance.
+The connected push-registrar sample uses the factory overload.
+
 When the device reports `IsSingleton`, the processor records a restriction in
 the shared lifecycle before issuance or credential promotion. The restriction
 survives identity refresh, software approval, certificate replacement and
@@ -800,8 +809,8 @@ orchestration with an explicit `IProvisionableDeviceSecurityInstaller`. Its
 channel certificate in a `Configuring` checkpoint before permitting a protected
 configuration operation. A failed checkpoint write rejects the operation.
 Restart preserves that owner without invoking credential installation, and
-security reset releases the claim. Security checkpoints support versions 1 and
-2; the configuration-owner state requires version 2.
+security reset releases the claim. Security checkpoints support versions 1
+through 3; the configuration-owner state requires version 2 or later.
 
 The installation checkpoint retains complete credentials and the actual
 registrar channel certificate before invoking the installer. If installation

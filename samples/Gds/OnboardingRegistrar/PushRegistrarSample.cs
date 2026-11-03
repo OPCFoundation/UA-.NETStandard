@@ -154,18 +154,13 @@ namespace OnboardingRegistrar
                 provider.GetRequiredService<PushRegistrarCheckpointFiles>()));
             builder.Services.AddSingleton<Opc.Ua.Gds.Server.ICertificateRequestIssuanceStore>(provider =>
                 provider.GetRequiredService<PushRegistrarIssuanceStore>());
-            // The fluent connection overload takes an already initialized configuration, not a DI factory.
-            // Resolve its public provider only after Program has awaited the shared client configuration.
-            builder.Services.AddSingleton<IDeviceRegistrarPushConnectionProvider>(provider =>
-            {
-                ApplicationConfiguration configuration =
-                    provider.GetRequiredService<IOpcUaApplicationConfigurationProvider>().Configuration;
-                return new SessionDeviceRegistrarPushConnectionProvider(
-                    configuration,
-                    provider.GetRequiredService<ISessionFactory>(),
-                    (description, ct) => sample.SelectTargetAsync(
-                        configuration, identity, description, ct));
-            });
+            ApplicationConfiguration? pushConfiguration = null;
+            builder.Services.AddDeviceRegistrarPushConnections(
+                provider => pushConfiguration =
+                    provider.GetRequiredService<IOpcUaApplicationConfigurationProvider>().Configuration,
+                (description, ct) => sample.SelectTargetAsync(
+                    pushConfiguration ?? throw new InvalidOperationException("Push configuration is not initialized."),
+                    identity, description, ct));
             gds.AddPreStartupTask<PushRegistrarIssuanceStore>()
                 .AddDeviceRegistrarPushEnrollments(
                     "sample-push-registrar",

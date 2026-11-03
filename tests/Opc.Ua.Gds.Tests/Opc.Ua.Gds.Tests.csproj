@@ -38,6 +38,10 @@
     <Compile Include="..\..\samples\Gds\OnboardingRegistrar\PullRegistrarPolicy.cs"
              Link="Onboarding\PullRegistrarPolicy.cs" />
   </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <Compile Include="..\..\samples\Gds\OnboardingRegistrar\PushRegistrarCheckpointFiles.cs"
+             Link="Onboarding\PushRegistrarCheckpointFiles.cs" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Bindings.Https\Opc.Ua.Bindings.Https.csproj" />
