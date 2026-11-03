@@ -109,6 +109,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                         await SetupSubscriptionAsync(m_sessions[s], first).ConfigureAwait(false);
                     }
                 }).ConfigureAwait(false);
+            ReportSetupTimes();
             Console.WriteLine(FormattableString.Invariant(
                 $"counters: {m_sessions.Length} sessions x {m_subscriptionsPerSession} subscriptions x {m_itemsPerSubscription} items ") +
                 FormattableString.Invariant(
@@ -119,6 +120,47 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         }
 
         private async Task SetupSubscriptionAsync(ISession session, int first)
+        {
+            int before = Volatile.Read(ref m_itemsCreated);
+            long start = Stopwatch.GetTimestamp();
+            await SetupSubscriptionCoreAsync(session, first).ConfigureAwait(false);
+            double ms = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
+            Interlocked.Add(ref m_itemsCreated, m_itemsPerSubscription);
+            lock (m_lock)
+            {
+                m_setupTimes.Add((before, ms));
+            }
+        }
+
+        /// <summary>
+        /// Prints the mean subscription setup time by tenth of the items that existed when it
+        /// started, so creation cost that grows with the item count shows as a rising row.
+        /// </summary>
+        private void ReportSetupTimes()
+        {
+            const int Buckets = 10;
+            int total = m_latestValue.Length;
+            double[] sum = new double[Buckets];
+            int[] count = new int[Buckets];
+            foreach ((int before, double ms) in m_setupTimes)
+            {
+                int b = (int)Math.Min(Buckets - 1, (long)before * Buckets / Math.Max(1, total));
+                sum[b] += ms;
+                count[b]++;
+            }
+            var line = new System.Text.StringBuilder("setup per subscription (existing items+: mean ms):");
+            for (int b = 0; b < Buckets; b++)
+            {
+                if (count[b] > 0)
+                {
+                    line.Append(System.Globalization.CultureInfo.InvariantCulture,
+                        $" {(long)total * b / Buckets}+:{sum[b] / count[b]:F0}");
+                }
+            }
+            Console.WriteLine(line.ToString());
+        }
+
+        private async Task SetupSubscriptionCoreAsync(ISession session, int first)
         {
             ushort namespaceIndex = (ushort)session.NamespaceUris.GetIndex(CounterNodeManager.Namespace);
             if (session is ManagedSession managed)
@@ -371,6 +413,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         private readonly Lock m_lock = new();
         private long m_notifications;
         private double m_serverSamples;
+        private int m_itemsCreated;
+        private readonly List<(int Before, double Ms)> m_setupTimes = [];
         private string? m_revisedSampling;
     }
 }
