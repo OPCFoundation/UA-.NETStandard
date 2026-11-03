@@ -491,6 +491,53 @@ namespace Opc.Ua.Client.Tests.Network
         }
 
         /// <summary>
+        /// Releases all continuation points from a BrowseNext response with extra results.
+        /// </summary>
+        [Test]
+        public async Task BrowseReleasesContinuationsFromMalformedNextPageExtraResults()
+        {
+            ByteString firstPoint = ByteString.From(new byte[] { 1, 2, 3 }.AsSpan());
+            ByteString nextPoint = ByteString.From(new byte[] { 4, 5, 6 }.AsSpan());
+            ByteString extraPoint = ByteString.From(new byte[] { 7, 8, 9 }.AsSpan());
+            m_session.Setup(session => session.BrowseAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<ViewDescription>(), It.IsAny<uint>(),
+                    It.IsAny<ArrayOf<BrowseDescription>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new BrowseResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results = [new BrowseResult { ContinuationPoint = firstPoint }]
+                });
+            m_session.Setup(session => session.BrowseNextAsync(
+                    It.IsAny<RequestHeader>(), false, It.IsAny<ArrayOf<ByteString>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new BrowseNextResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results =
+                    [
+                        new BrowseResult { ContinuationPoint = nextPoint },
+                        new BrowseResult { ContinuationPoint = extraPoint }
+                    ]
+                });
+            m_session.Setup(session => session.BrowseNextAsync(
+                    It.IsAny<RequestHeader>(), true, It.IsAny<ArrayOf<ByteString>>(), CancellationToken.None))
+                .ReturnsAsync(new BrowseNextResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results = [new BrowseResult()]
+                });
+
+            await Assert.ThatAsync(async () => await m_client.BrowseObjectsAsync(s_interface).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadUnexpectedError)).ConfigureAwait(false);
+
+            m_session.Verify(session => session.BrowseNextAsync(It.IsAny<RequestHeader>(), true,
+                It.Is<ArrayOf<ByteString>>(points =>
+                    points.Count == 2 && points[0] == nextPoint && points[1] == extraPoint),
+                CancellationToken.None), Times.Once);
+        }
+
+        /// <summary>
         /// Retains the last known continuation when BrowseNext fails before returning results.
         /// </summary>
         [Test]

@@ -418,8 +418,8 @@ namespace Opc.Ua.Client.Network
                     int previousContinuationPointCount = continuationPoints.Count;
                     RetainContinuationPoints(next.Results, continuationPoints);
                     ValidateService(next.ResponseHeader);
-                    ClientBase.ValidateResponse(next.Results, points);
                     continuationPoints.RemoveRange(0, previousContinuationPointCount);
+                    ClientBase.ValidateResponse(next.Results, points);
                     ClientBase.ValidateDiagnosticInfos(next.DiagnosticInfos, points);
                     result = next.Results[0];
                 }
