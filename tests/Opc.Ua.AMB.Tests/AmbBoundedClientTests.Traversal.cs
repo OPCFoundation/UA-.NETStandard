@@ -38,6 +38,7 @@ using Opc.Ua.AMB.Client;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.Subscriptions.Streaming;
+using Opc.Ua.Tests;
 using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
 namespace Opc.Ua.AMB.Tests
@@ -148,7 +149,7 @@ namespace Opc.Ua.AMB.Tests
         public async Task RemoteSubAssetResolutionPropagatesFailuresWithoutReturningCandidatesAsync(
             string scenario)
         {
-            uint expected = scenario switch
+            StatusCode expected = scenario switch
             {
                 "missing" => StatusCodes.BadNotConnected,
                 "denied" or "browse" => StatusCodes.BadUserAccessDenied,
