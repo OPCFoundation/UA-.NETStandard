@@ -262,6 +262,60 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// The standard ApplyChanges handler executes host completion inside the actual compensating transaction.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ApplyChangesRecordsHostCompletionWithinStoreTransaction(bool rejectCompletion)
+        {
+            SessionSystemContext context = CreateAdminContextForSession(new NodeId(902, 1));
+            var policy = new Mock<IPushConfigurationAuthorization>(MockBehavior.Strict);
+            policy.Setup(value => value.AuthorizeAsync(context, It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            Mock<IPushConfigurationCompletion> completion = policy.As<IPushConfigurationCompletion>();
+            int stored = 0;
+            completion.Setup(value => value.CompleteAsync(context, It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    Assert.That(stored, Is.EqualTo(1));
+                    if (rejectCompletion)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadResourceUnavailable);
+                    }
+                    return default(ValueTask);
+                });
+            Harness harness = await CreateHarnessAsync(new ServerConfigurationOptions
+            {
+                PushAuthorization = policy.Object
+            }).ConfigureAwait(false);
+            using (harness.Manager)
+            {
+                harness.Coordinator.Stage(context.SessionId, new PushConfigurationOperation
+                {
+                    CommitAsync = _ =>
+                    {
+                        stored++;
+                        return Task.CompletedTask;
+                    },
+                    RollbackAsync = _ =>
+                    {
+                        stored--;
+                        return Task.CompletedTask;
+                    }
+                });
+                ServiceResult result = await harness.Node.ApplyChanges!.OnCallMethod2Async!(
+                    context, harness.Node.ApplyChanges, harness.Node.NodeId, [], [], CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                Assert.That(result.StatusCode,
+                    Is.EqualTo(rejectCompletion ? StatusCodes.BadResourceUnavailable : StatusCodes.Good));
+                Assert.That(stored, Is.EqualTo(rejectCompletion ? 0 : 1));
+                Assert.That(harness.Coordinator.IsTransactionActive, Is.False);
+                completion.Verify(value => value.CompleteAsync(context, It.IsAny<CancellationToken>()), Times.Once);
+            }
+        }
+
         [Test]
         public async Task ResetToServerDefaultsExposedOnlyWhenProviderConfiguredAsync()
         {

@@ -194,6 +194,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             }
             if (legacyVersion)
             {
+                checkpoint = checkpoint.AsSpan(0, checkpoint.Length - 1).ToArray();
                 BinaryPrimitives.WriteUInt32LittleEndian(checkpoint, 1);
                 await m_secrets.SetAsync(captured, checkpoint).ConfigureAwait(false);
             }
@@ -205,6 +206,181 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Is.EqualTo(ProvisionableDeviceSecurityStage.Installed));
             m_installer.Verify(value => value.InstallAsync(
                 It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+        }
+
+        /// <summary>
+        /// Standard push records actual stores and verifies them after restart without reinstalling credentials.
+        /// </summary>
+        [Test]
+        public async Task StandardPushCompletesWithoutReinstallAcrossRestart()
+        {
+            Mock<IProvisionableDeviceAppliedSecurity> applied = m_installer.As<IProvisionableDeviceAppliedSecurity>();
+            applied.Setup(value => value.CaptureAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Credentials());
+            using (var security = Create())
+            {
+                await security.RequireRegistrarAsync(Context(m_firstRegistrar)).ConfigureAwait(false);
+                await ((IPushConfigurationCompletion)security).CompleteAsync(Context(m_firstRegistrar))
+                    .ConfigureAwait(false);
+                Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                    Is.EqualTo(ProvisionableDeviceSecurityStage.Installed));
+                await security.RequireRegistrarAsync(Context(m_otherRegistrar)).ConfigureAwait(false);
+            }
+            using var restarted = Create();
+            await restarted.RecoverAsync().ConfigureAwait(false);
+
+            Assert.That(await restarted.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Installed));
+            applied.Verify(value => value.CaptureAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
+            m_installer.Verify(value => value.InstallAsync(
+                It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// A trust-only commit does not pretend the retained device identity is an installed DCA certificate.
+        /// </summary>
+        [Test]
+        public async Task StandardPushBootstrapTrustOnlyRetainsOwner()
+        {
+            Mock<IProvisionableDeviceAppliedSecurity> applied = m_installer.As<IProvisionableDeviceAppliedSecurity>();
+            applied.Setup(value => value.CaptureAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync((ProvisionableDeviceCredentials?)null);
+            using var security = Create();
+            await security.RequireRegistrarAsync(Context(m_firstRegistrar)).ConfigureAwait(false);
+            await ((IPushConfigurationCompletion)security).CompleteAsync(Context(m_firstRegistrar))
+                .ConfigureAwait(false);
+            ServiceResultException? denied = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await security.RequireRegistrarAsync(Context(m_otherRegistrar)).ConfigureAwait(false));
+
+            Assert.That(denied!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Configuring));
+            m_installer.Verify(value => value.InstallAsync(
+                It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// Recovery observes a committed certificate if the process stopped before recording standard completion.
+        /// </summary>
+        [Test]
+        public async Task StandardPushRecoveryReconcilesUnacknowledgedCommit()
+        {
+            Mock<IProvisionableDeviceAppliedSecurity> applied = m_installer.As<IProvisionableDeviceAppliedSecurity>();
+            applied.Setup(value => value.CaptureAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Credentials());
+            using (var security = Create())
+            {
+                await security.RequireRegistrarAsync(Context(m_firstRegistrar)).ConfigureAwait(false);
+            }
+            using var restarted = Create();
+            await restarted.RecoverAsync().ConfigureAwait(false);
+
+            Assert.That(await restarted.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Installed));
+            m_installer.Verify(value => value.InstallAsync(
+                It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// Reopening a trust store may enumerate the same authoritative certificates in a different order.
+        /// </summary>
+        [Test]
+        public async Task StandardPushRecoveryAcceptsReorderedTrustStore()
+        {
+            ProvisionableDeviceCredentials current = Credentials();
+            Mock<IProvisionableDeviceAppliedSecurity> applied = m_installer.As<IProvisionableDeviceAppliedSecurity>();
+            applied.Setup(value => value.CaptureAsync(It.IsAny<CancellationToken>())).ReturnsAsync(() => current);
+            using (var security = Create())
+            {
+                await security.RequireRegistrarAsync(Context(m_firstRegistrar)).ConfigureAwait(false);
+                await ((IPushConfigurationCompletion)security).CompleteAsync(Context(m_firstRegistrar))
+                    .ConfigureAwait(false);
+            }
+            current = Credentials();
+            current.TrustList.TrustedCertificates = [Encoded(m_dca), Encoded(m_firstRegistrar)];
+            using var restarted = Create();
+            await restarted.RecoverAsync().ConfigureAwait(false);
+
+            Assert.That(await restarted.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Installed));
+            m_installer.Verify(value => value.InstallAsync(
+                It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// Recovery cannot replay an applied checkpoint over rolled-back, missing, or independently changed stores.
+        /// </summary>
+        [TestCase("missing")]
+        [TestCase("certificate")]
+        [TestCase("trust")]
+        [TestCase("issuers")]
+        public async Task StandardPushRecoveryRejectsChangedStore(string change)
+        {
+            ProvisionableDeviceCredentials original = Credentials();
+            ProvisionableDeviceCredentials? current = original;
+            Mock<IProvisionableDeviceAppliedSecurity> applied = m_installer.As<IProvisionableDeviceAppliedSecurity>();
+            applied.Setup(value => value.CaptureAsync(It.IsAny<CancellationToken>())).ReturnsAsync(() => current);
+            using (var security = Create())
+            {
+                await security.RequireRegistrarAsync(Context(m_firstRegistrar)).ConfigureAwait(false);
+                await ((IPushConfigurationCompletion)security).CompleteAsync(Context(m_firstRegistrar))
+                    .ConfigureAwait(false);
+            }
+            current = change switch
+            {
+                "missing" => null,
+                "certificate" => original with { Certificate = Encoded(m_otherRegistrar) },
+                "trust" => original with
+                {
+                    TrustList = new TrustListDataType { SpecifiedLists = (uint)TrustListMasks.All }
+                },
+                "issuers" => original with { IssuerCertificates = [Encoded(m_otherRegistrar)] },
+                _ => throw new ArgumentOutOfRangeException(nameof(change))
+            };
+            using var restarted = Create();
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await restarted.RecoverAsync().ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            m_installer.Verify(value => value.InstallAsync(
+                It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// A store that published before losing its response cannot authorize against rolled-back trust.
+        /// </summary>
+        [Test]
+        public async Task StandardPushUncertainPublicationBlocksAccessAndDetectsRollback()
+        {
+            ProvisionableDeviceCredentials? current = Credentials();
+            Mock<IProvisionableDeviceAppliedSecurity> applied = m_installer.As<IProvisionableDeviceAppliedSecurity>();
+            applied.Setup(value => value.CaptureAsync(It.IsAny<CancellationToken>())).ReturnsAsync(() => current);
+            Mock<ISecretStore> storage = ForwardStorage();
+            bool loseResponse = false;
+            storage.Setup(value => value.SetAsync(
+                    It.IsAny<SecretIdentifier>(), It.IsAny<ReadOnlyMemory<byte>>(), It.IsAny<CancellationToken>()))
+                .Returns(async (SecretIdentifier id, ReadOnlyMemory<byte> bytes, CancellationToken ct) =>
+                {
+                    await m_secrets.SetAsync(id, bytes, ct).ConfigureAwait(false);
+                    if (loseResponse)
+                    {
+                        throw new IOException("The device checkpoint response was lost.");
+                    }
+                });
+            using var security = Create(storage.Object);
+            await security.RequireRegistrarAsync(Context(m_firstRegistrar)).ConfigureAwait(false);
+            loseResponse = true;
+            await Assert.ThrowsAsync<IOException>(async () =>
+                await ((IPushConfigurationCompletion)security).CompleteAsync(Context(m_firstRegistrar))
+                    .ConfigureAwait(false));
+            current = null;
+            ServiceResultException? denied = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await security.RequireRegistrarAsync(Context(m_firstRegistrar)).ConfigureAwait(false));
+            ServiceResultException? recovery = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await security.RecoverAsync().ConfigureAwait(false));
+
+            Assert.That(denied!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(recovery!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            m_installer.Verify(value => value.InstallAsync(
+                It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()), Times.Never);
         }
 
         /// <summary>

@@ -342,8 +342,28 @@ namespace Opc.Ua.Server
             try
             {
                 m_activeRotationCollector.Value = rotations;
-                result = await m_coordinator.ApplyChangesAsync(sessionId, committedEffects, cancellationToken)
-                    .ConfigureAwait(false);
+                if (m_serverConfigurationOptions.PushAuthorization is IPushConfigurationCompletion completion)
+                {
+                    if (m_coordinator is not IPushConfigurationTransactionCompletion transactionalCompletion)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadNotSupported,
+                            "The selected push coordinator cannot serialize device security completion.");
+                    }
+                    result = await transactionalCompletion.ApplyChangesAsync(
+                        sessionId,
+                        committedEffects,
+                        new PushConfigurationOperation
+                        {
+                            CommitAsync = ct => completion.CompleteAsync(context, ct).AsTask()
+                        },
+                        cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    result = await m_coordinator.ApplyChangesAsync(sessionId, committedEffects, cancellationToken)
+                        .ConfigureAwait(false);
+                }
             }
             finally
             {

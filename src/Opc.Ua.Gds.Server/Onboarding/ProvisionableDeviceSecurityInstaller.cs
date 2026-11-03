@@ -72,6 +72,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
     public sealed class ProvisionableDeviceSecurityInstaller :
         IProvisionableDeviceSecurityInstaller,
         IProvisionableDeviceSecurityDefaults,
+        IProvisionableDeviceAppliedSecurity,
         IDisposable
     {
         /// <summary>
@@ -173,6 +174,42 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 using Certificate identity = await EnsureDeviceIdentityAsync(current, cancellationToken)
                     .ConfigureAwait(false);
                 await CaptureDefaultTrustListAsync(cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_gate.Release();
+            }
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<ProvisionableDeviceCredentials?> CaptureAsync(
+            CancellationToken cancellationToken = default)
+        {
+            await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                using Certificate identity = await EnsureDeviceIdentityAsync(null, cancellationToken)
+                    .ConfigureAwait(false);
+                using TrustListData defaults = await ReadDefaultTrustListAsync(cancellationToken)
+                    .ConfigureAwait(false);
+                using CertificateEntry? current = m_certificates
+                    .AcquireApplicationCertificateByType(ApplicationCertificateType);
+                if (current == null || !current.Certificate.HasPrivateKey)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadSecurityChecksFailed, "The selected DCA slot has no current private key.");
+                }
+                if (current.Certificate.RawData.AsSpan().SequenceEqual(identity.RawData))
+                {
+                    return null;
+                }
+                ValidateCertificate(current.Certificate);
+                using TrustListData trust = await m_certificates.ReadTrustListAsync(
+                    TrustListIdentifier.Peers, TrustListMasks.All, cancellationToken).ConfigureAwait(false);
+                return new(
+                    ByteString.From(current.Certificate.RawData.AsSpan()),
+                    current.IssuerChain.Select(static issuer => ByteString.From(issuer.RawData.AsSpan())).ToArrayOf(),
+                    ToDataType(trust));
             }
             finally
             {

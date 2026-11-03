@@ -66,10 +66,13 @@ certificate stores own restart durability. The device security gate retains
 the first authorized registrar before protected configuration proceeds; restart
 preserves that owner, and reset releases it. Fluent hosting installs that same
 owner as `IPushConfigurationAuthorization` for standard push mutations and
-TrustList writes. The existing transaction coordinator retains staging and
-rollback ownership. Recording its completed transaction as the installed device
-security transition remains incomplete, so this registration alone does not
-complete connected device provisioning.
+TrustList writes. The existing transaction coordinator records installed device
+security after committing the store changes and compensates them if completion
+fails. Recovery verifies applied credentials against actual keyed certificate
+and trust stores instead of replaying them over a compensated transaction.
+Custom installers and coordinators need the applied-security capture and
+transaction-completion contracts for standard push. Connected device sample
+coverage remains incomplete.
 
 Singleton application scope is retained in the shared lifecycle and enforced
 for subsequent managed-application registration and certificate access.

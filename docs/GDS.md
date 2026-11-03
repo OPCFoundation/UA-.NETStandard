@@ -888,14 +888,34 @@ adapter has one exclusive scope owner and the same complete-publication and
 durability prerequisites as the client receipt adapter. It does not provide
 distributed coordination.
 
-The standard push handlers now enforce registrar ownership, but their committed
-certificate and TrustList transaction is not yet recorded as the installed
-device security transition. Registrar ownership therefore remains pinned in
-`Configuring` after a standard transaction rather than changing to validation
-against installed trust. This registration does not yet complete connected push
-onboarding. The pre-startup defaults snapshot remains
-available for security reset even if a standard handler later replaces the
-application certificate.
+Standard push records installed device security inside the existing
+certificate and TrustList transaction. `ProvisionableDeviceSecurity` implements
+`IPushConfigurationCompletion`; the default coordinator appends this completion
+after taking the staged operation batch, so another request cannot insert a
+mutation after the security checkpoint. Completion reads the selected DCA slot,
+including possession of its private key, and the complete current trust stores
+through `IProvisionableDeviceAppliedSecurity`. A trust-only update leaves the
+device in `Configuring` while the retained device identity remains active.
+A changed DCA credential is validated against that trust and recorded as
+`Installed`, without repeating installation or endpoint activation.
+
+If completion fails, the coordinator compensates the preceding store changes
+and does not schedule endpoint rotation. An uncertain checkpoint publication
+blocks further registrar access until recovery. Startup compares an applied
+checkpoint with the actual keyed certificate and trust stores; a mismatch aborts
+startup rather than installing credentials over a compensated transaction.
+If the process stopped after committing stores but before recording completion,
+startup can reconcile those stores with the retained configuring registrar.
+Trust-store enumeration order does not change the result. Checkpoint versions
+1 and 2 remain readable; version 3 distinguishes applied stores from an
+installation that still requires platform effects.
+
+Custom installers need `IProvisionableDeviceAppliedSecurity` for this standard
+push path. Custom transaction coordinators need
+`IPushConfigurationTransactionCompletion`; an unsupported coordinator rejects
+apply before committing anything. Direct installation still uses
+`IProvisionableDeviceSecurityInstaller`. The original identity and trust
+snapshot remain available for security reset.
 
 The same security instance is registered as `IServerConfigurationResetProvider`,
 so the existing configuration node manager retains ownership of network

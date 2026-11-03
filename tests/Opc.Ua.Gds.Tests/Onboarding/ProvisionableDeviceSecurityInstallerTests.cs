@@ -190,6 +190,80 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
+        /// Observing standard push reads retained defaults and the actual keyed slot without another installation.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CaptureReadsAppliedSlotWithoutMutatingStores(bool replaceIdentity)
+        {
+            using var installer = CreateInstaller();
+            await installer.PreserveDefaultsAsync().ConfigureAwait(false);
+            using Certificate replacement = CreateCertificate(kApplicationUri);
+            if (replaceIdentity)
+            {
+                Certificate previous = m_activeCertificate;
+                m_activeCertificate = replacement.AddRef();
+                previous.Dispose();
+            }
+            m_events.Clear();
+
+            ProvisionableDeviceCredentials? captured = await installer.CaptureAsync().ConfigureAwait(false);
+
+            if (replaceIdentity)
+            {
+                Assert.That(captured, Is.Not.Null);
+                Assert.That(captured!.Certificate.Span.ToArray(), Is.EqualTo(replacement.RawData));
+                Assert.That(captured.TrustList.SpecifiedLists, Is.EqualTo((uint)TrustListMasks.All));
+            }
+            else
+            {
+                Assert.That(captured, Is.Null);
+            }
+            Assert.That(m_events, Is.Empty);
+            m_certificates.Verify(value => value.WriteTrustListAsync(
+                It.IsAny<TrustListIdentifier>(), It.IsAny<TrustListData>(), It.IsAny<TrustListMasks>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+            m_activator.Verify(value => value.ActivateAsync(
+                It.IsAny<NodeId>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// Capture cannot treat a post-installation certificate as a newly discovered factory default.
+        /// </summary>
+        [Test]
+        public async Task CaptureRequiresPreviouslyRetainedIdentity()
+        {
+            using var installer = CreateInstaller();
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await installer.CaptureAsync().ConfigureAwait(false));
+
+            Assert.That(m_events, Is.Empty);
+            m_identityStore.Verify(value => value.AddAsync(
+                It.IsAny<Certificate>(), It.IsAny<char[]?>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// Public certificate presence does not establish possession of the selected DCA private key.
+        /// </summary>
+        [Test]
+        public async Task CaptureRejectsSlotWithoutPrivateKey()
+        {
+            using var installer = CreateInstaller();
+            await installer.PreserveDefaultsAsync().ConfigureAwait(false);
+            Certificate previous = m_activeCertificate;
+            using Certificate replacement = CreateCertificate(kApplicationUri);
+            m_activeCertificate = Certificate.FromRawData(replacement.RawData);
+            previous.Dispose();
+            m_events.Clear();
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await installer.CaptureAsync().ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            Assert.That(m_events, Is.Empty);
+        }
+
+        /// <summary>
         /// A retained trust checkpoint cannot be applied after moving the installer to another certificate group.
         /// </summary>
         [Test]

@@ -24,6 +24,7 @@
 
 using System;
 using System.IO;
+using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -60,7 +61,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
         Installing,
 
         /// <summary>
-        /// The installer completed and subsequent registrars must validate against installed trust.
+        /// DCA credentials are installed and subsequent registrars must validate against installed trust.
         /// </summary>
         Installed,
 
@@ -106,6 +107,19 @@ namespace Opc.Ua.Gds.Server.Onboarding
     }
 
     /// <summary>
+    /// Reads the selected DCA slot and complete trust stores without changing either.
+    /// Callers exclude configuration writers while capturing or verifying this state.
+    /// </summary>
+    public interface IProvisionableDeviceAppliedSecurity
+    {
+        /// <summary>
+        /// Returns detached credentials backed by the current private key, or null while the retained device
+        /// identity is still active. Missing keys or original defaults must throw rather than create new defaults.
+        /// </summary>
+        ValueTask<ProvisionableDeviceCredentials?> CaptureAsync(CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
     /// Owns serialized device trust, installation recovery, and security reset.
     /// Implementations sharing storage must coordinate every writer, including pending registrar ownership.
     /// </summary>
@@ -145,6 +159,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
     public sealed class ProvisionableDeviceSecurity :
         IProvisionableDeviceSecurity,
         IPushConfigurationAuthorization,
+        IPushConfigurationCompletion,
         IDisposable
     {
         /// <summary>
@@ -236,6 +251,31 @@ namespace Opc.Ua.Gds.Server.Onboarding
             return RequireRegistrarAsync(context, cancellationToken);
         }
 
+        /// <inheritdoc/>
+        async ValueTask IPushConfigurationCompletion.CompleteAsync(
+            ISystemContext context,
+            CancellationToken cancellationToken)
+        {
+            ThrowIfDisposed();
+            ByteString peer = GetPeer(context);
+            await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                Checkpoint checkpoint = await LoadAsync(cancellationToken).ConfigureAwait(false);
+                await RequireRegistrarAsync(checkpoint, peer, cancellationToken).ConfigureAwait(false);
+                if (checkpoint.Stage is not (ProvisionableDeviceSecurityStage.Configuring or
+                    ProvisionableDeviceSecurityStage.Installed))
+                {
+                    throw new ServiceResultException(StatusCodes.BadInvalidState);
+                }
+                await RecordAppliedSecurityAsync(checkpoint, peer, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_gate.Release();
+            }
+        }
+
         /// <summary>
         /// Claims one authenticated registrar before invoking the installer. Failed installation remains pending;
         /// another registrar cannot replace it. Configured devices accept other registrars only through installed
@@ -287,6 +327,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                m_stateRequiresRecovery = true;
                 Checkpoint checkpoint = await LoadAsync(cancellationToken).ConfigureAwait(false);
                 switch (checkpoint.Stage)
                 {
@@ -294,7 +335,14 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     case ProvisionableDeviceSecurityStage.Installed:
                         await ValidateCredentialsAsync(checkpoint.Credentials!, cancellationToken)
                             .ConfigureAwait(false);
-                        await CompleteInstallationAsync(checkpoint, cancellationToken).ConfigureAwait(false);
+                        if (checkpoint.StoreApplied)
+                        {
+                            await VerifyAppliedSecurityAsync(checkpoint, cancellationToken).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            await CompleteInstallationAsync(checkpoint, cancellationToken).ConfigureAwait(false);
+                        }
                         break;
                     case ProvisionableDeviceSecurityStage.Resetting:
                         await CompleteResetAsync(cancellationToken).ConfigureAwait(false);
@@ -305,10 +353,17 @@ namespace Opc.Ua.Gds.Server.Onboarding
                         {
                             await defaults.PreserveDefaultsAsync(cancellationToken).ConfigureAwait(false);
                         }
+                        if (checkpoint.Stage == ProvisionableDeviceSecurityStage.Configuring &&
+                            m_installer is IProvisionableDeviceAppliedSecurity)
+                        {
+                            await RecordAppliedSecurityAsync(checkpoint, checkpoint.Peer, cancellationToken)
+                                .ConfigureAwait(false);
+                        }
                         break;
                     default:
                         throw new InvalidDataException("The device security stage is invalid.");
                 }
+                m_stateRequiresRecovery = false;
             }
             finally
             {
@@ -362,6 +417,65 @@ namespace Opc.Ua.Gds.Server.Onboarding
         }
 
         /// <summary>
+        /// Records stores already changed by the standard transaction, without installing them a second time.
+        /// An uncertain publication blocks registrar work until recovery verifies the actual stores.
+        /// </summary>
+        private async ValueTask RecordAppliedSecurityAsync(Checkpoint checkpoint, ByteString peer, CancellationToken ct)
+        {
+            IProvisionableDeviceAppliedSecurity applied = m_installer as IProvisionableDeviceAppliedSecurity ??
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "The device installer cannot capture standard push configuration.");
+            ProvisionableDeviceCredentials? credentials = await applied.CaptureAsync(ct).ConfigureAwait(false);
+            if (credentials == null)
+            {
+                if (checkpoint.Stage == ProvisionableDeviceSecurityStage.Installed)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidState, "The installed DCA credential is no longer present.");
+                }
+                return;
+            }
+            Checkpoint installed = Decode(Encode(new(
+                ProvisionableDeviceSecurityStage.Installed, peer, credentials, StoreApplied: true)));
+            await ValidateCredentialsAsync(installed.Credentials!, ct).ConfigureAwait(false);
+            m_stateRequiresRecovery = true;
+            await SaveAsync(installed, ct).ConfigureAwait(false);
+            m_stateRequiresRecovery = false;
+        }
+
+        /// <summary>
+        /// Never replays a recorded standard push over stores restored by transaction compensation.
+        /// </summary>
+        private async ValueTask VerifyAppliedSecurityAsync(Checkpoint checkpoint, CancellationToken ct)
+        {
+            IProvisionableDeviceAppliedSecurity applied = m_installer as IProvisionableDeviceAppliedSecurity ??
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "The device installer cannot verify standard push configuration.");
+            ProvisionableDeviceCredentials? current = await applied.CaptureAsync(ct).ConfigureAwait(false);
+            ProvisionableDeviceCredentials expected = checkpoint.Credentials!;
+            if (current == null || current.Certificate != expected.Certificate ||
+                !current.IssuerCertificates.Span.SequenceEqual(expected.IssuerCertificates.Span) ||
+                current.TrustList.SpecifiedLists != expected.TrustList.SpecifiedLists ||
+                !SameTrustEntries(current.TrustList.TrustedCertificates, expected.TrustList.TrustedCertificates) ||
+                !SameTrustEntries(current.TrustList.TrustedCrls, expected.TrustList.TrustedCrls) ||
+                !SameTrustEntries(current.TrustList.IssuerCertificates, expected.TrustList.IssuerCertificates) ||
+                !SameTrustEntries(current.TrustList.IssuerCrls, expected.TrustList.IssuerCrls))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidState,
+                    "Recorded device security does not match the committed certificate and trust stores.");
+            }
+        }
+
+        /// <summary>
+        /// Trust stores are sets; enumeration order may change when the host reopens a store.
+        /// </summary>
+        private static bool SameTrustEntries(ArrayOf<ByteString> left, ArrayOf<ByteString> right)
+        {
+            return new HashSet<ByteString>(left.ToList()).SetEquals(right.ToList());
+        }
+
+        /// <summary>
         /// A failed or interrupted platform reset remains marked Resetting until an explicit retry or startup recovery.
         /// </summary>
         private async ValueTask CompleteResetAsync(CancellationToken ct)
@@ -369,6 +483,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             await m_installer.ResetToServerDefaultsAsync(ct).ConfigureAwait(false);
             await SaveAsync(new(ProvisionableDeviceSecurityStage.Unconfigured, default, null), ct)
                 .ConfigureAwait(false);
+            m_stateRequiresRecovery = false;
         }
 
         /// <summary>
@@ -377,6 +492,11 @@ namespace Opc.Ua.Gds.Server.Onboarding
         private async ValueTask RequireRegistrarAsync(Checkpoint checkpoint, ByteString peer, CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
+            if (m_stateRequiresRecovery)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidState, "Device security recovery is required after uncertain publication.");
+            }
             switch (checkpoint.Stage)
             {
                 case ProvisionableDeviceSecurityStage.Unconfigured:
@@ -504,7 +624,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             using var buffer = new MemoryStream();
             using (var encoder = new BinaryEncoder(buffer, m_context, leaveOpen: true))
             {
-                encoder.WriteUInt32(null, 2);
+                encoder.WriteUInt32(null, 3);
                 encoder.WriteString(null, m_applicationUri);
                 encoder.WriteInt32(null, (int)checkpoint.Stage);
                 if (checkpoint.Stage == ProvisionableDeviceSecurityStage.Configuring)
@@ -528,6 +648,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     encoder.WriteByteString(null, credentials.Certificate);
                     encoder.WriteByteStringArray(null, credentials.IssuerCertificates);
                     encoder.WriteEncodeable(null, credentials.TrustList);
+                    encoder.WriteBoolean(null, checkpoint.StoreApplied);
                 }
             }
             if (buffer.Length > kMaximumCheckpointBytes)
@@ -551,7 +672,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 using var buffer = new MemoryStream(bytes.ToArray(), writable: false);
                 using var decoder = new BinaryDecoder(buffer, m_context);
                 uint version = decoder.ReadUInt32(null);
-                if (version is not (1 or 2) || decoder.ReadString(null) != m_applicationUri)
+                if (version is not (1 or 2 or 3) || decoder.ReadString(null) != m_applicationUri)
                 {
                     throw new InvalidDataException("The device security checkpoint version or application is invalid.");
                 }
@@ -564,6 +685,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 var stage = (ProvisionableDeviceSecurityStage)stageCode;
                 ByteString peer = default;
                 ProvisionableDeviceCredentials? credentials = null;
+                bool storeApplied = false;
                 if (stage == ProvisionableDeviceSecurityStage.Configuring)
                 {
                     peer = decoder.ReadByteString(null);
@@ -583,12 +705,17 @@ namespace Opc.Ua.Gds.Server.Onboarding
                         throw new InvalidDataException("The device security checkpoint lacks installation evidence.");
                     }
                     credentials = new(certificate, issuers, trust);
+                    storeApplied = version >= 3 && decoder.ReadBoolean(null);
+                    if (storeApplied && stage != ProvisionableDeviceSecurityStage.Installed)
+                    {
+                        throw new InvalidDataException("Only installed standard push state may skip installation.");
+                    }
                 }
                 if (decoder.Position != buffer.Length)
                 {
                     throw new InvalidDataException("The device security checkpoint contains trailing content.");
                 }
-                return new(stage, peer, credentials);
+                return new(stage, peer, credentials, storeApplied);
             }
             catch (Exception error) when (error is ServiceResultException or EndOfStreamException or ArgumentException)
             {
@@ -611,7 +738,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
         private sealed record Checkpoint(
             ProvisionableDeviceSecurityStage Stage,
             ByteString Peer,
-            ProvisionableDeviceCredentials? Credentials);
+            ProvisionableDeviceCredentials? Credentials,
+            bool StoreApplied = false);
 
         /// <summary>The checkpoint byte limit in addition to standard codec quotas.</summary>
         private const int kMaximumCheckpointBytes = 16 * 1024 * 1024;
@@ -636,6 +764,9 @@ namespace Opc.Ua.Gds.Server.Onboarding
 
         /// <summary>The local serialization gate, not a distributed transaction.</summary>
         private readonly SemaphoreSlim m_gate = new(1, 1);
+
+        /// <summary>Whether an uncertain standard-push checkpoint must be reconciled before further access.</summary>
+        private bool m_stateRequiresRecovery;
 
         /// <summary>Whether this instance has been disposed.</summary>
         private int m_disposed;
