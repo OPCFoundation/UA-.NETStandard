@@ -129,7 +129,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     dispatch.Session, connection.IsSingletonId, cancellationToken).ConfigureAwait(false);
 
                 ByteString peer = ReadPeer(dispatch.Session);
-                DeviceRegistrarPushEnrollment? retained = await FindRetainedAsync(snapshot.ApplicationUri, peer,
+                DeviceRegistrarPushEnrollment? retained = await FindRetainedAsync(snapshot.ApplicationUri!, peer,
                     cancellationToken).ConfigureAwait(false);
                 OnboardingIdentitySelection identity = retained?.Identity ??
                     await m_identities.ValidatePeerAsync(
@@ -310,7 +310,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
         {
             ApplicationRecordDataType record = CoreUtils.Clone(decision.Application)!;
             ApplicationsDatabaseBase.ValidateApplication(record);
-            ApplicationRecordDataType[]? existing = m_applications.FindApplications(record.ApplicationUri);
+            ApplicationRecordDataType[]? existing = m_applications.FindApplications(record.ApplicationUri!);
             NodeId applicationId;
             if (existing is { Length: > 0 })
             {
@@ -495,7 +495,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
             }
             catch (Exception transferError)
             {
-                using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                using var cleanup = new CancellationTokenSource();
+                cleanup.CancelAfter(TimeSpan.FromSeconds(5));
                 try
                 {
                     await client.CloseAsync(handle, cleanup.Token).ConfigureAwait(false);

@@ -114,14 +114,6 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 string.IsNullOrEmpty(applicationUri) ||
                 !string.Equals(offered.Server?.ApplicationUri, applicationUri, StringComparison.Ordinal))
             {
-                EndpointDescription actual = context.Session.TransportChannel.EndpointDescription;
-                if (actual.SecurityMode != offered.SecurityMode ||
-                    actual.SecurityPolicyUri != offered.SecurityPolicyUri ||
-                    actual.EndpointUrl != offered.EndpointUrl ||
-                    actual.Server?.ApplicationUri != applicationUri)
-                {
-                    throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed);
-                }
                 throw new ServiceResultException(
                     StatusCodes.BadSecurityChecksFailed,
                     "The selected endpoint does not identify the encrypted target.");
@@ -133,10 +125,19 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 throw new ServiceResultException(StatusCodes.BadNotConnected);
             try
             {
-                await using (SessionRequestContext context =
+                SessionRequestContext context =
                     await SessionRequestContext.CaptureConfidentialAsync(session, cancellationToken)
-                        .ConfigureAwait(false))
+                        .ConfigureAwait(false);
+                await using (context.ConfigureAwait(false))
                 {
+                    EndpointDescription actual = context.Session.TransportChannel.EndpointDescription;
+                    if (actual.SecurityMode != offered.SecurityMode ||
+                        actual.SecurityPolicyUri != offered.SecurityPolicyUri ||
+                        actual.EndpointUrl != offered.EndpointUrl ||
+                        actual.Server?.ApplicationUri != applicationUri)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed);
+                    }
                     byte[] peerBytes = context.Session.TransportChannel.ServerChannelCertificate;
                     if (peerBytes == null || peerBytes.Length == 0)
                     {

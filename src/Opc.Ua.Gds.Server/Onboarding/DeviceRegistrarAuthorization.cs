@@ -214,8 +214,9 @@ namespace Opc.Ua.Gds.Server.Onboarding
             {
                 return bindings.ToArray().ToArrayOf();
             }
-            foreach (DeviceRegistrarApplication application in device.Applications)
+            for (int i = 0; i < device.Applications.Count; i++)
             {
+                DeviceRegistrarApplication application = device.Applications[i];
                 await RequireManagedScopeAsync(device.ProductInstanceUri, cancellationToken).ConfigureAwait(false);
                 bindings.Add(new DeviceRegistrarApplicationBinding(
                     device.ProductInstanceUri, application.ApplicationId, false, application.ProtocolUri));

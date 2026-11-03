@@ -151,6 +151,14 @@ namespace OnboardingClientSample
             {
                 return CreateJournaledSigningRequestAsync(applicationId, profile, cancellationToken);
             }
+            return new ValueTask<ByteString>(CreateSigningRequest(applicationId, profile));
+        }
+
+        /// <summary>
+        /// Creates a request using the locally active key while retaining its private-key handle through encoding.
+        /// </summary>
+        private ByteString CreateSigningRequest(NodeId applicationId, PullDcaCertificateProfile profile)
+        {
             using CertificateEntry entry = m_manager.AcquireApplicationCertificateByType(
                 profile.CertificateTypeId) ?? throw new ServiceResultException(StatusCodes.BadConfigurationError);
             if (!entry.Certificate.HasPrivateKey)
@@ -161,7 +169,7 @@ namespace OnboardingClientSample
                 DefaultCertificateFactory.Instance.CreateSigningRequest(entry.Certificate));
             m_applicationId = applicationId;
             m_profile = profile;
-            return new ValueTask<ByteString>(csr);
+            return csr;
         }
 
         /// <summary>
@@ -175,6 +183,19 @@ namespace OnboardingClientSample
             PullDcaCertificateProfile profile,
             ByteString signingKeyCertificate,
             CancellationToken cancellationToken = default)
+        {
+            RestoreSigningRequest(applicationId, profile, signingKeyCertificate, cancellationToken);
+            return default;
+        }
+
+        /// <summary>
+        /// Checks the retained local key synchronously before restoring the application's request binding.
+        /// </summary>
+        private void RestoreSigningRequest(
+            NodeId applicationId,
+            PullDcaCertificateProfile profile,
+            ByteString signingKeyCertificate,
+            CancellationToken cancellationToken)
         {
             if (profile == null)
             {
@@ -211,7 +232,6 @@ namespace OnboardingClientSample
             }
             m_applicationId = applicationId;
             m_profile = profile;
-            return default;
         }
 
         /// <inheritdoc/>
@@ -690,7 +710,7 @@ namespace OnboardingClientSample
                     using Certificate issuer = Certificate.FromRawData(credentials.IssuerCertificates[i]);
                     chain.Add(issuer);
                 }
-                CertificateValidationResult validation = await m_manager.ValidateAsync(
+                Opc.Ua.Security.Certificates.CertificateValidationResult validation = await m_manager.ValidateAsync(
                     chain, TrustListIdentifier.Peers, new ValidationOptions
                     {
                         TrustScope = new CertificateValidationScope(
