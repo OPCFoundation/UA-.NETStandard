@@ -1,7 +1,7 @@
 # OPC 10000-21 Onboarding Demo
 
-This sample provides OPC 10000-21 registrar administration and an opt-in
-single-device pull registrar. It uses the model and runtime APIs shipped
+This sample provides OPC 10000-21 registrar administration and separate opt-in
+single-device pull and push registrar modes. It uses the model and runtime APIs shipped
 by this repository:
 
 - `OnboardingRegistrar` loads the generated `Opc.Ua.Onboarding` model,
@@ -24,7 +24,8 @@ The default demo covers ticket administration. Select the registrar's
 separate pull mode to host the standard `DeviceRegistrar` and GDS
 `Directory` objects for one explicitly approved device. The client can
 also use its pull-DCA mode against an independently configured registrar.
-The administration script does not exercise pull onboarding.
+The separate push mode operates against an independently configured device
+server. The administration script does not exercise either provisioning mode.
 
 ## Run the complete demo
 
@@ -160,6 +161,78 @@ state is reported instead of being replaced. The file is limited to
 Issuance receipts remain in memory. Do not rely on this sample to retain
 consumed-request receipts or generated private-key responses across
 registrar restarts; a production host needs a durable issuance provider.
+
+## Host the connected push registrar
+
+`--pushRegistrar true` selects the hosted GDS and its supervised push processor.
+The registrar admits one configured product instance after signed-ticket and
+device-identity validation, requests a CSR from that device, and obtains its
+certificate through the GDS request queue and CA. It applies the device TrustList
+before transferring the certificate over a new connection pinned to the same
+configuring peer. A third connection must prove the installed certificate before
+the registrar promotes the lifecycle binding.
+
+Use an absolute, operator-controlled `--pkiRoot`. Prepare the registrar's channel,
+ticket-authority and device-identity trust as for pull mode. The registrar's client
+trust store must also accept the CA that will issue the device certificate,
+because the final connection validates that new certificate. Configure the
+device to trust the registrar's application certificate and authorize the
+outbound user for standard certificate and TrustList administration. Discovery
+does not add certificates to either peer's trust store.
+
+Set `ONBOARDING_DEMO_USER` and `ONBOARDING_DEMO_PASSWORD` for inbound registrar
+administration. Set `ONBOARDING_PUSH_USER` and `ONBOARDING_PUSH_PASSWORD` separately
+for the registrar's outbound device sessions; passwords are not command-line
+arguments. Start with the actual product, DCA URI, endpoint and device model
+addresses:
+
+```powershell
+dotnet run --project samples/Gds/OnboardingRegistrar -f net10.0 -- `
+  --pkiRoot "D:\temp\configured-push-registrar-pki" `
+  --pushRegistrar true `
+  --allowedProductInstanceUri "<approved product instance URI>" `
+  --dcaApplicationUri "<actual DCA application URI>" `
+  --pushEndpoint "<actual opc.tcp device endpoint>" `
+  --pushDeviceId "<ProvisionableDevice expanded NodeId>" `
+  --pushIsSingletonId "<IsSingleton expanded NodeId>" `
+  --pushServerConfigurationId "<ServerConfiguration expanded NodeId>" `
+  --pushCertificateGroupId "<application certificate group expanded NodeId>" `
+  --pushCertificateTypeId "i=12560" `
+  --pushTrustListId "<group TrustList expanded NodeId>" `
+  --autoApprove true
+```
+
+Replace the placeholders with addresses from the device's actual model. Addresses
+outside namespace zero must use `nsu=` namespace URIs, not transient namespace
+indexes. The sample selects `SignAndEncrypt` with `Basic256Sha256` and the standard
+RSA SHA256 application certificate type. Pull and push registrar modes cannot
+run together in one sample process. `--autoApprove true` has the same
+demonstration-only meaning as in pull mode.
+
+Startup queues one attempt and prints `ONBOARDING_PUSH_QUEUED`; this marker does
+not indicate successful provisioning. Re-registration or restart can enqueue
+another attempt. The processor retains pending issuance and installation
+evidence, but does not blindly repeat an uncertain CSR or request creation.
+Those cases require the enrollment provider's explicit original-evidence
+recovery APIs; this sample has no recovery UI.
+
+The `applications.json`, `device-lifecycle.json` and `tickets.bin` files retain
+their roles described above. Push mode also keeps public enrollment journals
+and signing receipts under `push-checkpoints`. One process holds an exclusive
+directory lease and serializes checkpoint publication. Keep the directory,
+application database and CA keys together across restarts. The sample rejects
+new-key issuance receipts rather than writing private keys to public checkpoint
+files; its `ISecretStore` adapter accepts only the enrollment provider's exact
+journal identifiers and must not be used as a general secret store.
+
+Without a software manager, this mode assumes operator approval of the installed
+software. To require an externally operated manager, supply all of
+`--softwareManagerEndpoint`, `--softwareManagerPurposeUri` and
+`--softwareManagerProtocolUri`. The registrar advertises that manager and leaves
+provisioning blocked until an authorized caller reports completion. In that mode
+the configured sample administrator also receives `SecurityAdmin` to report the
+result. The sample does not execute firmware updates or supply a device server,
+and does not demonstrate device restart, endpoint activation or reset.
 
 ## Pull DCA against a configured registrar
 

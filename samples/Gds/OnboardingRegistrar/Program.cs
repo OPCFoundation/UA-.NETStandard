@@ -36,6 +36,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Gds.Server.Database.Linq;
@@ -85,7 +86,17 @@ try
         CryptographicOperations.ZeroMemory(passwordBytes);
     }
     bool runPullRegistrar = GetBooleanOption(builder, "pullRegistrar");
-    if (runPullRegistrar)
+    bool runPushRegistrar = GetBooleanOption(builder, "pushRegistrar");
+    if (runPullRegistrar && runPushRegistrar)
+    {
+        throw new ArgumentException("Select only one of --pullRegistrar and --pushRegistrar.");
+    }
+    if (runPushRegistrar && (string.IsNullOrWhiteSpace(builder.Configuration["pkiRoot"]) ||
+        !Path.IsPathFullyQualified(pkiRoot)))
+    {
+        throw new ArgumentException("Push registrar mode requires an absolute, operator-controlled --pkiRoot.");
+    }
+    if (runPullRegistrar || runPushRegistrar)
     {
         builder.Services.AddFileSystemOnboardingTicketStore(Path.Combine(pkiRoot, "tickets.bin"));
     }
@@ -102,9 +113,9 @@ try
         new UserManagement(services.GetRequiredService<IUserDatabase>()));
     builder.Services.AddSingleton<IServerStartupTask>(
         new OnboardingReadyStartupTask(endpoint));
-    if (runPullRegistrar)
+    if (runPullRegistrar || runPushRegistrar)
     {
-        ConfigurePullRegistrar(builder, pkiRoot, endpoint, userName);
+        ConfigureConnectedRegistrar(builder, pkiRoot, endpoint, userName, runPushRegistrar);
     }
     else
     {
@@ -154,9 +165,28 @@ try
             .AddNodeManager<OnboardingRegistrarNodeManagerFactory>();
     }
 
-    using IHost host = builder.Build();
-    await host.StartAsync(CancellationToken.None).ConfigureAwait(false);
-    await host.WaitForShutdownAsync(CancellationToken.None).ConfigureAwait(false);
+    IHost host = builder.Build();
+    try
+    {
+        if (runPushRegistrar)
+        {
+            await host.Services.GetRequiredService<IOpcUaApplicationConfigurationProvider>()
+                .GetAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+        await host.StartAsync(CancellationToken.None).ConfigureAwait(false);
+        await host.WaitForShutdownAsync(CancellationToken.None).ConfigureAwait(false);
+    }
+    finally
+    {
+        if (host is IAsyncDisposable asyncHost)
+        {
+            await asyncHost.DisposeAsync().ConfigureAwait(false);
+        }
+        else
+        {
+            host.Dispose();
+        }
+    }
     return 0;
 }
 catch (Exception ex)
@@ -176,29 +206,33 @@ static string GetRequiredEnvironmentVariable(string name)
     return value;
 }
 
-static void ConfigurePullRegistrar(
+static void ConfigureConnectedRegistrar(
     HostApplicationBuilder builder,
     string pkiRoot,
     string endpoint,
-    string userName)
+    string userName,
+    bool runPushRegistrar)
 {
     string product = builder.Configuration["allowedProductInstanceUri"] ??
-        throw new ArgumentException("Pull registrar mode requires --allowedProductInstanceUri.");
+        throw new ArgumentException("Connected registrar mode requires --allowedProductInstanceUri.");
     string application = builder.Configuration["dcaApplicationUri"] ??
-        throw new ArgumentException("Pull registrar mode requires --dcaApplicationUri.");
+        throw new ArgumentException("Connected registrar mode requires --dcaApplicationUri.");
     bool autoApprove = GetBooleanOption(builder, "autoApprove");
-    var policy = new PullRegistrarPolicy(product, application);
     Directory.CreateDirectory(pkiRoot);
     JsonApplicationsDatabase database = JsonApplicationsDatabase.Load(Path.Combine(pkiRoot, "applications.json"));
     builder.Services.AddSingleton<IApplicationsDatabase>(database);
     builder.Services.AddSingleton<ICertificateRequest>(database);
     builder.Services.AddHostedFileSystemDeviceRegistrarLifecycle(Path.Combine(pkiRoot, "device-lifecycle.json"));
     builder.Services.AddHostedDeviceRegistrarAuditing();
-    builder.Services.AddSingleton<IDeviceRegistrarOnboardingPolicy>(policy);
-    builder.Services.AddSingleton<IDeviceRegistrarApplicationAuthorization>(policy);
-    builder.Services.AddSingleton<IDeviceRegistrarPushScheduler>(policy);
-    builder.Services.AddSingleton<IDeviceRegistrarManagerProvider>(policy);
-    builder.Services.AddOpcUa()
+    if (!runPushRegistrar)
+    {
+        var policy = new PullRegistrarPolicy(product, application);
+        builder.Services.AddSingleton<IDeviceRegistrarOnboardingPolicy>(policy);
+        builder.Services.AddSingleton<IDeviceRegistrarApplicationAuthorization>(policy);
+        builder.Services.AddSingleton<IDeviceRegistrarPushScheduler>(policy);
+        builder.Services.AddSingleton<IDeviceRegistrarManagerProvider>(policy);
+    }
+    var gds = builder.Services.AddOpcUa()
         .AddGdsServer(options =>
         {
             options.ApplicationName = "OnboardingRegistrar";
@@ -221,15 +255,23 @@ static void ConfigurePullRegistrar(
             options.EnableJwt = false;
             options.EnableGdsApplicationSelfAdminProvider = false;
         })
-        .AddIdentityAugmenter(_ => new OnboardingRegistrarAdminAugmenter(userName, true))
+        .AddIdentityAugmenter(_ => new OnboardingRegistrarAdminAugmenter(
+            userName, true, runPushRegistrar && builder.Configuration["softwareManagerEndpoint"] != null))
         .AddOnboardingTickets(
             Path.Combine(pkiRoot, "ticket-authorities", "trusted"),
             Path.Combine(pkiRoot, "ticket-authorities", "issuers"))
         .AddOnboardingIdentities(
             Path.Combine(pkiRoot, "identity-authorities", "trusted"),
-            Path.Combine(pkiRoot, "identity-authorities", "issuers"))
-        .AddSecretStoreCertificateRequestIssuanceStore(new InMemorySecretStore(), "pull-registrar")
-        .AddDeviceRegistrar(_ => { });
+            Path.Combine(pkiRoot, "identity-authorities", "issuers"));
+    if (runPushRegistrar)
+    {
+        PushRegistrarSample.Configure(builder, gds, pkiRoot, product, application);
+    }
+    else
+    {
+        gds.AddSecretStoreCertificateRequestIssuanceStore(new InMemorySecretStore(), "pull-registrar");
+    }
+    gds.AddDeviceRegistrar(_ => { });
 }
 
 static bool GetBooleanOption(HostApplicationBuilder builder, string name)

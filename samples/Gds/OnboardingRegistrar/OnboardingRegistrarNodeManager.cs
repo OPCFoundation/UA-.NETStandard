@@ -246,13 +246,26 @@ namespace OnboardingRegistrar
         }
 
         /// <summary>
-        /// Grants GDS administration only when the connected pull registrar mode explicitly selects it.
+        /// Grants GDS administration only when a connected registrar mode explicitly selects it.
         /// </summary>
         public OnboardingRegistrarAdminAugmenter(string userName, bool gdsAdministration)
+            : this(userName, gdsAdministration, false)
+        {
+        }
+
+        /// <summary>
+        /// Optionally lets the sample administrator report an external software manager's result.
+        /// SecurityAdmin is an explicit sample role mapping, not a production software-approval policy.
+        /// </summary>
+        public OnboardingRegistrarAdminAugmenter(
+            string userName,
+            bool gdsAdministration,
+            bool softwareAdministration)
         {
             m_userName = userName ??
                 throw new ArgumentNullException(nameof(userName));
             m_gdsAdministration = gdsAdministration;
+            m_softwareAdministration = softwareAdministration;
         }
 
         /// <inheritdoc/>
@@ -275,9 +288,11 @@ namespace OnboardingRegistrar
                 Opc.Ua.Onboarding.BrowseNames.WellKnownRole_RegistrarAdmin);
             var augmented = new RoleBasedIdentity(
                 identity,
-                m_gdsAdministration
-                    ? [registrarAdmin, GdsRole.DiscoveryAdmin, GdsRole.CertificateAuthorityAdmin]
-                    : [registrarAdmin],
+                m_softwareAdministration
+                    ? [registrarAdmin, GdsRole.DiscoveryAdmin, GdsRole.CertificateAuthorityAdmin, Role.SecurityAdmin]
+                    : m_gdsAdministration
+                        ? [registrarAdmin, GdsRole.DiscoveryAdmin, GdsRole.CertificateAuthorityAdmin]
+                        : [registrarAdmin],
                 context.MessageContext.NamespaceUris);
             return new ValueTask<AuthenticationResult>(
                 AuthenticationResult.Accept(augmented));
@@ -288,5 +303,8 @@ namespace OnboardingRegistrar
 
         /// <summary>Whether this account administers the sample's actual GDS directory.</summary>
         private readonly bool m_gdsAdministration;
+
+        /// <summary>Whether the sample administrator may report an external software update result.</summary>
+        private readonly bool m_softwareAdministration;
     }
 }
