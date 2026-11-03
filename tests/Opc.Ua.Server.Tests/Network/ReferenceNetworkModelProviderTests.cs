@@ -841,6 +841,102 @@ namespace Opc.Ua.Server.Tests.Network
         }
 
         /// <summary>
+        /// Rejects undefined standard enum values during construction and preserves the accepted snapshot.
+        /// </summary>
+        [TestCase("interface admin")]
+        [TestCase("interface oper")]
+        [TestCase("duplex")]
+        [TestCase("negotiation")]
+        [TestCase("stream state")]
+        [TestCase("failure code")]
+        [TestCase("talker status")]
+        [TestCase("listener status")]
+        [TestCase("local chassis subtype")]
+        [TestCase("port subtype")]
+        [TestCase("neighbor chassis subtype")]
+        [TestCase("neighbor port subtype")]
+        public async Task UndefinedEnumValuesDoNotReplaceTheAcceptedSnapshotAsync(string valuePath)
+        {
+            NetworkModelSnapshot initial = SnapshotWithAllEnumValues();
+            var provider = new ReferenceNetworkModelProvider(initial);
+            NetworkModelSnapshot invalid = WithInvalidEnumValue(initial, valuePath) with
+            {
+                Timestamp = initial.Timestamp.AddSeconds(1)
+            };
+
+            Assert.That(() => new ReferenceNetworkModelProvider(invalid), Throws.ArgumentException);
+            Assert.That(() => provider.Publish(invalid), Throws.ArgumentException);
+            NetworkModelSnapshot retained = await provider.ReadAsync().ConfigureAwait(false);
+            Assert.That(retained.Revision, Is.Zero);
+            Assert.That(retained.Timestamp, Is.EqualTo(initial.Timestamp));
+            Assert.That(retained.Interfaces.Count, Is.EqualTo(initial.Interfaces.Count));
+            Assert.That(retained.Streams.Count, Is.EqualTo(initial.Streams.Count));
+            Assert.That(retained.Lldp, Is.Not.Null);
+        }
+
+        /// <summary>
+        /// Rejects malformed mapping entries during construction and preserves the accepted table.
+        /// </summary>
+        [TestCase("empty URI")]
+        [TestCase("empty label")]
+        [TestCase("PCP range")]
+        [TestCase("DSCP range")]
+        [TestCase("duplicate key")]
+        public async Task InvalidPriorityMappingEntriesDoNotReplaceTheAcceptedSnapshotAsync(string invalidField)
+        {
+            PriorityMappingEntryType entry = CreateEntry("urn:test:priority", "BestEffort", 0, 0);
+            NetworkModelSnapshot initial = SnapshotWithTable(true, entry);
+            var provider = new ReferenceNetworkModelProvider(initial);
+            var invalidEntry = new PriorityMappingEntryType
+            {
+                MappingUri = entry.MappingUri,
+                PriorityLabel = entry.PriorityLabel,
+                PriorityValue_PCP = entry.PriorityValue_PCP,
+                PriorityValue_DSCP = entry.PriorityValue_DSCP
+            };
+            PriorityMappingEntryType[] invalidEntries;
+            switch (invalidField)
+            {
+                case "empty URI":
+                    invalidEntry.MappingUri = " ";
+                    invalidEntries = [invalidEntry];
+                    break;
+                case "empty label":
+                    invalidEntry.PriorityLabel = string.Empty;
+                    invalidEntries = [invalidEntry];
+                    break;
+                case "PCP range":
+                    invalidEntry.PriorityValue_PCP = 8;
+                    invalidEntries = [invalidEntry];
+                    break;
+                case "DSCP range":
+                    invalidEntry.PriorityValue_DSCP = 64;
+                    invalidEntries = [invalidEntry];
+                    break;
+                default:
+                    invalidEntries = [entry, invalidEntry];
+                    break;
+            }
+            NetworkModelSnapshot invalid = initial with
+            {
+                Timestamp = initial.Timestamp.AddSeconds(1),
+                MappingTables =
+                [
+                    initial.MappingTables[0] with { Entries = ArrayOf.Wrapped(invalidEntries) }
+                ]
+            };
+
+            Assert.That(() => new ReferenceNetworkModelProvider(invalid), Throws.ArgumentException);
+            Assert.That(() => provider.Publish(invalid), Throws.ArgumentException);
+            NetworkModelSnapshot retained = await provider.ReadAsync().ConfigureAwait(false);
+            Assert.That(retained.Revision, Is.Zero);
+            Assert.That(retained.Timestamp, Is.EqualTo(initial.Timestamp));
+            Assert.That(retained.MappingTables[0].Entries.Count, Is.EqualTo(1));
+            Assert.That(retained.MappingTables[0].Entries[0].MappingUri, Is.EqualTo(entry.MappingUri));
+            Assert.That(retained.MappingTables[0].Entries[0].PriorityLabel, Is.EqualTo(entry.PriorityLabel));
+        }
+
+        /// <summary>
         /// Reports distinct statuses for duplicate additions and missing deletions.
         /// </summary>
         [Test]
@@ -999,6 +1095,8 @@ namespace Opc.Ua.Server.Tests.Network
         /// </summary>
         [TestCase(0, 0u)]
         [TestCase(7, 63u)]
+        [TestCase(byte.MaxValue, 0u)]
+        [TestCase(0, uint.MaxValue)]
         [TestCase(255, uint.MaxValue)]
         public async Task MappingRangeBoundariesAreAcceptedAsync(byte pcp, uint dscp)
         {
@@ -1092,6 +1190,7 @@ namespace Opc.Ua.Server.Tests.Network
         /// </summary>
         [TestCase((ushort)4095, (byte)0)]
         [TestCase((ushort)0, (byte)8)]
+        [TestCase(ushort.MaxValue, (byte)0)]
         public void InvalidInterfaceAndSrClassRangesAreRejected(ushort vlan, byte priority)
         {
             var builder = new NetworkModelBuilder()
@@ -1105,6 +1204,62 @@ namespace Opc.Ua.Server.Tests.Network
                 });
 
             Assert.That(() => builder.Build(UnixEpoch, StatusCodes.Good), Throws.ArgumentException);
+        }
+
+        /// <summary>
+        /// Rejects interface VLAN identifiers above the provider's supported range.
+        /// </summary>
+        [TestCase((ushort)4095)]
+        [TestCase(ushort.MaxValue)]
+        public async Task InvalidInterfaceVlanIdDoesNotReplaceAcquisitionAsync(ushort vlanId)
+        {
+            NetworkModelSnapshot initial = EmptySnapshot();
+            var provider = new ReferenceNetworkModelProvider(initial);
+            NetworkInterfaceSnapshot networkInterface = new("vlan", "eth0.2")
+            {
+                AdminStatus = InterfaceAdminStatus.Up,
+                OperStatus = InterfaceOperStatus.Up,
+                Speed = 1_000_000_000,
+                VlanId = vlanId
+            };
+            NetworkModelSnapshot invalid = initial with { Interfaces = [networkInterface] };
+
+            Assert.That(() => new ReferenceNetworkModelProvider(invalid),
+                Throws.ArgumentException.With.Message.Contains("Interface VLAN identifiers"));
+            Assert.That(() => provider.Publish(invalid),
+                Throws.ArgumentException.With.Message.Contains("Interface VLAN identifiers"));
+            NetworkModelSnapshot current = await provider.ReadAsync().ConfigureAwait(false);
+            Assert.That(current.Revision, Is.Zero);
+            Assert.That(current.Timestamp, Is.EqualTo(initial.Timestamp));
+            Assert.That(current.Interfaces.Count, Is.Zero);
+        }
+
+        /// <summary>
+        /// Rejects SR-class VLAN identifiers above the provider's supported range.
+        /// </summary>
+        [TestCase((ushort)4095)]
+        [TestCase(ushort.MaxValue)]
+        public async Task InvalidSrClassVidDoesNotReplaceAcquisitionAsync(ushort vid)
+        {
+            NetworkModelSnapshot initial = EmptySnapshot();
+            var provider = new ReferenceNetworkModelProvider(initial);
+            NetworkInterfaceSnapshot networkInterface = new("physical", "eth0")
+            {
+                AdminStatus = InterfaceAdminStatus.Up,
+                OperStatus = InterfaceOperStatus.Up,
+                Speed = 1_000_000_000,
+                SrClasses = [new NetworkSrClassSnapshot(6, 3, vid)]
+            };
+            NetworkModelSnapshot invalid = initial with { Interfaces = [networkInterface] };
+
+            Assert.That(() => new ReferenceNetworkModelProvider(invalid),
+                Throws.ArgumentException.With.Message.Contains("SR class VLAN identifiers"));
+            Assert.That(() => provider.Publish(invalid),
+                Throws.ArgumentException.With.Message.Contains("SR class VLAN identifiers"));
+            NetworkModelSnapshot current = await provider.ReadAsync().ConfigureAwait(false);
+            Assert.That(current.Revision, Is.Zero);
+            Assert.That(current.Timestamp, Is.EqualTo(initial.Timestamp));
+            Assert.That(current.Interfaces.Count, Is.Zero);
         }
 
         /// <summary>
@@ -1209,6 +1364,133 @@ namespace Opc.Ua.Server.Tests.Network
                 PriorityValue_PCP = pcp,
                 PriorityValue_DSCP = dscp
             };
+        }
+
+        /// <summary>
+        /// Creates a valid snapshot with every enum-bearing value present.
+        /// </summary>
+        private static NetworkModelSnapshot SnapshotWithAllEnumValues()
+        {
+            return EmptySnapshot() with
+            {
+                Interfaces =
+                [
+                    new NetworkInterfaceSnapshot("physical", "eth0")
+                    {
+                        AdminStatus = InterfaceAdminStatus.Up,
+                        OperStatus = InterfaceOperStatus.Up,
+                        Speed = 1_000_000_000,
+                        Ethernet = new NetworkEthernetSnapshot(1000, Duplex.Full, 1522)
+                        {
+                            NegotiationStatus = NegotiationStatus.InProgress
+                        }
+                    }
+                ],
+                Streams =
+                [
+                    new NetworkStreamSnapshot("talker", "test", true)
+                    {
+                        StreamId = ByteString.From(new byte[8].AsSpan()),
+                        State = TsnStreamState.Disabled,
+                        Status = new NetworkStreamStatusSnapshot(TsnFailureCode.NoFailure)
+                        {
+                            TalkerStatus = TsnTalkerStatus.Ready,
+                            ListenerStatus = TsnListenerStatus.Ready
+                        }
+                    }
+                ],
+                Lldp = new NetworkLldpSnapshot(
+                    ChassisIdSubtype.MacAddress, "02:00:00:00:00:01", "switch", "reference")
+                {
+                    Ports =
+                    [
+                        new NetworkLldpPortSnapshot(
+                            "port", "eth0", ByteString.From(new byte[6].AsSpan()),
+                            PortIdSubtype.InterfaceName, "eth0")
+                        {
+                            Neighbors =
+                            [
+                                new NetworkLldpNeighborSnapshot(
+                                    "neighbor", 1, 1, ChassisIdSubtype.MacAddress, "02:00:00:00:00:02",
+                                    PortIdSubtype.InterfaceName, "port1")
+                            ]
+                        }
+                    ]
+                }
+            };
+        }
+
+        /// <summary>
+        /// Replaces one enum-bearing snapshot field with an undefined value.
+        /// </summary>
+        private static NetworkModelSnapshot WithInvalidEnumValue(NetworkModelSnapshot snapshot, string valuePath)
+        {
+            if (valuePath is "interface admin" or "interface oper" or "duplex" or "negotiation")
+            {
+                NetworkInterfaceSnapshot networkInterface = snapshot.Interfaces[0];
+                networkInterface = valuePath switch
+                {
+                    "interface admin" => networkInterface with
+                    {
+                        AdminStatus = (InterfaceAdminStatus)int.MaxValue
+                    },
+                    "interface oper" => networkInterface with
+                    {
+                        OperStatus = (InterfaceOperStatus)int.MaxValue
+                    },
+                    "duplex" => networkInterface with
+                    {
+                        Ethernet = networkInterface.Ethernet! with { Duplex = (Duplex)int.MaxValue }
+                    },
+                    _ => networkInterface with
+                    {
+                        Ethernet = networkInterface.Ethernet! with
+                        {
+                            NegotiationStatus = (NegotiationStatus)int.MaxValue
+                        }
+                    }
+                };
+                return snapshot with { Interfaces = [networkInterface] };
+            }
+            if (valuePath is "stream state" or "failure code" or "talker status" or "listener status")
+            {
+                NetworkStreamSnapshot stream = snapshot.Streams[0];
+                NetworkStreamStatusSnapshot status = stream.Status!;
+                stream = valuePath switch
+                {
+                    "stream state" => stream with { State = (TsnStreamState)int.MaxValue },
+                    "failure code" => stream with
+                    {
+                        Status = status with { FailureCode = (TsnFailureCode)int.MaxValue }
+                    },
+                    "talker status" => stream with
+                    {
+                        Status = status with { TalkerStatus = (TsnTalkerStatus)int.MaxValue }
+                    },
+                    _ => stream with { Status = status with { ListenerStatus = (TsnListenerStatus)int.MaxValue } }
+                };
+                return snapshot with { Streams = [stream] };
+            }
+
+            NetworkLldpSnapshot lldp = snapshot.Lldp!;
+            if (valuePath == "local chassis subtype")
+            {
+                return snapshot with { Lldp = lldp with { ChassisIdSubtype = (ChassisIdSubtype)int.MaxValue } };
+            }
+            NetworkLldpPortSnapshot port = lldp.Ports[0];
+            if (valuePath == "port subtype")
+            {
+                port = port with { PortIdSubtype = (PortIdSubtype)int.MaxValue };
+            }
+            else
+            {
+                NetworkLldpNeighborSnapshot neighbor = lldp.Ports[0].Neighbors[0];
+                neighbor = valuePath == "neighbor chassis subtype"
+                    ? neighbor with { ChassisIdSubtype = (ChassisIdSubtype)int.MaxValue }
+                    : neighbor with { PortIdSubtype = (PortIdSubtype)int.MaxValue };
+                port = port with { Neighbors = [neighbor] };
+            }
+            return snapshot with { Lldp = lldp with { Ports = [port] } };
         }
 
         /// <summary>

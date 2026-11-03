@@ -29,6 +29,9 @@
 
 namespace Opc.Ua.Server.Network
 {
+    using System;
+    using System.Collections.Generic;
+
     /// <summary>
     /// Contains snapshot validation shared by provider implementations and the server publication boundary.
     /// </summary>
@@ -52,6 +55,26 @@ namespace Opc.Ua.Server.Network
         internal static bool IsValidSrClassId(byte? srClassId)
         {
             return !srClassId.HasValue || srClassId.Value <= 7;
+        }
+
+        /// <summary>
+        /// Determines whether an optional network-interface VLAN identifier is in the accepted range.
+        /// </summary>
+        /// <param name="vlanId">The optional VLAN identifier.</param>
+        /// <returns>True when the identifier is absent or between zero and 4094.</returns>
+        internal static bool IsValidInterfaceVlanId(ushort? vlanId)
+        {
+            return !vlanId.HasValue || vlanId.Value <= 4094;
+        }
+
+        /// <summary>
+        /// Determines whether a stream-reservation class VLAN identifier is in the accepted range.
+        /// </summary>
+        /// <param name="vid">The VLAN identifier.</param>
+        /// <returns>True when the identifier is between zero and 4094.</returns>
+        internal static bool IsValidSrClassVid(ushort vid)
+        {
+            return vid <= 4094;
         }
 
         /// <summary>
@@ -92,6 +115,65 @@ namespace Opc.Ua.Server.Network
         internal static bool IsValidTraffic(NetworkTrafficSnapshot traffic)
         {
             return traffic.Denominator != 0;
+        }
+
+        /// <summary>
+        /// Determines whether an enum value is defined by its generated OPC UA enumeration.
+        /// </summary>
+        /// <typeparam name="TEnum">The generated enumeration type.</typeparam>
+        /// <param name="value">The value to validate.</param>
+        /// <returns>True when the value is defined.</returns>
+        internal static bool IsDefinedEnum<TEnum>(TEnum value)
+            where TEnum : struct, Enum
+        {
+#if NET8_0_OR_GREATER
+            return Enum.IsDefined(value);
+#else
+            return Enum.IsDefined(typeof(TEnum), value);
+#endif
+        }
+
+        /// <summary>
+        /// Validates priority-mapping entry keys and optional PCP/DSCP values.
+        /// </summary>
+        /// <param name="entry">The priority-mapping entry to validate.</param>
+        /// <returns>Good for valid entries and BadInvalidArgument otherwise.</returns>
+        internal static StatusCode ValidatePriorityMappingEntry(PriorityMappingEntryType entry)
+        {
+            if (string.IsNullOrWhiteSpace(entry.MappingUri) ||
+                string.IsNullOrWhiteSpace(entry.PriorityLabel))
+            {
+                return StatusCodes.BadInvalidArgument;
+            }
+            if (entry.PriorityValue_PCP != byte.MaxValue && entry.PriorityValue_PCP > 7)
+            {
+                return StatusCodes.BadInvalidArgument;
+            }
+            if (entry.PriorityValue_DSCP != uint.MaxValue && entry.PriorityValue_DSCP > 63)
+            {
+                return StatusCodes.BadInvalidArgument;
+            }
+            return StatusCodes.Good;
+        }
+
+        /// <summary>
+        /// Validates mapping entries and their composite keys within one table.
+        /// </summary>
+        /// <param name="entries">The table's priority-mapping entries.</param>
+        /// <returns>True when every entry is valid and its key is unique in the table.</returns>
+        internal static bool AreValidPriorityMappingEntries(ArrayOf<PriorityMappingEntryType> entries)
+        {
+            var keys = new HashSet<(string? MappingUri, string? PriorityLabel)>();
+            foreach (PriorityMappingEntryType entry in entries)
+            {
+                if (entry is null ||
+                    StatusCode.IsBad(ValidatePriorityMappingEntry(entry)) ||
+                    !keys.Add((entry.MappingUri, entry.PriorityLabel)))
+                {
+                    return false;
+                }
+            }
+            return true;
         }
     }
 }

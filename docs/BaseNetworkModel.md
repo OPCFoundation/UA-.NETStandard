@@ -103,6 +103,13 @@ interface's unchanged mandatory parameters.
 Mapping and lower-layer relationships remain browsable in both directions as
 acquisitions change.
 
+The application or provider is responsible for making `StreamId` unique within
+its related TSN network and `StreamName` unique within the network segment, as
+required by [Part 22 §5.2.7](https://reference.opcfoundation.org/specs/OPC-10000-22/v1.05.04/5.2.7).
+The SDK reports the supplied identifiers; its snapshot model does not identify
+the complete network or segment scope, and the server does not allocate these
+identifiers or enforce global uniqueness across snapshot entries.
+
 The reference provider copies mutable generated structures and backing arrays
 on input and output. Each read and watch item carries the current revision.
 `Publish` accepts a complete replacement only when its revision matches the
@@ -123,6 +130,24 @@ Omit unsupported optional capabilities. The model distinguishes IETF interface
 speed in bit/s from IEEE Ethernet-port speed in Mbit/s. Stream identifiers have
 eight bytes, MAC-address arrays have six bytes, and traffic intervals have a
 nonzero denominator.
+
+The server validates each provider acquisition before publishing it. Present
+enumeration values must be defined by their OPC UA data type. Interface VLAN
+identifiers and SR-class VIDs must be in the range 0-4094; SR-class IDs and
+priorities must be in the range 0-7. A TSN VLAN tag has a separate domain:
+VlanId may be 0-4095 and PriorityCodePoint may be 0-7. Each priority-mapping
+entry must have nonblank `MappingUri` and `PriorityLabel` values, a PCP value
+from 0-7 or 255, and a DSCP value from 0-63 or `UInt32.MaxValue`; the
+(`MappingUri`, `PriorityLabel`) pair must be unique within its table. Part 22
+defines the TSN VLAN-tag and mapping-entry value domains in
+[§5.2.14](https://reference.opcfoundation.org/specs/OPC-10000-22/v1.05.04/5.2.14)
+and [§5.3.2.1](https://reference.opcfoundation.org/specs/OPC-10000-22/v1.05.04/5.3.2.1).
+The reference provider and server also apply the nonblank-key and per-table
+uniqueness checks. An invalid enum or network value rejects the acquisition
+with `BadOutOfRange`; an invalid mapping entry rejects it with
+`BadInvalidArgument`. The server retains the previous values and timestamps
+while marking their quality bad. A later valid acquisition restores the
+published quality. Unsupported optional values remain absent.
 
 If provider observation throws, the server retains the last values and their
 acquisition timestamps but publishes bad quality and retries observation. It

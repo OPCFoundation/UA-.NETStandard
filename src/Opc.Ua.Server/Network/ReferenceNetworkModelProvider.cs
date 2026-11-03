@@ -183,7 +183,7 @@ namespace Opc.Ua.Server.Network
                         {
                             return Result(StatusCodes.BadIndexRangeInvalid);
                         }
-                        StatusCode validation = ValidateEntry(entryCopy);
+                        StatusCode validation = NetworkModelSnapshotValidator.ValidatePriorityMappingEntry(entryCopy);
                         if (StatusCode.IsBad(validation))
                         {
                             return new ValueTask<StatusCode>(validation);
@@ -213,27 +213,6 @@ namespace Opc.Ua.Server.Network
         }
 
         /// <summary>
-        /// Checks the Part 22 priority mapping sentinels and value ranges.
-        /// </summary>
-        private static StatusCode ValidateEntry(PriorityMappingEntryType entry)
-        {
-            if (string.IsNullOrWhiteSpace(entry.MappingUri) ||
-                string.IsNullOrWhiteSpace(entry.PriorityLabel))
-            {
-                return StatusCodes.BadInvalidArgument;
-            }
-            if (entry.PriorityValue_PCP != byte.MaxValue && entry.PriorityValue_PCP > 7)
-            {
-                return StatusCodes.BadInvalidArgument;
-            }
-            if (entry.PriorityValue_DSCP != uint.MaxValue && entry.PriorityValue_DSCP > 63)
-            {
-                return StatusCodes.BadInvalidArgument;
-            }
-            return StatusCodes.Good;
-        }
-
-        /// <summary>
         /// Rejects invalid identities, value ranges and fixed-size fields before a snapshot
         /// becomes visible to concurrent readers.
         /// </summary>
@@ -251,26 +230,39 @@ namespace Opc.Ua.Server.Network
                     string.IsNullOrWhiteSpace(networkInterface.Id) ||
                     string.IsNullOrWhiteSpace(networkInterface.IfName) ||
                     !interfaceIds.Add(networkInterface.Id) ||
-                    !interfaceNames.Add(networkInterface.IfName) ||
-                    networkInterface.VlanId > 4094 ||
-                    !IsDefinedEnum(networkInterface.AdminStatus) ||
-                    !IsDefinedEnum(networkInterface.OperStatus) ||
-                    (networkInterface.Ethernet is { } ethernet &&
-                        (!IsDefinedEnum(ethernet.Duplex) ||
-                            (ethernet.NegotiationStatus is { } negotiation && !IsDefinedEnum(negotiation)))))
+                    !interfaceNames.Add(networkInterface.IfName))
                 {
                     throw new ArgumentException("Interface identities and ifNames must be non-empty and unique.",
                         nameof(snapshot));
+                }
+                if (!NetworkModelSnapshotValidator.IsDefinedEnum(networkInterface.AdminStatus) ||
+                    !NetworkModelSnapshotValidator.IsDefinedEnum(networkInterface.OperStatus) ||
+                    (networkInterface.Ethernet is { } ethernet &&
+                        (!NetworkModelSnapshotValidator.IsDefinedEnum(ethernet.Duplex) ||
+                            (ethernet.NegotiationStatus is { } negotiation &&
+                                !NetworkModelSnapshotValidator.IsDefinedEnum(negotiation)))))
+                {
+                    throw new ArgumentException("Interface enum values must be defined.", nameof(snapshot));
+                }
+                if (!NetworkModelSnapshotValidator.IsValidInterfaceVlanId(networkInterface.VlanId))
+                {
+                    throw new ArgumentException(
+                        "Interface VLAN identifiers must be between zero and 4094.", nameof(snapshot));
                 }
                 var classes = new HashSet<byte>();
                 foreach (NetworkSrClassSnapshot srClass in networkInterface.SrClasses)
                 {
                     if (srClass is null || srClass.Id > 7 || !classes.Add(srClass.Id) ||
-                        srClass.Priority > 7 || srClass.Vid > 4094)
+                        srClass.Priority > 7)
                     {
                         throw new ArgumentException(
                             "SR classes require unique IDs between zero and seven and valid PCP/VLAN values.",
                             nameof(snapshot));
+                    }
+                    if (!NetworkModelSnapshotValidator.IsValidSrClassVid(srClass.Vid))
+                    {
+                        throw new ArgumentException(
+                            "SR class VLAN identifiers must be between zero and 4094.", nameof(snapshot));
                     }
                 }
             }
@@ -283,17 +275,11 @@ namespace Opc.Ua.Server.Network
                     throw new ArgumentException("Mapping table identities must be non-empty and unique.",
                         nameof(snapshot));
                 }
-                var keys = new HashSet<(string MappingUri, string PriorityLabel)>();
-                foreach (PriorityMappingEntryType entry in table.Entries)
+                if (!NetworkModelSnapshotValidator.AreValidPriorityMappingEntries(table.Entries))
                 {
-                    if (entry is null ||
-                        StatusCode.IsBad(ValidateEntry(entry)) ||
-                        !keys.Add((entry.MappingUri!, entry.PriorityLabel!)))
-                    {
-                        throw new ArgumentException(
-                            "Priority mapping entries must have unique non-empty keys and valid PCP/DSCP values.",
-                            nameof(snapshot));
-                    }
+                    throw new ArgumentException(
+                        "Priority mapping entries must have unique non-empty keys and valid PCP/DSCP values.",
+                        nameof(snapshot));
                 }
             }
 
@@ -304,7 +290,6 @@ namespace Opc.Ua.Server.Network
                     string.IsNullOrWhiteSpace(stream.Id) ||
                     string.IsNullOrWhiteSpace(stream.Name) ||
                     !streamIds.Add(stream.Id) ||
-                    !IsDefinedEnum(stream.State) ||
                     !NetworkModelSnapshotValidator.IsValidStreamId(stream.StreamId) ||
                     !NetworkModelSnapshotValidator.AreValidStreamMacAddresses(
                         stream.SourceAddress, stream.DestinationAddress) ||
@@ -315,6 +300,10 @@ namespace Opc.Ua.Server.Network
                         "Stream identities, fixed-size fields and traffic/VLAN values must be valid.",
                         nameof(snapshot));
                 }
+                if (!NetworkModelSnapshotValidator.IsDefinedEnum(stream.State))
+                {
+                    throw new ArgumentException("Stream state values must be defined.", nameof(snapshot));
+                }
                 if (!NetworkModelSnapshotValidator.IsValidSrClassId(stream.SrClassId))
                 {
                     throw new ArgumentException(
@@ -322,9 +311,11 @@ namespace Opc.Ua.Server.Network
                 }
                 if (stream.Status is { } status)
                 {
-                    if (!IsDefinedEnum(status.FailureCode) ||
-                        (status.TalkerStatus is { } talker && !IsDefinedEnum(talker)) ||
-                        (status.ListenerStatus is { } listener && !IsDefinedEnum(listener)))
+                    if (!NetworkModelSnapshotValidator.IsDefinedEnum(status.FailureCode) ||
+                        (status.TalkerStatus is { } talker &&
+                            !NetworkModelSnapshotValidator.IsDefinedEnum(talker)) ||
+                        (status.ListenerStatus is { } listener &&
+                            !NetworkModelSnapshotValidator.IsDefinedEnum(listener)))
                     {
                         throw new ArgumentException("Stream status values must be defined.", nameof(snapshot));
                     }
@@ -354,11 +345,14 @@ namespace Opc.Ua.Server.Network
             {
                 if (string.IsNullOrWhiteSpace(lldp.ChassisId) ||
                     string.IsNullOrWhiteSpace(lldp.SystemName) ||
-                    string.IsNullOrWhiteSpace(lldp.SystemDescription) ||
-                    !IsDefinedEnum(lldp.ChassisIdSubtype))
+                    string.IsNullOrWhiteSpace(lldp.SystemDescription))
                 {
                     throw new ArgumentException("LLDP local-system identifiers must be non-empty.",
                         nameof(snapshot));
+                }
+                if (!NetworkModelSnapshotValidator.IsDefinedEnum(lldp.ChassisIdSubtype))
+                {
+                    throw new ArgumentException("LLDP chassis identifier subtype must be defined.", nameof(snapshot));
                 }
                 var portIds = new HashSet<string>(StringComparer.Ordinal);
                 foreach (NetworkLldpPortSnapshot port in lldp.Ports)
@@ -368,11 +362,14 @@ namespace Opc.Ua.Server.Network
                         string.IsNullOrWhiteSpace(port.IfName) ||
                         string.IsNullOrWhiteSpace(port.PortId) ||
                         !portIds.Add(port.Id) ||
-                        port.DestinationMacAddress.Length != 6 ||
-                        !IsDefinedEnum(port.PortIdSubtype))
+                        port.DestinationMacAddress.Length != 6)
                     {
                         throw new ArgumentException("LLDP port identities and MAC addresses must be valid.",
                             nameof(snapshot));
+                    }
+                    if (!NetworkModelSnapshotValidator.IsDefinedEnum(port.PortIdSubtype))
+                    {
+                        throw new ArgumentException("LLDP port identifier subtype must be defined.", nameof(snapshot));
                     }
                     var neighborIds = new HashSet<string>(StringComparer.Ordinal);
                     foreach (NetworkLldpNeighborSnapshot neighbor in port.Neighbors)
@@ -381,13 +378,17 @@ namespace Opc.Ua.Server.Network
                             string.IsNullOrWhiteSpace(neighbor.Id) ||
                             !neighborIds.Add(neighbor.Id) ||
                             string.IsNullOrWhiteSpace(neighbor.ChassisId) ||
-                            string.IsNullOrWhiteSpace(neighbor.PortId) ||
-                            !IsDefinedEnum(neighbor.ChassisIdSubtype) ||
-                            !IsDefinedEnum(neighbor.PortIdSubtype))
+                            string.IsNullOrWhiteSpace(neighbor.PortId))
                         {
                             throw new ArgumentException(
                                 "LLDP neighbor identities must be non-empty and unique per port.",
                                 nameof(snapshot));
+                        }
+                        if (!NetworkModelSnapshotValidator.IsDefinedEnum(neighbor.ChassisIdSubtype) ||
+                            !NetworkModelSnapshotValidator.IsDefinedEnum(neighbor.PortIdSubtype))
+                        {
+                            throw new ArgumentException(
+                                "LLDP neighbor identifier subtypes must be defined.", nameof(snapshot));
                         }
                     }
                 }
@@ -400,20 +401,6 @@ namespace Opc.Ua.Server.Network
         private static bool IsOptionalLength(ByteString value, int expectedLength)
         {
             return value.Length == 0 || value.Length == expectedLength;
-        }
-
-        /// <summary>
-        /// Checks generated enumeration values on every supported framework.
-        /// </summary>
-        /// <typeparam name="TEnum">The generated enumeration type.</typeparam>
-        private static bool IsDefinedEnum<TEnum>(TEnum value)
-            where TEnum : struct, Enum
-        {
-#if NET8_0_OR_GREATER
-            return Enum.IsDefined(value);
-#else
-            return Enum.IsDefined(typeof(TEnum), value);
-#endif
         }
 
         /// <summary>

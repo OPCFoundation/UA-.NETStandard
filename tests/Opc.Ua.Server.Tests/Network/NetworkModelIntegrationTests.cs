@@ -781,6 +781,496 @@ namespace Opc.Ua.Server.Tests.Network
         }
 
         /// <summary>
+        /// Rejects undefined standard enum values from custom providers and recovers the published values.
+        /// </summary>
+        [TestCase("interface admin")]
+        [TestCase("interface oper")]
+        [TestCase("duplex")]
+        [TestCase("negotiation")]
+        [TestCase("stream state")]
+        [TestCase("failure code")]
+        [TestCase("talker status")]
+        [TestCase("listener status")]
+        [TestCase("local chassis subtype")]
+        [TestCase("port subtype")]
+        [TestCase("neighbor chassis subtype")]
+        [TestCase("neighbor port subtype")]
+        [CancelAfter(60_000)]
+        public async Task CustomProviderEnumValuesAreValidatedBeforePublication(
+            string valuePath, CancellationToken cancellationToken)
+        {
+            NetworkModelSnapshot initial = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            if (valuePath is "failure code" or "talker status" or "listener status" or
+                "neighbor chassis subtype" or "neighbor port subtype")
+            {
+                DateTime seedTimestamp = initial.Timestamp.AddSeconds(1);
+                m_provider.Publish(WithEnumObservations(initial, valuePath) with { Timestamp = seedTimestamp });
+                initial = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+                await WaitForAsync(async () =>
+                {
+                    DataValue value = (await ReadEnumParameterAsync(valuePath, cancellationToken)
+                        .ConfigureAwait(false)).DataValue;
+                    return value.StatusCode == StatusCodes.Good &&
+                        value.SourceTimestamp == (DateTimeUtc)seedTimestamp;
+                }, cancellationToken).ConfigureAwait(false);
+            }
+
+            NetworkParameterValue beforeParameter = await ReadEnumParameterAsync(valuePath, cancellationToken)
+                .ConfigureAwait(false);
+            DataValue before = beforeParameter.DataValue;
+            Assert.That(before.StatusCode, Is.EqualTo(StatusCodes.Good));
+            BaseVariableState retained = m_server.Server.CurrentInstance.NodeManager.AsyncNodeManagers
+                .OfType<NetworkModelNodeManager>().Single()
+                .FindPredefinedNode<BaseVariableState>(beforeParameter.NodeId);
+
+            m_providerBoundary.WatchTransform = snapshot => WithInvalidEnumValue(snapshot, valuePath);
+            DateTime invalidTimestamp = initial.Timestamp.AddSeconds(1);
+            m_provider.Publish(initial with { Timestamp = invalidTimestamp });
+            await WaitForAsync(async () =>
+            {
+                DataValue value = (await ReadEnumParameterAsync(valuePath, cancellationToken)
+                    .ConfigureAwait(false)).DataValue;
+                return value.StatusCode == StatusCodes.BadOutOfRange;
+            }, cancellationToken).ConfigureAwait(false);
+
+            DataValue rejected = (await ReadEnumParameterAsync(valuePath, cancellationToken)
+                .ConfigureAwait(false)).DataValue;
+            Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
+            Assert.That(rejected.WrappedValue.IsNull, Is.True);
+            Assert.That(rejected.SourceTimestamp, Is.EqualTo(before.SourceTimestamp));
+            Assert.That(retained.Value, Is.EqualTo(before.WrappedValue));
+            Assert.That(retained.Timestamp, Is.EqualTo(initial.Timestamp));
+
+            m_providerBoundary.WatchTransform = null;
+            NetworkModelSnapshot current = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            DateTime recoveryTimestamp = current.Timestamp.AddSeconds(2);
+            m_provider.Publish(current with { Timestamp = recoveryTimestamp });
+            await WaitForAsync(async () =>
+            {
+                DataValue value = (await ReadEnumParameterAsync(valuePath, cancellationToken)
+                    .ConfigureAwait(false)).DataValue;
+                return value.StatusCode == StatusCodes.Good &&
+                    value.SourceTimestamp == (DateTimeUtc)recoveryTimestamp;
+            }, cancellationToken).ConfigureAwait(false);
+            DataValue recovered = (await ReadEnumParameterAsync(valuePath, cancellationToken)
+                .ConfigureAwait(false)).DataValue;
+            Assert.That(recovered.WrappedValue, Is.EqualTo(before.WrappedValue));
+            Assert.That(recovered.StatusCode, Is.EqualTo(StatusCodes.Good));
+        }
+
+        /// <summary>
+        /// Validates custom-provider priority-mapping entry keys and value ranges with recovery.
+        /// </summary>
+        [TestCase("empty URI")]
+        [TestCase("empty label")]
+        [TestCase("PCP range")]
+        [TestCase("DSCP range")]
+        [TestCase("duplicate key")]
+        [CancelAfter(60_000)]
+        public async Task CustomProviderPriorityMappingEntriesAreValidatedBeforePublication(
+            string invalidField, CancellationToken cancellationToken)
+        {
+            NetworkModelSnapshot initial = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            NodeId table = (await m_client.DiscoverMappingTablesAsync(cancellationToken).ConfigureAwait(false))[0];
+            NetworkMappingValues before = await m_client.ReadMappingTableAsync(table, cancellationToken)
+                .ConfigureAwait(false);
+            Assert.That(before.Acquisition.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+            BaseVariableState retained = m_server.Server.CurrentInstance.NodeManager.AsyncNodeManagers
+                .OfType<NetworkModelNodeManager>().Single()
+                .FindPredefinedNode<BaseVariableState>(before.Acquisition.NodeId);
+
+            m_providerBoundary.WatchTransform = snapshot =>
+                WithInvalidMappingEntry(snapshot, invalidField);
+            DateTime invalidTimestamp = initial.Timestamp.AddSeconds(1);
+            m_provider.Publish(initial with { Timestamp = invalidTimestamp });
+            await WaitForAsync(async () =>
+            {
+                NetworkMappingValues values = await m_client.ReadMappingTableAsync(table, cancellationToken)
+                    .ConfigureAwait(false);
+                return values.Acquisition.DataValue.StatusCode == StatusCodes.BadInvalidArgument;
+            }, cancellationToken).ConfigureAwait(false);
+
+            NetworkMappingValues rejected = await m_client.ReadMappingTableAsync(table, cancellationToken)
+                .ConfigureAwait(false);
+            Assert.That(rejected.Acquisition.DataValue.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(rejected.Acquisition.DataValue.WrappedValue.IsNull, Is.True);
+            Assert.That(rejected.Acquisition.DataValue.SourceTimestamp,
+                Is.EqualTo(before.Acquisition.DataValue.SourceTimestamp));
+            Assert.That(retained.Value, Is.EqualTo(before.Acquisition.DataValue.WrappedValue));
+            Assert.That(retained.Timestamp, Is.EqualTo(initial.Timestamp));
+
+            m_providerBoundary.WatchTransform = null;
+            NetworkModelSnapshot current = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            DateTime recoveryTimestamp = current.Timestamp.AddSeconds(2);
+            m_provider.Publish(current with { Timestamp = recoveryTimestamp });
+            await WaitForAsync(async () =>
+            {
+                NetworkMappingValues values = await m_client.ReadMappingTableAsync(table, cancellationToken)
+                    .ConfigureAwait(false);
+                return values.Acquisition.DataValue.StatusCode == StatusCodes.Good &&
+                    values.Acquisition.DataValue.SourceTimestamp == (DateTimeUtc)recoveryTimestamp;
+            }, cancellationToken).ConfigureAwait(false);
+            NetworkMappingValues recovered = await m_client.ReadMappingTableAsync(table, cancellationToken)
+                .ConfigureAwait(false);
+            Assert.That(recovered.Entries.ToList().Select(entry =>
+                (entry.MappingUri, entry.PriorityLabel, entry.PriorityValue_PCP, entry.PriorityValue_DSCP)),
+                Is.EqualTo(before.Entries.ToList().Select(entry =>
+                    (entry.MappingUri, entry.PriorityLabel, entry.PriorityValue_PCP, entry.PriorityValue_DSCP))));
+        }
+
+        /// <summary>
+        /// Preserves valid priority-mapping boundaries and unused-value sentinels for custom providers.
+        /// </summary>
+        [TestCase((byte)0, 0u)]
+        [TestCase((byte)7, 63u)]
+        [TestCase(byte.MaxValue, 0u)]
+        [TestCase((byte)0, uint.MaxValue)]
+        [TestCase(byte.MaxValue, uint.MaxValue)]
+        [CancelAfter(60_000)]
+        public async Task CustomProviderPriorityMappingBoundariesRemainValid(
+            byte pcp, uint dscp, CancellationToken cancellationToken)
+        {
+            NetworkModelSnapshot initial = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            NodeId table = (await m_client.DiscoverMappingTablesAsync(cancellationToken).ConfigureAwait(false))[0];
+            m_providerBoundary.WatchTransform = snapshot =>
+                WithMappingEntry(snapshot, new PriorityMappingEntryType
+                {
+                    MappingUri = "urn:test:boundary",
+                    PriorityLabel = "Boundary",
+                    PriorityValue_PCP = pcp,
+                    PriorityValue_DSCP = dscp
+                });
+            DateTime timestamp = initial.Timestamp.AddSeconds(1);
+            m_provider.Publish(initial with { Timestamp = timestamp });
+            await WaitForAsync(async () =>
+            {
+                NetworkMappingValues values = await m_client.ReadMappingTableAsync(table, cancellationToken)
+                    .ConfigureAwait(false);
+                return values.Acquisition.DataValue.StatusCode == StatusCodes.Good &&
+                    values.Acquisition.DataValue.SourceTimestamp == (DateTimeUtc)timestamp &&
+                    values.Entries.ToList().Any(entry => entry.MappingUri == "urn:test:boundary");
+            }, cancellationToken).ConfigureAwait(false);
+            NetworkMappingValues actual = await m_client.ReadMappingTableAsync(table, cancellationToken)
+                .ConfigureAwait(false);
+            PriorityMappingEntryType entry = actual.Entries.ToList()
+                .Single(value => value.MappingUri == "urn:test:boundary");
+            Assert.That(entry.PriorityValue_PCP, Is.EqualTo(pcp));
+            Assert.That(entry.PriorityValue_DSCP, Is.EqualTo(dscp));
+        }
+
+        /// <summary>
+        /// Accepts a mapping table with no entries and publishes its empty list as good quality.
+        /// </summary>
+        [Test]
+        [CancelAfter(60_000)]
+        public async Task CustomProviderEmptyPriorityMappingEntriesRemainValid(CancellationToken cancellationToken)
+        {
+            NetworkModelSnapshot initial = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            NodeId table = (await m_client.DiscoverMappingTablesAsync(cancellationToken).ConfigureAwait(false))[0];
+            DateTime timestamp = initial.Timestamp.AddSeconds(1);
+            m_provider.Publish(initial with
+            {
+                Timestamp = timestamp,
+                MappingTables = [initial.MappingTables[0] with { Entries = [] }]
+            });
+            await WaitForAsync(async () =>
+            {
+                NetworkMappingValues values = await m_client.ReadMappingTableAsync(table, cancellationToken)
+                    .ConfigureAwait(false);
+                return values.Acquisition.DataValue.StatusCode == StatusCodes.Good &&
+                    values.Acquisition.DataValue.SourceTimestamp == (DateTimeUtc)timestamp &&
+                    values.Entries.Count == 0;
+            }, cancellationToken).ConfigureAwait(false);
+            NetworkMappingValues empty = await m_client.ReadMappingTableAsync(table, cancellationToken)
+                .ConfigureAwait(false);
+            Assert.That(empty.Acquisition.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(empty.Entries.Count, Is.Zero);
+        }
+
+        /// <summary>
+        /// Keeps optional negotiation and stream-status interfaces absent without rejecting the acquisition.
+        /// </summary>
+        [Test]
+        [CancelAfter(60_000)]
+        public async Task CustomProviderMayOmitOptionalEnumBearingValues(CancellationToken cancellationToken)
+        {
+            NetworkModelSnapshot initial = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            NetworkInterfaceSnapshot[] interfaces = initial.Interfaces.Span.ToArray();
+            for (int index = 0; index < interfaces.Length; index++)
+            {
+                if (interfaces[index].Id == "physical")
+                {
+                    interfaces[index] = interfaces[index] with
+                    {
+                        Ethernet = interfaces[index].Ethernet! with { NegotiationStatus = null }
+                    };
+                }
+            }
+            NetworkStreamSnapshot[] streams = initial.Streams.Span.ToArray();
+            for (int index = 0; index < streams.Length; index++)
+            {
+                streams[index] = streams[index] with { Status = null };
+            }
+            DateTime timestamp = initial.Timestamp.AddSeconds(1);
+            m_provider.Publish(initial with
+            {
+                Timestamp = timestamp,
+                Interfaces = ArrayOf.Wrapped(interfaces),
+                Streams = ArrayOf.Wrapped(streams)
+            });
+
+            ArrayOf<ReferenceDescription> publishedInterfaces = await m_client.BrowseObjectsAsync(
+                ObjectIds.NetworkInterfaces, cancellationToken).ConfigureAwait(false);
+            NodeId physical = ExpandedNodeId.ToNodeId(publishedInterfaces.ToList()
+                .Single(reference => reference.BrowseName.Name == "eth0").NodeId, m_session.NamespaceUris);
+            await WaitForAsync(async () =>
+                (await m_client.ReadInterfaceAsync(physical, cancellationToken).ConfigureAwait(false))
+                    .Speed.DataValue.SourceTimestamp == (DateTimeUtc)timestamp,
+                cancellationToken).ConfigureAwait(false);
+            ArrayOf<NetworkParameterValue> negotiation = await ReadParameterSetAsync(
+                physical, ObjectTypeIds.IIeeeAutoNegotiationStatusType, cancellationToken).ConfigureAwait(false);
+            Assert.That(negotiation.Count, Is.Zero);
+
+            NodeId talker = (await m_client.DiscoverStreamsAsync(true, cancellationToken).ConfigureAwait(false))[0];
+            await WaitForAsync(async () =>
+                (await m_client.ReadStreamAsync(talker, cancellationToken).ConfigureAwait(false))
+                    .State.DataValue.SourceTimestamp == (DateTimeUtc)timestamp,
+                cancellationToken).ConfigureAwait(false);
+            ArrayOf<NetworkParameterValue> status = await ReadParameterSetAsync(
+                talker, ObjectTypeIds.IIeeeBaseTsnStatusStreamType, cancellationToken).ConfigureAwait(false);
+            Assert.That(status.Count, Is.Zero);
+        }
+
+        /// <summary>
+        /// Validates optional interface VLAN identifiers and recovery after rejected acquisitions.
+        /// </summary>
+        [TestCase(false, (ushort)0, true)]
+        [TestCase(true, (ushort)0, true)]
+        [TestCase(true, (ushort)4094, true)]
+        [TestCase(true, (ushort)4095, false)]
+        [TestCase(true, ushort.MaxValue, false)]
+        [CancelAfter(60_000)]
+        public async Task CustomProviderInterfaceVlanIdsAreValidatedBeforePublication(
+            bool includeVlanId, ushort vlanId, bool valid, CancellationToken cancellationToken)
+        {
+            NetworkModelSnapshot initial = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            ArrayOf<ReferenceDescription> interfaces = await m_client.BrowseObjectsAsync(
+                ObjectIds.NetworkInterfaces, cancellationToken).ConfigureAwait(false);
+            NodeId vlanInterface = ExpandedNodeId.ToNodeId(interfaces.ToList()
+                .Single(reference => reference.BrowseName.Name == "eth0.2").NodeId, m_session.NamespaceUris);
+            NetworkInterfaceValues beforeInterface = await m_client.ReadInterfaceAsync(
+                vlanInterface, cancellationToken).ConfigureAwait(false);
+            ArrayOf<NetworkParameterValue> beforeParameters = await ReadParameterSetAsync(
+                vlanInterface, ObjectTypeIds.IVlanIdType, cancellationToken).ConfigureAwait(false);
+            NetworkParameterValue beforeVlan = Parameter(beforeParameters, BrowseNames.VlanId);
+            NetworkModelNodeManager manager = m_server.Server.CurrentInstance.NodeManager.AsyncNodeManagers
+                .OfType<NetworkModelNodeManager>().Single();
+            BaseVariableState retained = manager.FindPredefinedNode<BaseVariableState>(beforeVlan.NodeId);
+
+            m_providerBoundary.WatchTransform = snapshot =>
+            {
+                NetworkInterfaceSnapshot[] updated = snapshot.Interfaces.Span.ToArray();
+                for (int index = 0; index < updated.Length; index++)
+                {
+                    if (updated[index].Id == "vlan")
+                    {
+                        updated[index] = updated[index] with { VlanId = includeVlanId ? vlanId : null };
+                    }
+                }
+                return snapshot with { Interfaces = ArrayOf.Wrapped(updated) };
+            };
+            DateTime publicationTimestamp = initial.Timestamp.AddSeconds(1);
+            m_provider.Publish(initial with { Timestamp = publicationTimestamp });
+            await WaitForAsync(async () =>
+            {
+                NetworkInterfaceValues values = await m_client.ReadInterfaceAsync(
+                    vlanInterface, cancellationToken).ConfigureAwait(false);
+                bool hasVlan = await HasInterfaceAsync(
+                    vlanInterface, ObjectTypeIds.IVlanIdType, cancellationToken).ConfigureAwait(false);
+                return valid
+                    ? values.Speed.DataValue.SourceTimestamp == (DateTimeUtc)publicationTimestamp &&
+                        hasVlan == includeVlanId
+                    : values.Speed.DataValue.StatusCode == StatusCodes.BadOutOfRange;
+            }, cancellationToken).ConfigureAwait(false);
+
+            bool publishedVlan = await HasInterfaceAsync(
+                vlanInterface, ObjectTypeIds.IVlanIdType, cancellationToken).ConfigureAwait(false);
+            if (valid && !includeVlanId)
+            {
+                Assert.That(publishedVlan, Is.False);
+                NetworkInterfaceValues actual = await m_client.ReadInterfaceAsync(
+                    vlanInterface, cancellationToken).ConfigureAwait(false);
+                Assert.That(actual.Speed.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(actual.Speed.DataValue.SourceTimestamp, Is.EqualTo((DateTimeUtc)publicationTimestamp));
+            }
+            else
+            {
+                Assert.That(publishedVlan, Is.True);
+                ArrayOf<NetworkParameterValue> actualParameters = await ReadParameterSetAsync(
+                    vlanInterface, ObjectTypeIds.IVlanIdType, cancellationToken).ConfigureAwait(false);
+                NetworkParameterValue actualVlan = Parameter(actualParameters, BrowseNames.VlanId);
+                if (valid)
+                {
+                    Assert.That(actualVlan.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(actualVlan.DataValue.WrappedValue, Is.EqualTo(new Variant(vlanId)));
+                    Assert.That(actualVlan.DataValue.SourceTimestamp, Is.EqualTo((DateTimeUtc)publicationTimestamp));
+                }
+                else
+                {
+                    Assert.That(actualVlan.DataValue.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
+                    Assert.That(actualVlan.DataValue.WrappedValue, Is.EqualTo(beforeVlan.DataValue.WrappedValue));
+                    Assert.That(actualVlan.DataValue.SourceTimestamp,
+                        Is.EqualTo(beforeVlan.DataValue.SourceTimestamp));
+                    Assert.That(retained.Value, Is.EqualTo(beforeVlan.DataValue.WrappedValue));
+                    Assert.That(retained.Timestamp, Is.EqualTo(initial.Timestamp));
+                    NetworkInterfaceValues failed = await m_client.ReadInterfaceAsync(
+                        vlanInterface, cancellationToken).ConfigureAwait(false);
+                    Assert.That(failed.Speed.DataValue.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
+                    Assert.That(failed.Speed.DataValue.WrappedValue,
+                        Is.EqualTo(beforeInterface.Speed.DataValue.WrappedValue));
+                    Assert.That(failed.Speed.DataValue.SourceTimestamp,
+                        Is.EqualTo(beforeInterface.Speed.DataValue.SourceTimestamp));
+                }
+            }
+
+            m_providerBoundary.WatchTransform = null;
+            NetworkModelSnapshot current = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            DateTime recoveryTimestamp = current.Timestamp.AddSeconds(2);
+            m_provider.Publish(current with { Timestamp = recoveryTimestamp });
+            await WaitForAsync(async () =>
+            {
+                ArrayOf<NetworkParameterValue> values = await ReadParameterSetAsync(
+                    vlanInterface, ObjectTypeIds.IVlanIdType, cancellationToken).ConfigureAwait(false);
+                DataValue dataValue = Parameter(values, BrowseNames.VlanId).DataValue;
+                return dataValue.StatusCode == StatusCodes.Good &&
+                    dataValue.SourceTimestamp == (DateTimeUtc)recoveryTimestamp;
+            }, cancellationToken).ConfigureAwait(false);
+            ArrayOf<NetworkParameterValue> recoveredParameters = await ReadParameterSetAsync(
+                vlanInterface, ObjectTypeIds.IVlanIdType, cancellationToken).ConfigureAwait(false);
+            NetworkParameterValue recoveredVlan = Parameter(recoveredParameters, BrowseNames.VlanId);
+            Assert.That(recoveredVlan.DataValue.WrappedValue, Is.EqualTo(beforeVlan.DataValue.WrappedValue));
+            Assert.That(recoveredVlan.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+        }
+
+        /// <summary>
+        /// Validates optional stream-reservation VLAN identifiers and recovery after rejection.
+        /// </summary>
+        [TestCase(false, (ushort)0, true)]
+        [TestCase(true, (ushort)0, true)]
+        [TestCase(true, (ushort)4094, true)]
+        [TestCase(true, (ushort)4095, false)]
+        [TestCase(true, ushort.MaxValue, false)]
+        [CancelAfter(60_000)]
+        public async Task CustomProviderSrClassVidsAreValidatedBeforePublication(
+            bool includeSrClass, ushort vid, bool valid, CancellationToken cancellationToken)
+        {
+            NetworkModelSnapshot initial = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            ArrayOf<ReferenceDescription> interfaces = await m_client.BrowseObjectsAsync(
+                ObjectIds.NetworkInterfaces, cancellationToken).ConfigureAwait(false);
+            NodeId physical = ExpandedNodeId.ToNodeId(interfaces.ToList()
+                .Single(reference => reference.BrowseName.Name == "eth0").NodeId, m_session.NamespaceUris);
+            NetworkInterfaceValues beforeInterface = await m_client.ReadInterfaceAsync(
+                physical, cancellationToken).ConfigureAwait(false);
+            ArrayOf<NetworkParameterValue> beforeParameters = await ReadParameterSetAsync(
+                physical, ObjectTypeIds.ISrClassType, cancellationToken).ConfigureAwait(false);
+            NetworkParameterValue beforeVid = Parameter(beforeParameters, BrowseNames.Vid);
+            ArrayOf<ReferenceDescription> beforeChildren = await m_client.BrowseObjectsAsync(
+                physical, cancellationToken).ConfigureAwait(false);
+            NetworkModelNodeManager manager = m_server.Server.CurrentInstance.NodeManager.AsyncNodeManagers
+                .OfType<NetworkModelNodeManager>().Single();
+            BaseVariableState retained = manager.FindPredefinedNode<BaseVariableState>(beforeVid.NodeId);
+
+            m_providerBoundary.WatchTransform = snapshot =>
+            {
+                NetworkInterfaceSnapshot[] updated = snapshot.Interfaces.Span.ToArray();
+                for (int index = 0; index < updated.Length; index++)
+                {
+                    if (updated[index].Id == "physical")
+                    {
+                        updated[index] = updated[index] with
+                        {
+                            SrClasses = includeSrClass
+                                ? [new NetworkSrClassSnapshot(6, 3, vid)]
+                                : []
+                        };
+                    }
+                }
+                return snapshot with { Interfaces = ArrayOf.Wrapped(updated) };
+            };
+            DateTime publicationTimestamp = initial.Timestamp.AddSeconds(1);
+            m_provider.Publish(initial with { Timestamp = publicationTimestamp });
+            await WaitForAsync(async () =>
+            {
+                NetworkInterfaceValues values = await m_client.ReadInterfaceAsync(
+                    physical, cancellationToken).ConfigureAwait(false);
+                return valid
+                    ? values.Speed.DataValue.SourceTimestamp == (DateTimeUtc)publicationTimestamp
+                    : values.Speed.DataValue.StatusCode == StatusCodes.BadOutOfRange;
+            }, cancellationToken).ConfigureAwait(false);
+
+            ArrayOf<ReferenceDescription> actualChildren = await m_client.BrowseObjectsAsync(
+                physical, cancellationToken).ConfigureAwait(false);
+            bool hasSrClass = actualChildren.ToList().Any(child => child.BrowseName.Name == "SrClass6");
+            if (valid && !includeSrClass)
+            {
+                Assert.That(hasSrClass, Is.False);
+                NetworkInterfaceValues actual = await m_client.ReadInterfaceAsync(
+                    physical, cancellationToken).ConfigureAwait(false);
+                Assert.That(actual.Speed.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(actual.Speed.DataValue.SourceTimestamp, Is.EqualTo((DateTimeUtc)publicationTimestamp));
+            }
+            else
+            {
+                Assert.That(hasSrClass, Is.True);
+                ArrayOf<NetworkParameterValue> actualParameters = await ReadParameterSetAsync(
+                    physical, ObjectTypeIds.ISrClassType, cancellationToken).ConfigureAwait(false);
+                NetworkParameterValue actualVid = Parameter(actualParameters, BrowseNames.Vid);
+                if (valid)
+                {
+                    Assert.That(actualVid.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(actualVid.DataValue.WrappedValue, Is.EqualTo(new Variant(vid)));
+                    Assert.That(actualVid.DataValue.SourceTimestamp, Is.EqualTo((DateTimeUtc)publicationTimestamp));
+                }
+                else
+                {
+                    Assert.That(actualVid.DataValue.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
+                    Assert.That(actualVid.DataValue.WrappedValue, Is.EqualTo(beforeVid.DataValue.WrappedValue));
+                    Assert.That(actualVid.DataValue.SourceTimestamp,
+                        Is.EqualTo(beforeVid.DataValue.SourceTimestamp));
+                    Assert.That(retained.Value, Is.EqualTo(beforeVid.DataValue.WrappedValue));
+                    Assert.That(retained.Timestamp, Is.EqualTo(initial.Timestamp));
+                    NetworkInterfaceValues failed = await m_client.ReadInterfaceAsync(
+                        physical, cancellationToken).ConfigureAwait(false);
+                    Assert.That(failed.Speed.DataValue.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
+                    Assert.That(failed.Speed.DataValue.WrappedValue,
+                        Is.EqualTo(beforeInterface.Speed.DataValue.WrappedValue));
+                    Assert.That(failed.Speed.DataValue.SourceTimestamp,
+                        Is.EqualTo(beforeInterface.Speed.DataValue.SourceTimestamp));
+                    Assert.That(actualChildren.ToList().Select(child => child.NodeId),
+                        Is.EquivalentTo(beforeChildren.ToList().Select(child => child.NodeId)));
+                }
+            }
+
+            m_providerBoundary.WatchTransform = null;
+            NetworkModelSnapshot current = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            DateTime recoveryTimestamp = current.Timestamp.AddSeconds(2);
+            m_provider.Publish(current with { Timestamp = recoveryTimestamp });
+            await WaitForAsync(async () =>
+            {
+                ArrayOf<NetworkParameterValue> values = await ReadParameterSetAsync(
+                    physical, ObjectTypeIds.ISrClassType, cancellationToken).ConfigureAwait(false);
+                DataValue dataValue = Parameter(values, BrowseNames.Vid).DataValue;
+                return dataValue.StatusCode == StatusCodes.Good &&
+                    dataValue.SourceTimestamp == (DateTimeUtc)recoveryTimestamp;
+            }, cancellationToken).ConfigureAwait(false);
+            ArrayOf<NetworkParameterValue> recoveredParameters = await ReadParameterSetAsync(
+                physical, ObjectTypeIds.ISrClassType, cancellationToken).ConfigureAwait(false);
+            NetworkParameterValue recoveredVid = Parameter(recoveredParameters, BrowseNames.Vid);
+            Assert.That(recoveredVid.DataValue.WrappedValue, Is.EqualTo(beforeVid.DataValue.WrappedValue));
+            Assert.That(recoveredVid.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+        }
+
+        /// <summary>
         /// Publishes valid VLAN-tag boundaries and rejects malformed custom acquisitions without changing values.
         /// </summary>
         [TestCase((ushort)0, (byte)0, true)]
@@ -1731,6 +2221,263 @@ namespace Opc.Ua.Server.Tests.Network
                 ObjectIds.LLDP_LocalSystemData, cancellationToken).ConfigureAwait(false);
             Assert.That(Parameter(local, BrowseNames.ChassisId).DataValue.StatusCode,
                 Is.EqualTo(StatusCodes.BadNotSupported));
+        }
+
+        /// <summary>
+        /// Creates defined stream-status values and an LLDP neighbor for enum publication tests.
+        /// </summary>
+        private static NetworkModelSnapshot WithEnumObservations(NetworkModelSnapshot snapshot, string valuePath)
+        {
+            if (valuePath is "failure code" or "talker status" or "listener status")
+            {
+                NetworkStreamSnapshot[] streams = snapshot.Streams.Span.ToArray();
+                for (int index = 0; index < streams.Length; index++)
+                {
+                    streams[index] = streams[index] with
+                    {
+                        Status = new NetworkStreamStatusSnapshot(TsnFailureCode.NoFailure)
+                        {
+                            TalkerStatus = streams[index].IsTalker ? TsnTalkerStatus.Ready : null,
+                            ListenerStatus = streams[index].IsTalker ? null : TsnListenerStatus.Ready
+                        }
+                    };
+                }
+                return snapshot with { Streams = ArrayOf.Wrapped(streams) };
+            }
+
+            if (valuePath is "neighbor chassis subtype" or "neighbor port subtype")
+            {
+                NetworkLldpSnapshot lldp = snapshot.Lldp
+                    ?? throw new InvalidOperationException("The enum test scenario requires LLDP.");
+                NetworkLldpPortSnapshot[] ports = lldp.Ports.Span.ToArray();
+                ports[0] = ports[0] with
+                {
+                    Neighbors =
+                    [
+                        new NetworkLldpNeighborSnapshot(
+                            "neighbor", 1, 1, ChassisIdSubtype.MacAddress, "02:00:00:00:00:02",
+                            PortIdSubtype.InterfaceName, "port1")
+                    ]
+                };
+                return snapshot with { Lldp = lldp with { Ports = ArrayOf.Wrapped(ports) } };
+            }
+            return snapshot;
+        }
+
+        /// <summary>
+        /// Replaces one provider enum with a value outside its generated enumeration.
+        /// </summary>
+        private static NetworkModelSnapshot WithInvalidEnumValue(NetworkModelSnapshot snapshot, string valuePath)
+        {
+            if (valuePath is "interface admin" or "interface oper" or "duplex" or "negotiation")
+            {
+                NetworkInterfaceSnapshot[] interfaces = snapshot.Interfaces.Span.ToArray();
+                for (int index = 0; index < interfaces.Length; index++)
+                {
+                    if (interfaces[index].Id != "physical")
+                    {
+                        continue;
+                    }
+                    interfaces[index] = valuePath switch
+                    {
+                        "interface admin" => interfaces[index] with
+                        {
+                            AdminStatus = (InterfaceAdminStatus)int.MaxValue
+                        },
+                        "interface oper" => interfaces[index] with
+                        {
+                            OperStatus = (InterfaceOperStatus)int.MaxValue
+                        },
+                        "duplex" => interfaces[index] with
+                        {
+                            Ethernet = interfaces[index].Ethernet! with { Duplex = (Duplex)int.MaxValue }
+                        },
+                        _ => interfaces[index] with
+                        {
+                            Ethernet = interfaces[index].Ethernet! with
+                            {
+                                NegotiationStatus = (NegotiationStatus)int.MaxValue
+                            }
+                        }
+                    };
+                }
+                return snapshot with { Interfaces = ArrayOf.Wrapped(interfaces) };
+            }
+
+            if (valuePath is "stream state" or "failure code" or "talker status" or "listener status")
+            {
+                NetworkStreamSnapshot[] streams = snapshot.Streams.Span.ToArray();
+                for (int index = 0; index < streams.Length; index++)
+                {
+                    bool target = valuePath == "listener status"
+                        ? !streams[index].IsTalker
+                        : streams[index].IsTalker;
+                    if (!target)
+                    {
+                        continue;
+                    }
+                    if (valuePath == "stream state")
+                    {
+                        streams[index] = streams[index] with { State = (TsnStreamState)int.MaxValue };
+                        continue;
+                    }
+                    NetworkStreamStatusSnapshot status = streams[index].Status
+                        ?? throw new InvalidOperationException("The enum test stream status is absent.");
+                    streams[index] = streams[index] with
+                    {
+                        Status = valuePath switch
+                        {
+                            "failure code" => status with { FailureCode = (TsnFailureCode)int.MaxValue },
+                            "talker status" => status with { TalkerStatus = (TsnTalkerStatus)int.MaxValue },
+                            _ => status with { ListenerStatus = (TsnListenerStatus)int.MaxValue }
+                        }
+                    };
+                }
+                return snapshot with { Streams = ArrayOf.Wrapped(streams) };
+            }
+
+            NetworkLldpSnapshot lldp = snapshot.Lldp
+                ?? throw new InvalidOperationException("The enum test scenario requires LLDP.");
+            if (valuePath == "local chassis subtype")
+            {
+                return snapshot with { Lldp = lldp with { ChassisIdSubtype = (ChassisIdSubtype)int.MaxValue } };
+            }
+            NetworkLldpPortSnapshot[] ports = lldp.Ports.Span.ToArray();
+            if (valuePath == "port subtype")
+            {
+                ports[0] = ports[0] with { PortIdSubtype = (PortIdSubtype)int.MaxValue };
+            }
+            else
+            {
+                NetworkLldpNeighborSnapshot[] neighbors = ports[0].Neighbors.Span.ToArray();
+                neighbors[0] = valuePath == "neighbor chassis subtype"
+                    ? neighbors[0] with { ChassisIdSubtype = (ChassisIdSubtype)int.MaxValue }
+                    : neighbors[0] with { PortIdSubtype = (PortIdSubtype)int.MaxValue };
+                ports[0] = ports[0] with { Neighbors = ArrayOf.Wrapped(neighbors) };
+            }
+            return snapshot with { Lldp = lldp with { Ports = ArrayOf.Wrapped(ports) } };
+        }
+
+        /// <summary>
+        /// Reads one enum-backed server value through its corresponding OPC UA interface.
+        /// </summary>
+        private async Task<NetworkParameterValue> ReadEnumParameterAsync(
+            string valuePath, CancellationToken cancellationToken)
+        {
+            ArrayOf<ReferenceDescription> interfaces = await m_client.BrowseObjectsAsync(
+                ObjectIds.NetworkInterfaces, cancellationToken).ConfigureAwait(false);
+            NodeId physical = ExpandedNodeId.ToNodeId(interfaces.ToList()
+                .Single(reference => reference.BrowseName.Name == "eth0").NodeId, m_session.NamespaceUris);
+            switch (valuePath)
+            {
+                case "interface admin":
+                    return (await m_client.ReadInterfaceAsync(physical, cancellationToken).ConfigureAwait(false))
+                        .AdminStatus;
+                case "interface oper":
+                    return (await m_client.ReadInterfaceAsync(physical, cancellationToken).ConfigureAwait(false))
+                        .OperStatus;
+                case "duplex":
+                    return Parameter(await ReadParameterSetAsync(
+                        physical, ObjectTypeIds.IIeeeBaseEthernetPortType, cancellationToken).ConfigureAwait(false),
+                        BrowseNames.Duplex);
+                case "negotiation":
+                    return Parameter(await ReadParameterSetAsync(
+                        physical, ObjectTypeIds.IIeeeAutoNegotiationStatusType, cancellationToken)
+                        .ConfigureAwait(false), BrowseNames.NegotiationStatus);
+                case "stream state":
+                    return (await m_client.ReadStreamAsync(
+                        (await m_client.DiscoverStreamsAsync(true, cancellationToken).ConfigureAwait(false))[0],
+                        cancellationToken).ConfigureAwait(false)).State;
+                case "failure code":
+                case "talker status":
+                    return Parameter(await ReadParameterSetAsync(
+                        (await m_client.DiscoverStreamsAsync(true, cancellationToken).ConfigureAwait(false))[0],
+                        ObjectTypeIds.IIeeeBaseTsnStatusStreamType, cancellationToken).ConfigureAwait(false),
+                        valuePath == "failure code" ? BrowseNames.FailureCode : BrowseNames.TalkerStatus);
+                case "listener status":
+                    return Parameter(await ReadParameterSetAsync(
+                        (await m_client.DiscoverStreamsAsync(false, cancellationToken).ConfigureAwait(false))[0],
+                        ObjectTypeIds.IIeeeBaseTsnStatusStreamType, cancellationToken).ConfigureAwait(false),
+                        BrowseNames.ListenerStatus);
+                case "local chassis subtype":
+                    return Parameter(await m_client.ReadParametersAsync(
+                        ObjectIds.LLDP_LocalSystemData, cancellationToken).ConfigureAwait(false),
+                        BrowseNames.ChassisIdSubtype);
+                case "port subtype":
+                case "neighbor chassis subtype":
+                case "neighbor port subtype":
+                    NodeId port = (await m_client.DiscoverLldpPortsAsync(cancellationToken).ConfigureAwait(false))[0];
+                    if (valuePath == "port subtype")
+                    {
+                        return Parameter(await m_client.ReadParametersAsync(port, cancellationToken)
+                            .ConfigureAwait(false), BrowseNames.PortIdSubtype);
+                    }
+                    NodeId neighbor = (await m_client.DiscoverNeighborsAsync(port, cancellationToken)
+                        .ConfigureAwait(false))[0];
+                    ArrayOf<NetworkParameterValue> neighborParameters = await m_client.ReadParametersAsync(
+                        neighbor, cancellationToken).ConfigureAwait(false);
+                    return Parameter(neighborParameters, valuePath == "neighbor chassis subtype"
+                        ? BrowseNames.ChassisIdSubtype
+                        : BrowseNames.PortIdSubtype);
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(valuePath));
+            }
+        }
+
+        /// <summary>
+        /// Returns a snapshot with the selected table's existing entry replaced by a supplied entry.
+        /// </summary>
+        private static NetworkModelSnapshot WithMappingEntry(
+            NetworkModelSnapshot snapshot, PriorityMappingEntryType replacement)
+        {
+            NetworkMappingTableSnapshot[] tables = snapshot.MappingTables.Span.ToArray();
+            PriorityMappingEntryType[] entries = tables[0].Entries.Span.ToArray();
+            entries[0] = replacement;
+            tables[0] = tables[0] with { Entries = ArrayOf.Wrapped(entries) };
+            return snapshot with { MappingTables = ArrayOf.Wrapped(tables) };
+        }
+
+        /// <summary>
+        /// Replaces an entry with one malformed key/value or adds a duplicate composite key.
+        /// </summary>
+        private static NetworkModelSnapshot WithInvalidMappingEntry(NetworkModelSnapshot snapshot, string invalidField)
+        {
+            NetworkMappingTableSnapshot[] tables = snapshot.MappingTables.Span.ToArray();
+            PriorityMappingEntryType[] entries = tables[0].Entries.Span.ToArray();
+            PriorityMappingEntryType source = entries[0];
+            var invalid = new PriorityMappingEntryType
+            {
+                MappingUri = source.MappingUri,
+                PriorityLabel = source.PriorityLabel,
+                PriorityValue_PCP = source.PriorityValue_PCP,
+                PriorityValue_DSCP = source.PriorityValue_DSCP
+            };
+            switch (invalidField)
+            {
+                case "empty URI":
+                    invalid.MappingUri = " ";
+                    entries[0] = invalid;
+                    break;
+                case "empty label":
+                    invalid.PriorityLabel = string.Empty;
+                    entries[0] = invalid;
+                    break;
+                case "PCP range":
+                    invalid.PriorityValue_PCP = 8;
+                    entries[0] = invalid;
+                    break;
+                case "DSCP range":
+                    invalid.PriorityValue_DSCP = 64;
+                    entries[0] = invalid;
+                    break;
+                case "duplicate key":
+                    entries = [.. entries, invalid];
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(invalidField));
+            }
+            tables[0] = tables[0] with { Entries = ArrayOf.Wrapped(entries) };
+            return snapshot with { MappingTables = ArrayOf.Wrapped(tables) };
         }
 
         /// <summary>

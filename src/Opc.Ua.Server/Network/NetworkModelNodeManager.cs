@@ -312,12 +312,32 @@ namespace Opc.Ua.Server.Network
 
             foreach (NetworkInterfaceSnapshot networkInterface in snapshot.Interfaces)
             {
+                if (!NetworkModelSnapshotValidator.IsValidInterfaceVlanId(networkInterface.VlanId))
+                {
+                    throw new ServiceResultException(StatusCodes.BadOutOfRange,
+                        "Interface VLAN identifiers must be between zero and 4094.");
+                }
+                if (!NetworkModelSnapshotValidator.IsDefinedEnum(networkInterface.AdminStatus) ||
+                    !NetworkModelSnapshotValidator.IsDefinedEnum(networkInterface.OperStatus) ||
+                    (networkInterface.Ethernet is { } ethernet &&
+                        (!NetworkModelSnapshotValidator.IsDefinedEnum(ethernet.Duplex) ||
+                            (ethernet.NegotiationStatus is { } negotiationStatus &&
+                                !NetworkModelSnapshotValidator.IsDefinedEnum(negotiationStatus)))))
+                {
+                    throw new ServiceResultException(StatusCodes.BadOutOfRange,
+                        "Network interface and Ethernet enum values must be defined.");
+                }
                 foreach (NetworkSrClassSnapshot srClass in networkInterface.SrClasses)
                 {
                     if (srClass.Id > 7 || srClass.Priority > 7)
                     {
                         throw new ServiceResultException(StatusCodes.BadOutOfRange,
                             "SR class identifiers and priorities must be between zero and seven.");
+                    }
+                    if (!NetworkModelSnapshotValidator.IsValidSrClassVid(srClass.Vid))
+                    {
+                        throw new ServiceResultException(StatusCodes.BadOutOfRange,
+                            "SR class VLAN identifiers must be between zero and 4094.");
                     }
                 }
                 BaseObjectState root = BuildInterface(networkInterface, snapshot);
@@ -457,6 +477,11 @@ namespace Opc.Ua.Server.Network
         /// </summary>
         private BaseObjectState BuildMappingTable(NetworkMappingTableSnapshot table, NetworkModelSnapshot snapshot)
         {
+            if (!NetworkModelSnapshotValidator.AreValidPriorityMappingEntries(table.Entries))
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument,
+                    "Priority mapping entries must have unique non-empty keys and valid PCP/DSCP values.");
+            }
             var node = CreateObject(
                 "mapping",
                 table.Id,
@@ -487,6 +512,11 @@ namespace Opc.Ua.Server.Network
         /// </summary>
         private BaseObjectState BuildStream(NetworkStreamSnapshot stream, NetworkModelSnapshot snapshot)
         {
+            if (!NetworkModelSnapshotValidator.IsDefinedEnum(stream.State))
+            {
+                throw new ServiceResultException(StatusCodes.BadOutOfRange,
+                    "Stream state values must be defined.");
+            }
             if (stream.VlanTag is { } tag && (tag.VlanId > 4095 || tag.PriorityCodePoint > 7))
             {
                 throw new ServiceResultException(StatusCodes.BadOutOfRange,
@@ -515,6 +545,16 @@ namespace Opc.Ua.Server.Network
             {
                 throw new ServiceResultException(StatusCodes.BadOutOfRange,
                     "Failure-system identifiers must each contain exactly eight bytes.");
+            }
+            if (stream.Status is { } enumStatus &&
+                (!NetworkModelSnapshotValidator.IsDefinedEnum(enumStatus.FailureCode) ||
+                    (enumStatus.TalkerStatus is { } talkerStatus &&
+                        !NetworkModelSnapshotValidator.IsDefinedEnum(talkerStatus)) ||
+                    (enumStatus.ListenerStatus is { } listenerStatus &&
+                        !NetworkModelSnapshotValidator.IsDefinedEnum(listenerStatus))))
+            {
+                throw new ServiceResultException(StatusCodes.BadOutOfRange,
+                    "Stream status enum values must be defined.");
             }
             if (stream.Traffic is { } traffic && !NetworkModelSnapshotValidator.IsValidTraffic(traffic))
             {
@@ -645,8 +685,18 @@ namespace Opc.Ua.Server.Network
             NetworkLldpSnapshot lldp,
             NetworkModelSnapshot snapshot)
         {
+            if (!NetworkModelSnapshotValidator.IsDefinedEnum(lldp.ChassisIdSubtype))
+            {
+                throw new ServiceResultException(StatusCodes.BadOutOfRange,
+                    "LLDP chassis identifier subtype values must be defined.");
+            }
             foreach (NetworkLldpPortSnapshot port in lldp.Ports)
             {
+                if (!NetworkModelSnapshotValidator.IsDefinedEnum(port.PortIdSubtype))
+                {
+                    throw new ServiceResultException(StatusCodes.BadOutOfRange,
+                        "LLDP port identifier subtype values must be defined.");
+                }
                 BaseObjectState portNode = CreateObject(
                     "lldp-port",
                     port.Id,
@@ -685,6 +735,12 @@ namespace Opc.Ua.Server.Network
 
                 foreach (NetworkLldpNeighborSnapshot neighbor in port.Neighbors)
                 {
+                    if (!NetworkModelSnapshotValidator.IsDefinedEnum(neighbor.ChassisIdSubtype) ||
+                        !NetworkModelSnapshotValidator.IsDefinedEnum(neighbor.PortIdSubtype))
+                    {
+                        throw new ServiceResultException(StatusCodes.BadOutOfRange,
+                            "LLDP neighbor identifier subtype values must be defined.");
+                    }
                     string identity = $"{Uri.EscapeDataString(port.Id)}/{Uri.EscapeDataString(neighbor.Id)}";
                     BaseObjectState remote = CreateObject(
                         "lldp-neighbor",
@@ -889,9 +945,7 @@ namespace Opc.Ua.Server.Network
             entry.PriorityValue_DSCP = uint.MaxValue;
             if (!isDelete &&
                 (!inputs[2].TryGetValue(out byte pcp) ||
-                 !inputs[3].TryGetValue(out uint dscp) ||
-                 (pcp != byte.MaxValue && pcp > 7) ||
-                 (dscp != uint.MaxValue && dscp > 63)))
+                 !inputs[3].TryGetValue(out uint dscp)))
             {
                 return false;
             }
@@ -903,7 +957,7 @@ namespace Opc.Ua.Server.Network
                 entry.PriorityValue_PCP = pcpValue;
                 entry.PriorityValue_DSCP = dscpValue;
             }
-            return true;
+            return StatusCode.IsGood(NetworkModelSnapshotValidator.ValidatePriorityMappingEntry(entry));
         }
 
         /// <summary>
