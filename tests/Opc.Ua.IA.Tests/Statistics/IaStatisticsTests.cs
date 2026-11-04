@@ -795,7 +795,7 @@ namespace Opc.Ua.IA.Tests.Statistics
                     payload[0] = 99;
                     nested[0] = 99;
                     typeBytes[0] = 99;
-                }).ConfigureAwait(false);
+                }, ActivatorFor(() => new MutableStructure())).ConfigureAwait(false);
             Assert.That(published.TryGetValue(out ExtensionObject extension), Is.True);
             AssertOpaqueTypeId(extension, [7, 8]);
             Assert.That(extension.TryGetValue(out MutableStructure? copy), Is.True);
@@ -867,6 +867,79 @@ namespace Opc.Ua.IA.Tests.Statistics
         }
 
         /// <summary>
+        /// Unregistered receivers are rejected without invoking a potentially unsafe clone or decoder.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task UnregisteredStructuresAreRejectedBeforeCloneOrDecode(bool cloneReturnsSource)
+        {
+            double[] buffer = [1, 2];
+            var source = new Mock<IEncodeable>();
+            source.SetupGet(body => body.TypeId).Returns(new ExpandedNodeId(9021u, 1));
+            var shallow = new Mock<IEncodeable>();
+            shallow.Setup(body => body.Decode(It.IsAny<IDecoder>())).Callback(() => buffer[0] = 99);
+            source.Setup(body => body.Clone()).Returns(() => cloneReturnsSource ? source.Object : shallow.Object);
+            source.Setup(body => body.Decode(It.IsAny<IDecoder>())).Callback(() => buffer[0] = 99);
+            var fixture = new IaTestContext();
+            BaseObjectState owner = fixture.Owner();
+            BaseVariableState quantity = fixture.Quantity(owner);
+            quantity.DataType = Opc.Ua.DataTypeIds.BaseDataType;
+            quantity.ValueRank = ValueRanks.Scalar;
+            Variant previous = quantity.WrappedValue;
+            var provider = new Mock<IIaStatisticsProvider>();
+            provider.Setup(value => value.ReadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(
+                Snapshot(0) with
+                {
+                    Values = [new DataValue(new Variant(new ExtensionObject(source.Object)),
+                        StatusCodes.Good, IaTestContext.Timestamp)]
+                });
+            using var binding = new IaStatistics(fixture.Context, owner, [quantity], provider.Object);
+            await Assert.ThatAsync(async () => await binding.RefreshAsync().ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo((StatusCode)StatusCodes.BadNotSupported));
+            source.Verify(body => body.Clone(), Times.Never);
+            source.Verify(body => body.Decode(It.IsAny<IDecoder>()), Times.Never);
+            source.Verify(body => body.Encode(It.IsAny<IEncoder>()), Times.Never);
+            shallow.Verify(body => body.Decode(It.IsAny<IDecoder>()), Times.Never);
+            Assert.That(buffer[0], Is.EqualTo(1));
+            Assert.That(quantity.WrappedValue, Is.EqualTo(previous));
+        }
+
+        /// <summary>
+        /// An activator returning the provider instance or a different type is rejected before decoding.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task RegisteredInvalidReceiverIsRejectedBeforeDecode(bool returnsSource)
+        {
+            var source = new Mock<IEncodeable>();
+            source.SetupGet(body => body.TypeId).Returns(new ExpandedNodeId(9031u, 1));
+            var fixture = new IaTestContext();
+            fixture.Context.EncodeableFactory.Builder.AddEncodeableType(source.Object.TypeId,
+                ActivatorFor(() => returnsSource ? source.Object : new MutableStructure())).Commit();
+            BaseObjectState owner = fixture.Owner();
+            BaseVariableState quantity = fixture.Quantity(owner);
+            quantity.DataType = Opc.Ua.DataTypeIds.BaseDataType;
+            quantity.ValueRank = ValueRanks.Scalar;
+            Variant previous = quantity.WrappedValue;
+            var provider = new Mock<IIaStatisticsProvider>();
+            provider.Setup(value => value.ReadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(
+                Snapshot(0) with
+                {
+                    Values = [new DataValue(new Variant(new ExtensionObject(source.Object)),
+                        StatusCodes.Good, IaTestContext.Timestamp)]
+                });
+            using var binding = new IaStatistics(fixture.Context, owner, [quantity], provider.Object);
+            await Assert.ThatAsync(async () => await binding.RefreshAsync().ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo((StatusCode)StatusCodes.BadNotSupported));
+            source.Verify(body => body.Clone(), Times.Never);
+            source.Verify(body => body.Decode(It.IsAny<IDecoder>()), Times.Never);
+            source.Verify(body => body.Encode(It.IsAny<IEncoder>()), Times.Never);
+            Assert.That(quantity.WrappedValue, Is.EqualTo(previous));
+        }
+
+        /// <summary>
         /// A structure that does not survive the copy is rejected rather than published aliased.
         /// </summary>
         [Test]
@@ -878,6 +951,8 @@ namespace Opc.Ua.IA.Tests.Statistics
             quantity.DataType = Opc.Ua.DataTypeIds.BaseDataType;
             quantity.ValueRank = ValueRanks.Scalar;
             var provider = new Mock<IIaStatisticsProvider>();
+            fixture.Context.EncodeableFactory.Builder.AddEncodeableType(
+                ActivatorFor(() => new LossyStructure())).Commit();
             provider.Setup(source => source.ReadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(
                 Snapshot(0) with
                 {
@@ -905,9 +980,13 @@ namespace Opc.Ua.IA.Tests.Statistics
         /// Publishes one statistic, lets the provider mutate its buffer and returns the published value.
         /// </summary>
         private static async Task<Variant> PublishThenMutateAsync(
-            NodeId dataType, int valueRank, Variant value, Action mutate)
+            NodeId dataType, int valueRank, Variant value, Action mutate, IEncodeableType? activator = null)
         {
             var fixture = new IaTestContext();
+            if (activator != null)
+            {
+                fixture.Context.EncodeableFactory.Builder.AddEncodeableType(activator).Commit();
+            }
             BaseObjectState owner = fixture.Owner();
             BaseVariableState quantity = fixture.Quantity(owner);
             quantity.DataType = dataType;
@@ -919,6 +998,18 @@ namespace Opc.Ua.IA.Tests.Statistics
             await binding.RefreshAsync().ConfigureAwait(false);
             mutate();
             return quantity.WrappedValue;
+        }
+
+        /// <summary>
+        /// Creates an explicitly registered activator without runtime reflection.
+        /// </summary>
+        private static IEncodeableType ActivatorFor(Func<IEncodeable> create)
+        {
+            var activator = new Mock<IEncodeableType>();
+            activator.Setup(type => type.CreateInstance()).Returns(create);
+            activator.SetupGet(type => type.Type).Returns(create().GetType());
+            activator.SetupGet(type => type.XmlName).Returns(new System.Xml.XmlQualifiedName("Custom", "urn:ia:test"));
+            return activator.Object;
         }
 
         /// <summary>
@@ -950,7 +1041,7 @@ namespace Opc.Ua.IA.Tests.Statistics
         private static readonly int[] s_twoByThree = [2, 3];
 
         /// <summary>
-        /// A structure that the encodeable factory does not know, with fields whose
+        /// A custom structure registered with an independent activator, with fields whose
         /// generated clone would share provider storage.
         /// </summary>
         private sealed class MutableStructure : IEncodeable

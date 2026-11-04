@@ -200,10 +200,10 @@ canonical URI string before claiming a facet):
 - **Industrial Automation** (OPC 10000-200), **Partial** — shared `Opc.Ua.IA`
   model with `Opc.Ua.IA.Server` provider bindings for stacklights, statistics
   and calibration-target information, and `Opc.Ua.IA.Client` generated-proxy
-  access, discovery and feature inspection. Statistics reject a decoded
-  structure whose binary copy differs from the original with
-  `BadNotSupported`, for example when a nested structure type is not
-  registered with the encodeable factory. Physical
+  access, discovery and feature inspection. Statistics reject unregistered
+  decoded bodies and require registered activators to create independent
+  receivers. A decoded structure whose binary copy differs is also rejected
+  with `BadNotSupported`, for example when a nested type is unregistered. Physical
   procedures and storage remain application-owned. See
   [Industrial Automation](IndustrialAutomation.md).
 - **Robotics** (OPC 40010-1) over **Industrial Automation** (OPC 10000-200) —
@@ -265,7 +265,7 @@ support gap.
 | --- | --- | --- |
 | [Device Integration](DeviceIntegration.md), OPC 10000-100 | Partial | Device composition, locking and software updates; offline/online representations, some loading modes and `UpdateStatus` remain incomplete |
 | [Asset Management Basics](AMB.md), OPC 10000-110 | Partial | Identity, health, maintenance, documentation, locations and dictionary classification; asset-health and past-maintenance event history remain unimplemented |
-| [Industrial Automation](IndustrialAutomation.md), OPC 10000-200 | Partial | Stacklights, statistics and calibration targets with provider bindings, typed clients and a sample; OPC 10000-200 §6.2.1.1 admits statistics of any kind, but statistics reject a decoded structure with `BadNotSupported` when its binary copy differs from the original, for example when a nested structure type is not registered with the encodeable factory; physical drivers and calibration remain application-owned |
+| [Industrial Automation](IndustrialAutomation.md), OPC 10000-200 | Partial | Stacklights, statistics and calibration targets with provider bindings, typed clients and a sample; §6.2.1.1 admits statistics of any kind, but decoded bodies require registered independent-instance activators and a semantics-preserving binary copy; unregistered top-level bodies and unequal copies are rejected with `BadNotSupported`; physical drivers and calibration remain application-owned |
 | [Machinery](Machinery.md), OPC 40001-1/-2/-3/-4/-101 | Full | Building blocks, process values, jobs, energy and result transfer; select capabilities and supply equipment/storage providers |
 | [MachineTool and WMTP](MachineTool.md), OPC 40501-1 and OPC 40505 | Full | Monitoring, tools, production, jobs, files, peripheral measurements/configuration/records and typed clients; physical CNC/Bluetooth behavior belongs to providers |
 | [GMS](GMS.md), OPC 40210 | Partial | Systems, sensors, calibration observations, jobs/parts and results; Production facet withheld because upstream leaves `GMS_ProductionStatisticsType` undefined |
@@ -861,7 +861,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 10000-100: Devices](https://reference.opcfoundation.org/specs/OPC-10000-100) | 1.05.0 | Partial | DI Offline, some software-loading modes and UpdateStatus missing |
 | [OPC 10000-110: Asset Management Basics](https://reference.opcfoundation.org/specs/OPC-10000-110) | 1.01.1 | Partial | Asset-health tracking and past-maintenance event history missing |
 | [OPC 10000-120: OPC UA and XML Data Type Mapping](https://reference.opcfoundation.org/specs/OPC-10000-120) | 1.00 | No | - |
-| [OPC 10000-200: Industrial Automation](https://reference.opcfoundation.org/specs/OPC-10000-200) | 1.01.4 | Partial | Statistics reject a decoded structure whose binary copy differs, for example one with an unregistered nested structure type |
+| [OPC 10000-200: Industrial Automation](https://reference.opcfoundation.org/specs/OPC-10000-200) | 1.01.4 | Partial | Decoded statistics require registered independent-instance activators; unregistered top-level bodies and unequal binary copies, including unregistered nested types, are rejected |
 | [OPC 10000-210: Relative Spatial Location](https://reference.opcfoundation.org/specs/OPC-10000-210) | 1.00.1 | Full | - |
 | [OPC 10000-211: Global Positioning](https://reference.opcfoundation.org/specs/OPC-10000-211) | 1.0.0 | Full | - |
 | [OPC 10030: ISA-95 Common Object Model](https://reference.opcfoundation.org/specs/OPC-10030) | 1.00 | Full | - |

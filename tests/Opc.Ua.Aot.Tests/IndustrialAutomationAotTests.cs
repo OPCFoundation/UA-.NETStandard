@@ -152,6 +152,7 @@ namespace Opc.Ua.Aot.Tests
                 Payload = new ByteString(payload.AsMemory()),
                 Nested = Variant.From(new ArrayOf<uint>(nested.AsMemory()))
             };
+            context.EncodeableFactory.Builder.AddEncodeableType(new MutableStructureActivator()).Commit();
             DateTimeUtc timestamp = new DateTime(2026, 1, 2, 3, 4, 5, DateTimeKind.Utc);
             var provider = new SnapshotProvider(new IaStatisticsSnapshot
             {
@@ -338,6 +339,24 @@ namespace Opc.Ua.Aot.Tests
             public object Clone()
             {
                 return MemberwiseClone();
+            }
+        }
+
+        /// <summary>
+        /// Creates independent custom decoded receivers without reflection.
+        /// </summary>
+        private sealed class MutableStructureActivator : IEncodeableType
+        {
+            /// <inheritdoc/>
+            public Type Type => typeof(MutableStructure);
+
+            /// <inheritdoc/>
+            public System.Xml.XmlQualifiedName XmlName => new("MutableStructure", "urn:tests:ia:aot");
+
+            /// <inheritdoc/>
+            public IEncodeable CreateInstance()
+            {
+                return new MutableStructure();
             }
         }
     }

@@ -285,23 +285,31 @@ namespace Opc.Ua.IA.Server
 
         /// <summary>
         /// Copies a decoded structure by encoding it and decoding the result into a
-        /// new instance, so every field reads freshly allocated storage.
+        /// receiver supplied by a registered activator. The activator must create
+        /// an instance with no mutable storage shared with the provider.
         /// </summary>
         /// <exception cref="ServiceResultException">The copy is not equal to the
-        /// structure, for example because a nested type is not registered.</exception>
+        /// structure, or a registered independent matching receiver is unavailable.</exception>
         private static IEncodeable Own(IEncodeable body, ISystemContext context)
         {
             IServiceMessageContext messageContext = context.AsMessageContext();
+            if (!messageContext.Factory.TryGetEncodeableType(body.TypeId, out IEncodeableType? type))
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported,
+                    $"A {body.TypeId} structure requires a registered independent-instance activator.");
+            }
+            IEncodeable copy = type.CreateInstance();
+            if (copy is null || ReferenceEquals(copy, body) || copy.GetType() != body.GetType())
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported,
+                    $"The activator for {body.TypeId} did not create an independent matching instance.");
+            }
             byte[] encoded;
             using (var encoder = new BinaryEncoder(messageContext))
             {
                 body.Encode(encoder);
                 encoded = encoder.CloseAndReturnBuffer() ?? [];
             }
-            // A registered type starts from a default instance; a clone is only the
-            // container, because decoding replaces every field it encoded.
-            IEncodeable copy = messageContext.Factory.TryGetEncodeableType(body.TypeId,
-                out IEncodeableType? type) ? type.CreateInstance() : (IEncodeable)body.Clone();
             using (var decoder = new BinaryDecoder(encoded, messageContext))
             {
                 copy.Decode(decoder);

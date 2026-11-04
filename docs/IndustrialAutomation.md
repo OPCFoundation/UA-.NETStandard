@@ -122,7 +122,16 @@ matrices, byte strings, opaque identifiers, nested variants and extension object
 type identifiers are copied into new storage with their type and dimensions
 unchanged. A decoded structure is binary encoded and decoded into a new
 instance, because its generated clone shares array, byte string and variant
-fields. When the decoded copy differs from the original, the refresh throws
+fields. Its type must be registered through an `IEncodeableType` activator
+that creates a new receiver with no mutable storage shared with the provider.
+An unregistered decoded body is rejected before calling its `Clone`, `Encode`
+or `Decode`; an activator returning the provider instance or a different
+runtime type is also rejected before encoding or decoding. Distinct object
+identity alone does not establish buffer isolation: supplying an independent
+receiver is the activator's contract. The binding does not use arbitrary
+`Clone` implementations as receivers.
+
+When the decoded copy differs from the original, the refresh throws
 `BadNotSupported` and the binding publishes nothing. A structure nested in
 another structure causes this when its type is not registered with the
 server's encodeable factory, because it decodes as an opaque binary body. Such
@@ -294,6 +303,8 @@ rating to Full. IA support is **Partial**. OPC 10000-200 §6.2.1.1 admits
 statistics of any kind, but the statistics binding rejects a decoded structure
 with `BadNotSupported` when its binary copy differs from the original. This
 happens, for example, when a structure nested in the value has a type that is
-not registered with the encodeable factory. The
+not registered with the encodeable factory. Unregistered top-level decoded
+bodies are also rejected because no independent receiver is available through
+the required activator contract. The
 [published-specification matrix](Profiles.md#published-specification-support-matrix)
 records the same reason.
