@@ -44,9 +44,10 @@ Source-generation tooling also implements selected modelling checks relevant
 to OPC 11030.
 
 [Energy Consumption Management](ECM.md), OPC 34100, includes standalone
-provider-backed standby and WOL server bindings, typed clients and samples.
-Support remains Partial because standalone measurement profiles, accuracy
-domains and shared IA statistics integration are incomplete.
+provider-backed E0/E1/D0 measurements, accuracy domains, standby and WOL
+server bindings, typed clients and samples. Support remains Partial because
+E2/E3/D1 and their grouped statistics integration depend on IA.Server reaching
+`master`.
 
 Support describes SDK functionality, not certification of every current
 feature, companion model or application. Historical reference-server
@@ -277,7 +278,7 @@ support gap.
 | [WoT Binding](WotBindings.md), OPC 10101 | Partial | Published 1.00 consumer mode and conversions; general UA Binary payload codec and complete TD/TM/Binding-result schema validation are missing |
 | [PackML](Scales.md), OPC 30050 | Partial | Generated model and Scales recipe/state integration; not a standalone implementation of every PackML unit mode |
 | [PA-DIM](Machinery.md), OPC 30081 | Partial | Generated dependency model and Machinery process-value bindings; not a complete standalone PA-DIM device runtime |
-| [Energy Consumption Management](ECM.md), OPC 34100 | Partial | Machinery energy bindings and standalone provider-backed standby/WOL server, typed clients and samples; measurement profiles, accuracy domains and shared IA statistics integration remain incomplete |
+| [Energy Consumption Management](ECM.md), OPC 34100 | Partial | Machinery energy bindings and standalone provider-backed E0/E1/D0, accuracy, standby and WOL APIs, clients and samples; E2/E3/D1 and grouped statistics await IA.Server integration |
 | [LADS](LADS.md), OPC 30500-1 | Partial | Devices, functional units, functions, programs, results and maintenance; optional Hold/Unhold/Suspend/Unsuspend/Reset/ToComplete server methods and persistence are missing |
 | [Plastics and rubber common types](PlasticsRubber.md), OPC 40083 | Full | Common controls, monitoring, maintenance, materials, diagnostics and production datasets; independently authored 1.03 interface implementation on the licensed 1.02 basis |
 | [Granulate drying](PlasticsRubber.md#granulate-drying-devices-opc-40082-6), OPC 40082-6 | Full | Device construction, selectable conformance units, provider-backed commands, observations, events and typed clients |
@@ -896,7 +897,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 30400-2: Cloud Library - API Definition](https://reference.opcfoundation.org/specs/OPC-30400-2) | 1.00.0 | No | - |
 | [OPC 30450-1: Digital Product Passport - Information Model](https://reference.opcfoundation.org/specs/OPC-30450-1) | 1.0.0 | No | - |
 | [OPC 30500-1: Laboratory and Analytical Device Standard (LADS) - Basics](https://reference.opcfoundation.org/specs/OPC-30500-1) | 1.0.0 | Partial | Optional Hold/Unhold/Suspend/Unsuspend/Reset/ToComplete server methods and persistence missing |
-| [OPC 34100: Energy Consumption Management](https://reference.opcfoundation.org/specs/OPC-34100) | 1.0.1 | Partial | Standalone standby/WOL server, typed clients, samples and Machinery energy bindings; standalone measurement profiles, accuracy domains and shared IA statistics integration remain incomplete |
+| [OPC 34100: Energy Consumption Management](https://reference.opcfoundation.org/specs/OPC-34100) | 1.0.1 | Partial | Standalone E0/E1/D0 measurement, accuracy, standby/WOL server, typed clients, samples and Machinery energy bindings; E2/E3/D1 and grouped statistics await IA.Server integration |
 | [OPC 40001-1: Machinery - Basic Building Blocks](https://reference.opcfoundation.org/specs/OPC-40001-1) | 1.04.2 | Full | - |
 | [OPC 40001-2: Machinery - Process Values](https://reference.opcfoundation.org/specs/OPC-40001-2) | 1.00 | Full | - |
 | [OPC 40001-3: Machinery - Job Management](https://reference.opcfoundation.org/specs/OPC-40001-3) | 1.0.1 | Full | - |

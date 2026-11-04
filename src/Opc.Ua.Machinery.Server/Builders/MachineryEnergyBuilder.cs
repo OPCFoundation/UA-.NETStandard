@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using Opc.Ua.ECM;
+using Opc.Ua.ECM.Server;
 using Opc.Ua.Machinery.Energy;
 using EcmBrowseNames = Opc.Ua.ECM.BrowseNames;
 using EnergyBrowseNames = Opc.Ua.Machinery.Energy.BrowseNames;
@@ -639,36 +640,15 @@ namespace Opc.Ua.Machinery.Server.Builders
             var name = new QualifiedName(
                 browseName,
                 namespaceIndex ?? m_ecmNamespaceIndex);
-            EnergyMeasurementValueState? measurement =
-                MachineryBuilderUtilities.FindChild<EnergyMeasurementValueState>(
-                    m_scope.Context,
-                    State,
-                    name);
-            if (measurement == null)
-            {
-                measurement = MachineryBuilderUtilities.AddComponentChild(
-                    m_scope.Context,
-                    State,
-                    name,
-                    static (ctx, parent, n) =>
-                        ctx.CreateInstanceOfEnergyMeasurementValueType(parent, n));
-                measurement.ReferenceTypeId = referenceTypeId;
-                measurement.DataType = dataTypeId;
-                measurement.ValueRank = ValueRanks.Scalar;
-            }
-            measurement.WrappedValue = value;
-            if (engineeringUnits != null)
-            {
-                measurement.AddEngineeringUnits(
-                    m_scope.Context,
-                    v => v.Value = engineeringUnits);
-            }
-            if (measurementId.HasValue)
-            {
-                measurement.AddMeasurementID(
-                    m_scope.Context,
-                    v => v.Value = measurementId.Value);
-            }
+            EcmMeasurementNodeBuilder.AddMeasurement(
+                m_scope.Context,
+                State,
+                name,
+                value,
+                dataTypeId,
+                referenceTypeId,
+                engineeringUnits,
+                measurementId);
         }
 
         private static NodeId DataTypeOf(Variant value)

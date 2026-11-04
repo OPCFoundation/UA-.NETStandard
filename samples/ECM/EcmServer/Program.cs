@@ -61,6 +61,8 @@ builder.Services.AddSingleton(static _ => new SimulatedEcmPowerProvider(
     ByteString.From(new byte[] { 2, 0, 0, 0, 0, 1 }.AsSpan())));
 builder.Services.AddSingleton(services => new SamplePower(
     services.GetRequiredService<SimulatedEcmPowerProvider>(), simulateWakeAfter));
+builder.Services.AddSingleton<SampleMeasurementProvider>();
+builder.Services.AddSingleton<SampleMeasurements>();
 builder.Services.AddOpcUa().AddServer(options =>
 {
     options.ApplicationName = "EcmSimulatedServer";
@@ -97,8 +99,35 @@ builder.Services.AddOpcUa().AddServer(options =>
         $"SIMULATED power only. Standby NodeId: {binding.Standby.NodeId}; WOL NodeId: {powerOffNodeId}")
         .ConfigureAwait(false);
     await Console.Out.WriteLineAsync($"WOL-only NodeId: {standaloneWol.PowerOff.NodeId}").ConfigureAwait(false);
+    SampleMeasurementProvider measurementProvider = context.GetRequiredService<SampleMeasurementProvider>();
+    AccuracyDomainState accuracyDomain = await manager.CreateAccuracyDomainAsync(
+        new QualifiedName("SampleAccuracy", manager.InstanceNamespaceIndex),
+        [
+            new EnumValueType
+            {
+                Value = 0,
+                DisplayName = new LocalizedText("Class 0"),
+                Description = new LocalizedText("Simulated reference accuracy class")
+            }
+        ],
+        context.CancellationToken).ConfigureAwait(false);
+    measurementProvider.SetAccuracyDomain(accuracyDomain.NodeId);
+    EcmMeasurementBinding measurementBinding = await manager.CreateMeasurementAsync(
+        new QualifiedName("SimulatedMeasurement", manager.InstanceNamespaceIndex),
+        measurementProvider,
+        authorize: static (_, ct) =>
+        {
+            ct.ThrowIfCancellationRequested();
+            return new ValueTask<bool>(true);
+        },
+        cancellationToken: context.CancellationToken).ConfigureAwait(false);
+    context.GetRequiredService<SampleMeasurements>().SetBinding(measurementBinding);
+    await Console.Out.WriteLineAsync(
+        $"SIMULATED measurement NodeId: {measurementBinding.MeasurementPoint.NodeId}")
+        .ConfigureAwait(false);
 });
 builder.Services.AddHostedService(static services => services.GetRequiredService<SamplePower>());
+builder.Services.AddHostedService(static services => services.GetRequiredService<SampleMeasurements>());
 using IHost host = builder.Build();
 await host.RunAsync().ConfigureAwait(false);
 
@@ -194,4 +223,138 @@ internal sealed class SamplePower : BackgroundService
 
     /// <summary>The borrowed manager-owned binding.</summary>
     private EcmPowerBinding? m_binding;
+}
+
+/// <summary>
+/// Supplies only in-memory E0, E1 and D0 samples and persists the sample ApplicationTag in memory.
+/// </summary>
+internal sealed class SampleMeasurementProvider : IEcmMeasurementProvider
+{
+    /// <summary>
+    /// Publishes the domain created by the server before its first measurement snapshot.
+    /// </summary>
+    public void SetAccuracyDomain(NodeId accuracyDomain)
+    {
+        if (accuracyDomain.IsNull)
+        {
+            throw new ArgumentException("A published accuracy domain is required.", nameof(accuracyDomain));
+        }
+        lock (m_lock)
+        {
+            m_accuracyDomain = accuracyDomain;
+        }
+    }
+
+    /// <inheritdoc/>
+    public ValueTask<EcmMeasurementSnapshot> ReadAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (m_lock)
+        {
+            if (m_accuracyDomain.IsNull)
+            {
+                throw new InvalidOperationException("The sample accuracy domain has not been published.");
+            }
+            DateTime timestamp = DateTime.UtcNow;
+            var phases = new AcPeDataType { L1 = 11.5f, L2 = 11.7f, L3 = 11.6f };
+            return new ValueTask<EcmMeasurementSnapshot>(new EcmMeasurementSnapshot(
+                m_applicationTag,
+                [
+                    new(
+                        BrowseNames.AcCurrentPe,
+                        Variant.From(phases),
+                        DataTypeIds.AcPeDataType,
+                        StatusCodes.Good,
+                        timestamp,
+                        new EUInformation("A", "ampere", "http://www.opcfoundation.org/UA/units/un/cefact")
+                        {
+                            UnitId = 0x414D50
+                        },
+                        accuracyClass: 0,
+                        accuracyDomain: m_accuracyDomain),
+                    new(
+                        BrowseNames.AcActivePowerTotal,
+                        Variant.From(4.2f),
+                        Opc.Ua.DataTypeIds.Float,
+                        StatusCodes.Good,
+                        timestamp,
+                        new EUInformation("kW", "kilowatt", "http://www.opcfoundation.org/UA/units/un/cefact")
+                        {
+                            UnitId = 0x4B5754
+                        },
+                        accuracyClass: 0,
+                        accuracyDomain: m_accuracyDomain),
+                    new(
+                        BrowseNames.DcCurrent,
+                        Variant.From(5.1f),
+                        Opc.Ua.DataTypeIds.Float,
+                        StatusCodes.Good,
+                        timestamp,
+                        new EUInformation("A", "ampere", "http://www.opcfoundation.org/UA/units/un/cefact")
+                        {
+                            UnitId = 0x414D50
+                        },
+                        accuracyClass: 0,
+                        accuracyDomain: m_accuracyDomain)
+                ]));
+        }
+    }
+
+    /// <inheritdoc/>
+    public ValueTask WriteApplicationTagAsync(string applicationTag, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(applicationTag);
+        lock (m_lock)
+        {
+            m_applicationTag = applicationTag;
+        }
+        return ValueTask.CompletedTask;
+    }
+
+    /// <summary>Protects the in-memory sample state.</summary>
+    private readonly System.Threading.Lock m_lock = new();
+
+    /// <summary>The persisted in-memory application tag.</summary>
+    private string m_applicationTag = "SimulatedMeter";
+
+    /// <summary>The server-created accuracy domain.</summary>
+    private NodeId m_accuracyDomain = NodeId.Null;
+}
+
+/// <summary>
+/// Refreshes the standalone sample measurement binding.
+/// </summary>
+internal sealed class SampleMeasurements : BackgroundService
+{
+    /// <summary>
+    /// Supplies the manager-owned binding after startup.
+    /// </summary>
+    public void SetBinding(EcmMeasurementBinding binding)
+    {
+        Volatile.Write(ref m_binding, binding);
+    }
+
+    /// <inheritdoc/>
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        try
+        {
+            while (!stoppingToken.IsCancellationRequested)
+            {
+                EcmMeasurementBinding? binding = Volatile.Read(ref m_binding);
+                if (binding != null)
+                {
+                    await binding.RefreshAsync(stoppingToken).ConfigureAwait(false);
+                }
+                await Task.Delay(TimeSpan.FromMilliseconds(100), stoppingToken).ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+        }
+    }
+
+    /// <summary>The borrowed manager-owned binding.</summary>
+    private EcmMeasurementBinding? m_binding;
 }

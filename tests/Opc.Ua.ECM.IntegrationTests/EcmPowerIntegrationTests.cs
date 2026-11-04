@@ -319,6 +319,75 @@ namespace Opc.Ua.ECM.IntegrationTests
             Assert.That(m_session.Connected, Is.True);
         }
 
+        /// <summary>
+        /// E0, E1 and D0 values, accuracy metadata and writable ApplicationTag cross a live UA session.
+        /// </summary>
+        [Test]
+        public async Task StandaloneMeasurementsDiscoverReadAndWriteThroughGeneratedProxy()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var acquired = new DateTime(2026, 8, 14, 9, 10, 11, DateTimeKind.Utc);
+            AccuracyDomainState accuracyDomain = await m_manager.CreateAccuracyDomainAsync(
+                new QualifiedName("IntegrationAccuracy", m_manager.InstanceNamespaceIndex),
+                [
+                    new EnumValueType
+                    {
+                        Value = 0,
+                        DisplayName = new LocalizedText("Class 0"),
+                        Description = new LocalizedText("Integration test accuracy class")
+                    }
+                ],
+                timeout.Token).ConfigureAwait(false);
+            var provider = new TestMeasurementProvider(accuracyDomain.NodeId, acquired);
+            EcmMeasurementBinding binding = await m_manager.CreateMeasurementAsync(
+                new QualifiedName("IntegrationMeter", m_manager.InstanceNamespaceIndex),
+                provider,
+                authorize: static (_, ct) =>
+                {
+                    ct.ThrowIfCancellationRequested();
+                    return new ValueTask<bool>(true);
+                },
+                cancellationToken: timeout.Token).ConfigureAwait(false);
+            NodeId deviceSet = ExpandedNodeId.ToNodeId(Di.ObjectIds.DeviceSet, m_session.NamespaceUris);
+            EcmMeasurementClient? discovered = null;
+            await foreach (EcmMeasurementClient candidate in EcmMeasurementClient.DiscoverAsync(
+                m_session, deviceSet, NUnitTelemetryContext.Create(), timeout.Token).ConfigureAwait(false))
+            {
+                discovered = candidate;
+                break;
+            }
+            Assert.That(discovered, Is.Not.Null);
+            Assert.That(discovered!.MeasurementPoint.ObjectId, Is.EqualTo(binding.MeasurementPoint.NodeId));
+
+            var phaseCurrent = await discovered.AcCurrentPe.ReadAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(phaseCurrent.HasValue, Is.True);
+            Assert.That(phaseCurrent.Value.L1, Is.EqualTo(1.25f));
+            Assert.That(phaseCurrent.Value.L2, Is.EqualTo(2.5f));
+            Assert.That(phaseCurrent.Value.L3, Is.EqualTo(3.75f));
+            Assert.That(phaseCurrent.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(phaseCurrent.DataValue.SourceTimestamp, Is.EqualTo((DateTimeUtc)acquired));
+
+            var activePower = await discovered.AcActivePowerTotal.ReadAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(activePower.HasValue, Is.True);
+            Assert.That(activePower.Value, Is.EqualTo(15.5f));
+            Assert.That(activePower.DataValue.StatusCode, Is.EqualTo(StatusCodes.UncertainLastUsableValue));
+            Assert.That(activePower.DataValue.SourceTimestamp, Is.EqualTo((DateTimeUtc)acquired));
+
+            var dcCurrent = await discovered.DcCurrent.ReadAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(dcCurrent.HasValue, Is.True);
+            Assert.That(dcCurrent.Value, Is.EqualTo(24.75f));
+            Assert.That(dcCurrent.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(dcCurrent.DataValue.SourceTimestamp, Is.EqualTo((DateTimeUtc)acquired));
+
+            Assert.That(await discovered.ApplicationTag.WriteWithStatusAsync("integration/updated", timeout.Token)
+                .ConfigureAwait(false), Is.EqualTo(StatusCodes.Good));
+            await binding.RefreshAsync(timeout.Token).ConfigureAwait(false);
+            var applicationTag = await discovered.ApplicationTag.ReadAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(applicationTag.HasValue, Is.True);
+            Assert.That(applicationTag.Value, Is.EqualTo("integration/updated"));
+            Assert.That(applicationTag.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+        }
+
         /// <summary>The fixture's dedicated PKI directory.</summary>
         private string m_pkiRoot = string.Empty;
 
@@ -348,6 +417,77 @@ namespace Opc.Ua.ECM.IntegrationTests
 
         /// <summary>The typed client borrowing the fixture's session.</summary>
         private EcmClient m_client = null!;
+
+        /// <summary>
+        /// Provides fixed typed readings and retains the writable tag for this integration test.
+        /// </summary>
+        private sealed class TestMeasurementProvider : IEcmMeasurementProvider
+        {
+            /// <summary>
+            /// Creates a provider with one published accuracy domain and acquisition time.
+            /// </summary>
+            public TestMeasurementProvider(NodeId accuracyDomain, DateTime acquired)
+            {
+                m_accuracyDomain = accuracyDomain;
+                m_acquired = acquired;
+            }
+
+            /// <inheritdoc/>
+            public ValueTask<EcmMeasurementSnapshot> ReadAsync(CancellationToken cancellationToken)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                lock (m_lock)
+                {
+                    return new ValueTask<EcmMeasurementSnapshot>(new EcmMeasurementSnapshot(
+                        m_applicationTag,
+                        [
+                            new(
+                                BrowseNames.AcCurrentPe,
+                                Variant.From(new AcPeDataType { L1 = 1.25f, L2 = 2.5f, L3 = 3.75f }),
+                                new ExpandedNodeId(DataTypeIds.AcPeDataType, Namespaces.ECM),
+                                StatusCodes.Good,
+                                m_acquired,
+                                accuracyClass: 0,
+                                accuracyDomain: m_accuracyDomain),
+                            new(
+                                BrowseNames.AcActivePowerTotal,
+                                Variant.From(15.5f),
+                                new ExpandedNodeId(new NodeId(Opc.Ua.DataTypeIds.Float)),
+                                StatusCodes.UncertainLastUsableValue,
+                                m_acquired),
+                            new(
+                                BrowseNames.DcCurrent,
+                                Variant.From(24.75f),
+                                new ExpandedNodeId(new NodeId(Opc.Ua.DataTypeIds.Float)),
+                                StatusCodes.Good,
+                                m_acquired)
+                        ]));
+                }
+            }
+
+            /// <inheritdoc/>
+            public ValueTask WriteApplicationTagAsync(string applicationTag, CancellationToken cancellationToken)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                lock (m_lock)
+                {
+                    m_applicationTag = applicationTag;
+                }
+                return ValueTask.CompletedTask;
+            }
+
+            /// <summary>The synchronization gate for tag state.</summary>
+            private readonly System.Threading.Lock m_lock = new();
+
+            /// <summary>The source timestamp for the provider's fixed readings.</summary>
+            private readonly DateTime m_acquired;
+
+            /// <summary>The published accuracy domain.</summary>
+            private readonly NodeId m_accuracyDomain;
+
+            /// <summary>The application-owned tag value.</summary>
+            private string m_applicationTag = "integration/initial";
+        }
 
         /// <summary>
         /// Advances provider time without timing-dependent physical transitions.

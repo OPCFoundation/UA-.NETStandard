@@ -1,8 +1,10 @@
 # Simulated ECM server and typed client
 
-This server publishes OPC 34100 standby and WOL objects backed by
-`SimulatedEcmPowerProvider`. Every operation changes only in-memory
-device state. The sample never powers down the host or sends wake packets.
+This server publishes OPC 34100 E0, E1 and D0 measurements plus standby and
+WOL objects. Power behavior is backed by `SimulatedEcmPowerProvider`;
+measurements and accuracy metadata come from an in-memory sample provider.
+Every sample value is simulated. The sample never powers down the host or
+sends wake packets.
 
 Run the server from the repository root:
 
@@ -13,7 +15,8 @@ dotnet run --project samples\ECM\EcmServer -f net10.0 -p:CustomTestTarget=net10.
 The endpoint is `opc.tcp://localhost:62549/ECM`. The server prints the
 standby, nested WOL and WOL-only NodeIds after creation. Both WOL representations
 use the same simulated device provider; the WOL-only object has no standby parent.
-Its background service publishes new acquisitions every 100 milliseconds.
+The server creates a custom accuracy domain for the sample meter. Background
+services publish power and measurement acquisitions every 100 milliseconds.
 Without an explicit simulation option, it does not issue power commands.
 The acquisition service starts after the OPC UA server and stops before it,
 so no refresh continues after the manager releases its bindings.
@@ -51,6 +54,13 @@ The client prints Call status separately from ReturnCode and observes
 standby updates for ten seconds. It never sends a wake packet or repeats
 a failed power command.
 
+Read simulated E0/E1/D0 measurements and their quality/source timestamps with
+`--measurements true`. Add `--application-tag <value>` to write the sample
+meter's `ApplicationTag`; the in-memory provider retains the new value for
+later reads. Measurement options cannot be combined with power commands.
+The client uses the generated ECM measurement proxy and preserves
+`AcPeDataType` for E0 rather than converting it to a scalar.
+
 Use `--wol-only true` to discover the WOL-only object directly under DeviceSet
 and read its MAC metadata without discovering standby. Add `--sleep true`
 only when an explicit sleep request is intended. Standby controls cannot be
@@ -77,5 +87,6 @@ millisecond value; zero requests wake on the first sleep acquisition, while
 the provider still includes any remaining minimum stay in its recovery estimate.
 No wake packet is sent.
 
-Standalone measurements and grouped statistics reset are not part of this
-sample yet. See [ECM](../../docs/ECM.md) for the current integration boundary.
+E2/E3/D1 statistical measurements, grouped reset and collection `StartTime`
+remain outside the sample until the shared IA statistics runtime reaches
+`master`. See [ECM](../../docs/ECM.md) for the current integration boundary.

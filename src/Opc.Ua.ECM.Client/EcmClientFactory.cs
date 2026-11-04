@@ -82,6 +82,24 @@ namespace Opc.Ua.ECM.Client
             return new EcmWolClient(session, powerOff, m_telemetry);
         }
 
+        /// <summary>
+        /// Creates a typed measurement client without closing or disposing the shared session.
+        /// </summary>
+        /// <param name="measurementPoint">The EnergyMeasurementType NodeId.</param>
+        /// <param name="cancellationToken">Cancels session acquisition.</param>
+        public async ValueTask<EcmMeasurementClient> CreateMeasurementAsync(
+            NodeId measurementPoint,
+            CancellationToken cancellationToken = default)
+        {
+            if (measurementPoint.IsNull)
+            {
+                throw new ArgumentException("A measurement point is required.", nameof(measurementPoint));
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            ManagedSession session = await m_sessionFactory(cancellationToken).ConfigureAwait(false);
+            return new EcmMeasurementClient(session, measurementPoint, m_telemetry);
+        }
+
         /// <summary>The container-owned session delegate.</summary>
         private readonly Func<CancellationToken, Task<ManagedSession>> m_sessionFactory;
 

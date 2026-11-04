@@ -28,10 +28,12 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.ECM;
 using Opc.Ua.ECM.Server;
 using Opc.Ua.Server;
 using Opc.Ua.Tests;
@@ -46,6 +48,77 @@ namespace Opc.Ua.ECM.Tests
     [Parallelizable(ParallelScope.All)]
     public sealed class EcmNodeManagerTests
     {
+        /// <summary>
+        /// The shared measurement builder creates a typed scalar child and reuses it on refresh.
+        /// </summary>
+        [Test]
+        public async Task SharedMeasurementBuilderCreatesAndReusesTypedMetadata()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queues = new MonitoredItemQueueFactory(telemetry);
+            await using EcmNodeManager manager = CreateManager(telemetry, queues);
+            ISystemContext context = manager.SystemContext;
+            EnergyMeasurementState measurementPoint = context.CreateInstanceOfEnergyMeasurementType(
+                null,
+                new QualifiedName("Meter", manager.InstanceNamespaceIndex));
+            var browseName = new QualifiedName("Power", manager.InstanceNamespaceIndex);
+            var engineeringUnits = new EUInformation
+            {
+                DisplayName = new LocalizedText("W")
+            };
+
+            EnergyMeasurementValueState first = EcmMeasurementNodeBuilder.AddMeasurement(
+                context,
+                measurementPoint,
+                browseName,
+                Variant.From(12.5f),
+                Opc.Ua.DataTypeIds.Float,
+                Opc.Ua.ReferenceTypeIds.HasComponent,
+                engineeringUnits,
+                measurementId: 17);
+            EnergyMeasurementValueState refreshed = EcmMeasurementNodeBuilder.AddMeasurement(
+                context,
+                measurementPoint,
+                browseName,
+                Variant.From(19.25f),
+                Opc.Ua.DataTypeIds.Float,
+                Opc.Ua.ReferenceTypeIds.HasComponent,
+                engineeringUnits,
+                measurementId: 17);
+
+            Assert.That(refreshed, Is.SameAs(first));
+            Assert.That(first.DataType, Is.EqualTo(Opc.Ua.DataTypeIds.Float));
+            Assert.That(first.ValueRank, Is.EqualTo(Opc.Ua.ValueRanks.Scalar));
+            Assert.That(first.ReferenceTypeId, Is.EqualTo(Opc.Ua.ReferenceTypeIds.HasComponent));
+            Assert.That(first.WrappedValue.TryGetValue(out float value), Is.True);
+            Assert.That(value, Is.EqualTo(19.25f));
+
+            var children = new List<BaseInstanceState>();
+            measurementPoint.GetChildren(context, children);
+            Assert.That(
+                children.FindAll(child => child is EnergyMeasurementValueState &&
+                    child.BrowseName == browseName),
+                Has.Count.EqualTo(1));
+            Assert.That(first.EngineeringUnits!.Value.DisplayName.Text, Is.EqualTo("W"));
+
+            BaseInstanceState? measurementIdNode = null;
+            var measurementChildren = new List<BaseInstanceState>();
+            first.GetChildren(context, measurementChildren);
+            foreach (BaseInstanceState child in measurementChildren)
+            {
+                if (string.Equals(child.BrowseName.Name, "MeasurementID", StringComparison.Ordinal))
+                {
+                    measurementIdNode = child;
+                    break;
+                }
+            }
+            Assert.That(measurementIdNode, Is.InstanceOf<BaseVariableState>());
+            Assert.That(
+                ((BaseVariableState)measurementIdNode!).WrappedValue.TryGetValue(out ushort measurementId),
+                Is.True);
+            Assert.That(measurementId, Is.EqualTo((ushort)17));
+        }
+
         /// <summary>
         /// Shutdown joins provider acquisition, closes new admission and releases completed bindings.
         /// </summary>

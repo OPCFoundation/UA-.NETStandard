@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -181,7 +182,12 @@ namespace Opc.Ua.Machinery.Tests
                             .WithApplicationTag("air")
                             .WithNonElectricalEnergy(1234.5, 0)
                             .WithVolumeFlow(10f, 0.5f)
-                            .WithBaseFlow(620000f, 294.65f);
+                            .WithBaseFlow(620000f, 294.65f)
+                            .AddMeasurementValue(
+                                new QualifiedName("AcActivePowerTotal"),
+                                Variant.From(12.5f),
+                                new EUInformation { DisplayName = new LocalizedText("W") },
+                                measurementId: 17);
                         air.AddMeteringPoint(
                             new QualifiedName("Clamping"),
                             point => point.WithNonElectricalEnergy(12.0, 0));
@@ -245,6 +251,36 @@ namespace Opc.Ua.Machinery.Tests
             Assert.That(import, Is.Not.Null);
             Assert.That(import!.WrappedValue.TryGetValue(out double importValue), Is.True);
             Assert.That(importValue, Is.EqualTo(1234.5));
+
+            var activePower = main.FindChild(
+                context,
+                new QualifiedName("AcActivePowerTotal", ecmNamespaceIndex))
+                as Opc.Ua.ECM.EnergyMeasurementValueState;
+            Assert.That(activePower, Is.Not.Null);
+            Opc.Ua.ECM.EnergyMeasurementValueState publishedPower = activePower!;
+            Assert.That(publishedPower.DataType, Is.EqualTo(Opc.Ua.DataTypeIds.Float));
+            Assert.That(publishedPower.ValueRank, Is.EqualTo(Opc.Ua.ValueRanks.Scalar));
+            Assert.That(
+                publishedPower.ReferenceTypeId,
+                Is.EqualTo(Opc.Ua.ReferenceTypeIds.HasComponent));
+            Assert.That(publishedPower.WrappedValue.TryGetValue(out float activePowerValue), Is.True);
+            Assert.That(activePowerValue, Is.EqualTo(12.5f));
+
+            var measurementChildren = new List<BaseInstanceState>();
+            publishedPower.GetChildren(context, measurementChildren);
+            BaseVariableState engineeringUnits = measurementChildren
+                .OfType<BaseVariableState>()
+                .Single(child => child.BrowseName.Name == Opc.Ua.BrowseNames.EngineeringUnits);
+            Assert.That(
+                engineeringUnits.WrappedValue.TryGetValue(out EUInformation actualUnits),
+                Is.True);
+            Assert.That(actualUnits.DisplayName.Text, Is.EqualTo("W"));
+
+            BaseVariableState measurementId = measurementChildren
+                .OfType<BaseVariableState>()
+                .Single(child => child.BrowseName.Name == "MeasurementID");
+            Assert.That(measurementId.WrappedValue.TryGetValue(out ushort actualMeasurementId), Is.True);
+            Assert.That(actualMeasurementId, Is.EqualTo((ushort)17));
 
             // OPC 40001-4 §8.1: Contains runs from Main to a sub-meter whose
             // readings are part of it, and both ends are metering points.

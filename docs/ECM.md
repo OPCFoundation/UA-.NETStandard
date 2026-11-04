@@ -1,16 +1,16 @@
 # Energy Consumption Management
 
-The OPC 34100 runtime separates device power behavior from its OPC UA
-representation. Applications supply standby or Wake-on-LAN (WOL)
-providers, separately or together; the server binds their results to the generated ECM model.
-The reference provider simulates transitions without changing host power
-or sending network packets.
+The OPC 34100 runtime separates device measurements and power behavior from
+their OPC UA representation. Applications supply measurement, standby or
+Wake-on-LAN (WOL) providers; the server binds their results to the generated
+ECM model. The reference providers simulate values and transitions without
+changing host power or sending network packets.
 
-The specification-support rating remains **Partial**. Standalone E0/E1/E2/E3
-and D0/D1 measurements, accuracy domains and grouped statistics reset are
-not yet integrated. That work depends on the shared Industrial Automation
-statistics runtime reaching `master`; generated ECM declarations alone do
-not satisfy those requirements.
+The specification-support rating remains **Partial**. The standalone runtime
+publishes E0, E1 and D0 measurements with accuracy metadata. E2, E3 and D1
+depend on the shared Industrial Automation statistics runtime reaching
+`master`; grouped reset and collection `StartTime` remain blocked by that
+dependency. Generated ECM declarations alone do not satisfy those requirements.
 
 ## Capability and conformance boundary
 
@@ -18,39 +18,62 @@ not satisfy those requirements.
 requires at least one of measurement, standby or WOL for its base energy
 management support. The SDK's completion scope includes all three.
 `EcmPowerBinding` supplies standby with optional WOL; `EcmWolBinding`
-supplies WOL without a standby graph. Standalone measurement remains pending.
+supplies WOL without a standby graph. `EcmMeasurementBinding` publishes
+provider-backed E0, E1 or D0 measurements without requiring a Machinery
+Consumption hierarchy.
 
 | Published conformance units | Runtime surface | Current boundary |
 |---|---|---|
 | ECM Standby Management | `EcmPowerBinding`, `IEcmStandbyProvider`, generated mode/status nodes | Provider snapshots publish state and transition estimates; validation is pending. |
 | ECM Standby Management Control | Generated method callbacks and the `PauseTime` write callback | Shared authorization, optional DI ownership and independent Call status/ReturnCode; validation is pending. |
 | ECM Sleep Mode WOL | `EcmWolBinding`, `IEcmWolProvider`, `EcmWolClient` and generated power-off nodes | Independent or standby-composed WOL with explicit sleep requests and six-byte MAC metadata. Validation is pending. |
-| ECM Energy Measurement | Generated `EnergyMeasurementType` declarations | Standalone measurement binding, writable ApplicationTag and catalogue metadata remain pending. |
-| ECM EnergyProfile E0, E1, E2, E3, D0 and D1 | Generated interfaces | Standalone profile instantiation and catalogue-driven fixtures remain pending. |
-| ECM Energy Measurement Common DataTypes | Generated `AcPeDataType` and `AcPpDataType` | Typed standalone acquisition and precision evidence remain pending. |
-| ECM Accuracy Domain Percent full scale, Percent actual reading, IEC and EN | Generated accuracy-domain declarations | Domain selection, consistent AccuracyClass EnumValues and custom domains remain pending. |
+| ECM Energy Measurement | `EcmMeasurementBinding`, `IEcmMeasurementProvider`, generated measurement nodes | E0/E1/D0 acquisition, writable provider-backed ApplicationTag, quality/timestamps, engineering units and optional measurement IDs. |
+| ECM EnergyProfile E0, E1, E2, E3, D0 and D1 | Generated interfaces and standalone provider binding | E0/E1/D0 can be published independently. E2/E3/D1 require IA statistics integration and remain pending. |
+| ECM Energy Measurement Common DataTypes | Generated `AcPeDataType` and `AcPpDataType` | E0 preserves the typed `AcPeDataType`; E1/D0 preserve Float. E2/E3/D1 precision and period behavior remain pending with IA statistics. |
+| ECM Accuracy Domain Percent full scale, Percent actual reading, IEC and EN | Generated domains and custom-domain creation | Bindings verify the referenced domain and declared `AccuracyClass`; applications can add custom `EnumValues`. This does not establish metrological certification. |
 | ECM Energy Management Support | Application-selected standby, WOL or measurement configuration | No blanket ECM profile advertisement or Full rating is established by generated declarations. |
 
 Section 11 lists `PauseTime` among methods, but section 7.2.1 and the
 published NodeSet define a writable variable. The runtime follows that
 variable contract. Grouped reset and `HasStatisticComponent` integration
-must reuse the IA statistics runtime after its exact prerequisite commit
-is present on `master`.
+must reuse the IA statistics runtime after its exact prerequisite commit is
+present on `master`. The standalone binding does not create an alternate
+statistics or reset service.
 
 ## Components and ownership
 
 `Opc.Ua.ECM` owns the generated model and the typed control-result contract.
 `Opc.Ua.ECM.Server` loads DI, IA and ECM for standalone hosting. Applications
 with an existing DI owner can load the ECM model there and attach an
-`EcmPowerBinding` or `EcmWolBinding` to generated instances instead of creating another owner.
+`EcmPowerBinding`, `EcmWolBinding` or `EcmMeasurementBinding` to generated
+instances instead of creating another owner.
 `Opc.Ua.ECM.Client` provides generated-proxy controls and model-derived
-variable accessors over an existing session.
+variable accessors over an existing session. `EcmMeasurementClient` discovers
+direct measurement-point children, including subtypes, and reads E0/E1/D0
+values without discarding quality or timestamps.
 
 `IEcmStandbyProvider` supplies a coherent state snapshot and accepts
 `StartPause`, `EndPause` and `SwitchToEnergySavingMode` requests.
 `IEcmWolProvider` supplies WOL metadata and `SwitchOffWOL` independently of standby.
 Accepting a request does not establish that the device has arrived.
 When standby is present, its subsequent snapshots report the moving state until arrival.
+
+`IEcmMeasurementProvider` supplies a snapshot containing a non-empty set of
+supported profile readings and the current `ApplicationTag`. `CreateMeasurementAsync`
+publishes the measurement point beneath the selected parent or DI `DeviceSet`,
+then performs the first acquisition before registering the graph. The provider
+remains application-owned; the manager owns and disposes the binding. Call
+`RefreshAsync` to publish later snapshots. A published profile set and its
+metadata cannot change during refresh. `ApplicationTag` writes are authorized,
+persisted through the provider, and only then reflected in the address space.
+The provider must return the updated tag in subsequent snapshots.
+
+`CreateAccuracyDomainAsync` adds an application-defined `AccuracyDomainType`
+under the ECM `AccuracyDomains` folder. Each class requires a unique numeric
+value and a unique, non-empty display name. A measurement that declares an
+accuracy class must also identify a published domain whose `EnumValues`
+contains that class. Accuracy metadata describes the provider's measurement;
+it does not certify the instrument.
 
 The manager owns bindings created by `CreatePowerAsync` or `CreateWolAsync`. Bindings borrow
 providers and do not dispose them. Direct users must register the configured
@@ -183,6 +206,52 @@ await foreach (EcmWolClient discovered in EcmWolClient.DiscoverAsync(session, de
 }
 ```
 
+Standalone measurements use the same manager and provider-ownership rules:
+
+```csharp
+ArrayOf<EnumValueType> accuracyClasses =
+[
+    new EnumValueType
+    {
+        Value = 0,
+        DisplayName = new LocalizedText("Class 0")
+    }
+];
+AccuracyDomainState accuracyDomain = await manager.CreateAccuracyDomainAsync(
+    new QualifiedName("MeterAccuracy", manager.InstanceNamespaceIndex),
+    accuracyClasses,
+    ct);
+// Configure measurementProvider so its readings reference accuracyDomain.NodeId.
+EcmMeasurementBinding meter = await manager.CreateMeasurementAsync(
+    new QualifiedName("ProductionMeter", manager.InstanceNamespaceIndex),
+    measurementProvider,
+    parent: device,
+    cancellationToken: ct);
+await meter.RefreshAsync(ct);
+```
+
+`measurementProvider` returns E0, E1 or D0 readings with namespace-qualified
+DataTypes, UTC acquisition timestamps and optional engineering units,
+measurement IDs and accuracy metadata. It must retain successful
+`ApplicationTag` writes as its source of truth.
+
+The typed client exposes generated-variable accessors over the
+`EnergyMeasurementTypeClient` proxy:
+
+```csharp
+await foreach (EcmMeasurementClient meter in EcmMeasurementClient.DiscoverAsync(
+    session, deviceSet, telemetry, ct))
+{
+    var reading = await meter.AcCurrentPe.ReadAsync(ct);
+    if (reading.HasValue)
+    {
+        Console.WriteLine(
+            $"{reading.Value}: {reading.DataValue.StatusCode}, " +
+            $"{reading.DataValue.SourceTimestamp:O}");
+    }
+}
+```
+
 The client uses additive generated `WithStatusAsync` methods. Existing
 generated method signatures and behavior remain unchanged; only the ECM
 model enables the status variants. Bad results contain no interpreted
@@ -243,9 +312,10 @@ so a finite duration can extend beyond the clock's remaining calendar range.
 The simulator rejects mode configurations whose combined entry, minimum stay
 and recovery would produce an infinite estimate.
 
-The [sample](../samples/ECM/README.md) can demonstrate a complete sleep and
-recovery sequence with the explicit `--simulate-wake-after-ms` server option.
-Without that option, the sample does not initiate simulated wake.
+The [sample](../samples/ECM/README.md) publishes simulated E0/E1/D0
+measurements and can demonstrate a complete sleep and recovery sequence with
+the explicit `--simulate-wake-after-ms` server option. Without that option,
+the sample does not initiate simulated wake.
 
 ## Specification references
 

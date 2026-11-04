@@ -108,6 +108,59 @@ namespace Opc.Ua.ECM.Server
                 browseName, provider, parent, exclusiveAccess, authorize, ct), cancellationToken);
         }
 
+        /// <summary>
+        /// Creates a provider-backed standalone E0, E1 or D0 measurement point beneath a selected parent.
+        /// The provider remains application-owned; the manager owns and releases the returned binding.
+        /// </summary>
+        /// <param name="browseName">The qualified measurement-point BrowseName.</param>
+        /// <param name="provider">The application-owned measurement provider.</param>
+        /// <param name="parent">The optional parent; DI DeviceSet is used when omitted.</param>
+        /// <param name="exclusiveAccess">The optional DI lock service for ApplicationTag writes.</param>
+        /// <param name="authorize">The optional asynchronous write-authorization policy.</param>
+        /// <param name="cancellationToken">Cancels creation and the initial provider read.</param>
+        public ValueTask<EcmMeasurementBinding> CreateMeasurementAsync(
+            QualifiedName browseName,
+            IEcmMeasurementProvider provider,
+            NodeState? parent = null,
+            ILockService? exclusiveAccess = null,
+            Func<ISystemContext, CancellationToken, ValueTask<bool>>? authorize = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (browseName.IsNull || string.IsNullOrWhiteSpace(browseName.Name))
+            {
+                throw new ArgumentException("A measurement BrowseName is required.", nameof(browseName));
+            }
+            if (provider == null)
+            {
+                throw new ArgumentNullException(nameof(provider));
+            }
+            return ExecuteNodeManagerOperationAsync(ct => CreateMeasurementCoreAsync(
+                browseName, provider, parent, exclusiveAccess, authorize, ct), cancellationToken);
+        }
+
+        /// <summary>
+        /// Creates a custom accuracy domain in the ECM AccuracyDomains folder.
+        /// </summary>
+        /// <param name="browseName">The qualified domain name.</param>
+        /// <param name="enumValues">The non-empty set of accuracy-class values.</param>
+        /// <param name="cancellationToken">Cancels creation.</param>
+        public ValueTask<AccuracyDomainState> CreateAccuracyDomainAsync(
+            QualifiedName browseName,
+            ArrayOf<EnumValueType> enumValues,
+            CancellationToken cancellationToken = default)
+        {
+            if (browseName.IsNull || string.IsNullOrWhiteSpace(browseName.Name))
+            {
+                throw new ArgumentException("An accuracy-domain BrowseName is required.", nameof(browseName));
+            }
+            if (enumValues.IsNull || enumValues.Count == 0)
+            {
+                throw new ArgumentException("An accuracy domain must define at least one class.", nameof(enumValues));
+            }
+            return ExecuteNodeManagerOperationAsync(
+                ct => CreateAccuracyDomainCoreAsync(browseName, enumValues, ct), cancellationToken);
+        }
+
         /// <inheritdoc/>
         protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
             ISystemContext context,
@@ -235,6 +288,118 @@ namespace Opc.Ua.ECM.Server
             {
                 m_creation.Release();
             }
+        }
+
+        /// <summary>
+        /// Publishes one standalone measurement graph within an admitted manager operation.
+        /// </summary>
+        private async ValueTask<EcmMeasurementBinding> CreateMeasurementCoreAsync(
+            QualifiedName browseName,
+            IEcmMeasurementProvider provider,
+            NodeState? parent,
+            ILockService? exclusiveAccess,
+            Func<ISystemContext, CancellationToken, ValueTask<bool>>? authorize,
+            CancellationToken cancellationToken)
+        {
+            NodeState owner = parent ?? FindPredefinedNode(NodeId.Create(
+                Di.Objects.DeviceSet, Di.Namespaces.OpcUaDi, SystemContext.NamespaceUris)) ??
+                throw new InvalidOperationException("The DI DeviceSet is not available.");
+            await m_creation.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                if (owner.FindChild(SystemContext, browseName) != null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadBrowseNameDuplicated);
+                }
+                EnergyMeasurementState measurement =
+                    SystemContext.CreateInstanceOfEnergyMeasurementType(owner, browseName);
+                measurement.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent;
+                EcmMeasurementBinding? binding = null;
+                try
+                {
+                    binding = new EcmMeasurementBinding(
+                        SystemContext, measurement, provider, exclusiveAccess, authorize);
+                    await binding.RefreshAsync(cancellationToken).ConfigureAwait(false);
+                    owner.AddChild(measurement);
+                    await AddPredefinedNodeAsync(measurement, cancellationToken).ConfigureAwait(false);
+                    RegisterResource(binding);
+                    return binding;
+                }
+                catch
+                {
+                    await RollbackPowerAsync(owner, measurement, binding).ConfigureAwait(false);
+                    throw;
+                }
+            }
+            finally
+            {
+                m_creation.Release();
+            }
+        }
+
+        /// <summary>
+        /// Publishes a custom accuracy domain beneath the model's standard domain folder.
+        /// </summary>
+        private async ValueTask<AccuracyDomainState> CreateAccuracyDomainCoreAsync(
+            QualifiedName browseName,
+            ArrayOf<EnumValueType> enumValues,
+            CancellationToken cancellationToken)
+        {
+            NodeId folderId = NodeId.Create(
+                Objects.AccuracyDomains, Namespaces.ECM, SystemContext.NamespaceUris);
+            NodeState owner = FindPredefinedNode(folderId) ??
+                throw new InvalidOperationException("The ECM AccuracyDomains folder is not available.");
+            await m_creation.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                if (owner.FindChild(SystemContext, browseName) != null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadBrowseNameDuplicated);
+                }
+                var values = new System.Collections.Generic.HashSet<long>();
+                var names = new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
+                for (int ii = 0; ii < enumValues.Count; ii++)
+                {
+                    EnumValueType value = enumValues[ii] ??
+                        throw new ArgumentException(
+                            "An accuracy domain cannot contain a null class.",
+                            nameof(enumValues));
+                    string name = value.DisplayName?.Text ?? string.Empty;
+                    if (string.IsNullOrWhiteSpace(name) || !values.Add(value.Value) || !names.Add(name))
+                    {
+                        throw new ArgumentException(
+                            "Accuracy classes must have unique values and non-empty, unique display names.",
+                            nameof(enumValues));
+                    }
+                }
+
+                AccuracyDomainState domain = SystemContext.CreateInstanceOfAccuracyDomainType(owner, browseName);
+                domain.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.Organizes;
+                Required(domain.EnumValues).Value = enumValues;
+                owner.AddChild(domain);
+                try
+                {
+                    await AddPredefinedNodeAsync(domain, cancellationToken).ConfigureAwait(false);
+                    return domain;
+                }
+                catch
+                {
+                    await RollbackPowerAsync(owner, domain, null).ConfigureAwait(false);
+                    throw;
+                }
+            }
+            finally
+            {
+                m_creation.Release();
+            }
+        }
+
+        /// <summary>
+        /// Gets a required generated child or throws if the published model is incomplete.
+        /// </summary>
+        private static T Required<T>(T? value) where T : class
+        {
+            return value ?? throw new InvalidOperationException("The generated ECM model is incomplete.");
         }
 
         /// <summary>

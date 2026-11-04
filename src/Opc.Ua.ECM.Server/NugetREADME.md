@@ -15,5 +15,9 @@ WOL-only hosting does not require or publish a standby graph.
 `SimulatedEcmPowerProvider` changes only in-memory state. It never powers
 down the host, sends wake packets or disconnects the server.
 
-Standalone measurement profiles and accuracy/statistics integration remain
-under development. This package does not establish metrological certification.
+Standalone provider-backed E0/E1/D0 measurements, custom accuracy domains and
+accuracy-class validation are available through `EcmNodeManager.CreateMeasurementAsync`
+and `CreateAccuracyDomainAsync`.
+E2/E3/D1 statistical measurements, grouped reset and collection `StartTime`
+remain dependent on IA.Server integration. This package does not establish
+metrological certification.

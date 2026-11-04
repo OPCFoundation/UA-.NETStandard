@@ -16,6 +16,7 @@
   <ItemGroup>
     <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
     <InternalsVisibleTo Include="Opc.Ua.ECM.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Machinery.Server" />
     <ProjectReference Include="..\Opc.Ua.ECM\Opc.Ua.ECM.csproj" />
     <ProjectReference Include="..\Opc.Ua.Di.Server\Opc.Ua.Di.Server.csproj" />
     <ProjectReference Include="..\Opc.Ua.Server\Opc.Ua.Server.csproj" />

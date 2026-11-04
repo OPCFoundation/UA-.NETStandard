@@ -49,6 +49,13 @@ string? pause = builder.Configuration["pause-ms"];
 bool sleep = ReadFlag("sleep");
 bool endPause = ReadFlag("end-pause");
 bool wolOnly = ReadFlag("wol-only");
+bool measurements = ReadFlag("measurements");
+string? applicationTag = builder.Configuration["application-tag"];
+bool measurementAction = measurements || applicationTag != null;
+if (measurementAction && (pause != null || sleep || endPause || wolOnly))
+{
+    throw new ArgumentException("--measurements and --application-tag cannot be combined with power commands.");
+}
 if (wolOnly && (pause != null || endPause))
 {
     throw new ArgumentException("--wol-only supports --sleep or read-only access, not standby commands.");
@@ -93,7 +100,58 @@ try
     ITelemetryContext telemetry = host.Services.GetRequiredService<ITelemetryContext>();
     NodeId deviceSet = ExpandedNodeId.ToNodeId(Opc.Ua.Di.ObjectIds.DeviceSet, session.NamespaceUris);
     bool found = false;
-    if (wolOnly)
+    if (measurementAction)
+    {
+        await foreach (EcmMeasurementClient discovered in EcmMeasurementClient.DiscoverAsync(
+            session, deviceSet, telemetry, ct).ConfigureAwait(false))
+        {
+            found = true;
+            EcmMeasurementClient client = await host.Services.GetRequiredService<EcmClientFactory>()
+                .CreateMeasurementAsync(discovered.MeasurementPoint.ObjectId, ct).ConfigureAwait(false);
+            if (applicationTag != null)
+            {
+                StatusCode status = await client.ApplicationTag
+                    .WriteWithStatusAsync(applicationTag, ct).ConfigureAwait(false);
+                Console.WriteLine($"ApplicationTag write: {status}");
+            }
+            var tag = await client.ApplicationTag.ReadAsync(ct).ConfigureAwait(false);
+            Console.WriteLine(
+                $"ApplicationTag={(tag.HasValue ? tag.Value : "<no value>")}, " +
+                $"quality={tag.DataValue.StatusCode}, source={tag.DataValue.SourceTimestamp:O}");
+            NodeId acCurrentId = await client.AcCurrentPe.ResolveAsync(ct).ConfigureAwait(false);
+            if (!acCurrentId.IsNull)
+            {
+                var reading = await client.AcCurrentPe.ReadAsync(ct).ConfigureAwait(false);
+                Console.WriteLine(
+                    $"E0 AcCurrentPe={ (reading.HasValue ? reading.Value.ToString() : "<no value>") }, " +
+                    $"quality={reading.DataValue.StatusCode}, source={reading.DataValue.SourceTimestamp:O}");
+            }
+            NodeId activePowerId = await client.AcActivePowerTotal.ResolveAsync(ct).ConfigureAwait(false);
+            if (!activePowerId.IsNull)
+            {
+                var reading = await client.AcActivePowerTotal.ReadAsync(ct).ConfigureAwait(false);
+                string value = reading.HasValue
+                    ? reading.Value.ToString(CultureInfo.InvariantCulture)
+                    : "<no value>";
+                Console.WriteLine(
+                    $"E1 AcActivePowerTotal={value}, " +
+                    $"quality={reading.DataValue.StatusCode}, source={reading.DataValue.SourceTimestamp:O}");
+            }
+            NodeId dcCurrentId = await client.DcCurrent.ResolveAsync(ct).ConfigureAwait(false);
+            if (!dcCurrentId.IsNull)
+            {
+                var reading = await client.DcCurrent.ReadAsync(ct).ConfigureAwait(false);
+                string value = reading.HasValue
+                    ? reading.Value.ToString(CultureInfo.InvariantCulture)
+                    : "<no value>";
+                Console.WriteLine(
+                    $"D0 DcCurrent={value}, " +
+                    $"quality={reading.DataValue.StatusCode}, source={reading.DataValue.SourceTimestamp:O}");
+            }
+            break;
+        }
+    }
+    else if (wolOnly)
     {
         await foreach (EcmWolClient discovered in EcmWolClient.DiscoverAsync(session, deviceSet, telemetry, ct)
             .ConfigureAwait(false))
@@ -184,8 +242,9 @@ try
     }
     if (!found)
     {
-        throw new InvalidOperationException(wolOnly ?
-            "The DI DeviceSet has no ECM WOL object." : "The DI DeviceSet has no ECM standby object.");
+        string missingObject = measurementAction ? "ECM measurement point." :
+            wolOnly ? "ECM WOL object." : "ECM standby object.";
+        throw new InvalidOperationException($"The DI DeviceSet has no {missingObject}");
     }
 }
 finally

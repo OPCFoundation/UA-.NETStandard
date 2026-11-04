@@ -21,3 +21,9 @@ MAC metadata and explicit sleep control without any standby NodeId.
 
 The client never sends wake packets or automatically repeats a power
 command after a disconnect. Applications own any physical wake transport.
+
+`EcmMeasurementClient` discovers standalone measurement points and exposes
+generated typed accessors for `ApplicationTag`, E0 `AcCurrentPe`, E1
+`AcActivePowerTotal` and D0 `DcCurrent`. Reads return the value together with
+its original quality and source/server timestamps. E0 remains an `AcPeDataType`
+structure; it is not flattened into a scalar.

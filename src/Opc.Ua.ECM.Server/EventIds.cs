@@ -42,5 +42,8 @@ namespace Opc.Ua
 
         /// <summary>The standalone WOL binding's diagnostic range.</summary>
         public const int EcmWolBinding = 20;
+
+        /// <summary>The measurement binding's diagnostic range.</summary>
+        public const int EcmMeasurementBinding = 30;
     }
 }
