@@ -382,6 +382,61 @@ namespace Opc.Ua.ECM.Tests
         }
 
         /// <summary>
+        /// A later invalid reading cannot partially publish an earlier reading from the same snapshot.
+        /// </summary>
+        [Test]
+        public async Task InvalidLaterReadingRetainsEarlierMeasurementValueAndTimestamp()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queues = new MonitoredItemQueueFactory(telemetry);
+            await using EcmNodeManager manager = CreateManager(telemetry, queues);
+            ushort ecmNamespace = manager.SystemContext.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
+            var firstTimestamp = new DateTime(2026, 8, 14, 9, 40, 0, DateTimeKind.Utc);
+            var nextTimestamp = new DateTime(2026, 8, 14, 9, 40, 1, DateTimeKind.Utc);
+            EcmMeasurementReading initialPower = FloatReading(
+                nameof(BrowseNames.AcActivePowerTotal), 10f, StatusCodes.Good, firstTimestamp);
+            EcmMeasurementReading initialCurrent = FloatReading(
+                nameof(BrowseNames.DcCurrent), 20f, StatusCodes.Good, firstTimestamp);
+            var provider = new TestMeasurementProvider(
+                Snapshot("meter/original", initialPower, initialCurrent),
+                Snapshot("meter/partial",
+                    FloatReading(nameof(BrowseNames.AcActivePowerTotal), 99f,
+                        StatusCodes.Good, nextTimestamp),
+                    FloatReading(nameof(BrowseNames.DcCurrent), 200f,
+                        StatusCodes.Good, nextTimestamp) with { MeasurementId = 12 }));
+            BaseObjectState parent = await AddParentAsync(manager, "AtomicRefreshDevice");
+            EcmMeasurementBinding binding = await manager.CreateMeasurementAsync(
+                new QualifiedName("AtomicRefreshMeter", manager.InstanceNamespaceIndex),
+                provider,
+                parent);
+            EnergyMeasurementValueState power = RequiredMeasurement(
+                binding.MeasurementPoint,
+                manager.SystemContext,
+                nameof(BrowseNames.AcActivePowerTotal),
+                ecmNamespace);
+            EnergyMeasurementValueState current = RequiredMeasurement(
+                binding.MeasurementPoint,
+                manager.SystemContext,
+                nameof(BrowseNames.DcCurrent),
+                ecmNamespace);
+
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await binding.RefreshAsync());
+
+            Assert.That(power.WrappedValue.TryGetValue(out float powerValue), Is.True);
+            Assert.That(powerValue, Is.EqualTo(10f));
+            Assert.That(power.Timestamp, Is.EqualTo((DateTimeUtc)firstTimestamp));
+            Assert.That(power.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
+            Assert.That(current.WrappedValue.TryGetValue(out float currentValue), Is.True);
+            Assert.That(currentValue, Is.EqualTo(20f));
+            Assert.That(current.Timestamp, Is.EqualTo((DateTimeUtc)firstTimestamp));
+            Assert.That(current.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
+            Assert.That(
+                binding.MeasurementPoint.ApplicationTag!.Value,
+                Is.EqualTo("meter/original"));
+        }
+
+        /// <summary>
         /// Accuracy domains expose EnumValues and measurements point to the exact declared domain and class.
         /// </summary>
         [Test]

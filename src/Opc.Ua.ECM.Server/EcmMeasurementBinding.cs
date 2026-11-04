@@ -174,6 +174,10 @@ namespace Opc.Ua.ECM.Server
                         throw new InvalidOperationException(
                             "A provider cannot replace published profile measurements or their metadata.");
                     }
+                }
+                foreach (KeyValuePair<string, EcmMeasurementReading> pair in readings)
+                {
+                    EnergyMeasurementValueState node = m_measurements[pair.Key];
                     node.WrappedValue = pair.Value.Value;
                     SetQuality(node, pair.Value.StatusCode, pair.Value.SourceTimestamp);
                 }
