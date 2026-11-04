@@ -98,14 +98,16 @@ namespace Opc.Ua.Server
         /// Closes the prior view, transitions its removed generations, and publishes the next immutable view.
         /// </summary>
         /// <param name="next">The view to publish.</param>
-        private void PublishSnapshot(RoutingSnapshot next)
+        private bool PublishSnapshot(RoutingSnapshot next)
         {
             RoutingSnapshot previous = m_snapshot;
+            bool historianRegistrationsRetired = false;
             foreach (NodeManagerGeneration generation in previous.Generations)
             {
                 if (!next.Generations.Contains(generation))
                 {
-                    ChangePreparer.RetireHistorianRegistrations(generation.NodeManager);
+                    historianRegistrationsRetired |=
+                        ChangePreparer.RetireHistorianRegistrations(generation.NodeManager);
                     generation.Gate.Retire();
                     generation.Slot.Unpublish(generation);
                 }
@@ -128,6 +130,7 @@ namespace Opc.Ua.Server
             next.SetRevision(Interlocked.Increment(ref m_revision));
             Volatile.Write(ref m_snapshot, next);
             previous.Epoch.Close();
+            return historianRegistrationsRetired;
         }
 
         /// <summary>
@@ -1800,20 +1803,21 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Publishes the prepared snapshot. Repeated calls have no effect.
             /// </summary>
-            public void Publish()
+            public bool Publish()
             {
                 lock (m_owner.m_lock)
                 {
                     if (m_published)
                     {
-                        return;
+                        return m_historianRegistrationsChanged;
                     }
                     if (m_disposed || !ReferenceEquals(m_owner.m_reservedRoutes, this))
                     {
                         throw new InvalidOperationException("The routing publication has not been reserved.");
                     }
-                    m_owner.PublishSnapshot(m_next);
+                    m_historianRegistrationsChanged = m_owner.PublishSnapshot(m_next);
                     m_published = true;
+                    return m_historianRegistrationsChanged;
                 }
             }
 
@@ -1856,6 +1860,7 @@ namespace Opc.Ua.Server
             private readonly RoutingSnapshot m_next;
             private bool m_published;
             private bool m_disposed;
+            private bool m_historianRegistrationsChanged;
 
             /// <summary>Signals completion only when another cleanup actually encounters this reservation.</summary>
             private TaskCompletionSource<bool>? m_released;

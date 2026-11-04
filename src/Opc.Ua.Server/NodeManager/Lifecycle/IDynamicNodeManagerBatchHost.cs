@@ -149,7 +149,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Installs committed registration and retirement bookkeeping at the routing swap.
         /// </summary>
-        void Publish();
+        /// <param name="historianRegistrationsChanged">
+        /// Whether routing publication retired historian registrations.
+        /// </param>
+        void Publish(bool historianRegistrationsChanged);
 
         /// <summary>
         /// Takes ownership of committed reference reconciliation before host reservations are released.

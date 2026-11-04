@@ -281,6 +281,11 @@ namespace Opc.Ua.Server
         Readiness,
 
         /// <summary>
+        /// Server-wide historian capability and event notifier refresh.
+        /// </summary>
+        HistorianCapabilities,
+
+        /// <summary>
         /// Identity policy notification.
         /// </summary>
         Identity,

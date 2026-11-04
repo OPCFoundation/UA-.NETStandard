@@ -217,21 +217,23 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Withdraws this candidate's serving registrations when its generation leaves routing.
         /// </summary>
-        internal void Retire()
+        internal bool Retire()
         {
             lock (m_lock)
             {
                 if (m_retired)
                 {
-                    return;
+                    return false;
                 }
-                if (m_servingHasRegistrations)
+                bool hadServingRegistrations = m_servingHasRegistrations;
+                if (hadServingRegistrations)
                 {
                     GetOwnedRegistry().RemoveOwnedRegistrations(m_owner);
                     m_servingHasRegistrations = false;
                 }
                 m_published = false;
                 m_retired = true;
+                return hadServingRegistrations;
             }
         }
 

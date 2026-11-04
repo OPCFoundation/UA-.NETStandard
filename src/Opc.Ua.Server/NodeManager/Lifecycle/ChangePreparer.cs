@@ -271,18 +271,18 @@ namespace Opc.Ua.Server
         /// Publishes candidate historian registrations after its readiness callback succeeds.
         /// </summary>
         /// <param name="manager">The ready NodeManager.</param>
-        internal static void PublishHistorianRegistrations(IAsyncNodeManager manager)
+        internal static bool PublishHistorianRegistrations(IAsyncNodeManager manager)
         {
-            GetServer(manager)?.PublishHistorianRegistrations();
+            return GetServer(manager)?.PublishHistorianRegistrations() == true;
         }
 
         /// <summary>
         /// Withdraws candidate historian registrations when its generation leaves routing.
         /// </summary>
         /// <param name="manager">The retired NodeManager.</param>
-        internal static void RetireHistorianRegistrations(IAsyncNodeManager manager)
+        internal static bool RetireHistorianRegistrations(IAsyncNodeManager manager)
         {
-            GetServer(manager)?.RetireHistorianRegistrations();
+            return GetServer(manager)?.RetireHistorianRegistrations() == true;
         }
 
         /// <summary>
@@ -591,7 +591,7 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Publishes candidate historian bindings and transfers builder tracking to the server.
             /// </summary>
-            internal void PublishHistorianRegistrations()
+            internal bool PublishHistorianRegistrations()
             {
                 EnsurePublishedRegistryAccess();
                 HistorianBuilder[] builders;
@@ -612,14 +612,15 @@ namespace Opc.Ua.Server
                         registry.RegisterHistorianBuilder(builder);
                     }
                 }
+                return m_historianRegistry?.HasRegistrations == true;
             }
 
             /// <summary>
             /// Withdraws this candidate's bindings from the serving registry.
             /// </summary>
-            internal void RetireHistorianRegistrations()
+            internal bool RetireHistorianRegistrations()
             {
-                m_historianRegistry?.Retire();
+                return m_historianRegistry?.Retire() == true;
             }
 
             /// <summary>

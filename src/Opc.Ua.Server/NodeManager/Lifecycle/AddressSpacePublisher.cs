@@ -50,7 +50,7 @@ namespace Opc.Ua.Server
             EncodeableFactory factory,
             ArrayOf<PreparedNodeManager> candidates,
             IReadOnlyList<NodeState.ReferenceUpdate> referenceUpdates,
-            Action viewPublished)
+            Action<bool> viewPublished)
         {
             m_routes = routes;
             m_namespaces = namespaces;
@@ -91,10 +91,10 @@ namespace Opc.Ua.Server
                 update.Remove();
             }
 
-            m_routes.Publish();
+            bool historianRegistrationsChanged = m_routes.Publish();
             try
             {
-                m_viewPublished();
+                m_viewPublished(historianRegistrationsChanged);
             }
             finally
             {
@@ -115,6 +115,6 @@ namespace Opc.Ua.Server
         private readonly EncodeableFactory m_factory;
         private readonly ChangePreparer.StagingServer?[] m_stagingServers;
         private readonly NodeState.ReferenceUpdate[] m_referenceUpdates;
-        private readonly Action m_viewPublished;
+        private readonly Action<bool> m_viewPublished;
     }
 }

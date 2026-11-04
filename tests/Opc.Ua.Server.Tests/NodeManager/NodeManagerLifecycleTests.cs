@@ -40,6 +40,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Server.Historian;
 using Opc.Ua.Server.RuntimeNodeSet;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
@@ -193,6 +194,80 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .AsTask()
                 .WaitAsync(timeout.Token)
                 .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Verifies historian capability diagnostics are refreshed after an owning manager is removed.
+        /// </summary>
+        [Test]
+        [Category("NodeManagerLifecycle")]
+        public async Task HistorianCapabilitiesRefreshAfterNodeManagerRetirementAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            var observerProvider = new CapabilityReadProbeHistorianProvider();
+            NodeManagerRegistration observer = await m_server.NodeManagerLifecycle.AddAsync(
+                CreateHistorianRegistrationFactory(
+                    kModelNamespaceUri + ":HistorianCapabilityObserver",
+                    observerProvider),
+                timeout.Token).ConfigureAwait(false);
+            var retiringProvider = new CapabilityReadProbeHistorianProvider();
+            NodeManagerRegistration retiring = await m_server.NodeManagerLifecycle.AddAsync(
+                CreateHistorianRegistrationFactory(
+                    kModelNamespaceUri + ":HistorianCapabilityRetiring",
+                    retiringProvider),
+                timeout.Token).ConfigureAwait(false);
+            int readsBeforeRetirement = observerProvider.CapabilityReadCount;
+
+            await RemoveAndRetireAsync(
+                m_server.NodeManagerLifecycle,
+                retiring,
+                timeout.Token).ConfigureAwait(false);
+
+            Assert.That(observerProvider.CapabilityReadCount, Is.GreaterThan(readsBeforeRetirement));
+            await RemoveAndRetireAsync(
+                m_server.NodeManagerLifecycle,
+                observer,
+                timeout.Token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Verifies ordinary manager changes do not trigger historian capability enumeration.
+        /// </summary>
+        [Test]
+        [Category("NodeManagerLifecycle")]
+        public async Task HistorianCapabilitiesAreNotRefreshedForManagersWithoutHistoriansAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            var observerProvider = new CapabilityReadProbeHistorianProvider();
+            NodeManagerRegistration observer = await m_server.NodeManagerLifecycle.AddAsync(
+                CreateHistorianRegistrationFactory(
+                    kModelNamespaceUri + ":HistorianCapabilityObserver",
+                    observerProvider),
+                timeout.Token).ConfigureAwait(false);
+            int readsAfterHistorianPublication = observerProvider.CapabilityReadCount;
+
+            Mock<IAsyncNodeManager> manager = CreateLifecycleNodeManager(
+                kModelNamespaceUri + ":NoHistorianCapabilities");
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory.SetupGet(value => value.NamespacesUris).Returns([kModelNamespaceUri + ":NoHistorianCapabilities"]);
+            factory.Setup(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(manager.Object);
+            NodeManagerRegistration ordinary = await m_server.NodeManagerLifecycle.AddAsync(
+                factory.Object,
+                timeout.Token).ConfigureAwait(false);
+            await RemoveAndRetireAsync(
+                m_server.NodeManagerLifecycle,
+                ordinary,
+                timeout.Token).ConfigureAwait(false);
+
+            Assert.That(observerProvider.CapabilityReadCount, Is.EqualTo(readsAfterHistorianPublication));
+            await RemoveAndRetireAsync(
+                m_server.NodeManagerLifecycle,
+                observer,
+                timeout.Token).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -6702,8 +6777,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 decisions++;
                 return default;
             });
-            commit.Setup(value => value.Publish())
-                .Callback(() => Assert.Fail("An unprepared candidate must not be published."));
+            commit.Setup(value => value.Publish(It.IsAny<bool>()))
+                .Callback<bool>(_ => Assert.Fail("An unprepared candidate must not be published."));
             var context = new NodeManagerPublicationPlan(
                 Candidates: [prepared],
                 Removed: [],
@@ -7340,9 +7415,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         .Returns<CancellationToken>(context.Commit.DecideAsync);
                     commit.Setup(value => value.CaptureCommittedReferences(It.IsAny<PublishedReferenceChanges>()))
                         .Callback<PublishedReferenceChanges>(context.Commit.CaptureCommittedReferences);
-                    commit.Setup(value => value.Publish()).Callback(() =>
+                    commit.Setup(value => value.Publish(It.IsAny<bool>())).Callback<bool>(historianChanged =>
                     {
-                        context.Commit.Publish();
+                        context.Commit.Publish(historianChanged);
                         throw failure;
                     });
                     return await publish(context with { Commit = commit.Object }).ConfigureAwait(false);
@@ -7438,9 +7513,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         commit.Setup(value => value.CaptureCommittedReferences(
                             It.IsAny<PublishedReferenceChanges>()))
                             .Callback<PublishedReferenceChanges>(context.Commit.CaptureCommittedReferences);
-                        commit.Setup(value => value.Publish()).Callback(() =>
+                        commit.Setup(value => value.Publish(It.IsAny<bool>())).Callback<bool>(historianChanged =>
                         {
-                            context.Commit.Publish();
+                            context.Commit.Publish(historianChanged);
                             throw failure;
                         });
                         return await batchHost.CommitBatchAsync(
@@ -8385,6 +8460,51 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     It.IsAny<CancellationToken>()))
                 .Returns(default(ValueTask));
             return nodeManager;
+        }
+
+        private static IAsyncNodeManagerFactory CreateHistorianRegistrationFactory(
+            string namespaceUri,
+            CapabilityReadProbeHistorianProvider provider)
+        {
+            var manager = CreateLifecycleNodeManager(namespaceUri);
+            Mock<INodeManagerReadinessNotification> readiness =
+                manager.As<INodeManagerReadinessNotification>();
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory.SetupGet(value => value.NamespacesUris).Returns([namespaceUri]);
+            factory.Setup(value => value.CreateAsync(
+                It.IsAny<IServerInternal>(),
+                It.IsAny<ApplicationConfiguration>(),
+                It.IsAny<CancellationToken>()))
+                .Returns((IServerInternal server, ApplicationConfiguration _, CancellationToken _) =>
+                {
+                    readiness.Setup(value => value.OnServerReadyAsync(It.IsAny<CancellationToken>()))
+                        .Returns((CancellationToken _) =>
+                        {
+                            ((IHistorianRegistryProvider)server).HistorianRegistry.RegisterDefault(provider);
+                            return default;
+                        });
+                    return new ValueTask<IAsyncNodeManager>(manager.Object);
+                });
+            return factory.Object;
+        }
+
+        private sealed class CapabilityReadProbeHistorianProvider : HistorianProviderBase
+        {
+            public int CapabilityReadCount => Volatile.Read(ref m_capabilityReadCount);
+
+            public override ValueTask<HistorianNodeCapabilities> GetCapabilitiesAsync(
+                NodeId nodeId,
+                CancellationToken ct)
+            {
+                ct.ThrowIfCancellationRequested();
+                if (nodeId.IsNull)
+                {
+                    Interlocked.Increment(ref m_capabilityReadCount);
+                }
+                return new ValueTask<HistorianNodeCapabilities>(HistorianNodeCapabilities.None);
+            }
+
+            private int m_capabilityReadCount;
         }
 
         private IAsyncNodeManagerFactory CreateNodeManagementFactory(

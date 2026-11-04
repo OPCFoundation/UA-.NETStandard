@@ -363,11 +363,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using NodeManagerRoutingTable.PreparedRoutes first = PrepareRoutingCandidate(table, firstCandidate);
             using NodeManagerRoutingTable.PreparedRoutes rejected = PrepareRoutingCandidate(table, rejectedCandidate);
             NodeManagerRoutingTable.RoutingSnapshot previous = table.Revision;
-            Assert.Throws<InvalidOperationException>(first.Publish);
+            Assert.Throws<InvalidOperationException>(() => first.Publish());
             first.Reserve();
             Assert.Throws<InvalidOperationException>(first.Reserve);
             Assert.Throws<InvalidOperationException>(rejected.Reserve);
-            Assert.Throws<InvalidOperationException>(rejected.Publish);
+            Assert.Throws<InvalidOperationException>(() => rejected.Publish());
             rejected.Dispose();
             rejected.Dispose();
             Assert.Throws<InvalidOperationException>(() => table.RegisterNamespace(9, writer));
@@ -397,7 +397,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             else
             {
-                Assert.Throws<InvalidOperationException>(first.Publish);
+                Assert.Throws<InvalidOperationException>(() => first.Publish());
             }
             Assert.That(table.Revision, Is.SameAs(afterWrite),
                 "Repeated publication or disposal must not replay a stale image over accepted later writes.");

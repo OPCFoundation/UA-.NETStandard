@@ -269,7 +269,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 var publisher = new AddressSpacePublisher(
                     routes, namespaces, serverUris, types, factory,
                     preparation.TypeTree, preparation.Factory, [prepared], [references],
-                    () =>
+                    historianRegistrationsChanged =>
                     {
                         callbackObservedCommittedView = !ReferenceEquals(table.Revision, before) &&
                             table.Revision.TryGetGeneration(manager.Object, out _);

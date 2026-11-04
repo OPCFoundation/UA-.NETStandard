@@ -520,9 +520,9 @@ namespace Opc.Ua.Server
                             factory,
                             candidates,
                             referenceUpdates,
-                            () =>
+                            historianRegistrationsChanged =>
                             {
-                                commit.Publish();
+                                commit.Publish(historianRegistrationsChanged);
                                 m_dynamicExternalReferences = nextReferences;
                                 TrackRetiringEventGenerations(retiringGenerations);
                                 foreach (PreparedNodeManager candidate in candidates)

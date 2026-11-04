@@ -520,7 +520,11 @@ namespace Opc.Ua.Server
 
                     CompleteReadinessClaim(
                         state,
-                        () => ChangePreparer.PublishHistorianRegistrations(state.Prepared.NodeManager));
+                        () =>
+                        {
+                            state.HistorianRegistrationsPublished =
+                                ChangePreparer.PublishHistorianRegistrations(state.Prepared.NodeManager);
+                        });
                 }
 
                 await LifecycleWaitDiagnostics.WaitAsync(
@@ -1759,6 +1763,11 @@ namespace Opc.Ua.Server
             public bool ReadinessInProgress { get; set; }
 
             /// <summary>
+            /// Gets or sets whether this generation published staged historian registrations.
+            /// </summary>
+            public bool HistorianRegistrationsPublished { get; set; }
+
+            /// <summary>
             /// Gets or sets the shared producer-stop attempt for this registration.
             /// </summary>
             public Task? ShutdownPreparation { get; set; }
@@ -2384,6 +2393,7 @@ namespace Opc.Ua.Server
                             GetCurrentState(registration, allowPendingReadiness: true), false))
                         .Concat(readinessStates);
                 }
+                bool historianRegistrationsChanged = lifecycleCommit.HistorianRegistrationsChanged;
                 foreach ((RegistrationState state, bool recoverSources) in readinessStates)
                 {
                     NodeManagerGeneration generation = state.Registration.Identity;
@@ -2407,6 +2417,15 @@ namespace Opc.Ua.Server
                             batch.Initial is not null ? cancellationToken : CancellationToken.None,
                             batch.Initial))
                         .ConfigureAwait(false);
+                    historianRegistrationsChanged |= state.HistorianRegistrationsPublished;
+                }
+                if (historianRegistrationsChanged)
+                {
+                    await reconciliation.RunAsync(
+                        NodeManagerReconciliationStage.HistorianCapabilities,
+                        candidateGenerations,
+                        () => batch.Server.DiagnosticsNodeManager.UpdateServerEventNotifierAsync(
+                            CancellationToken.None)).ConfigureAwait(false);
                 }
                 // Publication and readiness are complete. Reclamation owns its records and callbacks independently;
                 // this operation never reacquires the writer after handing them off.
@@ -2539,6 +2558,11 @@ namespace Opc.Ua.Server
             public bool ReadinessClaimed { get; private set; }
 
             /// <summary>
+            /// Gets whether routing publication retired historian registrations.
+            /// </summary>
+            public bool HistorianRegistrationsChanged { get; private set; }
+
+            /// <summary>
             /// Gets the committed reference changes retained if host reservation cleanup fails.
             /// </summary>
             public PublishedReferenceChanges? CommittedReferences { get; private set; }
@@ -2553,7 +2577,7 @@ namespace Opc.Ua.Server
             }
 
             /// <inheritdoc/>
-            public void Publish()
+            public void Publish(bool historianRegistrationsChanged)
             {
                 m_batch.Publication?.AdvanceRevision();
                 lock (m_owner.m_registrationLock)
@@ -2563,6 +2587,7 @@ namespace Opc.Ua.Server
                         return;
                     }
                     m_batch.IsCommitted = true;
+                    HistorianRegistrationsChanged = historianRegistrationsChanged;
                     m_owner.m_reclaimer.Enqueue(m_retired);
                     m_owner.m_registrations = m_registrations;
                     if (m_readinessClaims is { Count: > 0 })
