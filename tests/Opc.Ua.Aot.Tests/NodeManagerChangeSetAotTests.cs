@@ -70,7 +70,12 @@ namespace Opc.Ua.Aot.Tests
                 await using IPreparedChanges replacement = await writer.PrepareAsync(
                     [LifecycleChange.Replace(slot, CreateFactory(namespaceUri, includeCustomType: false))])
                     .ConfigureAwait(false);
-                replacement.SetMetadata(slot, new ChangeSetReadImage(replacement.Registrations[0].NodeManager));
+                if (!replacement.Registrations[0].TryGetNodeManager(out IAsyncNodeManager? replacementManager) ||
+                    replacementManager is null)
+                {
+                    throw new InvalidOperationException("The prepared replacement must retain its candidate manager.");
+                }
+                replacement.SetMetadata(slot, new ChangeSetReadImage(replacementManager));
                 int decisions = 0;
                 int publications = 0;
                 current = await replacement.CommitAsync(_ =>

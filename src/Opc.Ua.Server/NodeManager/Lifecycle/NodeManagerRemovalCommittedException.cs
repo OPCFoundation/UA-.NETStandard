@@ -59,6 +59,7 @@ namespace Opc.Ua.Server
         {
             Registration = registration ?? throw new ArgumentNullException(nameof(registration));
             Result = result ?? throw new ArgumentNullException(nameof(result));
+            CommittedResult = result.CommittedResult;
         }
 
         /// <summary>
@@ -71,8 +72,10 @@ namespace Opc.Ua.Server
             NodeManagerRegistration registration,
             LifecycleResult result,
             Exception innerException)
-            : this(registration, new NodeManagerBatchResult(result), innerException)
+            : base("The NodeManager was removed, but post-commit reconciliation failed.", innerException)
         {
+            Registration = registration ?? throw new ArgumentNullException(nameof(registration));
+            CommittedResult = result ?? throw new ArgumentNullException(nameof(result));
         }
 
         /// <summary>
@@ -81,11 +84,11 @@ namespace Opc.Ua.Server
         public NodeManagerRegistration Registration { get; }
 
         /// <summary>
-        /// Gets the committed result and retirement task.
+        /// Gets the legacy result view when one was supplied.
         /// </summary>
-        public NodeManagerBatchResult Result { get; }
+        public NodeManagerBatchResult? Result { get; }
 
         /// <inheritdoc/>
-        public LifecycleResult CommittedResult => Result.CommittedResult;
+        public LifecycleResult CommittedResult { get; }
     }
 }

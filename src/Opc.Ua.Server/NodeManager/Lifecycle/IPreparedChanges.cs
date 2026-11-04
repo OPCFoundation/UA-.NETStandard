@@ -103,9 +103,11 @@ namespace Opc.Ua.Server
         ArrayOf<NodeManagerSlot> Slots { get; }
 
         /// <summary>
-        /// Gets candidate generation handles in addition/replacement order, before they are live.
+        /// Gets candidate generation metadata in addition/replacement order, without retaining the NodeManagers.
+        /// <see cref="NodeManagerRegistrationSnapshot.TryGetNodeManager(out IAsyncNodeManager)"/> can acquire a
+        /// NodeManager only while another owner retains it.
         /// </summary>
-        ArrayOf<NodeManagerRegistration> Registrations { get; }
+        ArrayOf<NodeManagerRegistrationSnapshot> Registrations { get; }
 
         /// <summary>
         /// Gets whether this unit crossed the routing publication commit point.
@@ -271,6 +273,9 @@ namespace Opc.Ua.Server
                 }
                 return slot ?? throw new InvalidOperationException("A prepared change has no target slot.");
             }).ToArrayOf();
+            m_registrations = (prepared.Registrations.ToArray() ?? [])
+                .Select(static registration => new NodeManagerRegistrationSnapshot(registration))
+                .ToArrayOf();
         }
 
         /// <summary>
@@ -281,6 +286,9 @@ namespace Opc.Ua.Server
         internal PreparedLifecycleChanges(IPreparedNodeManagerBatch prepared, ArrayOf<INodeManagerReadImage> images)
         {
             m_prepared = prepared;
+            m_registrations = (prepared.Registrations.ToArray() ?? [])
+                .Select(static registration => new NodeManagerRegistrationSnapshot(registration))
+                .ToArrayOf();
             Slots = (images.ToArray() ?? [])
                 .Select(image => NodeManagerGenerationRegistry.GetOrCreate(image.Owner).Slot).ToArrayOf();
             m_metadataBound = true;
@@ -290,10 +298,28 @@ namespace Opc.Ua.Server
         public ArrayOf<NodeManagerSlot> Slots { get; }
 
         /// <inheritdoc/>
-        public ArrayOf<NodeManagerRegistration> Registrations => m_prepared.Registrations;
+        public ArrayOf<NodeManagerRegistrationSnapshot> Registrations
+        {
+            get
+            {
+                lock (m_state)
+                {
+                    return m_registrations;
+                }
+            }
+        }
 
         /// <inheritdoc/>
-        public bool IsCommitted => m_prepared.IsCommitted;
+        public bool IsCommitted
+        {
+            get
+            {
+                lock (m_state)
+                {
+                    return m_prepared is { } prepared ? prepared.IsCommitted : m_committed;
+                }
+            }
+        }
 
         /// <inheritdoc/>
         public void SetMetadata(INodeManagerReadImage metadata)
@@ -349,7 +375,7 @@ namespace Opc.Ua.Server
                     throw new InvalidOperationException("Metadata cannot be changed after binding or consumption.");
                 }
                 NodeManagerRegistration? candidate =
-                    (Registrations.ToArray() ?? []).FirstOrDefault(value => value.Slot == slot);
+                    (GetPrepared().Registrations.ToArray() ?? []).FirstOrDefault(value => value.Slot == slot);
                 bool validOwner = candidate is not null
                     ? ReferenceEquals(candidate.NodeManager, metadata.Owner)
                     : !Slots.Contains(slot) && slot.TryGetCurrent(out NodeManagerSlotSnapshot current) &&
@@ -386,10 +412,19 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public ValueTask DisposeAsync()
+        public async ValueTask DisposeAsync()
         {
             Seal();
-            return m_prepared.DisposeAsync();
+            IPreparedNodeManagerBatch? prepared;
+            lock (m_state)
+            {
+                prepared = m_prepared;
+            }
+            if (prepared is null)
+            {
+                return;
+            }
+            await ReleasePreparedAsync(prepared).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -418,7 +453,7 @@ namespace Opc.Ua.Server
                 m_consumed = true;
                 if (m_metadata.Count != 0)
                 {
-                    m_prepared.BindReadImages(m_metadata.Values.ToArrayOf());
+                    GetPrepared().BindReadImages(m_metadata.Values.ToArrayOf());
                 }
                 m_metadata.Clear();
             }
@@ -442,16 +477,57 @@ namespace Opc.Ua.Server
                 throw new InvalidOperationException("A validation candidate cannot be committed.");
             }
             ConsumeMetadata();
+            IPreparedNodeManagerBatch prepared = GetPrepared();
             decideAsync ??= static _ => default;
             NodeManagerBatchResult result = publishCommittedState is null
-                ? await m_prepared.CommitAsync(decideAsync, cancellationToken).ConfigureAwait(false)
-                : await m_prepared.CommitAsync(decideAsync, publishCommittedState, cancellationToken)
+                ? await prepared.CommitAsync(decideAsync, cancellationToken).ConfigureAwait(false)
+                : await prepared.CommitAsync(decideAsync, publishCommittedState, cancellationToken)
                     .ConfigureAwait(false);
+            await ReleasePreparedAsync(prepared).ConfigureAwait(false);
             return result.CommittedResult;
         }
 
-        /// <summary>The existing prepared lifetime owner.</summary>
-        private readonly IPreparedNodeManagerBatch m_prepared;
+        /// <summary>
+        /// Releases the provider while retaining its non-owning candidate metadata.
+        /// </summary>
+        /// <param name="prepared">The provider to release.</param>
+        private async ValueTask ReleasePreparedAsync(IPreparedNodeManagerBatch prepared)
+        {
+            await prepared.DisposeAsync().ConfigureAwait(false);
+            lock (m_state)
+            {
+                if (ReferenceEquals(m_prepared, prepared))
+                {
+                    m_registrations = (prepared.Registrations.ToArray() ?? [])
+                        .Select(static registration => new NodeManagerRegistrationSnapshot(registration))
+                        .ToArrayOf();
+                    m_committed = prepared.IsCommitted;
+                    m_prepared = null;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets the unpublished owner while this adapter has not completed disposal.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">The prepared changes have been disposed.</exception>
+        private IPreparedNodeManagerBatch GetPrepared()
+        {
+            lock (m_state)
+            {
+                return m_prepared ??
+                    throw new InvalidOperationException("The prepared changes have been disposed.");
+            }
+        }
+
+        /// <summary>The prepared lifetime owner until successful disposal.</summary>
+        private IPreparedNodeManagerBatch? m_prepared;
+
+        /// <summary>The candidate metadata retained after provider ownership is released.</summary>
+        private ArrayOf<NodeManagerRegistrationSnapshot> m_registrations;
+
+        /// <summary>Whether the disposed preparation crossed the publication commit point.</summary>
+        private bool m_committed;
 
         /// <summary>Serializes local metadata binding with consumption.</summary>
         private readonly Lock m_state = new();

@@ -160,6 +160,31 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Verifies that an admitted value still reaches a derived monitored item's virtual queue method.
+        /// </summary>
+        [Test]
+        public void QueueValueIfCurrentDispatchesThroughVirtualQueueValue()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var manager = new Mock<IAsyncNodeManager>();
+                using MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(
+                    server, [manager.Object]);
+                using var item = new QueueValueOverrideMonitoredItem(
+                    server.Object,
+                    manager.Object,
+                    new NodeHandle { NodeId = new NodeId(1, 1) });
+                using var context = new OperationContext(item);
+                var value = new DataValue(new Variant(555));
+
+                item.QueueValueIfCurrent(context, value, error: null);
+
+                Assert.That(item.QueueValueCalls, Is.EqualTo(1));
+            }
+        }
+
+        /// <summary>
         /// A slow consumer applies asynchronous backpressure before retaining thousands of large snapshots.
         /// </summary>
         [Test]
@@ -1658,6 +1683,103 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Verifies a queued event's source admission is released when delivering a different event is cancelled.
+        /// </summary>
+        [Test]
+        public async Task DifferentQueuedEventAdmissionIsReleasedWhenCurrentDeliveryFailsAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                server.Setup(value => value.Auditing).Returns(true);
+                var sessionMock = new Mock<ISession>();
+                sessionMock.Setup(value => value.EffectiveIdentity).Returns(new Mock<IUserIdentity>().Object);
+                sessionMock.Setup(value => value.EndpointDescription).Returns(new EndpointDescription
+                {
+                    SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                    TransportProfileUri = Profiles.HttpsBinaryTransport
+                });
+
+                var firstSessionEntered = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                using var releaseFirstSession = new ManualResetEventSlim();
+                int firstSessionReads = 0;
+                var firstItem = new Mock<IEventMonitoredItem>();
+                firstItem.Setup(value => value.Id).Returns(1u);
+                firstItem.Setup(value => value.Session).Returns(() =>
+                {
+                    if (Interlocked.Increment(ref firstSessionReads) == 1)
+                    {
+                        firstSessionEntered.TrySetResult(true);
+                        releaseFirstSession.Wait(TimeSpan.FromSeconds(30));
+                    }
+                    return sessionMock.Object;
+                });
+                Mock<IEventMonitoredItem> secondItem = CreateEventMonitoredItemMock(2u);
+                secondItem.Setup(value => value.Session).Returns(sessionMock.Object);
+
+                var deliveryStarted = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                var releaseDelivery = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                var nodeManager = new Mock<IAsyncNodeManager>();
+                nodeManager.Setup(value => value.ValidateEventRolePermissionsAsync(
+                        It.IsAny<IEventMonitoredItem>(),
+                        It.IsAny<IFilterTarget>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns(async (
+                        IEventMonitoredItem item,
+                        IFilterTarget _,
+                        CancellationToken cancellationToken) =>
+                    {
+                        if (item.Id == 1u)
+                        {
+                            deliveryStarted.TrySetResult(true);
+                            await releaseDelivery.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                        }
+                        return ServiceResult.Good;
+                    });
+                using MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(
+                    server, [nodeManager.Object]);
+                var node = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("AuditSource", 1),
+                    BrowseName = new QualifiedName("AuditSource", 1)
+                };
+                await using var monitored = new MonitoredNode2(
+                    nodeManager.Object, server.Object, node, enableMultipleEventConsumers: true);
+                monitored.Add(firstItem.Object);
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(nodeManager.Object);
+
+                try
+                {
+                    await monitored.OnReportEventAsync(
+                        server.Object.DefaultSystemContext, node, new AuditEventState(null)).ConfigureAwait(false);
+                    await firstSessionEntered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+
+                    monitored.Remove(firstItem.Object);
+                    monitored.Add(secondItem.Object);
+                    await monitored.OnReportEventAsync(
+                        server.Object.DefaultSystemContext, node, new AuditEventState(null)).ConfigureAwait(false);
+
+                    releaseFirstSession.Set();
+                    await deliveryStarted.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    Assert.That(generation.Gate.ActiveCount, Is.EqualTo(2));
+
+                    monitored.Dispose();
+                    await monitored.DrainAsync().ConfigureAwait(false);
+
+                    Assert.That(generation.Gate.ActiveCount, Is.Zero);
+                }
+                finally
+                {
+                    releaseFirstSession.Set();
+                    monitored.Dispose();
+                }
+            }
+        }
+
+        /// <summary>
         /// Verifies that multiple event monitored items registered on the same node all
         /// receive every event notification.
         /// </summary>
@@ -1987,6 +2109,46 @@ namespace Opc.Ua.Server.Tests
             eventItemMock.Setup(m => m.Session).Returns(sessionMock.Object);
 
             return eventItemMock;
+        }
+
+        private sealed class QueueValueOverrideMonitoredItem : MonitoredItem
+        {
+            public QueueValueOverrideMonitoredItem(
+                IServerInternal server,
+                IAsyncNodeManager nodeManager,
+                object managerHandle)
+                : base(
+                    server,
+                    nodeManager,
+                    managerHandle,
+                    1,
+                    2,
+                    new ReadValueId
+                    {
+                        NodeId = new NodeId(1, 1),
+                        AttributeId = Attributes.Value
+                    },
+                    DiagnosticsMasks.All,
+                    TimestampsToReturn.Both,
+                    MonitoringMode.Reporting,
+                    3,
+                    null,
+                    new MonitoringFilter(),
+                    null,
+                    0,
+                    10,
+                    true,
+                    0)
+            {
+            }
+
+            public int QueueValueCalls { get; private set; }
+
+            public override void QueueValue(in DataValue value, ServiceResult? error, bool ignoreFilters)
+            {
+                QueueValueCalls++;
+                base.QueueValue(in value, error, ignoreFilters);
+            }
         }
 
         private static Mock<IEventMonitoredItem> CreateEventMonitoredItemMockWithSession(

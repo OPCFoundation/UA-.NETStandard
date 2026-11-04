@@ -27,7 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
@@ -42,6 +44,178 @@ namespace Opc.Ua.Server.Tests.NodeManager
     [Parallelizable(ParallelScope.All)]
     public sealed class PreparedNodeManagerTests
     {
+        /// <summary>
+        /// A retained disposed adapter keeps its exposed facts but releases its unpublished provider.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DisposedChangesReleaseProviderAndPreserveCandidateFactsAsync(bool committed)
+        {
+            (IPreparedChanges changes,
+                WeakReference provider,
+                WeakReference<IAsyncNodeManager> candidate,
+                NodeManagerSlot slot,
+                Guid id,
+                long generation,
+                string[] namespaceUris) = await CreateDisposedChangesAsync(committed).ConfigureAwait(false);
+            try
+            {
+                CollectFully();
+                NodeManagerRegistrationSnapshot snapshot = changes.Registrations[0];
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(provider.IsAlive, Is.False);
+                    Assert.That(candidate.TryGetTarget(out _), Is.False);
+                    Assert.That(snapshot.TryGetNodeManager(out _), Is.False);
+                    Assert.That(snapshot.TryGetRegistration(out _), Is.False);
+                    Assert.That(changes.IsCommitted, Is.EqualTo(committed));
+                    Assert.That(changes.Registrations.Count, Is.EqualTo(1));
+                    Assert.That(snapshot.Slot, Is.SameAs(slot));
+                    Assert.That(snapshot.Id, Is.EqualTo(id));
+                    Assert.That(snapshot.Generation, Is.EqualTo(generation));
+                    Assert.That(snapshot.NamespaceUris.ToArray(), Is.EqualTo(namespaceUris));
+                    Assert.That(changes.Slots[0], Is.SameAs(slot));
+                    Assert.That(slot.TryGetCurrent(out _), Is.False);
+                }
+                await changes.DisposeAsync().ConfigureAwait(false);
+                Assert.That(changes.IsCommitted, Is.EqualTo(committed));
+                Assert.That(changes.Registrations[0].Slot, Is.SameAs(slot));
+                Assert.That(changes.Registrations[0].Id, Is.EqualTo(id));
+                Assert.That(changes.Registrations[0].Generation, Is.EqualTo(generation));
+                Assert.That(changes.Registrations[0].NamespaceUris.ToArray(), Is.EqualTo(namespaceUris));
+            }
+            finally
+            {
+                GC.KeepAlive(changes);
+            }
+        }
+
+        /// <summary>
+        /// Weak snapshot access succeeds only while a separate registration owns the candidate.
+        /// </summary>
+        [Test]
+        public async Task SnapshotReacquiresManagerAndRegistrationWhileIndependentOwnerRemainsAliveAsync()
+        {
+            (IPreparedChanges changes, NodeManagerRegistration owner, WeakReference provider) =
+                await CreateDisposedChangesWithIndependentOwnerAsync().ConfigureAwait(false);
+            CollectFully();
+
+            NodeManagerRegistrationSnapshot snapshot = changes.Registrations[0];
+            bool acquiredManager = snapshot.TryGetNodeManager(out IAsyncNodeManager? manager);
+            bool acquiredRegistration = snapshot.TryGetRegistration(out NodeManagerRegistration? registration);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(provider.IsAlive, Is.False);
+                Assert.That(acquiredManager, Is.True);
+                Assert.That(manager, Is.SameAs(owner.NodeManager));
+                Assert.That(acquiredRegistration, Is.True);
+                Assert.That(registration, Is.SameAs(owner));
+                Assert.That(registration!.NodeManager, Is.SameAs(owner.NodeManager));
+                Assert.That(registration.Id, Is.EqualTo(owner.Id));
+                Assert.That(registration.Generation, Is.EqualTo(owner.Generation));
+                Assert.That(snapshot.Slot, Is.SameAs(owner.Slot));
+            }
+            GC.KeepAlive(registration);
+            GC.KeepAlive(owner);
+            GC.KeepAlive(changes);
+        }
+
+        /// <summary>
+        /// Failed provider cleanup remains observable and retryable instead of dropping the outstanding owner.
+        /// </summary>
+        [Test]
+        public async Task FailedChangesDisposalRetainsProviderUntilRetryAsync()
+        {
+            var failure = new InvalidOperationException("The private provider cleanup failed.");
+            var provider = new Mock<IPreparedNodeManagerBatch>(MockBehavior.Strict);
+            provider.SetupGet(value => value.Registrations).Returns([]);
+            provider.SetupGet(value => value.IsCommitted).Returns(false);
+            provider.SetupSequence(value => value.DisposeAsync())
+                .Throws(failure)
+                .Returns(default(ValueTask));
+            var changes = new PreparedLifecycleChanges(provider.Object, ArrayOf<LifecycleChange>.Empty);
+            InvalidOperationException? observed = await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await changes.DisposeAsync().ConfigureAwait(false)).ConfigureAwait(false);
+            Assert.That(observed, Is.SameAs(failure));
+            Assert.That(changes.IsCommitted, Is.False);
+            await changes.DisposeAsync().ConfigureAwait(false);
+            await changes.DisposeAsync().ConfigureAwait(false);
+            provider.Verify(value => value.DisposeAsync(), Times.Exactly(2));
+            Assert.That(changes.Registrations.IsEmpty, Is.True);
+        }
+
+        /// <summary>
+        /// Separates provider construction and completed disposal from the collection assertion.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static async Task<(
+            IPreparedChanges Changes,
+            WeakReference Provider,
+            WeakReference<IAsyncNodeManager> Candidate,
+            NodeManagerSlot Slot,
+            Guid Id,
+            long Generation,
+            string[] NamespaceUris)> CreateDisposedChangesAsync(bool committed)
+        {
+            string[] namespaceUris = ["urn:opcua:tests:prepared-snapshot"];
+            var manager = new Mock<IAsyncNodeManager>(MockBehavior.Strict);
+            manager.SetupGet(value => value.NamespaceUris).Returns(namespaceUris);
+            var registration = new NodeManagerRegistration(Guid.NewGuid(), 1, manager.Object);
+            var provider = new Mock<IPreparedNodeManagerBatch>(MockBehavior.Strict);
+            provider.SetupGet(value => value.Registrations).Returns(new ArrayOf<NodeManagerRegistration>([registration]));
+            provider.SetupGet(value => value.IsCommitted).Returns(committed);
+            provider.Setup(value => value.DisposeAsync()).Returns(default(ValueTask));
+            var changes = new PreparedLifecycleChanges(
+                provider.Object, [LifecycleChange.Add(Mock.Of<IAsyncNodeManagerFactory>())]);
+            var providerReference = new WeakReference(provider.Object);
+            var candidateReference = new WeakReference<IAsyncNodeManager>(manager.Object);
+            registration.Slot.Unpublish(registration.Identity);
+            await changes.DisposeAsync().ConfigureAwait(false);
+            provider.Verify(value => value.DisposeAsync(), Times.Once);
+            return (
+                changes,
+                providerReference,
+                candidateReference,
+                registration.Slot,
+                registration.Id,
+                registration.Generation,
+                namespaceUris);
+        }
+
+        /// <summary>
+        /// Disposes the provider but deliberately leaves a separate registration as the candidate owner.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static async Task<(IPreparedChanges Changes, NodeManagerRegistration Owner, WeakReference Provider)>
+            CreateDisposedChangesWithIndependentOwnerAsync()
+        {
+            var manager = new Mock<IAsyncNodeManager>(MockBehavior.Strict);
+            manager.SetupGet(value => value.NamespaceUris).Returns(["urn:opcua:tests:prepared-owner"]);
+            var owner = new NodeManagerRegistration(Guid.NewGuid(), 1, manager.Object);
+            var provider = new Mock<IPreparedNodeManagerBatch>(MockBehavior.Strict);
+            provider.SetupGet(value => value.Registrations)
+                .Returns(new ArrayOf<NodeManagerRegistration>([owner]));
+            provider.SetupGet(value => value.IsCommitted).Returns(false);
+            provider.Setup(value => value.DisposeAsync()).Returns(default(ValueTask));
+            var changes = new PreparedLifecycleChanges(
+                provider.Object, [LifecycleChange.Add(Mock.Of<IAsyncNodeManagerFactory>())]);
+            var providerReference = new WeakReference(provider.Object);
+            await changes.DisposeAsync().ConfigureAwait(false);
+            provider.Verify(value => value.DisposeAsync(), Times.Once);
+            return (changes, owner, providerReference);
+        }
+
+        /// <summary>
+        /// Performs a full collection cycle without extending any target's lifetime.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void CollectFully()
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+        }
+
         /// <summary>
         /// Every required construction input is checked before candidate ownership is established.
         /// </summary>

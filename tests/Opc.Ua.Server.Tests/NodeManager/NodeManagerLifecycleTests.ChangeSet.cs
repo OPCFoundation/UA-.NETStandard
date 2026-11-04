@@ -29,6 +29,7 @@
 
 using System;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -181,9 +182,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(prepared.IsCommitted, Is.False);
                 Assert.That(RequireLifecycleValue(candidate).DisposeCount, Is.EqualTo(1));
                 Assert.That(lifecycle.Revision, Is.EqualTo(winner.Revision));
-                Assert.That((lifecycle.Registrations.ToArray() ?? [])
-                    .Single(value => value.Slot == added.Registrations[0].Slot),
-                    Is.SameAs(winner.Registrations[0]));
+                NodeManagerRegistration current = (lifecycle.Registrations.ToArray() ?? [])
+                    .Single(value => value.Slot == added.Registrations[0].Slot);
+                Assert.That(current.Slot, Is.SameAs(winner.Registrations[0].Slot));
+                Assert.That(current.Generation, Is.EqualTo(winner.Registrations[0].Generation));
             }
         }
 
@@ -221,7 +223,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             LifecycleResult added = await lifecycle.ApplyAsync(
                 [LifecycleChange.Add(CreateTrackingNodeManagementFactory(kGeneration1Value, _ => { }))],
                 timeout.Token).ConfigureAwait(false);
-            NodeManagerRegistration original = added.Registrations[0];
+            NodeManagerRegistration original = RequireRegistration(added.Registrations[0]);
             await using IPreparedChanges competing = await lifecycle.PrepareAsync(
                 [LifecycleChange.Replace(original.Slot,
                     CreateTrackingNodeManagementFactory(kGeneration2Value, _ => { }))], timeout.Token)
@@ -349,17 +351,20 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(publications, Is.EqualTo(2));
                 Assert.That(result.Revision, Is.EqualTo(lifecycle.Revision));
                 Assert.That((result.PublishedSlots.ToArray() ?? [])
-                    .Single(value => value.Slot == result.Registrations[0].Slot)
-                    .NodeManager, Is.SameAs(result.Registrations[0].NodeManager));
+                    .Single(value => value.Slot == result.Registrations[0].Slot),
+                    Is.EqualTo(new NodeManagerGenerationSnapshot(
+                        result.Registrations[0].Slot, result.Registrations[0].Generation)));
             }
-            var compatibilityResult = new NodeManagerBatchResult(result);
+            var compatibilityResult = new NodeManagerBatchResult(result, [], []);
+            NodeManagerRegistration committedRegistration = RequireRegistration(result.Registrations[0]);
             INodeManagerCommittedFailure[] shims =
             [
                 new NodeManagerAddCommittedException(
-                    result.Registrations[0], compatibilityResult, "add", originalFailure),
+                    committedRegistration, compatibilityResult, "add", originalFailure),
                 new NodeManagerReloadCommittedException(
-                    result.Registrations[0], compatibilityResult, "reload", originalFailure),
-                new NodeManagerRemovalCommittedException(result.Registrations[0], compatibilityResult, originalFailure)
+                    committedRegistration, compatibilityResult, "reload", originalFailure),
+                new NodeManagerRemovalCommittedException(
+                    committedRegistration, compatibilityResult, originalFailure)
             ];
             Assert.That(shims.All(shim => ReferenceEquals(shim.CommittedResult, result)), Is.True);
         }
@@ -483,7 +488,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await using IPreparedChanges prepared = await writer.PrepareAsync(
                 [LifecycleChange.Add(CreateTrackingNodeManagementFactory(kGeneration1Value, _ => { }))])
                 .ConfigureAwait(false);
-            NodeManagerRegistration candidate = prepared.Registrations[0];
+            NodeManagerRegistration candidate = RequireRegistration(prepared.Registrations[0]);
             var image = new Mock<INodeManagerReadImage>();
             image.SetupGet(value => value.Owner).Returns(candidate.NodeManager);
             var wrong = new Mock<INodeManagerReadImage>();
@@ -521,7 +526,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             LifecycleResult initial = await lifecycle.ApplyAsync(
                 [LifecycleChange.Add(CreateTrackingNodeManagementFactory(kGeneration1Value, _ => { }))])
                 .ConfigureAwait(false);
-            NodeManagerRegistration stable = initial.Registrations[0];
+            NodeManagerRegistration stable = RequireRegistration(initial.Registrations[0]);
             var stableImage = new Mock<INodeManagerReadImage>();
             stableImage.SetupGet(image => image.Owner).Returns(stable.NodeManager);
             await using ILifecycleWriter writer = await lifecycle.CaptureChanges().BeginAsync().ConfigureAwait(false);
@@ -530,7 +535,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 [LifecycleChange.Add(CreateTrackingNodeManagementFactory(
                     kSecondRegistrationValue, value => manager = value, kSecondModelNamespaceUri))])
                 .ConfigureAwait(false);
-            NodeManagerRegistration candidate = prepared.Registrations[0];
+            NodeManagerRegistration candidate = RequireRegistration(prepared.Registrations[0]);
             var candidateImage = new Mock<INodeManagerReadImage>();
             candidateImage.SetupGet(image => image.Owner).Returns(candidate.NodeManager);
             prepared.SetMetadata(stableImage.Object);
@@ -594,7 +599,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             LifecycleResult initial = await lifecycle.ApplyAsync(
                 [LifecycleChange.Add(CreateTrackingNodeManagementFactory(kGeneration1Value, _ => { }))])
                 .ConfigureAwait(false);
-            NodeManagerRegistration current = initial.Registrations[0];
+            NodeManagerRegistration current = RequireRegistration(initial.Registrations[0]);
             await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
                 [replace
                     ? LifecycleChange.Replace(current.Slot,
@@ -674,7 +679,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             LifecycleResult initial = await lifecycle.ApplyAsync(
                 [LifecycleChange.Add(CreateTrackingNodeManagementFactory(kGeneration1Value, _ => { }))])
                 .ConfigureAwait(false);
-            NodeManagerRegistration stable = initial.Registrations[0];
+            NodeManagerRegistration stable = RequireRegistration(initial.Registrations[0]);
             var image = new Mock<INodeManagerReadImage>();
             image.SetupGet(value => value.Owner).Returns(stable.NodeManager);
             await using ILifecycleWriter writer = await lifecycle.CaptureChanges().BeginAsync().ConfigureAwait(false);
@@ -872,7 +877,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             foreach ((Task retirement, NodeManagerRetirementStatus status) in cases)
             {
                 var result = new LifecycleResult([], 3, null, 42, [], retirement);
-                var compatibility = new NodeManagerBatchResult(result);
+                var compatibility = new NodeManagerBatchResult(result, [], []);
                 Assert.That(result.RetirementStatus, Is.EqualTo(status));
                 Assert.That(compatibility.RetirementStatus, Is.EqualTo(status));
                 Assert.That(compatibility.CommittedResult, Is.SameAs(result));
@@ -922,7 +927,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             LifecycleResult added = await lifecycle.ApplyAsync(
                 [LifecycleChange.Add(CreateTrackingNodeManagementFactory(kGeneration1Value, value => manager = value))])
                 .ConfigureAwait(false);
-            NodeManagerRegistration registration = added.Registrations[0];
+            NodeManagerRegistration registration = RequireRegistration(added.Registrations[0]);
             Assert.That(registration.Identity.Gate.TryEnter(out int stripe), Is.True);
             LifecycleResult removed;
             try
@@ -946,6 +951,163 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await removed.Retired.ConfigureAwait(false);
             Assert.That(removed.RetirementStatus, Is.EqualTo(NodeManagerRetirementStatus.Completed));
             Assert.That(RequireLifecycleValue(manager).DisposeCount, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// A legacy result retains its exact strong registration handle after publication ownership ends.
+        /// </summary>
+        [Test]
+        public async Task SlotChangeSetLegacyResultRetainsOriginalRegistrationHandleAsync()
+        {
+            (NodeManagerBatchResult result,
+                WeakReference<NodeManagerRegistration> registrationReference,
+                WeakReference<IAsyncNodeManager> managerReference) =
+                await CreateLegacyResultAfterRetirementAsync().ConfigureAwait(false);
+            CollectLifecycleOwnershipTargets();
+
+            bool registrationAvailable = registrationReference.TryGetTarget(out NodeManagerRegistration? original);
+            bool managerAvailable = managerReference.TryGetTarget(out IAsyncNodeManager? manager);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(result.Registrations.Count, Is.EqualTo(1));
+                Assert.That(registrationAvailable, Is.True);
+                Assert.That(result.Registrations[0], Is.SameAs(original));
+                Assert.That(managerAvailable, Is.True);
+                Assert.That(result.Registrations[0].NodeManager, Is.SameAs(manager));
+                Assert.That(original!.NodeManager, Is.SameAs(manager));
+            }
+            GC.KeepAlive(result);
+        }
+
+        /// <summary>
+        /// A modern result retains value metadata but not its weak registration or published manager.
+        /// </summary>
+        [Test]
+        public async Task SlotChangeSetLifecycleResultMetadataDoesNotRetainRegistrationOrPublishedManagerAsync()
+        {
+            (LifecycleResult result,
+                WeakReference<NodeManagerRegistration> registrationReference,
+                WeakReference<IAsyncNodeManager> managerReference,
+                NodeManagerSlot slot,
+                Guid id,
+                long generation,
+                string[] namespaceUris) =
+                await CreateModernResultAfterRetirementAsync().ConfigureAwait(false);
+            CollectLifecycleOwnershipTargets();
+
+            NodeManagerRegistrationSnapshot snapshot = result.Registrations[0];
+            bool registrationAvailable = registrationReference.TryGetTarget(out _);
+            bool managerAvailable = managerReference.TryGetTarget(out _);
+            bool snapshotManagerAvailable = snapshot.TryGetNodeManager(out _);
+            bool snapshotRegistrationAvailable = snapshot.TryGetRegistration(out _);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(registrationAvailable, Is.False);
+                Assert.That(managerAvailable, Is.False);
+                Assert.That(snapshotManagerAvailable, Is.False);
+                Assert.That(snapshotRegistrationAvailable, Is.False);
+                Assert.That(snapshot.Slot, Is.SameAs(slot));
+                Assert.That(snapshot.Id, Is.EqualTo(id));
+                Assert.That(snapshot.Generation, Is.EqualTo(generation));
+                Assert.That(snapshot.NamespaceUris.ToArray(), Is.EqualTo(namespaceUris));
+                Assert.That(result.Slots.Contains(slot), Is.True);
+                Assert.That(result.PublishedSlots.ToArray()!
+                    .Single(value => ReferenceEquals(value.Slot, slot)).Generation, Is.EqualTo(generation));
+                Assert.That(slot.TryGetCurrent(out _), Is.False);
+            }
+            GC.KeepAlive(result);
+        }
+
+        /// <summary>
+        /// Creates and retires a legacy publication, returning only its owning result and weak observations.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private async Task<(
+            NodeManagerBatchResult Result,
+            WeakReference<NodeManagerRegistration> Registration,
+            WeakReference<IAsyncNodeManager> Manager)> CreateLegacyResultAfterRetirementAsync()
+        {
+            INodeManagerBatchLifecycle lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            NodeManagerBatchResult result;
+            await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
+                    kGeneration1Value, _ => { }, kModelNamespaceUri))]).ConfigureAwait(false))
+            {
+                result = await prepared.CommitAsync(_ => default).ConfigureAwait(false);
+            }
+
+            NodeManagerRegistration? original = result.Registrations[0];
+            var registrationReference = new WeakReference<NodeManagerRegistration>(original);
+            var managerReference = new WeakReference<IAsyncNodeManager>(original.NodeManager);
+            await using (IPreparedNodeManagerBatch removal = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Remove(original)]).ConfigureAwait(false))
+            {
+                NodeManagerBatchResult retired = await removal.CommitAsync(_ => default).ConfigureAwait(false);
+                await retired.Retirement.ConfigureAwait(false);
+            }
+            original = null;
+            return (result, registrationReference, managerReference);
+        }
+
+        /// <summary>
+        /// Creates and retires a modern publication without returning any strong candidate handle.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private async Task<(
+            LifecycleResult Result,
+            WeakReference<NodeManagerRegistration> Registration,
+            WeakReference<IAsyncNodeManager> Manager,
+            NodeManagerSlot Slot,
+            Guid Id,
+            long Generation,
+            string[] NamespaceUris)> CreateModernResultAfterRetirementAsync()
+        {
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+            LifecycleResult result = await lifecycle.ApplyAsync(
+                [LifecycleChange.Add(CreateTrackingNodeManagementFactory(
+                    kGeneration1Value, _ => { }, kModelNamespaceUri))]).ConfigureAwait(false);
+            NodeManagerRegistrationSnapshot snapshot = result.Registrations[0];
+            if (!snapshot.TryGetNodeManager(out IAsyncNodeManager? manager) || manager is null ||
+                !snapshot.TryGetRegistration(out NodeManagerRegistration? registration) || registration is null)
+            {
+                throw new InvalidOperationException("The live lifecycle owner did not expose its candidate.");
+            }
+
+            var registrationReference = new WeakReference<NodeManagerRegistration>(registration);
+            var managerReference = new WeakReference<IAsyncNodeManager>(manager);
+            NodeManagerSlot slot = snapshot.Slot;
+            Guid id = snapshot.Id;
+            long generation = snapshot.Generation;
+            string[] namespaceUris = snapshot.NamespaceUris.ToArray() ?? [];
+
+            LifecycleResult removed = await lifecycle.ApplyAsync([LifecycleChange.Remove(slot)]).ConfigureAwait(false);
+            await removed.Retired.ConfigureAwait(false);
+            registration = null;
+            manager = null;
+            return (result, registrationReference, managerReference, slot, id, generation, namespaceUris);
+        }
+
+        /// <summary>
+        /// Reacquires a strong registration while the lifecycle still owns its NodeManager.
+        /// </summary>
+        private static NodeManagerRegistration RequireRegistration(NodeManagerRegistrationSnapshot snapshot)
+        {
+            if (snapshot.TryGetRegistration(out NodeManagerRegistration? registration) && registration is not null)
+            {
+                return registration;
+            }
+            throw new InvalidOperationException("The live lifecycle owner did not expose its registration.");
+        }
+
+        /// <summary>
+        /// Performs full collection cycles without extending observed targets' lifetimes.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void CollectLifecycleOwnershipTargets()
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
         }
     }
 }

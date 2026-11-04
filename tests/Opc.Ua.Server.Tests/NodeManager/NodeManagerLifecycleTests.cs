@@ -32,6 +32,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -340,7 +341,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// retryable.
         /// </summary>
         [Test]
-        public async Task CommittedReferenceHostFailureRetainsAdditionsAndObserversForRetryAsync()
+        public async Task CommittedReferenceHostBoundaryFailureRetainsAdditionsAndObserversForRetryAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             const string ownerUri = kModelNamespaceUri + ":ReferencePublicationRetryOwner";
@@ -7319,7 +7320,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// Injects a publication notification failure while preserving the real host's routing and cleanup.
+        /// Injects a failure from the publication callback or after publication completes.
         /// </summary>
         private static Func<NodeManagerPublicationPlan,
             Func<NodeManagerPublicationPlan, ValueTask<PublishedReferenceChanges?>>,
@@ -7327,6 +7328,46 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Func<bool> shouldFail,
             bool notifyBeforeFailure,
             Exception failure)
+        {
+            return async (context, publish) =>
+            {
+                bool fail = shouldFail();
+                if (fail && !notifyBeforeFailure)
+                {
+                    var commit = new Mock<INodeManagerPublicationCommit>();
+                    commit.SetupGet(value => value.HasDecision).Returns(() => context.Commit.HasDecision);
+                    commit.Setup(value => value.DecideAsync(It.IsAny<CancellationToken>()))
+                        .Returns<CancellationToken>(context.Commit.DecideAsync);
+                    commit.Setup(value => value.CaptureCommittedReferences(It.IsAny<PublishedReferenceChanges>()))
+                        .Callback<PublishedReferenceChanges>(context.Commit.CaptureCommittedReferences);
+                    commit.Setup(value => value.Publish()).Callback(() =>
+                    {
+                        context.Commit.Publish();
+                        throw failure;
+                    });
+                    return await publish(context with { Commit = commit.Object }).ConfigureAwait(false);
+                }
+
+                PublishedReferenceChanges? references = await publish(context).ConfigureAwait(false);
+                if (fail)
+                {
+                    throw failure;
+                }
+
+                return references;
+            };
+        }
+
+        /// <summary>
+        /// Injects a publication notification failure while preserving the real host's routing and cleanup.
+        /// </summary>
+        private static Mock<IMasterNodeManager> CreatePostSwapPublicationFailureHost(
+            IMasterNodeManager master,
+            Func<bool> shouldFail,
+            bool notifyBeforeFailure,
+            Exception failure,
+            Action? onAdmissionAttempt = null,
+            Action? onReferencePreparationAttempt = null)
         {
             var host = (IDynamicNodeManagerHost)master;
             var batchHost = (IDynamicNodeManagerBatchHost)master;
@@ -7368,13 +7409,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     NodeManagerRoutingTable.RoutingSnapshot, CancellationToken, NodeManagerCallbackPermit?>(
                     (candidates, removed, view, token, callbackPermit) =>
                     {
-                        context.Commit.Publish();
-                        throw failure;
+                        ValueTask<PreparedAddressSpaceReferences> preparation =
+                            batchHost.PrepareReferencesAsync(candidates, removed, view, token, callbackPermit);
+                        onReferencePreparationAttempt?.Invoke();
+                        return preparation;
                     });
-                    return await publish(context with { Commit = commit.Object }).ConfigureAwait(false);
-                }
-                PublishedReferenceChanges? references = await publish(context).ConfigureAwait(false);
-                if (fail)
+            batchProxy.Setup(value => value.AcquireCommitAdmissionAsync(
+                It.IsAny<NodeManagerCallbackPermit?>(), It.IsAny<CancellationToken>()))
+                .Returns<NodeManagerCallbackPermit?, CancellationToken>((callbackPermit, token) =>
                 {
                     ValueTask<INodeManagerBatchAdmission> admission =
                         batchHost.AcquireCommitAdmissionAsync(callbackPermit, token);
@@ -7393,6 +7435,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         commit.SetupGet(value => value.HasDecision).Returns(() => context.Commit.HasDecision);
                         commit.Setup(value => value.DecideAsync(It.IsAny<CancellationToken>()))
                             .Returns<CancellationToken>(context.Commit.DecideAsync);
+                        commit.Setup(value => value.CaptureCommittedReferences(
+                            It.IsAny<PublishedReferenceChanges>()))
+                            .Callback<PublishedReferenceChanges>(context.Commit.CaptureCommittedReferences);
                         commit.Setup(value => value.Publish()).Callback(() =>
                         {
                             context.Commit.Publish();

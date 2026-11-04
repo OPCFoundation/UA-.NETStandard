@@ -403,6 +403,9 @@ namespace Opc.Ua.Server.Tests
             /// </summary>
             private int m_registrationCalls;
 
+            /// <summary>Counts online announcements separately from shutdown's offline registration.</summary>
+            private int m_onlineRegistrationCalls;
+
             /// <summary>
             /// Retains the application server while its startup readiness callback is pending.
             /// </summary>

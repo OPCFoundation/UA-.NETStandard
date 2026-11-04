@@ -181,7 +181,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
             await using var preparedLifetime = prepared.ConfigureAwait(false);
             LifecycleResult result = await prepared
                 .CommitAsync(static _ => default, cancellationToken).ConfigureAwait(false);
-            m_registration = result.Registrations[0];
+            if (!result.Registrations[0].TryGetRegistration(out NodeManagerRegistration? registration) ||
+                registration is null)
+            {
+                throw new InvalidOperationException("The committed projection-view registration is no longer available.");
+            }
+            m_registration = registration;
             m_manager = factory.Created ?? throw new InvalidOperationException(
                 "The projection-view NodeManager factory did not create a NodeManager.");
             if (result.CleanupFailure is { } failure)

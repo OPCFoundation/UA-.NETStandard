@@ -1182,6 +1182,7 @@ namespace Opc.Ua.Server
             Debug.Assert(context != null);
             Debug.Assert(cp != null);
 
+            NodeManagerGenerationReference? generation = cp.Generation;
             ContinuationPoint? currentCp = cp;
             bool saved = false;
             try
@@ -1201,7 +1202,7 @@ namespace Opc.Ua.Server
                     }
                     if (currentCp is not null)
                     {
-                        currentCp.Generation = cp.Generation;
+                        currentCp.Generation = generation;
                     }
 
                     var referencesToKeep = new List<ReferenceDescription>(referenceList.Count);

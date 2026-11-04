@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -39,6 +40,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
 {
     public sealed partial class NodeManagerLifecycleTests
     {
+        /// <summary>
+        /// Gets the routing table owned by the supplied master node manager.
+        /// </summary>
+        private static NodeManagerRoutingTable GetRoutingTable(MasterNodeManager master)
+        {
+            FieldInfo field = typeof(MasterNodeManager).GetField(
+                "m_nodeManagers",
+                BindingFlags.Instance | BindingFlags.NonPublic) ??
+                throw new AssertionException("The master routing table field was not found.");
+            return (NodeManagerRoutingTable)(field.GetValue(master) ??
+                throw new AssertionException("The master routing table was not initialized."));
+        }
+
         private static T RequireLifecycleValue<T>([NotNull] T? value)
             where T : class
         {

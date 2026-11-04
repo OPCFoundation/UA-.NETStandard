@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -376,14 +377,14 @@ namespace Opc.Ua.Server
         /// <param name="publishedSlots">The generation snapshots captured at publication.</param>
         /// <param name="reconciliation">The non-owning reconciliation status ticket.</param>
         internal LifecycleResult(
-            ArrayOf<NodeManagerRegistration> registrations,
+            ArrayOf<NodeManagerRegistrationSnapshot> registrations,
             uint retired,
             Exception? cleanupFailure,
             long revision,
             NodeManagerSlot[] slots,
             Task retirement,
             GenerationReconciler.Reconciliation? reconciliation = null,
-            ArrayOf<NodeManagerSlotSnapshot> publishedSlots = default)
+            ArrayOf<NodeManagerGenerationSnapshot> publishedSlots = default)
         {
             Registrations = registrations;
             RetiredCount = retired;
@@ -396,9 +397,9 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Gets the exact committed additions and replacements.
+        /// Gets metadata for the exact committed additions and replacements without retaining their NodeManagers.
         /// </summary>
-        public ArrayOf<NodeManagerRegistration> Registrations { get; }
+        public ArrayOf<NodeManagerRegistrationSnapshot> Registrations { get; }
 
         /// <summary>
         /// Gets the number of old generations whose cleanup completed before this result was created.
@@ -422,10 +423,11 @@ namespace Opc.Ua.Server
         public ArrayOf<NodeManagerSlot> Slots { get; }
 
         /// <summary>
-        /// Gets the application slot generations at this result's revision. Unlike a slot's current value,
-        /// these snapshots do not advance when a reconciliation callback publishes a nested change.
+        /// Gets the application slot generations at this result's revision without retaining their NodeManagers.
+        /// Unlike a slot's current value, these snapshots do not advance when a reconciliation callback publishes a
+        /// nested change.
         /// </summary>
-        public ArrayOf<NodeManagerSlotSnapshot> PublishedSlots { get; }
+        public ArrayOf<NodeManagerGenerationSnapshot> PublishedSlots { get; }
 
         /// <summary>
         /// Gets a task that completes after every generation retired by this batch has been cleaned up, including
@@ -469,7 +471,7 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// Compatibility view over the authoritative lifecycle result.
+    /// Compatibility view that retains strong registration handles for legacy callers.
     /// </summary>
     public sealed class NodeManagerBatchResult
     {
@@ -515,18 +517,40 @@ namespace Opc.Ua.Server
             Task retirement,
             GenerationReconciler.Reconciliation? reconciliation,
             ArrayOf<NodeManagerSlotSnapshot> publishedSlots)
-            : this(new LifecycleResult(
-                registrations, retired, cleanupFailure, revision, slots, retirement, reconciliation, publishedSlots))
+            : this(
+                new LifecycleResult(
+                    (registrations.ToArray() ?? [])
+                        .Select(static registration => new NodeManagerRegistrationSnapshot(registration))
+                        .ToArrayOf(),
+                    retired,
+                    cleanupFailure,
+                    revision,
+                    slots,
+                    retirement,
+                    reconciliation,
+                    (publishedSlots.ToArray() ?? [])
+                        .Select(static snapshot =>
+                            new NodeManagerGenerationSnapshot(snapshot.Slot, snapshot.Generation))
+                        .ToArrayOf()),
+                registrations,
+                publishedSlots)
         {
         }
 
         /// <summary>
-        /// Creates a compatibility view without copying committed facts or checkpoint ownership.
+        /// Creates a compatibility view for a modern result when the legacy registration handles are available.
         /// </summary>
         /// <param name="result">The authoritative result.</param>
-        internal NodeManagerBatchResult(LifecycleResult result)
+        /// <param name="registrations">The legacy registration handles to retain.</param>
+        /// <param name="publishedSlots">The legacy generation snapshots to retain.</param>
+        internal NodeManagerBatchResult(
+            LifecycleResult result,
+            ArrayOf<NodeManagerRegistration> registrations,
+            ArrayOf<NodeManagerSlotSnapshot> publishedSlots)
         {
             CommittedResult = result ?? throw new ArgumentNullException(nameof(result));
+            Registrations = registrations;
+            PublishedSlots = publishedSlots;
         }
 
         /// <summary>
@@ -535,9 +559,9 @@ namespace Opc.Ua.Server
         public LifecycleResult CommittedResult { get; }
 
         /// <summary>
-        /// Gets the committed candidate registrations.
+        /// Gets the committed candidate registrations as strong legacy handles.
         /// </summary>
-        public ArrayOf<NodeManagerRegistration> Registrations => CommittedResult.Registrations;
+        public ArrayOf<NodeManagerRegistration> Registrations { get; }
 
         /// <summary>
         /// Gets the number physically retired before this result was created.
@@ -562,7 +586,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets the generation snapshots at publication.
         /// </summary>
-        public ArrayOf<NodeManagerSlotSnapshot> PublishedSlots => CommittedResult.PublishedSlots;
+        public ArrayOf<NodeManagerSlotSnapshot> PublishedSlots { get; }
 
         /// <summary>
         /// Gets the independent physical retirement task.

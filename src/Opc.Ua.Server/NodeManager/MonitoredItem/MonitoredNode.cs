@@ -901,6 +901,11 @@ namespace Opc.Ua.Server
                 }
                 return different;
             }
+            catch
+            {
+                different?.SourceEmission?.Dispose();
+                throw;
+            }
             finally
             {
                 if (batchedEmissions is not null)

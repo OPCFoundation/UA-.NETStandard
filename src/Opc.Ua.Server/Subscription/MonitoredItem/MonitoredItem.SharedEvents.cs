@@ -161,6 +161,17 @@ namespace Opc.Ua.Server
         /// This item's source admission, carried through virtual queue calls while its lock is held.
         /// </summary>
         private NodeManagerGeneration? m_admittedSourceGeneration;
+
+        /// <summary>
+        /// This item's source-emission admission, carried through virtual value queue calls while its lock is held.
+        /// </summary>
+        private MasterNodeManager.SourceEmissionAdmission? m_admittedSourceEmission;
+
+        /// <summary>
+        /// Indicates that the current virtual value queue call carries an initial value.
+        /// </summary>
+        private bool m_admittedInitialValue;
+
         private SharedEventFilterKey? m_sharedEventFilterKey;
 
         /// <summary>

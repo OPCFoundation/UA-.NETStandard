@@ -149,15 +149,27 @@ namespace Opc.Ua.WotCon.Server.Materialization
             PreparedChanges candidate, IWotPreparedViewPublication? views, IPreparedChanges batch,
             ILifecycleWriter? ownedWriter = null)
         {
+            NodeManagerRegistration[] registrations = (batch.Registrations.ToArray() ?? [])
+                .Select(snapshot =>
+                {
+                    if (!snapshot.TryGetRegistration(out NodeManagerRegistration? registration) ||
+                        registration is null)
+                    {
+                        throw new InvalidOperationException(
+                            "A prepared NodeManager registration is no longer available.");
+                    }
+                    return registration;
+                })
+                .ToArray();
             var handles = new List<WotProjectionHandle>(candidate.Documents.Count);
             for (int i = 0; i < candidate.Documents.Count; i++)
             {
-                NodeManagerRegistration registration = batch.Registrations[i];
+                NodeManagerRegistration registration = registrations[i];
                 handles.Add(new WotProjectionHandle(
                     candidate.Documents[i].ClosureKey, registration.Generation,
                     new NodeManagerProjectionRegistration(registration), [], 0));
             }
-            WotPreparedViewGraphState? graph = BindPreparedViews(candidate, views, batch.Registrations);
+            WotPreparedViewGraphState? graph = BindPreparedViews(candidate, views, registrations.ToArrayOf());
             return new PreparedPublication(
                 batch, handles.ToArrayOf(), graph, candidate.RuntimePublications,
                 candidate.SourceImage?.NamespaceUris, ownedWriter);

@@ -143,6 +143,51 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Verifies that a replacement continuation keeps its issuing generation after the original is disposed.
+        /// </summary>
+        [Test]
+        public async Task ReplacedContinuationRetainsIssuingGenerationAfterOriginalDisposedAsync()
+        {
+            using var harness = new BrowseHarness();
+            var originalResource = new Mock<IDisposable>();
+            var replacementResource = new Mock<IDisposable>();
+            ContinuationPoint original = harness.AddPoint(originalResource);
+            ContinuationPoint replacement = harness.NewPoint(replacementResource);
+            NodeManagerGenerationReference? generation = original.Generation;
+
+            harness.Manager.Setup(value => value.BrowseAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<ContinuationPoint>(),
+                    It.IsAny<IList<ReferenceDescription>>(), It.IsAny<CancellationToken>()))
+                .Returns((OperationContext _, ContinuationPoint current, IList<ReferenceDescription> references,
+                    CancellationToken _) =>
+                {
+                    references.Add(new ReferenceDescription { NodeId = harness.Metadata.NodeId });
+                    if (ReferenceEquals(current, original))
+                    {
+                        current.Dispose();
+                        return new ValueTask<ContinuationPoint?>(replacement);
+                    }
+                    return new ValueTask<ContinuationPoint?>((ContinuationPoint?)null);
+                });
+
+            (ArrayOf<BrowseResult> first, _) = await harness.Master.BrowseNextAsync(
+                harness.Context, false, [Token(original)]).ConfigureAwait(false);
+
+            Assert.That(first[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(first[0].ContinuationPoint.IsEmpty, Is.False);
+            Assert.That(replacement.Generation, Is.SameAs(generation));
+
+            (ArrayOf<BrowseResult> second, _) = await harness.Master.BrowseNextAsync(
+                harness.Context, false, [first[0].ContinuationPoint]).ConfigureAwait(false);
+
+            Assert.That(second[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(second[0].ContinuationPoint.IsEmpty, Is.True);
+            Assert.That(second[0].References, Has.Count.EqualTo(1));
+            originalResource.Verify(value => value.Dispose(), Times.Once);
+            replacementResource.Verify(value => value.Dispose(), Times.Once);
+        }
+
+        /// <summary>
         /// Verifies that a returned continuation retains its resource until the client explicitly releases it.
         /// </summary>
         [Test]

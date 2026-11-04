@@ -1060,6 +1060,10 @@ namespace Opc.Ua.Server
         private int m_routingPinSlot = -1;
         private int m_routingPinState;
         private RoutingCohort? m_routingCohort;
+
+        /// <summary>The construction-bound null-cohort routing checkpoint.</summary>
+        private readonly Action? m_beforeRoutingBootstrap;
+
         private SystemContextCache? m_systemContextCache;
         private NamespaceDefaultPermissions[]? m_defaultPermissions;
         private bool m_defaultPermissionCacheDisabled;

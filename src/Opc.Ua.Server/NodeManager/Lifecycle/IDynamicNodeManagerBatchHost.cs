@@ -150,6 +150,12 @@ namespace Opc.Ua.Server
         /// Installs committed registration and retirement bookkeeping at the routing swap.
         /// </summary>
         void Publish();
+
+        /// <summary>
+        /// Takes ownership of committed reference reconciliation before host reservations are released.
+        /// </summary>
+        /// <param name="references">The reference changes installed by publication.</param>
+        void CaptureCommittedReferences(PublishedReferenceChanges references);
     }
 
     /// <summary>

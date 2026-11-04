@@ -180,12 +180,16 @@ namespace Opc.Ua.WotCon.Server.Materialization
             IPreparedChanges prepared =
                 await writer.PrepareAsync([change], cancellationToken).ConfigureAwait(false);
             await using var preparedLifetime = prepared.ConfigureAwait(false);
-            NodeManagerRegistration candidate = prepared.Registrations[0];
+            NodeManagerRegistrationSnapshot candidate = prepared.Registrations[0];
             LifecycleResult result = await prepared.CommitAsync(
                 static _ => default,
                 () => publication.Publish(candidate.Generation),
                 cancellationToken).ConfigureAwait(false);
-            NodeManagerRegistration registration = result.Registrations[0];
+            if (!result.Registrations[0].TryGetRegistration(out NodeManagerRegistration? registration) ||
+                registration is null)
+            {
+                throw new InvalidOperationException("The committed WoT projection registration is no longer available.");
+            }
             string warning = string.Empty;
             if (result.CleanupFailure is { } failure)
             {

@@ -1635,7 +1635,12 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException"></exception>
         public virtual void QueueValue(in DataValue value, ServiceResult? error, bool ignoreFilters)
         {
-            QueueValueCore(in value, error, ignoreFilters, initialValue: false);
+            QueueValueCore(
+                in value,
+                error,
+                ignoreFilters,
+                initialValue: TakeAdmittedInitialValue(),
+                sourceEmission: TakeAdmittedSourceEmission());
         }
 
         /// <summary>
@@ -1722,21 +1727,56 @@ namespace Opc.Ua.Server
                     m_notificationSession = session;
                     m_notificationAuthorization = context.NotificationAuthorization;
                 }
-                if (initialValue)
-                {
-                    QueueValueCore(
-                        value, error, ignoreFilters, initialValue: true, sourceEmission);
-                }
-                else
-                {
-                    QueueValueCore(
-                        value, error, ignoreFilters, initialValue: false, sourceEmission);
-                }
+                QueueAdmittedValue(value, error, ignoreFilters, initialValue, sourceEmission);
                 if (!NotificationAuthorization.IsCurrent(session, context.NotificationAuthorization))
                 {
                     ClearQueuedNotifications();
                 }
             }
+        }
+
+        private void QueueAdmittedValue(
+            in DataValue value,
+            ServiceResult? error,
+            bool ignoreFilters,
+            bool initialValue,
+            MasterNodeManager.SourceEmissionAdmission? sourceEmission)
+        {
+            MasterNodeManager.SourceEmissionAdmission? previous = m_admittedSourceEmission;
+            bool previousInitialValue = m_admittedInitialValue;
+            m_admittedSourceEmission = sourceEmission;
+            m_admittedInitialValue = initialValue;
+            try
+            {
+                QueueValue(in value, error, ignoreFilters);
+            }
+            finally
+            {
+                m_admittedSourceEmission = previous;
+                m_admittedInitialValue = previousInitialValue;
+            }
+        }
+
+        private bool TakeAdmittedInitialValue()
+        {
+            if (!m_lock.IsHeldByCurrentThread)
+            {
+                return false;
+            }
+            bool admitted = m_admittedInitialValue;
+            m_admittedInitialValue = false;
+            return admitted;
+        }
+
+        private MasterNodeManager.SourceEmissionAdmission? TakeAdmittedSourceEmission()
+        {
+            if (!m_lock.IsHeldByCurrentThread)
+            {
+                return null;
+            }
+            MasterNodeManager.SourceEmissionAdmission? admitted = m_admittedSourceEmission;
+            m_admittedSourceEmission = null;
+            return admitted;
         }
 
         /// <summary>

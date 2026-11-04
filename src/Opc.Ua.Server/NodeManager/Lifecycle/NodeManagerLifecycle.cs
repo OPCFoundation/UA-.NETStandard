@@ -2538,6 +2538,11 @@ namespace Opc.Ua.Server
             /// </summary>
             public bool ReadinessClaimed { get; private set; }
 
+            /// <summary>
+            /// Gets the committed reference changes retained if host reservation cleanup fails.
+            /// </summary>
+            public PublishedReferenceChanges? CommittedReferences { get; private set; }
+
             /// <inheritdoc/>
             public ValueTask DecideAsync(CancellationToken cancellationToken)
             {
@@ -2596,6 +2601,22 @@ namespace Opc.Ua.Server
                     m_owner.m_server.ComplexTypeResolverHolder?.SetResolver(m_batch.Resolver);
                 }
                 m_reconciler.SupersedeReconciliations();
+            }
+
+            /// <inheritdoc/>
+            public void CaptureCommittedReferences(PublishedReferenceChanges references)
+            {
+                if (!m_batch.IsCommitted)
+                {
+                    throw new InvalidOperationException(
+                        "Reference reconciliation requires a committed publication.");
+                }
+                if (CommittedReferences is not null)
+                {
+                    throw new InvalidOperationException(
+                        "Reference reconciliation is already owned by this publication.");
+                }
+                CommittedReferences = references ?? throw new ArgumentNullException(nameof(references));
             }
 
             /// <summary>The registration owner.</summary>

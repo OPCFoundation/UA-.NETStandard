@@ -87,8 +87,9 @@ namespace Opc.Ua.Server
             LifecycleResult result,
             string message,
             Exception innerException)
-            : this(registration, new NodeManagerBatchResult(result), message, innerException)
+            : this(registration, message, innerException)
         {
+            m_committedResult = result ?? throw new ArgumentNullException(nameof(result));
         }
 
         /// <summary>
@@ -97,11 +98,13 @@ namespace Opc.Ua.Server
         public NodeManagerRegistration Registration { get; }
 
         /// <summary>
-        /// Gets the committed transaction, or null for exceptions constructed with the legacy constructor.
+        /// Gets the legacy transaction view when one was supplied.
         /// </summary>
         public NodeManagerBatchResult? Result { get; }
 
         /// <inheritdoc/>
-        public LifecycleResult? CommittedResult => Result?.CommittedResult;
+        public LifecycleResult? CommittedResult => m_committedResult ?? Result?.CommittedResult;
+
+        private readonly LifecycleResult? m_committedResult;
     }
 }

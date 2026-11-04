@@ -1188,10 +1188,24 @@ The decision callback runs once and cannot re-enter lifecycle mutation.
 If its external outcome is uncertain, resolve that uncertainty before starting
 another transaction.
 
+Dispose a committed prepared unit as well, normally through `await using`. A
+successful commit or disposal releases the underlying provider while preserving
+the candidate metadata, `Slots` and `IsCommitted` facts. If provider cleanup
+throws, the adapter reports the failure and retains the provider for a later
+disposal attempt.
+
+`LifecycleResult.Registrations` and `PublishedSlots` contain non-owning
+snapshots. They retain slot identity and generation metadata, not historical
+NodeManagers. `NodeManagerRegistrationSnapshot.TryGetNodeManager` can obtain a
+manager only while another owner retains it; callers that need a durable
+registration handle must retain one explicitly. The legacy
+`NodeManagerBatchResult` continues to expose strong registration and slot
+snapshots during the compatibility period.
+
 The routing swap commits the transaction. A later callback failure cannot
 abort it. Retain `LifecycleResult` and retry unfinished
 [reconciliation](#retrying-committed-reconciliation), not the change set.
-`PublishedSlots` retains exact generation snapshots for that publication;
+`PublishedSlots` records the exact generations in that publication;
 `Slots` contains stable handles whose current contents can change later.
 `Retired` completes independently after retired generations drain and cleanup
 finishes. `RetirementStatus` distinguishes pending, completed,
@@ -1216,19 +1230,23 @@ revision change makes the writer stale, so preparation fails before factories ru
 
 For a dry run, call `writer.ValidateAsync(changes, inspectAsync, ct)`. The
 inspection callback receives a noncommittable `IPreparedChanges`: it can inspect
-candidate registrations and bind metadata. The lifecycle validates the resulting
-routing and reference image, then disposes candidates even if inspection or
-validation fails. Validation does not publish namespaces, run readiness or
-advance the writer's evidence. Preparing and disposing an ordinary unit does
-not perform this validation.
+candidate registration snapshots and bind metadata. The lifecycle validates the
+resulting routing and reference image, then disposes candidates even if
+inspection or validation fails. Validation does not publish namespaces, run
+readiness or advance the writer's evidence. Preparing and disposing an ordinary
+unit does not perform this validation.
 
 #### Publishing typed metadata
 
 Bind immutable `INodeManagerReadImage` metadata before consuming the prepared unit:
 
 ```csharp
-NodeManagerRegistration candidate = prepared.Registrations[0];
-INodeManagerReadImage image = application.CreateReadImage(candidate.NodeManager);
+NodeManagerRegistrationSnapshot candidate = prepared.Registrations[0];
+if (!candidate.TryGetNodeManager(out IAsyncNodeManager? manager) || manager is null)
+{
+    throw new InvalidOperationException("The prepared candidate is no longer available.");
+}
+INodeManagerReadImage image = application.CreateReadImage(manager);
 prepared.SetMetadata(candidate.Slot, image);
 ```
 

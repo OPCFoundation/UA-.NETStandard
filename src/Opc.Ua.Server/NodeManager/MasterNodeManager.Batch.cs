@@ -366,7 +366,25 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="context">The prepared batch and its atomic lifecycle bookkeeping.</param>
         /// <returns>Reference reconciliation owned independently of the publication reservation.</returns>
-        async ValueTask<PublishedReferenceChanges?> IDynamicNodeManagerBatchHost.CommitBatchAsync(
+        ValueTask<PublishedReferenceChanges?> IDynamicNodeManagerBatchHost.CommitBatchAsync(
+            NodeManagerPublicationPlan context)
+        {
+            if (context is null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            return m_hostBoundary is { } hostBoundary
+                ? hostBoundary.CommitBatchAsync(context, CommitBatchCoreAsync)
+                : CommitBatchCoreAsync(context);
+        }
+
+        /// <summary>
+        /// Commits a prepared batch through the master NodeManager host.
+        /// </summary>
+        /// <param name="context">The prepared batch and its atomic bookkeeping.</param>
+        /// <returns>The committed reference changes, when publication occurs.</returns>
+        private async ValueTask<PublishedReferenceChanges?> CommitBatchCoreAsync(
             NodeManagerPublicationPlan context)
         {
             if (context is null)
@@ -543,6 +561,7 @@ namespace Opc.Ua.Server
                             m_nodeManagers.Select(manager => m_nodeManagers.GetGeneration(manager)).ToArray();
                         committedReferences = new PublishedReferenceChanges(
                             candidates, publishedOwners, referenceAdditions, referenceOwners);
+                        context.Commit.CaptureCommittedReferences(committedReferences);
                         context.CaptureCommittedReferences(committedReferences);
                         // Callbacks may mutate the committed image after internal publication bookkeeping.
                         namespaces.Dispose();
