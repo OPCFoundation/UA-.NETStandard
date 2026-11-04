@@ -134,7 +134,8 @@ $RunnerArchitectures = @{
     macos   = 'arm64'
 }
 
-$LatestSdk = '10.0.402'
+$LatestSdk = (Get-Content -LiteralPath (Join-Path $RepositoryRoot 'global.json') -Raw |
+    ConvertFrom-Json).sdk.version
 
 # The category filter the fast legs use. Tiers that lift it declare so below.
 $DefaultFilter = 'TestCategory!=LongRunning&TestCategory!=Stress'

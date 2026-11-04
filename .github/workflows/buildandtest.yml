@@ -243,7 +243,7 @@ jobs:
         custom-test-target: net10.0
         framework: net10.0
         configuration: Release
-        dotnet: '10.0.402'
+        dotnet: '10.0.403'
         filter: ''
         hang-timeout: 10m
         per-project-timeout: '30'
@@ -280,7 +280,7 @@ jobs:
         custom-test-target: net10.0
         framework: net10.0
         configuration: Release
-        dotnet: '10.0.402'
+        dotnet: '10.0.403'
         filter: 'TestCategory!=LongRunning&TestCategory!=Stress'
         hang-timeout: 10m
         per-project-timeout: '45'
@@ -319,7 +319,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: '10.0.402'
+        global-json-file: global.json
 
     - name: Download test results
       uses: actions/download-artifact@v8
@@ -482,7 +482,6 @@ jobs:
       # binary is published and run on every AOT platform.
       AOTPROJECT_HISTORIAN: './tests/Opc.Ua.Aot.Tests.Historian/Opc.Ua.Aot.Tests.Historian.csproj'
       AOTPROJECT_MCP: './tests/Opc.Ua.Aot.Tests.Mcp/Opc.Ua.Aot.Tests.Mcp.csproj'
-      DOTNET_VERSION: '10.0.402'
       CONFIGURATION: 'Release'
 
     steps:
@@ -490,10 +489,10 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Setup .NET ${{ env.DOTNET_VERSION }}
+    - name: Setup .NET from global.json
       uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: ${{ env.DOTNET_VERSION }}
+        global-json-file: global.json
 
     - name: Set Cloud Version
       shell: pwsh
@@ -561,10 +560,15 @@ jobs:
         # a shallow clone.
         fetch-depth: 0
 
-    - name: Setup .NET
+    - name: Setup .NET SDKs for build matrix
       uses: actions/setup-dotnet@v6
       with:
         dotnet-version: ${{ matrix.entry.dotnet }}
+
+    - name: Setup repository .NET SDK
+      uses: actions/setup-dotnet@v6
+      with:
+        global-json-file: global.json
 
     - name: Set cloud version
       shell: pwsh
@@ -600,7 +604,7 @@ jobs:
         fetch-depth: 0
     - uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: 10.0.402
+        global-json-file: global.json
     - name: Validate manifest and negative controls
       shell: pwsh
       run: ./fuzzing/Scripts/validate-fuzz-manifest.ps1 -SelfTest
@@ -651,12 +655,16 @@ jobs:
         # Full history: Nerdbank.GitVersioning refuses to compute a version from
         # a shallow clone, which fails the build before any test runs.
         fetch-depth: 0
-    - uses: actions/setup-dotnet@v6
+    - name: Setup .NET 8 and 9 runtimes
+      uses: actions/setup-dotnet@v6
       with:
         dotnet-version: |
           8.0.x
           9.0.x
-          10.0.402
+    - name: Setup repository .NET SDK
+      uses: actions/setup-dotnet@v6
+      with:
+        global-json-file: global.json
     - name: Run fuzz regressions
       shell: pwsh
       run: ./fuzzing/Scripts/test-fuzzing.ps1 -Framework '${{ matrix.framework }}' -ResultsDirectory '${{ runner.temp }}/fuzz-results'

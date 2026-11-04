@@ -31,7 +31,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
@@ -246,8 +245,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
 
         /// <inheritdoc/>
         // TODO: Remove when CA2000 recognizes lifecycle ownership through ValueTask<IAsyncNodeManager>.
-        [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
-            Justification = "Canonical lifecycle preparation takes ownership of the returned manager and its adapter.")]
+#pragma warning disable CA2000 // Canonical lifecycle preparation takes ownership of the manager and adapter.
         ValueTask<IAsyncNodeManager> IAsyncNodeManagerFactory.CreateAsync(
             IServerInternal server,
             ApplicationConfiguration configuration,
@@ -259,6 +257,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 : new CounterNodeManager(server, configuration, Counters, m_namespaceUri).ToAsyncNodeManager();
             return new ValueTask<IAsyncNodeManager>(manager);
         }
+#pragma warning restore CA2000
 
         private readonly string m_namespaceUri;
         private readonly bool m_asyncNodeManager;

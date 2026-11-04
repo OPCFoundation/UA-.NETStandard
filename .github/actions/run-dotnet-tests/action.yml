@@ -58,6 +58,11 @@ runs:
     with:
       dotnet-version: ${{ inputs.dotnet }}
 
+  - name: Setup repository .NET SDK
+    uses: actions/setup-dotnet@v6
+    with:
+      global-json-file: global.json
+
   - name: Set cloud version
     shell: pwsh
     run: ./.azurepipelines/set-version.ps1
