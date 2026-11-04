@@ -870,15 +870,17 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 .GetField("m_socket", BindingFlags.Instance | BindingFlags.NonPublic)!
                 .GetValue(client)!;
 
-            // A chunk header announcing more bytes than are sent, then a reset:
-            // the receive faults inside the chunk.
+            // A valid chunk header announcing more bytes than are sent keeps the
+            // receive pending on the socket; the reset then faults it there.
             serverSocket.LingerState = new LingerOption(true, 0);
             await serverSocket
                 .SendAsync(
-                    new ArraySegment<byte>(BuildValidChunk(TcpMessageType.Message, 9000), 0, 100),
+                    new ArraySegment<byte>(BuildValidChunk(TcpMessageType.MessageFinal, 4096), 0, 100),
                     SocketFlags.None)
                 .ConfigureAwait(false);
             Task<ArraySegment<byte>> receive = client.ReceiveChunkAsync(CancellationToken.None).AsTask();
+            await Task.Delay(50).ConfigureAwait(false);
+            Assert.That(receive.IsCompleted, Is.False);
             Task close = receive.ContinueWith(
                 _ => client.Close(),
                 CancellationToken.None,
@@ -890,7 +892,14 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 await Task.WhenAny(close, Task.Delay(TimeSpan.FromSeconds(5))).ConfigureAwait(false),
                 Is.SameAs(close));
             await close.ConfigureAwait(false);
-            Assert.That(receive.IsFaulted, Is.True);
+            // The socket receive failed: a reset, or the end of the stream.
+            Exception ex = (await Assert.CatchAsync<Exception>(
+                async () => await receive.ConfigureAwait(false)))!;
+            Assert.That(
+                ex is SocketException ||
+                    (ex is ServiceResultException sre && sre.StatusCode == StatusCodes.BadConnectionClosed),
+                Is.True,
+                ex.ToString());
 
             var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
             while (true)
