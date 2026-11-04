@@ -115,7 +115,7 @@ namespace Opc.Ua.AutoID.Tests
                             Is.EqualTo(Opc.Ua.Types.ReferenceTypeIds.HasProperty));
                         Assert.That(discrete.EnumStrings.AccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
                         Assert.That(discrete.EnumStrings.Value.ToArray()!.Select(value => value.Text),
-                            Is.EqualTo(new[] { "EPC Class1 Gen2 V2", "ISO 15693" }));
+                            Is.EqualTo(s_tagTypeNames));
                     });
                 }
             }
@@ -137,7 +137,7 @@ namespace Opc.Ua.AutoID.Tests
             var children = new List<BaseInstanceState>();
             reader.Device.RuntimeParameters!.GetChildren(m_fixture.Context, children);
             Assert.That(children.Select(child => child.BrowseName.Name),
-                Is.EquivalentTo(new[] { "CodeTypes", "ScanSettings", "MinRssi" }));
+                Is.EquivalentTo(s_minRssiParameterNames));
         }
 
         /// <summary>
@@ -360,7 +360,7 @@ namespace Opc.Ua.AutoID.Tests
         [TestCase(5)]
         public async Task InvalidInitialReaderParameterDeclarationsAreRejectedAsync(int scenario)
         {
-            uint status = scenario < 4 ? StatusCodes.BadConfigurationError : StatusCodes.BadOutOfRange;
+            StatusCode status = scenario < 4 ? StatusCodes.BadConfigurationError : StatusCodes.BadOutOfRange;
             AutoIdReaderParameterCapabilities capabilities = scenario switch
             {
                 0 => new() { SupportsMinRssi = true },
@@ -415,7 +415,7 @@ namespace Opc.Ua.AutoID.Tests
             Assert.That(provider.Starts, Is.Zero);
             cancellation.Cancel();
             provider.CommitRelease.SetResult(true);
-            await Assert.ThatAsync(async () => await write.ConfigureAwait(false),
+            await Assert.ThatAsync(() => write,
                 Throws.InstanceOf<OperationCanceledException>());
             Assert.That(ServiceResult.IsGood(await start.ConfigureAwait(false)), Is.True);
             Assert.Multiple(() =>
@@ -474,5 +474,11 @@ namespace Opc.Ua.AutoID.Tests
                 m_fixture.Context,
                 new QualifiedName(name, m_fixture.Context.NamespaceUris.GetIndexOrAppend(AutoIdModel.NamespaceUri)))!;
         }
+
+        /// <summary>The declared tag type names.</summary>
+        private static readonly string[] s_tagTypeNames = ["EPC Class1 Gen2 V2", "ISO 15693"];
+
+        /// <summary>The parameters exposed when only MinRssi is supported.</summary>
+        private static readonly string[] s_minRssiParameterNames = ["CodeTypes", "ScanSettings", "MinRssi"];
     }
 }

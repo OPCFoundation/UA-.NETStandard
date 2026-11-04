@@ -134,7 +134,7 @@ namespace Opc.Ua.AutoID.Tests
                 identifier, codeType, RfidPasswordTypeEnumeration.Access, password, bytes,
                 It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<AutoIdOperationStatusEnumeration>(AutoIdOperationStatusEnumeration.SUCCESS));
-            ISystemContext system = owner.SystemContext;
+            Opc.Ua.Server.ServerSystemContext system = owner.SystemContext;
             RfidReaderDeviceState device = system.CreateInstanceOfRfidReaderDeviceType(
                 null!, new QualifiedName("Reader", owner.InstanceNamespaceIndex));
             device.AddReadTag(system).AddWriteTag(system).AddSetTagPassword(system);

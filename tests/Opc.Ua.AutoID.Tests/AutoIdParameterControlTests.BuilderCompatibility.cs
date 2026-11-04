@@ -59,12 +59,7 @@ namespace Opc.Ua.AutoID.Tests
                 Assert.That(reader.Device.DeviceInfo!.Value, Is.EqualTo("Original interface only"));
                 Assert.That(reader.Device.RuntimeParameters, Is.Null);
                 Assert.That(typeof(IAutoIdReaderBuilder).GetMethods().Select(method => method.Name),
-                    Is.EquivalentTo(new[]
-                    {
-                        "WithParent", "AsComponentOf", "WithDeviceName", "WithDeviceInfo",
-                        "WithDeviceLocation", "WithDeviceLocationName", "WithAntennaNames", "WithRtlsUnits",
-                        "WithIdentification", "OwnsProvider", "BuildAsync"
-                    }));
+                    Is.EquivalentTo(s_legacyBuilderMethodNames));
             });
         }
 
@@ -298,5 +293,13 @@ namespace Opc.Ua.AutoID.Tests
                 return inner.BuildAsync(cancellationToken);
             }
         }
+
+        /// <summary>The original builder method names.</summary>
+        private static readonly string[] s_legacyBuilderMethodNames =
+        [
+            "WithParent", "AsComponentOf", "WithDeviceName", "WithDeviceInfo",
+            "WithDeviceLocation", "WithDeviceLocationName", "WithAntennaNames", "WithRtlsUnits",
+            "WithIdentification", "OwnsProvider", "BuildAsync"
+        ];
     }
 }

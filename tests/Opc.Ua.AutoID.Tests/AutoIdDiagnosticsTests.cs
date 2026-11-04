@@ -82,7 +82,7 @@ namespace Opc.Ua.AutoID.Tests
             var groups = new List<BaseInstanceState>();
             diagnostics.GetChildren(m_fixture.Context, groups);
             Assert.That(groups.Select(child => child.BrowseName.Name),
-                Is.EquivalentTo(new[] { "Presence", "Logbook", "LastAccess" }));
+                Is.EquivalentTo(s_diagnosticGroupNames));
             AssertVariable(Variable(reader, "Presence"), Opc.Ua.DataTypeIds.UInt16,
                 StatusCodes.UncertainInitialValue);
             AssertVariable(Variable(reader, "Logbook", "LogColumns"), Opc.Ua.DataTypeIds.String, StatusCodes.Good);
@@ -750,7 +750,7 @@ namespace Opc.Ua.AutoID.Tests
         [TestCase(2)]
         public async Task ScanNotificationFailureIsNotSuppressedAsCopyRejectionAsync(int scenario)
         {
-            uint status = scenario switch
+            StatusCode status = scenario switch
             {
                 0 => StatusCodes.BadEncodingError,
                 1 => StatusCodes.BadDecodingError,
@@ -913,6 +913,9 @@ namespace Opc.Ua.AutoID.Tests
                 Timestamp = DateTimeUtc.Now
             };
         }
+
+        /// <summary>The standard diagnostic group names.</summary>
+        private static readonly string[] s_diagnosticGroupNames = ["Presence", "Logbook", "LastAccess"];
 
         /// <summary>The runtime fixture.</summary>
         private AutoIdManagerFixture m_fixture = null!;
