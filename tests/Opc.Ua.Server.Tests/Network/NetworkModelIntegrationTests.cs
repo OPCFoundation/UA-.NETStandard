@@ -808,6 +808,10 @@ namespace Opc.Ua.Server.Tests.Network
                 initial = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
                 await WaitForAsync(async () =>
                 {
+                    if (!await HasEnumObservationAsync(valuePath, cancellationToken).ConfigureAwait(false))
+                    {
+                        return false;
+                    }
                     DataValue value = (await ReadEnumParameterAsync(valuePath, cancellationToken)
                         .ConfigureAwait(false)).DataValue;
                     return value.StatusCode == StatusCodes.Good &&
@@ -819,9 +823,20 @@ namespace Opc.Ua.Server.Tests.Network
                 .ConfigureAwait(false);
             DataValue before = beforeParameter.DataValue;
             Assert.That(before.StatusCode, Is.EqualTo(StatusCodes.Good));
-            BaseVariableState retained = m_server.Server.CurrentInstance.NodeManager.AsyncNodeManagers
-                .OfType<NetworkModelNodeManager>().Single()
-                .FindPredefinedNode<BaseVariableState>(beforeParameter.NodeId);
+            BaseVariableState retained;
+            if (valuePath == "local chassis subtype")
+            {
+                retained = m_server.Server.CurrentInstance.NodeManager.DiagnosticsNodeManager?
+                    .FindPredefinedNode<BaseVariableState>(beforeParameter.NodeId)
+                    ?? throw new InvalidOperationException(
+                        "The LLDP local value is not owned by the diagnostics manager.");
+            }
+            else
+            {
+                retained = m_server.Server.CurrentInstance.NodeManager.AsyncNodeManagers
+                    .OfType<NetworkModelNodeManager>().Single()
+                    .FindPredefinedNode<BaseVariableState>(beforeParameter.NodeId);
+            }
 
             m_providerBoundary.WatchTransform = snapshot => WithInvalidEnumValue(snapshot, valuePath);
             DateTime invalidTimestamp = initial.Timestamp.AddSeconds(1);
@@ -1024,21 +1039,33 @@ namespace Opc.Ua.Server.Tests.Network
             NodeId physical = ExpandedNodeId.ToNodeId(publishedInterfaces.ToList()
                 .Single(reference => reference.BrowseName.Name == "eth0").NodeId, m_session.NamespaceUris);
             await WaitForAsync(async () =>
-                (await m_client.ReadInterfaceAsync(physical, cancellationToken).ConfigureAwait(false))
-                    .Speed.DataValue.SourceTimestamp == (DateTimeUtc)timestamp,
+            {
+                NetworkInterfaceValues values = await m_client.ReadInterfaceAsync(
+                    physical, cancellationToken).ConfigureAwait(false);
+                return values.Speed.DataValue.SourceTimestamp == (DateTimeUtc)timestamp &&
+                    !await HasInterfaceAsync(
+                        physical, ObjectTypeIds.IIeeeAutoNegotiationStatusType, cancellationToken)
+                        .ConfigureAwait(false);
+            },
                 cancellationToken).ConfigureAwait(false);
-            ArrayOf<NetworkParameterValue> negotiation = await ReadParameterSetAsync(
-                physical, ObjectTypeIds.IIeeeAutoNegotiationStatusType, cancellationToken).ConfigureAwait(false);
-            Assert.That(negotiation.Count, Is.Zero);
+            Assert.That(await HasInterfaceAsync(
+                physical, ObjectTypeIds.IIeeeAutoNegotiationStatusType, cancellationToken)
+                .ConfigureAwait(false), Is.False);
 
             NodeId talker = (await m_client.DiscoverStreamsAsync(true, cancellationToken).ConfigureAwait(false))[0];
             await WaitForAsync(async () =>
-                (await m_client.ReadStreamAsync(talker, cancellationToken).ConfigureAwait(false))
-                    .State.DataValue.SourceTimestamp == (DateTimeUtc)timestamp,
+            {
+                NetworkStreamValues values = await m_client.ReadStreamAsync(
+                    talker, cancellationToken).ConfigureAwait(false);
+                return values.State.DataValue.SourceTimestamp == (DateTimeUtc)timestamp &&
+                    !await HasInterfaceAsync(
+                        talker, ObjectTypeIds.IIeeeBaseTsnStatusStreamType, cancellationToken)
+                        .ConfigureAwait(false);
+            },
                 cancellationToken).ConfigureAwait(false);
-            ArrayOf<NetworkParameterValue> status = await ReadParameterSetAsync(
-                talker, ObjectTypeIds.IIeeeBaseTsnStatusStreamType, cancellationToken).ConfigureAwait(false);
-            Assert.That(status.Count, Is.Zero);
+            Assert.That(await HasInterfaceAsync(
+                talker, ObjectTypeIds.IIeeeBaseTsnStatusStreamType, cancellationToken)
+                .ConfigureAwait(false), Is.False);
         }
 
         /// <summary>
@@ -1138,6 +1165,11 @@ namespace Opc.Ua.Server.Tests.Network
             m_provider.Publish(current with { Timestamp = recoveryTimestamp });
             await WaitForAsync(async () =>
             {
+                if (!await HasInterfaceAsync(
+                    vlanInterface, ObjectTypeIds.IVlanIdType, cancellationToken).ConfigureAwait(false))
+                {
+                    return false;
+                }
                 ArrayOf<NetworkParameterValue> values = await ReadParameterSetAsync(
                     vlanInterface, ObjectTypeIds.IVlanIdType, cancellationToken).ConfigureAwait(false);
                 DataValue dataValue = Parameter(values, BrowseNames.VlanId).DataValue;
@@ -1990,8 +2022,7 @@ namespace Opc.Ua.Server.Tests.Network
             }
             else
             {
-                Assert.That(actual.StreamId.DataValue.WrappedValue.TryGetValue(out ByteString retainedId), Is.True);
-                Assert.That(retainedId.ToArray(), Is.EqualTo(previousId.ToArray()));
+                Assert.That(actual.StreamId.DataValue.WrappedValue.IsNull, Is.True);
                 Assert.That(actual.StreamId.DataValue.SourceTimestamp,
                     Is.EqualTo(before.StreamId.DataValue.SourceTimestamp));
                 Assert.That(actual.StreamId.DataValue.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
@@ -2039,6 +2070,9 @@ namespace Opc.Ua.Server.Tests.Network
             BaseVariableState retained = m_server.Server.CurrentInstance.NodeManager.AsyncNodeManagers
                 .OfType<NetworkModelNodeManager>().Single()
                 .FindPredefinedNode<BaseVariableState>(before.SrClassId.NodeId);
+            BaseVariableState retainedStreamId = m_server.Server.CurrentInstance.NodeManager.AsyncNodeManagers
+                .OfType<NetworkModelNodeManager>().Single()
+                .FindPredefinedNode<BaseVariableState>(before.StreamId.NodeId);
             byte? srClassId = includeId ? id : null;
             m_providerBoundary.WatchTransform = snapshot =>
             {
@@ -2086,17 +2120,20 @@ namespace Opc.Ua.Server.Tests.Network
             else
             {
                 Assert.That(actual.SrClassId.DataValue.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
-                Assert.That(actual.SrClassId.DataValue.WrappedValue, Is.EqualTo(new Variant((byte)6)));
+                Assert.That(actual.SrClassId.DataValue.WrappedValue.IsNull, Is.True);
                 Assert.That(actual.SrClassId.DataValue.SourceTimestamp,
                     Is.EqualTo(before.SrClassId.DataValue.SourceTimestamp));
                 Assert.That(actual.StreamId.DataValue.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
-                Assert.That(actual.StreamId.DataValue.WrappedValue.TryGetValue(out ByteString retainedId), Is.True);
-                Assert.That(retainedId.ToArray(), Is.EqualTo(previousId.ToArray()));
+                Assert.That(actual.StreamId.DataValue.WrappedValue.IsNull, Is.True);
+                Assert.That(actual.StreamId.DataValue.SourceTimestamp,
+                    Is.EqualTo(before.StreamId.DataValue.SourceTimestamp));
                 Assert.That((await m_client.BrowseObjectsAsync(ObjectIds.TalkerStreams, cancellationToken)
                     .ConfigureAwait(false)).ToList().Select(reference => reference.NodeId),
                     Is.EquivalentTo(originalTalkers.ToList().Select(reference => reference.NodeId)));
                 Assert.That(retained.Value, Is.EqualTo(before.SrClassId.DataValue.WrappedValue));
                 Assert.That(retained.Timestamp, Is.EqualTo(initial.Timestamp));
+                Assert.That(retainedStreamId.Value, Is.EqualTo(before.StreamId.DataValue.WrappedValue));
+                Assert.That(retainedStreamId.Timestamp, Is.EqualTo(initial.Timestamp));
             }
 
             m_providerBoundary.WatchTransform = null;
@@ -2153,6 +2190,10 @@ namespace Opc.Ua.Server.Tests.Network
             });
             await WaitForAsync(async () =>
             {
+                if (!await HasEnumObservationAsync("failure code", cancellationToken).ConfigureAwait(false))
+                {
+                    return false;
+                }
                 ArrayOf<NetworkParameterValue> values = await ReadParameterSetAsync(
                     talker, ObjectTypeIds.IIeeeBaseTsnStatusStreamType, cancellationToken).ConfigureAwait(false);
                 return Parameter(values, BrowseNames.FailureSystemIdentifier).DataValue.SourceTimestamp ==
@@ -2193,7 +2234,7 @@ namespace Opc.Ua.Server.Tests.Network
             Assert.That(rejectedFailure.DataValue.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
             Assert.That(rejectedFailure.DataValue.SourceTimestamp,
                 Is.EqualTo((DateTimeUtc)initial.Timestamp.AddSeconds(1)));
-            Assert.That(rejectedFailure.DataValue.WrappedValue, Is.EqualTo(failure.DataValue.WrappedValue));
+            Assert.That(rejectedFailure.DataValue.WrappedValue.IsNull, Is.True);
             Assert.That(retained.Value, Is.EqualTo(failure.DataValue.WrappedValue));
             Assert.That(retained.Timestamp, Is.EqualTo(initial.Timestamp.AddSeconds(1)));
 
@@ -2247,12 +2288,18 @@ namespace Opc.Ua.Server.Tests.Network
             NodeId talker = (await m_client.DiscoverStreamsAsync(true, cancellationToken).ConfigureAwait(false))[0];
             NetworkStreamValues before = await m_client.ReadStreamAsync(talker, cancellationToken)
                 .ConfigureAwait(false);
+            NetworkModelNodeManager manager = m_server.Server.CurrentInstance.NodeManager.AsyncNodeManagers
+                .OfType<NetworkModelNodeManager>().Single();
+            BaseVariableState retainedState = manager.FindPredefinedNode<BaseVariableState>(before.State.NodeId);
             ArrayOf<NetworkParameterValue> beforeMac = await ReadParameterSetAsync(
                 talker, ObjectTypeIds.IIeeeTsnMacAddressType, cancellationToken).ConfigureAwait(false);
             NetworkParameterValue beforeDestination = Parameter(beforeMac, BrowseNames.DestinationAddress);
             NetworkParameterValue beforeSource = Parameter(beforeMac, BrowseNames.SourceAddress);
             Assert.That(beforeDestination.DataValue.WrappedValue.TryGetValue(
                 out ArrayOf<byte> previousDestination), Is.True);
+            BaseVariableState retainedDestination = manager.FindPredefinedNode<BaseVariableState>(
+                beforeDestination.NodeId);
+            BaseVariableState retainedSource = manager.FindPredefinedNode<BaseVariableState>(beforeSource.NodeId);
             ByteString destination = Address(destinationLength, 1);
             ByteString source = Address(sourceLength, 7);
             m_providerBoundary.WatchTransform = snapshot =>
@@ -2313,9 +2360,11 @@ namespace Opc.Ua.Server.Tests.Network
             else
             {
                 Assert.That(actual.State.DataValue.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
-                Assert.That(actual.State.DataValue.WrappedValue, Is.EqualTo(before.State.DataValue.WrappedValue));
+                Assert.That(actual.State.DataValue.WrappedValue.IsNull, Is.True);
                 Assert.That(actual.State.DataValue.SourceTimestamp,
                     Is.EqualTo(before.State.DataValue.SourceTimestamp));
+                Assert.That(retainedState.Value, Is.EqualTo(before.State.DataValue.WrappedValue));
+                Assert.That(retainedState.Timestamp, Is.EqualTo(initial.Timestamp));
                 Assert.That(hasMacInterface, Is.True);
                 ArrayOf<NetworkParameterValue> rejectedMac = await ReadParameterSetAsync(
                     talker, ObjectTypeIds.IIeeeTsnMacAddressType, cancellationToken).ConfigureAwait(false);
@@ -2323,11 +2372,16 @@ namespace Opc.Ua.Server.Tests.Network
                 NetworkParameterValue rejectedSource = Parameter(rejectedMac, BrowseNames.SourceAddress);
                 Assert.That(rejectedDestination.DataValue.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
                 Assert.That(rejectedSource.DataValue.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
-                Assert.That(rejectedDestination.DataValue.WrappedValue,
-                    Is.EqualTo(beforeDestination.DataValue.WrappedValue));
-                Assert.That(rejectedSource.DataValue.WrappedValue, Is.EqualTo(beforeSource.DataValue.WrappedValue));
+                Assert.That(rejectedDestination.DataValue.WrappedValue.IsNull, Is.True);
+                Assert.That(rejectedSource.DataValue.WrappedValue.IsNull, Is.True);
                 Assert.That(rejectedDestination.DataValue.SourceTimestamp,
                     Is.EqualTo(beforeDestination.DataValue.SourceTimestamp));
+                Assert.That(rejectedSource.DataValue.SourceTimestamp,
+                    Is.EqualTo(beforeSource.DataValue.SourceTimestamp));
+                Assert.That(retainedDestination.Value, Is.EqualTo(beforeDestination.DataValue.WrappedValue));
+                Assert.That(retainedDestination.Timestamp, Is.EqualTo(initial.Timestamp));
+                Assert.That(retainedSource.Value, Is.EqualTo(beforeSource.DataValue.WrappedValue));
+                Assert.That(retainedSource.Timestamp, Is.EqualTo(initial.Timestamp));
             }
 
             m_providerBoundary.WatchTransform = null;
@@ -2374,6 +2428,9 @@ namespace Opc.Ua.Server.Tests.Network
             {
                 throw new InvalidOperationException("Decoded TSN traffic interval is null.");
             }
+            BaseVariableState retainedInterval = m_server.Server.CurrentInstance.NodeManager.AsyncNodeManagers
+                .OfType<NetworkModelNodeManager>().Single()
+                .FindPredefinedNode<BaseVariableState>(previousInterval.NodeId);
 
             NetworkTrafficSnapshot? desiredTraffic = includeTraffic
                 ? new NetworkTrafficSnapshot(1, 512, numerator, denominator)
@@ -2418,10 +2475,11 @@ namespace Opc.Ua.Server.Tests.Network
                     .ConfigureAwait(false);
                 NetworkParameterValue rejectedInterval = Parameter(rejectedTraffic, BrowseNames.Interval);
                 Assert.That(rejectedInterval.DataValue.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
-                Assert.That(rejectedInterval.DataValue.WrappedValue,
-                    Is.EqualTo(previousInterval.DataValue.WrappedValue));
+                Assert.That(rejectedInterval.DataValue.WrappedValue.IsNull, Is.True);
                 Assert.That(rejectedInterval.DataValue.SourceTimestamp,
                     Is.EqualTo(previousInterval.DataValue.SourceTimestamp));
+                Assert.That(retainedInterval.Value, Is.EqualTo(previousInterval.DataValue.WrappedValue));
+                Assert.That(retainedInterval.Timestamp, Is.EqualTo(initial.Timestamp));
             }
             else if (!includeTraffic)
             {
@@ -2999,6 +3057,39 @@ namespace Opc.Ua.Server.Tests.Network
                 default:
                     throw new ArgumentOutOfRangeException(nameof(valuePath));
             }
+        }
+
+        /// <summary>
+        /// Checks whether an optional enum observation has reached the address space.
+        /// </summary>
+        private async Task<bool> HasEnumObservationAsync(string valuePath, CancellationToken cancellationToken)
+        {
+            if (valuePath is "failure code" or "talker status" or "listener status")
+            {
+                ArrayOf<NodeId> streams = await m_client.DiscoverStreamsAsync(
+                    valuePath != "listener status", cancellationToken).ConfigureAwait(false);
+                if (streams.Count == 0)
+                {
+                    return false;
+                }
+                return await HasInterfaceAsync(
+                    streams[0], ObjectTypeIds.IIeeeBaseTsnStatusStreamType, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            if (valuePath is "neighbor chassis subtype" or "neighbor port subtype")
+            {
+                ArrayOf<NodeId> ports = await m_client.DiscoverLldpPortsAsync(cancellationToken)
+                    .ConfigureAwait(false);
+                if (ports.Count == 0)
+                {
+                    return false;
+                }
+                return (await m_client.DiscoverNeighborsAsync(ports[0], cancellationToken)
+                    .ConfigureAwait(false)).Count > 0;
+            }
+
+            return true;
         }
 
         /// <summary>
