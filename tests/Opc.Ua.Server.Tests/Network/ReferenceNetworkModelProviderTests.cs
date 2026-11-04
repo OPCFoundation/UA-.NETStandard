@@ -293,13 +293,13 @@ namespace Opc.Ua.Server.Tests.Network
             var provider = new ReferenceNetworkModelProvider(snapshot);
             Assert.That((await provider.ReadAsync().ConfigureAwait(false)).Streams
                 .ToList().Select(stream => stream.Interfaces[0].Id),
-                Is.EqualTo(new[] { "shared", "shared" }));
+                Is.EqualTo(s_sharedStreamInterfaceIds));
 
             provider.Publish(snapshot with { Timestamp = snapshot.Timestamp.AddSeconds(1) });
             NetworkModelSnapshot published = await provider.ReadAsync().ConfigureAwait(false);
             Assert.That(published.Revision, Is.EqualTo(1));
             Assert.That(published.Streams.ToList().Select(stream => stream.Interfaces[0].Id),
-                Is.EqualTo(new[] { "shared", "shared" }));
+                Is.EqualTo(s_sharedStreamInterfaceIds));
         }
 
         /// <summary>
@@ -1718,6 +1718,9 @@ namespace Opc.Ua.Server.Tests.Network
                 ])
             };
         }
+
+        /// <summary>Expected stream-interface identifiers when reuse occurs under separate streams.</summary>
+        private static readonly string[] s_sharedStreamInterfaceIds = ["shared", "shared"];
 
         /// <summary>Fixed acquisition origin for provider contract tests.</summary>
         private static readonly DateTime UnixEpoch = new(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);

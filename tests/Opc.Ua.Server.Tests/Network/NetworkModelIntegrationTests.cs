@@ -2162,7 +2162,7 @@ namespace Opc.Ua.Server.Tests.Network
                 talker, ObjectTypeIds.IIeeeBaseTsnStatusStreamType, cancellationToken).ConfigureAwait(false);
             NetworkParameterValue failure = Parameter(baseline, BrowseNames.FailureSystemIdentifier);
             Assert.That(failure.DataValue.WrappedValue.TryGetValue(out MatrixOf<byte> previousMatrix), Is.True);
-            Assert.That(previousMatrix.Dimensions, Is.EqualTo(new[] { 2, 8 }));
+            Assert.That(previousMatrix.Dimensions, Is.EqualTo(s_failureSystemIdentifierDimensions));
             byte[] previousBytes = Identifier(1).ToArray().Concat(Identifier(9).ToArray()).ToArray();
             Assert.That(previousMatrix.Span.ToArray(), Is.EqualTo(previousBytes));
             BaseVariableState retained = m_server.Server.CurrentInstance.NodeManager.AsyncNodeManagers
@@ -2218,7 +2218,7 @@ namespace Opc.Ua.Server.Tests.Network
             NetworkParameterValue recoveredFailure = Parameter(recovered, BrowseNames.FailureSystemIdentifier);
             Assert.That(recoveredFailure.DataValue.WrappedValue.TryGetValue(
                 out MatrixOf<byte> recoveredMatrix), Is.True);
-            Assert.That(recoveredMatrix.Dimensions, Is.EqualTo(new[] { 2, 8 }));
+            Assert.That(recoveredMatrix.Dimensions, Is.EqualTo(s_failureSystemIdentifierDimensions));
             Assert.That(recoveredMatrix.Span.ToArray(),
                 Is.EqualTo(Identifier(17).ToArray().Concat(Identifier(25).ToArray()).ToArray()));
             Assert.That(recoveredFailure.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -3176,6 +3176,9 @@ namespace Opc.Ua.Server.Tests.Network
                 await Task.Delay(20, timeout.Token).ConfigureAwait(false);
             }
         }
+
+        /// <summary>Expected matrix dimensions for two eight-byte failure-system identifiers.</summary>
+        private static readonly int[] s_failureSystemIdentifierDimensions = [2, 8];
 
         /// <summary>Certificate stores owned by the current test.</summary>
         private string m_pkiRoot = string.Empty;
