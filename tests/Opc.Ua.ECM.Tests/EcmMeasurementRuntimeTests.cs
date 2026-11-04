@@ -786,7 +786,7 @@ namespace Opc.Ua.ECM.Tests
                 Snapshot("meter/initial",
                     FloatReading(nameof(BrowseNames.DcCurrent), 4f,
                         StatusCodes.Good, new DateTime(2026, 8, 14, 11, 40, 0, DateTimeKind.Utc))),
-                Snapshot("meter/refreshed",
+                Snapshot("meter/initial",
                     FloatReading(nameof(BrowseNames.DcCurrent), 5f,
                         StatusCodes.Good, new DateTime(2026, 8, 14, 11, 40, 1, DateTimeKind.Utc))));
             BaseObjectState parent = await AddParentAsync(manager, "QueuedTagDevice");
