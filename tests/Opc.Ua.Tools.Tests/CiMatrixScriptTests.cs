@@ -37,6 +37,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using NUnit.Framework;
 
 namespace Opc.Ua.Tools.Tests
@@ -100,7 +101,7 @@ namespace Opc.Ua.Tools.Tests
 
         /// <summary>
         /// Every test project on disk has to be claimed by the matrix. The
-        /// exclusions are the four projects other jobs own; anything else that
+        /// exclusions are the native-only and opt-in projects other jobs own; anything else that
         /// stopped being scheduled would silently stop being tested.
         /// </summary>
         [Test]
@@ -116,6 +117,7 @@ namespace Opc.Ua.Tools.Tests
             string[] excluded =
             [
                 "Opc.Ua.Aot.Tests.csproj",
+                "Opc.Ua.Registry.Aot.Tests.csproj",
                 "Opc.Ua.Stress.Tests.csproj",
                 "Opc.Ua.OneFuzz.Validator.Tests.csproj"
             ];
@@ -145,6 +147,111 @@ namespace Opc.Ua.Tools.Tests
             }
 
             Assert.That(missing, Is.Empty, "These test projects are on disk but nothing schedules them.");
+        }
+
+        /// <summary>
+        /// Native-only executables must run in the NativeAOT jobs, never through the VSTest matrix.
+        /// </summary>
+        [TestCase("pr")]
+        [TestCase("full")]
+        public async Task NativeRegistryTestsRunOnlyInTheDedicatedAotJobsAsync(string scope)
+        {
+            const string project = "tests/Opc.Ua.Registry.Aot.Tests/Opc.Ua.Registry.Aot.Tests.csproj";
+            MatrixResult matrix = await RunMatrixAsync(scope).ConfigureAwait(false);
+            string[] scheduled = matrix.Tests
+                .SelectMany(entry => entry.Projects.Split(';', StringSplitOptions.RemoveEmptyEntries))
+                .ToArray();
+
+            Assert.That(scheduled, Does.Not.Contain(project),
+                "The registry native executable cannot produce a VSTest TRX.");
+            string root = FindRepositoryRoot();
+            string workflow = (await File.ReadAllTextAsync(Path.Combine(root, ".github", "workflows",
+                scope == "pr" ? "buildandtest.yml" : "nightly.yml")).ConfigureAwait(false))
+                .Replace("\r\n", "\n", StringComparison.Ordinal);
+            Assert.That(workflow, Does.Contain(project));
+            if (scope == "pr")
+            {
+                Assert.That(workflow, Does.Contain("run: dotnet publish ${{ env.AOTPROJECT_REGISTRY }}"));
+                Assert.That(workflow, Does.Contain(
+                    "/publish/Opc.Ua.Registry.Aot.Tests\n        --results-directory ./TestResults/aot-registry"));
+            }
+            else
+            {
+                Assert.That(workflow, Does.Contain("& $executable.FullName --results-directory"));
+            }
+        }
+
+        /// <summary>
+        /// Portable image publishing must not make the referenced registry client self-contained,
+        /// while native publishing and ordinary managed builds retain their existing defaults.
+        /// </summary>
+        [TestCase(true, "false", false, false)]
+        [TestCase(true, "false", true, false)]
+        [TestCase(true, "true", false, true)]
+        [TestCase(true, null, false, true)]
+        [TestCase(false, null, false, false)]
+        public async Task RegistryClientContainmentRespectsPublishingModeAsync(
+            bool publishing, string? publishAot, bool dockerBuild, bool expectedSelfContained)
+        {
+            string root = FindRepositoryRoot();
+            using var process = new Process();
+            process.StartInfo.FileName = "dotnet";
+            process.StartInfo.WorkingDirectory = root;
+            process.StartInfo.RedirectStandardOutput = true;
+            process.StartInfo.RedirectStandardError = true;
+            process.StartInfo.ArgumentList.Add("msbuild");
+            process.StartInfo.ArgumentList.Add(Path.Combine(root,
+                "samples", "Registry", "RegistryClient", "RegistryClient.csproj"));
+            process.StartInfo.ArgumentList.Add("-nologo");
+            process.StartInfo.ArgumentList.Add("-getProperty:SelfContained");
+            process.StartInfo.ArgumentList.Add("-p:TargetFramework=net10.0");
+            process.StartInfo.ArgumentList.Add($"-p:_IsPublishing={publishing.ToString().ToLowerInvariant()}");
+            process.StartInfo.ArgumentList.Add($"-p:Dockerbuild={dockerBuild.ToString().ToLowerInvariant()}");
+            if (publishAot is not null)
+            {
+                process.StartInfo.ArgumentList.Add("-p:PublishAot=" + publishAot);
+                if (publishAot == "false")
+                {
+                    process.StartInfo.ArgumentList.Add("-p:UseAppHost=false");
+                }
+            }
+
+            Assert.That(process.Start(), Is.True);
+            Task<string> standardOutput = process.StandardOutput.ReadToEndAsync();
+            Task<string> standardError = process.StandardError.ReadToEndAsync();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            await process.WaitForExitAsync(timeout.Token).ConfigureAwait(false);
+            string output = await standardOutput.ConfigureAwait(false);
+            string error = await standardError.ConfigureAwait(false);
+
+            Assert.That(process.ExitCode, Is.Zero, error + output);
+            Assert.That(output.Trim(),
+                Is.EqualTo(expectedSelfContained.ToString().ToLowerInvariant()));
+        }
+
+        /// <summary>
+        /// All intentionally shipped registry modules belong in the enforced package inventory.
+        /// </summary>
+        [Test]
+        public void RegistryPackagesAreIncludedInTheExpectedReleaseInventory()
+        {
+            string root = FindRepositoryRoot();
+            HashSet<string> expected = File.ReadLines(
+                Path.Combine(root, ".azurepipelines", "expected-packages.txt"))
+                .Select(line => line.Trim())
+                .Where(line => line.Length > 0 && !line.StartsWith('#'))
+                .ToHashSet(StringComparer.Ordinal);
+            string[] projects = Directory.EnumerateDirectories(Path.Combine(root, "src"), "Opc.Ua.*Registry*")
+                .SelectMany(directory => Directory.EnumerateFiles(directory, "*.csproj"))
+                .ToArray();
+
+            Assert.That(projects, Has.Length.EqualTo(13));
+            foreach (string project in projects)
+            {
+                string package = XDocument.Load(project).Descendants("PackageId").First().Value
+                    .Replace("$(PackagePrefix)", "OPCFoundation.NetStandard", StringComparison.Ordinal);
+                Assert.That(expected, Does.Contain(package), Path.GetRelativePath(root, project));
+            }
         }
 
         /// <summary>

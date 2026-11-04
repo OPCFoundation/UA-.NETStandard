@@ -48,7 +48,7 @@ namespace Opc.Ua.WotCon.Tests
         /// </summary>
         /// <param name="fileName">The file name used by this test case.</param>
         /// <param name="digest">The expected digest of the input file.</param>
-        [TestCase(RegistryNodeSet, "4440d08f46039108a3c8a67bdd22727f189f7c1a28b7473100c4be28249ee660")]
+        [TestCase(RegistryNodeSet, "50792b46fc4e6d0b92e7750c3021628844930060db42eaba22d372f48245a94f")]
         [TestCase(ConnectivityNodeSet, "5013519a6cb0b047459f23aaf95fbf4ca3ac2d2d8e9351ba50c853b94b5ed2cc")]
         [TestCase(ConnectivityCsv, "66603011dbb48b0be6b160ed423a98a6eeb5aa57ed690a9f6529a34f52cbd2b1")]
         public void TheSuccessorInputsMatchTheReviewedGeneratedArtifacts(string fileName, string digest)
@@ -76,19 +76,25 @@ namespace Opc.Ua.WotCon.Tests
         }
 
         /// <summary>
-        /// Verifies that the successor core dependency matches the pinned legacy input.
+        /// Verifies that each adopted model retains its pinned core dependency.
         /// </summary>
         /// <param name="fileName">The file name used by this test case.</param>
         /// <param name="modelUri">The model URI used by this test case.</param>
-        [TestCase(RegistryNodeSet, RegistryNamespace)]
-        [TestCase(ConnectivityNodeSet, ConnectivityNamespace)]
-        public void TheSuccessorCoreDependencyMatchesThePinnedLegacyInput(string fileName, string modelUri)
+        /// <param name="version">The expected core model version.</param>
+        /// <param name="publicationDate">The expected core model publication date.</param>
+        [TestCase(RegistryNodeSet, RegistryNamespace, "1.05.06", "2025-11-08T00:00:00Z")]
+        [TestCase(ConnectivityNodeSet, ConnectivityNamespace, "1.05.04", "2025-01-08T00:00:00Z")]
+        public void TheSuccessorCoreDependencyMatchesThePinnedModelInput(
+            string fileName,
+            string modelUri,
+            string version,
+            string publicationDate)
         {
             XElement core = ReadModel(fileName, modelUri).Elements(UaNodeSet + "RequiredModel")
                 .Single(model => model.Attribute("ModelUri")?.Value == Ua.Namespaces.OpcUa);
 
-            Assert.That(core.Attribute("Version")?.Value, Is.EqualTo("1.05.04"));
-            Assert.That(core.Attribute("PublicationDate")?.Value, Is.EqualTo("2025-01-08T00:00:00Z"));
+            Assert.That(core.Attribute("Version")?.Value, Is.EqualTo(version));
+            Assert.That(core.Attribute("PublicationDate")?.Value, Is.EqualTo(publicationDate));
         }
 
         /// <summary>

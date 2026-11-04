@@ -47,18 +47,19 @@ namespace Opc.Ua.XRegistry.Tests
         [TestCase("registration")]
         [TestCase("fast-path")]
         [TestCase("federation")]
-        public void CancelledStartupPublishesNoNodes(string managerKind)
+        public async Task CancelledStartupPublishesNoNodes(string managerKind)
         {
             var options = new XRegistryServerOptions();
             using AsyncCustomNodeManager manager = CreateManager(managerKind, options);
             using var cancellation = new CancellationTokenSource();
             cancellation.Cancel();
 
-            Assert.That(
+            await Assert.ThatAsync(
                 async () => await manager.CreateAddressSpaceAsync(
                     new Dictionary<NodeId, IList<IReference>>(),
                     cancellation.Token).ConfigureAwait(false),
-                Throws.InstanceOf<OperationCanceledException>());
+                Throws.InstanceOf<OperationCanceledException>())
+                .ConfigureAwait(false);
             Assert.That(
                 manager.Find(ExpandedNodeId.ToNodeId(
                     ObjectTypeIds.RegistryType,
@@ -111,11 +112,12 @@ namespace Opc.Ua.XRegistry.Tests
             });
             if (partialRegistry is not null)
             {
-                Assert.That(
+                await Assert.ThatAsync(
                     async () => await partialRegistry.GetOrCreateGroup!.OnCallAsync!(
                         manager.SystemContext, partialRegistry.GetOrCreateGroup, partialRegistry.NodeId,
                         "not-initialized", CancellationToken.None).ConfigureAwait(false),
-                    Throws.TypeOf<ServiceResultException>());
+                    Throws.TypeOf<ServiceResultException>())
+                    .ConfigureAwait(false);
             }
 
             interrupt = false;
@@ -294,9 +296,10 @@ namespace Opc.Ua.XRegistry.Tests
                     ? default
                     : throw new InvalidOperationException("Injected deletion notification failure.");
 
-            Assert.That(
+            await Assert.ThatAsync(
                 async () => await manager.OnDeleteGroupAsync(group, 0).ConfigureAwait(false),
-                Throws.InvalidOperationException.With.Message.EqualTo("Injected deletion notification failure."));
+                Throws.InvalidOperationException.With.Message.EqualTo("Injected deletion notification failure."))
+                .ConfigureAwait(false);
 
             foreach (NodeState node in originalNodes)
             {
@@ -375,9 +378,10 @@ namespace Opc.Ua.XRegistry.Tests
                 .Returns((string key, CancellationToken ct) => fail
                     ? throw new IOException("Injected retained cleanup failure.")
                     : contents.DeleteAsync(key, ct));
-            Assert.That(
+            await Assert.ThatAsync(
                 async () => await manager.OnDeleteResourceAsync(deleted, 0).ConfigureAwait(false),
-                Throws.TypeOf<IOException>());
+                Throws.TypeOf<IOException>())
+                .ConfigureAwait(false);
 
             if (operation == "create")
             {
@@ -437,9 +441,10 @@ namespace Opc.Ua.XRegistry.Tests
             secondFastPath.OnStateChangedAsync = (_, _, _, _) =>
                 throw new InvalidOperationException("Second sink failed.");
 
-            Assert.That(
+            await Assert.ThatAsync(
                 async () => await manager.OnDeleteGroupAsync(group, 0).ConfigureAwait(false),
-                Throws.TypeOf<AggregateException>().With.Property("InnerExceptions").Count.EqualTo(2));
+                Throws.TypeOf<AggregateException>().With.Property("InnerExceptions").Count.EqualTo(2))
+                .ConfigureAwait(false);
             Assert.Multiple(() =>
             {
                 Assert.That(manager.Find(first.NodeId), Is.Null);
@@ -468,19 +473,21 @@ namespace Opc.Ua.XRegistry.Tests
 
             if (duringCreation)
             {
-                Assert.That(
+                await Assert.ThatAsync(
                     async () => await group.CreateResource!.OnCallAsync!(
                         manager.SystemContext, group.CreateResource, group.NodeId,
                         "undisclosed", "v1", true, CancellationToken.None).ConfigureAwait(false),
-                    Throws.InvalidOperationException.With.Message.EqualTo("Injected notification failure."));
+                    Throws.InvalidOperationException.With.Message.EqualTo("Injected notification failure."))
+                    .ConfigureAwait(false);
             }
             else
             {
-                Assert.That(
+                await Assert.ThatAsync(
                     async () => await resource.Open!.OnCallAsync!(
                         manager.SystemContext, resource.Open, resource.NodeId, 2, CancellationToken.None)
                         .ConfigureAwait(false),
-                    Throws.InvalidOperationException.With.Message.EqualTo("Injected notification failure."));
+                    Throws.InvalidOperationException.With.Message.EqualTo("Injected notification failure."))
+                    .ConfigureAwait(false);
             }
             changedNode.OnStateChangedAsync = null;
 

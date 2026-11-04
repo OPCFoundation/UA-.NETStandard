@@ -35,8 +35,8 @@ namespace Opc.Ua.XRegistry
     /// NodeIds) is source-generated from <c>Opc.Ua.XRegistry.NodeSet2.xml</c> — use the generated
     /// <c>ObjectTypeIds</c>, <c>MethodIds</c> and <c>VariableIds</c> classes for those. The
     /// identifiers below address the <i>instances</i> a generic registry materializes at runtime,
-    /// and therefore live above the range the model occupies (63000-63999) so they can never
-    /// collide with a model node. Final NodeIds are assigned by the OPC Foundation.
+    /// and are reserved separately from the model's legacy 63000-63999 and native 67000-67999
+    /// allocations. Final NodeIds are assigned by the OPC Foundation.
     /// </summary>
     public static class XRegistryWellKnown
     {
@@ -52,8 +52,7 @@ namespace Opc.Ua.XRegistry
 
         /// <summary>
         /// First NodeId of the range the registry allocates to the groups and resources it creates
-        /// at runtime. Everything below it is either the compiled model (63000-63999) or a fixed
-        /// instance identifier.
+        /// at runtime, above both compiled model allocation blocks and the fixed instance identifiers.
         /// </summary>
         public const uint FirstDynamicInstance = 100000;
 

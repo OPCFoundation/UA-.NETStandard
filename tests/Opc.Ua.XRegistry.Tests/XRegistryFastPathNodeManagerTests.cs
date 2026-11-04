@@ -80,7 +80,7 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         [Test]
-        public void SeedWithoutContentIdProviderThrowsInvalidOperationException()
+        public async Task SeedWithoutContentIdProviderThrowsInvalidOperationException()
         {
             using XRegistryFastPathNodeManager nm = CreateNodeManager(new XRegistryServerOptions
             {
@@ -88,11 +88,12 @@ namespace Opc.Ua.XRegistry.Tests
                 SeedDocument = ByteString.From(s_seedDocument)
             });
 
-            Assert.That(
+            await Assert.ThatAsync(
                 async () => await nm.CreateAddressSpaceAsync(
                     new Dictionary<NodeId, IList<IReference>>(),
                     CancellationToken.None).ConfigureAwait(false),
-                Throws.InvalidOperationException.With.Message.Contains("ContentIdProvider"));
+                Throws.InvalidOperationException.With.Message.Contains("ContentIdProvider"))
+                .ConfigureAwait(false);
         }
 
         [Test]

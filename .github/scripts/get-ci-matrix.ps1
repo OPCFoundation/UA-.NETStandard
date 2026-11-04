@@ -150,6 +150,7 @@ $DefaultFilter = 'TestCategory!=LongRunning&TestCategory!=Stress'
 #                           by the fuzz-public-drop job instead.
 $MainlineExclusions = @(
     'Opc.Ua.Aot.Tests.csproj',
+    'Opc.Ua.Registry.Aot.Tests.csproj',
     'Opc.Ua.Stress.Tests.csproj',
     'Opc.Ua.Subscriptions.Durable.Tests.csproj',
     'Opc.Ua.OneFuzz.Validator.Tests.csproj')
