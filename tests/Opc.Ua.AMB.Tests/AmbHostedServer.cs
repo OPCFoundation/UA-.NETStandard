@@ -85,9 +85,11 @@ namespace Opc.Ua.AMB.Tests
             services.AddLogging();
             IOpcUaServerBuilder builder = services.AddOpcUa().AddServer<StandardServer>(options =>
             {
+                // The GUID isolates the PKI. The certificate file names already
+                // carry the application name, so repeating it in the directory
+                // would push the private key path past MAX_PATH on net48.
                 string root = System.IO.Path.Combine(
                     TestContext.CurrentContext.WorkDirectory,
-                    name,
                     Guid.NewGuid().ToString("N"));
                 options.ApplicationName = name;
                 options.ApplicationUri = "urn:localhost:" + name;
