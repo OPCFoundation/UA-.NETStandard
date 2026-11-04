@@ -1314,3 +1314,338 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
     }
 }
+
+namespace Opc.Ua.Server.Tests.NodeManager
+{
+    /// <summary>
+    /// Exercises the real lifecycle and routing publisher without the network startup
+    /// inherited by the main lifecycle fixture.
+    /// </summary>
+    [TestFixture]
+    [Category("NodeManagerLifecycle")]
+    public sealed class NodeManagerLifecycleBatchConflictTests
+    {
+        private const string kCandidateNamespace = "urn:test:batch-conflict:candidate";
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SameBatchDataTypeConflictsRejectBeforeDecisionAndDisposeCandidatesAsync(
+            bool conflictEncoding)
+        {
+            await using var harness = new BatchConflictHarness();
+            TypeTable servingTypes = harness.Data.TypeTree;
+            NodeId retainedType = new(9200, 1);
+            NodeId retainedEncoding = new(9201, 1);
+            NodeId firstType = new(9202, 1);
+            NodeId secondType = conflictEncoding ? new NodeId(9203, 1) : firstType;
+            NodeId encoding = new(9204, 1);
+            servingTypes.AddSubtype(retainedType, DataTypeIds.Structure);
+            Assert.That(servingTypes.AddEncoding(retainedType, retainedEncoding), Is.True);
+            _ = servingTypes.CaptureSnapshot(out TypeTable source, out long revision);
+            NodeManagerRoutingTable.RoutingSnapshot routing =
+                ((IDynamicNodeManagerBatchHost)harness.Master).RoutingRevision;
+            string[] namespaces = harness.Data.NamespaceUris.ToArray()!;
+            TypeTable? firstImage = null;
+            bool retainedFirstParent = false;
+            bool retainedFirstEncoding = false;
+            Mock<IAsyncNodeManager> first = harness.CreateManager(kCandidateNamespace);
+            Mock<IAsyncNodeManager> second = harness.CreateManager(kCandidateNamespace + ":second");
+            IAsyncNodeManagerFactory firstFactory = Factory(first, server =>
+            {
+                firstImage = server.TypeTree;
+                server.NamespaceUris.GetIndexOrAppend(kCandidateNamespace);
+                server.TypeTree.Add(CreateDataType(firstType, DataTypeIds.Structure, encoding));
+                Assert.That(server.TypeTree.FindSuperType(firstType), Is.EqualTo(DataTypeIds.Structure));
+                Assert.That(server.TypeTree.FindDataTypeId(encoding), Is.EqualTo(firstType));
+            });
+            IAsyncNodeManagerFactory secondFactory = Factory(second, server =>
+            {
+                Assert.That(server.TypeTree.FindDataTypeId(encoding), Is.EqualTo(firstType),
+                    "Both declarations must belong to ONE shared batch image.");
+                try
+                {
+                    server.TypeTree.Add(CreateDataType(secondType,
+                        conflictEncoding ? DataTypeIds.Structure : DataTypeIds.BaseDataType, encoding));
+                }
+                finally
+                {
+                    // Observe the first declaration before lifecycle abort detaches either manager.
+                    retainedFirstParent = firstImage!.FindSuperType(firstType) == DataTypeIds.Structure;
+                    retainedFirstEncoding = firstImage.FindDataTypeId(encoding) == firstType;
+                }
+            });
+            int decisions = 0;
+            IPreparedNodeManagerBatch? prepared = null;
+            try
+            {
+                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                {
+                    prepared = await harness.Lifecycle.PrepareAsync(
+                        [NodeManagerBatchChange.Add(firstFactory), NodeManagerBatchChange.Add(secondFactory)],
+                        CancellationToken.None).ConfigureAwait(false);
+                    await prepared.CommitAsync(_ =>
+                    {
+                        decisions++;
+                        return default;
+                    }).ConfigureAwait(false);
+                }).ConfigureAwait(false);
+            }
+            finally
+            {
+                if (prepared is not null)
+                {
+                    await prepared.DisposeAsync().ConfigureAwait(false);
+                }
+            }
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(decisions, Is.Zero);
+                Assert.That(retainedFirstParent, Is.True);
+                Assert.That(retainedFirstEncoding, Is.True);
+                Assert.That(((IDynamicNodeManagerBatchHost)harness.Master).RoutingRevision, Is.SameAs(routing));
+                Assert.That(harness.Master.AsyncNodeManagers, Does.Contain(harness.ServingManager.Object));
+                Assert.That(harness.Master.AsyncNodeManagers, Does.Not.Contain(first.Object));
+                Assert.That(harness.Master.AsyncNodeManagers, Does.Not.Contain(second.Object));
+                Assert.That(harness.Lifecycle.Registrations, Is.Empty);
+                Assert.That(harness.Data.NamespaceUris.ToArray(), Is.EqualTo(namespaces));
+                Assert.That(servingTypes.IsCurrentSnapshot(source, revision), Is.True);
+                Assert.That(servingTypes.FindSuperType(retainedType), Is.EqualTo(DataTypeIds.Structure));
+                Assert.That(servingTypes.FindDataTypeId(retainedEncoding), Is.EqualTo(retainedType));
+                Assert.That(servingTypes.FindDataTypeId(encoding), Is.EqualTo(NodeId.Null));
+                Assert.That(servingTypes.IsKnown(firstType), Is.False);
+                Assert.That(servingTypes.IsKnown(secondType), Is.False);
+                first.As<IDisposable>().Verify(value => value.Dispose(), Times.Once);
+                second.As<IDisposable>().Verify(value => value.Dispose(), Times.Once);
+                harness.ServingManager.As<IDisposable>().Verify(value => value.Dispose(), Times.Never);
+            }
+        }
+
+        [TestCase("node")]
+        [TestCase("namespace")]
+        [TestCase("default")]
+        public async Task SameCandidateDuplicateHistorianKeyPreservesFirstBindingBeforeAbortAsync(string scope)
+        {
+            await using var harness = new BatchConflictHarness();
+            var registry = (Opc.Ua.Server.Historian.HistorianProviderRegistry)harness.Data.HistorianRegistry;
+            var servingProvider = new Mock<Opc.Ua.Server.Historian.IHistorianProvider>();
+            var firstProvider = new Mock<Opc.Ua.Server.Historian.IHistorianProvider>();
+            var secondProvider = new Mock<Opc.Ua.Server.Historian.IHistorianProvider>();
+            Mock<Opc.Ua.Server.Historian.IHistorianProviderIdentity> servingIdentity =
+                servingProvider.As<Opc.Ua.Server.Historian.IHistorianProviderIdentity>();
+            Mock<Opc.Ua.Server.Historian.IHistorianProviderIdentity> firstIdentity =
+                firstProvider.As<Opc.Ua.Server.Historian.IHistorianProviderIdentity>();
+            Mock<Opc.Ua.Server.Historian.IHistorianProviderIdentity> secondIdentity =
+                secondProvider.As<Opc.Ua.Server.Historian.IHistorianProviderIdentity>();
+            servingProvider.As<IDisposable>();
+            firstProvider.As<IDisposable>();
+            secondProvider.As<IDisposable>();
+            servingIdentity.SetupGet(value => value.ProviderId).Returns("serving-provider");
+            firstIdentity.SetupGet(value => value.ProviderId).Returns("first-candidate-provider");
+            secondIdentity.SetupGet(value => value.ProviderId).Returns("second-candidate-provider");
+            NodeId node = new("history-value", 1);
+            Register(registry, servingProvider.Object);
+            ArrayOf<Opc.Ua.Server.Historian.IHistorianProvider> providers = registry.Providers;
+            NodeManagerRoutingTable.RoutingSnapshot routing =
+                ((IDynamicNodeManagerBatchHost)harness.Master).RoutingRevision;
+            _ = harness.Data.TypeTree.CaptureSnapshot(out TypeTable source, out long revision);
+            string[] namespaces = harness.Data.NamespaceUris.ToArray()!;
+            Mock<IAsyncNodeManager> candidate = harness.CreateManager(kCandidateNamespace);
+            candidate.As<INodeManagerReadinessNotification>()
+                .Setup(value => value.OnServerReadyAsync(It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            bool firstStillBound = false;
+            bool providerSetUnchanged = false;
+            IAsyncNodeManagerFactory factory = Factory(candidate, server =>
+            {
+                var staged = ((Opc.Ua.Server.Historian.IHistorianRegistryProvider)server).HistorianRegistry;
+                Register(staged, firstProvider.Object);
+                Assert.That(staged.Resolve(node), Is.SameAs(firstProvider.Object));
+                ArrayOf<Opc.Ua.Server.Historian.IHistorianProvider> firstSnapshot = staged.Providers;
+                Assert.That(firstSnapshot.ToArray(), Does.Contain(firstProvider.Object));
+                Assert.That(firstSnapshot.ToArray(), Does.Not.Contain(secondProvider.Object));
+                try
+                {
+                    Register(staged, secondProvider.Object);
+                }
+                finally
+                {
+                    // This must be observed before abort, not inferred from serving fallback afterward.
+                    firstStillBound = ReferenceEquals(staged.Resolve(node), firstProvider.Object);
+                    providerSetUnchanged = staged.Providers.Count == firstSnapshot.Count &&
+                        staged.Providers.Contains(servingProvider.Object) &&
+                        staged.Providers.Contains(firstProvider.Object) &&
+                        !staged.Providers.Contains(secondProvider.Object);
+                }
+            });
+            int decisions = 0;
+            IPreparedNodeManagerBatch? prepared = null;
+            try
+            {
+                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                {
+                    prepared = await harness.Lifecycle.PrepareAsync(
+                        [NodeManagerBatchChange.Add(factory)], CancellationToken.None).ConfigureAwait(false);
+                    await prepared.CommitAsync(_ =>
+                    {
+                        decisions++;
+                        return default;
+                    }).ConfigureAwait(false);
+                }).ConfigureAwait(false);
+            }
+            finally
+            {
+                if (prepared is not null)
+                {
+                    await prepared.DisposeAsync().ConfigureAwait(false);
+                }
+            }
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(decisions, Is.Zero);
+                Assert.That(firstStillBound, Is.True);
+                Assert.That(providerSetUnchanged, Is.True);
+                Assert.That(registry.Resolve(node), Is.SameAs(servingProvider.Object));
+                Assert.That(registry.Providers.ToArray(), Is.EquivalentTo(providers.ToArray()!));
+                Assert.That(harness.Data.NamespaceUris.ToArray(), Is.EqualTo(namespaces));
+                Assert.That(harness.Data.TypeTree.IsCurrentSnapshot(source, revision), Is.True);
+                Assert.That(((IDynamicNodeManagerBatchHost)harness.Master).RoutingRevision, Is.SameAs(routing));
+                Assert.That(harness.Master.AsyncNodeManagers, Does.Contain(harness.ServingManager.Object));
+                Assert.That(harness.Master.AsyncNodeManagers, Does.Not.Contain(candidate.Object));
+                Assert.That(harness.Lifecycle.Registrations, Is.Empty);
+                candidate.As<IDisposable>().Verify(value => value.Dispose(), Times.Once);
+                harness.ServingManager.As<IDisposable>().Verify(value => value.Dispose(), Times.Never);
+                firstProvider.As<IDisposable>().Verify(value => value.Dispose(), Times.Once);
+                secondProvider.As<IDisposable>().Verify(value => value.Dispose(), Times.Never);
+                servingProvider.As<IDisposable>().Verify(value => value.Dispose(), Times.Never);
+            }
+
+            void Register(
+                Opc.Ua.Server.Historian.IHistorianProviderRegistry target,
+                Opc.Ua.Server.Historian.IHistorianProvider provider)
+            {
+                switch (scope)
+                {
+                    case "node":
+                        target.RegisterForNode(node, provider);
+                        break;
+                    case "namespace":
+                        target.RegisterForNamespace(DeterministicServerMock.TestNamespaceUri, provider);
+                        break;
+                    default:
+                        target.RegisterDefault(provider);
+                        break;
+                }
+            }
+        }
+
+        private static DataTypeNode CreateDataType(NodeId id, NodeId parent, NodeId encoding)
+        {
+            var node = new DataTypeNode
+            {
+                NodeId = id,
+                NodeClass = NodeClass.DataType,
+                BrowseName = new QualifiedName("BatchDataType", id.NamespaceIndex)
+            };
+            node.ReferenceTable.Add(ReferenceTypeIds.HasSubtype, true, parent);
+            node.ReferenceTable.Add(ReferenceTypeIds.HasEncoding, false, encoding);
+            return node;
+        }
+
+        private static IAsyncNodeManagerFactory Factory(Mock<IAsyncNodeManager> manager, Action<IServerInternal> declare)
+        {
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory.Setup(value => value.CreateAsync(It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                .Returns((IServerInternal server, ApplicationConfiguration _, CancellationToken _) =>
+                {
+                    manager.Setup(value => value.CreateAddressSpaceAsync(
+                            It.IsAny<System.Collections.Generic.IDictionary<NodeId,
+                                System.Collections.Generic.IList<IReference>>>(),
+                            It.IsAny<CancellationToken>()))
+                        .Returns(() =>
+                        {
+                            declare(server);
+                            return default;
+                        });
+                    return new ValueTask<IAsyncNodeManager>(manager.Object);
+                });
+            return factory.Object;
+        }
+
+        private sealed class BatchConflictHarness : IAsyncDisposable
+        {
+            public BatchConflictHarness()
+            {
+                ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+                var configuration = new ApplicationConfiguration
+                {
+                    ApplicationUri = "urn:test:batch-conflict:server",
+                    ServerConfiguration = new ServerConfiguration()
+                };
+                Server = new StandardServer(telemetry) { LoadComplexTypes = false };
+                Data = new ServerInternalData(new ServerProperties(), configuration,
+                    new ServiceMessageContext(telemetry, EncodeableFactory.Create()));
+                Data.NamespaceUris.GetIndexOrAppend(DeterministicServerMock.TestNamespaceUri);
+                Data.TypeTree.AddSubtype(DataTypeIds.BaseDataType, NodeId.Null);
+                Data.TypeTree.AddSubtype(DataTypeIds.Structure, DataTypeIds.BaseDataType);
+                var status = new ServerStatusValue(new ServerStatusState(null),
+                    new ServerStatusDataType { State = ServerState.Running }, new Lock());
+                typeof(ServerInternalData).GetProperty("NonThreadSafeStatus",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.SetValue(Data, status);
+                typeof(ServerBase).GetProperty("Configuration",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.SetValue(Server, configuration);
+                typeof(StandardServer).GetField("m_serverInternal",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.SetValue(Server, Data);
+                var mainFactory = new Mock<IMainNodeManagerFactory>();
+                var configurationNodeManager = new Mock<IConfigurationNodeManager>();
+                configurationNodeManager.As<IDiagnosticsNodeManager>()
+                    .Setup(value => value.FindPredefinedNode<ServerObjectState>(ObjectIds.Server))
+                    .Returns(new ServerObjectState(null));
+                mainFactory.Setup(value => value.CreateConfigurationNodeManager())
+                    .Returns(configurationNodeManager.Object);
+                mainFactory.Setup(value => value.CreateCoreNodeManager(It.IsAny<ushort>()))
+                    .Returns(new Mock<ICoreNodeManager>().Object);
+                Data.SetMainNodeManagerFactory(mainFactory.Object);
+                ServingManager = CreateManager(DeterministicServerMock.TestNamespaceUri);
+                Master = new MasterNodeManager(Data, configuration, null, [ServingManager.Object], null);
+                Data.SetNodeManager(Master);
+                Lifecycle = (NodeManagerLifecycle)Server.NodeManagerLifecycle;
+                Assert.That(Data.IsRunning, Is.True);
+                Assert.That(Master.AsyncNodeManagers, Does.Contain(ServingManager.Object));
+            }
+
+            public StandardServer Server { get; }
+            public ServerInternalData Data { get; }
+            public MasterNodeManager Master { get; }
+            public NodeManagerLifecycle Lifecycle { get; }
+            public Mock<IAsyncNodeManager> ServingManager { get; }
+
+            public Mock<IAsyncNodeManager> CreateManager(string namespaceUri)
+            {
+                var manager = new Mock<IAsyncNodeManager>();
+                manager.As<IDisposable>();
+                manager.SetupGet(value => value.NamespaceUris).Returns([namespaceUri]);
+                manager.SetupGet(value => value.SyncNodeManager).Returns(new Mock<INodeManager>().Object);
+                manager.Setup(value => value.CreateAddressSpaceAsync(
+                        It.IsAny<System.Collections.Generic.IDictionary<NodeId,
+                            System.Collections.Generic.IList<IReference>>>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns(default(ValueTask));
+                manager.Setup(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()))
+                    .Returns(default(ValueTask));
+                return manager;
+            }
+
+            public async ValueTask DisposeAsync()
+            {
+                // The facade was never started: no listeners, timers, sessions, or background workers exist.
+                Lifecycle.Dispose();
+                typeof(StandardServer).GetField("m_serverInternal",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.SetValue(Server, null);
+                await Data.DisposeAsync().ConfigureAwait(false);
+                Server.Dispose();
+            }
+        }
+    }
+}

@@ -335,6 +335,7 @@ namespace Opc.Ua.Server
                 ServerUris.BindTo(preparation.ServerUris);
                 TypeTree = new TypeTable(NamespaceUris);
                 TypeTree.BindTo(preparation.TypeTree);
+                TypeTree.RejectCandidateConflicts();
                 Factory = preparation.Factory.Fork();
                 ((EncodeableFactory)Factory).BindTo(preparation.Factory);
                 DefaultSystemContext = new ServerSystemContext(this).Copy(m_server.DefaultSystemContext);

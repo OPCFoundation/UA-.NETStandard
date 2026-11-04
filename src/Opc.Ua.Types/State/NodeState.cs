@@ -6880,10 +6880,20 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Changes whenever the RolePermissions or UserRolePermissions of any node change, so
-        /// that cached permission verdicts can be invalidated without a reference to the node.
+        /// Changes when role-permission attributes change or address-space membership may
+        /// replace the node resolved for a NodeId.
+        /// Cached permission verdicts use this version without retaining every resolved node.
         /// </summary>
         internal static long RolePermissionsVersion => Interlocked.Read(ref s_rolePermissionsVersion);
+
+        /// <summary>
+        /// Advances the permission cache version around node-management operations that can
+        /// replace the node resolved for a NodeId.
+        /// </summary>
+        internal static void InvalidateRolePermissionsCache()
+        {
+            Interlocked.Increment(ref s_rolePermissionsVersion);
+        }
 
         private static long s_rolePermissionsVersion;
 

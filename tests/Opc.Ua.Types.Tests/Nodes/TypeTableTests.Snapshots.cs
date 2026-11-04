@@ -153,7 +153,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         }
 
         /// <summary>
-        /// Verifies that entirely new declarations cannot introduce a hierarchy cycle.
+        /// Verifies that a candidate cannot create a hierarchy cycle by redefining a local type.
         /// </summary>
         [Test]
         public void AdditiveMergeRejectsCyclicNewTypes()
@@ -163,10 +163,11 @@ namespace Opc.Ua.Types.Tests.Nodes
             NodeId second = new(5001);
             proposed.AddSubtype(first, NodeId.Null);
             proposed.AddSubtype(second, first);
-            proposed.AddSubtype(first, second);
 
-            Assert.Throws<InvalidOperationException>(() =>
-                m_typeTable.PrepareAdditiveMerge(proposed, source, revision));
+            Assert.Throws<InvalidOperationException>(() => proposed.AddSubtype(first, second));
+            Assert.That(proposed.FindSuperType(first), Is.EqualTo(NodeId.Null));
+            Assert.That(proposed.FindSuperType(second), Is.EqualTo(first));
+            Assert.That(m_typeTable.IsCurrentSnapshot(source, revision), Is.True);
             Assert.That(m_typeTable.IsKnown(first), Is.False);
         }
 
@@ -572,6 +573,104 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             m_typeTable.BindTo(m_typeTable);
             Assert.That(m_typeTable.IsKnown(s_childTypeId), Is.True);
+        }
+
+        /// <summary>
+        /// A second declaration in the same private image must not erase the first relationship.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void CandidateLocalDataTypeSupertypeConflictPreservesFirstDeclaration(bool useLocalNode)
+        {
+            TypeTable candidate = m_typeTable.CaptureSnapshot(out TypeTable source, out long revision);
+            NodeId dataType = new(9100);
+            Declare(s_rootTypeId);
+            Assert.That(candidate.FindSuperType(dataType), Is.EqualTo(s_rootTypeId));
+            _ = candidate.CaptureSnapshot(out TypeTable candidateSource, out long candidateRevision);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.Throws<InvalidOperationException>(() => Declare(s_childTypeId));
+                Assert.That(candidate.IsCurrentSnapshot(candidateSource, candidateRevision), Is.True);
+                Assert.That(candidate.FindSuperType(dataType), Is.EqualTo(s_rootTypeId));
+                Assert.That(candidate.FindSubTypes(s_rootTypeId).ToList(), Does.Contain(dataType));
+                Assert.That(candidate.FindSubTypes(s_childTypeId).ToList(), Does.Not.Contain(dataType));
+                Assert.That(m_typeTable.IsCurrentSnapshot(source, revision), Is.True);
+                Assert.That(m_typeTable.IsKnown(dataType), Is.False);
+                Assert.That(m_typeTable.FindSuperType(s_grandchildTypeId), Is.EqualTo(s_childTypeId));
+            }
+
+            void Declare(NodeId parent)
+            {
+                if (!useLocalNode)
+                {
+                    candidate.AddSubtype(dataType, parent);
+                    return;
+                }
+                var node = new DataTypeNode
+                {
+                    NodeId = dataType,
+                    NodeClass = NodeClass.DataType,
+                    BrowseName = new QualifiedName("CandidateDataType")
+                };
+                node.ReferenceTable.Add(ReferenceTypeIds.HasSubtype, true, parent);
+                candidate.Add(node);
+            }
+        }
+
+        /// <summary>
+        /// Conflicting encoding ownership must be checked before inserting the second type or encoding.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void CandidateLocalEncodingConflictPreservesFirstOwner(bool useLocalNode)
+        {
+            Assert.That(m_typeTable.AddEncoding(s_dataTypeId, s_encodingId1), Is.True);
+            TypeTable candidate = m_typeTable.CaptureSnapshot(out TypeTable source, out long revision);
+            NodeId first = new(9110);
+            NodeId second = new(9111);
+            NodeId encoding = new(9112);
+            if (!useLocalNode)
+            {
+                candidate.AddSubtype(first, s_dataTypeId);
+                candidate.AddSubtype(second, s_dataTypeId);
+            }
+            Declare(first);
+            Assert.That(candidate.FindDataTypeId(encoding), Is.EqualTo(first));
+            _ = candidate.CaptureSnapshot(out TypeTable candidateSource, out long candidateRevision);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.Throws<InvalidOperationException>(() => Declare(second));
+                Assert.That(candidate.IsCurrentSnapshot(candidateSource, candidateRevision), Is.True);
+                Assert.That(candidate.FindDataTypeId(encoding), Is.EqualTo(first));
+                Assert.That(candidate.IsEncodingOf(encoding, first), Is.True);
+                Assert.That(candidate.IsEncodingOf(encoding, second), Is.False);
+                Assert.That(candidate.IsKnown(second), Is.EqualTo(!useLocalNode));
+                Assert.That(m_typeTable.IsCurrentSnapshot(source, revision), Is.True);
+                Assert.That(m_typeTable.FindDataTypeId(encoding), Is.EqualTo(NodeId.Null));
+                Assert.That(m_typeTable.FindDataTypeId(s_encodingId1), Is.EqualTo(s_dataTypeId));
+                Assert.That(m_typeTable.IsKnown(first), Is.False);
+                Assert.That(m_typeTable.IsKnown(second), Is.False);
+            }
+
+            void Declare(NodeId owner)
+            {
+                if (!useLocalNode)
+                {
+                    Assert.That(candidate.AddEncoding(owner, encoding), Is.True);
+                    return;
+                }
+                var node = new DataTypeNode
+                {
+                    NodeId = owner,
+                    NodeClass = NodeClass.DataType,
+                    BrowseName = new QualifiedName("CandidateEncodingOwner")
+                };
+                node.ReferenceTable.Add(ReferenceTypeIds.HasSubtype, true, s_dataTypeId);
+                node.ReferenceTable.Add(ReferenceTypeIds.HasEncoding, false, encoding);
+                candidate.Add(node);
+            }
         }
     }
 }

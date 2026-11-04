@@ -151,10 +151,22 @@ namespace Opc.Ua.Server.Tests.Historian
             serving.RegisterDefault(originalDefault);
             candidate.RegisterForNode(nodeId, firstNode);
             ArrayOf<IHistorianProvider> firstSnapshot = candidate.Providers;
+            Assert.That(
+                () => candidate.RegisterForNode(nodeId, lastNode),
+                Throws.InvalidOperationException);
+            Assert.That(candidate.UnregisterForNode(nodeId), Is.True);
             candidate.RegisterForNode(nodeId, lastNode);
             candidate.RegisterForNamespace(kNamespaceUri, firstNamespace);
+            Assert.That(
+                () => candidate.RegisterForNamespace(kNamespaceUri, lastNamespace),
+                Throws.InvalidOperationException);
+            Assert.That(candidate.UnregisterForNamespace(kNamespaceUri), Is.True);
             candidate.RegisterForNamespace(kNamespaceUri, lastNamespace);
             candidate.RegisterDefault(firstDefault);
+            Assert.That(
+                () => candidate.RegisterDefault(lastDefault),
+                Throws.InvalidOperationException);
+            candidate.ClearDefault();
             candidate.RegisterDefault(lastDefault);
             ArrayOf<IHistorianProvider> latestSnapshot = candidate.Providers;
 
@@ -492,7 +504,7 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         /// <summary>
-        /// Publication transfers current bindings without abandoning superseded candidate providers.
+        /// Duplicate candidate registrations fail; removed providers remain owned until candidate cleanup.
         /// </summary>
         [TestCase("Node", false)]
         [TestCase("Node", true)]
@@ -517,11 +529,19 @@ namespace Opc.Ua.Server.Tests.Historian
             if (unregisterBeforeReplacement)
             {
                 Assert.That(Unregister(scope, candidate), Is.True);
+                Register(scope, candidate, publishedProvider);
             }
-            Register(scope, candidate, publishedProvider);
+            else
+            {
+                Assert.That(
+                    () => Register(scope, candidate, publishedProvider),
+                    Throws.InvalidOperationException);
+            }
             candidate.Publish();
 
-            Assert.That(Resolve(scope, serving, nodeId), Is.SameAs(publishedProvider));
+            Assert.That(
+                Resolve(scope, serving, nodeId),
+                Is.SameAs(unregisterBeforeReplacement ? publishedProvider : candidateProvider));
             Assert.That(candidateProvider.DisposeCount, Is.Zero);
             Assert.That(publishedProvider.DisposeCount, Is.Zero);
 
@@ -529,7 +549,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
             using (Assert.EnterMultipleScope())
             {
-                Assert.That(candidateProvider.DisposeCount, Is.EqualTo(1));
+                Assert.That(candidateProvider.DisposeCount, Is.EqualTo(unregisterBeforeReplacement ? 1 : 0));
                 Assert.That(publishedProvider.DisposeCount, Is.Zero);
             }
 
@@ -538,7 +558,9 @@ namespace Opc.Ua.Server.Tests.Historian
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(candidateProvider.DisposeCount, Is.EqualTo(1));
-                Assert.That(publishedProvider.DisposeCount, Is.EqualTo(1));
+                Assert.That(
+                    publishedProvider.DisposeCount,
+                    Is.EqualTo(unregisterBeforeReplacement ? 1 : 0));
             }
 
             void Register(
@@ -609,6 +631,118 @@ namespace Opc.Ua.Server.Tests.Historian
                 NodeId nodeId,
                 CancellationToken cancellationToken)
             {
+                return new ValueTask<bool>(true);
+            }
+
+            public void Dispose()
+            {
+                DisposeCount++;
+            }
+        }
+
+        /// <summary>
+        /// Candidate abort must not adopt disposal of a serving DI singleton, in any candidate scope.
+        /// </summary>
+        [TestCase("Node")]
+        [TestCase("Namespace")]
+        [TestCase("Default")]
+        public async Task AbortedCandidatePreservesNonOwningServingSingletonAndDisposesExclusiveProviderOnceAsync(
+            string scope)
+        {
+            var namespaceTable = new NamespaceTable();
+            namespaceTable.Append(kNamespaceUri);
+            using var sharedProvider = new BorrowedSingletonProvider();
+            using var serving = new HistorianProviderRegistry(namespaceTable);
+            var exclusiveProvider = new TrackingProvider();
+            var sharedNode = new NodeId("borrowed-singleton", 1);
+            var exclusiveNode = new NodeId("candidate-exclusive", 1);
+
+            // AddHistorian<TProvider> resolves a DI singleton and registers it with this ownership setting.
+            serving.RegisterDefault(sharedProvider, ownsProvider: false);
+            using var candidate =
+                new StagedHistorianProviderRegistry(namespaceTable, serving, new object());
+            switch (scope)
+            {
+                case "Node":
+                    candidate.RegisterForNode(sharedNode, sharedProvider);
+                    break;
+                case "Namespace":
+                    candidate.RegisterForNamespace(kNamespaceUri, sharedProvider);
+                    break;
+                case "Default":
+                    candidate.RegisterDefault(sharedProvider);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(scope));
+            }
+            candidate.RegisterForNode(exclusiveNode, exclusiveProvider);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(candidate.Resolve(sharedNode), Is.SameAs(sharedProvider));
+                Assert.That(candidate.Resolve(exclusiveNode), Is.SameAs(exclusiveProvider));
+                Assert.That(serving.Resolve(exclusiveNode), Is.SameAs(sharedProvider));
+                Assert.That(((IHistorianOwnedProviderRegistry)serving).OwnsProvider(sharedProvider), Is.False);
+            }
+
+            candidate.Dispose();
+            candidate.Dispose();
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(sharedProvider.DisposeCount, Is.Zero);
+                Assert.That(exclusiveProvider.DisposeCount, Is.EqualTo(1));
+                Assert.That(serving.Resolve(sharedNode), Is.SameAs(sharedProvider));
+                Assert.That(serving.Resolve(exclusiveNode), Is.SameAs(sharedProvider));
+                Assert.That(serving.Providers.Contains(sharedProvider), Is.True);
+                Assert.That(serving.Providers.Contains(exclusiveProvider), Is.False);
+            }
+            IHistorianProvider resolved = serving.Resolve(sharedNode)!;
+            HistorianNodeCapabilities capabilities = await resolved.GetCapabilitiesAsync(
+                sharedNode, CancellationToken.None)
+                .ConfigureAwait(false);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(capabilities, Is.EqualTo(HistorianNodeCapabilities.ReadOnly));
+                Assert.That(sharedProvider.LastCapabilitiesNode, Is.EqualTo(sharedNode));
+                Assert.That(sharedProvider.CapabilitiesCallCount, Is.EqualTo(1));
+            }
+
+            serving.Dispose();
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(sharedProvider.DisposeCount, Is.Zero, "Only the DI owner may dispose the singleton.");
+                Assert.That(exclusiveProvider.DisposeCount, Is.EqualTo(1));
+            }
+        }
+
+        private sealed class BorrowedSingletonProvider : IHistorianProvider, IDisposable
+        {
+            public int DisposeCount { get; private set; }
+
+            public int CapabilitiesCallCount { get; private set; }
+
+            public NodeId LastCapabilitiesNode { get; private set; } = NodeId.Null;
+
+            public ValueTask<HistorianNodeCapabilities> GetCapabilitiesAsync(
+                NodeId nodeId,
+                CancellationToken cancellationToken = default)
+            {
+                if (DisposeCount != 0)
+                {
+                    throw new ObjectDisposedException(nameof(BorrowedSingletonProvider));
+                }
+                LastCapabilitiesNode = nodeId;
+                CapabilitiesCallCount++;
+                return new ValueTask<HistorianNodeCapabilities>(HistorianNodeCapabilities.ReadOnly);
+            }
+
+            public ValueTask<bool> IsHistorizingAsync(NodeId nodeId, CancellationToken cancellationToken)
+            {
+                if (DisposeCount != 0)
+                {
+                    throw new ObjectDisposedException(nameof(BorrowedSingletonProvider));
+                }
                 return new ValueTask<bool>(true);
             }
 

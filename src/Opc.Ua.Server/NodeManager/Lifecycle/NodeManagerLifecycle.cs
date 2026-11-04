@@ -3098,29 +3098,56 @@ namespace Opc.Ua.Server
                         throw new InvalidOperationException("The prepared batch has already been consumed.");
                     }
                 }
+                bool commitFailed = false;
                 try
                 {
-                    if (m_operation is null)
+                    try
                     {
-                        throw new InvalidOperationException("The prepared batch no longer owns its lifecycle operation.");
+                        if (m_operation is null)
+                        {
+                            throw new InvalidOperationException(
+                                "The prepared batch no longer owns its lifecycle operation.");
+                        }
+                        return await m_owner.CompleteBatchAsync(
+                            this, decideAsync, cancellationToken, publishCommittedState).ConfigureAwait(false);
                     }
-                    return await m_owner.CompleteBatchAsync(
-                        this, decideAsync, cancellationToken, publishCommittedState).ConfigureAwait(false);
+                    catch (NodeManagerRoutingConflictException failure) when (
+                        failure.Batch is null && ReferenceEquals(failure.RoutingRevision, RoutingRevision))
+                    {
+                        throw new InvalidOperationException(
+                            failure.Message, new NodeManagerRoutingConflictException(failure, this));
+                    }
+                    catch (OptimisticPublicationConflictException failure)
+                    {
+                        throw new InvalidOperationException(
+                            failure.Message, new NodeManagerPreparedConflictException(failure, this));
+                    }
                 }
-                catch (NodeManagerRoutingConflictException failure) when (
-                    failure.Batch is null && ReferenceEquals(failure.RoutingRevision, RoutingRevision))
+                catch (Exception failure) when (
+                    decideAsync is not null && !IsCommitted && failure is not OutOfMemoryException)
                 {
-                    throw new InvalidOperationException(
-                        failure.Message, new NodeManagerRoutingConflictException(failure, this));
-                }
-                catch (OptimisticPublicationConflictException failure)
-                {
-                    throw new InvalidOperationException(
-                        failure.Message, new NodeManagerPreparedConflictException(failure, this));
+                    commitFailed = true;
+                    Exception? cleanupFailure;
+                    try
+                    {
+                        cleanupFailure = await m_owner.AbortBatchEntriesAsync(Host, Entries).ConfigureAwait(false);
+                    }
+                    catch (Exception cleanup) when (cleanup is not OutOfMemoryException)
+                    {
+                        cleanupFailure = cleanup;
+                    }
+                    if (cleanupFailure is not null)
+                    {
+                        throw new AggregateException(
+                            "The prepared commit failed and candidate cleanup also failed.",
+                            failure,
+                            cleanupFailure);
+                    }
+                    throw;
                 }
                 finally
                 {
-                    if (IsCommitted)
+                    if (IsCommitted || commitFailed)
                     {
                         Interlocked.Exchange(ref m_operation, null)?.Dispose();
                     }

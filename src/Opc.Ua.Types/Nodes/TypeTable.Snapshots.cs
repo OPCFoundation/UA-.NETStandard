@@ -72,6 +72,7 @@ namespace Opc.Ua
                 {
                     m_captureSource = new WeakReference<TypeTable>(this),
                     m_captureRevision = m_revision,
+                    m_candidateLocalTypes = new HashSet<NodeId>(m_candidateLocalTypes),
                     m_storage = storage
                 };
             }
@@ -336,6 +337,10 @@ namespace Opc.Ua
         /// <summary>Weak provenance avoids retaining earlier serving graphs through prepared copies.</summary>
         private WeakReference<TypeTable>? m_captureSource;
 
+        private bool m_rejectConflictingDefinitions;
+
+        private HashSet<NodeId> m_candidateLocalTypes = [];
+
         /// <summary>The serving revision from which this private graph was copied.</summary>
         private long m_captureRevision;
         private long m_revision
@@ -359,6 +364,29 @@ namespace Opc.Ua
         internal void BindTo(TypeTable canonical)
         {
             m_storage = canonical.m_storage;
+            m_rejectConflictingDefinitions = false;
+            m_candidateLocalTypes.Clear();
+        }
+
+        /// <summary>
+        /// Rejects registrations that conflict with definitions in the captured graph.
+        /// </summary>
+        internal void RejectCandidateConflicts()
+        {
+            m_rejectConflictingDefinitions = true;
+        }
+
+        private bool ShouldRejectCandidateConflict(NodeId typeId)
+        {
+            return m_rejectConflictingDefinitions || m_candidateLocalTypes.Contains(typeId);
+        }
+
+        private void TrackCandidateType(NodeId typeId)
+        {
+            if (m_captureSource is not null)
+            {
+                m_candidateLocalTypes.Add(typeId);
+            }
         }
 
         /// <summary>

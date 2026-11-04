@@ -36,11 +36,17 @@ namespace Opc.Ua.Server.Historian
     /// <summary>
     /// Identifies one registration contributed by a prepared NodeManager generation.
     /// </summary>
+    /// <param name="Kind">The registration scope.</param>
+    /// <param name="NodeId">The exact node identifier, when the scope is node-specific.</param>
+    /// <param name="NamespaceUri">The namespace URI, when the scope is namespace-specific.</param>
+    /// <param name="Provider">The historian provider.</param>
+    /// <param name="OwnsProvider">Whether the registration owner owns provider disposal.</param>
     internal readonly record struct HistorianProviderRegistration(
         HistorianProviderRegistrationKind Kind,
         NodeId NodeId,
         string? NamespaceUri,
-        IHistorianProvider Provider);
+        IHistorianProvider Provider,
+        bool OwnsProvider);
 
     /// <summary>
     /// Identifies the scope of a staged historian provider registration.
@@ -115,6 +121,22 @@ namespace Opc.Ua.Server.Historian
         /// <inheritdoc/>
         public void RegisterForNode(NodeId nodeId, IHistorianProvider provider)
         {
+            RegisterForNode(nodeId, provider, ownsProvider: true);
+        }
+
+        /// <summary>
+        /// Registers a provider for one node with an explicit lifetime and duplicate-key policy.
+        /// </summary>
+        /// <param name="nodeId">The exact node identifier.</param>
+        /// <param name="provider">The historian provider.</param>
+        /// <param name="ownsProvider">Whether this registry owns the provider's disposal lifetime.</param>
+        /// <param name="rejectDuplicate">Whether an existing local binding must be rejected.</param>
+        internal void RegisterForNode(
+            NodeId nodeId,
+            IHistorianProvider provider,
+            bool ownsProvider,
+            bool rejectDuplicate = false)
+        {
             if (nodeId.IsNull)
             {
                 throw new ArgumentException("NodeId must not be null.", nameof(nodeId));
@@ -126,10 +148,14 @@ namespace Opc.Ua.Server.Historian
 
             lock (m_lock)
             {
+                if (rejectDuplicate && m_nodes.ContainsKey(nodeId))
+                {
+                    throw new InvalidOperationException($"A historian provider is already registered for node '{nodeId}'.");
+                }
                 m_nodes.TryGetValue(nodeId, out IHistorianProvider? previous);
                 m_nodes[nodeId] = provider;
                 m_nodeRegistrationOrder[nodeId] = ++m_registrationOrder;
-                AddProvider(provider, ownsProvider: true);
+                AddProvider(provider, ownsProvider);
                 if (previous != null)
                 {
                     RebuildProviderSet(previous);
@@ -139,6 +165,22 @@ namespace Opc.Ua.Server.Historian
 
         /// <inheritdoc/>
         public void RegisterForNamespace(string namespaceUri, IHistorianProvider provider)
+        {
+            RegisterForNamespace(namespaceUri, provider, ownsProvider: true);
+        }
+
+        /// <summary>
+        /// Registers a provider for a namespace with an explicit lifetime and duplicate-key policy.
+        /// </summary>
+        /// <param name="namespaceUri">The namespace URI.</param>
+        /// <param name="provider">The historian provider.</param>
+        /// <param name="ownsProvider">Whether this registry owns the provider's disposal lifetime.</param>
+        /// <param name="rejectDuplicate">Whether an existing local binding must be rejected.</param>
+        internal void RegisterForNamespace(
+            string namespaceUri,
+            IHistorianProvider provider,
+            bool ownsProvider,
+            bool rejectDuplicate = false)
         {
             if (string.IsNullOrEmpty(namespaceUri))
             {
@@ -151,10 +193,15 @@ namespace Opc.Ua.Server.Historian
 
             lock (m_lock)
             {
+                if (rejectDuplicate && m_namespaces.ContainsKey(namespaceUri))
+                {
+                    throw new InvalidOperationException(
+                        $"A historian provider is already registered for namespace '{namespaceUri}'.");
+                }
                 m_namespaces.TryGetValue(namespaceUri, out IHistorianProvider? previous);
                 m_namespaces[namespaceUri] = provider;
                 m_namespaceRegistrationOrder[namespaceUri] = ++m_registrationOrder;
-                AddProvider(provider, ownsProvider: true);
+                AddProvider(provider, ownsProvider);
                 if (previous != null)
                 {
                     RebuildProviderSet(previous);
@@ -171,10 +218,14 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Registers the fallback historian provider with an explicit lifetime ownership setting.
         /// </summary>
+        /// <param name="provider">The historian provider.</param>
+        /// <param name="ownsProvider">Whether this registry owns the provider's disposal lifetime.</param>
+        /// <param name="rejectDuplicate">Whether an existing local binding must be rejected.</param>
         /// <exception cref="ArgumentNullException"><paramref name="provider"/> is <c>null</c>.</exception>
         internal void RegisterDefault(
             IHistorianProvider provider,
-            bool ownsProvider)
+            bool ownsProvider,
+            bool rejectDuplicate = false)
         {
             if (provider == null)
             {
@@ -183,6 +234,10 @@ namespace Opc.Ua.Server.Historian
 
             lock (m_lock)
             {
+                if (rejectDuplicate && m_default != null)
+                {
+                    throw new InvalidOperationException("A default historian provider is already registered.");
+                }
                 IHistorianProvider? previous = m_default;
                 m_default = provider;
                 m_defaultRegistrationOrder = ++m_registrationOrder;
@@ -404,7 +459,7 @@ namespace Opc.Ua.Server.Historian
                         default:
                             throw new ArgumentOutOfRangeException(nameof(registrations));
                     }
-                    AddProvider(registration.Provider, ownsProvider: true);
+                    AddProvider(registration.Provider, registration.OwnsProvider);
                 }
             }
         }
@@ -441,7 +496,8 @@ namespace Opc.Ua.Server.Historian
                         HistorianProviderRegistrationKind.Node,
                         entry.Key,
                         null,
-                        entry.Value));
+                        entry.Value,
+                        m_ownedProviders.Contains(entry.Value)));
                 }
                 foreach (KeyValuePair<string, IHistorianProvider> entry in m_namespaces)
                 {
@@ -449,7 +505,8 @@ namespace Opc.Ua.Server.Historian
                         HistorianProviderRegistrationKind.Namespace,
                         NodeId.Null,
                         entry.Key,
-                        entry.Value));
+                        entry.Value,
+                        m_ownedProviders.Contains(entry.Value)));
                 }
                 if (m_default is not null)
                 {
@@ -457,7 +514,8 @@ namespace Opc.Ua.Server.Historian
                         HistorianProviderRegistrationKind.Default,
                         NodeId.Null,
                         null,
-                        m_default));
+                        m_default,
+                        m_ownedProviders.Contains(m_default)));
                 }
                 return [.. registrations];
             }
@@ -530,11 +588,38 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Relinquishes providers whose disposal lifetime belongs to the serving registry.
         /// </summary>
-        internal void ExcludeSharedProviderOwnership(IHistorianOwnedProviderRegistry sharedOwner)
+        /// <param name="sharedRegistry">The serving registry that may retain candidate providers.</param>
+        internal void ExcludeSharedProviderOwnership(IHistorianProviderRegistry sharedRegistry)
         {
+            if (sharedRegistry is null)
+            {
+                throw new ArgumentNullException(nameof(sharedRegistry));
+            }
+            var sharedProviders = new HashSet<IHistorianProvider>();
+            ArrayOf<IHistorianProvider> registeredProviders = sharedRegistry.Providers;
+            for (int index = 0; index < registeredProviders.Count; index++)
+            {
+                sharedProviders.Add(registeredProviders[index]);
+            }
+
+            IHistorianProvider[] ownedProviders;
             lock (m_lock)
             {
-                m_ownedProviders.RemoveWhere(sharedOwner.OwnsProvider);
+                ownedProviders = [.. m_ownedProviders];
+            }
+            if (sharedRegistry is IHistorianOwnedProviderRegistry sharedOwner)
+            {
+                foreach (IHistorianProvider provider in ownedProviders)
+                {
+                    if (sharedOwner.OwnsProvider(provider))
+                    {
+                        sharedProviders.Add(provider);
+                    }
+                }
+            }
+            lock (m_lock)
+            {
+                m_ownedProviders.ExceptWith(sharedProviders);
             }
         }
 

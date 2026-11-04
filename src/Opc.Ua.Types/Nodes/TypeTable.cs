@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -558,12 +559,44 @@ namespace Opc.Ua
                         "A valid supertype identifier is required.");
                 }
 
+                IList<IReference> encodings = node.References
+                    .Find(ReferenceTypeIds.HasEncoding, false, false, null);
+                for (int ii = 0; ii < encodings.Count; ii++)
+                {
+                    NodeId encodingId = ExpandedNodeId.ToNodeId(
+                        encodings[ii].TargetId, m_namespaceUris);
+                    if (m_encodings.TryGetValue(encodingId, out TypeInfo? encodingOwner) &&
+                        encodingOwner.NodeId != node.NodeId &&
+                        ShouldRejectCandidateConflict(encodingOwner.NodeId))
+                    {
+                        throw new InvalidOperationException(
+                            $"Encoding '{encodingId}' cannot identify multiple data types.");
+                    }
+                }
+
+                if (m_nodes.TryGetValue(node.NodeId, out TypeInfo? capturedType) &&
+                    ShouldRejectCandidateConflict(node.NodeId))
+                {
+                    NodeId capturedSuperTypeId = capturedType.SuperType?.NodeId ?? NodeId.Null;
+                    NodeId proposedSuperTypeId = superTypeInfo?.NodeId ?? NodeId.Null;
+                    bool conflictingReferenceName =
+                        ((int)node.NodeClass & (int)NodeClass.ReferenceType) != 0 &&
+                        !capturedType.BrowseName.IsNull &&
+                        capturedType.BrowseName != node.BrowseName;
+                    if (capturedSuperTypeId != proposedSuperTypeId || conflictingReferenceName)
+                    {
+                        throw new InvalidOperationException(
+                            $"Type '{node.NodeId}' cannot be redefined within a prepared candidate.");
+                    }
+                }
+
                 // create the type info.
                 m_revision++;
                 if (!m_nodes.TryGetValue(node.NodeId, out TypeInfo? typeInfo))
                 {
                     typeInfo = new TypeInfo();
                     m_nodes.Add(node.NodeId, typeInfo);
+                    TrackCandidateType(node.NodeId);
                 }
                 else if (typeInfo.SuperType != null &&
                     !ReferenceEquals(typeInfo.SuperType, superTypeInfo))
@@ -590,9 +623,6 @@ namespace Opc.Ua
                 }
 
                 // any new encodings.
-                IList<IReference> encodings = node.References
-                    .Find(ReferenceTypeIds.HasEncoding, false, false, null);
-
                 if (encodings.Count > 0)
                 {
                     typeInfo.Encodings = new NodeId[encodings.Count];
@@ -672,6 +702,13 @@ namespace Opc.Ua
                 {
                     return false;
                 }
+                if (m_encodings.TryGetValue(localId, out TypeInfo? encodingOwner) &&
+                    encodingOwner.NodeId != dataTypeId &&
+                    ShouldRejectCandidateConflict(encodingOwner.NodeId))
+                {
+                    throw new InvalidOperationException(
+                        $"Encoding '{localId}' cannot identify multiple data types.");
+                }
 
                 if (typeInfo.Encodings is not null &&
                     System.Array.IndexOf(typeInfo.Encodings, localId) >= 0 &&
@@ -728,12 +765,24 @@ namespace Opc.Ua
                         "A valid supertype identifier is required.");
                 }
 
+                if (ShouldRejectCandidateConflict(subTypeId) &&
+                    m_nodes.TryGetValue(subTypeId, out TypeInfo? capturedType) &&
+                    ((capturedType.SuperType?.NodeId ?? NodeId.Null) !=
+                        (superTypeInfo?.NodeId ?? NodeId.Null) ||
+                    (!browseName.IsNull && !capturedType.BrowseName.IsNull &&
+                        capturedType.BrowseName != browseName)))
+                {
+                    throw new InvalidOperationException(
+                        $"Type '{subTypeId}' cannot be redefined within a prepared candidate.");
+                }
+
                 // create the type info.
                 m_revision++;
                 if (!m_nodes.TryGetValue(subTypeId, out TypeInfo? typeInfo))
                 {
                     typeInfo = new TypeInfo();
                     m_nodes.Add(subTypeId, typeInfo);
+                    TrackCandidateType(subTypeId);
                 }
                 else if (typeInfo.SuperType != null &&
                     !ReferenceEquals(typeInfo.SuperType, superTypeInfo))

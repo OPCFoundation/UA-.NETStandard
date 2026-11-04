@@ -559,5 +559,89 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         private static readonly FieldInfo? s_taskField = typeof(StandardServer)
             .GetField("m_registrationTask", BindingFlags.Instance | BindingFlags.NonPublic);
+
+        /// <summary>
+        /// Exercises the registration continuation after real readiness completion without starting transport hosts.
+        /// Shutdown must remain authoritative even when a pending readiness callback subsequently succeeds.
+        /// </summary>
+        [Test]
+        public async Task StartupRegistrationContinuationAfterStopDuringReadinessRemainsStoppedAsync()
+        {
+            var readiness = new ReadinessGate();
+            Mock<IServerInternal> services = NodeManager.DeterministicServerMock.Create(out var queues);
+            services.SetupGet(value => value.Telemetry).Returns(Opc.Ua.Tests.NUnitTelemetryContext.Create());
+            using (queues)
+            await using (var manager = new ReadinessNodeManager(services.Object,
+                new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() }, readiness))
+            {
+                int callbacks = 0;
+                await using var server = new StandardServer(
+                    Opc.Ua.Tests.NUnitTelemetryContext.Create(), new ManualClock(), _ =>
+                    {
+                        Interlocked.Increment(ref callbacks);
+                        return Task.CompletedTask;
+                    });
+                const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+                FieldInfo registrationInfo = typeof(StandardServer).GetField("m_registrationInfo", flags)!;
+                FieldInfo maximumInterval = typeof(StandardServer).GetField("m_maxRegistrationInterval", flags)!;
+                FieldInfo minimumInterval = typeof(StandardServer).GetField("m_minRegistrationInterval", flags)!;
+                FieldInfo stopped = typeof(StandardServer).GetField("m_registrationStopped", flags)!;
+                FieldInfo cancellation = typeof(StandardServer).GetField("m_registrationCts", flags)!;
+                MethodInfo startRegistration = typeof(StandardServer).GetMethod(
+                    "StartRegistrationAfterReadiness", flags)!;
+                var info = new RegisteredServer { IsOnline = false };
+                registrationInfo.SetValue(server, info);
+                maximumInterval.SetValue(server, 60_000);
+                minimumInterval.SetValue(server, 1_000);
+
+                // A control proves these socket-free inputs really enable the production registration boundary.
+                await using (var control = new StandardServer(
+                    Opc.Ua.Tests.NUnitTelemetryContext.Create(), new ManualClock(), _ => Task.CompletedTask))
+                {
+                    registrationInfo.SetValue(control, new RegisteredServer { IsOnline = false });
+                    maximumInterval.SetValue(control, 60_000);
+                    minimumInterval.SetValue(control, 1_000);
+                    startRegistration.Invoke(control, null);
+                    Assert.That(GetRegistrationTimer(control), Is.Not.Null);
+                    Assert.That(GetRegistrationTimer(control)!.DueTime,
+                        Is.EqualTo(TimeSpan.FromMilliseconds(1_000)));
+                }
+
+                async Task CompleteReadinessAndStartRegistrationAsync()
+                {
+                    await manager.OnServerReadyAsync().ConfigureAwait(false);
+                    startRegistration.Invoke(server, null);
+                }
+
+                Task continuation = CompleteReadinessAndStartRegistrationAsync();
+                try
+                {
+                    await readiness.Entered.Task.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+                    Assert.That(continuation.IsCompleted, Is.False);
+                    Assert.That(GetRegistrationTimer(server), Is.Null);
+                    await server.StopAsync(CancellationToken.None).ConfigureAwait(false);
+                    Assert.That(stopped.GetValue(server), Is.True);
+                    Assert.That(cancellation.GetValue(server), Is.Null);
+                    Assert.That(readiness.Release.Task.IsCompleted, Is.False);
+
+                    readiness.Release.TrySetResult(true);
+                    await continuation.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+
+                    Assert.That(GetRegistrationTimer(server), Is.Null,
+                        "Successful readiness after Stop must not create an LDS registration timer.");
+                    Assert.That(stopped.GetValue(server), Is.True);
+                    Assert.That(cancellation.GetValue(server), Is.Null);
+                    Assert.That(info.IsOnline, Is.False,
+                        "The late continuation must not announce the stopped server as online.");
+                    Assert.That(callbacks, Is.Zero);
+                    Assert.That(s_taskField!.GetValue(server), Is.Null);
+                }
+                finally
+                {
+                    readiness.Release.TrySetResult(true);
+                    await continuation.ConfigureAwait(false);
+                }
+            }
+        }
     }
 }

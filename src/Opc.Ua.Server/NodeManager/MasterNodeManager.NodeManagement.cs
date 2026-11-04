@@ -192,6 +192,7 @@ namespace Opc.Ua.Server
             }
             ThrowIfNodeManagementFromDecision(isLifecycleDecision);
             bool mutationAdmissionHeld = false;
+            bool invalidatePermissionCache = false;
             if (HasActiveCallbackPermit(
                     CaptureLifecycleCallbackPermit(),
                     NodeManagerAdmissionCapability.AddressSpaceMutation))
@@ -230,6 +231,11 @@ namespace Opc.Ua.Server
                 var results = new AddNodesResult[nodesToAdd.Count];
                 var diagnosticInfos = new DiagnosticInfo[nodesToAdd.Count];
                 bool anyDiagnostics = false;
+                invalidatePermissionCache = nodesToAdd.Count > 0;
+                if (invalidatePermissionCache)
+                {
+                    NodeState.InvalidateRolePermissionsCache();
+                }
 
                 for (int ii = 0; ii < nodesToAdd.Count; ii++)
                 {
@@ -255,7 +261,6 @@ namespace Opc.Ua.Server
                         StatusCode = result.StatusCode,
                         AddedNodeId = addedNodeId
                     };
-
                     if (ServiceResult.IsBad(result) &&
                         (context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                     {
@@ -273,6 +278,11 @@ namespace Opc.Ua.Server
             }
             finally
             {
+                if (invalidatePermissionCache)
+                {
+                    // Retire verdicts resolved while the address-space mutation was in progress.
+                    NodeState.InvalidateRolePermissionsCache();
+                }
                 if (mutationAdmissionHeld)
                 {
                     m_dynamicMutationSemaphore.Release();
@@ -289,6 +299,7 @@ namespace Opc.Ua.Server
         {
             bool mutationAdmissionHeld = await AcquireDynamicMutationAdmissionAsync(cancellationToken)
                 .ConfigureAwait(false);
+            bool invalidatePermissionCache = false;
             try
             {
                 using OperationContext.RoutingScope requestRouting = m_serviceDispatch.CaptureRouting(context);
@@ -296,6 +307,11 @@ namespace Opc.Ua.Server
                 var results = new StatusCode[nodesToDelete.Count];
                 var diagnosticInfos = new DiagnosticInfo[nodesToDelete.Count];
                 bool anyDiagnostics = false;
+                invalidatePermissionCache = nodesToDelete.Count > 0;
+                if (invalidatePermissionCache)
+                {
+                    NodeState.InvalidateRolePermissionsCache();
+                }
 
                 for (int ii = 0; ii < nodesToDelete.Count; ii++)
                 {
@@ -316,7 +332,6 @@ namespace Opc.Ua.Server
                     }
 
                     results[ii] = result.StatusCode;
-
                     if (ServiceResult.IsBad(result) &&
                         (context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                     {
@@ -334,6 +349,11 @@ namespace Opc.Ua.Server
             }
             finally
             {
+                if (invalidatePermissionCache)
+                {
+                    // Retire verdicts resolved while the address-space mutation was in progress.
+                    NodeState.InvalidateRolePermissionsCache();
+                }
                 if (mutationAdmissionHeld)
                 {
                     m_dynamicMutationSemaphore.Release();

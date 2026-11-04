@@ -37,6 +37,8 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
+using Opc.Ua.Server.RuntimeNodeSet;
+using Opc.Ua.Tests;
 using Opc.Ua.WotCon.Bindings;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
@@ -804,6 +806,363 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// Gets or sets the callback observing completion of a runtime's asynchronous retirement.
             /// </summary>
             public Action? OnRuntimeDisposed { get; set; }
+        }
+    }
+
+    /// <summary>
+    /// Tests queued publication admission on a real in-process lifecycle without native TCP fixtures.
+    /// </summary>
+    [TestFixture]
+    public sealed class WotAtomicPublicationSocketFreeAdmissionTests
+    {
+        /// <summary>
+        /// Add must capture lifecycle revision after it has waited for writer admission.
+        /// </summary>
+        [Test]
+        public async Task AddWaitsForWriterAdmissionBeforeCapturingRevisionAsync()
+        {
+            await using var harness = new SocketFreePublicationHarness();
+            INodeManagerLifecycle lifecycle = harness.Server.NodeManagerLifecycle;
+            long revisionBefore = lifecycle.Revision;
+            await using IPreparedNodeManagerBatch unrelated = await PrepareUnrelatedPublicationAsync(
+                lifecycle, "urn:wot:admission-unrelated-add").ConfigureAwait(false);
+            var queued = NewAdmissionSignal();
+            var host = new LifecycleWotProjectionHost(new AdmissionObservedLifecycle(lifecycle, queued));
+            WotProjectionDocument document = AdmissionDocument(
+                "admission-add", "urn:wot:admission-add");
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+
+            Task<WotProjectionHandle>? pending = null;
+            await CommitUnrelatedPublicationAndReleaseAdmissionAsync(
+                lifecycle,
+                unrelated,
+                queued,
+                revisionBefore,
+                () => pending = host.AddAsync(document, timeout.Token).AsTask(),
+                timeout.Token).ConfigureAwait(false);
+            WotProjectionHandle added = await pending!.WaitAsync(timeout.Token).ConfigureAwait(false);
+
+            NodeId root = AdmissionRoot(harness.Data, "urn:wot:admission-add");
+            NodeState? published = await harness.Data.NodeManager
+                .FindNodeInAddressSpaceAsync(root).ConfigureAwait(false);
+            Assert.That(published, Is.Not.Null,
+                "Add must publish its projection after the unrelated lifecycle commit.");
+            Assert.That(added.Registration, Is.Not.Null);
+            Assert.That(lifecycle.Registrations.ToList().Any(
+                value => value.Id == added.Registration!.Id), Is.True);
+            Assert.That(lifecycle.Revision, Is.EqualTo(revisionBefore + 2));
+            await host.RemoveAsync(added, timeout.Token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Remove must capture lifecycle revision after it has waited for writer admission.
+        /// </summary>
+        [Test]
+        public async Task RemoveWaitsForWriterAdmissionBeforeCapturingRevisionAsync()
+        {
+            await using var harness = new SocketFreePublicationHarness();
+            INodeManagerLifecycle lifecycle = harness.Server.NodeManagerLifecycle;
+            var host = new LifecycleWotProjectionHost(lifecycle);
+            WotProjectionHandle added = await host.AddAsync(
+                AdmissionDocument("admission-remove", "urn:wot:admission-remove")).ConfigureAwait(false);
+            NodeId root = AdmissionRoot(harness.Data, "urn:wot:admission-remove");
+            Assert.That(
+                await harness.Data.NodeManager.FindNodeInAddressSpaceAsync(root).ConfigureAwait(false),
+                Is.Not.Null);
+
+            long revisionBefore = lifecycle.Revision;
+            await using IPreparedNodeManagerBatch unrelated = await PrepareUnrelatedPublicationAsync(
+                lifecycle, "urn:wot:admission-unrelated-remove").ConfigureAwait(false);
+            var queued = NewAdmissionSignal();
+            host = new LifecycleWotProjectionHost(new AdmissionObservedLifecycle(lifecycle, queued));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+
+            Task? pending = null;
+            await CommitUnrelatedPublicationAndReleaseAdmissionAsync(
+                lifecycle,
+                unrelated,
+                queued,
+                revisionBefore,
+                () => pending = host.RemoveAsync(added, timeout.Token).AsTask(),
+                timeout.Token).ConfigureAwait(false);
+            await pending!.WaitAsync(timeout.Token).ConfigureAwait(false);
+
+            Assert.That(
+                await harness.Data.NodeManager.FindNodeInAddressSpaceAsync(root).ConfigureAwait(false),
+                Is.Null,
+                "Remove must retire the projection after the unrelated lifecycle commit.");
+            Assert.That(lifecycle.Registrations.ToList().Any(
+                value => value.Id == added.Registration!.Id), Is.False);
+            Assert.That(lifecycle.Revision, Is.EqualTo(revisionBefore + 2));
+        }
+
+        /// <summary>
+        /// A single-document reload must capture lifecycle revision after writer admission.
+        /// </summary>
+        [Test]
+        public async Task SingleDocumentReloadWaitsForWriterAdmissionBeforeCapturingRevisionAsync()
+        {
+            await using var harness = new SocketFreePublicationHarness();
+            INodeManagerLifecycle lifecycle = harness.Server.NodeManagerLifecycle;
+            var host = new LifecycleWotProjectionHost(lifecycle);
+            WotProjectionHandle first = await host.AddAsync(
+                AdmissionDocument("admission-reload-old", "urn:wot:admission-reload-old")).ConfigureAwait(false);
+            NodeId oldRoot = AdmissionRoot(harness.Data, "urn:wot:admission-reload-old");
+            Assert.That(
+                await harness.Data.NodeManager.FindNodeInAddressSpaceAsync(oldRoot).ConfigureAwait(false),
+                Is.Not.Null);
+
+            long revisionBefore = lifecycle.Revision;
+            await using IPreparedNodeManagerBatch unrelated = await PrepareUnrelatedPublicationAsync(
+                lifecycle, "urn:wot:admission-unrelated-reload").ConfigureAwait(false);
+            var queued = NewAdmissionSignal();
+            host = new LifecycleWotProjectionHost(new AdmissionObservedLifecycle(lifecycle, queued));
+            WotProjectionDocument replacement = AdmissionDocument(
+                "admission-reload-new", "urn:wot:admission-reload-new");
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+
+            Task<WotProjectionHandle>? pending = null;
+            await CommitUnrelatedPublicationAndReleaseAdmissionAsync(
+                lifecycle,
+                unrelated,
+                queued,
+                revisionBefore,
+                () => pending = host.ShadowReloadAsync(first, replacement, timeout.Token).AsTask(),
+                timeout.Token).ConfigureAwait(false);
+            WotProjectionHandle reloaded = await pending!.WaitAsync(timeout.Token).ConfigureAwait(false);
+
+            NodeState? retiredRoot = await harness.Data.NodeManager
+                .FindNodeInAddressSpaceAsync(oldRoot).ConfigureAwait(false);
+            NodeState? newRoot = await harness.Data.NodeManager
+                .FindNodeInAddressSpaceAsync(AdmissionRoot(harness.Data, "urn:wot:admission-reload-new"))
+                .ConfigureAwait(false);
+            Assert.That(retiredRoot, Is.Null,
+                "The old document must not remain routed after its single-document reload.");
+            Assert.That(newRoot, Is.Not.Null,
+                "The replacement document must be published after the unrelated lifecycle commit.");
+            Assert.That(reloaded.Generation, Is.GreaterThan(first.Generation));
+            Assert.That(lifecycle.Registrations.ToList().Any(
+                value => value.Id == reloaded.Registration!.Id), Is.True);
+            Assert.That(lifecycle.Revision, Is.EqualTo(revisionBefore + 2));
+            await host.RemoveAsync(reloaded, timeout.Token).ConfigureAwait(false);
+        }
+
+        private static TaskCompletionSource<bool> NewAdmissionSignal()
+        {
+            return new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
+        private static WotProjectionDocument AdmissionDocument(string key, string namespaceUri)
+        {
+            return new WotProjectionDocument(
+                key,
+                [new WotProjectionSource(key, [namespaceUri], TestNodeSets.XmlBytes(namespaceUri))]);
+        }
+
+        private static NodeId AdmissionRoot(ServerInternalData server, string namespaceUri)
+        {
+            int namespaceIndex = server.NamespaceUris.GetIndex(namespaceUri);
+            Assert.That(namespaceIndex, Is.GreaterThanOrEqualTo(0));
+            return new NodeId(5000u, (ushort)namespaceIndex);
+        }
+
+        private static ValueTask<IPreparedNodeManagerBatch> PrepareUnrelatedPublicationAsync(
+            INodeManagerLifecycle lifecycle,
+            string namespaceUri)
+        {
+            byte[] xml = TestNodeSets.XmlBytes(namespaceUri);
+            RuntimeNodeSetSource source = RuntimeNodeSetSource.FromStream(
+                "unrelated",
+                _ => new ValueTask<Stream>(new MemoryStream(xml, writable: false)),
+                [namespaceUri]);
+            var options = new RuntimeNodeSetOptions
+            {
+                Sources = [source],
+                DefaultNamespaceUri = namespaceUri
+            };
+            return lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(options))]);
+        }
+
+        private static async Task CommitUnrelatedPublicationAndReleaseAdmissionAsync(
+            INodeManagerLifecycle lifecycle,
+            IPreparedNodeManagerBatch unrelated,
+            TaskCompletionSource<bool> queued,
+            long revisionBefore,
+            Func<Task> startPendingOperation,
+            CancellationToken cancellationToken)
+        {
+            var decisionEntered = NewAdmissionSignal();
+            var releaseDecision = NewAdmissionSignal();
+            Task<NodeManagerBatchResult> commit = unrelated.CommitAsync(async _ =>
+            {
+                decisionEntered.TrySetResult(true);
+                await releaseDecision.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }, cancellationToken).AsTask();
+            await decisionEntered.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+            Task pendingOperation = startPendingOperation();
+            await queued.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+            Assert.That(pendingOperation.IsCompleted, Is.False,
+                "The operation must remain queued behind the held writer admission.");
+            Assert.That(lifecycle.Revision, Is.EqualTo(revisionBefore),
+                "The host operation must be queued before the competing publication advances revision.");
+            releaseDecision.TrySetResult(true);
+            NodeManagerBatchResult published = await commit.ConfigureAwait(false);
+            await unrelated.DisposeAsync().ConfigureAwait(false);
+            Assert.That(published.Revision, Is.EqualTo(revisionBefore + 1));
+            // Releasing the real writer may already have let the queued operation commit.
+            Assert.That(lifecycle.Revision, Is.GreaterThanOrEqualTo(published.Revision));
+        }
+
+        /// <summary>
+        /// Observes real call submission, whether admission occurs in BeginAsync or PrepareAsync.
+        /// </summary>
+        private sealed class AdmissionObservedLifecycle(
+            INodeManagerLifecycle inner,
+            TaskCompletionSource<bool> preparationQueued) : INodeManagerBatchLifecycle
+        {
+            public long Revision => inner.Revision;
+
+            public ArrayOf<NodeManagerSlot> Slots => inner.Slots;
+
+            public ArrayOf<NodeManagerRegistration> Registrations => inner.Registrations;
+
+            public bool IsShuttingDown => inner.IsShuttingDown;
+
+            public bool SupportsPreparedPublication => inner.SupportsPreparedPublication;
+
+            public bool SupportsPublicationIsolation => inner.SupportsPublicationIsolation;
+
+            public INodeManagerPublicationCapture CapturePublication()
+            {
+                return new AdmissionObservedCapture(inner.CapturePublication(), preparationQueued);
+            }
+
+            public ValueTask<IPreparedNodeManagerBatch> PrepareAsync(
+                ArrayOf<NodeManagerBatchChange> changes,
+                CancellationToken cancellationToken = default)
+            {
+                ValueTask<IPreparedNodeManagerBatch> pending = inner.PrepareAsync(changes, cancellationToken);
+                preparationQueued.TrySetResult(true);
+                return pending;
+            }
+        }
+
+        private sealed class AdmissionObservedCapture(
+            INodeManagerPublicationCapture inner,
+            TaskCompletionSource<bool> preparationQueued) : INodeManagerPublicationCapture
+        {
+            public async ValueTask<INodeManagerPublication> BeginAsync(
+                CancellationToken cancellationToken = default)
+            {
+                ValueTask<INodeManagerPublication> pending = inner.BeginAsync(cancellationToken);
+                preparationQueued.TrySetResult(true);
+                INodeManagerPublication publication = await pending.ConfigureAwait(false);
+                return new AdmissionObservedPublication(publication, preparationQueued);
+            }
+        }
+
+        private sealed class AdmissionObservedPublication(
+            INodeManagerPublication inner,
+            TaskCompletionSource<bool> preparationQueued) : INodeManagerPublication
+        {
+            public bool IsCurrent => inner.IsCurrent;
+
+            public ValueTask<IPreparedNodeManagerBatch> PrepareAsync(
+                ArrayOf<NodeManagerBatchChange> changes,
+                CancellationToken cancellationToken = default)
+            {
+                ValueTask<IPreparedNodeManagerBatch> pending = inner.PrepareAsync(changes, cancellationToken);
+                preparationQueued.TrySetResult(true);
+                return pending;
+            }
+
+            public ValueTask<IPreparedNodeManagerBatch> PrepareReadImagesAsync(
+                ArrayOf<INodeManagerReadImage> images,
+                CancellationToken cancellationToken = default)
+            {
+                return inner.PrepareReadImagesAsync(images, cancellationToken);
+            }
+
+            public ValueTask ValidateAsync(
+                ArrayOf<NodeManagerBatchChange> changes,
+                Func<IPreparedNodeManagerBatch, CancellationToken, ValueTask> inspectAsync,
+                CancellationToken cancellationToken = default)
+            {
+                return inner.ValidateAsync(changes, inspectAsync, cancellationToken);
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                return inner.DisposeAsync();
+            }
+        }
+
+        private sealed class SocketFreePublicationHarness : IAsyncDisposable
+        {
+            public SocketFreePublicationHarness()
+            {
+                ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+                var configuration = new ApplicationConfiguration
+                {
+                    ApplicationUri = "urn:test:socket-free:wot-admission",
+                    ServerConfiguration = new ServerConfiguration()
+                };
+                Server = new StandardServer(telemetry) { LoadComplexTypes = false };
+                Data = new ServerInternalData(new ServerProperties(), configuration,
+                    new ServiceMessageContext(telemetry, EncodeableFactory.Create()));
+                Data.TypeTree.AddSubtype(Opc.Ua.Types.DataTypeIds.BaseDataType, NodeId.Null);
+                Data.TypeTree.AddSubtype(
+                    Opc.Ua.Types.DataTypeIds.Structure, Opc.Ua.Types.DataTypeIds.BaseDataType);
+                var status = new ServerStatusValue(new ServerStatusState(null),
+                    new ServerStatusDataType { State = ServerState.Running }, new Lock());
+                typeof(ServerInternalData).GetProperty("NonThreadSafeStatus",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                    .SetValue(Data, status);
+                typeof(ServerBase).GetProperty("Configuration",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                    .SetValue(Server, configuration);
+                typeof(StandardServer).GetField("m_serverInternal",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                    .SetValue(Server, Data);
+                var factory = new Mock<IMainNodeManagerFactory>();
+                var configurationNodeManager = new Mock<IConfigurationNodeManager>();
+                configurationNodeManager.As<IDiagnosticsNodeManager>()
+                    .Setup(value => value.FindPredefinedNode<ServerObjectState>(Opc.Ua.ObjectIds.Server))
+                    .Returns(new ServerObjectState(null));
+                factory.Setup(value => value.CreateConfigurationNodeManager())
+                    .Returns(configurationNodeManager.Object);
+                factory.Setup(value => value.CreateCoreNodeManager(It.IsAny<ushort>()))
+                    .Returns(new Mock<ICoreNodeManager>().Object);
+                Data.SetMainNodeManagerFactory(factory.Object);
+                var sessions = new Mock<ISessionManager>();
+                sessions.Setup(value => value.GetSessions()).Returns([]);
+                Data.SetSessionManager(sessions.Object, new Mock<ISubscriptionManager>().Object);
+                typeof(ServerInternalData).GetProperty(nameof(ServerInternalData.EventManager))!
+                    .SetValue(Data, new EventManager(Data, 100, 100));
+                // TODO: Replace this standalone fixture constructor when a hosted lifecycle test harness is available.
+#pragma warning disable CS0618
+                var master = new MasterNodeManager(
+                    Data, configuration, null, Array.Empty<IAsyncNodeManager>(), null);
+#pragma warning restore CS0618
+                Data.SetNodeManager(master);
+                Assert.That(Data.IsRunning, Is.True);
+                Assert.That(configuration.ServerConfiguration.BaseAddresses, Is.Empty);
+            }
+
+            public StandardServer Server { get; }
+            public ServerInternalData Data { get; }
+
+            public async ValueTask DisposeAsync()
+            {
+                // The facade was never started: no listeners, sessions or startup workers exist.
+                ((IDisposable)Server.NodeManagerLifecycle).Dispose();
+                typeof(StandardServer).GetField("m_serverInternal",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                    .SetValue(Server, null);
+                await Data.DisposeAsync().ConfigureAwait(false);
+                Server.Dispose();
+            }
         }
     }
 }

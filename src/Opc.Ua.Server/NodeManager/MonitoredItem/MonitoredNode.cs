@@ -1563,6 +1563,8 @@ namespace Opc.Ua.Server
             return new MonitoredItemPermissionContext(
                 Volatile.Read(ref m_permissionGeneration),
                 NodeState.RolePermissionsVersion,
+                Node,
+                (m_server.NodeManager as IDynamicNodeManagerBatchHost)?.RoutingRevision,
                 session,
                 session?.EffectiveIdentity ?? monitoredItem.EffectiveIdentity,
                 session?.CaptureIdentityRefreshSnapshot().Generation ?? 0);
@@ -2302,12 +2304,16 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="Generation">The monitored node's local invalidation generation.</param>
         /// <param name="RolePermissionsVersion">The version of node and user role-permission attributes.</param>
+        /// <param name="Node">The current node-state instance, guarding against NodeId reuse.</param>
+        /// <param name="RoutingRevision">The address-space routing snapshot used to resolve event nodes.</param>
         /// <param name="Session">The subscription's current owning session.</param>
         /// <param name="Identity">The current effective identity, not merely the principal's display name.</param>
         /// <param name="IdentityGeneration">The session's activation and live-role refresh generation.</param>
         private readonly record struct MonitoredItemPermissionContext(
             long Generation,
             long RolePermissionsVersion,
+            NodeState Node,
+            NodeManagerRoutingTable.RoutingSnapshot? RoutingRevision,
             ISession? Session,
             IUserIdentity? Identity,
             long IdentityGeneration)
@@ -2319,6 +2325,8 @@ namespace Opc.Ua.Server
             {
                 return Generation == other.Generation &&
                     RolePermissionsVersion == other.RolePermissionsVersion &&
+                    ReferenceEquals(Node, other.Node) &&
+                    ReferenceEquals(RoutingRevision, other.RoutingRevision) &&
                     ReferenceEquals(Session, other.Session) &&
                     ReferenceEquals(Identity, other.Identity) &&
                     IdentityGeneration == other.IdentityGeneration;

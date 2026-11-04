@@ -75,6 +75,10 @@ namespace Opc.Ua.Server
                 {
                     throw new InvalidOperationException("Server registration information is not initialized.");
                 }
+                if (m_registrationShutdownRequested)
+                {
+                    return;
+                }
 
                 m_registrationInfo.IsOnline = true;
                 if (m_maxRegistrationInterval <= 0)
@@ -347,6 +351,7 @@ namespace Opc.Ua.Server
             ServerInternalData? serverInternal = m_serverInternal;
             bool internalsDisposed = serverInternal is null;
 
+            RequestRegistrationShutdown();
             await RunShutdownStageAsync(failures, StopRegistrationAsync).ConfigureAwait(false);
             RunShutdownStage(failures, DisposeConfigurationWatcher);
             RunShutdownStage(failures, DisposeCertificateManagerSubscription);
@@ -3246,6 +3251,7 @@ namespace Opc.Ua.Server
                 m_registrationCts = null;
                 registration = m_registrationTask;
             }
+
             var failures = new List<Exception>();
             try
             {
@@ -3273,6 +3279,14 @@ namespace Opc.Ua.Server
             if (failures.Count != 0)
             {
                 throw new AggregateException("Discovery registration shutdown failed.", failures);
+            }
+        }
+
+        private void RequestRegistrationShutdown()
+        {
+            lock (m_registrationLock)
+            {
+                m_registrationShutdownRequested = true;
             }
         }
 
@@ -4916,6 +4930,7 @@ namespace Opc.Ua.Server
                 ? new ShutdownProgress()
                 : m_shutdownProgress.GetValue(serverInternal, static _ => new ShutdownProgress());
             var failures = new List<Exception>();
+            RequestRegistrationShutdown();
             await RunShutdownStageOnceAsync(
                 progress, ShutdownStage.Delay, failures, () => WaitForShutdownDelayAsync(cancellationToken))
                 .ConfigureAwait(false);
@@ -6141,6 +6156,11 @@ namespace Opc.Ua.Server
         /// Distinguishes current registration callbacks from callbacks belonging to a retired timer.
         /// </summary>
         private long m_registrationGeneration;
+
+        /// <summary>
+        /// Prevents startup readiness from rearming registration after the shutdown stage has run.
+        /// </summary>
+        private bool m_registrationShutdownRequested;
 
         /// <summary>
         /// Prevents discovery-registration callbacks from starting or rearming after shutdown.

@@ -127,18 +127,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
             if (handle?.Registration is NodeManagerProjectionRegistration wrapper)
             {
-                ILifecycleWriter writer = await m_lifecycle.BeginAsync(
-                    cancellationToken: cancellationToken).ConfigureAwait(false);
-                await using var writerLifetime = writer.ConfigureAwait(false);
                 RequireCurrent(wrapper.Registration);
-                IPreparedChanges prepared = await writer
-                    .PrepareAsync([LifecycleChange.Remove(wrapper.Registration.Slot)], cancellationToken)
+                IPreparedNodeManagerBatch prepared = await m_lifecycle
+                    .PrepareAsync([NodeManagerBatchChange.Remove(wrapper.Registration)], cancellationToken)
                     .ConfigureAwait(false);
-                LifecycleResult result;
-                await using (prepared.ConfigureAwait(false))
-                {
-                    result = await prepared.CommitAsync(static _ => default, cancellationToken).ConfigureAwait(false);
-                }
+                await using var preparedLifetime = prepared.ConfigureAwait(false);
+                RequireCurrent(wrapper.Registration);
+                NodeManagerBatchResult batchResult = await prepared.CommitAsync(
+                    static _ => default, cancellationToken).ConfigureAwait(false);
+                LifecycleResult result = batchResult.CommittedResult;
                 if (result.CleanupFailure is { } failure)
                 {
                     throw new NodeManagerRemovalCommittedException(wrapper.Registration, result, failure);
@@ -167,29 +164,27 @@ namespace Opc.Ua.WotCon.Server.Materialization
             RuntimeNodeSetOptions options = BuildOptions(document);
             var publication = new WotProjectionRuntimePublication(options);
             var factory = new RuntimeNodeSetNodeManagerFactory(options);
-            ILifecycleWriter writer = await m_lifecycle.BeginAsync(
-                cancellationToken: cancellationToken).ConfigureAwait(false);
-            await using var writerLifetime = writer.ConfigureAwait(false);
             if (current is not null)
             {
                 RequireCurrent(current);
             }
-            LifecycleChange change = current is null
-                ? LifecycleChange.Add(factory)
-                : LifecycleChange.Replace(current.Slot, factory, transitionMode);
-            IPreparedChanges prepared =
-                await writer.PrepareAsync([change], cancellationToken).ConfigureAwait(false);
+            NodeManagerBatchChange change = current is null
+                ? NodeManagerBatchChange.Add(factory)
+                : NodeManagerBatchChange.Replace(current, factory, transitionMode);
+            IPreparedNodeManagerBatch prepared = await m_lifecycle.PrepareAsync(
+                [change], cancellationToken).ConfigureAwait(false);
             await using var preparedLifetime = prepared.ConfigureAwait(false);
-            NodeManagerRegistrationSnapshot candidate = prepared.Registrations[0];
-            LifecycleResult result = await prepared.CommitAsync(
+            if (current is not null)
+            {
+                RequireCurrent(current);
+            }
+            NodeManagerRegistration candidate = prepared.Registrations[0];
+            NodeManagerBatchResult batchResult = await prepared.CommitAsync(
                 static _ => default,
                 () => publication.Publish(candidate.Generation),
                 cancellationToken).ConfigureAwait(false);
-            if (!result.Registrations[0].TryGetRegistration(out NodeManagerRegistration? registration) ||
-                registration is null)
-            {
-                throw new InvalidOperationException("The committed WoT projection registration is no longer available.");
-            }
+            LifecycleResult result = batchResult.CommittedResult;
+            NodeManagerRegistration registration = batchResult.Registrations[0];
             string warning = string.Empty;
             if (result.CleanupFailure is { } failure)
             {
