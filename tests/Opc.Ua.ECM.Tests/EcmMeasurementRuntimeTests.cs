@@ -409,6 +409,58 @@ namespace Opc.Ua.ECM.Tests
         }
 
         /// <summary>
+        /// Engineering-unit subtype clone overrides cannot retain mutable published metadata.
+        /// </summary>
+        [Test]
+        public async Task EngineeringUnitPublicationCopiesStandardFieldsWithoutInvokingClone(
+            [Values(false, true)] bool nullText)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queues = new MonitoredItemQueueFactory(telemetry);
+            await using EcmNodeManager manager = CreateManager(telemetry, queues);
+            ISystemContext context = manager.SystemContext;
+            ushort ecmNamespace = context.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
+            var units = new Mock<EUInformation> { CallBase = true };
+            units.Setup(value => value.Clone()).Returns(() => units.Object);
+            EUInformation source = units.Object;
+            source.NamespaceUri = nullText ? null : "urn:ecm-tests:units";
+            source.UnitId = 42;
+            source.DisplayName = nullText ? LocalizedText.Null : new LocalizedText("de", "Ampere");
+            source.Description = nullText ? LocalizedText.Null : new LocalizedText("en", "Current");
+            string? expectedNamespace = source.NamespaceUri;
+            LocalizedText expectedName = source.DisplayName;
+            LocalizedText expectedDescription = source.Description;
+            DateTime acquired = new(2026, 8, 14, 9, 20, 0, DateTimeKind.Utc);
+            EcmMeasurementReading reading = FloatReading(
+                nameof(BrowseNames.DcCurrent), 2f, StatusCodes.Good, acquired) with
+            {
+                EngineeringUnits = source
+            };
+            var provider = new TestMeasurementProvider(Snapshot("meter/units", reading));
+            BaseObjectState parent = await AddParentAsync(manager, "SubtypeUnitsDevice");
+            EcmMeasurementBinding binding = await manager.CreateMeasurementAsync(
+                new QualifiedName("SubtypeUnitsMeter", manager.InstanceNamespaceIndex), provider, parent);
+            EnergyMeasurementValueState measurement = RequiredMeasurement(
+                binding.MeasurementPoint, context, nameof(BrowseNames.DcCurrent), ecmNamespace);
+            EUInformation published = measurement.EngineeringUnits!.Value;
+
+            source.NamespaceUri = "urn:changed";
+            source.UnitId = 999;
+            source.DisplayName = new LocalizedText("changed");
+            source.Description = new LocalizedText("changed");
+
+            Assert.That(published, Is.Not.SameAs(source));
+            Assert.That(published.GetType(), Is.EqualTo(typeof(EUInformation)));
+            Assert.That(published.NamespaceUri, Is.EqualTo(expectedNamespace));
+            Assert.That(published.UnitId, Is.EqualTo(42));
+            Assert.That(published.DisplayName, Is.EqualTo(expectedName));
+            Assert.That(published.Description, Is.EqualTo(expectedDescription));
+            Assert.That(measurement.Timestamp, Is.EqualTo((DateTimeUtc)acquired));
+            Assert.That(measurement.StatusCode, Is.EqualTo(StatusCodes.Good));
+            units.Verify(value => value.Clone(), Times.Never);
+        }
+
+        /// <summary>
         /// A provider cannot change the published profile set or invariant metadata during refresh.
         /// </summary>
         [TestCase("add-profile")]
@@ -811,9 +863,9 @@ namespace Opc.Ua.ECM.Tests
             Assert.That(domain.EnumValues.Value[0]!.DisplayName.Text, Is.EqualTo("Class A"));
             Assert.That(domain.EnumValues.Value[1]!.Value, Is.EqualTo(2L));
             Assert.That(domain.EnumValues.Value[1]!.DisplayName.Text, Is.EqualTo("Class B"));
-            Assert.That(ReadProperty<uint>(measurement, context, "AccuracyClass"), Is.EqualTo(2u));
-            Assert.That(ReadProperty<NodeId>(measurement, context, "AccuracyDomain"), Is.EqualTo(domain.NodeId));
-            Assert.That(ReadProperty<float>(measurement, context, "AccuracyRange"), Is.EqualTo(0.25f));
+            Assert.That(ReadProperty(measurement, context, "AccuracyClass"), Is.EqualTo(Variant.From(2u)));
+            Assert.That(ReadProperty(measurement, context, "AccuracyDomain"), Is.EqualTo(Variant.From(domain.NodeId)));
+            Assert.That(ReadProperty(measurement, context, "AccuracyRange"), Is.EqualTo(Variant.From(0.25f)));
         }
 
         /// <summary>
@@ -848,6 +900,133 @@ namespace Opc.Ua.ECM.Tests
             Assert.That(publishedValue.Value, Is.EqualTo(1));
             Assert.That(publishedValue.DisplayName.Text, Is.EqualTo("Class A"));
             Assert.That(publishedValue.Description.Text, Is.EqualTo("Nominal accuracy"));
+        }
+
+        /// <summary>
+        /// Accuracy-domain subtype clone overrides cannot retain mutable published standard fields.
+        /// </summary>
+        [Test]
+        public async Task AccuracyDomainPublicationCopiesStandardFieldsWithoutInvokingClone(
+            [Values(false, true)] bool nullDescription)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queues = new MonitoredItemQueueFactory(telemetry);
+            await using EcmNodeManager manager = CreateManager(telemetry, queues);
+            ushort ecmNamespace = manager.SystemContext.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
+            await AddAccuracyDomainsFolderAsync(manager, ecmNamespace);
+            var entry = new Mock<EnumValueType> { CallBase = true };
+            entry.Setup(value => value.Clone()).Returns(() => entry.Object);
+            EnumValueType source = entry.Object;
+            source.Value = 7;
+            source.DisplayName = new LocalizedText("de", "Klasse A");
+            source.Description = nullDescription ? LocalizedText.Null : new LocalizedText("en", "Accuracy");
+            LocalizedText expectedName = source.DisplayName;
+            LocalizedText expectedDescription = source.Description;
+            AccuracyDomainState domain = await manager.CreateAccuracyDomainAsync(
+                new QualifiedName("SubtypeAccuracy", ecmNamespace), new[] { source }.ToArrayOf());
+            EnumValueType published = domain.EnumValues!.Value[0];
+
+            source.Value = 8;
+            source.DisplayName = new LocalizedText("changed");
+            source.Description = new LocalizedText("changed");
+
+            Assert.That(published, Is.Not.SameAs(source));
+            Assert.That(published.GetType(), Is.EqualTo(typeof(EnumValueType)));
+            Assert.That(published.Value, Is.EqualTo(7));
+            Assert.That(published.DisplayName, Is.EqualTo(expectedName));
+            Assert.That(published.Description, Is.EqualTo(expectedDescription));
+            entry.Verify(value => value.Clone(), Times.Never);
+        }
+
+        /// <summary>
+        /// Invalid accuracy entries never attach a partial domain to the published folder.
+        /// </summary>
+        [TestCase("null-entry")]
+        [TestCase("null-name")]
+        [TestCase("duplicate-value")]
+        public async Task InvalidAccuracyEntriesLeaveNoPublishedDomain(string invalidKind)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queues = new MonitoredItemQueueFactory(telemetry);
+            await using EcmNodeManager manager = CreateManager(telemetry, queues);
+            ISystemContext context = manager.SystemContext;
+            ushort ecmNamespace = context.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
+            await AddAccuracyDomainsFolderAsync(manager, ecmNamespace);
+            var browseName = new QualifiedName("InvalidAccuracy", ecmNamespace);
+            var first = new EnumValueType { Value = 1, DisplayName = new LocalizedText("Class A") };
+            EnumValueType second = invalidKind switch
+            {
+                "null-entry" => null!,
+                "null-name" => new EnumValueType { Value = 2, DisplayName = LocalizedText.Null },
+                _ => new EnumValueType { Value = 1, DisplayName = new LocalizedText("Class B") }
+            };
+
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
+                await manager.CreateAccuracyDomainAsync(browseName, new[] { first, second }.ToArrayOf()));
+
+            NodeId folderId = NodeId.Create(Objects.AccuracyDomains, Namespaces.ECM, context.NamespaceUris);
+            NodeState folder = manager.FindPredefinedNode(folderId) ??
+                throw new InvalidOperationException("The accuracy folder is missing.");
+            Assert.That(folder.FindChild(context, browseName), Is.Null);
+        }
+
+        /// <summary>
+        /// Direct construction validates accuracy domains through the supplied resolver before creating readings.
+        /// </summary>
+        [Test]
+        public async Task DirectMeasurementBindingRequiresResolverForReferencedAccuracyDomain(
+            [Values(false, true)] bool supplyResolver)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queues = new MonitoredItemQueueFactory(telemetry);
+            await using EcmNodeManager manager = CreateManager(telemetry, queues);
+            ISystemContext context = manager.SystemContext;
+            ushort ecmNamespace = context.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
+            await AddAccuracyDomainsFolderAsync(manager, ecmNamespace);
+            AccuracyDomainState domain = await manager.CreateAccuracyDomainAsync(
+                new QualifiedName("DirectAccuracy", ecmNamespace),
+                new[] { new EnumValueType { Value = 1, DisplayName = new LocalizedText("Class A") } }.ToArrayOf());
+            BaseObjectState parent = await AddParentAsync(manager, "DirectMeasurementDevice");
+            var browseName = new QualifiedName("DirectMeter", manager.InstanceNamespaceIndex);
+            EnergyMeasurementState point = context.CreateInstanceOfEnergyMeasurementType(parent, browseName);
+            EcmMeasurementReading reading = FloatReading(
+                nameof(BrowseNames.DcCurrent), 3f, StatusCodes.Good,
+                new DateTime(2026, 8, 14, 10, 0, 0, DateTimeKind.Utc)) with
+            {
+                AccuracyDomain = domain.NodeId,
+                AccuracyClass = 1
+            };
+            var provider = new TestMeasurementProvider(Snapshot("meter/direct", reading));
+            int resolutions = 0;
+            Func<NodeId, NodeState?>? resolver = supplyResolver
+                ? nodeId =>
+                {
+                    resolutions++;
+                    Assert.That(nodeId, Is.EqualTo(domain.NodeId));
+                    return domain;
+                }
+                : null;
+            await using var binding = new EcmMeasurementBinding(context, point, provider, findNode: resolver);
+            if (supplyResolver)
+            {
+                await binding.RefreshAsync();
+                EnergyMeasurementValueState measurement = RequiredMeasurement(
+                    point, context, nameof(BrowseNames.DcCurrent), ecmNamespace);
+                Assert.That(
+                    ReadProperty(measurement, context, "AccuracyDomain"), Is.EqualTo(Variant.From(domain.NodeId)));
+                Assert.That(ReadProperty(measurement, context, "AccuracyClass"), Is.EqualTo(Variant.From(1u)));
+                Assert.That(measurement.WrappedValue.TryGetValue(out float value), Is.True);
+                Assert.That(value, Is.EqualTo(3f));
+                Assert.That(resolutions, Is.EqualTo(1));
+            }
+            else
+            {
+                await Assert.ThrowsAsync<InvalidOperationException>(async () => await binding.RefreshAsync());
+                Assert.That(point.FindChild(context, new QualifiedName(BrowseNames.DcCurrent, ecmNamespace)), Is.Null);
+                Assert.That(resolutions, Is.Zero);
+            }
+            Assert.That(parent.FindChild(context, browseName), Is.Null);
+            Assert.That(manager.FindPredefinedNode(point.NodeId), Is.Null);
         }
 
         /// <summary>
@@ -1324,21 +1503,19 @@ namespace Opc.Ua.ECM.Tests
         /// <summary>
         /// Reads an ECM metadata property without depending on generated property accessors.
         /// </summary>
-        /// <typeparam name="T">The scalar metadata type.</typeparam>
-        private static T ReadProperty<T>(
+        private static Variant ReadProperty(
             EnergyMeasurementValueState measurement,
             ISystemContext context,
-            string name) where T : struct
+            string name)
         {
             var children = new List<BaseInstanceState>();
             measurement.GetChildren(context, children);
             foreach (BaseInstanceState child in children)
             {
                 if (child is BaseVariableState variable &&
-                    string.Equals(variable.BrowseName.Name, name, StringComparison.Ordinal) &&
-                    variable.WrappedValue.TryGetValue(out T value))
+                    string.Equals(variable.BrowseName.Name, name, StringComparison.Ordinal))
                 {
-                    return value;
+                    return variable.WrappedValue;
                 }
             }
             throw new InvalidOperationException($"Measurement property {name} was not published.");

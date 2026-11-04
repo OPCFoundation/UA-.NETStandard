@@ -118,8 +118,13 @@ namespace Opc.Ua.ECM.Server
             {
                 measurement.AddEngineeringUnits(
                     context,
-                    variable => variable.Value = CoreUtils.Clone(engineeringUnits) ??
-                        throw new InvalidOperationException("The engineering-unit copy was null."));
+                    variable => variable.Value = new EUInformation
+                    {
+                        NamespaceUri = engineeringUnits.NamespaceUri,
+                        UnitId = engineeringUnits.UnitId,
+                        DisplayName = engineeringUnits.DisplayName,
+                        Description = engineeringUnits.Description
+                    });
             }
             if (measurementId.HasValue)
             {

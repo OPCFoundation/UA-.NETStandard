@@ -157,7 +157,19 @@ namespace Opc.Ua.ECM.Server
             {
                 throw new ArgumentException("An accuracy domain must define at least one class.", nameof(enumValues));
             }
-            ArrayOf<EnumValueType> detachedEnumValues = CoreUtils.Clone(enumValues);
+            var detachedValues = new EnumValueType[enumValues.Count];
+            for (int ii = 0; ii < enumValues.Count; ii++)
+            {
+                EnumValueType value = enumValues[ii] ??
+                    throw new ArgumentException("An accuracy domain cannot contain a null class.", nameof(enumValues));
+                detachedValues[ii] = new EnumValueType
+                {
+                    Value = value.Value,
+                    DisplayName = value.DisplayName,
+                    Description = value.Description
+                };
+            }
+            ArrayOf<EnumValueType> detachedEnumValues = detachedValues.ToArrayOf();
             return ExecuteNodeManagerOperationAsync(
                 ct => CreateAccuracyDomainCoreAsync(browseName, detachedEnumValues, ct), cancellationToken);
         }

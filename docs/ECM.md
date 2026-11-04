@@ -60,8 +60,8 @@ When standby is present, its subsequent snapshots report the moving state until 
 
 `IEcmMeasurementProvider` supplies a snapshot containing a non-empty set of
 supported profile readings and the current `ApplicationTag`. `CreateMeasurementAsync`
-publishes the measurement point beneath the selected parent or DI `DeviceSet`,
-then performs the first acquisition before registering the graph. The provider
+performs the first acquisition on a staged measurement point, then attaches it
+beneath the selected parent or DI `DeviceSet` and registers the graph. The provider
 remains application-owned; the manager owns and disposes the binding. Call
 `RefreshAsync` to publish later snapshots. A published profile set and its
 metadata cannot change during refresh. `ApplicationTag` writes are authorized,
@@ -78,6 +78,10 @@ Float values `L1`, `L2` and `L3`. CLR subclasses are rejected rather than
 invoking a provider-controlled `Clone` override or discarding additional
 subtype fields. Publishing custom structured subtypes is outside this
 standalone provider contract.
+Engineering units and accuracy-domain entries are copied into standard
+`EUInformation` and `EnumValueType` instances using their declared fields,
+without invoking a caller-supplied `Clone` override. Subtype-specific fields
+are not part of this metadata contract.
 
 `CreateAccuracyDomainAsync` adds an application-defined `AccuracyDomainType`
 under the ECM `AccuracyDomains` folder. Each class requires a unique numeric
