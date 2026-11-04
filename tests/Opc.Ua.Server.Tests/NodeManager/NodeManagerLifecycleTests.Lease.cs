@@ -502,9 +502,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
                 Task shutdown = lifecycle.BeginShutdownAsync(server, timeout.Token).AsTask();
                 Assert.That(shutdown.IsCompleted, Is.False,
-                    "Unpublished candidate cleanup still owns the operation until it is asynchronously disposed.");
+                    "The prepared batch must retain its lifecycle operation lease until it is asynchronously disposed.");
                 Assert.That(prepared.IsCommitted, Is.False);
-                Assert.That(candidate.DisposeCount, Is.Zero);
+                Assert.That(candidate.DeleteAddressSpaceCount, Is.EqualTo(rejectDecision ? 1 : 0));
+                Assert.That(candidate.DisposeCount, Is.EqualTo(rejectDecision ? 1 : 0));
                 await prepared.DisposeAsync().ConfigureAwait(false);
                 await prepared.DisposeAsync().ConfigureAwait(false);
                 await shutdown.WaitAsync(timeout.Token).ConfigureAwait(false);

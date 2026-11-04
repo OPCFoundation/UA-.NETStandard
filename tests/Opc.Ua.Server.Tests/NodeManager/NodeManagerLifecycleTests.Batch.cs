@@ -557,35 +557,45 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Is.True);
             AssertLifecycleValue(proposed);
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
-            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [
-                    NodeManagerBatchChange.Replace(previous,
-                        CreateTrackingNodeManagementFactory(303, manager =>
-                        {
-                            if (changeFactory)
-                            {
-                                manager.Server.Factory.Builder.AddEncodeableType(DataTypeIds.Range, proposed).Commit();
-                            }
-                            else
-                            {
-                                manager.Server.TypeTree.AddSubtype(typeId, Ua.ObjectTypeIds.FolderType);
-                            }
-                        }))
-                ], null).ConfigureAwait(false);
-            int decisions = 0;
-            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            {
-                await prepared.CommitAsync(_ =>
+            NodeManagerBatchChange replacement = NodeManagerBatchChange.Replace(previous,
+                CreateTrackingNodeManagementFactory(303, manager =>
                 {
-                    decisions++;
-                    return default;
+                    if (changeFactory)
+                    {
+                        manager.Server.Factory.Builder.AddEncodeableType(DataTypeIds.Range, proposed).Commit();
+                    }
+                    else
+                    {
+                        manager.Server.TypeTree.AddSubtype(typeId, Ua.ObjectTypeIds.FolderType);
+                    }
+                }));
+            int decisions = 0;
+            if (changeFactory)
+            {
+                await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                    [replacement], null).ConfigureAwait(false);
+                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                {
+                    await prepared.CommitAsync(_ =>
+                    {
+                        decisions++;
+                        return default;
+                    }).ConfigureAwait(false);
                 }).ConfigureAwait(false);
-            }).ConfigureAwait(false);
+                Assert.That(prepared.IsCommitted, Is.False);
+            }
+            else
+            {
+                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                {
+                    await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                        [replacement], null).ConfigureAwait(false);
+                }).ConfigureAwait(false);
+            }
 
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(decisions, Is.Zero);
-                Assert.That(prepared.IsCommitted, Is.False);
                 Assert.That(GetBranchRegistration(lifecycle, previous.Id), Is.SameAs(previous));
                 Assert.That(m_server.CurrentInstance.TypeTree.FindSuperType(typeId),
                     Is.EqualTo(Ua.ObjectTypeIds.BaseObjectType));
@@ -967,7 +977,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(GetBranchRegistration(lifecycle, original.Id), Is.SameAs(original));
                 Assert.That(originalManager, Is.Not.Null);
                 Assert.That(candidateManager, Is.Not.Null);
-                Assert.That(candidateManager!.DisposeCount, Is.Zero);
+                Assert.That(candidateManager!.DeleteAddressSpaceCount, Is.EqualTo(1));
+                Assert.That(candidateManager.DisposeCount, Is.EqualTo(1));
             }
 
             await prepared.DisposeAsync().ConfigureAwait(false);

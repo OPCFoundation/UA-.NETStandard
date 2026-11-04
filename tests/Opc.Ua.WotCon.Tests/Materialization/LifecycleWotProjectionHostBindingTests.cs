@@ -64,8 +64,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             var failure = new InvalidOperationException("candidate rejected");
             ArrayOf<NodeManagerBatchChange> captured = default;
             var lifecycle = new Mock<INodeManagerLifecycle>(MockBehavior.Strict);
-            var publication = SetupPublication(lifecycle, cancellation.Token);
-            publication.Setup(owner => owner.PrepareAsync(
+            lifecycle.Setup(owner => owner.PrepareAsync(
                 It.IsAny<ArrayOf<NodeManagerBatchChange>>(), cancellation.Token))
                 .Callback<ArrayOf<NodeManagerBatchChange>, CancellationToken>((changes, _) => captured = changes)
                 .Throws(failure);
@@ -114,8 +113,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             ArrayOf<NodeManagerBatchChange> captured = default;
             var lifecycle = new Mock<INodeManagerLifecycle>(MockBehavior.Strict);
             lifecycle.SetupGet(owner => owner.SupportsPreparedPublication).Returns(true);
-            var publication = SetupPublication(lifecycle, cancellation.Token);
-            publication.Setup(owner => owner.PrepareAsync(
+            lifecycle.Setup(owner => owner.PrepareAsync(
                 It.IsAny<ArrayOf<NodeManagerBatchChange>>(), cancellation.Token))
                 .Callback<ArrayOf<NodeManagerBatchChange>, CancellationToken>((changes, _) => captured = changes)
                 .Throws(failure);

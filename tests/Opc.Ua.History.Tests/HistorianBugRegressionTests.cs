@@ -888,8 +888,9 @@ namespace Opc.Ua.History.Tests
             IHistorianProvider servingProvider = registry.Resolve(borrowerNodeId)
                 ?? throw new InvalidOperationException("The borrowed historian default was not registered.");
             Assert.That(registry.Resolve(ownerState.NodeId), Is.SameAs(servingProvider));
-            await SeedFluentHistoryAsync(server, servingProvider, borrowerNodeId).ConfigureAwait(false);
-            await AssertExactFluentHistoryThroughServerAsync(server, borrowerNodeId).ConfigureAwait(false);
+            DateTime seedTime = DateTime.UtcNow.AddSeconds(-1);
+            await SeedFluentHistoryAsync(server, servingProvider, borrowerNodeId, seedTime).ConfigureAwait(false);
+            await AssertExactFluentHistoryThroughServerAsync(server, borrowerNodeId, seedTime).ConfigureAwait(false);
 
             if (reloadOwner)
             {
@@ -917,11 +918,11 @@ namespace Opc.Ua.History.Tests
             Assert.That(routedManager, Is.SameAs(survivor.NodeManager),
                 "The serving routing table must dispatch to the surviving borrower generation.");
             Assert.That(registry.Resolve(borrowerNodeId), Is.SameAs(servingProvider));
-            await AssertExactFluentHistoryThroughServerAsync(server, borrowerNodeId).ConfigureAwait(false);
+            await AssertExactFluentHistoryThroughServerAsync(server, borrowerNodeId, seedTime).ConfigureAwait(false);
         }
 
         private static async Task SeedFluentHistoryAsync(
-            IServerInternal server, IHistorianProvider provider, NodeId nodeId)
+            IServerInternal server, IHistorianProvider provider, NodeId nodeId, DateTime seedTime)
         {
             Assert.That(provider, Is.InstanceOf<IHistorianDataProvider>());
             using var requestContext = new OperationContext(
@@ -931,23 +932,24 @@ namespace Opc.Ua.History.Tests
             HistorianUpdateOutcome<DataValue> inserted = await ((IHistorianDataProvider)provider).InsertAsync(
                 historianContext, nodeId,
                 [
-                    new DataValue(137, StatusCodes.Good, s_seedTime, s_seedTime),
-                    new DataValue(251, StatusCodes.Good, s_seedTime.AddSeconds(1), s_seedTime.AddSeconds(1))
+                    new DataValue(137, StatusCodes.Good, seedTime, seedTime),
+                    new DataValue(251, StatusCodes.Good, seedTime.AddSeconds(1), seedTime.AddSeconds(1))
                 ],
                 CancellationToken.None).ConfigureAwait(false);
             Assert.That(inserted.OperationResults, Has.Count.EqualTo(2));
             Assert.That(inserted.OperationResults.ToArray(), Has.All.EqualTo(StatusCodes.GoodEntryInserted));
         }
 
-        private static async Task AssertExactFluentHistoryThroughServerAsync(IServerInternal server, NodeId nodeId)
+        private static async Task AssertExactFluentHistoryThroughServerAsync(
+            IServerInternal server, NodeId nodeId, DateTime seedTime)
         {
             using var context = new OperationContext(
                 new RequestHeader(), null, RequestType.HistoryRead, RequestLifetime.None);
             var details = new ReadRawModifiedDetails
             {
                 IsReadModified = false,
-                StartTime = s_seedTime.AddSeconds(-1),
-                EndTime = s_seedTime.AddSeconds(2),
+                StartTime = seedTime.AddSeconds(-1),
+                EndTime = seedTime.AddSeconds(2),
                 NumValuesPerNode = 10
             };
             (ArrayOf<HistoryReadResult> results, _) = await server.NodeManager.HistoryReadAsync(
@@ -963,14 +965,11 @@ namespace Opc.Ua.History.Tests
             Assert.That(values.Select(value => value.GetValue<int>(default)),
                 Is.EqualTo(s_expectedHistoryValues));
             Assert.That(values.Select(value => value.SourceTimestamp),
-                Is.EqualTo(s_expectedHistoryTimestamps));
+                Is.EqualTo(new DateTimeUtc[] { (DateTimeUtc)seedTime, (DateTimeUtc)seedTime.AddSeconds(1) }));
             Assert.That(values.Select(value => value.StatusCode), Has.All.EqualTo(StatusCodes.Good));
         }
 
-        private static readonly DateTime s_seedTime = new(2025, 1, 5, 12, 0, 0, DateTimeKind.Utc);
         private static readonly int[] s_expectedHistoryValues = [137, 251];
-        private static readonly DateTimeUtc[] s_expectedHistoryTimestamps =
-            [(DateTimeUtc)s_seedTime, (DateTimeUtc)s_seedTime.AddSeconds(1)];
 
         private sealed class SocketFreeHistorianHarness : IAsyncDisposable
         {
@@ -1058,8 +1057,25 @@ namespace Opc.Ua.History.Tests
             ApplicationConfiguration configuration,
             string namespaceUri,
             FluentHistorianManagerState state)
-            : FluentNodeManagerBase(server, configuration, namespaceUri)
+            : FluentNodeManagerBase(server, configuration, namespaceUri),
+                INodeManagerReadinessNotification,
+                INodeManagerReloadParticipant
         {
+            /// <inheritdoc/>
+            public ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)
+            {
+                return CompletePublishedConfigurationAsync(cancellationToken);
+            }
+
+            /// <inheritdoc/>
+            public ValueTask<ArrayOf<LocalReference>> PrepareReloadAsync(
+                IAsyncNodeManager replacement,
+                CancellationToken ct = default)
+            {
+                ct.ThrowIfCancellationRequested();
+                return new ValueTask<ArrayOf<LocalReference>>([]);
+            }
+
             protected override ValueTask ConfigureAsync(
                 INodeManagerBuilder builder,
                 CancellationToken cancellationToken)
