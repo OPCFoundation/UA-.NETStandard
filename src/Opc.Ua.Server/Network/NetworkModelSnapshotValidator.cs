@@ -27,11 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Collections.Generic;
+
 namespace Opc.Ua.Server.Network
 {
-    using System;
-    using System.Collections.Generic;
-
     /// <summary>
     /// Contains snapshot validation shared by provider implementations and the server publication boundary.
     /// </summary>

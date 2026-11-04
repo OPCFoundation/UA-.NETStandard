@@ -561,15 +561,16 @@ namespace Opc.Ua.Server.Network
             }
             if (stream.Status is { } enumStatus &&
                 (!NetworkModelSnapshotValidator.IsDefinedEnum(enumStatus.FailureCode) ||
-                    (enumStatus.TalkerStatus is { } talkerStatus &&
-                        !NetworkModelSnapshotValidator.IsDefinedEnum(talkerStatus)) ||
-                    (enumStatus.ListenerStatus is { } listenerStatus &&
-                        !NetworkModelSnapshotValidator.IsDefinedEnum(listenerStatus))))
+                    (enumStatus.TalkerStatus is { } validationTalkerStatus &&
+                        !NetworkModelSnapshotValidator.IsDefinedEnum(validationTalkerStatus)) ||
+                    (enumStatus.ListenerStatus is { } validationListenerStatus &&
+                        !NetworkModelSnapshotValidator.IsDefinedEnum(validationListenerStatus))))
             {
                 throw new ServiceResultException(StatusCodes.BadOutOfRange,
                     "Stream status enum values must be defined.");
             }
-            if (stream.Traffic is { } traffic && !NetworkModelSnapshotValidator.IsValidTraffic(traffic))
+            if (stream.Traffic is { } validationTraffic &&
+                !NetworkModelSnapshotValidator.IsValidTraffic(validationTraffic))
             {
                 throw new ServiceResultException(StatusCodes.BadOutOfRange,
                     "Stream traffic interval denominators must be greater than zero.");
