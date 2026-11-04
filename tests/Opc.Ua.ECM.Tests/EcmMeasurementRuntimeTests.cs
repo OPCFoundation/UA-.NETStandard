@@ -50,6 +50,18 @@ namespace Opc.Ua.ECM.Tests
     public sealed class EcmMeasurementRuntimeTests
     {
         /// <summary>
+        /// Supplies representative Good, Uncertain and Bad measurement qualities.
+        /// </summary>
+        private static IEnumerable<StatusCode> AllQualities =>
+            [StatusCodes.Good, StatusCodes.UncertainLastUsableValue, StatusCodes.BadNoCommunication];
+
+        /// <summary>
+        /// Supplies representative non-Good measurement qualities.
+        /// </summary>
+        private static IEnumerable<StatusCode> NonGoodQualities =>
+            [StatusCodes.UncertainLastUsableValue, StatusCodes.BadNoCommunication];
+
+        /// <summary>
         /// Initial provider refresh publishes exactly the typed E0, E1 and D0 values and their profile references.
         /// </summary>
         [Test]
@@ -585,8 +597,7 @@ namespace Opc.Ua.ECM.Tests
         [Test]
         public async Task MeasurementPayloadPreservesTypedAndNullQualityContract(
             [Values("E0", "E1", "D0")] string profile,
-            [Values(StatusCodes.Good, StatusCodes.UncertainLastUsableValue, StatusCodes.BadNoCommunication)]
-            uint quality,
+            [ValueSource(nameof(AllQualities))] StatusCode quality,
             [Values] bool nullValue)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -645,7 +656,7 @@ namespace Opc.Ua.ECM.Tests
         /// </summary>
         [Test]
         public async Task NonGoodUnrelatedPayloadIsRejectedBeforePublication(
-            [Values(StatusCodes.UncertainLastUsableValue, StatusCodes.BadNoCommunication)] uint quality,
+            [ValueSource(nameof(NonGoodQualities))] StatusCode quality,
             [Values] bool byteString,
             [Values] bool refresh)
         {
@@ -698,8 +709,7 @@ namespace Opc.Ua.ECM.Tests
         /// </summary>
         [Test]
         public async Task SelfCloningStructuredSubtypeIsRejectedBeforePublication(
-            [Values(StatusCodes.Good, StatusCodes.UncertainLastUsableValue, StatusCodes.BadNoCommunication)]
-            uint quality,
+            [ValueSource(nameof(AllQualities))] StatusCode quality,
             [Values] bool refresh)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
