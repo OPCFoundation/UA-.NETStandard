@@ -352,14 +352,15 @@ namespace Opc.Ua.AutoID.Tests
         /// <summary>
         /// Rejects inconsistent values, duplicate catalogues and selections outside their declared domain.
         /// </summary>
-        [TestCase(0, StatusCodes.BadConfigurationError)]
-        [TestCase(1, StatusCodes.BadConfigurationError)]
-        [TestCase(2, StatusCodes.BadConfigurationError)]
-        [TestCase(3, StatusCodes.BadConfigurationError)]
-        [TestCase(4, StatusCodes.BadOutOfRange)]
-        [TestCase(5, StatusCodes.BadOutOfRange)]
-        public async Task InvalidInitialReaderParameterDeclarationsAreRejectedAsync(int scenario, uint status)
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        [TestCase(3)]
+        [TestCase(4)]
+        [TestCase(5)]
+        public async Task InvalidInitialReaderParameterDeclarationsAreRejectedAsync(int scenario)
         {
+            uint status = scenario < 4 ? StatusCodes.BadConfigurationError : StatusCodes.BadOutOfRange;
             AutoIdReaderParameterCapabilities capabilities = scenario switch
             {
                 0 => new() { SupportsMinRssi = true },

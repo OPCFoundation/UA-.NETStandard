@@ -336,6 +336,11 @@ namespace Opc.Ua.Aot.Tests
                 await m_session.DisposeAsync().ConfigureAwait(false);
                 m_session = null;
             }
+            if (m_hostedReader != null)
+            {
+                await m_hostedReader.DisposeAsync().ConfigureAwait(false);
+                m_hostedReader = null!;
+            }
             if (m_host != null)
             {
                 await m_host.StopAsync(CancellationToken.None).ConfigureAwait(false);

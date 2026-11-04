@@ -745,11 +745,17 @@ namespace Opc.Ua.AutoID.Tests
         /// <summary>
         /// Notification failures after publication are not treated as diagnostic snapshot rejection.
         /// </summary>
-        [TestCase(StatusCodes.BadEncodingError)]
-        [TestCase(StatusCodes.BadDecodingError)]
-        [TestCase(StatusCodes.BadEncodingLimitsExceeded)]
-        public async Task ScanNotificationFailureIsNotSuppressedAsCopyRejectionAsync(uint status)
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        public async Task ScanNotificationFailureIsNotSuppressedAsCopyRejectionAsync(int scenario)
         {
+            uint status = scenario switch
+            {
+                0 => StatusCodes.BadEncodingError,
+                1 => StatusCodes.BadDecodingError,
+                _ => StatusCodes.BadEncodingLimitsExceeded
+            };
             await using var fixture = new AutoIdManagerFixture();
             await fixture.StartAsync(new AutoIdServerOptions { PublishAccessEvents = true }).ConfigureAwait(false);
             await using AutoIdReader reader = await fixture.Runtime.Reader(fixture.Name("NotificationFailure"),
