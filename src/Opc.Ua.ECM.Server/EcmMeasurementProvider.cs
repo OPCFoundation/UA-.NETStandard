@@ -40,6 +40,7 @@ namespace Opc.Ua.ECM.Server
     /// <param name="BrowseName">The standardized ECM measurement BrowseName.</param>
     /// <param name="Value">
     /// The declared scalar measurement value, or <see cref="Variant.Null"/> when quality is not Good.
+    /// E0 requires the exact generated AcPeDataType; CLR subclasses are not supported.
     /// </param>
     /// <param name="DataType">The namespace-qualified OPC UA DataType of the value.</param>
     /// <param name="StatusCode">The measurement quality.</param>

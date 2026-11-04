@@ -379,7 +379,8 @@ namespace Opc.Ua.ECM.Server
         {
             return measurementName switch
             {
-                nameof(BrowseNames.AcCurrentPe) => value.TryGetValue(out AcPeDataType? _),
+                nameof(BrowseNames.AcCurrentPe) => value.TryGetValue(out AcPeDataType? phases) &&
+                    phases is not null && phases.GetType() == typeof(AcPeDataType),
                 nameof(BrowseNames.AcActivePowerTotal) or nameof(BrowseNames.DcCurrent) =>
                     value.TryGetValue(out float _),
                 _ => false

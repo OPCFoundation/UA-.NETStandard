@@ -73,6 +73,11 @@ for E0 and Float for E1/D0. Bad or Uncertain readings accept the same scalar
 type or `Variant.Null`; unrelated payloads, including ByteStrings and arrays,
 are rejected before publication. A rejected refresh retains the previous
 values and timestamps and marks their quality unavailable.
+E0 accepts the exact generated `AcPeDataType`, whose fields are the three
+Float values `L1`, `L2` and `L3`. CLR subclasses are rejected rather than
+invoking a provider-controlled `Clone` override or discarding additional
+subtype fields. Publishing custom structured subtypes is outside this
+standalone provider contract.
 
 `CreateAccuracyDomainAsync` adds an application-defined `AccuracyDomainType`
 under the ECM `AccuracyDomains` folder. Each class requires a unique numeric

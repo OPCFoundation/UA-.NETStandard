@@ -510,10 +510,10 @@ namespace Opc.Ua.ECM.Tests
         }
 
         /// <summary>
-        /// A later clone failure retains all published values and timestamps while marking quality unavailable.
+        /// A later structured subtype is rejected before its throwing clone can change published state.
         /// </summary>
         [Test]
-        public async Task LaterReadingCloneFailureRetainsPublishedSnapshot()
+        public async Task LaterStructuredSubtypeRetainsPublishedSnapshotWithoutInvokingClone()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queues = new MonitoredItemQueueFactory(telemetry);
@@ -564,8 +564,8 @@ namespace Opc.Ua.ECM.Tests
             InvalidOperationException? exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await binding.RefreshAsync());
 
-            Assert.That(exception, Is.SameAs(failure));
-            body.Verify(value => value.Clone(), Times.Once);
+            Assert.That(exception, Is.Not.SameAs(failure));
+            body.Verify(value => value.Clone(), Times.Never);
             Assert.That(power.WrappedValue.TryGetValue(out float powerValue), Is.True);
             Assert.That(powerValue, Is.EqualTo(10f));
             Assert.That(power.Timestamp, Is.EqualTo((DateTimeUtc)firstTimestamp));
@@ -691,6 +691,64 @@ namespace Opc.Ua.ECM.Tests
             Assert.That(measurement.Timestamp, Is.EqualTo((DateTimeUtc)acquired));
             Assert.That(measurement.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
             Assert.That(binding.MeasurementPoint.ApplicationTag!.Value, Is.EqualTo("meter/original"));
+        }
+
+        /// <summary>
+        /// Structured subtypes cannot publish provider-owned values through a clone that returns itself.
+        /// </summary>
+        [Test]
+        public async Task SelfCloningStructuredSubtypeIsRejectedBeforePublication(
+            [Values(StatusCodes.Good, StatusCodes.UncertainLastUsableValue, StatusCodes.BadNoCommunication)]
+            uint quality,
+            [Values] bool refresh)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queues = new MonitoredItemQueueFactory(telemetry);
+            await using EcmNodeManager manager = CreateManager(telemetry, queues);
+            ushort ecmNamespace = manager.SystemContext.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
+            var acquired = new DateTime(2026, 8, 14, 9, 48, 0, DateTimeKind.Utc);
+            var body = new Mock<AcPeDataType>();
+            body.Setup(value => value.Clone()).Returns(() => body.Object);
+            body.Object.L1 = 9f;
+            var initial = new EcmMeasurementReading(
+                nameof(BrowseNames.AcCurrentPe),
+                Variant.FromStructure(new AcPeDataType { L1 = 7f, L2 = 8f, L3 = 9f }),
+                new ExpandedNodeId(DataTypeIds.AcPeDataType, Namespaces.ECM),
+                StatusCodes.Good,
+                acquired);
+            EcmMeasurementSnapshot invalid = Snapshot("meter/subtype", initial with
+            {
+                Value = Variant.FromStructure(body.Object),
+                StatusCode = quality,
+                SourceTimestamp = acquired.AddSeconds(1)
+            });
+            var provider = refresh
+                ? new TestMeasurementProvider(Snapshot("meter/original", initial), invalid)
+                : new TestMeasurementProvider(invalid);
+            BaseObjectState parent = await AddParentAsync(manager, "SelfCloningDevice");
+            var browseName = new QualifiedName("SelfCloningMeter", manager.InstanceNamespaceIndex);
+            if (!refresh)
+            {
+                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await manager.CreateMeasurementAsync(browseName, provider, parent));
+                Assert.That(parent.FindChild(manager.SystemContext, browseName), Is.Null);
+                body.Verify(value => value.Clone(), Times.Never);
+                return;
+            }
+
+            EcmMeasurementBinding binding = await manager.CreateMeasurementAsync(browseName, provider, parent);
+            await Assert.ThrowsAsync<InvalidOperationException>(async () => await binding.RefreshAsync());
+            body.Object.L1 = 99f;
+            EnergyMeasurementValueState measurement = RequiredMeasurement(
+                binding.MeasurementPoint, manager.SystemContext, nameof(BrowseNames.AcCurrentPe), ecmNamespace);
+            Assert.That(measurement.WrappedValue.TryGetValue(out AcPeDataType? published), Is.True);
+            Assert.That(published!.L1, Is.EqualTo(7f));
+            Assert.That(published.L2, Is.EqualTo(8f));
+            Assert.That(published.L3, Is.EqualTo(9f));
+            Assert.That(measurement.Timestamp, Is.EqualTo((DateTimeUtc)acquired));
+            Assert.That(measurement.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
+            Assert.That(binding.MeasurementPoint.ApplicationTag!.Value, Is.EqualTo("meter/original"));
+            body.Verify(value => value.Clone(), Times.Never);
         }
 
         /// <summary>
