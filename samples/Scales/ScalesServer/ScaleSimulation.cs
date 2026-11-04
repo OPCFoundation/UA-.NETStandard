@@ -162,7 +162,7 @@ namespace ScalesSample
                     ScaleNotificationId.BadPack,
                     new LocalizedText(FormattableString.Invariant($"Package of {weight:F4} kg rejected.")),
                     EventSeverity.Medium);
-                LogRejected(weight);
+                m_logger.LogRejected(weight);
             }
             else
             {
@@ -194,9 +194,6 @@ namespace ScalesSample
             });
         }
 
-        [LoggerMessage(Level = LogLevel.Information, Message = "Rejected a package of {Weight:F4} kg.")]
-        private partial void LogRejected(double weight);
-
         private readonly PackingLine m_line;
         private readonly ILogger<ScaleSimulation> m_logger;
     }
@@ -207,10 +204,20 @@ namespace ScalesSample
     internal static partial class ScaleSimulationLog
     {
         /// <summary>
-        /// Reports a condition timeout before the simulated operator completes the element.
+        /// Reports a rejected package.
         /// </summary>
         [LoggerMessage(
             EventId = global::Opc.Ua.ScalesServerEventIds.ScaleSimulation + 0,
+            EventName = "LogRejected",
+            Level = LogLevel.Information,
+            Message = "Rejected a package of {Weight:F4} kg.")]
+        public static partial void LogRejected(this ILogger logger, double weight);
+
+        /// <summary>
+        /// Reports a condition timeout before the simulated operator completes the element.
+        /// </summary>
+        [LoggerMessage(
+            EventId = global::Opc.Ua.ScalesServerEventIds.ScaleSimulation + 1,
             Level = LogLevel.Warning,
             Message = "Recipe element {Element} timed out; the simulated operator explicitly completes it.")]
         public static partial void LogIntervention(this ILogger logger, string? element);
