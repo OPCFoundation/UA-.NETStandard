@@ -175,10 +175,15 @@ namespace Opc.Ua.ECM.Server
                             "A provider cannot replace published profile measurements or their metadata.");
                     }
                 }
+                var values = new Dictionary<string, Variant>(StringComparer.Ordinal);
+                foreach (KeyValuePair<string, EcmMeasurementReading> pair in readings)
+                {
+                    values.Add(pair.Key, CoreUtils.Clone(pair.Value.Value));
+                }
                 foreach (KeyValuePair<string, EcmMeasurementReading> pair in readings)
                 {
                     EnergyMeasurementValueState node = m_measurements[pair.Key];
-                    node.WrappedValue = CoreUtils.Clone(pair.Value.Value);
+                    node.WrappedValue = values[pair.Key];
                     SetQuality(node, pair.Value.StatusCode, pair.Value.SourceTimestamp);
                 }
             }

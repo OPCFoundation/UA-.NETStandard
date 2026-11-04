@@ -510,6 +510,71 @@ namespace Opc.Ua.ECM.Tests
         }
 
         /// <summary>
+        /// A later clone failure retains all published values and timestamps while marking quality unavailable.
+        /// </summary>
+        [Test]
+        public async Task LaterReadingCloneFailureRetainsPublishedSnapshot()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queues = new MonitoredItemQueueFactory(telemetry);
+            await using EcmNodeManager manager = CreateManager(telemetry, queues);
+            ushort ecmNamespace = manager.SystemContext.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
+            var firstTimestamp = new DateTime(2026, 8, 14, 9, 45, 0, DateTimeKind.Utc);
+            var nextTimestamp = new DateTime(2026, 8, 14, 9, 45, 1, DateTimeKind.Utc);
+            var failure = new InvalidOperationException("Provider body clone failed.");
+            var body = new Mock<IEncodeable>();
+            body.Setup(value => value.Clone()).Throws(failure);
+            var provider = new TestMeasurementProvider(
+                Snapshot("meter/original",
+                    FloatReading(nameof(BrowseNames.AcActivePowerTotal), 10f,
+                        StatusCodes.Good, firstTimestamp),
+                    FloatReading(nameof(BrowseNames.DcCurrent), 20f,
+                        StatusCodes.Good, firstTimestamp)),
+                Snapshot("meter/not-published",
+                    FloatReading(nameof(BrowseNames.AcActivePowerTotal), 99f,
+                        StatusCodes.Good, nextTimestamp),
+                    FloatReading(nameof(BrowseNames.DcCurrent), 200f,
+                        StatusCodes.BadNoCommunication, nextTimestamp) with
+                    {
+                        Value = Variant.FromStructure(body.Object)
+                    }));
+            BaseObjectState parent = await AddParentAsync(manager, "CloneFailureDevice");
+            EcmMeasurementBinding binding = await manager.CreateMeasurementAsync(
+                new QualifiedName("CloneFailureMeter", manager.InstanceNamespaceIndex),
+                provider,
+                parent);
+            EnergyMeasurementValueState power = RequiredMeasurement(
+                binding.MeasurementPoint,
+                manager.SystemContext,
+                nameof(BrowseNames.AcActivePowerTotal),
+                ecmNamespace);
+            EnergyMeasurementValueState current = RequiredMeasurement(
+                binding.MeasurementPoint,
+                manager.SystemContext,
+                nameof(BrowseNames.DcCurrent),
+                ecmNamespace);
+            PropertyState<string> applicationTag = binding.MeasurementPoint.ApplicationTag!;
+            DateTimeUtc tagTimestamp = applicationTag.Timestamp;
+
+            InvalidOperationException? exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await binding.RefreshAsync());
+
+            Assert.That(exception, Is.SameAs(failure));
+            body.Verify(value => value.Clone(), Times.Once);
+            Assert.That(power.WrappedValue.TryGetValue(out float powerValue), Is.True);
+            Assert.That(powerValue, Is.EqualTo(10f));
+            Assert.That(power.Timestamp, Is.EqualTo((DateTimeUtc)firstTimestamp));
+            Assert.That(power.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
+            Assert.That(current.WrappedValue.TryGetValue(out float currentValue), Is.True);
+            Assert.That(currentValue, Is.EqualTo(20f));
+            Assert.That(current.Timestamp, Is.EqualTo((DateTimeUtc)firstTimestamp));
+            Assert.That(current.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
+            Assert.That(applicationTag.Value, Is.EqualTo("meter/original"));
+            Assert.That(applicationTag.Timestamp, Is.EqualTo(tagTimestamp));
+            Assert.That(applicationTag.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
+        }
+
+        /// <summary>
         /// Accuracy domains expose EnumValues and measurements point to the exact declared domain and class.
         /// </summary>
         [Test]
