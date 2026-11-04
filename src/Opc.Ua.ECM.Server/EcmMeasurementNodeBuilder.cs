@@ -113,10 +113,12 @@ namespace Opc.Ua.ECM.Server
                 measurement.ValueRank = ValueRanks.Scalar;
                 measurementPoint.AddChild(measurement);
             }
-            measurement.WrappedValue = value;
+            measurement.WrappedValue = CoreUtils.Clone(value);
             if (engineeringUnits != null)
             {
-                measurement.AddEngineeringUnits(context, variable => variable.Value = engineeringUnits);
+                measurement.AddEngineeringUnits(
+                    context,
+                    variable => variable.Value = CoreUtils.Clone(engineeringUnits));
             }
             if (measurementId.HasValue)
             {

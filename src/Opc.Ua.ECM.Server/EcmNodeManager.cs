@@ -157,8 +157,9 @@ namespace Opc.Ua.ECM.Server
             {
                 throw new ArgumentException("An accuracy domain must define at least one class.", nameof(enumValues));
             }
+            ArrayOf<EnumValueType> detachedEnumValues = CoreUtils.Clone(enumValues);
             return ExecuteNodeManagerOperationAsync(
-                ct => CreateAccuracyDomainCoreAsync(browseName, enumValues, ct), cancellationToken);
+                ct => CreateAccuracyDomainCoreAsync(browseName, detachedEnumValues, ct), cancellationToken);
         }
 
         /// <inheritdoc/>

@@ -34,6 +34,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Di.Server.Locking;
 using Opc.Ua.ECM;
 using Opc.Ua.ECM.Server;
 using Opc.Ua.Server;
@@ -324,6 +325,78 @@ namespace Opc.Ua.ECM.Tests
         }
 
         /// <summary>
+        /// Published structured values and engineering-unit metadata do not retain provider-owned objects.
+        /// </summary>
+        [Test]
+        public async Task MeasurementPublicationDetachesProviderOwnedValuesAndMetadata()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queues = new MonitoredItemQueueFactory(telemetry);
+            await using EcmNodeManager manager = CreateManager(telemetry, queues);
+            ushort ecmNamespace = manager.SystemContext.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
+            var firstTimestamp = new DateTime(2026, 8, 14, 9, 20, 0, DateTimeKind.Utc);
+            var secondTimestamp = new DateTime(2026, 8, 14, 9, 20, 1, DateTimeKind.Utc);
+            var firstValue = new AcPeDataType { L1 = 1.25f, L2 = 2.5f, L3 = 3.75f };
+            var firstUnits = new EUInformation("A", "ampere", "http://www.opcfoundation.org/UA/units/un/cefact")
+            {
+                UnitId = 0x414D50
+            };
+            var secondValue = new AcPeDataType { L1 = 4f, L2 = 5f, L3 = 6f };
+            var secondUnits = new EUInformation("A", "ampere", "http://www.opcfoundation.org/UA/units/un/cefact")
+            {
+                UnitId = 0x414D50
+            };
+            var provider = new TestMeasurementProvider(
+                Snapshot("meter/initial",
+                    new EcmMeasurementReading(
+                        nameof(BrowseNames.AcCurrentPe),
+                        Variant.FromStructure(firstValue),
+                        new ExpandedNodeId(DataTypeIds.AcPeDataType, Namespaces.ECM),
+                        StatusCodes.Good,
+                        firstTimestamp,
+                        EngineeringUnits: firstUnits)),
+                Snapshot("meter/refreshed",
+                    new EcmMeasurementReading(
+                        nameof(BrowseNames.AcCurrentPe),
+                        Variant.FromStructure(secondValue),
+                        new ExpandedNodeId(DataTypeIds.AcPeDataType, Namespaces.ECM),
+                        StatusCodes.Good,
+                        secondTimestamp,
+                        EngineeringUnits: secondUnits)));
+            BaseObjectState parent = await AddParentAsync(manager, "DetachedMeasurementDevice");
+            EcmMeasurementBinding binding = await manager.CreateMeasurementAsync(
+                new QualifiedName("DetachedMeasurementMeter", manager.InstanceNamespaceIndex),
+                provider,
+                parent);
+            EnergyMeasurementValueState measurement = RequiredMeasurement(
+                binding.MeasurementPoint,
+                manager.SystemContext,
+                nameof(BrowseNames.AcCurrentPe),
+                ecmNamespace);
+
+            firstValue.L1 = 99f;
+            firstUnits.UnitId = 999;
+            firstUnits.DisplayName = new LocalizedText("changed");
+
+            Assert.That(measurement.WrappedValue.TryGetValue(out AcPeDataType? initialValue), Is.True);
+            Assert.That(initialValue!.L1, Is.EqualTo(1.25f));
+            Assert.That(measurement.EngineeringUnits!.Value.UnitId, Is.EqualTo(0x414D50));
+            Assert.That(measurement.EngineeringUnits.Value.DisplayName.Text, Is.EqualTo("A"));
+
+            await binding.RefreshAsync();
+            secondValue.L2 = 99f;
+            secondUnits.UnitId = 998;
+            secondUnits.Description = new LocalizedText("changed");
+
+            Assert.That(measurement.WrappedValue.TryGetValue(out AcPeDataType? refreshedValue), Is.True);
+            Assert.That(refreshedValue!.L1, Is.EqualTo(4f));
+            Assert.That(refreshedValue.L2, Is.EqualTo(5f));
+            Assert.That(measurement.EngineeringUnits!.Value.UnitId, Is.EqualTo(0x414D50));
+            Assert.That(measurement.EngineeringUnits.Value.Description.Text, Is.EqualTo("ampere"));
+            Assert.That(measurement.Timestamp, Is.EqualTo((DateTimeUtc)secondTimestamp));
+        }
+
+        /// <summary>
         /// A provider cannot change the published profile set or invariant metadata during refresh.
         /// </summary>
         [TestCase("add-profile")]
@@ -489,6 +562,40 @@ namespace Opc.Ua.ECM.Tests
             Assert.That(ReadProperty<uint>(measurement, context, "AccuracyClass"), Is.EqualTo(2u));
             Assert.That(ReadProperty<NodeId>(measurement, context, "AccuracyDomain"), Is.EqualTo(domain.NodeId));
             Assert.That(ReadProperty<float>(measurement, context, "AccuracyRange"), Is.EqualTo(0.25f));
+        }
+
+        /// <summary>
+        /// Accuracy-domain publication detaches its EnumValues and localized text from caller-owned objects.
+        /// </summary>
+        [Test]
+        public async Task AccuracyDomainPublicationDetachesCallerOwnedEnumValues()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queues = new MonitoredItemQueueFactory(telemetry);
+            await using EcmNodeManager manager = CreateManager(telemetry, queues);
+            ushort ecmNamespace = manager.SystemContext.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
+            await AddAccuracyDomainsFolderAsync(manager, ecmNamespace);
+            var sourceValue = new EnumValueType
+            {
+                Value = 1,
+                DisplayName = new LocalizedText("Class A"),
+                Description = new LocalizedText("Nominal accuracy")
+            };
+            ArrayOf<EnumValueType> sourceValues = new[] { sourceValue }.ToArrayOf();
+
+            AccuracyDomainState domain = await manager.CreateAccuracyDomainAsync(
+                new QualifiedName("DetachedAccuracyDomain", ecmNamespace),
+                sourceValues);
+
+            sourceValue.Value = 2;
+            sourceValue.DisplayName = new LocalizedText("Changed class");
+            sourceValue.Description = new LocalizedText("Changed description");
+
+            EnumValueType publishedValue = domain.EnumValues!.Value[0]!;
+            Assert.That(publishedValue, Is.Not.SameAs(sourceValue));
+            Assert.That(publishedValue.Value, Is.EqualTo(1));
+            Assert.That(publishedValue.DisplayName.Text, Is.EqualTo("Class A"));
+            Assert.That(publishedValue.Description.Text, Is.EqualTo("Nominal accuracy"));
         }
 
         /// <summary>
@@ -664,6 +771,85 @@ namespace Opc.Ua.ECM.Tests
             Assert.That(provider.WriteCount, Is.Zero);
             Assert.That(provider.PersistedApplicationTag, Is.EqualTo("meter/authorized"));
             Assert.That(binding.MeasurementPoint.ApplicationTag.Value, Is.EqualTo("meter/authorized"));
+        }
+
+        /// <summary>
+        /// ApplicationTag writes recheck snapshot ownership after waiting behind a refresh.
+        /// </summary>
+        [Test]
+        public async Task ApplicationTagWriteRechecksOwnershipAfterQueuedRefresh()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queues = new MonitoredItemQueueFactory(telemetry);
+            await using EcmNodeManager manager = CreateManager(telemetry, queues);
+            var provider = new TestMeasurementProvider(
+                Snapshot("meter/initial",
+                    FloatReading(nameof(BrowseNames.DcCurrent), 4f,
+                        StatusCodes.Good, new DateTime(2026, 8, 14, 11, 40, 0, DateTimeKind.Utc))),
+                Snapshot("meter/refreshed",
+                    FloatReading(nameof(BrowseNames.DcCurrent), 5f,
+                        StatusCodes.Good, new DateTime(2026, 8, 14, 11, 40, 1, DateTimeKind.Utc))));
+            BaseObjectState parent = await AddParentAsync(manager, "QueuedTagDevice");
+            var locks = new Mock<ILockService>(MockBehavior.Strict);
+            EcmMeasurementBinding binding = await manager.CreateMeasurementAsync(
+                new QualifiedName("QueuedTagMeter", manager.InstanceNamespaceIndex),
+                provider,
+                parent,
+                exclusiveAccess: locks.Object,
+                authorize: static (_, _) => new ValueTask<bool>(true));
+            var readStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseRead = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            provider.BeforeRead = _ =>
+            {
+                readStarted.TrySetResult(true);
+                return new ValueTask(releaseRead.Task);
+            };
+            bool ownsLock = true;
+            int ownershipChecks = 0;
+            var firstOwnershipCheck = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            locks.As<ILockOwnershipService>().Setup(service =>
+                service.IsLockOwner(manager.SystemContext, binding.MeasurementPoint.NodeId))
+                .Returns(() =>
+                {
+                    bool ownedAtCheck = ownsLock;
+                    if (Interlocked.Increment(ref ownershipChecks) == 1)
+                    {
+                        firstOwnershipCheck.TrySetResult(true);
+                    }
+                    return ownedAtCheck;
+                });
+
+            Task refresh = binding.RefreshAsync().AsTask();
+            await readStarted.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            PropertyState<string> applicationTag = binding.MeasurementPoint.ApplicationTag!;
+            Task<AttributeWriteResult> write = applicationTag.OnSimpleWriteValueAsync!(
+                manager.SystemContext,
+                applicationTag,
+                Variant.From("meter/denied-after-queue"),
+                CancellationToken.None).AsTask();
+            try
+            {
+                await firstOwnershipCheck.Task.WaitAsync(TimeSpan.FromSeconds(10));
+                Assert.That(write.IsCompleted, Is.False);
+                ownsLock = false;
+            }
+            finally
+            {
+                releaseRead.TrySetResult(true);
+            }
+
+            await refresh.WaitAsync(TimeSpan.FromSeconds(10));
+            AttributeWriteResult result = await write.WaitAsync(TimeSpan.FromSeconds(10));
+
+            Assert.That(result.Result.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(provider.WriteCount, Is.Zero);
+            Assert.That(provider.PersistedApplicationTag, Is.EqualTo("meter/initial"));
+            Assert.That(applicationTag.Value, Is.EqualTo("meter/initial"));
+            Assert.That(ownershipChecks, Is.EqualTo(2));
+            locks.As<ILockOwnershipService>().Verify(service =>
+                service.IsLockOwner(manager.SystemContext, binding.MeasurementPoint.NodeId),
+                Times.Exactly(2));
         }
 
         /// <summary>
@@ -983,7 +1169,9 @@ namespace Opc.Ua.ECM.Tests
 
             public Action<string>? BeforePersist { get; set; }
 
-            public ValueTask<EcmMeasurementSnapshot> ReadAsync(CancellationToken cancellationToken)
+            public Func<CancellationToken, ValueTask>? BeforeRead { get; set; }
+
+            public async ValueTask<EcmMeasurementSnapshot> ReadAsync(CancellationToken cancellationToken)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 ReadCount++;
@@ -991,11 +1179,15 @@ namespace Opc.Ua.ECM.Tests
                 {
                     throw readFailure;
                 }
+                if (BeforeRead is { } beforeRead)
+                {
+                    await beforeRead(cancellationToken).ConfigureAwait(false);
+                }
                 if (m_snapshots.Count == 0)
                 {
                     throw new InvalidOperationException("No provider snapshot is configured.");
                 }
-                return new ValueTask<EcmMeasurementSnapshot>(m_snapshots.Dequeue()!);
+                return m_snapshots.Dequeue()!;
             }
 
             public ValueTask WriteApplicationTagAsync(

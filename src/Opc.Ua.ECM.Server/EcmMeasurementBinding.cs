@@ -263,8 +263,17 @@ namespace Opc.Ua.ECM.Server
                 {
                     return new AttributeWriteResult(StatusCodes.BadUserAccessDenied);
                 }
-                await m_operations.ExecuteAsync(async ct =>
+                bool persisted = await m_operations.ExecuteAsync(async ct =>
                 {
+                    if (!await EcmPowerAccess.IsAuthorizedAsync(
+                        caller,
+                        MeasurementPoint.NodeId,
+                        m_authorize,
+                        m_exclusiveAccess,
+                        ct).ConfigureAwait(false))
+                    {
+                        return false;
+                    }
                     await m_provider.WriteApplicationTagAsync(applicationTag, ct).ConfigureAwait(false);
                     Required(MeasurementPoint.ApplicationTag).Value = applicationTag;
                     Required(MeasurementPoint.ApplicationTag).StatusCode = StatusCodes.Good;
@@ -272,7 +281,9 @@ namespace Opc.Ua.ECM.Server
                     MeasurementPoint.ClearChangeMasks(m_context, true);
                     return true;
                 }, cancellationToken).ConfigureAwait(false);
-                return new AttributeWriteResult(StatusCodes.Good) { SuppressCacheUpdate = true };
+                return persisted
+                    ? new AttributeWriteResult(StatusCodes.Good) { SuppressCacheUpdate = true }
+                    : new AttributeWriteResult(StatusCodes.BadUserAccessDenied);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
