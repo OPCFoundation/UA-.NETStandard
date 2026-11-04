@@ -698,28 +698,48 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                     startInfo.Environment[variable.Key] = variable.Value;
                 }
                 var worker = new Worker(Process.Start(startInfo)!);
-                worker.Process.OutputDataReceived += (_, e) =>
+                // Dedicated threads, not BeginOutputReadLine: on Windows the redirected pipes are
+                // synchronous handles, so every async line reader parks a pool thread in ReadFile.
+                // Two per worker exceed the pool minimum beyond about a dozen workers, and every
+                // further worker's lines (its "ready" included) then wait for the pool's starvation
+                // injection, about one thread per second: native-subs setup looked superlinear in
+                // the session count while the server had created every item within seconds.
+                StartPump(() =>
                 {
-                    if (e.Data == null)
+                    string? line;
+                    while ((line = worker.Process.StandardOutput.ReadLine()) != null)
                     {
-                        worker.m_lines.CompleteAdding();
+                        worker.m_lines.Add(line);
                     }
-                    else
-                    {
-                        worker.m_lines.Add(e.Data);
-                    }
-                };
+                    worker.m_lines.CompleteAdding();
+                });
                 // the workers log to stderr; drain it so that they never block
-                worker.Process.ErrorDataReceived += (_, e) =>
+                StartPump(() =>
                 {
-                    if (e.Data != null && Program.Arg("verbose", "0") != "0")
+                    bool verbose = Program.Arg("verbose", "0") != "0";
+                    string? line;
+                    while ((line = worker.Process.StandardError.ReadLine()) != null)
                     {
-                        Console.WriteLine("[worker] " + e.Data);
+                        if (verbose)
+                        {
+                            Console.WriteLine("[worker] " + line);
+                        }
                     }
-                };
-                worker.Process.BeginOutputReadLine();
-                worker.Process.BeginErrorReadLine();
+                });
                 return worker;
+            }
+
+            /// <summary>
+            /// Runs a blocking pump on a dedicated thread; the task keeps a pump exception at
+            /// shutdown (the collection or process disposed under it) from terminating the harness.
+            /// </summary>
+            private static void StartPump(Action pump)
+            {
+                _ = Task.Factory.StartNew(
+                    pump,
+                    CancellationToken.None,
+                    TaskCreationOptions.LongRunning,
+                    TaskScheduler.Default);
             }
 
             public string WaitFor(Func<string, bool> predicate, TimeSpan timeout)

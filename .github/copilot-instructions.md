@@ -134,7 +134,7 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 - All client/server as well as pub/sub features must also have Integration tests. Integration tests go into integration projects <component/area>.Tests.
 - Tests must be deterministic and pass in CI/CD environment
 - Code coverage is monitored via Coverlet and MUST NOT decrease
-- Run all tests with `dotnet test` from solution root on UA.slnx
+- When running the full .NET test suite, use `dotnet test` from the solution root on UA.slnx.
 - When updating tests fix above for the test only.
 - Mirror the structure of the code being tested
 - Use descriptive test method names that explain what is being tested
@@ -146,6 +146,7 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 #### When to Update Documentation
 - Add a new doc in `docs/` when adding new features and link from `/docs/README.md`
 - Review all other docs for consistency and when needed, link the new doc from other docs.
+- When adding a NodeSet2 XML or model XML compiled by a source generator, if it represents or references an officially published OPC UA companion specification or specification part, update every affected location in [`docs/Profiles.md`](../docs/Profiles.md), including the overview, companion catalogue, related documentation and published-specification support matrix. Check the latest published version at <https://reference.opcfoundation.org/>, rate the implemented behavior and explain any partial support; generated types alone do not establish full runtime support.
 - When manual migration from 1.5.378 (master378) is required or code was marked [Obsolete], update migrationguide.md
 - Update `/README.md` for significant changes
 - Keep `NugetREADME.md` updated for package-related changes
@@ -171,7 +172,7 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 ### Contributing
 
 #### Before Submitting Changes
-- Ensure all tests pass
+- Ensure all relevant tests pass.
 - Run code analysis and fix all warnings
 - Follow the existing code structure and patterns
 - Check that your changes don't break compatibility
@@ -181,7 +182,7 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 #### Pull Request Guidelines
 - Provide clear description of changes
 - Reference any related issues
-- Ensure that net48 and net10.0 TFM tests in UA.slnx solution run successfully before creating the PR.
+- If a PR changes C# source files, ensure the UA.slnx tests pass on net48 and net10.0 before creating it. PRs changing only non-C# files do not require these .NET test runs.
 - Ensure CI/CD pipelines pass
 - Use the opc-ua-codestyle-enforcer agent if needed to ensure compliance before opening pull requests.
 
