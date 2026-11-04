@@ -178,7 +178,7 @@ namespace Opc.Ua.ECM.Server
                 foreach (KeyValuePair<string, EcmMeasurementReading> pair in readings)
                 {
                     EnergyMeasurementValueState node = m_measurements[pair.Key];
-                    node.WrappedValue = pair.Value.Value;
+                    node.WrappedValue = CoreUtils.Clone(pair.Value.Value);
                     SetQuality(node, pair.Value.StatusCode, pair.Value.SourceTimestamp);
                 }
             }
