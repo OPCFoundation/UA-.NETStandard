@@ -234,6 +234,12 @@ namespace Opc.Ua.ECM.Server
                     throw new InvalidOperationException(
                         "A good ECM measurement must contain its declared typed value.");
                 }
+                if (!StatusCode.IsGood(reading.StatusCode) &&
+                    !reading.Value.IsNull && !HasExpectedValue(name, reading.Value))
+                {
+                    throw new InvalidOperationException(
+                        "A non-good ECM measurement must contain its declared typed value or a null Variant.");
+                }
             }
             if (readings.Count == 0)
             {

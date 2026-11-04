@@ -68,6 +68,12 @@ metadata cannot change during refresh. `ApplicationTag` writes are authorized,
 persisted through the provider, and only then reflected in the address space.
 The provider must return the updated tag in subsequent snapshots.
 
+Good readings require the profile's declared scalar value: `AcPeDataType`
+for E0 and Float for E1/D0. Bad or Uncertain readings accept the same scalar
+type or `Variant.Null`; unrelated payloads, including ByteStrings and arrays,
+are rejected before publication. A rejected refresh retains the previous
+values and timestamps and marks their quality unavailable.
+
 `CreateAccuracyDomainAsync` adds an application-defined `AccuracyDomainType`
 under the ECM `AccuracyDomains` folder. Each class requires a unique numeric
 value and a unique, non-empty display name. A measurement that declares an

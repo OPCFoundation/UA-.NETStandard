@@ -522,22 +522,27 @@ namespace Opc.Ua.ECM.Tests
             var firstTimestamp = new DateTime(2026, 8, 14, 9, 45, 0, DateTimeKind.Utc);
             var nextTimestamp = new DateTime(2026, 8, 14, 9, 45, 1, DateTimeKind.Utc);
             var failure = new InvalidOperationException("Provider body clone failed.");
-            var body = new Mock<IEncodeable>();
+            var body = new Mock<AcPeDataType>();
             body.Setup(value => value.Clone()).Throws(failure);
             var provider = new TestMeasurementProvider(
                 Snapshot("meter/original",
                     FloatReading(nameof(BrowseNames.AcActivePowerTotal), 10f,
                         StatusCodes.Good, firstTimestamp),
-                    FloatReading(nameof(BrowseNames.DcCurrent), 20f,
-                        StatusCodes.Good, firstTimestamp)),
+                    new EcmMeasurementReading(
+                        nameof(BrowseNames.AcCurrentPe),
+                        Variant.FromStructure(new AcPeDataType { L1 = 20f }),
+                        new ExpandedNodeId(DataTypeIds.AcPeDataType, Namespaces.ECM),
+                        StatusCodes.Good,
+                        firstTimestamp)),
                 Snapshot("meter/not-published",
                     FloatReading(nameof(BrowseNames.AcActivePowerTotal), 99f,
                         StatusCodes.Good, nextTimestamp),
-                    FloatReading(nameof(BrowseNames.DcCurrent), 200f,
-                        StatusCodes.BadNoCommunication, nextTimestamp) with
-                    {
-                        Value = Variant.FromStructure(body.Object)
-                    }));
+                    new EcmMeasurementReading(
+                        nameof(BrowseNames.AcCurrentPe),
+                        Variant.FromStructure(body.Object),
+                        new ExpandedNodeId(DataTypeIds.AcPeDataType, Namespaces.ECM),
+                        StatusCodes.BadNoCommunication,
+                        nextTimestamp)));
             BaseObjectState parent = await AddParentAsync(manager, "CloneFailureDevice");
             EcmMeasurementBinding binding = await manager.CreateMeasurementAsync(
                 new QualifiedName("CloneFailureMeter", manager.InstanceNamespaceIndex),
@@ -551,7 +556,7 @@ namespace Opc.Ua.ECM.Tests
             EnergyMeasurementValueState current = RequiredMeasurement(
                 binding.MeasurementPoint,
                 manager.SystemContext,
-                nameof(BrowseNames.DcCurrent),
+                nameof(BrowseNames.AcCurrentPe),
                 ecmNamespace);
             PropertyState<string> applicationTag = binding.MeasurementPoint.ApplicationTag!;
             DateTimeUtc tagTimestamp = applicationTag.Timestamp;
@@ -565,13 +570,127 @@ namespace Opc.Ua.ECM.Tests
             Assert.That(powerValue, Is.EqualTo(10f));
             Assert.That(power.Timestamp, Is.EqualTo((DateTimeUtc)firstTimestamp));
             Assert.That(power.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
-            Assert.That(current.WrappedValue.TryGetValue(out float currentValue), Is.True);
-            Assert.That(currentValue, Is.EqualTo(20f));
+            Assert.That(current.WrappedValue.TryGetValue(out AcPeDataType? currentValue), Is.True);
+            Assert.That(currentValue!.L1, Is.EqualTo(20f));
             Assert.That(current.Timestamp, Is.EqualTo((DateTimeUtc)firstTimestamp));
             Assert.That(current.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
             Assert.That(applicationTag.Value, Is.EqualTo("meter/original"));
             Assert.That(applicationTag.Timestamp, Is.EqualTo(tagTimestamp));
             Assert.That(applicationTag.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
+        }
+
+        /// <summary>
+        /// Profile scalars remain accepted at every quality; null Variants are accepted only for non-Good readings.
+        /// </summary>
+        [Test]
+        public async Task MeasurementPayloadPreservesTypedAndNullQualityContract(
+            [Values("E0", "E1", "D0")] string profile,
+            [Values(StatusCodes.Good, StatusCodes.UncertainLastUsableValue, StatusCodes.BadNoCommunication)]
+            uint quality,
+            [Values] bool nullValue)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queues = new MonitoredItemQueueFactory(telemetry);
+            await using EcmNodeManager manager = CreateManager(telemetry, queues);
+            ushort ecmNamespace = manager.SystemContext.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
+            var acquired = new DateTime(2026, 8, 14, 9, 46, 0, DateTimeKind.Utc);
+            EcmMeasurementReading reading = profile == "E0"
+                ? new EcmMeasurementReading(
+                    nameof(BrowseNames.AcCurrentPe),
+                    Variant.FromStructure(new AcPeDataType { L1 = 7f }),
+                    new ExpandedNodeId(DataTypeIds.AcPeDataType, Namespaces.ECM),
+                    quality,
+                    acquired)
+                : FloatReading(
+                    profile == "E1" ? nameof(BrowseNames.AcActivePowerTotal) : nameof(BrowseNames.DcCurrent),
+                    7f, quality, acquired);
+            if (nullValue)
+            {
+                reading = reading with { Value = Variant.Null };
+            }
+            var provider = new TestMeasurementProvider(Snapshot("meter/payload", reading));
+            BaseObjectState parent = await AddParentAsync(manager, "PayloadDevice");
+            var browseName = new QualifiedName("PayloadMeter", manager.InstanceNamespaceIndex);
+            if (nullValue && StatusCode.IsGood(quality))
+            {
+                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await manager.CreateMeasurementAsync(browseName, provider, parent));
+                Assert.That(parent.FindChild(manager.SystemContext, browseName), Is.Null);
+                return;
+            }
+
+            EcmMeasurementBinding binding = await manager.CreateMeasurementAsync(browseName, provider, parent);
+            EnergyMeasurementValueState measurement = RequiredMeasurement(
+                binding.MeasurementPoint, manager.SystemContext, reading.BrowseName, ecmNamespace);
+            Assert.That(measurement.StatusCode, Is.EqualTo((StatusCode)quality));
+            Assert.That(measurement.Timestamp, Is.EqualTo((DateTimeUtc)acquired));
+            if (nullValue)
+            {
+                Assert.That(measurement.WrappedValue.IsNull, Is.True);
+            }
+            else if (profile == "E0")
+            {
+                Assert.That(measurement.WrappedValue.TryGetValue(out AcPeDataType? value), Is.True);
+                Assert.That(value!.L1, Is.EqualTo(7f));
+            }
+            else
+            {
+                Assert.That(measurement.WrappedValue.TryGetValue(out float value), Is.True);
+                Assert.That(value, Is.EqualTo(7f));
+            }
+        }
+
+        /// <summary>
+        /// Non-Good readings reject unrelated mutable payloads before creating or changing measurement nodes.
+        /// </summary>
+        [Test]
+        public async Task NonGoodUnrelatedPayloadIsRejectedBeforePublication(
+            [Values(StatusCodes.UncertainLastUsableValue, StatusCodes.BadNoCommunication)] uint quality,
+            [Values] bool byteString,
+            [Values] bool refresh)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queues = new MonitoredItemQueueFactory(telemetry);
+            await using EcmNodeManager manager = CreateManager(telemetry, queues);
+            ushort ecmNamespace = manager.SystemContext.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
+            var acquired = new DateTime(2026, 8, 14, 9, 47, 0, DateTimeKind.Utc);
+            byte[] bytes = [1, 2, 3];
+            float[] numbers = [10f, 20f];
+            EcmMeasurementReading invalid = FloatReading(
+                nameof(BrowseNames.DcCurrent), 7f, quality, acquired.AddSeconds(1)) with
+            {
+                Value = byteString
+                    ? Variant.From(ByteString.From(bytes))
+                    : Variant.From(numbers.ToArrayOf())
+            };
+            EcmMeasurementSnapshot invalidSnapshot = Snapshot("meter/rejected", invalid);
+            var provider = refresh
+                ? new TestMeasurementProvider(
+                    Snapshot("meter/original",
+                        FloatReading(nameof(BrowseNames.DcCurrent), 7f, StatusCodes.Good, acquired)),
+                    invalidSnapshot)
+                : new TestMeasurementProvider(invalidSnapshot);
+            BaseObjectState parent = await AddParentAsync(manager, "RejectedPayloadDevice");
+            var browseName = new QualifiedName("RejectedPayloadMeter", manager.InstanceNamespaceIndex);
+            if (!refresh)
+            {
+                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await manager.CreateMeasurementAsync(browseName, provider, parent));
+                Assert.That(parent.FindChild(manager.SystemContext, browseName), Is.Null);
+                return;
+            }
+
+            EcmMeasurementBinding binding = await manager.CreateMeasurementAsync(browseName, provider, parent);
+            await Assert.ThrowsAsync<InvalidOperationException>(async () => await binding.RefreshAsync());
+            bytes[0] = 99;
+            numbers[0] = 99f;
+            EnergyMeasurementValueState measurement = RequiredMeasurement(
+                binding.MeasurementPoint, manager.SystemContext, nameof(BrowseNames.DcCurrent), ecmNamespace);
+            Assert.That(measurement.WrappedValue.TryGetValue(out float value), Is.True);
+            Assert.That(value, Is.EqualTo(7f));
+            Assert.That(measurement.Timestamp, Is.EqualTo((DateTimeUtc)acquired));
+            Assert.That(measurement.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
+            Assert.That(binding.MeasurementPoint.ApplicationTag!.Value, Is.EqualTo("meter/original"));
         }
 
         /// <summary>
