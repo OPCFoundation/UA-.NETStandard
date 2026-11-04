@@ -854,6 +854,63 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
         }
 
+        /// <summary>
+        /// The channel closes the transport from the completion of a failed receive
+        /// (its receive loop faulting). The close must return promptly, end the
+        /// connection and release the socket (#4981).
+        /// </summary>
+        [Test]
+        public async Task CloseFromAFailedReceiveCompletionReleasesTheSocketAsync()
+        {
+            (TcpByteTransport client, Socket serverSocket, TcpListener listener) =
+                await CreateConnectedPairAsync().ConfigureAwait(false);
+            using var _l = new ListenerScope(listener);
+            using Socket _s = serverSocket;
+            var socket = (Socket)typeof(TcpByteTransport)
+                .GetField("m_socket", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .GetValue(client)!;
+
+            // A chunk header announcing more bytes than are sent, then a reset:
+            // the receive faults inside the chunk.
+            serverSocket.LingerState = new LingerOption(true, 0);
+            await serverSocket
+                .SendAsync(
+                    new ArraySegment<byte>(BuildValidChunk(TcpMessageType.Message, 9000), 0, 100),
+                    SocketFlags.None)
+                .ConfigureAwait(false);
+            Task<ArraySegment<byte>> receive = client.ReceiveChunkAsync(CancellationToken.None).AsTask();
+            Task close = receive.ContinueWith(
+                _ => client.Close(),
+                CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+            serverSocket.Close();
+
+            Assert.That(
+                await Task.WhenAny(close, Task.Delay(TimeSpan.FromSeconds(5))).ConfigureAwait(false),
+                Is.SameAs(close));
+            await close.ConfigureAwait(false);
+            Assert.That(receive.IsFaulted, Is.True);
+
+            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+            while (true)
+            {
+                try
+                {
+                    _ = socket.Available;
+                }
+                catch (ObjectDisposedException)
+                {
+                    break;
+                }
+                catch (SocketException)
+                {
+                }
+                Assert.That(DateTime.UtcNow, Is.LessThan(deadline), "The socket was not disposed.");
+                await Task.Delay(10).ConfigureAwait(false);
+            }
+        }
+
         [Test]
         public void CloseIsIdempotent()
         {
