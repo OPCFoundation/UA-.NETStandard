@@ -1588,6 +1588,11 @@ namespace Opc.Ua.Server
             configurationNodeManager?.CreateServerConfiguration(
                     DefaultSystemContext,
                 m_configuration);
+            if (configurationNodeManager != null)
+            {
+                await configurationNodeManager.RecoverConfigurationFileUpdateAsync(cancellationToken)
+                    .ConfigureAwait(false);
+            }
 
             // Initialize history capabilities and update Server EventNotifier accordingly
             await DiagnosticsNodeManager.UpdateServerEventNotifierAsync(cancellationToken)

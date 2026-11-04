@@ -1610,8 +1610,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                             m_record = stored;
                             return ApplicationId;
                         }
-                        stored.ApplicationId = FindManaged(record.ApplicationUri).Id;
-                        m_managedRecords[record.ApplicationUri] = stored;
+                        stored.ApplicationId = FindManaged(record.ApplicationUri!).Id;
+                        m_managedRecords[record.ApplicationUri!] = stored;
                         return stored.ApplicationId;
                     });
                 database.Setup(value => value.UpdateApplication(It.IsAny<ApplicationRecordDataType>()))
@@ -1619,7 +1619,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     {
                         if (record.ApplicationUri != ApplicationUri)
                         {
-                            m_managedRecords[record.ApplicationUri] = CoreUtils.Clone(record)!;
+                            m_managedRecords[record.ApplicationUri!] = CoreUtils.Clone(record)!;
                         }
                         return record.ApplicationId;
                     });
@@ -1627,8 +1627,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     Product, It.IsAny<ApplicationRecordDataType>(), string.Empty, It.IsAny<CancellationToken>()))
                     .Returns<string, ApplicationRecordDataType, string, CancellationToken>((_, record, _, _) =>
                     {
-                        AuthorizedUris.Add(record.ApplicationUri);
-                        if (DeniedUris.Contains(record.ApplicationUri))
+                        AuthorizedUris.Add(record.ApplicationUri!);
+                        if (DeniedUris.Contains(record.ApplicationUri!))
                         {
                             throw new ServiceResultException(StatusCodes.BadRequestNotAllowed);
                         }
@@ -2227,15 +2227,15 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     }
                     else if (node == application.Node)
                     {
-                        references.Add(Reference(application.UriNode, BrowseNames.ApplicationUri,
+                        references.Add(Reference(application.UriNode, Ua.BrowseNames.ApplicationUri,
                             NodeClass.Variable, Ua.VariableTypeIds.PropertyType));
-                        references.Add(Reference(application.ProductNode, BrowseNames.ProductUri,
+                        references.Add(Reference(application.ProductNode, Ua.BrowseNames.ProductUri,
                             NodeClass.Variable, Ua.VariableTypeIds.PropertyType));
-                        references.Add(Reference(application.TypeNode, BrowseNames.ApplicationType,
+                        references.Add(Reference(application.TypeNode, Ua.BrowseNames.ApplicationType,
                             NodeClass.Variable, Ua.VariableTypeIds.PropertyType));
                         if (application.IncludeNames)
                         {
-                            references.Add(Reference(application.NamesNode, BrowseNames.ApplicationNames,
+                            references.Add(Reference(application.NamesNode, Ua.BrowseNames.ApplicationNames,
                                 NodeClass.Variable, Ua.VariableTypeIds.PropertyType));
                         }
                         references.Add(Reference(application.Groups, BrowseNames.CertificateGroups,
@@ -2243,14 +2243,14 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     }
                     else if (node == application.Groups)
                     {
-                        references.Add(Reference(application.Group, BrowseNames.DefaultApplicationGroup,
+                        references.Add(Reference(application.Group, Ua.BrowseNames.DefaultApplicationGroup,
                             NodeClass.Object, Ua.ObjectTypeIds.CertificateGroupType));
                     }
                     else if (node == application.Group)
                     {
-                        references.Add(Reference(application.TrustList, BrowseNames.TrustList,
+                        references.Add(Reference(application.TrustList, Ua.BrowseNames.TrustList,
                             NodeClass.Object, Ua.ObjectTypeIds.TrustListType));
-                        references.Add(Reference(application.CertificateTypesNode, BrowseNames.CertificateTypes,
+                        references.Add(Reference(application.CertificateTypesNode, Ua.BrowseNames.CertificateTypes,
                             NodeClass.Variable, Ua.VariableTypeIds.PropertyType));
                     }
                 }

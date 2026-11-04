@@ -388,7 +388,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 await previous.ExecuteAsync(() =>
                 {
                     invoked = true;
-                    return default(ValueTask);
+                    return default;
                 }).ConfigureAwait(false));
 
             Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
@@ -398,7 +398,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 await security.CreateApplicationOperations().ExecuteAsync(() =>
                 {
                     invoked = true;
-                    return default(ValueTask);
+                    return default;
                 }).ConfigureAwait(false);
                 Assert.That(invoked, Is.True);
             }

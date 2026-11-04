@@ -51,8 +51,10 @@ namespace Opc.Ua.Server
     /// SecurityAdmin/authenticated-channel checks, transaction exclusion
     /// against the shared PushManagement transaction coordinator
     /// (§7.10.2/§7.10.20), the <c>VersionToUpdate</c>/<c>CurrentVersion</c>
-    /// check, validation-before-apply with atomic rollback, and the
-    /// <c>UpdateId</c>/<c>ConfirmUpdate</c> revert lifecycle.
+    /// check, validation-before-apply, and the client-facing
+    /// <c>UpdateId</c>/<c>ConfirmUpdate</c> lifecycle. Providers that require
+    /// confirmation own the durable pending state through
+    /// <see cref="IRecoverableApplicationConfigurationFileProvider"/>.
     /// </para>
     /// <para>
     /// Only the asynchronous Method handlers are registered because the
@@ -231,6 +233,7 @@ namespace Opc.Ua.Server
                 m_strm = null;
                 m_sessionId = default;
             }
+            m_updateGate.Dispose();
         }
 
         private async ValueTask<OpenMethodStateResult> OpenAsync(
@@ -562,6 +565,40 @@ namespace Opc.Ua.Server
             double restartDelayTime,
             CancellationToken cancellationToken)
         {
+            await m_updateGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                return await CloseAndUpdateCoreAsync(
+                    context,
+                    method,
+                    objectId,
+                    fileHandle,
+                    versionToUpdate,
+                    targets,
+                    revertAfterTime,
+                    restartDelayTime,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_updateGate.Release();
+            }
+        }
+
+        /// <summary>
+        /// Validates and applies a completed ConfigurationFile upload.
+        /// </summary>
+        private async ValueTask<ConfigurationFileCloseAndUpdateMethodStateResult> CloseAndUpdateCoreAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            uint fileHandle,
+            uint versionToUpdate,
+            ArrayOf<ConfigurationUpdateTargetType> targets,
+            double revertAfterTime,
+            double restartDelayTime,
+            CancellationToken cancellationToken)
+        {
             m_writeAccess(context);
 
             NodeId sessionId = GetSessionId(context);
@@ -603,6 +640,14 @@ namespace Opc.Ua.Server
                 }
 
                 proposed = ByteString.From(m_strm!.ToArray());
+            }
+
+            IRecoverableApplicationConfigurationFileProvider? recoverableProvider =
+                m_provider as IRecoverableApplicationConfigurationFileProvider;
+            if (m_provider.RequiresConfirmation && recoverableProvider == null)
+            {
+                CloseWriteHandle(fileHandle);
+                return FailedUpdate(StatusCodes.BadNotSupported, targets);
             }
 
             uint oldVersion = m_provider.CurrentVersion;
@@ -689,7 +734,7 @@ namespace Opc.Ua.Server
             // response is returned first and the apply runs afterwards.
             if (targetProvider != null && plan!.InterruptsSessions && restartDelayTime > 0)
             {
-                return ScheduleDeferredApply(
+                return await ScheduleDeferredApplyAsync(
                     context,
                     objectId,
                     method.NodeId,
@@ -701,14 +746,49 @@ namespace Opc.Ua.Server
                     plan,
                     oldVersion,
                     revertAfterTime,
-                    restartDelayTime);
+                    restartDelayTime,
+                    recoverableProvider,
+                    cancellationToken).ConfigureAwait(false);
             }
 
-            // §7.8.5.2 atomic apply: on failure the provider leaves the active
-            // configuration unchanged, so there is nothing to roll back.
+            Uuid updateId = Uuid.Empty;
+            DateTime? revertAtUtc = null;
+            if (recoverableProvider != null && m_provider.RequiresConfirmation)
+            {
+                updateId = Uuid.NewUuid();
+                DateTime applyAtUtc = m_timeProvider.GetUtcNow().UtcDateTime;
+                revertAtUtc = GetRevertAtUtc(applyAtUtc, revertAfterTime);
+                try
+                {
+                    await recoverableProvider.BeginUpdateAsync(
+                        updateId,
+                        proposed,
+                        targets,
+                        applyAtUtc,
+                        revertAtUtc,
+                        cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    await RevertPendingUpdateIfCreatedAsync(recoverableProvider, updateId).ConfigureAwait(false);
+                    CloseWriteHandle(fileHandle);
+                    StatusCode statusCode = GetConfigurationUpdateFailureStatus(ex);
+                    ReportConfigurationUpdatedAuditEvent(
+                        context, objectId, method.NodeId, inputArguments, statusCode, oldVersion, oldVersion);
+                    return FailedUpdate(statusCode, targets);
+                }
+            }
+
+            // An atomic provider failure leaves the active configuration unchanged.
+            // Clear the staged record so restart recovery cannot apply a rejected update.
             try
             {
-                if (targetProvider != null)
+                if (recoverableProvider != null && m_provider.RequiresConfirmation)
+                {
+                    await recoverableProvider.ApplyPendingUpdateAsync(updateId, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                else if (targetProvider != null)
                 {
                     await targetProvider.ApplyConfigurationAsync(proposed, targets, cancellationToken)
                         .ConfigureAwait(false);
@@ -719,21 +799,24 @@ namespace Opc.Ua.Server
                         .ConfigureAwait(false);
                 }
             }
-            catch (ServiceResultException ex)
+            catch (Exception ex)
             {
                 m_logger.ConfigurationFileUpdateFailedWhileApplying(ex);
+                if (recoverableProvider != null && m_provider.RequiresConfirmation)
+                {
+                    await RevertPendingUpdateAsync(recoverableProvider, updateId).ConfigureAwait(false);
+                }
                 CloseWriteHandle(fileHandle);
+                StatusCode statusCode = GetConfigurationUpdateFailureStatus(ex);
                 ReportConfigurationUpdatedAuditEvent(
-                    context, objectId, method.NodeId, inputArguments, ex.StatusCode, oldVersion, oldVersion);
-                return FailedUpdate(ex.StatusCode, targets);
+                    context, objectId, method.NodeId, inputArguments, statusCode, oldVersion, oldVersion);
+                return FailedUpdate(statusCode, targets);
             }
 
             uint newVersion = m_provider.CurrentVersion;
-            Uuid updateId = Uuid.Empty;
             if (m_provider.RequiresConfirmation)
             {
-                updateId = Uuid.NewUuid();
-                ScheduleRevert(updateId, restartDelayTime, revertAfterTime, context);
+                ScheduleRevert(updateId, revertAtUtc, context);
             }
 
             RefreshVersionNodes(context);
@@ -767,7 +850,7 @@ namespace Opc.Ua.Server
         /// <c>RestartDelayTime</c> but no later than
         /// <c>RestartDelayTime + RevertAfterTime</c>.
         /// </summary>
-        private ConfigurationFileCloseAndUpdateMethodStateResult ScheduleDeferredApply(
+        private async ValueTask<ConfigurationFileCloseAndUpdateMethodStateResult> ScheduleDeferredApplyAsync(
             ISystemContext context,
             NodeId objectId,
             NodeId methodId,
@@ -779,7 +862,9 @@ namespace Opc.Ua.Server
             ApplicationConfigurationUpdatePlan plan,
             uint oldVersion,
             double revertAfterTime,
-            double restartDelayTime)
+            double restartDelayTime,
+            IRecoverableApplicationConfigurationFileProvider? recoverableProvider,
+            CancellationToken cancellationToken)
         {
             lock (m_lock)
             {
@@ -787,10 +872,37 @@ namespace Opc.Ua.Server
             }
 
             Uuid updateId = Uuid.Empty;
+            DateTime? revertAtUtc = null;
             if (m_provider.RequiresConfirmation)
             {
                 updateId = Uuid.NewUuid();
-                ScheduleRevert(updateId, restartDelayTime, revertAfterTime, context);
+                DateTime applyAtUtc = m_timeProvider.GetUtcNow().UtcDateTime.AddMilliseconds(restartDelayTime);
+                revertAtUtc = GetRevertAtUtc(applyAtUtc, revertAfterTime);
+                try
+                {
+                    await recoverableProvider!.BeginUpdateAsync(
+                        updateId,
+                        proposed,
+                        targets,
+                        applyAtUtc,
+                        revertAtUtc,
+                        cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    lock (m_lock)
+                    {
+                        m_deferredApplyPending = false;
+                    }
+                    await RevertPendingUpdateIfCreatedAsync(recoverableProvider!, updateId).ConfigureAwait(false);
+                    CloseWriteHandle(fileHandle);
+                    StatusCode statusCode = GetConfigurationUpdateFailureStatus(ex);
+                    ReportConfigurationUpdatedAuditEvent(
+                        context, objectId, methodId, inputArguments, statusCode, oldVersion, oldVersion);
+                    return FailedUpdate(statusCode, targets);
+                }
+
+                ScheduleRevert(updateId, revertAtUtc, context);
             }
 
             CloseWriteHandle(fileHandle);
@@ -811,13 +923,27 @@ namespace Opc.Ua.Server
 
                     try
                     {
-                        await targetProvider.ApplyConfigurationAsync(proposed, targets, ct)
-                            .ConfigureAwait(false);
+                        if (recoverableProvider != null && m_provider.RequiresConfirmation)
+                        {
+                            await recoverableProvider.ApplyPendingUpdateAsync(updateId, ct).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            await targetProvider.ApplyConfigurationAsync(proposed, targets, ct)
+                                .ConfigureAwait(false);
+                        }
                     }
                     catch (Exception ex) when (ex is not OperationCanceledException)
                     {
                         m_logger.ConfigurationFileUpdateFailedWhileApplying(ex);
-                        AbandonPendingRevert(updateId);
+                        if (recoverableProvider != null && m_provider.RequiresConfirmation)
+                        {
+                            await RevertPendingUpdateAsync(recoverableProvider, updateId).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            AbandonPendingRevert(updateId);
+                        }
                         StatusCode failure = ex is ServiceResultException sre
                             ? sre.StatusCode
                             : StatusCodes.BadInternalError;
@@ -846,7 +972,14 @@ namespace Opc.Ua.Server
             if (!scheduled)
             {
                 // Shutting down: nothing will be applied.
-                AbandonPendingRevert(updateId);
+                if (recoverableProvider != null && m_provider.RequiresConfirmation)
+                {
+                    await RevertPendingUpdateAsync(recoverableProvider, updateId).ConfigureAwait(false);
+                }
+                else
+                {
+                    AbandonPendingRevert(updateId);
+                }
                 lock (m_lock)
                 {
                     m_deferredApplyPending = false;
@@ -917,6 +1050,19 @@ namespace Opc.Ua.Server
             return false;
         }
 
+        /// <summary>
+        /// Maps a provider exception to the service status returned by CloseAndUpdate.
+        /// </summary>
+        private static StatusCode GetConfigurationUpdateFailureStatus(Exception exception)
+        {
+            return exception switch
+            {
+                ServiceResultException serviceResultException => serviceResultException.StatusCode,
+                OperationCanceledException => StatusCodes.BadRequestCancelledByClient,
+                _ => StatusCodes.BadInternalError
+            };
+        }
+
         private async ValueTask<ConfigurationFileConfirmUpdateMethodStateResult> ConfirmUpdateAsync(
             ISystemContext context,
             MethodState method,
@@ -926,31 +1072,52 @@ namespace Opc.Ua.Server
         {
             m_writeAccess(context);
 
-            lock (m_lock)
+            await m_updateGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
-                if (m_pendingUpdateId.Guid == Guid.Empty ||
-                    m_pendingUpdateId.Guid != updateId.Guid)
+                lock (m_lock)
                 {
-                    return new ConfigurationFileConfirmUpdateMethodStateResult
+                    if (m_pendingUpdateId.Guid == Guid.Empty ||
+                        m_pendingUpdateId.Guid != updateId.Guid)
                     {
-                        ServiceResult = StatusCodes.BadInvalidArgument
-                    };
+                        return new ConfigurationFileConfirmUpdateMethodStateResult
+                        {
+                            ServiceResult = StatusCodes.BadInvalidArgument
+                        };
+                    }
                 }
 
-                m_pendingUpdateId = Uuid.Empty;
+                if (m_provider is IRecoverableApplicationConfigurationFileProvider recoverableProvider)
+                {
+                    await recoverableProvider.ConfirmPendingUpdateAsync(updateId, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    await m_provider.ConfirmUpdateAsync(cancellationToken).ConfigureAwait(false);
+                }
+
+                lock (m_lock)
+                {
+                    if (m_pendingUpdateId.Guid == updateId.Guid)
+                    {
+                        m_pendingUpdateId = Uuid.Empty;
+                    }
+                }
+                CancelPendingRevert();
+                RefreshVersionNodes(context);
+
+                m_logger.ConfigurationFileUpdateConfirmed(updateId.Guid);
+
+                return new ConfigurationFileConfirmUpdateMethodStateResult
+                {
+                    ServiceResult = ServiceResult.Good
+                };
             }
-
-            CancelPendingRevert();
-
-            await m_provider.ConfirmUpdateAsync(cancellationToken).ConfigureAwait(false);
-            RefreshVersionNodes(context);
-
-            m_logger.ConfigurationFileUpdateConfirmed(updateId.Guid);
-
-            return new ConfigurationFileConfirmUpdateMethodStateResult
+            finally
             {
-                ServiceResult = ServiceResult.Good
-            };
+                m_updateGate.Release();
+            }
         }
 
         private ServiceResult? ValidateHandleNoLock(ISystemContext context, uint fileHandle)
@@ -1105,26 +1272,114 @@ namespace Opc.Ua.Server
             m_node.ClearChangeMasks(context, includeChildren: true);
         }
 
+        /// <summary>
+        /// Recovers a durable update before the ConfigurationFile node is served.
+        /// </summary>
+        /// <param name="context">The server system context used to refresh the node values.</param>
+        /// <param name="cancellationToken">A token used to cancel recovery.</param>
+        public async ValueTask RecoverPendingUpdateAsync(
+            ISystemContext context,
+            CancellationToken cancellationToken = default)
+        {
+            if (m_provider is not IRecoverableApplicationConfigurationFileProvider recoverableProvider)
+            {
+                return;
+            }
+
+            PendingApplicationConfigurationUpdate? pending =
+                await recoverableProvider.GetPendingUpdateAsync(cancellationToken).ConfigureAwait(false);
+            if (pending is not PendingApplicationConfigurationUpdate update)
+            {
+                return;
+            }
+
+            if (update.UpdateId.Guid == Guid.Empty)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError,
+                    "The ConfigurationFile provider returned an empty pending update identifier.");
+            }
+
+            DateTime now = m_timeProvider.GetUtcNow().UtcDateTime;
+            if (update.RevertAtUtc is DateTime revertAtUtc && revertAtUtc <= now)
+            {
+                await recoverableProvider.RevertPendingUpdateAsync(update.UpdateId, cancellationToken)
+                    .ConfigureAwait(false);
+                RefreshVersionNodes(context);
+                m_logger.ConfigurationFileUpdateNotConfirmedReverted(update.UpdateId.Guid);
+                return;
+            }
+
+            lock (m_lock)
+            {
+                m_pendingUpdateId = update.UpdateId;
+            }
+            ScheduleRevert(update.UpdateId, update.RevertAtUtc, context);
+
+            if (update.IsApplied)
+            {
+                RefreshVersionNodes(context);
+                return;
+            }
+
+            if (update.ApplyAtUtc > now)
+            {
+                bool scheduled = m_backgroundWork.Run("RecoveredDeferredApply", async ct =>
+                {
+                    try
+                    {
+                        await m_timeProvider.Delay(update.ApplyAtUtc - m_timeProvider.GetUtcNow().UtcDateTime, ct)
+                            .ConfigureAwait(false);
+                        await m_updateGate.WaitAsync(ct).ConfigureAwait(false);
+                        try
+                        {
+                            await recoverableProvider.ApplyPendingUpdateAsync(update.UpdateId, ct)
+                                .ConfigureAwait(false);
+                            RefreshVersionNodes(context);
+                        }
+                        finally
+                        {
+                            m_updateGate.Release();
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.ConfigurationFileUpdateFailedWhileApplying(ex);
+                        await RevertPendingUpdateAsync(recoverableProvider, update.UpdateId).ConfigureAwait(false);
+                    }
+                });
+                if (!scheduled)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadShutdown,
+                        "The ConfigurationFile provider has a pending update, but recovery could not be scheduled.");
+                }
+                return;
+            }
+
+            await recoverableProvider.ApplyPendingUpdateAsync(update.UpdateId, cancellationToken).ConfigureAwait(false);
+            RefreshVersionNodes(context);
+        }
+
         private void ScheduleRevert(
             Uuid updateId,
-            double restartDelayTime,
-            double revertAfterTime,
+            DateTime? revertAtUtc,
             ISystemContext context)
         {
             CancelPendingRevert();
 
-            double totalMs = Math.Max(0, restartDelayTime) + Math.Max(0, revertAfterTime);
-            var cts = new CancellationTokenSource();
+            CancellationTokenSource? cts = revertAtUtc.HasValue ? new CancellationTokenSource() : null;
             lock (m_lock)
             {
                 m_pendingUpdateId = updateId;
                 m_pendingRevertCts = cts;
             }
 
-            if (totalMs <= 0)
+            if (revertAtUtc is not DateTime deadline)
             {
-                // No revert window: the update stands until explicitly
-                // confirmed or overwritten; nothing to schedule.
                 return;
             }
 
@@ -1132,7 +1387,18 @@ namespace Opc.Ua.Server
             {
                 try
                 {
-                    await m_timeProvider.Delay(TimeSpan.FromMilliseconds(totalMs), cts.Token)
+                    TimeSpan remaining = deadline - m_timeProvider.GetUtcNow().UtcDateTime;
+                    if (remaining > TimeSpan.Zero)
+                    {
+                        await m_timeProvider.Delay(remaining, cts!.Token)
+                            .ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        cts!.Token.ThrowIfCancellationRequested();
+                    }
+
+                    await m_updateGate.WaitAsync(cts.Token)
                         .ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
@@ -1140,24 +1406,34 @@ namespace Opc.Ua.Server
                     return;
                 }
 
-                bool stillPending;
-                lock (m_lock)
-                {
-                    stillPending = m_pendingUpdateId.Guid == updateId.Guid;
-                    if (stillPending)
-                    {
-                        m_pendingUpdateId = Uuid.Empty;
-                    }
-                }
-
-                if (!stillPending)
-                {
-                    return;
-                }
-
                 try
                 {
-                    await m_provider.RevertUpdateAsync(CancellationToken.None).ConfigureAwait(false);
+                    lock (m_lock)
+                    {
+                        if (m_pendingUpdateId.Guid != updateId.Guid)
+                        {
+                            return;
+                        }
+                    }
+
+                    if (m_provider is IRecoverableApplicationConfigurationFileProvider recoverableProvider)
+                    {
+                        await recoverableProvider.RevertPendingUpdateAsync(updateId, CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await m_provider.RevertUpdateAsync(CancellationToken.None).ConfigureAwait(false);
+                    }
+                    lock (m_lock)
+                    {
+                        if (m_pendingUpdateId.Guid == updateId.Guid)
+                        {
+                            m_pendingUpdateId = Uuid.Empty;
+                            m_pendingRevertCts = null;
+                        }
+                    }
+                    cts.Dispose();
                     RefreshVersionNodes(context);
                     m_logger.ConfigurationFileUpdateNotConfirmedReverted(updateId.Guid);
                 }
@@ -1165,7 +1441,65 @@ namespace Opc.Ua.Server
                 {
                     m_logger.ConfigurationFileRevertFailed(ex);
                 }
+                finally
+                {
+                    m_updateGate.Release();
+                }
             });
+        }
+
+        /// <summary>
+        /// Reverts a staged update and clears its in-memory revert schedule.
+        /// </summary>
+        private async ValueTask RevertPendingUpdateAsync(
+            IRecoverableApplicationConfigurationFileProvider provider,
+            Uuid updateId)
+        {
+            try
+            {
+                await provider.RevertPendingUpdateAsync(updateId, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                m_logger.ConfigurationFileRevertFailed(ex);
+            }
+            finally
+            {
+                AbandonPendingRevert(updateId);
+            }
+        }
+
+        /// <summary>
+        /// Reverts a pending transaction only when staging retained the supplied identifier.
+        /// </summary>
+        private async ValueTask RevertPendingUpdateIfCreatedAsync(
+            IRecoverableApplicationConfigurationFileProvider provider,
+            Uuid updateId)
+        {
+            try
+            {
+                PendingApplicationConfigurationUpdate? pending =
+                    await provider.GetPendingUpdateAsync(CancellationToken.None).ConfigureAwait(false);
+                if (pending is PendingApplicationConfigurationUpdate existing &&
+                    existing.UpdateId.Guid == updateId.Guid)
+                {
+                    await RevertPendingUpdateAsync(provider, updateId).ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                m_logger.ConfigurationFileRevertFailed(ex);
+            }
+        }
+
+        /// <summary>
+        /// Calculates the UTC deadline for a confirmation-required update.
+        /// </summary>
+        private static DateTime? GetRevertAtUtc(DateTime applyAtUtc, double revertAfterTime)
+        {
+            return revertAfterTime > 0
+                ? applyAtUtc.AddMilliseconds(revertAfterTime)
+                : null;
         }
 
         private void CancelPendingRevert()
@@ -1267,6 +1601,11 @@ namespace Opc.Ua.Server
         private readonly SecureAccess m_writeAccess;
         private readonly ILogger m_logger;
         private readonly BackgroundTaskScope m_backgroundWork;
+
+        /// <summary>
+        /// Serializes configuration apply, confirmation and reversion operations.
+        /// </summary>
+        private readonly SemaphoreSlim m_updateGate = new(1, 1);
         private readonly IPushConfigurationTransactionCoordinator? m_coordinator;
         private readonly TimeProvider m_timeProvider;
         private readonly double m_activityTimeout;

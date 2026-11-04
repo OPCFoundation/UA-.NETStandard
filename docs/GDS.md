@@ -149,6 +149,43 @@ await pushClient.CreateSelfSignedCertificateAsync(
     "CN=NewSubject", domainNames);
 ```
 
+For the connected server's own `ConfigurationFile`, use an explicitly
+configured endpoint and provide the complete serialized file content, target
+paths and timing values:
+
+```csharp
+await using var pushClient = new ServerPushConfigurationClient(appConfig);
+await pushClient.ConnectAsync(configuredEndpoint);
+
+ConfigurationFileUpdateResult result = await pushClient.UpdateConfigurationFileAsync(
+    configurationFile,
+    targets,
+    revertAfterTime: 30_000,
+    restartDelayTime: 0);
+
+if (result.Outcome is ConfigurationFileUpdateOutcome.Applied or ConfigurationFileUpdateOutcome.Confirmed)
+{
+    Console.WriteLine($"Configuration updated to version {result.NewVersion}.");
+}
+else
+{
+    Console.Error.WriteLine($"Configuration update outcome: {result.Outcome} ({result.StatusCode}).");
+}
+```
+
+The method reads `CurrentVersion`, uploads the supplied content and targets,
+then reconnects its owned session when the server returns a non-empty
+`UpdateId` or `restartDelayTime` is nonzero. It waits that interval before
+reconnecting when the delay is nonzero and confirms only the returned
+identifier. A borrowed client rejects the operation before dispatch because it
+cannot disconnect and reconnect the caller's session. It never retries
+`CloseAndUpdate`: if the request or
+confirmation response is lost, inspect `Outcome` and `StatusCode` before
+deciding what to do next. `OutcomeUnknown` means the client did not receive
+enough information to determine whether the update or confirmation completed;
+`ConfirmationPending` means the update was applied but the confirmation was not
+accepted.
+
 ### OPC 10000-21 OnboardingClient
 
 `Opc.Ua.Gds` ships the generated `Opc.Ua.Onboarding` model,
@@ -1741,19 +1778,20 @@ These optional members are exposed **only when their backing option/provider is 
 | Identity variables `ApplicationUri` / `ProductUri` / `ApplicationType` / `ApplicationNames` (§7.10.3) | ✅ always | `ServerConfigurationOptions` from `ApplicationConfiguration` | `ServerConfigurationSurfaceTests.IdentityPropertiesAlwaysExposedAndValuedAsync` |
 | `HasSecureElement` / `InApplicationSetup` (§7.10.3) | 🔲 provider-gated | `ServerConfigurationOptions` | `ServerConfigurationSurfaceTests` (`HasSecureElementExposedWithValueWhenConfiguredAsync`, `InApplicationSetupExposedWithValueWhenConfiguredAsync`, `OptionalMembersSuppressedWhenNotConfiguredAsync`) |
 | `ResetToServerDefaults` (§7.10.13) | 🔲 provider-gated | `IServerConfigurationResetProvider` | `ServerConfigurationSurfaceTests.ResetToServerDefaultsExposedOnlyWhenProviderConfiguredAsync`, `ServerConfigurationResetTests.cs` |
-| `ConfigurationFile` / `ApplicationConfigurationFileType` incl. `CloseAndUpdate` / `ConfirmUpdate` (§7.10.20) | 🔲 provider-gated | `IApplicationConfigurationFileProvider` + `ApplicationConfigurationFile.cs` | `ServerConfigurationSurfaceTests` (`ConfigurationFileExposedWithChildrenWhenProviderConfiguredAsync`, `ConfigurationFilePropertiesSeededFromProviderAsync`, `ConfigurationFileReadReturnsProviderContentAsync`) |
+| `ConfigurationFile` / `ApplicationConfigurationFileType` incl. `CloseAndUpdate` / `ConfirmUpdate` (§7.10.20) | 🔲 provider-gated | `IApplicationConfigurationFileProvider` + `IRecoverableApplicationConfigurationFileProvider` + `ApplicationConfigurationFile.cs` | `ServerConfigurationSurfaceTests` (`ConfigurationFilePendingUpdateIsRecoveredAndConfirmedAfterRestartAsync`, `ExpiredConfigurationFileUpdateIsRevertedBeforeServingAfterRestartAsync`, `ConfigurationFileConfirmationWithoutRecoveryIsRejectedBeforeValidationAsync`) |
 
 ### GDS-managed applications proxy (§7.10.14–§7.10.16)
 
 The ManagedApplications folder supports independent in-process application
 targets through `IManagedApplicationPushProvider`. Metadata-only registration
-does not supply push handlers, and a remote ConfigurationFile update/confirm
-proxy remains unimplemented.
+does not supply push handlers. The generic ConfigurationFile client method
+targets the connected server's own `ServerConfiguration`; it does not select or
+update a remote ManagedApplications entry.
 
 | Section | Feature | Status | Source |
 |---------|---------|--------|--------|
 | §7.10.14 | `ApplicationConfigurationType` | ⚠️ | Runtime-backed registrations bind independent certificate and trust handlers; connected multiapplication lifecycle evidence remains incomplete |
-| §7.10.16 | `ManagedApplications` folder | ⚠️ | `DefaultManagedApplicationsNodeManager` supports metadata or runtime providers; remote ConfigurationFile update/confirm is not implemented |
+| §7.10.16 | `ManagedApplications` folder | ⚠️ | `DefaultManagedApplicationsNodeManager` supports metadata or runtime providers; remote ConfigurationFile transactions for individual ManagedApplications entries remain unimplemented |
 
 ## TrustList (§7.8)
 
@@ -1860,7 +1898,7 @@ The following optional Part 12 members are **not** implemented (or only partiall
 | Item (§) | Status | Notes |
 |----------|--------|-------|
 | `ServerConfiguration.AuthorizationServices` folder (§9.6.2 / *Authorization Service Configuration Server* CU) | ❌ not exposed | A push Server does not expose the configuration folder listing trusted Authorization Services. Client access-token validation is instead handled by the pluggable [Identity Providers](IdentityProviders.md). |
-| `ManagedApplications` / `ApplicationConfigurationType` proxy (§7.10.14–§7.10.16) | ⚠️ partial | Runtime providers bind independent in-process certificate and trust management. Metadata-backed nodes do not implement ConfigurationFile transactions; remote update/confirm and connected multiapplication lifecycle evidence remain incomplete. |
+| `ManagedApplications` / `ApplicationConfigurationType` proxy (§7.10.14–§7.10.16) | ⚠️ partial | `ServerPushConfigurationClient` updates only the connected server's own `ServerConfiguration`; it does not target individual managed applications. Runtime providers bind independent in-process certificate and trust management. Metadata-backed nodes and remote update/confirm remain unimplemented; connected multiapplication lifecycle evidence is incomplete. |
 | KeyCredential authentication `ProfileUris` — AMQP SASL Plain / MQTT UserName / UA transport UserName (§8, optional CUs) | 🔲 provider-defined | The push binding is implemented; the concrete ProfileUri set advertised is defined by the credential provider, not fixed by the stack. |
 | A & C CertificateExpiration optional CUs — *Comment* / *Confirm* / *Shelving* | 🔲 inherited | Available through the standard OPC 10000-9 condition model on the alarm instances; not separately exercised by the certificate-alarm tests. |
 | Onboarding / OPC 10000-21 device setup interplay with `ResetToServerDefaults` / `InApplicationSetup` (§7.10.13, Annex G) | ⚠️ partial | Ticket administration, signing, ticket-scoped identity trust, composite-aware selection, and registrar runtime bindings are implemented. GDS issuance integration, durable lifecycle storage, and complete pull/push device workflows remain incomplete. |

@@ -253,5 +253,27 @@ namespace Opc.Ua.Gds.Client
             ushort lifetimeInDays,
             ushort keySizeInBits,
             CancellationToken ct = default);
+
+        /// <summary>
+        /// Uploads configuration content to the connected server's
+        /// <c>ConfigurationFile</c>, applies it, reconnects when confirmation
+        /// is requested, and confirms the exact returned update identifier.
+        /// </summary>
+        /// <param name="configuration">The serialized configuration file content.</param>
+        /// <param name="targets">The explicit update targets.</param>
+        /// <param name="revertAfterTime">The server's confirmation window in milliseconds.</param>
+        /// <param name="restartDelayTime">The server's deferred apply delay in milliseconds.</param>
+        /// <param name="ct">A token used to cancel the operation.</param>
+        /// <returns>The update and confirmation outcome reported by the server.</returns>
+        /// <exception cref="ServiceResultException">
+        /// Thrown when the client is disconnected, borrowed, or the file upload fails before
+        /// <c>CloseAndUpdate</c> is invoked.
+        /// </exception>
+        ValueTask<ConfigurationFileUpdateResult> UpdateConfigurationFileAsync(
+            ByteString configuration,
+            ArrayOf<ConfigurationUpdateTargetType> targets,
+            double revertAfterTime,
+            double restartDelayTime,
+            CancellationToken ct = default);
     }
 }

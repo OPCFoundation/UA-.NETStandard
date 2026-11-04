@@ -177,6 +177,33 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
+        /// A remote ConfigurationFile update is rejected before the borrowed session receives any request.
+        /// </summary>
+        [Test]
+        public async Task BorrowedClientRejectsConfigurationFileUpdateWithoutDispatch()
+        {
+            await using var fixture = new SessionRequestContextTestContext(
+                securityMode: MessageSecurityMode.SignAndEncrypt);
+            await using ServerPushConfigurationClient client = await ServerPushConfigurationClient.CaptureAsync(
+                new ApplicationConfiguration(fixture.Telemetry), fixture.ManagedSession).ConfigureAwait(false);
+
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await client.UpdateConfigurationFileAsync(
+                    ByteString.From([1]),
+                    [new ConfigurationUpdateTargetType
+                    {
+                        Path = "ApplicationIdentity",
+                        UpdateType = ConfigurationUpdateType.InsertOrReplace
+                    }],
+                    revertAfterTime: 1000,
+                    restartDelayTime: 0).ConfigureAwait(false));
+
+            Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+            Assert.That(fixture.Requests, Is.Empty);
+            Assert.That(fixture.InnerSession.SessionId, Is.EqualTo(new NodeId("original-session", 0)));
+        }
+
+        /// <summary>
         /// The existing TrustList writer keeps the admitted token and uploads the requested complete trust list.
         /// </summary>
         [Test]

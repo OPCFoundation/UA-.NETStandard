@@ -42,6 +42,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
     [Category("Onboarding")]
     public sealed class ProvisionableDeviceApplicationAuthorizationTests
     {
+        private static readonly string[] s_expectedAuthorizationEvents =
+        [
+            "registrar", "software", "application", "registrar", "software", "application"
+        ];
+
         /// <summary>
         /// Neither unconfigured nor interrupted device transitions can authorize independent application access.
         /// </summary>
@@ -149,10 +154,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             await authorization.AuthorizeAsync(Mock.Of<ISystemContext>()).ConfigureAwait(false);
             await authorization.AuthorizeAsync(Mock.Of<ISystemContext>()).ConfigureAwait(false);
 
-            Assert.That(events, Is.EqualTo(new[]
-            {
-                "registrar", "software", "application", "registrar", "software", "application"
-            }));
+            Assert.That(events, Is.EqualTo(s_expectedAuthorizationEvents));
         }
 
         /// <summary>

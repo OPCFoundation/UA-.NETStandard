@@ -165,8 +165,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             m_password = Guid.NewGuid().ToString("N");
             m_provider.GetRequiredService<IUserDatabase>().CreateUser(
                 "software-admin", Encoding.UTF8.GetBytes(m_password), [Role.SecurityAdmin, Role.AuthenticatedUser]);
-            m_host = m_provider.GetServices<IHostedService>().OfType<GdsServerHostedService>().Single();
-            await m_host.StartAsync(CancellationToken.None).ConfigureAwait(false);
+            GdsServerHostedService host = m_provider.GetServices<IHostedService>()
+                .OfType<GdsServerHostedService>()
+                .Single();
+            await host.StartAsync(CancellationToken.None).ConfigureAwait(false);
             m_session = await ConnectAsync(m_device).ConfigureAwait(false);
             m_otherSession = await ConnectAsync(m_other).ConfigureAwait(false);
         }
@@ -194,13 +196,17 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             await CleanupAsync(errors, () => DisposeFixtureAsync(m_other)).ConfigureAwait(false);
             await CleanupAsync(errors, () => DisposeFixtureAsync(m_signer)).ConfigureAwait(false);
             await CleanupAsync(errors, StopHostAsync).ConfigureAwait(false);
-            await CleanupAsync(errors, async () =>
+            if (m_provider != null)
             {
-                if (m_provider != null)
+                try
                 {
                     await m_provider.DisposeAsync().ConfigureAwait(false);
                 }
-            }).ConfigureAwait(false);
+                catch (Exception ex)
+                {
+                    errors.Add(ex);
+                }
+            }
             await CleanupAsync(errors, () =>
             {
                 if (m_root != null && Directory.Exists(m_root))
@@ -250,7 +256,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                         NodeClassMask = (uint)NodeClass.DataType,
                         ResultMask = (uint)BrowseResultMask.All
                     }
-                ]).ConfigureAwait(false);
+                ], CancellationToken.None).ConfigureAwait(false);
                 Assert.That(supertypes.Results.Count, Is.EqualTo(1));
                 Assert.That(supertypes.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
                 Assert.That(supertypes.Results[0].ContinuationPoint.IsEmpty, Is.True);
@@ -271,7 +277,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                         NodeClassMask = (uint)NodeClass.Object,
                         ResultMask = (uint)BrowseResultMask.All
                     }
-                ]).ConfigureAwait(false);
+                ], CancellationToken.None).ConfigureAwait(false);
                 Assert.That(children.Results.Count, Is.EqualTo(1));
                 Assert.That(children.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
                 Assert.That(children.Results[0].ContinuationPoint.IsEmpty, Is.True);
@@ -516,10 +522,16 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         /// </summary>
         private async Task StopHostAsync()
         {
-            if (m_host != null)
+            if (m_provider != null)
             {
-                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-                await m_host.StopAsync(timeout.Token).ConfigureAwait(false);
+                GdsServerHostedService? host = m_provider.GetServices<IHostedService>()
+                    .OfType<GdsServerHostedService>()
+                    .SingleOrDefault();
+                if (host != null)
+                {
+                    using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                    await host.StopAsync(timeout.Token).ConfigureAwait(false);
+                }
             }
         }
 
@@ -661,9 +673,6 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
         /// <summary>The owning dependency-injection container.</summary>
         private ServiceProvider m_provider = null!;
-
-        /// <summary>The borrowed GDS hosted service; the dependency-injection container owns its disposal.</summary>
-        private IHostedService m_host = null!;
 
         /// <summary>Prevents repeated disposal after NUnit teardown.</summary>
         private int m_disposed;

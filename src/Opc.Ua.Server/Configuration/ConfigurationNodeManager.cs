@@ -891,6 +891,16 @@ namespace Opc.Ua.Server
             fileNode.ClearChangeMasks(systemContext, true);
         }
 
+        /// <summary>
+        /// Recovers a durable ConfigurationFile update after its address-space
+        /// handler has been configured and before the server starts serving requests.
+        /// </summary>
+        /// <param name="cancellationToken">A token used to cancel recovery.</param>
+        public ValueTask RecoverConfigurationFileUpdateAsync(CancellationToken cancellationToken = default)
+        {
+            return m_configurationFile?.RecoverPendingUpdateAsync(SystemContext, cancellationToken) ?? default;
+        }
+
         /// <inheritdoc/>
         public void HasApplicationSecureAdminAccess(ISystemContext context)
         {

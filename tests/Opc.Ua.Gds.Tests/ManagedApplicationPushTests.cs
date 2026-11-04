@@ -46,9 +46,9 @@ using Opc.Ua.Server.Hosting;
 using Opc.Ua.Server.UserDatabase;
 using Opc.Ua.Server.UserManagement;
 using Opc.Ua.Tests;
-using GetCertificatesMethodStateResult = Opc.Ua.GetCertificatesMethodStateResult;
 using CoreObjectIds = Opc.Ua.ObjectIds;
 using CoreObjectTypeIds = Opc.Ua.ObjectTypeIds;
+using Ua = global::Opc.Ua;
 
 namespace Opc.Ua.Gds.Tests
 {
@@ -183,7 +183,7 @@ namespace Opc.Ua.Gds.Tests
                     Is.EqualTo(managementCertificate));
 
                 NodeId trustListId = await ResolveChildAsync(session, firstNode,
-                    [BrowseNames.CertificateGroups, BrowseNames.DefaultApplicationGroup, BrowseNames.TrustList],
+                    [BrowseNames.CertificateGroups, Ua.BrowseNames.DefaultApplicationGroup, Ua.BrowseNames.TrustList],
                     timeout.Token).ConfigureAwait(false);
                 var trust = new TrustListTypeClient(session, trustListId, s_telemetry);
                 await trust.AddCertificateAsync(secondCertificate.RawData.ToByteString(), true, timeout.Token)
@@ -265,7 +265,7 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(ServiceResult.IsGood(applied), Is.True);
             Assert.That(target.ActivatedGroups, Is.EqualTo(new[] { group }));
             Assert.That(target.PreviousCertificates, Is.Empty);
-            GetCertificatesMethodStateResult result = await node.GetCertificates!.OnCallAsync!(
+            global::Opc.Ua.GetCertificatesMethodStateResult result = await node.GetCertificates!.OnCallAsync!(
                 manager.SystemContext, node.GetCertificates, node.NodeId, group, CancellationToken.None)
                 .ConfigureAwait(false);
             Assert.That(result.Certificates, Has.Count.EqualTo(1));
@@ -322,7 +322,7 @@ namespace Opc.Ua.Gds.Tests
             using var retired = Certificate.FromRawData(first.PreviousCertificates[0].PreviousCertificate);
             Assert.That(retired.Thumbprint, Is.EqualTo(previous));
             Assert.That(second.ActivatedGroups, Is.Empty);
-            GetCertificatesMethodStateResult certificates = await firstNode.GetCertificates!.OnCallAsync!(
+            global::Opc.Ua.GetCertificatesMethodStateResult certificates = await firstNode.GetCertificates!.OnCallAsync!(
                 manager.SystemContext, firstNode.GetCertificates, firstNode.NodeId, NodeId.Null,
                 CancellationToken.None).ConfigureAwait(false);
             Assert.That(certificates.CertificateTypeIds, Has.Count.EqualTo(1));
@@ -387,7 +387,7 @@ namespace Opc.Ua.Gds.Tests
                     manager.SystemContext, node.UpdateCertificate, node.NodeId,
                     node.CertificateGroups!.DefaultApplicationGroup!.NodeId,
                     CoreObjectTypeIds.RsaSha256ApplicationCertificateType,
-                    foreign!.Certificate.RawData.ToByteString(), [], null, ByteString.Empty, CancellationToken.None)
+                    foreign!.Certificate.RawData.ToByteString(), [], string.Empty, ByteString.Empty, CancellationToken.None)
                     .ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(uriFailure!.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUriInvalid));
             ServiceResultException? groupFailure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
@@ -425,7 +425,7 @@ namespace Opc.Ua.Gds.Tests
             {
                 var node = new ApplicationConfigurationState(null);
                 node.Create(manager.SystemContext, new NodeId("alias", 2),
-                    new QualifiedName("alias", 2), "alias", true);
+                    new QualifiedName("alias", 2), new LocalizedText("alias"), true);
                 node.ApplicationUri!.Value = second.Configuration.ApplicationUri!;
                 Assert.Throws<ArgumentException>(() => new ApplicationConfigurationPushBinding(
                     ReferenceServer.CurrentInstance, ServerFixture.Config, manager.SystemContext,
@@ -516,16 +516,16 @@ namespace Opc.Ua.Gds.Tests
             await manager.CreateAddressSpaceAsync(references).ConfigureAwait(false);
             var device = new ProvisionableDeviceState(null);
             device.Create(manager.SystemContext, new NodeId("device", 2),
-                new QualifiedName("device", 2), "device", true);
+                new QualifiedName("device", 2), new LocalizedText("device"), true);
             device.IsSingleton!.Value = singleton;
             var runtime = new Mock<IProvisionableDeviceRuntime>();
             runtime.SetupGet(r => r.IsSingleton).Returns(singleton);
             var security = new Mock<IProvisionableDeviceSecurity>();
             var operations = new Mock<IApplicationConfigurationPushOperations>(MockBehavior.Strict);
             operations.Setup(value => value.ExecuteAsync(
-                    It.IsAny<Func<ValueTask<GetCertificatesMethodStateResult>>>(),
+                    It.IsAny<Func<ValueTask<global::Opc.Ua.GetCertificatesMethodStateResult>>>(),
                     It.IsAny<CancellationToken>()))
-                .Returns((Func<ValueTask<GetCertificatesMethodStateResult>> operation, CancellationToken _) =>
+                .Returns((Func<ValueTask<global::Opc.Ua.GetCertificatesMethodStateResult>> operation, CancellationToken _) =>
                     operation());
             security.Setup(s => s.CreateApplicationOperations()).Returns(operations.Object);
             security.Setup(s => s.RequireInstalledRegistrarAsync(
@@ -552,7 +552,7 @@ namespace Opc.Ua.Gds.Tests
                 Assert.That(node.UpdateCertificate!.OnCallAsync, Is.Not.Null);
                 Assert.That(node.CertificateGroups!.DefaultApplicationGroup!.TrustList!.Open!.OnCallAsync, Is.Not.Null);
                 Assert.That(references[device.NodeId], Has.Count.EqualTo(1));
-                GetCertificatesMethodStateResult result = await node.GetCertificates!.OnCallAsync!(
+                global::Opc.Ua.GetCertificatesMethodStateResult result = await node.GetCertificates!.OnCallAsync!(
                     manager.SystemContext, node.GetCertificates, node.NodeId, NodeId.Null, CancellationToken.None)
                     .ConfigureAwait(false);
                 Assert.That(result.Certificates, Has.Count.EqualTo(1));
@@ -627,7 +627,7 @@ namespace Opc.Ua.Gds.Tests
                 await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
                     .ConfigureAwait(false);
                 ApplicationConfigurationState node = manager.ApplicationNodes[target.Configuration.ApplicationUri!];
-                Task<GetCertificatesMethodStateResult> read = node.GetCertificates!.OnCallAsync!(
+                Task<global::Opc.Ua.GetCertificatesMethodStateResult> read = node.GetCertificates!.OnCallAsync!(
                     manager.SystemContext, node.GetCertificates, node.NodeId, NodeId.Null, CancellationToken.None)
                     .AsTask();
                 await entered.Task.ConfigureAwait(false);
@@ -728,7 +728,7 @@ namespace Opc.Ua.Gds.Tests
                 .Throws(expected);
             var node = new ApplicationConfigurationState(null);
             node.Create(manager.SystemContext, new NodeId("failed-activation", 2),
-                new QualifiedName("failed-activation", 2), "failed-activation", true);
+                new QualifiedName("failed-activation", 2), new LocalizedText("failed-activation"), true);
             node.ApplicationUri!.Value = target.Configuration.ApplicationUri!;
             var binding = new ApplicationConfigurationPushBinding(
                 ReferenceServer.CurrentInstance, ServerFixture.Config, manager.SystemContext,
@@ -810,7 +810,7 @@ namespace Opc.Ua.Gds.Tests
                 });
             var node = new ApplicationConfigurationState(null);
             node.Create(manager.SystemContext, new NodeId("shutdown", 2),
-                new QualifiedName("shutdown", 2), "shutdown", true);
+                new QualifiedName("shutdown", 2), new LocalizedText("shutdown"), true);
             node.ApplicationUri!.Value = target.Configuration.ApplicationUri!;
             binding = new ApplicationConfigurationPushBinding(
                 ReferenceServer.CurrentInstance, ServerFixture.Config, manager.SystemContext,

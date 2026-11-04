@@ -477,35 +477,7 @@ namespace Opc.Ua.Gds.Client
         {
             RequireOwnedConnection();
             endpoint ??= m_endpoint ?? throw new ArgumentNullException(nameof(endpoint));
-
-            int maxAttempts = m_options.MaxConnectAttempts;
-            int backoffMs = (int)m_options.ConnectBackoff.TotalMilliseconds;
-            ServiceResultException? lastException = null;
-            for (int attempt = 0; attempt < maxAttempts; attempt++)
-            {
-                try
-                {
-                    await ConnectInternalAsync(endpoint, true, expectedEndpoint: null, ct).ConfigureAwait(false);
-                    return;
-                }
-                catch (ServiceResultException e) when (
-                    e.StatusCode == StatusCodes.BadServerHalted ||
-                    e.StatusCode == StatusCodes.BadSecureChannelClosed ||
-                    e.StatusCode == StatusCodes.BadNoCommunication)
-                {
-                    lastException = e;
-                    m_logger.FailedToConnect(e, attempt + 1);
-                    if (attempt + 1 < maxAttempts)
-                    {
-                        await m_timeProvider.Delay(TimeSpan.FromMilliseconds(backoffMs), ct).ConfigureAwait(false);
-                    }
-                }
-            }
-            throw lastException ??
-                ServiceResultException.Create(
-                    StatusCodes.BadNoCommunication,
-                    "Failed to connect after {0} attempts.",
-                    maxAttempts);
+            await ConnectWithIdentityAsync(endpoint, AdminCredentials, ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -890,6 +862,297 @@ namespace Opc.Ua.Gds.Client
         }
 
         /// <inheritdoc/>
+        public async ValueTask<ConfigurationFileUpdateResult> UpdateConfigurationFileAsync(
+            ByteString configuration,
+            ArrayOf<ConfigurationUpdateTargetType> targets,
+            double revertAfterTime,
+            double restartDelayTime,
+            CancellationToken ct = default)
+        {
+            RequireOwnedConnection();
+            if (Session is not { Connected: true } session)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidState,
+                    "A connected, owned session is required for a ConfigurationFile update.");
+            }
+            IUserIdentity? oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
+            try
+            {
+                return await UpdateConfigurationFileCoreAsync(
+                    session,
+                    configuration,
+                    targets,
+                    revertAfterTime,
+                    restartDelayTime,
+                    ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                if (Session is { Connected: true } activeSession)
+                {
+                    await RevertPermissionsAsync(activeSession, oldUser, CancellationToken.None).ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Uploads configuration content and completes the server's update and confirmation exchange.
+        /// </summary>
+        private async ValueTask<ConfigurationFileUpdateResult> UpdateConfigurationFileCoreAsync(
+            ISession session,
+            ByteString configuration,
+            ArrayOf<ConfigurationUpdateTargetType> targets,
+            double revertAfterTime,
+            double restartDelayTime,
+            CancellationToken ct)
+        {
+            if (configuration.IsNull)
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Configuration content is null.");
+            }
+            if (targets.Count == 0)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument,
+                    "At least one update target is required.");
+            }
+            if (!revertAfterTime.IsFinite() || revertAfterTime < 0 ||
+                !restartDelayTime.IsFinite() || restartDelayTime < 0)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument,
+                    "ConfigurationFile update timings must be finite and non-negative.");
+            }
+
+            ServerConfigurationTypeClient serverConfiguration = m_serverConfiguration
+                ?? throw new ServiceResultException(StatusCodes.BadInvalidState);
+            ApplicationConfigurationFileTypeClient? file =
+                await serverConfiguration.GetConfigurationFileAsync(MessageContext.Telemetry, ct)
+                    .ConfigureAwait(false);
+            if (file == null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported,
+                    "The connected server does not expose ConfigurationFile.");
+            }
+
+            uint versionToUpdate = await ReadConfigurationFileVersionAsync(session, file, ct).ConfigureAwait(false);
+            byte mode = (byte)((int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting);
+            uint fileHandle = await file.OpenAsync(mode, ct).ConfigureAwait(false);
+            bool closeAndUpdateInvoked = false;
+            try
+            {
+                byte[] content = configuration.ToArray();
+                for (int offset = 0; offset < content.Length;)
+                {
+                    int count = Math.Min(4096, content.Length - offset);
+                    await file.WriteAsync(
+                        fileHandle,
+                        ByteString.From(content.AsSpan(offset, count)),
+                        ct).ConfigureAwait(false);
+                    offset += count;
+                }
+
+                closeAndUpdateInvoked = true;
+                (ArrayOf<StatusCode> updateResults, uint newVersion, Uuid updateId) response;
+                try
+                {
+                    response = await file.CloseAndUpdateAsync(
+                        fileHandle,
+                        versionToUpdate,
+                        targets,
+                        revertAfterTime,
+                        restartDelayTime,
+                        ct).ConfigureAwait(false);
+                }
+                catch (ServiceResultException ex) when (IsCommunicationFailure(ex.StatusCode))
+                {
+                    m_logger.ConfigurationFileUpdateOutcomeUnknown(ex);
+                    return new ConfigurationFileUpdateResult(
+                        ConfigurationFileUpdateOutcome.OutcomeUnknown,
+                        0,
+                        Uuid.Empty,
+                        default,
+                        ex.StatusCode);
+                }
+                catch (ServiceResultException ex)
+                {
+                    return new ConfigurationFileUpdateResult(
+                        ConfigurationFileUpdateOutcome.Rejected,
+                        0,
+                        Uuid.Empty,
+                        default,
+                        ex.StatusCode);
+                }
+                catch (OperationCanceledException ex)
+                {
+                    m_logger.ConfigurationFileUpdateOutcomeUnknown(ex);
+                    return new ConfigurationFileUpdateResult(
+                        ConfigurationFileUpdateOutcome.OutcomeUnknown,
+                        0,
+                        Uuid.Empty,
+                        default,
+                        StatusCodes.BadRequestCancelledByClient);
+                }
+                catch (Exception ex)
+                {
+                    m_logger.ConfigurationFileUpdateOutcomeUnknown(ex);
+                    return new ConfigurationFileUpdateResult(
+                        ConfigurationFileUpdateOutcome.OutcomeUnknown,
+                        0,
+                        Uuid.Empty,
+                        default,
+                        StatusCodes.BadUnexpectedError);
+                }
+
+                if (ContainsBadTargetResult(response.updateResults))
+                {
+                    return new ConfigurationFileUpdateResult(
+                        ConfigurationFileUpdateOutcome.Rejected,
+                        response.newVersion,
+                        response.updateId,
+                        response.updateResults,
+                        StatusCodes.Uncertain);
+                }
+
+                bool requiresConfirmation = response.updateId.Guid != Guid.Empty;
+                if (!requiresConfirmation && restartDelayTime <= 0)
+                {
+                    return new ConfigurationFileUpdateResult(
+                        ConfigurationFileUpdateOutcome.Applied,
+                        response.newVersion,
+                        response.updateId,
+                        response.updateResults,
+                        StatusCodes.Good);
+                }
+
+                ConfiguredEndpoint endpoint = session.ConfiguredEndpoint;
+                IUserIdentity? elevatedIdentity = session.Identity;
+                try
+                {
+                    await DisconnectAsync(CancellationToken.None).ConfigureAwait(false);
+                    if (restartDelayTime > 0)
+                    {
+                        await m_timeProvider.Delay(
+                            TimeSpan.FromMilliseconds(restartDelayTime),
+                            ct).ConfigureAwait(false);
+                    }
+                    await ConnectWithIdentityAsync(endpoint, elevatedIdentity, ct).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    StatusCode statusCode = ex switch
+                    {
+                        ServiceResultException serviceResultException => serviceResultException.StatusCode,
+                        OperationCanceledException => StatusCodes.BadRequestCancelledByClient,
+                        _ => StatusCodes.BadNoCommunication
+                    };
+                    if (requiresConfirmation)
+                    {
+                        m_logger.ConfigurationFileConfirmationPending(ex);
+                    }
+                    else
+                    {
+                        m_logger.ConfigurationFileUpdateOutcomeUnknown(ex);
+                    }
+                    return new ConfigurationFileUpdateResult(
+                        requiresConfirmation
+                            ? ConfigurationFileUpdateOutcome.ConfirmationPending
+                            : ConfigurationFileUpdateOutcome.OutcomeUnknown,
+                        response.newVersion,
+                        response.updateId,
+                        response.updateResults,
+                        statusCode);
+                }
+
+                if (!requiresConfirmation)
+                {
+                    return new ConfigurationFileUpdateResult(
+                        ConfigurationFileUpdateOutcome.Applied,
+                        response.newVersion,
+                        response.updateId,
+                        response.updateResults,
+                        StatusCodes.Good);
+                }
+
+                try
+                {
+                    ServerConfigurationTypeClient reconnectedServerConfiguration = m_serverConfiguration
+                        ?? throw new ServiceResultException(StatusCodes.BadInvalidState);
+                    ApplicationConfigurationFileTypeClient? reconnectedFile =
+                        await reconnectedServerConfiguration.GetConfigurationFileAsync(MessageContext.Telemetry, ct)
+                            .ConfigureAwait(false);
+                    if (reconnectedFile == null)
+                    {
+                        return new ConfigurationFileUpdateResult(
+                            ConfigurationFileUpdateOutcome.ConfirmationPending,
+                            response.newVersion,
+                            response.updateId,
+                            response.updateResults,
+                            StatusCodes.BadNotSupported);
+                    }
+
+                    await reconnectedFile.ConfirmUpdateAsync(response.updateId, ct).ConfigureAwait(false);
+                    return new ConfigurationFileUpdateResult(
+                        ConfigurationFileUpdateOutcome.Confirmed,
+                        response.newVersion,
+                        response.updateId,
+                        response.updateResults,
+                        StatusCodes.Good);
+                }
+                catch (ServiceResultException ex) when (IsCommunicationFailure(ex.StatusCode))
+                {
+                    m_logger.ConfigurationFileUpdateOutcomeUnknown(ex);
+                    return new ConfigurationFileUpdateResult(
+                        ConfigurationFileUpdateOutcome.OutcomeUnknown,
+                        response.newVersion,
+                        response.updateId,
+                        response.updateResults,
+                        ex.StatusCode);
+                }
+                catch (OperationCanceledException ex)
+                {
+                    m_logger.ConfigurationFileUpdateOutcomeUnknown(ex);
+                    return new ConfigurationFileUpdateResult(
+                        ConfigurationFileUpdateOutcome.OutcomeUnknown,
+                        response.newVersion,
+                        response.updateId,
+                        response.updateResults,
+                        StatusCodes.BadRequestCancelledByClient);
+                }
+                catch (Exception ex)
+                {
+                    StatusCode statusCode = ex is ServiceResultException serviceResultException
+                        ? serviceResultException.StatusCode
+                        : StatusCodes.BadUnexpectedError;
+                    m_logger.ConfigurationFileConfirmationPending(ex);
+                    return new ConfigurationFileUpdateResult(
+                        ConfigurationFileUpdateOutcome.ConfirmationPending,
+                        response.newVersion,
+                        response.updateId,
+                        response.updateResults,
+                        statusCode);
+                }
+            }
+            catch
+            {
+                if (!closeAndUpdateInvoked)
+                {
+                    try
+                    {
+                        await file.CloseAsync(fileHandle, CancellationToken.None).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.FailedToCloseConfigurationFileHandle(ex);
+                    }
+                }
+                throw;
+            }
+        }
+
+        /// <inheritdoc/>
         public async ValueTask CancelChangesAsync(CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
@@ -1081,6 +1344,91 @@ namespace Opc.Ua.Gds.Client
             return oldUser;
         }
 
+        /// <summary>
+        /// Returns whether any per-target update result is not Good.
+        /// </summary>
+        private static bool ContainsBadTargetResult(ArrayOf<StatusCode> results)
+        {
+            for (int i = 0; i < results.Count; i++)
+            {
+                if (!StatusCode.IsGood(results[i]))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Returns whether a service status can leave a remote operation's outcome unknown.
+        /// </summary>
+        private static bool IsCommunicationFailure(StatusCode statusCode)
+        {
+            return statusCode == StatusCodes.BadTimeout ||
+                statusCode == StatusCodes.BadRequestTimeout ||
+                statusCode == StatusCodes.BadCommunicationError ||
+                statusCode == StatusCodes.BadConnectionClosed ||
+                statusCode == StatusCodes.BadSecureChannelClosed ||
+                statusCode == StatusCodes.BadNoCommunication ||
+                statusCode == StatusCodes.BadServerHalted;
+        }
+
+        private static async ValueTask<uint> ReadConfigurationFileVersionAsync(
+            ISession session,
+            ApplicationConfigurationFileTypeClient file,
+            CancellationToken ct)
+        {
+            var paths = ArrayOf.Wrapped(
+            [
+                new BrowsePath
+                {
+                    StartingNode = file.ObjectId,
+                    RelativePath = new RelativePath
+                    {
+                        Elements = ArrayOf.Wrapped(
+                        [
+                            new RelativePathElement
+                            {
+                                ReferenceTypeId = ReferenceTypeIds.HasProperty,
+                                IsInverse = false,
+                                IncludeSubtypes = true,
+                                TargetName = new QualifiedName("CurrentVersion")
+                            }
+                        ])
+                    }
+                }
+            ]);
+            TranslateBrowsePathsToNodeIdsResponse translated =
+                await session.TranslateBrowsePathsToNodeIdsAsync(null, paths, ct).ConfigureAwait(false);
+            if (translated.Results.Count == 0 ||
+                StatusCode.IsBad(translated.Results[0].StatusCode) ||
+                translated.Results[0].Targets.Count == 0)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported,
+                    "The ConfigurationFile node does not expose CurrentVersion.");
+            }
+
+            NodeId versionNodeId = ExpandedNodeId.ToNodeId(
+                translated.Results[0].Targets[0].TargetId,
+                session.NamespaceUris);
+            if (versionNodeId.IsNull)
+            {
+                throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
+            }
+
+            DataValue value = await session.ReadValueAsync(versionNodeId, ct).ConfigureAwait(false);
+            if (StatusCode.IsBad(value.StatusCode))
+            {
+                throw new ServiceResultException(value.StatusCode);
+            }
+            if (!value.WrappedValue.TryGetValue(out uint version))
+            {
+                throw new ServiceResultException(StatusCodes.BadTypeMismatch);
+            }
+            return version;
+        }
+
         private async Task RevertPermissionsAsync(
             ISession session,
             IUserIdentity? oldUser,
@@ -1189,6 +1537,29 @@ namespace Opc.Ua.Gds.Client
             Uri? expectedEndpoint,
             CancellationToken ct)
         {
+            await ConnectInternalAsync(
+                endpoint,
+                updateBeforeConnect,
+                expectedEndpoint,
+                AdminCredentials,
+                ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Connects using the supplied identity instead of the client's cached administrator credentials.
+        /// </summary>
+        /// <param name="endpoint">The configured endpoint.</param>
+        /// <param name="updateBeforeConnect">Whether to refresh endpoint discovery before connecting.</param>
+        /// <param name="expectedEndpoint">The endpoint URI whose host and transport must be preserved.</param>
+        /// <param name="userIdentity">The identity used to create the session.</param>
+        /// <param name="ct">A token used to cancel the connection.</param>
+        internal async Task ConnectInternalAsync(
+            ConfiguredEndpoint endpoint,
+            bool updateBeforeConnect,
+            Uri? expectedEndpoint,
+            IUserIdentity? userIdentity,
+            CancellationToken ct)
+        {
             RequireOwnedConnection();
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
             try
@@ -1222,7 +1593,7 @@ namespace Opc.Ua.Gds.Client
                     checkDomain: true,
                     Configuration.ApplicationName!,
                     (uint)m_options.SessionTimeout.TotalMilliseconds,
-                    AdminCredentials,
+                    userIdentity,
                     PreferredLocales,
                     ct)
                 .ConfigureAwait(false);
@@ -1247,6 +1618,52 @@ namespace Opc.Ua.Gds.Client
             {
                 m_lock.Release();
             }
+        }
+
+        /// <summary>
+        /// Reconnects with retry using the identity that performed the update.
+        /// </summary>
+        /// <param name="endpoint">The configured endpoint to reconnect to.</param>
+        /// <param name="userIdentity">The identity used to create the session.</param>
+        /// <param name="ct">A token used to cancel the connection.</param>
+        private async ValueTask ConnectWithIdentityAsync(
+            ConfiguredEndpoint endpoint,
+            IUserIdentity? userIdentity,
+            CancellationToken ct)
+        {
+            int maxAttempts = m_options.MaxConnectAttempts;
+            int backoffMs = (int)m_options.ConnectBackoff.TotalMilliseconds;
+            ServiceResultException? lastException = null;
+            for (int attempt = 0; attempt < maxAttempts; attempt++)
+            {
+                try
+                {
+                    await ConnectInternalAsync(
+                        endpoint,
+                        updateBeforeConnect: true,
+                        expectedEndpoint: null,
+                        userIdentity: userIdentity,
+                        ct: ct).ConfigureAwait(false);
+                    return;
+                }
+                catch (ServiceResultException e) when (
+                    e.StatusCode == StatusCodes.BadServerHalted ||
+                    e.StatusCode == StatusCodes.BadSecureChannelClosed ||
+                    e.StatusCode == StatusCodes.BadNoCommunication)
+                {
+                    lastException = e;
+                    m_logger.FailedToConnect(e, attempt + 1);
+                    if (attempt + 1 < maxAttempts)
+                    {
+                        await m_timeProvider.Delay(TimeSpan.FromMilliseconds(backoffMs), ct).ConfigureAwait(false);
+                    }
+                }
+            }
+            throw lastException ??
+                ServiceResultException.Create(
+                    StatusCodes.BadNoCommunication,
+                    "Failed to connect after {0} attempts.",
+                    maxAttempts);
         }
 
         /// <summary>
@@ -1348,5 +1765,32 @@ namespace Opc.Ua.Gds.Client
         public static partial void UnexpectedErrorRaisingConnectionStatusChangedEvent(
             this ILogger logger,
             Exception exception);
+
+        /// <summary>
+        /// Logs that the client could not determine the update outcome.
+        /// </summary>
+        [LoggerMessage(
+            EventId = GdsClientCommonEventIds.ServerPushConfigurationClient + 3,
+            Level = LogLevel.Warning,
+            Message = "The ConfigurationFile update outcome is unknown.")]
+        public static partial void ConfigurationFileUpdateOutcomeUnknown(this ILogger logger, Exception exception);
+
+        /// <summary>
+        /// Logs that an applied update could not be confirmed by the client.
+        /// </summary>
+        [LoggerMessage(
+            EventId = GdsClientCommonEventIds.ServerPushConfigurationClient + 4,
+            Level = LogLevel.Warning,
+            Message = "The ConfigurationFile update was applied but could not be confirmed.")]
+        public static partial void ConfigurationFileConfirmationPending(this ILogger logger, Exception exception);
+
+        /// <summary>
+        /// Logs a failure to close a ConfigurationFile upload handle.
+        /// </summary>
+        [LoggerMessage(
+            EventId = GdsClientCommonEventIds.ServerPushConfigurationClient + 5,
+            Level = LogLevel.Debug,
+            Message = "Failed to close the ConfigurationFile upload handle.")]
+        public static partial void FailedToCloseConfigurationFileHandle(this ILogger logger, Exception exception);
     }
 }

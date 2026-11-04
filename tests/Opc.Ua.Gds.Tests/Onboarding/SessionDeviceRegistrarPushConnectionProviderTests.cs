@@ -134,7 +134,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 securityMode: MessageSecurityMode.SignAndEncrypt);
             first.Channel.SetupGet(channel => channel.ServerChannelCertificate).Returns(m_certificate.RawData);
             second.Channel.SetupGet(channel => channel.ServerChannelCertificate).Returns(m_certificate.RawData);
-            second.InnerSession.SessionCreated(new NodeId("second-session"), new NodeId("second-token"));
+            second.InnerSession.SessionCreated(NodeId.Parse("s=second-session"), NodeId.Parse("s=second-token"));
             Mock<ISessionFactory> factory = Factory(first.InnerSession);
             factory.SetupSequence(value => value.CreateAsync(
                 It.IsAny<ApplicationConfiguration>(), It.IsAny<ConfiguredEndpoint>(), false, true,
@@ -176,7 +176,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 securityMode: MessageSecurityMode.SignAndEncrypt);
             first.Channel.SetupGet(channel => channel.ServerChannelCertificate).Returns(m_certificate.RawData);
             second.Channel.SetupGet(channel => channel.ServerChannelCertificate).Returns(m_certificate.RawData);
-            second.InnerSession.SessionCreated(new NodeId("retry-session"), new NodeId("retry-token"));
+            second.InnerSession.SessionCreated(NodeId.Parse("s=retry-session"), NodeId.Parse("s=retry-token"));
             NodeId owner = first.InnerSession.SessionId;
             var coordinator = new PushConfigurationTransactionCoordinator(NUnitTelemetryContext.Create());
             bool committed = false;

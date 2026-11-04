@@ -779,6 +779,24 @@ carries the plan's `NewVersion`; a second update is rejected with
 implement `IApplicationConfigurationFileProvider` keep applying the whole file
 immediately.
 
+When `RequiresConfirmation` is `true`, the provider must also implement
+`IRecoverableApplicationConfigurationFileProvider`. The server rejects
+`CloseAndUpdate` with `Bad_NotSupported` before validation or provider mutation
+if this recovery contract is absent. The provider durably stores the previous
+and proposed configuration, targets, update identifier, apply time and revert
+deadline. Its apply, confirm and revert operations must be atomic and idempotent
+for that identifier. The server reads pending state during startup and completes
+recovery before serving `ConfigurationFile`; an expired update is reverted
+before the node is made available.
+
+Providers that do not require confirmation continue using
+`IApplicationConfigurationFileProvider` without the recovery interface.
+Existing providers that set `RequiresConfirmation` must add durable transaction
+storage and restart recovery before they can accept confirmation-required
+updates. This requirement
+prevents the server from acknowledging an update whose prior state and
+confirmation deadline would be lost on restart.
+
 ### TrustList Size Limits (OPC UA Part 12 §8.4.5)
 
 `ServerConfiguration.MaxTrustListSize` advertises, in bytes, the largest

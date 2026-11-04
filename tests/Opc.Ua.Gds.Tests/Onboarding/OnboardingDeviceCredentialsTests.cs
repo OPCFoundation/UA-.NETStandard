@@ -456,7 +456,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     {
                         Assert.That(certificate.HasPrivateKey, Is.True);
                         Assert.That(certificate.RawData, Is.EqualTo(m_identity.RawData));
-                        Assert.That(issuers!.Count, Is.EqualTo(1));
+                        Assert.That(issuers!, Has.Count.EqualTo(1));
                         Assert.That(issuers[0].RawData, Is.EqualTo(authority.RawData));
                         effects.Add("activation");
                     })
