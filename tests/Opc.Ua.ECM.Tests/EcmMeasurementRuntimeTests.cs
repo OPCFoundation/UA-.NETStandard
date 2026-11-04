@@ -633,7 +633,7 @@ namespace Opc.Ua.ECM.Tests
             EcmMeasurementBinding binding = await manager.CreateMeasurementAsync(browseName, provider, parent);
             EnergyMeasurementValueState measurement = RequiredMeasurement(
                 binding.MeasurementPoint, manager.SystemContext, reading.BrowseName, ecmNamespace);
-            Assert.That(measurement.StatusCode, Is.EqualTo((StatusCode)quality));
+            Assert.That(measurement.StatusCode, Is.EqualTo(quality));
             Assert.That(measurement.Timestamp, Is.EqualTo((DateTimeUtc)acquired));
             if (nullValue)
             {
