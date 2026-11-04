@@ -60,7 +60,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: '10.0.402'
+          dotnet-version: '10.0.403'
 
       # ---------------------------------------------------------------- node-opcua
       - name: Setup Node.js
