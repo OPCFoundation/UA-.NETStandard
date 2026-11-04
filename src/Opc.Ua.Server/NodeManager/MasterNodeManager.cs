@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -129,6 +128,35 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Creates system routing with an explicitly supplied routing owner.
+        /// </summary>
+        /// <param name="server">The hosting server.</param>
+        /// <param name="configuration">The server configuration.</param>
+        /// <param name="routingTable">The routing table owned by this master.</param>
+        internal MasterNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            NodeManagerRoutingTable routingTable)
+            : this(server, configuration, null, (null, null), default,
+                routingTable ?? throw new ArgumentNullException(nameof(routingTable)))
+        {
+        }
+
+        /// <summary>
+        /// Creates a host with construction-time publication and dispatch observation.
+        /// </summary>
+        internal MasterNodeManager(
+            INodeManagerHostBoundary hostBoundary,
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            string? dynamicNamespaceUri,
+            ArrayOf<IAsyncNodeManagerFactory> initialFactories)
+            : this(server, configuration, dynamicNamespaceUri, initialFactories)
+        {
+            m_hostBoundary = hostBoundary ?? throw new ArgumentNullException(nameof(hostBoundary));
+        }
+
+        /// <summary>
         /// Initializes system routing and optional standalone compatibility managers.
         /// </summary>
         /// <param name="server">The hosting server.</param>
@@ -136,12 +164,14 @@ namespace Opc.Ua.Server
         /// <param name="dynamicNamespaceUri">The dynamic namespace URI, or null.</param>
         /// <param name="additionalManagers">Preconstructed managers for standalone dispatch only.</param>
         /// <param name="initialFactories">The configured factories whose declarations precede system namespaces.</param>
+        /// <param name="routingTable">The explicit routing owner, or null to create one.</param>
         private MasterNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
             string? dynamicNamespaceUri,
             (IEnumerable<IAsyncNodeManager>? Async, IEnumerable<INodeManager>? Sync) additionalManagers,
-            ArrayOf<IAsyncNodeManagerFactory> initialFactories = default)
+            ArrayOf<IAsyncNodeManagerFactory> initialFactories = default,
+            NodeManagerRoutingTable? routingTable = null)
         {
             if (configuration == null)
             {
@@ -152,7 +182,7 @@ namespace Opc.Ua.Server
             m_logger = server.Telemetry.CreateLogger<MasterNodeManager>();
             GenerationReconciler = new GenerationReconciler(server);
 
-            m_nodeManagers = [];
+            m_nodeManagers = routingTable ?? [];
             m_maxContinuationPointsPerBrowse = (uint)configuration.ServerConfiguration!
                 .MaxBrowseContinuationPoints;
 
@@ -1676,6 +1706,9 @@ namespace Opc.Ua.Server
         private readonly SemaphoreSlim m_startupShutdownSemaphoreSlim = new(1, 1);
         private readonly SemaphoreSlim m_namespaceRegistrationSemaphore = new(1, 1);
         private readonly NodeManagerRoutingTable m_nodeManagers;
+
+        /// <summary>The boundary supplied before the host is bound to the server.</summary>
+        private readonly INodeManagerHostBoundary? m_hostBoundary;
         private readonly AsyncLocal<NodeManagerCallbackPermit?> m_lifecycleCallbackPermit = new();
         private TaskCompletionSource<bool>? m_lifecycleDecisionCompletion;
         private readonly AsyncLocal<Task?> m_currentLifecycleDecision = new();

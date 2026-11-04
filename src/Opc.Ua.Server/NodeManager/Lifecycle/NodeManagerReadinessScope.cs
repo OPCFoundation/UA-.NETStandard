@@ -59,7 +59,9 @@ namespace Opc.Ua.Server
         {
             for (NodeManagerReadinessScope? scope = s_current.Value; scope is not null; scope = scope.m_parent)
             {
-                if (Volatile.Read(ref scope.m_active) != 0 && ReferenceEquals(scope.m_generation, generation))
+                if (Volatile.Read(ref scope.m_active) != 0 &&
+                    ReferenceEquals(Volatile.Read(ref scope.m_generation), generation) &&
+                    Volatile.Read(ref scope.m_active) != 0)
                 {
                     return true;
                 }
@@ -76,7 +78,9 @@ namespace Opc.Ua.Server
         {
             for (NodeManagerReadinessScope? scope = s_current.Value; scope is not null; scope = scope.m_parent)
             {
-                if (Volatile.Read(ref scope.m_active) != 0 && ReferenceEquals(scope.m_server, server))
+                if (Volatile.Read(ref scope.m_active) != 0 &&
+                    ReferenceEquals(Volatile.Read(ref scope.m_server), server) &&
+                    Volatile.Read(ref scope.m_active) != 0)
                 {
                     return true;
                 }
@@ -87,21 +91,31 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public void Dispose()
         {
-            Volatile.Write(ref m_active, 0);
-            s_current.Value = m_parent;
+            if (Interlocked.Exchange(ref m_active, 0) == 0)
+            {
+                return;
+            }
+
+            NodeManagerReadinessScope? parent = Interlocked.Exchange(ref m_parent, null);
+            if (ReferenceEquals(s_current.Value, this))
+            {
+                s_current.Value = parent;
+            }
+            Interlocked.Exchange(ref m_server, null);
+            Interlocked.Exchange(ref m_generation, null);
         }
 
         /// <summary>The initializer scope in this execution context, never a routing view.</summary>
         private static readonly AsyncLocal<NodeManagerReadinessScope?> s_current = new();
 
         /// <summary>The exact server owning this initializer.</summary>
-        private readonly IServerInternal m_server;
+        private IServerInternal? m_server;
 
         /// <summary>The pending generation accessible to this initializer.</summary>
-        private readonly NodeManagerGeneration m_generation;
+        private NodeManagerGeneration? m_generation;
 
         /// <summary>The enclosing initializer, if a callback publishes a dependent generation.</summary>
-        private readonly NodeManagerReadinessScope? m_parent;
+        private NodeManagerReadinessScope? m_parent;
 
         /// <summary>Whether captured execution contexts may still use this initializer capability.</summary>
         private int m_active = 1;

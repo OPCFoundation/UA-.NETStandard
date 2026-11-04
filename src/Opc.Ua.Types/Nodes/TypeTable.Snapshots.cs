@@ -49,6 +49,15 @@ namespace Opc.Ua
             out long revision,
             NamespaceTable? namespaceUris = null)
         {
+            return CaptureSnapshot(out source, out revision, namespaceUris, copyNamespaceUris: false);
+        }
+
+        private TypeTable CaptureSnapshot(
+            out TypeTable source,
+            out long revision,
+            NamespaceTable? namespaceUris,
+            bool copyNamespaceUris)
+        {
             lock (m_lock)
             {
                 source = this;

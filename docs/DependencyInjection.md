@@ -448,25 +448,30 @@ using Opc.Ua.Server.RuntimeNodeSet;
 
 public sealed class RuntimeModelService(INodeManagerLifecycle lifecycle)
 {
-    public async ValueTask<NodeManagerBatchResult> AddAsync(CancellationToken ct)
+    public ValueTask<LifecycleResult> AddAsync(CancellationToken ct)
     {
-        await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+        return lifecycle.ApplyAsync(
             [
-                NodeManagerBatchChange.Add(
+                LifecycleChange.Add(
                     new RuntimeNodeSetNodeManagerFactory(
                         new RuntimeNodeSetOptions
                         {
                             Sources = [RuntimeNodeSetSource.FromFile("Models/Line.NodeSet2.xml")]
                         }))
             ],
-            ct).ConfigureAwait(false);
-        // CleanupFailure does not undo publication; return the authoritative result.
-        return await prepared.CommitAsync(static _ => default, ct).ConfigureAwait(false);
+            ct);
     }
 }
 ```
 
-Applications that construct `StandardServer` directly use `server.NodeManagerLifecycle` instead. Both paths use the same lifecycle implementation and generation-aware registration handles.
+The returned `LifecycleResult` identifies the committed publication even when reconciliation reports
+issues. Inspect `Issues` and retry unfinished callbacks with `RetryReconciliationAsync`; do not
+repeat the addition. Retain `result.Registrations[0].Slot` for later replacement or removal.
+Use [explicit preparation](NodeManagers.md#preparation-decision-and-abort) when publication must
+follow a durable application decision.
+
+Applications that construct `StandardServer` directly use `server.NodeManagerLifecycle` instead.
+Both paths use the same lifecycle implementation and stable registration slots.
 
 Advanced server services can be supplied through the same fluent builder:
 

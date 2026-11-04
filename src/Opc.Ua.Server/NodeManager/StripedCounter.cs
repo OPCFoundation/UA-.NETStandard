@@ -48,6 +48,27 @@ namespace Opc.Ua.Server
     internal sealed class StripedCounter
     {
         /// <summary>
+        /// Gets the number of operations entered and not yet exited.
+        /// </summary>
+        public long Count
+        {
+            get
+            {
+                long count = 0;
+                for (int ii = kStride; ii < m_counts.Length; ii += kStride)
+                {
+                    count += Volatile.Read(ref m_counts[ii]);
+                }
+                return count;
+            }
+        }
+
+        /// <summary>
+        /// Gets the final processor stripe available for explicit admission.
+        /// </summary>
+        internal int LastSlot => m_counts.Length - kStride;
+
+        /// <summary>
         /// Enters an operation.
         /// </summary>
         /// <returns>The slot to pass to <see cref="Exit"/>.</returns>
@@ -80,22 +101,6 @@ namespace Opc.Ua.Server
         public void Exit(int slot)
         {
             Interlocked.Decrement(ref m_counts[slot]);
-        }
-
-        /// <summary>
-        /// Gets the number of operations entered and not yet exited.
-        /// </summary>
-        public long Count
-        {
-            get
-            {
-                long count = 0;
-                for (int ii = kStride; ii < m_counts.Length; ii += kStride)
-                {
-                    count += Volatile.Read(ref m_counts[ii]);
-                }
-                return count;
-            }
         }
 
         private static int GetSlotCount()

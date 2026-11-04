@@ -129,6 +129,41 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Independently transferred operations retain shutdown exclusion across contexts and repeated disposal.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task TransferredOperationsDrainIndependentlyAcrossExecutionContextsAsync(bool releaseFirst)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            using var writer = new LifecycleWriter();
+            using LifecycleWriter.OperationLifetime first = writer.EnterOperation();
+            using LifecycleWriter.OperationLifetime second = writer.EnterOperation();
+            Task drained = await writer.BeginShutdownAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(writer.ActiveOperationCount, Is.EqualTo(2));
+            Assert.That(drained.IsCompleted, Is.False);
+            LifecycleWriter.OperationLifetime released = releaseFirst ? first : second;
+            LifecycleWriter.OperationLifetime retained = releaseFirst ? second : first;
+            Task release;
+            using (ExecutionContext.SuppressFlow())
+            {
+                release = Task.Run(() =>
+                {
+                    released.Dispose();
+                    released.Dispose();
+                }, timeout.Token);
+            }
+            await release.WaitAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(writer.ActiveOperationCount, Is.EqualTo(1));
+            Assert.That(drained.IsCompleted, Is.False);
+            Assert.Throws<InvalidOperationException>(() => writer.EnterOperation());
+            retained.Dispose();
+            await drained.WaitAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(writer.ActiveOperationCount, Is.Zero);
+            writer.EndShutdown(prepared: false, completing: true);
+        }
+
+        /// <summary>
         /// Independent sessions admit ordinary work and advance only their own successful publication evidence.
         /// </summary>
         [Test]

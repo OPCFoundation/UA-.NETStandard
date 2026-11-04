@@ -34,6 +34,8 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Historian;
@@ -46,6 +48,131 @@ namespace Opc.Ua.Server.Tests.NodeManager
         private static readonly TimeSpan s_readinessTimeout = TimeSpan.FromSeconds(5);
 
         private const string kReadinessProbeNamespaceUri = kModelNamespaceUri + ":ReadinessProbe";
+
+        /// <summary>
+        /// A delayed readiness participant logs its published identity once without completing or destroying it.
+        /// </summary>
+        [Test]
+        [Category("NodeManagerReadiness")]
+        public async Task ReadinessWarningReportsPublishedGenerationWithoutForcingCompletionAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var timerReady = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var warning = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var timeProvider = new Mock<TimeProvider>();
+            timeProvider.Setup(value => value.GetUtcNow()).Returns(clock.GetUtcNow);
+            timeProvider.Setup(value => value.GetTimestamp()).Returns(clock.GetTimestamp);
+            timeProvider.SetupGet(value => value.TimestampFrequency).Returns(clock.TimestampFrequency);
+            timeProvider.Setup(value => value.CreateTimer(
+                It.IsAny<TimerCallback>(), It.IsAny<object?>(), It.IsAny<TimeSpan>(), It.IsAny<TimeSpan>()))
+                .Returns((TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period) =>
+                {
+                    ITimer timer = clock.CreateTimer(callback, state, dueTime, period);
+                    if (entered.Task.IsCompleted && dueTime == LifecycleWaitDiagnostics.WarningThreshold)
+                    {
+                        timerReady.TrySetResult(true);
+                    }
+                    return timer;
+                });
+            var logger = new Mock<ILogger>();
+            logger.Setup(value => value.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
+            logger.Setup(value => value.Log(
+                LogLevel.Warning, It.IsAny<EventId>(), It.IsAny<It.IsAnyType>(),
+                It.IsAny<Exception?>(), It.IsAny<Func<It.IsAnyType, Exception?, string>>()))
+                .Callback(new InvocationAction(invocation =>
+                    warning.TrySetResult(invocation.Arguments[2]?.ToString()
+                        ?? throw new InvalidOperationException("The warning did not contain log state."))));
+            var loggerProvider = new Mock<ILoggerProvider>();
+            loggerProvider.Setup(value => value.CreateLogger(It.IsAny<string>()))
+                .Returns(NullLogger.Instance);
+            loggerProvider.Setup(value => value.CreateLogger(typeof(NodeManagerLifecycle).FullName!))
+                .Returns(logger.Object);
+            var fixture = new ServerFixture<StandardServer>(
+                telemetry =>
+                {
+                    telemetry.LoggerFactory.AddProvider(loggerProvider.Object);
+                    return new StandardServer(telemetry, timeProvider.Object);
+                })
+            {
+                UriScheme = Utils.UriSchemeOpcTcp,
+                SecurityNone = true,
+                AutoAccept = true
+            };
+            StandardServer? server = null;
+            Task<NodeManagerRegistration>? add = null;
+            try
+            {
+                server = await fixture.StartAsync(Path.Combine(m_pkiRoot, "readiness-warning"))
+                    .ConfigureAwait(false);
+                INodeManagerLifecycle lifecycle = server.NodeManagerLifecycle;
+                ReadinessLifecycleNodeManager? participant = null;
+                var factory = new CountingNodeManagerFactory(
+                    [kModelNamespaceUri],
+                    (internalServer, configuration, _) =>
+                    {
+                        participant = new ReadinessLifecycleNodeManager(
+                            internalServer, configuration, m_logger, kGeneration1Value)
+                        {
+                            ReadinessCallback = async ct =>
+                            {
+                                entered.TrySetResult(true);
+                                await release.Task.WaitAsync(ct).ConfigureAwait(false);
+                            }
+                        };
+                        return new ValueTask<IAsyncNodeManager>(participant);
+                    });
+                add = lifecycle.AddAsync(factory, null, timeout.Token).AsTask();
+                await timerReady.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                AssertLifecycleValue(participant);
+                NodeManagerRegistration registration = RequireLifecycleValue(lifecycle.Registrations.Find(
+                    candidate => candidate.NamespaceUris.Contains(kModelNamespaceUri)));
+                long publishedRevision = lifecycle.Revision;
+                clock.Advance(LifecycleWaitDiagnostics.WarningThreshold);
+                string message = await warning.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(message, Does.Contain("NodeManager readiness callback"));
+                    Assert.That(message, Does.Contain(LifecycleWaitDiagnostics.WarningThreshold.ToString()));
+                    Assert.That(message, Does.Contain(registration.Identity.GetQuiescenceWaitContext()));
+                    Assert.That(message, Does.Contain("pendingReadinessCount=1"));
+                    Assert.That(registration.NodeManager, Is.SameAs(participant));
+                    Assert.That(add.IsCompleted, Is.False);
+                    Assert.That(participant.ReadinessCount, Is.EqualTo(1));
+                    Assert.That(participant.ReadinessCompletedCount, Is.Zero);
+                    Assert.That(participant.DeleteAddressSpaceCount, Is.Zero);
+                    Assert.That(participant.DisposeCount, Is.Zero);
+                }
+                clock.Advance(TimeSpan.FromMinutes(1));
+                release.TrySetResult(true);
+                Assert.That(await add.WaitAsync(timeout.Token).ConfigureAwait(false), Is.SameAs(registration));
+                Assert.That(lifecycle.Revision, Is.EqualTo(publishedRevision));
+                Assert.That(participant.ReadinessCompletedCount, Is.EqualTo(1));
+                Assert.That(participant.DeleteAddressSpaceCount, Is.Zero);
+                Assert.That(participant.DisposeCount, Is.Zero);
+                logger.Verify(value => value.Log(
+                    LogLevel.Warning, It.IsAny<EventId>(), It.IsAny<It.IsAnyType>(),
+                    It.IsAny<Exception?>(), It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Once);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                try
+                {
+                    if (add is not null)
+                    {
+                        await add.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    server?.Dispose();
+                    await fixture.StopAsync().ConfigureAwait(false);
+                }
+            }
+        }
 
         /// <summary>
         /// Reconciliation permits a nested writer while its result retains the revision and slots it published.

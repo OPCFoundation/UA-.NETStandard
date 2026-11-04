@@ -105,9 +105,24 @@ namespace Opc.Ua.Server
         /// time / duration calculations performed by the server, or
         /// <c>null</c> to use <see cref="TimeProvider.System"/>.</param>
         public StandardServer(ITelemetryContext telemetry, TimeProvider? timeProvider)
+            : this(telemetry, timeProvider, null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the server with an optional discovery-registration worker factory.
+        /// </summary>
+        /// <param name="telemetry">The telemetry context.</param>
+        /// <param name="timeProvider">The server time provider.</param>
+        /// <param name="registrationWorkerFactory">The worker factory, or null for normal registration.</param>
+        internal StandardServer(
+            ITelemetryContext telemetry,
+            TimeProvider? timeProvider,
+            Func<CancellationToken, Task>? registrationWorkerFactory)
             : base(telemetry)
         {
             TimeProvider = timeProvider ?? TimeProvider.System;
+            m_registrationWorkerFactory = registrationWorkerFactory;
             m_nodeManagerLifecycle = new NodeManagerLifecycle(this, TimeProvider);
             m_eventLogger = telemetry.CreateLogger(
                 ServerCompatibilityEventIds.CategoryName);
@@ -3160,7 +3175,9 @@ namespace Opc.Ua.Server
                 }
                 m_registrationTimer?.Dispose();
                 m_registrationTimer = null;
-                m_registrationTask = RegisterServerIterationAsync(generation, m_registrationCts!.Token);
+                m_registrationTask = m_registrationWorkerFactory is { } factory
+                    ? factory(m_registrationCts!.Token)
+                    : RegisterServerIterationAsync(generation, m_registrationCts!.Token);
             }
         }
 
@@ -6104,6 +6121,11 @@ namespace Opc.Ua.Server
         private ConfiguredEndpointCollection? m_registrationEndpoints;
         private RegisteredServer? m_registrationInfo;
         private ITimer? m_registrationTimer;
+
+        /// <summary>
+        /// Creates discovery-registration workers when supplied at construction.
+        /// </summary>
+        private readonly Func<CancellationToken, Task>? m_registrationWorkerFactory;
 
         /// <summary>
         /// Cancels the currently owned discovery-registration attempt during shutdown.

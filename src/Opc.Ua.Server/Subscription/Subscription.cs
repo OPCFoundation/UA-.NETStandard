@@ -629,6 +629,66 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Temporarily includes an externally owned item in membership without creating or rebinding its source.
+        /// </summary>
+        /// <param name="monitoredItem">The item whose lifetime remains with its caller.</param>
+        /// <returns>A lease removing only this membership when disposed.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="monitoredItem"/> is null.</exception>
+        internal IDisposable IncludeExternalMonitoredItem(IMonitoredItem monitoredItem)
+        {
+            if (monitoredItem is null)
+            {
+                throw new ArgumentNullException(nameof(monitoredItem));
+            }
+            var membership = new ExternalItemMembership(this, monitoredItem);
+            lock (m_lock)
+            {
+                m_monitoredItems.Add(monitoredItem.Id, new LinkedListNode<IMonitoredItem>(monitoredItem));
+            }
+            return membership;
+        }
+
+        /// <summary>
+        /// Removes a temporary external membership without deleting its item or changing a replacement.
+        /// </summary>
+        private sealed class ExternalItemMembership : IDisposable
+        {
+            /// <summary>
+            /// Creates an unregistered membership owned by the caller.
+            /// </summary>
+            public ExternalItemMembership(Subscription subscription, IMonitoredItem item)
+            {
+                m_subscription = subscription;
+                m_item = item;
+            }
+
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+                Subscription? subscription = Interlocked.Exchange(ref m_subscription, null);
+                if (subscription is null)
+                {
+                    return;
+                }
+                lock (subscription.m_lock)
+                {
+                    if (subscription.m_monitoredItems.TryGetValue(
+                        m_item.Id, out LinkedListNode<IMonitoredItem>? node) &&
+                        ReferenceEquals(node.Value, m_item))
+                    {
+                        subscription.m_monitoredItems.Remove(m_item.Id);
+                    }
+                }
+            }
+
+            /// <summary>The subscription until membership is released.</summary>
+            private Subscription? m_subscription;
+
+            /// <summary>The externally owned item whose exact membership is removed.</summary>
+            private readonly IMonitoredItem m_item;
+        }
+
         private static bool IsOwnedBy(
             IMonitoredItem monitoredItem,
             IAsyncNodeManager nodeManager)

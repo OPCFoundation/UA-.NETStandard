@@ -28,8 +28,10 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml;
 using Moq;
 using NUnit.Framework;
 
@@ -37,6 +39,88 @@ namespace Opc.Ua.Server.Tests.NodeManager
 {
     public sealed partial class NodeManagerRoutingTableTests
     {
+        /// <summary>
+        /// Published routing images retain type and encoding registrations across publication or abort.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TypeRegistrationsAreIsolatedByRoutingPublication(bool publish)
+        {
+            var namespaceUris = new NamespaceTable();
+            var servingTypes = new TypeTable(namespaceUris);
+            var parentType = new NodeId(9700);
+            var stagedType = new NodeId(9701);
+            var unassignedNamespaceType = new NodeId(9702, 1);
+            const string lateNamespaceUri = "urn:opcua:test:late-namespace";
+            servingTypes.AddSubtype(parentType, NodeId.Null);
+            servingTypes.AddSubtype(unassignedNamespaceType, NodeId.Null);
+            var factory = (EncodeableFactory)EncodeableFactory.Create();
+            const string typeNamespace = "urn:opcua:test:staged-encodeable";
+            ExpandedNodeId stagedEncodingId = new(9704, typeNamespace);
+            var stagedEncodeable = new Mock<IEncodeableType>();
+            stagedEncodeable.SetupGet(value => value.XmlName)
+                .Returns(new XmlQualifiedName("StagedType", typeNamespace));
+            var table = new NodeManagerRoutingTable();
+            table.Initialize(new Dictionary<int, List<IAsyncNodeManager>>(), servingTypes, factory);
+            NodeManagerRoutingTable.RoutingSnapshot previous = table.Revision;
+            namespaceUris.Append(lateNamespaceUri);
+            var expandedType = new ExpandedNodeId(9702, lateNamespaceUri);
+
+            TypeTable candidate = servingTypes.CaptureSnapshot(out TypeTable source, out long revision);
+            candidate.AddSubtype(stagedType, parentType);
+            TypeTable merged = servingTypes.PrepareAdditiveMerge(candidate, source, revision);
+            EncodeableFactory candidateFactory =
+                factory.CaptureSnapshot(out EncodeableFactory factorySource, out long factoryRevision);
+            candidateFactory.Builder.AddEncodeableType(stagedEncodingId, stagedEncodeable.Object).Commit();
+            EncodeableFactory mergedFactory = factory.PrepareAdditiveMerge(
+                candidateFactory, factorySource, factoryRevision, namespaceUris);
+            using NodeManagerRoutingTable.PreparedRoutes routes = table.PrepareBatch(
+                [], [], static _ => [], merged, mergedFactory);
+            routes.Reserve();
+
+            using (TypeTable.Publication types = servingTypes.BeginPublication(source, revision))
+            using (EncodeableFactory.Publication registrations =
+                factory.BeginPublication(factorySource, factoryRevision))
+            {
+                if (publish)
+                {
+                    types.Complete(merged);
+                    registrations.Complete(mergedFactory);
+                    routes.Publish();
+                }
+            }
+            if (!publish)
+            {
+                routes.Dispose();
+            }
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(previous.TypeTree!.IsKnown(stagedType), Is.False);
+                Assert.That(previous.TypeTree.IsKnown(expandedType), Is.False);
+                Assert.That(table.Revision.TypeTree!.IsKnown(stagedType), Is.EqualTo(publish));
+                Assert.That(table.Revision.TypeTree!.IsKnown(expandedType), Is.EqualTo(publish));
+                Assert.That(servingTypes.IsKnown(stagedType), Is.EqualTo(publish));
+                Assert.That(servingTypes.IsKnown(expandedType), Is.True);
+                Assert.That(merged.IsKnown(stagedType), Is.True);
+                Assert.That(previous.Factory!.TryGetEncodeableType(stagedEncodingId, out _), Is.False);
+                Assert.That(
+                    table.Revision.Factory!.TryGetEncodeableType(stagedEncodingId, out _),
+                    Is.EqualTo(publish));
+                Assert.That(factory.TryGetEncodeableType(stagedEncodingId, out _), Is.EqualTo(publish));
+                Assert.That(mergedFactory.TryGetEncodeableType(stagedEncodingId, out _), Is.True);
+            }
+            if (publish)
+            {
+                var laterType = new NodeId(9703);
+                servingTypes.AddSubtype(laterType, parentType);
+                Assert.That(table.Revision.TypeTree!.IsKnown(laterType), Is.False);
+                ExpandedNodeId laterEncodingId = new(9705, typeNamespace);
+                factory.Builder.AddEncodeableType(laterEncodingId, stagedEncodeable.Object).Commit();
+                Assert.That(table.Revision.Factory!.TryGetEncodeableType(laterEncodingId, out _), Is.False);
+            }
+        }
+
         /// <summary>
         /// A retired provider cannot be revived after producer shutdown has started, even before destruction.
         /// </summary>

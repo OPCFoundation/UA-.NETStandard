@@ -29,7 +29,6 @@
 
 using System;
 using System.IO;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -331,11 +330,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 master.ConfigurationNodeManager!);
             var failure = new InvalidOperationException("The shutdown publication notification failed.");
             bool failPublication = false;
-            Mock<IMasterNodeManager> proxy = CreatePostSwapPublicationFailureHost(
-                master, () => failPublication, notifyBeforeFailure, failure);
-            PropertyInfo nodeManagerProperty = typeof(ServerInternalData).GetProperty(nameof(ServerInternalData.NodeManager))
-                ?? throw new AssertionException("The bound master NodeManager property was not found.");
-            nodeManagerProperty.SetValue(server, proxy.Object);
+            m_server.HostBoundary.Publication = CreatePostSwapPublicationFailure(
+                () => failPublication, notifyBeforeFailure, failure);
             TrackingLifecycleNodeManager? manager = null;
             TrackingLifecycleNodeManager? independent = null;
             try
@@ -411,7 +407,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     manager.DeleteAddressSpaceFailuresRemaining = 0;
                 }
-                nodeManagerProperty.SetValue(server, master);
+                m_server.HostBoundary.Publication = null;
                 await FinishShutdownTestAsync().ConfigureAwait(false);
             }
         }

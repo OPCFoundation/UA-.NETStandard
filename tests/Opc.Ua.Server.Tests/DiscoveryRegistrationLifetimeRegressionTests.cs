@@ -253,6 +253,10 @@ namespace Opc.Ua.Server.Tests
                     .Returns(async (RegisteredServer server, MdnsDiscoveryConfiguration mdns, CancellationToken ct) =>
                     {
                         Interlocked.Increment(ref m_registrationCalls);
+                        if (server.IsOnline)
+                        {
+                            Interlocked.Increment(ref m_onlineRegistrationCalls);
+                        }
                         Entered.TrySetResult(true);
                         await Release.Task.ConfigureAwait(false);
                         if (!succeeds)
@@ -315,6 +319,11 @@ namespace Opc.Ua.Server.Tests
             /// Gets the number of registration requests observed by the discovery store.
             /// </summary>
             public int RegistrationCalls => Volatile.Read(ref m_registrationCalls);
+
+            /// <summary>
+            /// Gets how often the application advertised itself online to discovery.
+            /// </summary>
+            public int OnlineRegistrationCalls => Volatile.Read(ref m_onlineRegistrationCalls);
 
             /// <summary>
             /// Fires the supplied registration timer and retains its completion task.

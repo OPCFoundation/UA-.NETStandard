@@ -1434,9 +1434,11 @@ namespace Opc.Ua.Server
         /// Initializes the gate in the supplied state.
         /// </summary>
         /// <param name="state">The initial state.</param>
-        internal GenerationGate(NodeManagerGenerationState state)
+        /// <param name="active">The admission counter, or null to create one.</param>
+        internal GenerationGate(NodeManagerGenerationState state, StripedCounter? active = null)
         {
             m_state = (int)state;
+            m_active = active ?? new StripedCounter();
         }
 
         /// <summary>
@@ -1695,7 +1697,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>The striped admission counter.</summary>
-        private readonly StripedCounter m_active = new();
+        private readonly StripedCounter m_active;
 
         /// <summary>Protects the optional asynchronous drain waiter.</summary>
         private readonly Lock m_waitLock = new();

@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -42,7 +41,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Borrowed service contexts release their view on return; explicit pins remain context-owned.
         /// </summary>
-        /// <param name="ownership">Zero borrows the context, one pins it directly, and two uses request routing.</param>
+        /// <param name="ownership">Zero borrows, one upgrades a borrowed scope, and two pins request routing.</param>
         [TestCase(0)]
         [TestCase(1)]
         [TestCase(2)]
@@ -62,7 +61,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 if (ownership == 1)
                 {
-                    context.PinRouting(GetRoutingTable(master));
+                    using OperationContext.RoutingScope borrowed = ((IRequestRouting)master).CaptureRequest(context);
+                    ((IRequestRouting)master).PinRequest(context);
                 }
                 else if (ownership == 2)
                 {
@@ -123,19 +123,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
             CancellationToken ct = timeout.Token;
             IServerInternal server = m_server.CurrentInstance;
             var master = (MasterNodeManager)server.NodeManager;
-            NodeManagerRoutingTable table = GetRoutingTable(master);
+            var routing = (IRequestRouting)master;
             INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             NodeManagerRegistration current = await lifecycle.AddRuntimeNodeSetAsync(
                 CreateOptions(kModelNamespaceUri, kFirstRegistrationValue), ct).ConfigureAwait(false);
             using var context = new OperationContext(
                 new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
-            OperationContext.RoutingScope outer = context.CaptureRouting(table);
+            OperationContext.RoutingScope outer = routing.CaptureRequest(context);
             NodeManagerRoutingTable.RoutingSnapshot captured = context.RoutingSnapshot!;
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             Task overlapping = Task.Run(async () =>
             {
-                using OperationContext.RoutingScope scope = context.CaptureRouting(table);
+                using OperationContext.RoutingScope scope = routing.CaptureRequest(context);
                 entered.SetResult(true);
                 await release.Task.WaitAsync(ct).ConfigureAwait(false);
                 Assert.That(context.RoutingSnapshot, Is.SameAs(captured));
@@ -164,14 +164,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(context.RoutingSnapshot, Is.SameAs(captured));
                 if (upgrade)
                 {
-                    context.PinRouting(table);
+                    routing.PinRequest(context);
                     Assert.That(context.RoutingSnapshot, Is.SameAs(captured));
                 }
                 if (dispose)
                 {
                     context.Dispose();
-                    Assert.That(() => context.CaptureRouting(table), Throws.TypeOf<ObjectDisposedException>());
-                    Assert.That(() => context.PinRouting(table), Throws.TypeOf<ObjectDisposedException>());
+                    Assert.That(() => routing.CaptureRequest(context), Throws.TypeOf<ObjectDisposedException>());
+                    Assert.That(() => routing.PinRequest(context), Throws.TypeOf<ObjectDisposedException>());
                     Assert.That(context.RoutingSnapshot, Is.SameAs(captured));
                     Assert.That(publication.Retirement.IsCompleted, Is.False);
                 }
@@ -225,7 +225,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             IServerInternal server = m_server.CurrentInstance;
             var master = (MasterNodeManager)server.NodeManager;
-            NodeManagerRoutingTable table = GetRoutingTable(master);
+            var routing = (IRequestRouting)master;
 
             NodeManagerRegistration? registration = null;
             try
@@ -233,7 +233,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 using (var context = new OperationContext(
                     new RequestHeader(), null, RequestType.Call, RequestLifetime.None))
                 {
-                    context.PinRouting(table);
+                    routing.PinRequest(context);
                     NodeManagerRoutingTable.RoutingSnapshot captured = context.RoutingSnapshot!;
                     registration = await m_server.NodeManagerLifecycle
                         .AddRuntimeNodeSetAsync(CreateGenerationOptions(generation: 1), null, timeout.Token)
@@ -248,7 +248,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     {
                         Assert.That(materialized, Is.True);
                         Assert.That(context.RoutingSnapshot, Is.SameAs(captured));
-                        Assert.That(table.Revision, Is.Not.SameAs(captured));
+                        Assert.That(((IDynamicNodeManagerBatchHost)master).RoutingRevision, Is.Not.SameAs(captured));
                     }
                 }
             }
@@ -270,12 +270,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             var master = (MasterNodeManager)m_server.CurrentInstance.NodeManager;
-            NodeManagerRoutingTable table = GetRoutingTable(master);
+            var routing = (IRequestRouting)master;
 
             using (var context = new OperationContext(
                 new RequestHeader(), null, RequestType.Call, RequestLifetime.None))
             {
-                context.PinRouting(table);
+                routing.PinRequest(context);
                 NodeManagerRoutingTable.RoutingSnapshot captured = context.RoutingSnapshot!;
                 bool known = await master.IsNodeMaterializedAsync(ObjectIds.ObjectsFolder, timeout.Token)
                     .ConfigureAwait(false);
@@ -321,19 +321,21 @@ namespace Opc.Ua.Server.Tests.NodeManager
             bool registerBeforePin,
             bool registerAfterPin)
         {
-            await using var master = new OverridingMasterNodeManager(m_server.CurrentInstance, m_fixture.Config);
+            var table = new NodeManagerRoutingTable();
+            await using var master = new OverridingMasterNodeManager(
+                m_server.CurrentInstance, m_fixture.Config, table);
             var proxy = new Mock<IAsyncNodeManager>();
             master.LookupManager = proxy.Object;
             using var context = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
             var routing = (IRequestRouting)master;
             if (registerBeforePin)
             {
-                GetRoutingTable(master).Add(proxy.Object, [9]);
+                table.Add(proxy.Object, [9]);
             }
             routing.PinRequest(context);
             if (registerAfterPin)
             {
-                GetRoutingTable(master).Add(proxy.Object, [9]);
+                table.Add(proxy.Object, [9]);
             }
             (object? handle, IAsyncNodeManager? manager) = await routing.GetManagerHandleAsync(
                 context, new NodeId("LegacyLookup", 9), CancellationToken.None).ConfigureAwait(false);
@@ -362,15 +364,24 @@ namespace Opc.Ua.Server.Tests.NodeManager
             return values[0].WrappedValue.GetInt32();
         }
 
-        private static NodeManagerRoutingTable GetRoutingTable(MasterNodeManager master)
-        {
-            FieldInfo field = typeof(MasterNodeManager).GetField(
-                "m_nodeManagers", BindingFlags.Instance | BindingFlags.NonPublic)!;
-            return (NodeManagerRoutingTable)field.GetValue(master)!;
-        }
-
+        // TODO: Remove when CA1812 recognizes construction by the NUnit test methods.
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Performance",
+            "CA1812:Avoid uninstantiated internal classes",
+            Justification = "The test methods instantiate this private helper directly.")]
         private sealed class OverridingMasterNodeManager : MasterNodeManager
         {
+            /// <summary>
+            /// Creates an overriding master with an explicitly owned routing table.
+            /// </summary>
+            public OverridingMasterNodeManager(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                NodeManagerRoutingTable routingTable)
+                : base(server, configuration, routingTable)
+            {
+            }
+
             public OverridingMasterNodeManager(IServerInternal server, ApplicationConfiguration configuration)
                 : base(server, configuration, null, System.Array.Empty<INodeManager>())
             {

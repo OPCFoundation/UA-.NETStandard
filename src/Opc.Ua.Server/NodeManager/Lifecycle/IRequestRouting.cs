@@ -38,6 +38,13 @@ namespace Opc.Ua.Server
     internal interface IRequestRouting
     {
         /// <summary>
+        /// Borrows the operation's routing view until the returned scope is disposed.
+        /// </summary>
+        /// <param name="context">The operation selecting routes.</param>
+        /// <returns>The scope releasing borrowed service ownership.</returns>
+        OperationContext.RoutingScope CaptureRequest(OperationContext context);
+
+        /// <summary>
         /// Pins the current routing view for request-lifetime consistency.
         /// Node-management writes defer pinning until their mutation admission is acquired.
         /// </summary>

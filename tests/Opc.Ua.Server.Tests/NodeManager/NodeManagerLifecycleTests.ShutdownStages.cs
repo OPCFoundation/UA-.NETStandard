@@ -28,11 +28,12 @@
  * ======================================================================*/
 
 using System;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Server.TestFramework;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
@@ -45,49 +46,76 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase(true)]
         public async Task RegistrationFailureDoesNotSkipIndependentAddressSpaceShutdownAsync(bool failCancellation)
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            using var cancellation = new CancellationTokenSource();
+            await FinishShutdownTestAsync().ConfigureAwait(false);
+            var timeProvider = new FakeTimeProvider(DateTimeOffset.UtcNow);
             var failure = new InvalidOperationException("The discovery registration failed during shutdown.");
-            using CancellationTokenRegistration callback = failCancellation
-                ? cancellation.Token.Register(() => throw failure)
-                : default;
-            FieldInfo cancellationField = GetShutdownTestField(typeof(StandardServer), "m_registrationCts");
-            FieldInfo registrationField = GetShutdownTestField(typeof(StandardServer), "m_registrationTask");
-            Mock<IAsyncNodeManager> manager = CreateLifecycleNodeManager(
-                "urn:opcfoundation.org:Tests:NodeManagerLifecycle:RegistrationFailureCleanup");
-            Mock<IDisposable> disposable = manager.As<IDisposable>();
-            var factory = new Mock<IAsyncNodeManagerFactory>();
-            factory.Setup(value => value.CreateAsync(It.IsAny<IServerInternal>(),
-                It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(manager.Object);
-            await m_server.NodeManagerLifecycle.AddAsync(factory.Object, timeout.Token).ConfigureAwait(false);
-            IServerInternal server = m_server.CurrentInstance;
-            cancellationField.SetValue(m_server, cancellation);
-            registrationField.SetValue(m_server, failCancellation ? Task.CompletedTask : Task.FromException(failure));
+            CancellationToken registrationToken = default;
+            int workerCreations = 0;
+            var fixture = new ServerFixture<ShutdownStageTestServer>(telemetry =>
+                new ShutdownStageTestServer(telemetry, timeProvider, cancellationToken =>
+                {
+                    registrationToken = cancellationToken;
+                    workerCreations++;
+                    return failCancellation ? Task.CompletedTask : Task.FromException(failure);
+                }))
+            {
+                UriScheme = Utils.UriSchemeOpcTcp,
+                SecurityNone = true,
+                AutoAccept = true
+            };
+            CancellationTokenRegistration callback = default;
             try
             {
+                await fixture.LoadConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
+                fixture.Config.ServerConfiguration!.MaxRegistrationInterval = 60_000;
+                ShutdownStageTestServer testServer = await fixture.StartAsync(m_pkiRoot).ConfigureAwait(false);
+                await testServer.CreateAndActivateSessionAsync(
+                    TestContext.CurrentContext.Test.Name,
+                    clientApplicationUri: kClientApplicationUri).ConfigureAwait(false);
+
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                Mock<IAsyncNodeManager> manager = CreateLifecycleNodeManager(
+                    "urn:opcfoundation.org:Tests:NodeManagerLifecycle:RegistrationFailureCleanup");
+                Mock<IDisposable> disposable = manager.As<IDisposable>();
+                var factory = new Mock<IAsyncNodeManagerFactory>();
+                factory.Setup(value => value.CreateAsync(It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(manager.Object);
+                await testServer.NodeManagerLifecycle.AddAsync(factory.Object, timeout.Token).ConfigureAwait(false);
+                IServerInternal server = testServer.CurrentInstance;
+                timeProvider.Advance(TimeSpan.FromSeconds(1));
+                Assert.That(workerCreations, Is.EqualTo(1));
+                Assert.That(registrationToken.CanBeCanceled, Is.True);
+                callback = failCancellation
+                    ? registrationToken.Register(() => throw failure)
+                    : default;
+
                 Exception? observed = await Assert.CatchAsync<Exception>(
-                    () => m_server.ShutdownInternalsAsync(timeout.Token).AsTask()).ConfigureAwait(false);
+                    () => testServer.ShutdownInternalsAsync(timeout.Token).AsTask()).ConfigureAwait(false);
 
                 Assert.That(observed, Is.Not.Null);
                 Assert.That(observed!.ToString(), Does.Contain(failure.Message));
                 manager.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
                 disposable.Verify(value => value.Dispose(), Times.Once);
-                Assert.That(m_server.CurrentInstance, Is.SameAs(server));
-                Assert.That(registrationField.GetValue(m_server), Is.Null,
-                    "A completed failed registration task must not be replayed by the next stop attempt.");
+                Assert.That(testServer.CurrentInstance, Is.SameAs(server));
 
-                await m_server.ShutdownInternalsAsync(timeout.Token).ConfigureAwait(false);
+                await testServer.ShutdownInternalsAsync(timeout.Token).ConfigureAwait(false);
 
+                Assert.That(workerCreations, Is.EqualTo(1));
                 manager.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
                 disposable.Verify(value => value.Dispose(), Times.Once);
-                AssertServerInternalsDisposed();
+                ServiceResultException? halted = Assert.Throws<ServiceResultException>(
+                    () => _ = testServer.CurrentInstance);
+                Assert.That(halted!.StatusCode, Is.EqualTo(StatusCodes.BadServerHalted));
             }
             finally
             {
-                registrationField.SetValue(m_server, Task.CompletedTask);
-                cancellationField.SetValue(m_server, null);
-                await FinishShutdownTestAsync().ConfigureAwait(false);
+#if NET
+                await callback.DisposeAsync().ConfigureAwait(false);
+#else
+                callback.Dispose();
+#endif
+                await fixture.StopAsync().ConfigureAwait(false);
             }
         }
 
@@ -101,11 +129,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             IServerInternal server = m_server.CurrentInstance;
             var sessions = (SessionManager)server.SessionManager;
-            FieldInfo cancellationField = GetShutdownTestField(typeof(SessionManager), "m_workerCts");
-            var cancellation = (CancellationTokenSource?)cancellationField.GetValue(sessions)
-                ?? throw new AssertionException("The running session-monitor cancellation owner was not found.");
             var failure = new InvalidOperationException("The session-monitor cancellation callback failed.");
-            using CancellationTokenRegistration callback = cancellation.Token.Register(() => throw failure);
+            using CancellationTokenRegistration callback =
+                sessions.SessionMonitorCancellationToken.Register(() => throw failure);
             Mock<IAsyncNodeManager> manager = CreateLifecycleNodeManager(
                 "urn:opcfoundation.org:Tests:NodeManagerLifecycle:SessionDrainDependencies");
             Mock<IDisposable> disposable = manager.As<IDisposable>();
@@ -334,15 +360,33 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// Finds the existing private worker state used to inject a real shutdown-stage failure.
+        /// Runs shutdown assertions with a constructor-injected discovery-registration worker.
         /// </summary>
-        /// <param name="type">The component that owns the worker state.</param>
-        /// <param name="name">The worker field name.</param>
-        /// <returns>The required field.</returns>
-        private static FieldInfo GetShutdownTestField(Type type, string name)
+        // TODO: Remove when CA1812 recognizes construction through ServerFixture<T>.
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Performance",
+            "CA1812:Avoid uninstantiated internal classes",
+            Justification = "ServerFixture<T> creates this server from the test factory.")]
+        private sealed class ShutdownStageTestServer : StandardServer
         {
-            return type.GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)
-                ?? throw new AssertionException($"The shutdown worker field {name} was not found.");
+            /// <summary>
+            /// Initializes the server with its clock and registration-worker factory.
+            /// </summary>
+            public ShutdownStageTestServer(
+                ITelemetryContext telemetry,
+                TimeProvider timeProvider,
+                Func<CancellationToken, Task> registrationWorkerFactory)
+                : base(telemetry, timeProvider, registrationWorkerFactory)
+            {
+            }
+
+            /// <summary>
+            /// Runs the server's normal internal shutdown stages.
+            /// </summary>
+            public ValueTask ShutdownInternalsAsync(CancellationToken cancellationToken)
+            {
+                return OnServerStoppingAsync(cancellationToken);
+            }
         }
     }
 }

@@ -32,7 +32,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -414,45 +413,63 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
         /// <summary>
         /// A permanently installed cohort never reuses a state accepted by stale null-cohort bootstrap paths.
-        /// This checks the protocol invariant, not an intercepted interleaving between individual field reads.
+        /// A construction-bound checkpoint forces stale null-cohort decisions across drain and upgrade.
         /// </summary>
         [Test]
         public void BorrowedRoutingCohortNeverReentersOrdinaryBootstrapStates()
         {
-            FieldInfo stateField = typeof(OperationContext).GetField(
-                "m_routingPinState", BindingFlags.Instance | BindingFlags.NonPublic)!;
-            FieldInfo cohortField = typeof(OperationContext).GetField(
-                "m_routingCohort", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            AssertStaleBootstrapCannotBypassBorrowedOwnership(upgradeBeforeDisposal: false);
+            AssertStaleBootstrapCannotBypassBorrowedOwnership(upgradeBeforeDisposal: true);
+        }
+
+        /// <summary>
+        /// Forces an ordinary path to observe null before a cohort installs and drains or upgrades.
+        /// </summary>
+        private static void AssertStaleBootstrapCannotBypassBorrowedOwnership(bool upgradeBeforeDisposal)
+        {
             NodeManagerRoutingTable table = CreateTable(out _, out _);
-            using var ordinary = new OperationContext(
-                new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
-            int unclaimed = (int)stateField.GetValue(ordinary)!;
-            ordinary.PinRouting(table);
-            int ordinaryActive = (int)stateField.GetValue(ordinary)!;
-            using var borrowed = new OperationContext(
-                new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
-            using (borrowed.CaptureRouting(table))
+            NodeManagerRoutingTable.RoutingSnapshot snapshot = table.Revision;
+            bool installCohort = true;
+            int checkpoints = 0;
+            OperationContext? context = null;
+            context = new OperationContext(new RequestHeader(), () =>
             {
-                Assert.That(cohortField.GetValue(borrowed), Is.Not.Null);
-            }
-            object cohort = cohortField.GetValue(borrowed)!;
-            int idle = (int)stateField.GetValue(borrowed)!;
-            using (borrowed.CaptureRouting(table))
+                checkpoints++;
+                if (!installCohort)
+                {
+                    return;
+                }
+                installCohort = false;
+                using OperationContext.RoutingScope scope = context!.CaptureRouting(table);
+                if (upgradeBeforeDisposal)
+                {
+                    context.PinRouting(table);
+                }
+            }, RequestLifetime.None);
+            using (context)
             {
-                Assert.That(cohortField.GetValue(borrowed), Is.SameAs(cohort));
-                borrowed.PinRouting(table);
+                if (upgradeBeforeDisposal)
+                {
+                    context.Dispose();
+                    Assert.That(snapshot.Epoch.ActiveCount, Is.Zero);
+                    Assert.That(() => context.CaptureRouting(table), Throws.TypeOf<ObjectDisposedException>(),
+                        "A stale ordinary release must revoke the installed cohort, not bypass it.");
+                }
+                else
+                {
+                    context.PinRouting(table);
+                    using (context.CaptureRouting(table))
+                    {
+                        Assert.That(context.RoutingSnapshot, Is.SameAs(snapshot));
+                        Assert.That(snapshot.Epoch.ActiveCount, Is.EqualTo(1),
+                            "A stale ordinary pin must not acquire outside the installed cohort.");
+                    }
+                    Assert.That(snapshot.Epoch.ActiveCount, Is.EqualTo(1));
+                }
+                Assert.That(checkpoints, Is.EqualTo(2),
+                    "Only the stale outer selection and the nested first borrow may select bootstrap.");
             }
-            int upgraded = (int)stateField.GetValue(borrowed)!;
-            using (Assert.EnterMultipleScope())
-            {
-                Assert.That(idle, Is.Not.EqualTo(unclaimed),
-                    "A stale null-cohort CAS must not claim bootstrap initialization after the cohort drained.");
-                Assert.That(idle, Is.Not.EqualTo(ordinaryActive));
-                Assert.That(upgraded, Is.Not.EqualTo(unclaimed));
-                Assert.That(upgraded, Is.Not.EqualTo(ordinaryActive),
-                    "A stale null-cohort release must not bypass the installed cohort's lock.");
-                Assert.That(cohortField.GetValue(borrowed), Is.SameAs(cohort));
-            }
+            Assert.That(snapshot.Epoch.ActiveCount, Is.Zero);
         }
 
         [Test]

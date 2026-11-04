@@ -72,6 +72,48 @@ namespace Opc.Ua.Server.Historian
         public IHistorianProvider? Provider { get; private set; }
 
         /// <summary>
+        /// Creates a weak reference to the capture-handler target registered for a variable.
+        /// </summary>
+        /// <param name="variable">The historized variable.</param>
+        /// <returns>A weak reference to the target retained by the variable event subscription.</returns>
+        /// <exception cref="InvalidOperationException">
+        /// Thrown when the variable does not have exactly one capture handler with a target.
+        /// </exception>
+        /// <exception cref="ArgumentNullException"><paramref name="variable"/> is null.</exception>
+        internal WeakReference<object> CreateCaptureHandlerTargetReference(BaseVariableState variable)
+        {
+            if (variable == null)
+            {
+                throw new ArgumentNullException(nameof(variable));
+            }
+            WeakReference<object>? captureHandlerTarget = null;
+            lock (m_captureSinkLock)
+            {
+                foreach (CaptureHandlerRegistration registration in m_captureHandlers)
+                {
+                    if (ReferenceEquals(registration.Variable, variable))
+                    {
+                        if (captureHandlerTarget != null)
+                        {
+                            throw new InvalidOperationException(
+                                "The variable has multiple registered historian capture handlers.");
+                        }
+                        if (registration.Handler.Target is not object target)
+                        {
+                            throw new InvalidOperationException(
+                                "The registered historian capture handler has no target.");
+                        }
+                        captureHandlerTarget = new WeakReference<object>(target);
+                    }
+                }
+            }
+
+            return captureHandlerTarget ??
+                throw new InvalidOperationException(
+                "The variable does not have a registered historian capture handler.");
+        }
+
+        /// <summary>
         /// Configures the builder to use the bundled
         /// <see cref="InMemoryHistorianProvider"/>. The returned provider
         /// is the same instance that becomes <see cref="Provider"/>; the

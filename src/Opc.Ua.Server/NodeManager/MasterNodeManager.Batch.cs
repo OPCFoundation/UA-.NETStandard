@@ -173,12 +173,28 @@ namespace Opc.Ua.Server
             }
         }
 
-        async ValueTask<PreparedAddressSpaceReferences> IDynamicNodeManagerBatchHost.PrepareReferencesAsync(
+        ValueTask<PreparedAddressSpaceReferences> IDynamicNodeManagerBatchHost.PrepareReferencesAsync(
             ArrayOf<PreparedNodeManager> candidates,
             ArrayOf<IAsyncNodeManager> removed,
             NodeManagerRoutingTable.RoutingSnapshot view,
             CancellationToken cancellationToken,
             NodeManagerCallbackPermit? callbackPermit)
+        {
+            ValueTask<PreparedAddressSpaceReferences> preparation =
+                PrepareReferencesAsync(candidates, removed, view, callbackPermit, cancellationToken);
+            m_hostBoundary?.ReferencePreparationDispatched();
+            return preparation;
+        }
+
+        /// <summary>
+        /// Prepares reference owners under the captured routing view.
+        /// </summary>
+        private async ValueTask<PreparedAddressSpaceReferences> PrepareReferencesAsync(
+            ArrayOf<PreparedNodeManager> candidates,
+            ArrayOf<IAsyncNodeManager> removed,
+            NodeManagerRoutingTable.RoutingSnapshot view,
+            NodeManagerCallbackPermit? callbackPermit,
+            CancellationToken cancellationToken)
         {
             if (!view.TryPin(out int stripe))
             {
@@ -252,6 +268,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Acquires the host capabilities required by a lifecycle commit.
+        /// </summary>
         async ValueTask<INodeManagerBatchAdmission> IDynamicNodeManagerBatchHost.AcquireCommitAdmissionAsync(
             NodeManagerCallbackPermit? callbackPermit,
             CancellationToken cancellationToken)

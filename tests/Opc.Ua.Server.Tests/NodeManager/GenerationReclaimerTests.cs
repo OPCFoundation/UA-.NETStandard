@@ -324,6 +324,75 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// A delayed reclamation logs its exact blockers once without releasing or destroying the generation.
+        /// </summary>
+        [Test]
+        public async Task QuiescenceWarningReportsExactGenerationAndPinsWithoutForcingCleanupAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var clock = new FakeTimeProvider();
+            var timerReady = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var warning = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var timeProvider = new Mock<TimeProvider>();
+            timeProvider.Setup(value => value.GetTimestamp()).Returns(clock.GetTimestamp);
+            timeProvider.SetupGet(value => value.TimestampFrequency).Returns(clock.TimestampFrequency);
+            timeProvider.Setup(value => value.CreateTimer(
+                It.IsAny<TimerCallback>(), It.IsAny<object?>(), It.IsAny<TimeSpan>(), It.IsAny<TimeSpan>()))
+                .Returns((TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period) =>
+                {
+                    ITimer timer = clock.CreateTimer(callback, state, dueTime, period);
+                    timerReady.TrySetResult(true);
+                    return timer;
+                });
+            using var reclaimer = new GenerationReclaimer(timeProvider.Object);
+            var context = new ReclamationContext();
+            GenerationReclaimer.RetiredGeneration retired = context.CreateRetirement();
+            context.Logger.Setup(value => value.Log(
+                LogLevel.Warning, It.IsAny<EventId>(), It.IsAny<It.IsAnyType>(),
+                It.IsAny<Exception?>(), It.IsAny<Func<It.IsAnyType, Exception?, string>>()))
+                .Callback(new InvocationAction(invocation =>
+                    warning.TrySetResult(invocation.Arguments[2]?.ToString()
+                        ?? throw new InvalidOperationException("The warning did not contain log state."))));
+            var epoch = new AddressSpaceEpoch();
+            Assert.That(epoch.TryPin(out int pin), Is.True);
+            retired.Generation.RegisterViewEpoch(epoch);
+            Assert.That(retired.Generation.Gate.TryEnter(out int admission), Is.True);
+            epoch.Close();
+            retired.Generation.Gate.Retire();
+            reclaimer.Enqueue([retired]);
+            reclaimer.Activate([retired]);
+            try
+            {
+                reclaimer.Schedule();
+                await timerReady.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                clock.Advance(LifecycleWaitDiagnostics.WarningThreshold);
+                string message = await warning.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(message, Does.Contain("retired generation quiescence"));
+                Assert.That(message, Does.Contain(LifecycleWaitDiagnostics.WarningThreshold.ToString()));
+                Assert.That(message, Does.Contain(retired.Generation.GetQuiescenceWaitContext()));
+                Assert.That(message, Does.Contain($"pinnedEpochs=[{epoch.Id}=1]"));
+                Assert.That(retired.Generation.Gate.ActiveCount, Is.EqualTo(1));
+                Assert.That(epoch.ActiveCount, Is.EqualTo(1));
+                Assert.That(retired.Retirement.IsCompleted, Is.False);
+                context.Host.Verify(value => value.DestroyAddressSpaceAsync(
+                    retired.NodeManager, It.IsAny<CancellationToken>()), Times.Never);
+                clock.Advance(TimeSpan.FromMinutes(1));
+            }
+            finally
+            {
+                epoch.Exit(pin);
+                retired.Generation.Gate.Exit(admission);
+                await reclaimer.CompleteShutdownAsync(timeout.Token).ConfigureAwait(false);
+            }
+            context.Logger.Verify(value => value.Log(
+                LogLevel.Warning, It.IsAny<EventId>(), It.IsAny<It.IsAnyType>(),
+                It.IsAny<Exception?>(), It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Once);
+            context.Host.Verify(value => value.DestroyAddressSpaceAsync(
+                retired.NodeManager, It.IsAny<CancellationToken>()), Times.Once);
+            Assert.That(retired.Retirement.Status, Is.EqualTo(TaskStatus.RanToCompletion));
+        }
+
+        /// <summary>
         /// A failed post-destruction stage is logged while retry skips every successful stage.
         /// </summary>
         [TestCase("Notifications")]

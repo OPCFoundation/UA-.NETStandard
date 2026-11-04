@@ -231,6 +231,12 @@ the current view. Continuous overlap can extend this shared view and delay retir
 bounded-retirement guarantee for a context that never reaches quiescence. Independent contexts retain
 independent views, and callbacks receive the original context instance.
 
+A derived master's legacy `GetManagerHandleAsync` override can delegate to the
+base lookup using the caller's routing view while that override is active.
+The compatibility scope carries no `OperationContext` and releases its image
+on return, cancellation or failure, including in captured execution contexts.
+A later contextless lookup reads live routes.
+
 An explicit internal `PinRouting` call transfers the current view to context ownership, even if a
 borrowed service scope acquired it first. Service return does not release that explicit pin.
 Disposing a context is terminal: no new service scope or explicit pin may enter afterward, but
@@ -1620,12 +1626,16 @@ transactional.
 
 #### Invocation publication units
 
-`INodeManagerLifecycle.CapturePublication` records the serving revisions; `BeginAsync(ct)`
+`lifecycle.CaptureChanges()` records the serving revisions; `BeginAsync(ct)`
 reserves the invocation, and `IsCurrent` reports whether the revisions still match. A stale
 invocation must be disposed and recaptured. Units are prepared with
-`INodeManagerPublication.PrepareAsync` and follow the same decision and cleanup contracts.
+`ILifecycleWriter.PrepareAsync` and follow the same decision and cleanup contracts.
 `SupportsPreparedPublication` and `SupportsPublicationIsolation` report whether the attached host
 supports the corresponding transaction operations.
+
+Providers and exact-generation consumers can continue to use
+`INodeManagerLifecycle.CapturePublication` and `INodeManagerPublication.PrepareAsync`;
+the slot-targeted API adapts that same transaction rather than introducing a second writer.
 
 Admission stays held across every unit. Other lifecycle mutations fail `BadServerTooBusy` before
 effects and can retry after disposal, so callback code should defer conflicting lifecycle work

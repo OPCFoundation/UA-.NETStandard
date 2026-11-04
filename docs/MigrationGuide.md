@@ -124,20 +124,27 @@ The nullable annotations on `IMonitoredItem.NodeManager` and `ManagerHandle` des
 metadata only and do not break binaries; callers that dereference these properties without a check
 get nullable warnings.
 
-| Previous call | Prepared change |
+| Previous call | Slot-targeted change |
 | --- | --- |
-| `AddAsync(factory)` | `NodeManagerBatchChange.Add(asyncFactory)` |
-| `ReloadAsync(current, factory)` or `ShadowReloadAsync(current, factory)` | `NodeManagerBatchChange.Replace(current, asyncFactory, NodeManagerMonitoredItemTransitionMode.Migrate)` |
-| `ImmediateReloadAsync(current, factory)` | `NodeManagerBatchChange.Replace(current, asyncFactory, NodeManagerMonitoredItemTransitionMode.Invalidate)` |
-| `RemoveAsync(current)` | `NodeManagerBatchChange.Remove(current)` |
+| `AddAsync(factory)` | `LifecycleChange.Add(asyncFactory)` |
+| `ReloadAsync(current, factory)` or `ShadowReloadAsync(current, factory)` | `LifecycleChange.Replace(current.Slot, asyncFactory, NodeManagerMonitoredItemTransitionMode.Migrate)` |
+| `ImmediateReloadAsync(current, factory)` | `LifecycleChange.Replace(current.Slot, asyncFactory, NodeManagerMonitoredItemTransitionMode.Invalidate)` |
+| `RemoveAsync(current)` | `LifecycleChange.Remove(current.Slot)` |
 | Runtime NodeSet add/reload helpers | The same changes using `new RuntimeNodeSetNodeManagerFactory(options)` |
 
 ```csharp
-await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-    [NodeManagerBatchChange.Replace(current, factory)], cancellationToken);
-NodeManagerBatchResult result = await prepared.CommitAsync(static _ => default, cancellationToken);
-current = result.Registrations[0]; // Authoritative even if result.CleanupFailure is non-null.
+NodeManagerSlot slot = current.Slot;
+LifecycleResult result = await lifecycle.ApplyAsync(
+    [LifecycleChange.Replace(slot, factory)], cancellationToken);
 ```
+
+The slot remains the target after replacement; `result.Registrations` identifies the exact committed
+generation. Inspect `result.Issues` even when publication succeeded. Use `IPreparedChanges` and
+explicit commit when the publication must follow a durable application decision.
+The existing `NodeManagerBatchChange`, `IPreparedNodeManagerBatch` and `NodeManagerBatchResult`
+contract remains available for providers and exact-generation consumers during the migration window.
+An exact-registration replacement rejects a stale generation; a slot-targeted change selects the
+generation current when preparation captures its routing revision.
 
 Pass no callback context to `PrepareAsync` or `CapturePublication().BeginAsync`. Obsolete context
 extensions ignore it and forward only the changes and cancellation token. Use an
@@ -163,7 +170,8 @@ single-operation pipeline, committed runtime readiness uses a noncancelable toke
 after publication cannot interrupt it. Participant-thrown cancellation is still a committed failure.
 Inspect `CleanupFailure`
 and retain the published revision/slots/registrations rather than retrying a committed operation as
-an addition. Await `result.Retirement` only outside work whose admission must drain. The compatibility
+an addition. Await `LifecycleResult.Retired` only outside work whose admission must drain
+(`NodeManagerBatchResult.Retirement` is the compatibility equivalent). The compatibility
 shims retain `NodeManagerAddCommittedException`, `NodeManagerReloadCommittedException`, and
 `NodeManagerRemovalCommittedException`; each carries the authoritative registration and committed
 `Result`. Add/reload exceptions created using their legacy constructors have no result.

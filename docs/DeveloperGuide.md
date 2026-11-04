@@ -106,6 +106,14 @@ Conventions and requirements:
   repository assets there; no asset or assembly copying is needed. An invalid
   configured root fails explicitly instead of falling back to another checkout.
 - **NUnit 5 async assertions.** Always await `Assert.ThrowsAsync`, `Assert.CatchAsync`, and `Assert.DoesNotThrowAsync`; these methods return tasks and no longer block until the assertion completes. The enclosing test or helper must return `Task`.
+- **WoT registry test storage.** File-backed registry and certificate fixtures
+  create unique directories under `Path.GetTempPath()` and delete their own
+  directories during cleanup. On Windows, select a short writable temporary
+  root before starting the runner (for example, set `TEMP` and `TMP` to
+  `D:\temp`). Registry staging keys and certificate names can otherwise exceed
+  the .NET Framework path limit when appended to a long checkout directory.
+  Keep repository assets in their existing locations; only writable test
+  storage belongs under the temporary root.
 - **Ordered NUnit fixtures.** Use `DependsOnTest` rather than the obsolete `Order` attribute. Existing sequencing-only dependencies use `AllowFailure = true` so one failed test does not suppress later tests. Filtering a dependent test also runs its prerequisites; dependency chains must not use fixture-level `Parallelizable`.
 - **Coverage.** Coverage is measured with **Coverlet** and must not regress; every non-application, non-test project should stay at or above **80 %**. Two gates enforce this in CI — see [Continuous integration](#continuous-integration).
 - **Integration tests.** Client/server and pub/sub features need integration tests as well as unit tests. A feature library's integration tests normally live with its unit tests in `<Component>.Tests`, for example `Opc.Ua.Robotics.Tests`, and every test project name ends in `.Tests`. Split integration tests into a separate project only when they run long, destabilise the unit tests, or the suite needs further division. Keep them deterministic: allocate a free port per fixture rather than hard-coding one, wait on the actual signal instead of using `Thread.Sleep` as a synchronisation primitive, and dispose every session, subscription and server in teardown including on failure. A flaky integration test is worse than none.

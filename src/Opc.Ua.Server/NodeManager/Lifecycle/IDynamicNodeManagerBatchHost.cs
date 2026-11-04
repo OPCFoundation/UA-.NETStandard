@@ -193,6 +193,29 @@ namespace Opc.Ua.Server
         INodeManagerBatchAdmission? Admission = null);
 
     /// <summary>
+    /// Decorates publication and observes dispatch without replacing the bound host or its owners.
+    /// </summary>
+    internal interface INodeManagerHostBoundary
+    {
+        /// <summary>
+        /// Executes publication through the real host, optionally decorating its commit notification.
+        /// </summary>
+        ValueTask<PublishedReferenceChanges?> CommitBatchAsync(
+            NodeManagerPublicationPlan plan,
+            Func<NodeManagerPublicationPlan, ValueTask<PublishedReferenceChanges?>> publish);
+
+        /// <summary>
+        /// Observes reference preparation after the host has returned its pending or completed operation.
+        /// </summary>
+        void ReferencePreparationDispatched();
+
+        /// <summary>
+        /// Observes AddNodes after the host has returned its pending or completed operation.
+        /// </summary>
+        void AddNodesDispatched();
+    }
+
+    /// <summary>
     /// Publication responsibilities of the unified dynamic NodeManager host.
     /// </summary>
     internal interface IDynamicNodeManagerBatchHost

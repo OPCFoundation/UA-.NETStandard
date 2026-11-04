@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -51,10 +50,10 @@ namespace Opc.Ua.Server.Tests
         private const string kDerivedManagerNamespace = "urn:opcfoundation.org:Tests:DerivedMasterLookup";
 
         /// <summary>
-        /// Candidate facades retain the host's clock and expose host registries only while published.
+        /// Candidate facades retain the host clock and private historian registry while gating host registries.
         /// </summary>
         [Test]
-        public async Task CandidateServerPreservesClockAndGatesHistorianRegistrationAsync()
+        public async Task CandidateServerPreservesClockAndSeparatesHistorianDeclarationsAsync()
         {
             var clock = new CandidateTimeProvider();
             var fixture = new ServerFixture<StandardServer>(telemetry => new StandardServer(telemetry, clock));
@@ -71,9 +70,10 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(facade, Is.InstanceOf<IConformanceUnitsManagerProvider>());
                 var conformance = (IConformanceUnitsManagerProvider)facade;
                 Assert.That(conformance.ConformanceUnitsManager, Is.Null);
-                Assert.That(
-                    () => historian.HistorianRegistry,
-                    Throws.TypeOf<InvalidOperationException>());
+                IHistorianProviderRegistry candidateHistorian = historian.HistorianRegistry;
+                Assert.That(candidateHistorian, Is.InstanceOf<StagedHistorianProviderRegistry>());
+                Assert.That(candidateHistorian,
+                    Is.Not.SameAs(((IHistorianRegistryProvider)server.CurrentInstance).HistorianRegistry));
                 Assert.That(
                     () => aliases.AliasNameStoreRegistry,
                     Throws.TypeOf<InvalidOperationException>());
@@ -83,16 +83,14 @@ namespace Opc.Ua.Server.Tests
                         ((IConformanceUnitsManagerProvider)server.CurrentInstance).ConformanceUnitsManager));
                 Assert.That(
                     historian.HistorianRegistry,
-                    Is.SameAs(((IHistorianRegistryProvider)server.CurrentInstance).HistorianRegistry));
+                    Is.SameAs(candidateHistorian));
                 Assert.That(
                     aliases.AliasNameStoreRegistry,
                     Is.SameAs(((IAliasNameStoreRegistryProvider)server.CurrentInstance).AliasNameStoreRegistry));
                 staging.Detach();
                 Assert.That(conformance.ConformanceUnitsManager, Is.Null);
                 Assert.That(((ITimeProviderProvider)facade).TimeProvider, Is.SameAs(clock));
-                Assert.That(
-                    () => historian.HistorianRegistry,
-                    Throws.TypeOf<InvalidOperationException>());
+                Assert.That(historian.HistorianRegistry, Is.SameAs(candidateHistorian));
                 Assert.That(
                     () => aliases.AliasNameStoreRegistry,
                     Throws.TypeOf<InvalidOperationException>());
@@ -123,12 +121,17 @@ namespace Opc.Ua.Server.Tests
                 StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
                 TypeTable types = server.CurrentInstance.TypeTree;
                 var factory = (EncodeableFactory)server.CurrentInstance.Factory;
-                Assert.That(GetRoutingImage(server.CurrentInstance.NodeManager), Is.SameAs(types));
+                TypeTable servingImage = GetRoutingImage(server.CurrentInstance.NodeManager);
+                Assert.That(servingImage, Is.Not.SameAs(types));
+                Assert.That(servingImage.FindSuperType(ObjectTypeIds.FolderType),
+                    Is.EqualTo(ObjectTypeIds.BaseObjectType));
 
                 using (var secondary = new MasterNodeManager(
                     server.CurrentInstance, fixture.Config, null, Array.Empty<INodeManager>()))
                 {
-                    Assert.That(GetRoutingImage(secondary), Is.SameAs(types));
+                    Assert.That(GetRoutingImage(secondary), Is.Not.SameAs(types));
+                    Assert.That(GetRoutingImage(secondary).FindSuperType(ObjectTypeIds.FolderType),
+                        Is.EqualTo(ObjectTypeIds.BaseObjectType));
                     Assert.That(server.CurrentInstance.Factory, Is.SameAs(factory));
                 }
 
@@ -264,6 +267,47 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A legacy lookup's captured context cannot retain its completed operation or superseded routing image.
+        /// </summary>
+        [Test]
+        public async Task CompletedLegacyLookupDoesNotRetainOperationInCapturedContextAsync()
+        {
+            var fixture = new ServerFixture<StandardServer>(telemetry => new StandardServer(telemetry));
+            try
+            {
+                StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
+                var manager = new Mock<IAsyncNodeManager>();
+                manager.SetupGet(value => value.NamespaceUris).Returns([kDerivedManagerNamespace]);
+                using var master = new OverridingMasterNodeManager(
+                    server.CurrentInstance, fixture.Config, manager.Object, new object());
+                ushort namespaceIndex = checked((ushort)server.CurrentInstance.NamespaceUris.GetIndex(
+                    kDerivedManagerNamespace));
+                (WeakReference<OperationContext> operation,
+                    WeakReference<NodeManagerRoutingTable.RoutingSnapshot> snapshot) = await CaptureLegacyLookupAsync(
+                    master, new NodeId("CapturedLookup", namespaceIndex)).ConfigureAwait(false);
+                Assert.That(master.CapturedContext, Is.Not.Null);
+                var additional = new Mock<IAsyncNodeManager>();
+                additional.SetupGet(value => value.NamespaceUris).Returns([kDerivedManagerNamespace]);
+                await master.RegisterNamespaceManagerAsync(kDerivedManagerNamespace, additional.Object)
+                    .ConfigureAwait(false);
+                for (int attempt = 0; attempt < 3; attempt++)
+                {
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                    GC.Collect();
+                }
+                Assert.That(operation.TryGetTarget(out _), Is.False);
+                Assert.That(snapshot.TryGetTarget(out _), Is.False);
+                GC.KeepAlive(master.CapturedContext);
+                GC.KeepAlive(master);
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
         /// Verifies that server shutdown does not replace canonical metadata handles.
         /// </summary>
         [Test]
@@ -274,9 +318,10 @@ namespace Opc.Ua.Server.Tests
             try
             {
                 StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
-                TypeTable types = server.CurrentInstance.TypeTree;
-                var factory = (EncodeableFactory)server.CurrentInstance.Factory;
-                TypeTable servingImage = GetRoutingImage(server.CurrentInstance.NodeManager);
+                IServerInternal serving = server.CurrentInstance;
+                TypeTable types = serving.TypeTree;
+                var factory = (EncodeableFactory)serving.Factory;
+                TypeTable servingImage = GetRoutingImage(serving.NodeManager);
                 NodeId[] probes =
                 [
                     ObjectTypeIds.FolderType,
@@ -284,20 +329,29 @@ namespace Opc.Ua.Server.Tests
                     VariableTypeIds.BaseDataVariableType,
                     DataTypeIds.Int32
                 ];
+                var parents = new NodeId[probes.Length];
+                for (int i = 0; i < probes.Length; i++)
+                {
+                    Assert.That(servingImage.IsKnown(probes[i]), Is.True);
+                    parents[i] = servingImage.FindSuperType(probes[i]);
+                }
                 await fixture.StopAsync().ConfigureAwait(false);
                 stopped = true;
                 using (Assert.EnterMultipleScope())
                 {
+                    Assert.That(serving.TypeTree, Is.SameAs(types));
+                    Assert.That(serving.Factory, Is.SameAs(factory));
                     Assert.That(factory.Fork(), Is.Not.SameAs(factory));
-                    foreach (NodeId probe in probes)
+                    for (int i = 0; i < probes.Length; i++)
                     {
-                        Assert.That(types.FindSuperType(probe), Is.EqualTo(servingImage.FindSuperType(probe)));
-                        Assert.That(types.IsKnown(probe), Is.EqualTo(servingImage.IsKnown(probe)));
+                        Assert.That(servingImage.FindSuperType(probes[i]), Is.EqualTo(parents[i]));
+                        Assert.That(servingImage.IsKnown(probes[i]), Is.True);
                     }
                 }
                 NodeId added = new(987655, 1);
                 types.AddSubtype(added, NodeId.Null);
-                Assert.That(servingImage.IsKnown(added), Is.True);
+                Assert.That(types.IsKnown(added), Is.True);
+                Assert.That(servingImage.IsKnown(added), Is.False);
             }
             finally
             {
@@ -311,6 +365,11 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Exercises the legacy virtual lookup path without overriding its default implementation.
         /// </summary>
+        // TODO: Remove when CA1812 recognizes construction by the NUnit test methods.
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Performance",
+            "CA1812:Avoid uninstantiated internal classes",
+            Justification = "The test methods instantiate this private helper directly.")]
         private sealed class DerivedMasterNodeManager : MasterNodeManager
         {
             /// <summary>
@@ -331,6 +390,11 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Returns a controlled owner through a legacy virtual lookup override.
         /// </summary>
+        // TODO: Remove when CA1812 recognizes construction by the NUnit test methods.
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Performance",
+            "CA1812:Avoid uninstantiated internal classes",
+            Justification = "The test methods instantiate this private helper directly.")]
         private sealed class OverridingMasterNodeManager : MasterNodeManager
         {
             /// <summary>
@@ -356,12 +420,18 @@ namespace Opc.Ua.Server.Tests
             /// </summary>
             public int LookupCount { get; private set; }
 
+            /// <summary>
+            /// Gets the execution context captured by the latest override invocation.
+            /// </summary>
+            public ExecutionContext? CapturedContext { get; private set; }
+
             /// <inheritdoc/>
             public override ValueTask<(object? handle, IAsyncNodeManager? nodeManager)> GetManagerHandleAsync(
                 NodeId nodeId,
                 CancellationToken cancellationToken = default)
             {
                 LookupCount++;
+                CapturedContext = ExecutionContext.Capture();
                 return new ValueTask<(object?, IAsyncNodeManager?)>((Handle, Manager));
             }
 
@@ -376,12 +446,42 @@ namespace Opc.Ua.Server.Tests
             private object Handle { get; }
         }
 
+        /// <summary>
+        /// Completes a scoped lookup without returning a strong reference to its service operation.
+        /// </summary>
+        /// <param name="master">The master whose legacy override captures the execution context.</param>
+        /// <param name="nodeId">The node to resolve.</param>
+        /// <returns>Weak references to the completed operation and its routing image.</returns>
+        /// <exception cref="InvalidOperationException">The read did not capture routes.</exception>
+        private static async Task<(WeakReference<OperationContext> Operation,
+            WeakReference<NodeManagerRoutingTable.RoutingSnapshot> Snapshot)> CaptureLegacyLookupAsync(
+            OverridingMasterNodeManager master,
+            NodeId nodeId)
+        {
+            using var context = new OperationContext(
+                new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+            var routing = (IRequestRouting)master;
+            routing.PinRequest(context);
+            await routing.GetManagerHandleAsync(context, nodeId, CancellationToken.None).ConfigureAwait(false);
+            NodeManagerRoutingTable.RoutingSnapshot snapshot = context.RoutingSnapshot
+                ?? throw new InvalidOperationException("The read did not capture routes.");
+            return (new WeakReference<OperationContext>(context),
+                new WeakReference<NodeManagerRoutingTable.RoutingSnapshot>(snapshot));
+        }
+
+        /// <summary>
+        /// Captures the same immutable type image that a read operation receives.
+        /// </summary>
+        /// <param name="manager">The routing owner.</param>
+        /// <returns>The captured type image.</returns>
+        /// <exception cref="InvalidOperationException">The read operation did not capture a type image.</exception>
         private static TypeTable GetRoutingImage(IMasterNodeManager manager)
         {
-            FieldInfo field = typeof(MasterNodeManager).GetField(
-                "m_nodeManagers", BindingFlags.Instance | BindingFlags.NonPublic)!;
-            var table = (NodeManagerRoutingTable)field.GetValue(manager)!;
-            return table.Revision.TypeTree!;
+            using var context = new OperationContext(
+                new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+            ((IRequestRouting)manager).PinRequest(context);
+            return context.RoutingSnapshot?.TypeTree
+                ?? throw new InvalidOperationException("The read operation did not capture a type image.");
         }
     }
 }

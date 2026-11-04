@@ -119,9 +119,7 @@ namespace Opc.Ua.Server
             {
                 EnsureRunning();
                 m_activeOperations++;
-                var operation = new OperationLifetime(this, m_currentOperation.Value);
-                m_currentOperation.Value = operation;
-                return operation;
+                return new OperationLifetime(this);
             }
         }
 
@@ -149,7 +147,7 @@ namespace Opc.Ua.Server
                 {
                     throw new InvalidOperationException("The publication revision belongs to another writer.");
                 }
-                return new PublicationSession(this, revision, EnterOperation());
+                return new PublicationSession(this, revision);
             }
         }
 
@@ -381,8 +379,7 @@ namespace Opc.Ua.Server
         /// </summary>
         internal sealed class PublicationSession(
             LifecycleWriter owner,
-            PublicationRevision revision,
-            OperationLifetime operation) : IAsyncDisposable
+            PublicationRevision revision) : IAsyncDisposable
         {
             /// <summary>
             /// Gets whether this invocation's expected serving revisions remain current.
@@ -513,7 +510,7 @@ namespace Opc.Ua.Server
                 finally
                 {
                     m_batches.Clear();
-                    operation.Dispose();
+                    m_operation.Dispose();
                     m_finished.TrySetResult(true);
                 }
             }
@@ -532,6 +529,9 @@ namespace Opc.Ua.Server
             private TaskCompletionSource<bool> m_prepared =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
+            /// <summary>The operation admitted and owned by this invocation until its cleanup finishes.</summary>
+            private readonly OperationLifetime m_operation = owner.EnterOperation();
+
             /// <summary>Whether a transaction is being prepared.</summary>
             private bool m_preparing;
 
@@ -547,27 +547,9 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Creates operation ownership without transferring ownership of the writer.
             /// </summary>
-            internal OperationLifetime(LifecycleWriter owner, OperationLifetime? parent)
+            internal OperationLifetime(LifecycleWriter owner)
             {
                 m_owner = owner;
-                Parent = parent;
-            }
-
-            /// <summary>
-            /// Gets the parent operation in the originating execution context.
-            /// </summary>
-            internal OperationLifetime? Parent { get; }
-
-            /// <summary>
-            /// Activates a transferred operation for nested invocation admission.
-            /// </summary>
-            internal IDisposable Activate()
-            {
-                LifecycleWriter writer = Volatile.Read(ref m_owner) ??
-                    throw new ObjectDisposedException(nameof(OperationLifetime));
-                OperationLifetime? previous = writer.m_currentOperation.Value;
-                writer.m_currentOperation.Value = this;
-                return new AmbientScope(writer, previous);
             }
 
             /// <inheritdoc/>
@@ -576,23 +558,7 @@ namespace Opc.Ua.Server
                 LifecycleWriter? writer = Interlocked.Exchange(ref m_owner, null);
                 if (writer is not null)
                 {
-                    if (ReferenceEquals(writer.m_currentOperation.Value, this))
-                    {
-                        writer.m_currentOperation.Value = Parent;
-                    }
                     writer.ExitOperation();
-                }
-            }
-
-            /// <summary>
-            /// Restores operation context without ending the transferred operation.
-            /// </summary>
-            private sealed class AmbientScope(LifecycleWriter writer, OperationLifetime? previous) : IDisposable
-            {
-                /// <inheritdoc/>
-                public void Dispose()
-                {
-                    writer.m_currentOperation.Value = previous;
                 }
             }
 
@@ -615,9 +581,7 @@ namespace Opc.Ua.Server
                     Validate(owner);
                     owner.ThrowIfDecisionCallbackActive();
                     owner.m_activeOperations++;
-                    var operation = new OperationLifetime(owner, owner.m_currentOperation.Value);
-                    owner.m_currentOperation.Value = operation;
-                    return operation;
+                    return new OperationLifetime(owner);
                 }
             }
 
@@ -679,9 +643,6 @@ namespace Opc.Ua.Server
 
         /// <summary>Protects operation and invocation admission.</summary>
         private readonly Lock m_state = new();
-
-        /// <summary>Active transferred operation context for lifecycle callbacks.</summary>
-        private readonly AsyncLocal<OperationLifetime?> m_currentOperation = new();
 
         /// <summary>Active durable decision in the current execution context.</summary>
         private readonly AsyncLocal<DecisionScope?> m_decision = new();

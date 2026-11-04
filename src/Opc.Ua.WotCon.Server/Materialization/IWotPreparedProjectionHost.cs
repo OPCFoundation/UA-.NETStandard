@@ -123,6 +123,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <param name="views">The WoT prepared view publication.</param>
         /// <param name="callerContext">
         /// The executing request's context, or <c>null</c> for an external or background caller.
+        /// The default lifecycle host uses context-free preparation and ignores this compatibility parameter.
         /// </param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         ValueTask<IWotPreparedProjectionPublication> PrepareAsync(
@@ -157,8 +158,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Reserves publication admission and reports whether preparation is still current.
         /// </summary>
         /// <param name="callerContext">
-        /// The executing request's context, so the post-commit request drain excludes that request,
-        /// or <c>null</c> for an external caller that does not run inside a server request.
+        /// The executing request's context, or <c>null</c> for an external or background caller.
+        /// The default lifecycle host ignores this compatibility parameter. Commit does not wait for
+        /// the executing request's generation admission to drain.
         /// </param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         ValueTask<IWotProjectionPublication> BeginAsync(

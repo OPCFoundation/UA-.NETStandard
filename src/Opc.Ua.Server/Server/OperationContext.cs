@@ -192,6 +192,22 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Creates an internal read context with a construction-bound routing bootstrap checkpoint.
+        /// </summary>
+        /// <param name="requestHeader">The request header.</param>
+        /// <param name="beforeRoutingBootstrap">Observes null-cohort selection before reading its pin state.</param>
+        /// <param name="requestLifetime">The request lifetime.</param>
+        internal OperationContext(
+            RequestHeader requestHeader,
+            Action beforeRoutingBootstrap,
+            RequestLifetime requestLifetime)
+            : this(requestHeader, null, RequestType.Read, requestLifetime)
+        {
+            m_beforeRoutingBootstrap =
+                beforeRoutingBootstrap ?? throw new ArgumentNullException(nameof(beforeRoutingBootstrap));
+        }
+
+        /// <summary>
         /// The context for the secure channel used to send the request.
         /// </summary>
         /// <value>The channel context.</value>
@@ -467,6 +483,7 @@ namespace Opc.Ua.Server
                     cohort.PinRouting(routingTable);
                     return;
                 }
+                m_beforeRoutingBootstrap?.Invoke();
                 int state = Volatile.Read(ref m_routingPinState);
                 if (state == kRoutingPinReleased)
                 {
@@ -514,6 +531,7 @@ namespace Opc.Ua.Server
                 {
                     return cohort.Enter(routingTable);
                 }
+                m_beforeRoutingBootstrap?.Invoke();
                 int state = Volatile.Read(ref m_routingPinState);
                 if (state == kRoutingPinReleased)
                 {
@@ -593,6 +611,7 @@ namespace Opc.Ua.Server
                     cohort.DisposeContext();
                     return;
                 }
+                m_beforeRoutingBootstrap?.Invoke();
                 int state = Volatile.Read(ref m_routingPinState);
                 if (state == kRoutingPinReleased)
                 {

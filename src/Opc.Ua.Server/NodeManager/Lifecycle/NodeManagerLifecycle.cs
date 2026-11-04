@@ -30,14 +30,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using Opc.Ua.Schema;
 using Opc.Ua.Server.RuntimeNodeSet;
-using RetiredGeneration = Opc.Ua.Server.GenerationReclaimer.RetiredGeneration;
 using OperationLifetime = Opc.Ua.Server.LifecycleWriter.OperationLifetime;
+using RetiredGeneration = Opc.Ua.Server.GenerationReclaimer.RetiredGeneration;
 
 namespace Opc.Ua.Server
 {
@@ -2314,6 +2312,10 @@ namespace Opc.Ua.Server
                 {
                     reconciliation.ReportOwnedFailure(NodeManagerReconciliationStage.Publication, failure);
                 }
+                finally
+                {
+                    committedReferences ??= lifecycleCommit.CommittedReferences;
+                }
                 if (decideAsync is null)
                 {
                     return null;
@@ -3002,7 +3004,6 @@ namespace Opc.Ua.Server
                     {
                         return;
                     }
-                    using IDisposable ambientOperation = operation.Activate();
                     if (!IsCommitted)
                     {
                         Exception? failure = await m_owner.AbortBatchEntriesAsync(
@@ -3053,9 +3054,10 @@ namespace Opc.Ua.Server
                 }
                 try
                 {
-                    using IDisposable ambientOperation = (m_operation ??
-                        throw new InvalidOperationException("The prepared batch no longer owns its lifecycle operation."))
-                        .Activate();
+                    if (m_operation is null)
+                    {
+                        throw new InvalidOperationException("The prepared batch no longer owns its lifecycle operation.");
+                    }
                     return await m_owner.CompleteBatchAsync(
                         this, decideAsync, cancellationToken, publishCommittedState).ConfigureAwait(false);
                 }
