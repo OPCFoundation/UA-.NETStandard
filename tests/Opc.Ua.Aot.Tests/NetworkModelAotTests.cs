@@ -30,6 +30,7 @@
 
 using Microsoft.Extensions.DependencyInjection;
 using Opc.Ua.Client.Network;
+using Opc.Ua.Server.Hosting;
 using Opc.Ua.Server.Network;
 using TUnit.Core.Interfaces;
 
@@ -57,18 +58,19 @@ namespace Opc.Ua.Aot.Tests
                 })
                 .Build(DateTime.UtcNow, StatusCodes.Good);
 
-            var nodeManagerFactory = new NetworkModelNodeManagerFactory(
-                networkProvider,
-                static _ => false);
-            await Assert.That(nodeManagerFactory.NamespacesUris[0])
-                .IsEqualTo(NetworkModelNodeManager.NamespaceUri);
-
             var serverServices = new ServiceCollection();
             serverServices.AddOpcUa()
                 .AddServer(options => options.ApplicationName = "NetworkModelAotServer")
                 .AddNetworkModel(networkProvider);
             using ServiceProvider serverProvider = serverServices.BuildServiceProvider();
-            await Assert.That(serverProvider).IsNotNull();
+            OpcUaServerNodeManagerRegistration registration = serverProvider
+                .GetServices<OpcUaServerNodeManagerRegistration>()
+                .Single();
+            NetworkModelNodeManagerFactory registeredFactory = registration.AsyncFactory
+                as NetworkModelNodeManagerFactory
+                ?? throw new InvalidOperationException("The network model registration has no async factory.");
+            await Assert.That(registeredFactory.NamespacesUris[0])
+                .IsEqualTo(NetworkModelNodeManager.NamespaceUri);
 
             var clientServices = new ServiceCollection();
             clientServices.AddSingleton(telemetry);
