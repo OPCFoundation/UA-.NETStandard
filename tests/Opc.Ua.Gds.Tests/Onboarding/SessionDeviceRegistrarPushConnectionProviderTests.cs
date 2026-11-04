@@ -334,7 +334,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         [Test]
         public async Task AdmissionAndAllCleanupFailuresAreRetained()
         {
-            var session = new Mock<ISession>(MockBehavior.Strict);
+            var session = new Mock<Opc.Ua.Client.ISession>(MockBehavior.Strict);
             session.Setup(value => value.CloseAsync(5000, true, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(StatusCodes.BadCommunicationError);
             var disposal = new IOException("dispose failure");
@@ -483,7 +483,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         /// <summary>
         /// Supplies a configured factory that returns one owned session without opening a socket.
         /// </summary>
-        private static Mock<ISessionFactory> Factory(ISession session)
+        private static Mock<ISessionFactory> Factory(Opc.Ua.Client.ISession session)
         {
             var factory = new Mock<ISessionFactory>(MockBehavior.Strict);
             factory.Setup(value => value.CreateAsync(
