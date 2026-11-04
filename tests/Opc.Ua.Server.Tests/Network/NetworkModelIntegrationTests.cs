@@ -1010,6 +1010,18 @@ namespace Opc.Ua.Server.Tests.Network
         public async Task CustomProviderMayOmitOptionalEnumBearingValues(CancellationToken cancellationToken)
         {
             NetworkModelSnapshot initial = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            ArrayOf<ReferenceDescription> publishedInterfaces = await m_client.BrowseObjectsAsync(
+                ObjectIds.NetworkInterfaces, cancellationToken).ConfigureAwait(false);
+            NodeId physical = ExpandedNodeId.ToNodeId(publishedInterfaces.ToList()
+                .Single(reference => reference.BrowseName.Name == "eth0").NodeId, m_session.NamespaceUris);
+            await WaitForAsync(async () =>
+                await HasInterfaceInSubtreeAsync(
+                    physical, ObjectTypeIds.IIeeeAutoNegotiationStatusType, cancellationToken)
+                    .ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
+            Assert.That(await HasInterfaceInSubtreeAsync(
+                physical, ObjectTypeIds.IIeeeAutoNegotiationStatusType, cancellationToken)
+                .ConfigureAwait(false), Is.True);
+
             NetworkInterfaceSnapshot[] interfaces = initial.Interfaces.Span.ToArray();
             for (int index = 0; index < interfaces.Length; index++)
             {
@@ -1034,21 +1046,17 @@ namespace Opc.Ua.Server.Tests.Network
                 Streams = ArrayOf.Wrapped(streams)
             });
 
-            ArrayOf<ReferenceDescription> publishedInterfaces = await m_client.BrowseObjectsAsync(
-                ObjectIds.NetworkInterfaces, cancellationToken).ConfigureAwait(false);
-            NodeId physical = ExpandedNodeId.ToNodeId(publishedInterfaces.ToList()
-                .Single(reference => reference.BrowseName.Name == "eth0").NodeId, m_session.NamespaceUris);
             await WaitForAsync(async () =>
             {
                 NetworkInterfaceValues values = await m_client.ReadInterfaceAsync(
                     physical, cancellationToken).ConfigureAwait(false);
                 return values.Speed.DataValue.SourceTimestamp == (DateTimeUtc)timestamp &&
-                    !await HasInterfaceAsync(
+                    !await HasInterfaceInSubtreeAsync(
                         physical, ObjectTypeIds.IIeeeAutoNegotiationStatusType, cancellationToken)
                         .ConfigureAwait(false);
             },
                 cancellationToken).ConfigureAwait(false);
-            Assert.That(await HasInterfaceAsync(
+            Assert.That(await HasInterfaceInSubtreeAsync(
                 physical, ObjectTypeIds.IIeeeAutoNegotiationStatusType, cancellationToken)
                 .ConfigureAwait(false), Is.False);
 
@@ -3232,6 +3240,50 @@ namespace Opc.Ua.Server.Tests.Network
             Assert.That(response.Results[0].ContinuationPoint.IsEmpty, Is.True);
             return response.Results[0].References.ToList()
                 .Any(reference => reference.NodeId == new ExpandedNodeId(interfaceType));
+        }
+
+        /// <summary>
+        /// Checks whether an object subtree contains an instance of a Part 22 interface.
+        /// </summary>
+        private async Task<bool> HasInterfaceInSubtreeAsync(
+            NodeId node, NodeId interfaceType, CancellationToken cancellationToken)
+        {
+            var pending = new Queue<NodeId>();
+            var visited = new HashSet<NodeId>();
+            pending.Enqueue(node);
+            while (pending.Count != 0)
+            {
+                NodeId current = pending.Dequeue();
+                if (!visited.Add(current))
+                {
+                    continue;
+                }
+                BrowseResponse response = await m_session.BrowseAsync(null, null, 0,
+                    [
+                        new BrowseDescription
+                        {
+                            NodeId = current,
+                            BrowseDirection = BrowseDirection.Forward,
+                            ReferenceTypeId = ReferenceTypeIds.HasInterface,
+                            IncludeSubtypes = true,
+                            ResultMask = (uint)BrowseResultMask.All
+                        }
+                    ], cancellationToken).ConfigureAwait(false);
+                Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(response.Results[0].ContinuationPoint.IsEmpty, Is.True);
+                if (response.Results[0].References.ToList()
+                    .Any(reference => reference.NodeId == new ExpandedNodeId(interfaceType)))
+                {
+                    return true;
+                }
+                ArrayOf<ReferenceDescription> children = await m_client.BrowseObjectsAsync(current, cancellationToken)
+                    .ConfigureAwait(false);
+                foreach (ReferenceDescription child in children.ToList())
+                {
+                    pending.Enqueue(ExpandedNodeId.ToNodeId(child.NodeId, m_session.NamespaceUris));
+                }
+            }
+            return false;
         }
 
         /// <summary>
