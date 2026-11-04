@@ -997,6 +997,7 @@ namespace Opc.Ua.Scales.Tests
         private async Task WriteAnalogConditionAsync(NodeId conditionId)
         {
             var condition = (AnalogConditionSleepState)m_runtime.Manager.FindPredefinedNode(conditionId)!;
+            condition.TargetThresholdValue!.EngineeringUnits!.Value = ScaleUnits.Kilogram;
             WriteResponse response = await m_session.WriteAsync(
                 null,
                 new WriteValue[]
@@ -1016,19 +1017,13 @@ namespace Opc.Ua.Scales.Tests
                     },
                     new()
                     {
-                        NodeId = condition.TargetThresholdValue.EngineeringUnits!.NodeId,
-                        AttributeId = Attributes.Value,
-                        Value = new DataValue(Variant.From(new ExtensionObject(ScaleUnits.Kilogram)))
-                    },
-                    new()
-                    {
                         NodeId = condition.ConditionMode!.NodeId,
                         AttributeId = Attributes.Value,
                         Value = new DataValue(Variant.From((int)EqualityAndRelationalOperator.Equal_0))
                     }
                 }.ToArrayOf(),
                 CancellationToken.None);
-            Assert.That(response.Results.Count, Is.EqualTo(4));
+            Assert.That(response.Results.Count, Is.EqualTo(3));
             Assert.That(response.Results.ToList().All(StatusCode.IsGood), Is.True);
         }
 
