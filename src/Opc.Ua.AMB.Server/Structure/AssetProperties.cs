@@ -132,92 +132,6 @@ namespace Opc.Ua.AMB.Server.Structure
         }
 
         /// <summary>
-        /// Finds or creates a DI property beside an existing DI property.
-        /// Registers the asset subtree so an attached but unindexed parent or property is service-visible.
-        /// </summary>
-        /// <param name="handle">The asset.</param>
-        /// <param name="name">The DI browse name.</param>
-        /// <param name="dataType">The data type of a created property.</param>
-        /// <param name="value">The value.</param>
-        /// <param name="sibling">The existing property whose parent to use.</param>
-        /// <returns>The property.</returns>
-        public static BaseVariableState EnsureDiSibling(
-            AssetHandle handle,
-            string name,
-            NodeId dataType,
-            Variant value,
-            BaseVariableState sibling)
-        {
-            if (sibling.Parent is not BaseObjectState parent)
-            {
-                return EnsureDi(
-                    handle,
-                    name,
-                    dataType,
-                    value,
-                    Variant.Null,
-                    Opc.Ua.Di.ObjectTypeIds.IVendorNameplateType);
-            }
-
-            var browseName = new QualifiedName(name, handle.DiNamespaceIndex);
-            BaseVariableState? target = parent.FindChildWithQualifiedName(handle.Context, browseName)
-                as BaseVariableState;
-            BaseVariableState? direct = handle.Asset.FindChildWithQualifiedName(handle.Context, browseName)
-                as BaseVariableState;
-            BaseObjectState? identification = handle.Asset.FindChildWithQualifiedName(
-                handle.Context,
-                new QualifiedName(AssetIdentification.IdentificationGroup, handle.DiNamespaceIndex))
-                as BaseObjectState;
-            BaseVariableState? grouped = identification?.FindChildWithQualifiedName(handle.Context, browseName)
-                as BaseVariableState;
-            if (target == null && (direct ?? grouped) is BaseVariableState existing)
-            {
-                target = existing;
-                if (existing.Parent is BaseObjectState oldParent && !ReferenceEquals(oldParent, parent))
-                {
-                    RemoveChild(oldParent, existing);
-                    parent.AddChild(existing);
-                }
-            }
-
-            if (target != null)
-            {
-                if (direct != null && !ReferenceEquals(direct, target) &&
-                    direct.Parent is BaseObjectState directParent)
-                {
-                    RemoveChild(directParent, direct);
-                }
-                if (grouped != null && !ReferenceEquals(grouped, target) &&
-                    grouped.Parent is BaseObjectState groupedParent)
-                {
-                    RemoveChild(groupedParent, grouped);
-                }
-                Shape(target, dataType);
-                target.WrappedValue = value;
-                target.Timestamp = DateTimeUtc.Now;
-                target.ClearChangeMasks(handle.Context, false);
-                handle.Owner.AddNode(handle.Asset);
-                return target;
-            }
-
-            BaseVariableState variable;
-            if (parent.CreateChild(handle.Context, browseName) is BaseVariableState declared)
-            {
-                variable = declared;
-                Shape(variable, dataType);
-            }
-            else
-            {
-                variable = Create(handle, parent, browseName, dataType);
-            }
-            variable.WrappedValue = value;
-            variable.Timestamp = DateTimeUtc.Now;
-            AssetNodes.Register(handle, variable);
-            handle.Owner.AddNode(handle.Asset);
-            return variable;
-        }
-
-        /// <summary>
         /// Adds a <c>Requirements</c> or <c>Capabilities</c> folder with its
         /// entries (OPC 10000-110 §10.6, §10.7).
         /// </summary>
@@ -290,32 +204,16 @@ namespace Opc.Ua.AMB.Server.Structure
             return folder;
         }
 
-        private static void RemoveChild(BaseObjectState parent, BaseVariableState child)
-        {
-            parent.RemoveReference(child.ReferenceTypeId, false, child.NodeId);
-            child.RemoveReference(child.ReferenceTypeId, true, parent.NodeId);
-            parent.RemoveChild(child);
-        }
-
         private static PropertyState Create(AssetHandle handle, QualifiedName browseName, NodeId dataType)
         {
-            return Create(handle, handle.Asset, browseName, dataType);
-        }
-
-        private static PropertyState Create(
-            AssetHandle handle,
-            BaseObjectState parent,
-            QualifiedName browseName,
-            NodeId dataType)
-        {
-            var property = new PropertyState(parent)
+            var property = new PropertyState(handle.Asset)
             {
                 SymbolicName = browseName.Name ?? string.Empty,
                 BrowseName = browseName,
                 DisplayName = new LocalizedText(browseName.Name)
             };
             Shape(property, dataType);
-            parent.AddChild(property);
+            handle.Asset.AddChild(property);
             return property;
         }
 

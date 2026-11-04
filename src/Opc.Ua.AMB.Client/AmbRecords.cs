@@ -73,12 +73,6 @@ namespace Opc.Ua.AMB.Client
         public int? RevisionCounter { get; init; }
 
         /// <summary>
-        /// Gets vendor-supplied DI patch identifiers beside SoftwareRevision (§10.2).
-        /// A null array means absent or null; an empty array is a published empty list.
-        /// </summary>
-        public ArrayOf<string> PatchIdentifiers { get; init; }
-
-        /// <summary>
         /// Gets original identification reads, including absent optional paths,
         /// when the client uses AmbClientOptions; empty for legacy construction.
         /// </summary>
@@ -355,21 +349,6 @@ namespace Opc.Ua.AMB.Client
         /// <summary>The <c>Capabilities</c> folder.</summary>
         Capabilities
     }
-
-    /// <summary>
-    /// An asset identity independent of session-relative namespace and server indexes.
-    /// </summary>
-    /// <param name="ServerUri">The server ApplicationUri.</param>
-    /// <param name="NodeId">The absolute namespace-qualified NodeId, with ServerIndex zero.</param>
-    public sealed record AssetNodeReference(string ServerUri, ExpandedNodeId NodeId);
-
-    /// <summary>
-    /// A non-hierarchical relation with a URI-qualified, verified asset target.
-    /// </summary>
-    /// <param name="ReferenceTypeId">The reference type in the originating session's namespace table.</param>
-    /// <param name="IsInverse">Whether the target holds the forward reference.</param>
-    /// <param name="Target">The verified asset identity.</param>
-    public sealed record AssetRelationReference(NodeId ReferenceTypeId, bool IsInverse, AssetNodeReference Target);
 
     /// <summary>
     /// A non-hierarchical relation of an asset to another asset

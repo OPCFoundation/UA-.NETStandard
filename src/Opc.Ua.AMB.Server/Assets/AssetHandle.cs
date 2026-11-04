@@ -43,10 +43,7 @@ namespace Opc.Ua.AMB.Server.Assets
     /// <summary>
     /// What an application asked for when it registered an asset.
     /// </summary>
-    internal sealed class AssetBuilder :
-        IAssetBuilder,
-        IAssetHistoryBuilder,
-        IAssetVersionInformationBuilder
+    internal sealed class AssetBuilder : IAssetBuilder, IAssetHistoryBuilder
     {
         /// <summary>
         /// Gets whether the <c>AssetId</c> is configurable.
@@ -202,21 +199,7 @@ namespace Opc.Ua.AMB.Server.Assets
             string? softwareRevision = null,
             int? revisionCounter = null)
         {
-            return WithVersionInformation(hardwareRevision, softwareRevision, revisionCounter, default);
-        }
-
-        /// <inheritdoc/>
-        public IAssetBuilder WithVersionInformation(
-            string? hardwareRevision,
-            string? softwareRevision,
-            int? revisionCounter,
-            ArrayOf<string> patchIdentifiers)
-        {
-            Structure.Version = new VersionRequest(
-                hardwareRevision,
-                softwareRevision,
-                revisionCounter,
-                patchIdentifiers);
+            Structure.Version = new VersionRequest(hardwareRevision, softwareRevision, revisionCounter);
             return this;
         }
 

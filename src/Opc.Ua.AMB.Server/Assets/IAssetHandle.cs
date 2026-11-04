@@ -371,33 +371,6 @@ namespace Opc.Ua.AMB.Server.Assets
     }
 
     /// <summary>
-    /// Optional capability for asset builders that accept vendor-supplied
-    /// patch identifiers with version information.
-    /// </summary>
-    public interface IAssetVersionInformationBuilder
-    {
-        /// <summary>
-        /// Adds version information and the vendor's patch identifiers.
-        /// </summary>
-        /// <param name="hardwareRevision">The hardware revision, or null to leave it.</param>
-        /// <param name="softwareRevision">The software revision, or null to leave it.</param>
-        /// <param name="revisionCounter">
-        /// The revision counter, or null to keep an existing one; a created one
-        /// starts at 0.
-        /// </param>
-        /// <param name="patchIdentifiers">
-        /// The vendor-supplied identifiers to publish in the read-only
-        /// <c>2:PatchIdentifiers</c> Property.
-        /// </param>
-        /// <returns>The same builder, for chaining.</returns>
-        IAssetBuilder WithVersionInformation(
-            string? hardwareRevision,
-            string? softwareRevision,
-            int? revisionCounter,
-            ArrayOf<string> patchIdentifiers);
-    }
-
-    /// <summary>
     /// Optional capability for asset builders that override AMB history
     /// configuration.
     /// </summary>

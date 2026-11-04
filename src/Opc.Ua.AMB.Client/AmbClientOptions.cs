@@ -28,9 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Threading;
-using System.Threading.Tasks;
-using Opc.Ua.Client;
 
 namespace Opc.Ua.AMB.Client
 {
@@ -49,12 +46,6 @@ namespace Opc.Ua.AMB.Client
     /// </remarks>
     public sealed record AmbClientOptions
     {
-        /// <summary>
-        /// Gets the application-supplied resolver for borrowed remote sessions.
-        /// No connection, credentials or trust decisions are created by AMB.
-        /// </summary>
-        public IAmbSessionResolver? SessionResolver { get; init; }
-
         /// <summary>
         /// Gets the maximum total references consumed by a traversal, including
         /// duplicates and references to remote nodes. Also bounds FindAlias
@@ -84,19 +75,5 @@ namespace Opc.Ua.AMB.Client
                 throw new ArgumentOutOfRangeException(nameof(MaximumBrowsePages));
             }
         }
-    }
-
-    /// <summary>
-    /// Resolves an application-owned session by its server ApplicationUri.
-    /// </summary>
-    public interface IAmbSessionResolver
-    {
-        /// <summary>
-        /// Borrows an existing session without transferring ownership to AMB.
-        /// </summary>
-        /// <param name="serverUri">The target server's ApplicationUri, not an endpoint URL.</param>
-        /// <param name="cancellationToken">The cancellation token.</param>
-        /// <returns>The borrowed session, or null when none is available.</returns>
-        ValueTask<ISession?> ResolveAsync(string serverUri, CancellationToken cancellationToken = default);
     }
 }

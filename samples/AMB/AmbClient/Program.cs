@@ -187,10 +187,6 @@ static void Print(AssetSnapshot snapshot)
             $"  hardware {id.HardwareRevision ?? "-"}, software {id.SoftwareRevision ?? "-"}, " +
             $"revision counter {id.RevisionCounter}");
     }
-    if (!id.PatchIdentifiers.IsNull)
-    {
-        Console.WriteLine($"  patches: {string.Join(", ", id.PatchIdentifiers.ToList())}");
-    }
     if (snapshot.DeviceHealth != null)
     {
         Console.WriteLine($"  DeviceHealth {snapshot.DeviceHealth}");

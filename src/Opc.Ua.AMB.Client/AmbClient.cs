@@ -92,7 +92,7 @@ namespace Opc.Ua.AMB.Client
         /// </summary>
         /// <param name="session">The borrowed session, never disposed by this client.</param>
         /// <param name="telemetry">The telemetry context.</param>
-        /// <param name="options">The immutable traversal limits and optional borrowed-session resolver.</param>
+        /// <param name="options">The immutable traversal limits.</param>
         public AmbClient(ISession session, ITelemetryContext telemetry, AmbClientOptions options)
             : this(session, telemetry)
         {

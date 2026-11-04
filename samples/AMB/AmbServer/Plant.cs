@@ -157,7 +157,7 @@ namespace AmbSample
                         .Add("SpareParts", "https://acme-pumps.example/cw80/spares")
                         .AddEditable("OperatorHandbook")
                         .AllowUserLinks())
-                    .WithVersionInformation("B", "2.4.1", 1, patchIdentifiers: [])
+                    .WithVersionInformation("B", "2.4.1", 1)
                     .LocatedIn(AssetLocationKind.Hierarchical, Line)
                     .LocatedIn(AssetLocationKind.Operational, Cooling)
                     .WithLocation(AssetLocationKind.Hierarchical, Line, writable: true)

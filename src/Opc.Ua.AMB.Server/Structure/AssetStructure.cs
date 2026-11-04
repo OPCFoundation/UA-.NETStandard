@@ -57,14 +57,7 @@ namespace Opc.Ua.AMB.Server.Structure
     /// <param name="HardwareRevision">The hardware revision, or null.</param>
     /// <param name="SoftwareRevision">The software revision, or null.</param>
     /// <param name="RevisionCounter">The revision counter, or null to keep it.</param>
-    /// <param name="PatchIdentifiers">
-    /// The vendor-supplied patch identifiers, or the default array value to omit them.
-    /// </param>
-    internal sealed record VersionRequest(
-        string? HardwareRevision,
-        string? SoftwareRevision,
-        int? RevisionCounter,
-        ArrayOf<string> PatchIdentifiers);
+    internal sealed record VersionRequest(string? HardwareRevision, string? SoftwareRevision, int? RevisionCounter);
 
     /// <summary>
     /// What an application asked for about the version information,
@@ -191,7 +184,7 @@ namespace Opc.Ua.AMB.Server.Structure
 
             if (request.Version is VersionRequest version)
             {
-                await ApplyVersionAsync(manager, handle, version, cancellationToken).ConfigureAwait(false);
+                ApplyVersion(handle, version);
             }
 
             foreach (KeyValuePair<AssetLocationKind, LocationPropertyRequest> location in request.LocationProperties)
@@ -387,11 +380,7 @@ namespace Opc.Ua.AMB.Server.Structure
             };
         }
 
-        private static async ValueTask ApplyVersionAsync(
-            AmbNodeManager manager,
-            AssetHandle handle,
-            VersionRequest version,
-            CancellationToken cancellationToken)
+        private static void ApplyVersion(AssetHandle handle, VersionRequest version)
         {
             if (version.HardwareRevision != null)
             {
@@ -438,91 +427,6 @@ namespace Opc.Ua.AMB.Server.Structure
                 counterValue,
                 Variant.From(0),
                 interfaceId: ExpandedNodeId.Null);
-
-            if (!version.PatchIdentifiers.IsNull)
-            {
-                if (await HasSoftwareUpdateAddInAsync(manager, handle, cancellationToken).ConfigureAwait(false))
-                {
-                    return;
-                }
-
-                BaseVariableState? softwareRevision = AssetIdentification.FindProperty(
-                    handle.Context,
-                    handle.Asset,
-                    handle.DiNamespaceIndex,
-                    Opc.Ua.Di.BrowseNames.SoftwareRevision);
-                if (softwareRevision == null)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadConfigurationError,
-                        "Asset '{0}' has PatchIdentifiers but no SoftwareRevision.",
-                        handle.BrowseName);
-                }
-
-                BaseVariableState patchIdentifiers = AssetProperties.EnsureDiSibling(
-                    handle,
-                    Opc.Ua.Di.BrowseNames.PatchIdentifiers,
-                    Ua.DataTypeIds.String,
-                    Variant.From(version.PatchIdentifiers),
-                    softwareRevision);
-                patchIdentifiers.DataType = Ua.DataTypeIds.String;
-                patchIdentifiers.ValueRank = ValueRanks.OneDimension;
-                patchIdentifiers.AccessLevel = AccessLevels.CurrentRead;
-                patchIdentifiers.UserAccessLevel = AccessLevels.CurrentRead;
-            }
-        }
-
-        private static async ValueTask<bool> HasSoftwareUpdateAddInAsync(
-            AmbNodeManager manager,
-            AssetHandle handle,
-            CancellationToken cancellationToken)
-        {
-            var children = new List<BaseInstanceState>();
-            handle.Asset.GetChildren(handle.Context, children);
-            foreach (BaseInstanceState child in children)
-            {
-                if (manager.Server.TypeTree.IsTypeOf(
-                        child.ReferenceTypeId,
-                        Ua.ReferenceTypeIds.HasAddIn) &&
-                    child is BaseObjectState addIn &&
-                    manager.Server.TypeTree.IsTypeOf(
-                        addIn.TypeDefinitionId,
-                        Opc.Ua.Di.ObjectTypeIds.SoftwareUpdateType))
-                {
-                    return true;
-                }
-            }
-
-            var references = new List<IReference>();
-            handle.Asset.GetReferences(handle.Context, references);
-            foreach (IReference reference in references)
-            {
-                if (reference.IsInverse ||
-                    !manager.Server.TypeTree.IsTypeOf(
-                        reference.ReferenceTypeId,
-                        Ua.ReferenceTypeIds.HasAddIn) ||
-                    reference.TargetId.IsAbsolute)
-                {
-                    continue;
-                }
-
-                NodeId targetId = ExpandedNodeId.ToNodeId(reference.TargetId, handle.Context.NamespaceUris);
-                if (targetId.IsNull)
-                {
-                    continue;
-                }
-                NodeState? target = await manager.Server.NodeManager
-                    .FindNodeInAddressSpaceAsync(targetId, cancellationToken)
-                    .ConfigureAwait(false);
-                if (target is BaseObjectState addIn &&
-                    manager.Server.TypeTree.IsTypeOf(
-                        addIn.TypeDefinitionId,
-                        Opc.Ua.Di.ObjectTypeIds.SoftwareUpdateType))
-                {
-                    return true;
-                }
-            }
-            return false;
         }
 
         private static void RequireProductInstanceUri(AssetHandle handle, string productInstanceUri, string property)
