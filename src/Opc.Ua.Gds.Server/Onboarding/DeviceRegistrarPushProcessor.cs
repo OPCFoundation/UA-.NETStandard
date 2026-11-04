@@ -37,6 +37,7 @@ using System.Threading.Tasks;
 using Opc.Ua.Client;
 using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Security.Certificates;
+using Ua = Opc.Ua;
 
 namespace Opc.Ua.Gds.Server.Onboarding
 {
@@ -320,9 +321,9 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     var server = new ServerConfigurationTypeClient(
                         dispatch.Session, connection.ServerConfigurationId, m_telemetry);
                     bool applyCertificate = await StageChangesAsync(server,
-                        async () => await server.UpdateCertificateAsync(
+                        () => server.UpdateCertificateAsync(
                             connection.CertificateGroupId, connection.CertificateTypeId, installed,
-                            issuerCertificates, string.Empty, default, cancellationToken).ConfigureAwait(false),
+                            issuerCertificates, string.Empty, default, cancellationToken),
                         null).ConfigureAwait(false);
                     if (applyCertificate)
                     {
@@ -503,9 +504,9 @@ namespace Opc.Ua.Gds.Server.Onboarding
 
             NodeId groups = await RequireChildAsync(session, node, BrowseNames.CertificateGroups, ct)
                 .ConfigureAwait(false);
-            NodeId group = await RequireChildAsync(session, groups, BrowseNames.DefaultApplicationGroup, ct)
+            NodeId group = await RequireChildAsync(session, groups, Ua.BrowseNames.DefaultApplicationGroup, ct)
                 .ConfigureAwait(false);
-            NodeId trustListId = await RequireChildAsync(session, group, BrowseNames.TrustList, ct)
+            NodeId trustListId = await RequireChildAsync(session, group, Ua.BrowseNames.TrustList, ct)
                 .ConfigureAwait(false);
             await RequireSupportedCertificateTypeAsync(session, group, connection.CertificateTypeId, ct)
                 .ConfigureAwait(false);
@@ -576,9 +577,9 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     .ConfigureAwait(false);
                 RequirePeer(dispatch, peer);
                 bool applyCertificate = await StageChangesAsync(configuration,
-                    async () => await configuration.UpdateCertificateAsync(
+                    () => configuration.UpdateCertificateAsync(
                         NodeId.Null, connection.CertificateTypeId, issuance.Certificate, issuers, string.Empty,
-                        default, ct).ConfigureAwait(false),
+                        default, ct),
                     retireSession).ConfigureAwait(false);
                 if (applyCertificate)
                 {
@@ -701,9 +702,11 @@ namespace Opc.Ua.Gds.Server.Onboarding
             NodeId node,
             CancellationToken ct)
         {
-            Variant uri = await ReadChildAsync(session, node, BrowseNames.ApplicationUri, ct).ConfigureAwait(false);
-            Variant product = await ReadChildAsync(session, node, BrowseNames.ProductUri, ct).ConfigureAwait(false);
-            Variant type = await ReadChildAsync(session, node, BrowseNames.ApplicationType, ct)
+            Variant uri = await ReadChildAsync(session, node, Ua.BrowseNames.ApplicationUri, ct)
+                .ConfigureAwait(false);
+            Variant product = await ReadChildAsync(session, node, Ua.BrowseNames.ProductUri, ct)
+                .ConfigureAwait(false);
+            Variant type = await ReadChildAsync(session, node, Ua.BrowseNames.ApplicationType, ct)
                 .ConfigureAwait(false);
             if (!uri.TryGetValue(out string applicationUri) || string.IsNullOrEmpty(applicationUri) ||
                 !product.TryGetValue(out string productUri) || !type.TryGetValue(out int applicationType))
@@ -712,7 +715,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             }
             ArrayOf<LocalizedText> applicationNames = default;
             NodeId namesId = await ClientModelAccess.ResolveAsync(
-                session, node, Namespaces.OpcUa, BrowseNames.ApplicationNames, ct).ConfigureAwait(false);
+                session, node, Namespaces.OpcUa, Ua.BrowseNames.ApplicationNames, ct).ConfigureAwait(false);
             if (!namesId.IsNull)
             {
                 DataValue names = await session.ReadValueAsync(namesId, ct).ConfigureAwait(false);
@@ -910,7 +913,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             NodeId certificateType,
             CancellationToken ct)
         {
-            Variant value = await ReadChildAsync(session, group, BrowseNames.CertificateTypes, ct)
+            Variant value = await ReadChildAsync(session, group, Ua.BrowseNames.CertificateTypes, ct)
                 .ConfigureAwait(false);
             if (value.TryGetValue(out ArrayOf<NodeId> types))
             {
