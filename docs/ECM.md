@@ -85,6 +85,10 @@ value and a unique, non-empty display name. A measurement that declares an
 accuracy class must also identify a published domain whose `EnumValues`
 contains that class. Accuracy metadata describes the provider's measurement;
 it does not certify the instrument.
+The manager supplies its node resolver to the binding. Direct
+`EcmMeasurementBinding` users must supply `findNode` when readings reference
+accuracy domains; the binding rejects those readings if the resolver is absent
+or the domain is not published.
 
 The manager owns bindings created by `CreatePowerAsync` or `CreateWolAsync`. Bindings borrow
 providers and do not dispose them. Direct users must register the configured

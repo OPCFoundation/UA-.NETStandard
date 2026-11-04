@@ -78,8 +78,8 @@ namespace Opc.Ua.ECM.Tests
                 "plant/line-1",
                 new EcmMeasurementReading(
                     nameof(BrowseNames.AcCurrentPe),
-                    Variant.From(new AcPeDataType { L1 = 1.25f, L2 = 2.5f, L3 = 3.75f }),
-                    new ExpandedNodeId(DataTypeIds.AcPeDataType, Namespaces.ECM),
+                    Variant.FromStructure(new AcPeDataType { L1 = 1.25f, L2 = 2.5f, L3 = 3.75f }),
+                    DataTypeIds.AcPeDataType,
                     StatusCodes.Good,
                     acquired),
                 FloatReading(nameof(BrowseNames.AcActivePowerTotal), 15.5f,
@@ -98,9 +98,9 @@ namespace Opc.Ua.ECM.Tests
                 point, context, nameof(BrowseNames.AcCurrentPe), ecmNamespace);
             Assert.That(
                 acCurrentPe.DataType,
-                Is.EqualTo(new NodeId(DataTypeIds.AcPeDataType, ecmNamespace)));
+                Is.EqualTo(ExpandedNodeId.ToNodeId(DataTypeIds.AcPeDataType, context.NamespaceUris)));
             Assert.That(acCurrentPe.ValueRank, Is.EqualTo(Opc.Ua.ValueRanks.Scalar));
-            Assert.That(acCurrentPe.WrappedValue.TryGetValue(out AcPeDataType? phaseCurrent), Is.True);
+            Assert.That(acCurrentPe.WrappedValue.TryGetStructure(out AcPeDataType phaseCurrent), Is.True);
             Assert.That(phaseCurrent!.L1, Is.EqualTo(1.25f));
             Assert.That(phaseCurrent.L2, Is.EqualTo(2.5f));
             Assert.That(phaseCurrent.L3, Is.EqualTo(3.75f));
@@ -128,9 +128,9 @@ namespace Opc.Ua.ECM.Tests
             PropertyState<string> applicationTag = point.ApplicationTag!;
             Assert.That(applicationTag.Value, Is.EqualTo("plant/line-1"));
             Assert.That(applicationTag.StatusCode, Is.EqualTo(StatusCodes.Good));
-            AssertProfileReference(point, ObjectTypeIds.IEnergyProfileE0Type, ecmNamespace);
-            AssertProfileReference(point, ObjectTypeIds.IEnergyProfileE1Type, ecmNamespace);
-            AssertProfileReference(point, ObjectTypeIds.IEnergyProfileD0Type, ecmNamespace);
+            AssertProfileReference(point, ObjectTypes.IEnergyProfileE0Type, ecmNamespace);
+            AssertProfileReference(point, ObjectTypes.IEnergyProfileE1Type, ecmNamespace);
+            AssertProfileReference(point, ObjectTypes.IEnergyProfileD0Type, ecmNamespace);
             Assert.That(provider.ReadCount, Is.EqualTo(1));
         }
 
@@ -157,28 +157,28 @@ namespace Opc.Ua.ECM.Tests
             {
                 case "E0":
                     measurementName = nameof(BrowseNames.AcCurrentPe);
-                    profileType = ObjectTypeIds.IEnergyProfileE0Type;
-                    dataType = new ExpandedNodeId(DataTypeIds.AcPeDataType, Namespaces.ECM);
-                    expectedDataType = new NodeId(DataTypeIds.AcPeDataType, ecmNamespace);
+                    profileType = ObjectTypes.IEnergyProfileE0Type;
+                    dataType = DataTypeIds.AcPeDataType;
+                    expectedDataType = ExpandedNodeId.ToNodeId(dataType, context.NamespaceUris);
                     reading = new EcmMeasurementReading(
                         measurementName,
-                        Variant.From(new AcPeDataType { L1 = 2f, L2 = 4f, L3 = 6f }),
+                        Variant.FromStructure(new AcPeDataType { L1 = 2f, L2 = 4f, L3 = 6f }),
                         dataType,
                         StatusCodes.Good,
                         acquired);
                     break;
                 case "E1":
                     measurementName = nameof(BrowseNames.AcActivePowerTotal);
-                    profileType = ObjectTypeIds.IEnergyProfileE1Type;
-                    dataType = new ExpandedNodeId(new NodeId(Opc.Ua.DataTypeIds.Float));
-                    expectedDataType = new NodeId(Opc.Ua.DataTypeIds.Float);
+                    profileType = ObjectTypes.IEnergyProfileE1Type;
+                    dataType = new ExpandedNodeId(Opc.Ua.DataTypeIds.Float);
+                    expectedDataType = Opc.Ua.DataTypeIds.Float;
                     reading = FloatReading(measurementName, 18f, StatusCodes.Good, acquired);
                     break;
                 case "D0":
                     measurementName = nameof(BrowseNames.DcCurrent);
-                    profileType = ObjectTypeIds.IEnergyProfileD0Type;
-                    dataType = new ExpandedNodeId(new NodeId(Opc.Ua.DataTypeIds.Float));
-                    expectedDataType = new NodeId(Opc.Ua.DataTypeIds.Float);
+                    profileType = ObjectTypes.IEnergyProfileD0Type;
+                    dataType = new ExpandedNodeId(Opc.Ua.DataTypeIds.Float);
+                    expectedDataType = Opc.Ua.DataTypeIds.Float;
                     reading = FloatReading(measurementName, 9f, StatusCodes.Good, acquired);
                     break;
                 default:
@@ -205,7 +205,7 @@ namespace Opc.Ua.ECM.Tests
                 Is.SameAs(binding.MeasurementPoint));
             if (profile == "E0")
             {
-                Assert.That(measurement.WrappedValue.TryGetValue(out AcPeDataType? phaseCurrent), Is.True);
+                Assert.That(measurement.WrappedValue.TryGetStructure(out AcPeDataType phaseCurrent), Is.True);
                 Assert.That(phaseCurrent!.L1, Is.EqualTo(2f));
                 Assert.That(phaseCurrent.L2, Is.EqualTo(4f));
                 Assert.That(phaseCurrent.L3, Is.EqualTo(6f));
@@ -218,9 +218,9 @@ namespace Opc.Ua.ECM.Tests
 
             uint[] otherProfiles = profile switch
             {
-                "E0" => [ObjectTypeIds.IEnergyProfileE1Type, ObjectTypeIds.IEnergyProfileD0Type],
-                "E1" => [ObjectTypeIds.IEnergyProfileE0Type, ObjectTypeIds.IEnergyProfileD0Type],
-                _ => [ObjectTypeIds.IEnergyProfileE0Type, ObjectTypeIds.IEnergyProfileE1Type]
+                "E0" => [ObjectTypes.IEnergyProfileE1Type, ObjectTypes.IEnergyProfileD0Type],
+                "E1" => [ObjectTypes.IEnergyProfileE0Type, ObjectTypes.IEnergyProfileD0Type],
+                _ => [ObjectTypes.IEnergyProfileE0Type, ObjectTypes.IEnergyProfileE1Type]
             };
             foreach (uint otherProfile in otherProfiles)
             {
@@ -363,7 +363,7 @@ namespace Opc.Ua.ECM.Tests
                     new EcmMeasurementReading(
                         nameof(BrowseNames.AcCurrentPe),
                         Variant.FromStructure(firstValue),
-                        new ExpandedNodeId(DataTypeIds.AcPeDataType, Namespaces.ECM),
+                        DataTypeIds.AcPeDataType,
                         StatusCodes.Good,
                         firstTimestamp,
                         EngineeringUnits: firstUnits)),
@@ -371,7 +371,7 @@ namespace Opc.Ua.ECM.Tests
                     new EcmMeasurementReading(
                         nameof(BrowseNames.AcCurrentPe),
                         Variant.FromStructure(secondValue),
-                        new ExpandedNodeId(DataTypeIds.AcPeDataType, Namespaces.ECM),
+                        DataTypeIds.AcPeDataType,
                         StatusCodes.Good,
                         secondTimestamp,
                         EngineeringUnits: secondUnits)));
@@ -390,7 +390,7 @@ namespace Opc.Ua.ECM.Tests
             firstUnits.UnitId = 999;
             firstUnits.DisplayName = new LocalizedText("changed");
 
-            Assert.That(measurement.WrappedValue.TryGetValue(out AcPeDataType? initialValue), Is.True);
+            Assert.That(measurement.WrappedValue.TryGetStructure(out AcPeDataType initialValue), Is.True);
             Assert.That(initialValue!.L1, Is.EqualTo(1.25f));
             Assert.That(measurement.EngineeringUnits!.Value.UnitId, Is.EqualTo(0x414D50));
             Assert.That(measurement.EngineeringUnits.Value.DisplayName.Text, Is.EqualTo("A"));
@@ -400,7 +400,7 @@ namespace Opc.Ua.ECM.Tests
             secondUnits.UnitId = 998;
             secondUnits.Description = new LocalizedText("changed");
 
-            Assert.That(measurement.WrappedValue.TryGetValue(out AcPeDataType? refreshedValue), Is.True);
+            Assert.That(measurement.WrappedValue.TryGetStructure(out AcPeDataType refreshedValue), Is.True);
             Assert.That(refreshedValue!.L1, Is.EqualTo(4f));
             Assert.That(refreshedValue.L2, Is.EqualTo(5f));
             Assert.That(measurement.EngineeringUnits!.Value.UnitId, Is.EqualTo(0x414D50));
@@ -543,7 +543,7 @@ namespace Opc.Ua.ECM.Tests
                     new EcmMeasurementReading(
                         nameof(BrowseNames.AcCurrentPe),
                         Variant.FromStructure(new AcPeDataType { L1 = 20f }),
-                        new ExpandedNodeId(DataTypeIds.AcPeDataType, Namespaces.ECM),
+                        DataTypeIds.AcPeDataType,
                         StatusCodes.Good,
                         firstTimestamp)),
                 Snapshot("meter/not-published",
@@ -552,7 +552,7 @@ namespace Opc.Ua.ECM.Tests
                     new EcmMeasurementReading(
                         nameof(BrowseNames.AcCurrentPe),
                         Variant.FromStructure(body.Object),
-                        new ExpandedNodeId(DataTypeIds.AcPeDataType, Namespaces.ECM),
+                        DataTypeIds.AcPeDataType,
                         StatusCodes.BadNoCommunication,
                         nextTimestamp)));
             BaseObjectState parent = await AddParentAsync(manager, "CloneFailureDevice");
@@ -582,7 +582,7 @@ namespace Opc.Ua.ECM.Tests
             Assert.That(powerValue, Is.EqualTo(10f));
             Assert.That(power.Timestamp, Is.EqualTo((DateTimeUtc)firstTimestamp));
             Assert.That(power.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
-            Assert.That(current.WrappedValue.TryGetValue(out AcPeDataType? currentValue), Is.True);
+            Assert.That(current.WrappedValue.TryGetStructure(out AcPeDataType currentValue), Is.True);
             Assert.That(currentValue!.L1, Is.EqualTo(20f));
             Assert.That(current.Timestamp, Is.EqualTo((DateTimeUtc)firstTimestamp));
             Assert.That(current.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
@@ -609,7 +609,7 @@ namespace Opc.Ua.ECM.Tests
                 ? new EcmMeasurementReading(
                     nameof(BrowseNames.AcCurrentPe),
                     Variant.FromStructure(new AcPeDataType { L1 = 7f }),
-                    new ExpandedNodeId(DataTypeIds.AcPeDataType, Namespaces.ECM),
+                    DataTypeIds.AcPeDataType,
                     quality,
                     acquired)
                 : FloatReading(
@@ -641,7 +641,7 @@ namespace Opc.Ua.ECM.Tests
             }
             else if (profile == "E0")
             {
-                Assert.That(measurement.WrappedValue.TryGetValue(out AcPeDataType? value), Is.True);
+                Assert.That(measurement.WrappedValue.TryGetStructure(out AcPeDataType value), Is.True);
                 Assert.That(value!.L1, Is.EqualTo(7f));
             }
             else
@@ -723,7 +723,7 @@ namespace Opc.Ua.ECM.Tests
             var initial = new EcmMeasurementReading(
                 nameof(BrowseNames.AcCurrentPe),
                 Variant.FromStructure(new AcPeDataType { L1 = 7f, L2 = 8f, L3 = 9f }),
-                new ExpandedNodeId(DataTypeIds.AcPeDataType, Namespaces.ECM),
+                DataTypeIds.AcPeDataType,
                 StatusCodes.Good,
                 acquired);
             EcmMeasurementSnapshot invalid = Snapshot("meter/subtype", initial with
@@ -751,7 +751,7 @@ namespace Opc.Ua.ECM.Tests
             body.Object.L1 = 99f;
             EnergyMeasurementValueState measurement = RequiredMeasurement(
                 binding.MeasurementPoint, manager.SystemContext, nameof(BrowseNames.AcCurrentPe), ecmNamespace);
-            Assert.That(measurement.WrappedValue.TryGetValue(out AcPeDataType? published), Is.True);
+            Assert.That(measurement.WrappedValue.TryGetStructure(out AcPeDataType published), Is.True);
             Assert.That(published!.L1, Is.EqualTo(7f));
             Assert.That(published.L2, Is.EqualTo(8f));
             Assert.That(published.L3, Is.EqualTo(9f));
@@ -786,7 +786,7 @@ namespace Opc.Ua.ECM.Tests
             var reading = new EcmMeasurementReading(
                 nameof(BrowseNames.AcActivePowerTotal),
                 Variant.From(8.5f),
-                new ExpandedNodeId(new NodeId(Opc.Ua.DataTypeIds.Float)),
+                new ExpandedNodeId(Opc.Ua.DataTypeIds.Float),
                 StatusCodes.Good,
                 acquired,
                 AccuracyClass: 2,
@@ -1279,7 +1279,7 @@ namespace Opc.Ua.ECM.Tests
             return new EcmMeasurementReading(
                 browseName,
                 Variant.From(value),
-                new ExpandedNodeId(new NodeId(Opc.Ua.DataTypeIds.Float)),
+                new ExpandedNodeId(Opc.Ua.DataTypeIds.Float),
                 statusCode,
                 sourceTimestamp);
         }
@@ -1324,10 +1324,11 @@ namespace Opc.Ua.ECM.Tests
         /// <summary>
         /// Reads an ECM metadata property without depending on generated property accessors.
         /// </summary>
+        /// <typeparam name="T">The scalar metadata type.</typeparam>
         private static T ReadProperty<T>(
             EnergyMeasurementValueState measurement,
             ISystemContext context,
-            string name)
+            string name) where T : struct
         {
             var children = new List<BaseInstanceState>();
             measurement.GetChildren(context, children);
@@ -1335,9 +1336,9 @@ namespace Opc.Ua.ECM.Tests
             {
                 if (child is BaseVariableState variable &&
                     string.Equals(variable.BrowseName.Name, name, StringComparison.Ordinal) &&
-                    variable.WrappedValue.TryGetValue(out T? value))
+                    variable.WrappedValue.TryGetValue(out T value))
                 {
-                    return value!;
+                    return value;
                 }
             }
             throw new InvalidOperationException($"Measurement property {name} was not published.");
@@ -1360,7 +1361,7 @@ namespace Opc.Ua.ECM.Tests
                 "duplicate-name" => Snapshot("invalid/duplicate",
                     valid, valid with { Value = Variant.From(2f) }),
                 "wrong-data-type" => Snapshot("invalid/type",
-                    valid with { DataType = new ExpandedNodeId(new NodeId(Opc.Ua.DataTypeIds.Double)) }),
+                    valid with { DataType = new ExpandedNodeId(Opc.Ua.DataTypeIds.Double) }),
                 "wrong-value-type" => Snapshot("invalid/value",
                     valid with { Value = Variant.From(1d) }),
                 "local-timestamp" => Snapshot("invalid/time",
@@ -1382,7 +1383,7 @@ namespace Opc.Ua.ECM.Tests
                     new EcmMeasurementReading(
                         nameof(BrowseNames.AcCurrentPe),
                         Variant.From(1f),
-                        new ExpandedNodeId(DataTypeIds.AcPeDataType, Namespaces.ECM),
+                        DataTypeIds.AcPeDataType,
                         StatusCodes.Good,
                         utc)),
                 "late-invalid-reading" => Snapshot("invalid/late-reading",
@@ -1390,7 +1391,7 @@ namespace Opc.Ua.ECM.Tests
                     FloatReading(nameof(BrowseNames.DcCurrent), 2f,
                         StatusCodes.Good, utc) with
                     {
-                        DataType = new ExpandedNodeId(new NodeId(Opc.Ua.DataTypeIds.Double))
+                        DataType = new ExpandedNodeId(Opc.Ua.DataTypeIds.Double)
                     }),
                 _ => throw new ArgumentOutOfRangeException(nameof(kind))
             };

@@ -51,18 +51,22 @@ namespace Opc.Ua.ECM.Server
         /// <param name="provider">The borrowed application-owned provider.</param>
         /// <param name="exclusiveAccess">The optional DI lock service.</param>
         /// <param name="authorize">The optional application authorization policy.</param>
+        /// <param name="findNode">Resolves published accuracy domains in the owning address space.
+        /// Required when provider readings reference accuracy domains.</param>
         public EcmMeasurementBinding(
             ISystemContext context,
             EnergyMeasurementState measurementPoint,
             IEcmMeasurementProvider provider,
             ILockService? exclusiveAccess = null,
-            Func<ISystemContext, CancellationToken, ValueTask<bool>>? authorize = null)
+            Func<ISystemContext, CancellationToken, ValueTask<bool>>? authorize = null,
+            Func<NodeId, NodeState?>? findNode = null)
         {
             m_context = context ?? throw new ArgumentNullException(nameof(context));
             MeasurementPoint = measurementPoint ?? throw new ArgumentNullException(nameof(measurementPoint));
             m_provider = provider ?? throw new ArgumentNullException(nameof(provider));
             m_exclusiveAccess = exclusiveAccess;
             m_authorize = authorize;
+            m_findNode = findNode;
             m_logger = context.Telemetry.CreateLogger<EcmMeasurementBinding>();
             m_ecmNamespace = context.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
 
@@ -118,7 +122,7 @@ namespace Opc.Ua.ECM.Server
             {
                 if (m_logger.IsEnabled(LogLevel.Error))
                 {
-                    m_logger.ProviderFailed(exception.ToString());
+                    m_logger.MeasurementProviderFailed(exception.ToString());
                 }
                 MarkUnavailable();
                 throw;
@@ -304,7 +308,7 @@ namespace Opc.Ua.ECM.Server
             {
                 if (m_logger.IsEnabled(LogLevel.Error))
                 {
-                    m_logger.ProviderFailed(exception.ToString());
+                    m_logger.MeasurementProviderFailed(exception.ToString());
                 }
                 return new AttributeWriteResult(StatusCodes.BadUnexpectedError) { SuppressCacheUpdate = true };
             }
@@ -348,14 +352,14 @@ namespace Opc.Ua.ECM.Server
         /// </summary>
         private NodeId RequiredProfileType(string measurementName)
         {
-            uint identifier = measurementName switch
+            ExpandedNodeId identifier = measurementName switch
             {
                 nameof(BrowseNames.AcCurrentPe) => ObjectTypeIds.IEnergyProfileE0Type,
                 nameof(BrowseNames.AcActivePowerTotal) => ObjectTypeIds.IEnergyProfileE1Type,
                 nameof(BrowseNames.DcCurrent) => ObjectTypeIds.IEnergyProfileD0Type,
                 _ => throw new InvalidOperationException("The measurement is not part of a supported ECM profile.")
             };
-            return new NodeId(identifier, m_ecmNamespace);
+            return ExpandedNodeId.ToNodeId(identifier, m_context.NamespaceUris);
         }
 
         /// <summary>
@@ -365,9 +369,9 @@ namespace Opc.Ua.ECM.Server
         {
             return measurementName switch
             {
-                nameof(BrowseNames.AcCurrentPe) => new ExpandedNodeId(DataTypeIds.AcPeDataType, Namespaces.ECM),
+                nameof(BrowseNames.AcCurrentPe) => DataTypeIds.AcPeDataType,
                 nameof(BrowseNames.AcActivePowerTotal) or nameof(BrowseNames.DcCurrent) =>
-                    new ExpandedNodeId(new NodeId(Opc.Ua.DataTypeIds.Float)),
+                    new ExpandedNodeId(Opc.Ua.DataTypeIds.Float),
                 _ => ExpandedNodeId.Null
             };
         }
@@ -379,7 +383,7 @@ namespace Opc.Ua.ECM.Server
         {
             return measurementName switch
             {
-                nameof(BrowseNames.AcCurrentPe) => value.TryGetValue(out AcPeDataType? phases) &&
+                nameof(BrowseNames.AcCurrentPe) => value.TryGetStructure(out AcPeDataType phases) &&
                     phases is not null && phases.GetType() == typeof(AcPeDataType),
                 nameof(BrowseNames.AcActivePowerTotal) or nameof(BrowseNames.DcCurrent) =>
                     value.TryGetValue(out float _),
@@ -405,7 +409,7 @@ namespace Opc.Ua.ECM.Server
             {
                 return !reading.AccuracyClass.HasValue;
             }
-            if (m_context.FindPredefinedNode(reading.AccuracyDomain) is not AccuracyDomainState domain)
+            if (m_findNode?.Invoke(reading.AccuracyDomain) is not AccuracyDomainState domain)
             {
                 return false;
             }
@@ -462,15 +466,16 @@ namespace Opc.Ua.ECM.Server
                 : new EngineeringUnitsMetadata(
                     engineeringUnits.NamespaceUri,
                     engineeringUnits.UnitId,
-                    engineeringUnits.DisplayName?.Locale,
-                    engineeringUnits.DisplayName?.Text,
-                    engineeringUnits.Description?.Locale,
-                    engineeringUnits.Description?.Text);
+                    engineeringUnits.DisplayName.Locale,
+                    engineeringUnits.DisplayName.Text,
+                    engineeringUnits.Description.Locale,
+                    engineeringUnits.Description.Text);
         }
 
         /// <summary>
         /// Gets a required generated child or throws if the published model is incomplete.
         /// </summary>
+        /// <typeparam name="T">The generated child type.</typeparam>
         private static T Required<T>(T? value) where T : class
         {
             return value ?? throw new InvalidOperationException("The generated ECM measurement model is incomplete.");
@@ -478,6 +483,9 @@ namespace Opc.Ua.ECM.Server
 
         /// <summary>The owning address-space context.</summary>
         private readonly ISystemContext m_context;
+
+        /// <summary>The owning address space's node resolver.</summary>
+        private readonly Func<NodeId, NodeState?>? m_findNode;
 
         /// <summary>The borrowed application-owned provider.</summary>
         private readonly IEcmMeasurementProvider m_provider;
@@ -537,6 +545,6 @@ namespace Opc.Ua.ECM.Server
             EventId = EcmServerEventIds.EcmMeasurementBinding,
             Level = LogLevel.Error,
             Message = "The ECM measurement provider operation failed: {Error}")]
-        public static partial void ProviderFailed(this ILogger logger, [SensitiveText] string error);
+        public static partial void MeasurementProviderFailed(this ILogger logger, [SensitiveText] string error);
     }
 }

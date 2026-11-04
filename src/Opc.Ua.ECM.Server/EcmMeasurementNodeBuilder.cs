@@ -70,8 +70,8 @@ namespace Opc.Ua.ECM.Server
             DateTime sourceTimestamp = default,
             bool publishQuality = false)
         {
-            ArgumentNullException.ThrowIfNull(context);
-            ArgumentNullException.ThrowIfNull(measurementPoint);
+            ArgumentNullException.ThrowIfNull(context, nameof(context));
+            ArgumentNullException.ThrowIfNull(measurementPoint, nameof(measurementPoint));
             string name = browseName.Name ?? string.Empty;
             if (browseName.IsNull || string.IsNullOrEmpty(name))
             {
@@ -118,7 +118,8 @@ namespace Opc.Ua.ECM.Server
             {
                 measurement.AddEngineeringUnits(
                     context,
-                    variable => variable.Value = CoreUtils.Clone(engineeringUnits));
+                    variable => variable.Value = CoreUtils.Clone(engineeringUnits) ??
+                        throw new InvalidOperationException("The engineering-unit copy was null."));
             }
             if (measurementId.HasValue)
             {
@@ -150,6 +151,7 @@ namespace Opc.Ua.ECM.Server
         /// <summary>
         /// Gets a required generated property or throws if the model is incomplete.
         /// </summary>
+        /// <typeparam name="T">The generated child type.</typeparam>
         private static T Required<T>(T? value) where T : class
         {
             return value ?? throw new InvalidOperationException("The generated ECM measurement model is incomplete.");

@@ -319,7 +319,8 @@ namespace Opc.Ua.ECM.Server
                 try
                 {
                     binding = new EcmMeasurementBinding(
-                        SystemContext, measurement, provider, exclusiveAccess, authorize);
+                        SystemContext, measurement, provider, exclusiveAccess, authorize,
+                        nodeId => FindPredefinedNode(nodeId));
                     await binding.RefreshAsync(cancellationToken).ConfigureAwait(false);
                     owner.AddChild(measurement);
                     await AddPredefinedNodeAsync(measurement, cancellationToken).ConfigureAwait(false);
@@ -365,7 +366,7 @@ namespace Opc.Ua.ECM.Server
                         throw new ArgumentException(
                             "An accuracy domain cannot contain a null class.",
                             nameof(enumValues));
-                    string name = value.DisplayName?.Text ?? string.Empty;
+                    string name = value.DisplayName.Text ?? string.Empty;
                     if (string.IsNullOrWhiteSpace(name) || !values.Add(value.Value) || !names.Add(name))
                     {
                         throw new ArgumentException(
@@ -398,6 +399,7 @@ namespace Opc.Ua.ECM.Server
         /// <summary>
         /// Gets a required generated child or throws if the published model is incomplete.
         /// </summary>
+        /// <typeparam name="T">The generated child type.</typeparam>
         private static T Required<T>(T? value) where T : class
         {
             return value ?? throw new InvalidOperationException("The generated ECM model is incomplete.");

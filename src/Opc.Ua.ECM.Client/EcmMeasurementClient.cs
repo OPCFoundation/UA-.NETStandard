@@ -54,8 +54,8 @@ namespace Opc.Ua.ECM.Client
             NodeId measurementPointId,
             ITelemetryContext telemetry)
         {
-            ArgumentNullException.ThrowIfNull(session);
-            ArgumentNullException.ThrowIfNull(telemetry);
+            ArgumentNullException.ThrowIfNull(session, nameof(session));
+            ArgumentNullException.ThrowIfNull(telemetry, nameof(telemetry));
             if (measurementPointId.IsNull)
             {
                 throw new ArgumentException("A measurement point is required.", nameof(measurementPointId));
@@ -63,9 +63,10 @@ namespace Opc.Ua.ECM.Client
             EcmClient.RegisterModel(session);
             MeasurementPoint = new EnergyMeasurementTypeClient(session, measurementPointId, telemetry);
             ApplicationTag = MeasurementPoint.ApplicationTagVariable();
-            AcCurrentPe = MeasurementPoint.AcCurrentPeVariable();
-            AcActivePowerTotal = MeasurementPoint.AcActivePowerTotalVariable();
-            DcCurrent = MeasurementPoint.DcCurrentVariable();
+            AcCurrentPe = new IEnergyProfileE0TypeClient(session, measurementPointId, telemetry).AcCurrentPeVariable();
+            AcActivePowerTotal = new IEnergyProfileE1TypeClient(
+                session, measurementPointId, telemetry).AcActivePowerTotalVariable();
+            DcCurrent = new IEnergyProfileD0TypeClient(session, measurementPointId, telemetry).DcCurrentVariable();
         }
 
         /// <summary>
@@ -106,8 +107,8 @@ namespace Opc.Ua.ECM.Client
             ITelemetryContext telemetry,
             CancellationToken cancellationToken = default)
         {
-            ArgumentNullException.ThrowIfNull(session);
-            ArgumentNullException.ThrowIfNull(telemetry);
+            ArgumentNullException.ThrowIfNull(session, nameof(session));
+            ArgumentNullException.ThrowIfNull(telemetry, nameof(telemetry));
             return DiscoverCoreAsync(session, parent, telemetry, cancellationToken);
         }
 

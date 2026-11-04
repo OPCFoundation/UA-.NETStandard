@@ -262,7 +262,7 @@ internal sealed class SampleMeasurementProvider : IEcmMeasurementProvider
                 [
                     new(
                         BrowseNames.AcCurrentPe,
-                        Variant.From(phases),
+                        Variant.FromStructure(phases),
                         DataTypeIds.AcPeDataType,
                         StatusCodes.Good,
                         timestamp,
@@ -304,7 +304,7 @@ internal sealed class SampleMeasurementProvider : IEcmMeasurementProvider
     public ValueTask WriteApplicationTagAsync(string applicationTag, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        ArgumentNullException.ThrowIfNull(applicationTag);
+        ArgumentNullException.ThrowIfNull(applicationTag, nameof(applicationTag));
         lock (m_lock)
         {
             m_applicationTag = applicationTag;
