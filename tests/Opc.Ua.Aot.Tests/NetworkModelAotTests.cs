@@ -41,6 +41,9 @@ namespace Opc.Ua.Aot.Tests
     [ClassDataSource<AotTestFixture>(Shared = SharedType.PerTestSession)]
     public sealed class NetworkModelAotTests(AotTestFixture fixture)
     {
+        /// <summary>
+        /// Exercises provider registration and generated Part 22 client proxies.
+        /// </summary>
         [Test]
         public async Task NetworkModelProvidersRegistrationsAndProxiesAreReachable()
         {
