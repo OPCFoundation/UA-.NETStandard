@@ -1505,7 +1505,10 @@ namespace Opc.Ua.AMB.Tests
         [TestCase(true, "fault")]
         public async Task HistoryInitializationAwaitsHealthSinkWithoutBlockingAsync(bool restore, string outcome)
         {
-            using var storage = new InMemoryHistorianProvider();
+            using var storage = new InMemoryHistorianProvider(new InMemoryHistorianOptions
+            {
+                RawDataRetentionPeriod = TimeSpan.Zero
+            });
             Mock<IHistorianProvider> provider = RetainedRawProvider(storage);
             (AmbHostedServer server, IAssetHandle asset, DeviceState device) =
                 await HealthAlarmTests.StartWithSensorAsync(
@@ -1521,12 +1524,14 @@ namespace Opc.Ua.AMB.Tests
                 storage.Register(health.NodeId);
                 using var operation = new OperationContext(
                     new RequestHeader(), null, RequestType.HistoryUpdate, RequestLifetime.None);
-                await storage.InsertAsync(
+                HistorianUpdateOutcome<DataValue> inserted = await storage.InsertAsync(
                     new HistorianOperationContext(
                         (ServerSystemContext)handle.Context, operation, health, HistoryUpdateType.Insert),
                     health.NodeId,
                     [new DataValue(health.WrappedValue, StatusCodes.Good, archivedTimestamp)],
                     CancellationToken.None).ConfigureAwait(false);
+                Assert.That(inserted.OperationResults.ToArray(),
+                    Is.EqualTo(new[] { (StatusCode)StatusCodes.GoodEntryInserted }));
                 if (outcome == "cancel")
                 {
                     await HistoricalDataConfigurationInstaller.EnsureInstalledAsync(
