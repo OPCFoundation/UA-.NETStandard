@@ -251,7 +251,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             ServiceResult result = await machine.DoCauseAsync(
                 m_context, null, RecordingProgramStateMachineState.CustomCauseId, default, [])
-                .AsTask().WaitAsync(s_timeout).ConfigureAwait(false);
+                .AsTask().WaitAsync(s_timeout, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True, $"DoTransitionAsync must succeed: {result}");
             Assert.That(machine.SyncTransitions, Is.Zero);
@@ -329,7 +329,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             Assert.That(error, Is.Not.Null);
             Assert.That(error!.InnerExceptions,
                 Is.EqualTo(new Exception[] { original, transition, state, audit, program }));
-            Assert.That(delivered, Is.EqualTo(new[] { "transition", "state", "last transition", "audit", "program" }));
+            Assert.That(delivered, Is.EqualTo(s_expectedNotificationOrder));
             Assert.That(CurrentStateId(machine), Is.EqualTo(Objects.ProgramStateMachineType_Running));
             machine.OnReportEventAsync = null;
             machine.CurrentState!.OnStateChangedAsync = null;
@@ -428,7 +428,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 if (delivered.Count == 1)
                 {
                     entered.TrySetResult(true);
-                    await release.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+                    await release.Task.WaitAsync(s_timeout, CancellationToken.None).ConfigureAwait(false);
                 }
             };
             machine.CurrentState!.OnStateChangedAsync = (_, _, _, ct) =>
@@ -476,7 +476,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 if (liveEvents.Count == 1)
                 {
                     entered.TrySetResult(true);
-                    await release.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+                    await release.Task.WaitAsync(s_timeout, CancellationToken.None).ConfigureAwait(false);
                     liveEvents.Add(CurrentStateId(machine));
                 }
             };
@@ -539,8 +539,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
             machine.OnReportEventAsync = async (_, _, _, _) =>
             {
                 callbackResult = await machine.DoTransitionAsync(
-                    m_context, Objects.ProgramStateMachineType_RunningToHalted, 0, default, [])
-                    .AsTask().WaitAsync(s_timeout).ConfigureAwait(false);
+                    m_context, Objects.ProgramStateMachineType_RunningToHalted, 0, default, [], CancellationToken.None)
+                    .AsTask().WaitAsync(s_timeout, CancellationToken.None).ConfigureAwait(false);
             };
             ServiceResult result = await machine.DoTransitionAsync(
                 m_context, Objects.ProgramStateMachineType_ReadyToRunning, 0, default, [])
@@ -563,10 +563,10 @@ namespace Opc.Ua.Core.Tests.Stack.State
             machine.CurrentState!.OnStateChangedAsync = async (_, _, _, _) =>
             {
                 reentrant = await machine.DoCauseAsync(
-                    m_context, null, Methods.ProgramStateMachineType_Halt, default, [])
-                    .AsTask().WaitAsync(s_timeout).ConfigureAwait(false);
+                    m_context, null, Methods.ProgramStateMachineType_Halt, default, [], CancellationToken.None)
+                    .AsTask().WaitAsync(s_timeout, CancellationToken.None).ConfigureAwait(false);
                 entered.TrySetResult(true);
-                await release.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+                await release.Task.WaitAsync(s_timeout, CancellationToken.None).ConfigureAwait(false);
             };
             Task<ServiceResult> first = machine.DoTransitionAsync(
                 m_context, Objects.ProgramStateMachineType_ReadyToRunning, 0, default, []).AsTask();
@@ -675,7 +675,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             {
                 order.Add("child");
                 entered.TrySetResult(true);
-                await release.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+                await release.Task.WaitAsync(s_timeout, CancellationToken.None).ConfigureAwait(false);
             };
             parent.AsyncTransitionCallbackFactory = (_, _, before, _, _) =>
                 (before, (_, _, _, _, _, _, _) =>
@@ -703,7 +703,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 Assert.That(child.DoTransition(
                     m_context, Objects.ProgramStateMachineType_HaltedToReady, 0, default, []).StatusCode,
                     Is.EqualTo(StatusCodes.BadInvalidState));
-                Assert.That(order, Is.EqualTo(new[] { "grandchild", "child" }));
+                Assert.That(order, Is.EqualTo(s_expectedPendingHierarchyOrder));
             }
             finally
             {
@@ -711,7 +711,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 await transition.WaitAsync(s_timeout).ConfigureAwait(false);
             }
             Assert.That(syncAfterCalls, Is.Zero);
-            Assert.That(order, Is.EqualTo(new[] { "grandchild", "child", "observer" }));
+            Assert.That(order, Is.EqualTo(s_expectedHierarchyOrder));
         }
 
         [Test]
@@ -726,12 +726,12 @@ namespace Opc.Ua.Core.Tests.Stack.State
             machine.AsyncTransitionCallbackFactory = (_, _, before, _, _) =>
                 (before, (_, _, _, _, _, _, _) =>
                 {
-                    machine.ScheduleAsyncTransitionCompletion(new NodeId("first"), () =>
+                    machine.ScheduleAsyncTransitionCompletion(new NodeId("first", 0), () =>
                     {
                         order.Add("completion");
                         return new ValueTask(Task.FromException(completionFailure));
                     });
-                    machine.ScheduleAsyncTransitionCompletion(new NodeId("second"), () =>
+                    machine.ScheduleAsyncTransitionCompletion(new NodeId("second", 0), () =>
                     {
                         order.Add("next completion");
                         return default;
@@ -760,7 +760,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             Assert.That(failure!.InnerExceptions,
                 Is.EqualTo(new Exception[] { completionFailure, observerFailure, stateFailure }));
             Assert.That(order,
-                Is.EqualTo(new[] { "completion", "next completion", "observer", "next observer", "state" }));
+                Is.EqualTo(s_expectedCompletionOrder));
             machine.CurrentState!.OnStateChangedAsync = null;
             machine.AsyncTransitionCallbackFactory = null;
             Assert.That(ServiceResult.IsGood(machine.DoTransition(
@@ -808,9 +808,10 @@ namespace Opc.Ua.Core.Tests.Stack.State
             machine.CurrentState!.OnStateChangedAsync = async (_, _, _, _) =>
             {
                 reentrant = await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await machine.PublishStateChangesAsync(m_context, true).ConfigureAwait(false));
+                    await machine.PublishStateChangesAsync(m_context, true, CancellationToken.None)
+                        .ConfigureAwait(false));
                 entered.TrySetResult(true);
-                await release.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+                await release.Task.WaitAsync(s_timeout, CancellationToken.None).ConfigureAwait(false);
             };
             Task publishing = machine.PublishStateChangesAsync(m_context, true).AsTask();
             try
@@ -853,7 +854,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 asynchronousCalls++;
                 Assert.That(ct.CanBeCanceled, Is.False);
                 entered.TrySetResult(true);
-                await release.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+                await release.Task.WaitAsync(s_timeout, CancellationToken.None).ConfigureAwait(false);
                 return ServiceResult.Good;
             };
             Task<ServiceResult> transition = machine.DoTransitionAsync(
@@ -893,13 +894,13 @@ namespace Opc.Ua.Core.Tests.Stack.State
             child.CurrentState!.OnStateChangedAsync = async (_, _, _, _) =>
             {
                 reentrant = await child.DoTransitionAsync(
-                    m_context, Objects.ProgramStateMachineType_RunningToHalted, 0, default, [])
-                    .AsTask().WaitAsync(s_timeout).ConfigureAwait(false);
+                    m_context, Objects.ProgramStateMachineType_RunningToHalted, 0, default, [], CancellationToken.None)
+                    .AsTask().WaitAsync(s_timeout, CancellationToken.None).ConfigureAwait(false);
             };
             parent.CurrentState!.OnStateChangedAsync = async (_, _, _, _) =>
             {
                 entered.TrySetResult(true);
-                await release.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+                await release.Task.WaitAsync(s_timeout, CancellationToken.None).ConfigureAwait(false);
             };
             Task publishing = parent.PublishStateChangesAsync(m_context, true).AsTask();
             try
@@ -948,18 +949,18 @@ namespace Opc.Ua.Core.Tests.Stack.State
                     return;
                 }
                 callbackCause = await root.DoCauseAsync(
-                    m_context, null, Methods.ProgramStateMachineType_Halt, default, [])
-                    .AsTask().WaitAsync(s_timeout).ConfigureAwait(false);
+                    m_context, null, Methods.ProgramStateMachineType_Halt, default, [], CancellationToken.None)
+                    .AsTask().WaitAsync(s_timeout, CancellationToken.None).ConfigureAwait(false);
                 callbackTransition = await suspended.DoTransitionAsync(
-                    m_context, Objects.ProgramStateMachineType_ReadyToHalted, 0, default, [])
-                    .AsTask().WaitAsync(s_timeout).ConfigureAwait(false);
+                    m_context, Objects.ProgramStateMachineType_ReadyToHalted, 0, default, [], CancellationToken.None)
+                    .AsTask().WaitAsync(s_timeout, CancellationToken.None).ConfigureAwait(false);
                 callbackComposite = await root.ExecuteWithStateAdmissionAsync(
-                    m_context, _ => new ValueTask<ServiceResult>(ServiceResult.Good))
-                    .AsTask().WaitAsync(s_timeout).ConfigureAwait(false);
+                    m_context, _ => new ValueTask<ServiceResult>(ServiceResult.Good), CancellationToken.None)
+                    .AsTask().WaitAsync(s_timeout, CancellationToken.None).ConfigureAwait(false);
                 callbackState = Assert.Throws<ServiceResultException>(
                     () => root.SetState(m_context, Objects.ProgramStateMachineType_Halted));
                 entered.TrySetResult(true);
-                await release.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+                await release.Task.WaitAsync(s_timeout, CancellationToken.None).ConfigureAwait(false);
             };
             Task<ServiceResult> operation = root.ExecuteWithStateAdmissionAsync(m_context, async ct =>
             {
@@ -967,7 +968,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 ServiceResult result = await execute.DoCauseAsync(
                     m_context, start, Methods.ProgramStateMachineType_Start, default, [], ct).ConfigureAwait(false);
                 suspended.SetState(m_context, Objects.ProgramStateMachineType_Halted);
-                await root.PublishStateChangesAsync(m_context, true).ConfigureAwait(false);
+                await root.PublishStateChangesAsync(m_context, true, CancellationToken.None).ConfigureAwait(false);
                 return result;
             }).AsTask();
             try
@@ -1020,6 +1021,14 @@ namespace Opc.Ua.Core.Tests.Stack.State
         }
 
         private static readonly TimeSpan s_timeout = TimeSpan.FromSeconds(30);
+
+        private static readonly string[] s_expectedNotificationOrder =
+            ["transition", "state", "last transition", "audit", "program"];
+
+        private static readonly string[] s_expectedPendingHierarchyOrder = ["grandchild", "child"];
+        private static readonly string[] s_expectedHierarchyOrder = ["grandchild", "child", "observer"];
+        private static readonly string[] s_expectedCompletionOrder =
+            ["completion", "next completion", "observer", "next observer", "state"];
 
         /// <summary>
         /// Builds a machine with two of the five optional cause methods
