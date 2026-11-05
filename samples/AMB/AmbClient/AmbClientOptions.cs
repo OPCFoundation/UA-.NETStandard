@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 
@@ -64,6 +65,16 @@ namespace AmbSample.Client
         public string? PkiRoot { get; init; }
 
         /// <summary>
+        /// Gets whether the sample explicitly follows sub-assets across servers.
+        /// </summary>
+        public bool FollowRemoteSubAssets { get; init; }
+
+        /// <summary>
+        /// Gets the caller-supplied mapping from server application URI to endpoint URL.
+        /// </summary>
+        public Dictionary<string, string> RemoteServers { get; } = new(StringComparer.Ordinal);
+
+        /// <summary>
         /// Parses the sample command line.
         /// </summary>
         public static AmbClientOptions Parse(string[] args)
@@ -76,6 +87,24 @@ namespace AmbSample.Client
                 {
                     case "--insecure":
                         options = options with { Insecure = true };
+                        break;
+                    case "--follow-remote":
+                        options = options with { FollowRemoteSubAssets = true };
+                        break;
+                    case "--remote-server" when ii + 1 < args.Length:
+                        string mapping = args[++ii];
+                        int separator = mapping.IndexOf('=');
+                        if (separator <= 0 ||
+                            separator == mapping.Length - 1 ||
+                            !Uri.TryCreate(mapping[..separator], UriKind.Absolute, out _) ||
+                            !Uri.TryCreate(mapping[(separator + 1)..], UriKind.Absolute, out _))
+                        {
+                            throw new ArgumentException(
+                                "--remote-server must be an absolute application URI followed by " +
+                                "= and an endpoint URL.",
+                                nameof(args));
+                        }
+                        options.RemoteServers.Add(mapping[..separator], mapping[(separator + 1)..]);
                         break;
                     case "--url" when ii + 1 < args.Length:
                         options = options with { ServerUrl = args[++ii] };

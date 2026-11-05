@@ -255,7 +255,7 @@ support gap.
 | Model or family | Support | Implemented behavior and limits |
 | --- | --- | --- |
 | [Device Integration](DeviceIntegration.md), OPC 10000-100 | Partial | Device composition, locking and software updates; offline/online representations, some loading modes and `UpdateStatus` remain incomplete |
-| [Asset Management Basics](AMB.md), OPC 10000-110 | Partial | Identity, health, maintenance, documentation, locations, dictionary classification and opt-in health, health-event and past-maintenance history; the client reports remote sub-assets without following them, and the version builder does not create `PatchIdentifiers` |
+| [Asset Management Basics](AMB.md), OPC 10000-110 | Full | Identity, health, maintenance, documentation, locations, dictionary classification, opt-in Part 11 history and explicit cross-server sub-asset traversal; applications provide history providers and remote-session resolution policy |
 | [Industrial Automation](Robotics.md), OPC 10000-200 | Partial | Shared generated model and the behavior used by Machinery/Robotics; not every standalone IA facet |
 | [Machinery](Machinery.md), OPC 40001-1/-2/-3/-4/-101 | Full | Building blocks, process values, jobs, energy and result transfer; select capabilities and supply equipment/storage providers |
 | [MachineTool and WMTP](MachineTool.md), OPC 40501-1 and OPC 40505 | Full | Monitoring, tools, production, jobs, files, peripheral measurements/configuration/records and typed clients; physical CNC/Bluetooth behavior belongs to providers |
@@ -849,7 +849,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 10000-83: UAFX Offline Engineering](https://reference.opcfoundation.org/specs/OPC-10000-83) | 1.00.03 | No | - |
 | [OPC 10000-84: UAFX Profiles](https://reference.opcfoundation.org/specs/OPC-10000-84) | 1.00.04 | No | - |
 | [OPC 10000-100: Devices](https://reference.opcfoundation.org/specs/OPC-10000-100) | 1.05.0 | Partial | DI Offline, some software-loading modes and UpdateStatus missing |
-| [OPC 10000-110: Asset Management Basics](https://reference.opcfoundation.org/specs/OPC-10000-110) | 1.01.1 | Partial | Remote sub-assets not followed by the client; `PatchIdentifiers` not created |
+| [OPC 10000-110: Asset Management Basics](https://reference.opcfoundation.org/specs/OPC-10000-110) | 1.01.1 | Full | Optional history is enabled through Part 11 providers; cross-server traversal uses an application-supplied session resolver |
 | [OPC 10000-120: OPC UA and XML Data Type Mapping](https://reference.opcfoundation.org/specs/OPC-10000-120) | 1.00 | No | - |
 | [OPC 10000-200: Industrial Automation](https://reference.opcfoundation.org/specs/OPC-10000-200) | 1.01.4 | Partial | Generated model and Machinery/Robotics bindings; not every standalone IA facet |
 | [OPC 10000-210: Relative Spatial Location](https://reference.opcfoundation.org/specs/OPC-10000-210) | 1.00.1 | Full | - |

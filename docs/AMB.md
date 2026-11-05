@@ -49,7 +49,7 @@ them and reads them back into records.
 | --- | --- |
 | `Opc.Ua.AMB` | The source-generated AMB model (interfaces, condition classes, the maintenance state machine, `DocumentationLinksType`, the reference types, `RootCauseDataType`, `NameNodeIdDataType`, `AddOpcUaAMB`), `AmbBrowseNames`, `AmbConditionClass` and the shared contracts `MaintenanceStateKind`, `AssetFaultSeverity` and `AssetLocationKind` |
 | `Opc.Ua.AMB.Server` | `AmbNodeManager`, the asset registry `IAssetManagement` with its builders and handles, the configuration stores, and `AddAssetManagement()` / `ConfigureAssetManagement()` |
-| `Opc.Ua.AMB.Client` | `AmbClient` for discovery, identification, health alarms, maintenance, documentation links, locations and structure, plus `AddAssetManagementClient()` |
+| `Opc.Ua.AMB.Client` | `AmbClient` for discovery, identification, health alarms, maintenance, documentation links, locations, structure and cross-server traversal, plus `AddAssetManagementClient()` |
 
 The model package depends on the base namespace only. The server and client
 packages use the OPC 10000-100 Device Integration building blocks AMB applies
@@ -659,7 +659,7 @@ whose only mandatory unit is AMB Client Asset Identification.
 | AMB Client Current and Future Maintenance Activities | Implemented | `ReadMaintenanceActivitiesAsync`, `ObserveMaintenanceAsync` |
 | AMB Client Past Maintenance Activities | Implemented | `ReadPastMaintenanceAsync` |
 | AMB Client sub-assets | Implemented | `EnumerateSubAssetsAsync` |
-| AMB Client sub-assets remote | Partly: an asset of another server is reported, not followed | `EnumerateSubAssetsAsync` |
+| AMB Client sub-assets remote | Implemented | `EnumerateSubAssetsAcrossServersAsync` |
 
 ## Client reference
 
@@ -707,6 +707,40 @@ options directly to the three-argument `AmbClientFactory` constructor. Without
 options, the existing factory and builder APIs retain tolerant behavior.
 Invalid limits are rejected before the factory opens a session.
 
+`EnumerateSubAssetsAsync` keeps its existing single-session behavior: it
+reports a remote reference without following it. To follow the hierarchy
+across servers, configure a resolver and call the explicit cross-server
+operation on a client constructed with `AmbClientOptions`:
+
+```csharp
+Func<string, CancellationToken, Task<ManagedSession>> resolveRemoteSession =
+    ResolveRemoteSessionAsync;
+var amb = new AmbClient(session, telemetry, new AmbClientOptions
+{
+    MaximumBrowseReferences = 1024,
+    MaximumBrowsePages = 128,
+    RemoteSessionResolver = resolveRemoteSession
+});
+
+await foreach (AssetSubAssetReference subAsset in amb
+    .EnumerateSubAssetsAcrossServersAsync(assetId, cancellationToken))
+{
+    Console.WriteLine($"{subAsset.ServerUri}: {subAsset.NodeId}");
+}
+```
+
+The resolver receives the referenced server's application URI and returns a
+borrowed `ManagedSession`; `AmbClient` does not close or dispose that session.
+The application supplies endpoint discovery, trust, and credentials. The
+returned `AssetSubAssetReference` pairs the owning server URI with an
+`ExpandedNodeId` that carries its namespace URI, so a client does not mistake
+a remote namespace index for one in its original session. The operation shares
+the configured reference budget and the depth limit across every server. The
+resolver is invoked only when traversal encounters a remote link; if that link
+has no server URI, no resolver is configured, resolution fails, the session
+belongs to another server, or the namespace cannot be mapped, the stream fails
+rather than completing with a truncated hierarchy.
+
 Strict traversal limits apply while collecting pages and walking the asset
 graph. Reads are batched, and returned records expose source identity, browse
 path and the original `DataValue` in `Values`. Non-Good and wrongly typed reads
@@ -740,7 +774,7 @@ for the prepared, owned-simulation workflow.
 | Maintenance | `ReadMaintenanceActivitiesAsync`, `ObserveMaintenanceAsync`, `AcknowledgeAsync` |
 | History | `GetHistoryCapabilitiesAsync`, `ReadHealthHistoryAsync`, `ReadHealthEventsAsync`, `ReadPastMaintenanceAsync`, `GetHistoryEventFields` |
 | Documentation links | `ReadDocumentationLinksAsync` (with `IsWritable` from the `UserAccessLevel` and `IsUserLink` from the `UserLink` Property), `AddDocumentationLinkAsync`, `RemoveDocumentationLinkAsync`, `WriteDocumentationLinkAsync` |
-| Locations and structure | `BrowseLocationsAsync`, `ReadLocationsOfAssetAsync`, `ReadContextAsync`, `ReadEntriesAsync`, `EnumerateSubAssetsAsync`, `ReadRelationsAsync` |
+| Locations and structure | `BrowseLocationsAsync`, `ReadLocationsOfAssetAsync`, `ReadContextAsync`, `ReadEntriesAsync`, `EnumerateSubAssetsAsync`, `EnumerateSubAssetsAcrossServersAsync`, `ReadRelationsAsync` |
 | Snapshot | `ReadAssetAsync` |
 
 The observe calls need an `IStreamingSubscription`; without one they use the
@@ -762,7 +796,7 @@ read as not set.
 | Sample | Shows |
 | --- | --- |
 | [AmbServer](../samples/AMB/AmbServer) | A cooling pump and a flow sensor (DI devices) and a hydraulic press (Machinery machine) registered as assets, with every building block, file-system persistence, and a simulation of alarms and maintenance; the press switches into its Maintenance operation mode while it is serviced |
-| [AmbClient](../samples/AMB/AmbClient) | Discovery, snapshots of every asset, the location hierarchies, AddLink and RemoveLink, writing an AssetId, and streams of health alarms and maintenance activities |
+| [AmbClient](../samples/AMB/AmbClient) | Discovery, snapshots of every asset, location hierarchies, AddLink and RemoveLink, writing an AssetId, streams of health alarms and maintenance activities, and explicitly requested cross-server sub-asset traversal |
 
 See [samples/AMB](../samples/AMB/README.md) for how to run them.
 
@@ -787,7 +821,8 @@ dotnet test tests/Opc.Ua.AMB.Tests
 | `HealthAlarmTests`, `MaintenanceActivityTests`, `DocumentationLinksTests`, `AssetStructureTests` | The building blocks in-process |
 | `Amb*SessionTests` | Each area over a real client session |
 | `AmbClientTests` | The client without a server |
-| `AmbClientServerE2eTests` | `AmbClient` against a hosted server, a restart with persistence, and a Machinery machine as an asset |
+| `AmbBoundedClientTests` | Strict reads and traversal, including cross-server namespace mapping, shared limits, cycles, resolver failures and borrowed-session ownership |
+| `AmbClientServerE2eTests` | `AmbClient` against hosted servers, cross-server sub-assets, a restart with persistence, and a Machinery machine as an asset |
 
 ## Troubleshooting
 
@@ -812,7 +847,7 @@ dotnet test tests/Opc.Ua.AMB.Tests
 | --- | --- | --- |
 | Source timestamp of `DeviceHealth` after a restart | Preserved when an opted-in historian retains the last matching state under the same NodeId; otherwise the timestamp starts at registration | 9.2 ("should") |
 | Optional members of a maintenance activity | Once published, a member keeps its property; `UpdateAsync` changes its value but does not remove it | 12.2 |
-| `2:PatchIdentifiers` | `WithVersionInformation` does not create it; an asset that publishes it keeps it | 10.2 |
+| `2:PatchIdentifiers` | `WithVersionInformation` does not create this optional DI property; AMB Version Information does not require it | 10.2 |
 | Location objects | An asset is contained by the deepest level of each path it is put into, not by the levels above | 13.3.3.1 |
 | History backend | Opt-in Part 11 providers supply retention, availability and persistence; the memory provider loses its archive on restart | 9.6, 12 |
 

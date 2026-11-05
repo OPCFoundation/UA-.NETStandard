@@ -1189,6 +1189,278 @@ namespace Opc.Ua.AMB.Tests
             session.Verify(s => s.Dispose(), Times.Never);
         }
 
+        [Test]
+        public async Task LegacySubAssetTraversalYieldsRemoteTargetWithoutBrowsingItAsync()
+        {
+            Mock<ISession> session = CreateSession();
+            var alias = new NodeId("alias", 4);
+            var remote = new ExpandedNodeId(new NodeId("remote", 4), null, 2);
+            NodeId category = ExpandedNodeId.ToNodeId(
+                ObjectIds.AssetsByProductInstanceUri, session.Object.NamespaceUris);
+            var browsed = new List<NodeId>();
+            SetupBrowse(session, request =>
+            {
+                browsed.Add(request.NodeId);
+                if (request.NodeId == category)
+                {
+                    return new BrowseResult { References = [Reference(alias)] };
+                }
+                if (request.NodeId == s_asset)
+                {
+                    return new BrowseResult { References = [Reference(remote)] };
+                }
+                return new BrowseResult();
+            });
+
+            var found = new List<ExpandedNodeId>();
+            var client = new AmbClient(session.Object, NUnitTelemetryContext.Create());
+            await foreach (ExpandedNodeId sub in client.EnumerateSubAssetsAsync(s_asset).ConfigureAwait(false))
+            {
+                found.Add(sub);
+            }
+
+            Assert.That(found, Is.EqualTo(new[] { remote }));
+            Assert.That(browsed, Does.Not.Contain(new NodeId("remote", 4)));
+            VerifyNoMutationOrDisposal(session);
+        }
+
+        [Test]
+        public async Task EnumerateSubAssetsAcrossServersAsyncFailsWhenRemoteResolverIsMissingAsync()
+        {
+            Mock<ISession> session = CreateSession();
+            ConfigureRemoteTraversalSession(session, "urn:amb:local", "urn:amb:remote");
+            var remote = new ExpandedNodeId(new NodeId("remote", 4), null, 1);
+            var browsed = new List<NodeId>();
+            SetupRemoteTraversalBrowse(session, s_asset, remote, browsed);
+
+            await AssertStatusAsync(
+                () => CollectSubAssetsAcrossServersAsync(CreateClient(session), s_asset),
+                StatusCodes.BadNotSupported).ConfigureAwait(false);
+
+            Assert.That(browsed, Does.Contain(s_asset));
+            Assert.That(browsed, Does.Not.Contain(new NodeId("remote", 4)));
+        }
+
+        [Test]
+        public async Task LocalSubAssetTraversalYieldsRemoteTargetWithoutInvokingConfiguredResolverAsync()
+        {
+            Mock<ISession> session = CreateSession();
+            var remote = new ExpandedNodeId(new NodeId("remote", 4), null, 1);
+            var browsed = new List<NodeId>();
+            SetupRemoteTraversalBrowse(session, s_asset, remote, browsed);
+            var resolverCalls = new List<string>();
+            AmbClient client = CreateRemoteTraversalClient(
+                session,
+                (serverUri, _) =>
+                {
+                    resolverCalls.Add(serverUri);
+                    return Task.FromException<ManagedSession>(
+                        new InvalidOperationException("The local traversal must not resolve remote sessions."));
+                });
+
+            var found = new List<ExpandedNodeId>();
+            await foreach (ExpandedNodeId sub in client.EnumerateSubAssetsAsync(s_asset).ConfigureAwait(false))
+            {
+                found.Add(sub);
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(found, Is.EqualTo(new[] { remote }));
+                Assert.That(resolverCalls, Is.Empty);
+                Assert.That(browsed, Does.Not.Contain(new NodeId("remote", 4)));
+            });
+        }
+
+        [Test]
+        public async Task EnumerateSubAssetsAcrossServersAsyncRejectsUnknownServerBeforeResolverAsync()
+        {
+            Mock<ISession> session = CreateSession();
+            ConfigureRemoteTraversalSession(session, "urn:amb:local");
+            var remote = new ExpandedNodeId(new NodeId("remote", 4), null, 1);
+            var browsed = new List<NodeId>();
+            SetupRemoteTraversalBrowse(session, s_asset, remote, browsed);
+            var resolverCalls = new List<string>();
+            AmbClient client = CreateRemoteTraversalClient(
+                session,
+                (serverUri, _) =>
+                {
+                    resolverCalls.Add(serverUri);
+                    return Task.FromException<ManagedSession>(
+                        new InvalidOperationException("The resolver must not run for an unknown server index."));
+                });
+
+            await AssertStatusAsync(
+                () => CollectSubAssetsAcrossServersAsync(client, s_asset),
+                StatusCodes.BadServerUriInvalid).ConfigureAwait(false);
+
+            Assert.That(resolverCalls, Is.Empty);
+            Assert.That(browsed, Does.Contain(s_asset));
+            Assert.That(browsed, Does.Not.Contain(new NodeId("remote", 4)));
+        }
+
+        [Test]
+        public async Task EnumerateSubAssetsAcrossServersAsyncPropagatesResolverFailureAsync()
+        {
+            const string remoteServerUri = "urn:amb:remote";
+            Mock<ISession> session = CreateSession();
+            ConfigureRemoteTraversalSession(session, "urn:amb:local", remoteServerUri);
+            var remote = new ExpandedNodeId(new NodeId("remote", 4), null, 1);
+            var browsed = new List<NodeId>();
+            SetupRemoteTraversalBrowse(session, s_asset, remote, browsed);
+            var expected = new InvalidOperationException("Remote session resolution failed.");
+            var resolverCalls = new List<(string ServerUri, CancellationToken Token)>();
+            AmbClient client = CreateRemoteTraversalClient(
+                session,
+                (serverUri, token) =>
+                {
+                    resolverCalls.Add((serverUri, token));
+                    return Task.FromException<ManagedSession>(expected);
+                });
+
+            InvalidOperationException failure = await FailureAsync<InvalidOperationException>(
+                () => CollectSubAssetsAcrossServersAsync(client, s_asset)).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(failure, Is.SameAs(expected));
+                Assert.That(resolverCalls, Has.Count.EqualTo(1));
+                Assert.That(resolverCalls[0].ServerUri, Is.EqualTo(remoteServerUri));
+                Assert.That(resolverCalls[0].Token, Is.EqualTo(CancellationToken.None));
+                Assert.That(browsed, Does.Not.Contain(new NodeId("remote", 4)));
+            });
+        }
+
+        [Test]
+        public async Task CanceledRemoteTraversalDoesNotResolveOrBrowseAsync()
+        {
+            Mock<ISession> session = CreateSession();
+            var resolverCalls = new List<string>();
+            AmbClient client = CreateRemoteTraversalClient(
+                session,
+                (serverUri, _) =>
+                {
+                    resolverCalls.Add(serverUri);
+                    return Task.FromException<ManagedSession>(
+                        new InvalidOperationException("The resolver must not run after cancellation."));
+                });
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+
+            await FailureAsync<OperationCanceledException>(
+                () => CollectSubAssetsAcrossServersAsync(client, s_asset, cancellation.Token))
+                .ConfigureAwait(false);
+
+            Assert.That(resolverCalls, Is.Empty);
+            session.Verify(s => s.BrowseAsync(
+                It.IsAny<RequestHeader?>(), It.IsAny<ViewDescription?>(), It.IsAny<uint>(),
+                It.IsAny<ArrayOf<BrowseDescription>>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [Test]
+        public async Task RemoteTraversalRejectsNullResolverResultAsync()
+        {
+            Mock<ISession> session = CreateSession();
+            ConfigureRemoteTraversalSession(session, "urn:amb:local", "urn:amb:remote");
+            SetupRemoteTraversalBrowse(
+                session, s_asset, new ExpandedNodeId(new NodeId("remote", 4), null, 1), []);
+            AmbClient client = CreateRemoteTraversalClient(session, (_, _) => Task.FromResult<ManagedSession>(null!));
+
+            await AssertStatusAsync(
+                () => CollectSubAssetsAcrossServersAsync(client, s_asset),
+                StatusCodes.BadServerUriInvalid).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task RemoteTraversalWithoutRemoteLinksDoesNotNeedResolverAsync()
+        {
+            Mock<ISession> session = CreateSession();
+            ConfigureRemoteTraversalSession(session, "urn:amb:local");
+            SetupRemoteTraversalBrowse(session, NodeId.Null, ExpandedNodeId.Null, []);
+
+            List<AssetSubAssetReference> found = await CollectSubAssetsAcrossServersAsync(
+                CreateRemoteTraversalClient(session, null), s_asset).ConfigureAwait(false);
+
+            Assert.That(found, Is.Empty);
+        }
+
+        [Test]
+        public async Task NullRemoteTraversalRootNeedsNoSessionRequestsAsync()
+        {
+            Mock<ISession> session = CreateSession();
+
+            List<AssetSubAssetReference> found = await CollectSubAssetsAcrossServersAsync(
+                CreateClient(session), NodeId.Null).ConfigureAwait(false);
+
+            Assert.That(found, Is.Empty);
+            VerifyNoMutationOrDisposal(session);
+            session.Verify(s => s.BrowseAsync(
+                It.IsAny<RequestHeader?>(), It.IsAny<ViewDescription?>(), It.IsAny<uint>(),
+                It.IsAny<ArrayOf<BrowseDescription>>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        private static void ConfigureRemoteTraversalSession(
+            Mock<ISession> session,
+            string localServerUri,
+            params string[] serverUris)
+        {
+            var table = new StringTable();
+            table.GetIndexOrAppend(localServerUri);
+            foreach (string serverUri in serverUris)
+            {
+                table.GetIndexOrAppend(serverUri);
+            }
+            session.SetupGet(s => s.ServerUris).Returns(table);
+            session.SetupGet(s => s.ConfiguredEndpoint).Returns(new ConfiguredEndpoint(
+                null,
+                new EndpointDescription
+                {
+                    Server = new ApplicationDescription { ApplicationUri = localServerUri }
+                },
+                null));
+        }
+
+        private static void SetupRemoteTraversalBrowse(
+            Mock<ISession> session,
+            NodeId asset,
+            ExpandedNodeId remote,
+            List<NodeId> browsed)
+        {
+            SetupBrowse(session, request =>
+            {
+                browsed.Add(request.NodeId);
+                return request.NodeId == asset
+                    ? new BrowseResult { References = [Reference(remote)] }
+                    : new BrowseResult();
+            });
+        }
+
+        private static AmbClient CreateRemoteTraversalClient(
+            Mock<ISession> session,
+            Func<string, CancellationToken, Task<ManagedSession>>? resolver)
+        {
+            return new AmbClient(session.Object, NUnitTelemetryContext.Create(), new AmbClientOptions
+            {
+                MaximumBrowseReferences = 1024,
+                MaximumBrowsePages = 128,
+                RemoteSessionResolver = resolver
+            });
+        }
+
+        private static async Task<List<AssetSubAssetReference>> CollectSubAssetsAcrossServersAsync(
+            AmbClient client,
+            NodeId asset,
+            CancellationToken cancellationToken = default)
+        {
+            var references = new List<AssetSubAssetReference>();
+            await foreach (AssetSubAssetReference reference in client
+                .EnumerateSubAssetsAcrossServersAsync(asset, cancellationToken).ConfigureAwait(false))
+            {
+                references.Add(reference);
+            }
+            return references;
+        }
+
         private const string InstanceNamespace = "urn:amb:bounded:instances";
         private static readonly NodeId s_asset = new("Asset", 4);
     }

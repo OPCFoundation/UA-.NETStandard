@@ -288,6 +288,13 @@ namespace Opc.Ua.AMB.Client
     public sealed record AssetLocationNode(NodeId NodeId, string Path, ArrayOf<ExpandedNodeId> Assets);
 
     /// <summary>
+    /// An asset identified in the server that owns it.
+    /// </summary>
+    /// <param name="ServerUri">The owning server's application URI.</param>
+    /// <param name="NodeId">The asset's identifier, expressed with its namespace URI.</param>
+    public sealed record AssetSubAssetReference(string ServerUri, ExpandedNodeId NodeId);
+
+    /// <summary>
     /// A location that contains an asset.
     /// </summary>
     /// <param name="Kind">The kind of location.</param>
