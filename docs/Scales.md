@@ -669,14 +669,22 @@ Automatic cache policy installation uses exact runtime types:
 `WeightItemState`. It requires `CurrentWrite` and no existing write hooks.
 Derived and unknown types do not receive the policy.
 
-`SelectionListState`, `MultiStateDiscreteState` and
-`MultiStateValueDiscreteState` require explicit native async behavior because a
-cache write cannot replace their semantic validation and publication.
-Consequently, bound `NotificationCategory` and `NotificationId` nodes using
-`MultiStateValueDiscreteState` return `BadNotSupported` through async service
-writes despite their NodeSet `CurrentWrite` declaration. Their synchronous
-write path remains available; this is a remaining support gap, not a change to
-the NodeSet access declaration.
+Exact stock `MultiStateValueDiscreteState` notification settings use a separate
+native async policy. It validates sparse `EnumValues`, commits the numeric value
+through the native cache path and updates `ValueAsText` before admission is
+released. Service notification delivery still uses the existing awaited
+`ClearChangeMasksAsync` traversal; it is not part of this cache-write admission.
+The native path checks access and value type before enum membership, unlike the
+synchronous path's enum-first ordering.
+
+This retains the NodeSet `CurrentWrite` behavior of `NotificationCategory`
+(`i=328`, `i=325`) and `NotificationId` (`i=353`, `i=134`).
+`SelectionListState`, `MultiStateDiscreteState`, custom subclasses and
+synchronous-only custom handlers still require explicit native async behavior;
+neither stock policy invokes their synchronous write semantics.
+If the dependent-state update throws after the numeric cache commit, the write
+reports `BadUnexpectedError` without rolling back that commit. The two nodes
+are not an atomic read snapshot.
 
 On other executor-bound nodes, configure `OnWriteValueAsync` or
 `OnSimpleWriteValueAsync`, or implement a native asynchronous
@@ -1099,6 +1107,7 @@ are left out (`ScaleFacetsBringTheMachineIdentificationTheyIncludeAsync`,
 | Method veto through `CommandInterceptor` | 🧪 | `CommandInterceptorCanVetoACommandAsync`; `PieceCountingLocalCallsMatchTheMethodsAsync` |
 | Runtime members thread-safe against method calls | 🧪 | `EquipmentReportsAreAtomicAgainstTheScaleLockAsync`; `CalibrationReportsAreAtomicAgainstTheScaleLockAsync` |
 | Awaited acquisition publication and runtime/OPC UA Value-write admission | 🔧 | `CatchweigherNotificationRejectsOverlappingSynchronousWritersAsync`; `CatchweigherReportsSerializeAndWaitingCancellationReleasesAdmissionAsync`; `CatchweigherNotificationFailureLeavesSequenceRetryableAsync`; `HopperNotificationRejectsOverlapAfterTipCounterSetterAsync`; `ProductValueWritesPreserveConcurrentSynchronousAdmissionAsync`; `ProductValueWriteAsyncWaitsForAcquisitionAndRejectsSyncOverlapAsync`; `BoundWriteExecutorPreservesCopyAndTimestampSemanticsAsync`; `WriteAttributeAsyncIsNonVirtualAndGuardsCoreOverrideThroughCacheCommitAsync`; `WriteAttributeAsyncGuardsCoreOverrideWithoutBaseCallAsync`; `CoreOverrideSameNodePublicWriteCancellationReleasesAdmissionAsync`. These successor cases are unrun; direct property assignments require application serialization. |
+| Native notification enum writes and dependent text | 🔧 | `ClientWritesGeneratedNotificationEnumsAndRejectsSparseGapsAsync`; `RegisteredNotificationFieldsUseNativeEnumerationPolicyAsync`; `NativeEnumerationPolicyPreservesSparseAndMissingTablesAsync`; `NativeEnumerationPolicyPreservesValidationPrecedenceAsync`; `NativeEnumerationTextNotificationsAwaitExplicitFlushAsync`; `OrdinaryCachePostCommitHonorsCommitBoundaryAsync`. These successor cases are unrun. |
 | Local operator calls for piece counting and vehicle weighing | 🧪 | `PieceCountingLocalCallsMatchTheMethodsAsync`; `VehicleLocalCallsMatchTheMethodsAsync` |
 | Recipe events raised outside the lock | 🧪 | `HandlersMayCompleteElementsSynchronouslyAsync`; `LongChainOfSatisfiedConditionsCompletesWithoutRecursion` |
 | Recipe subscriber failures and controller shutdown | 🧪 | `TimerDrivenSubscriberFailuresAreLoggedAfterEveryNotification`; `SynchronousCallersStillObserveSubscriberFailures`; `DisposeStopsDeliveryWithoutWaitingForARunningCallbackAsync`; `DisposeAsyncWaitsForARunningCallbackAsync`; `DisposeAsyncFromACallbackCompletesAfterTheCallbackReturnsAsync`; `DisposeAsyncAfterDisposeWaitsForTheRunningCallbackAsync`; `DisposeAsyncAfterDisposeWaitsForTheTimerAsync`; `DisposeAsyncAfterDisposeWaitsForARunningTimerCallbackAsync`; `TimerDisposalFailureIsLoggedAndPropagatedAsync` |

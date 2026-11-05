@@ -1540,6 +1540,111 @@ namespace Opc.Ua.Scales.Tests
             }
         }
 
+        /// <summary>
+        /// Real service writes validate generated notification enums and commit their matching display text.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ClientWritesGeneratedNotificationEnumsAndRejectsSparseGapsAsync(bool category)
+        {
+            ScaleHandle scale = m_scales["Hopper"];
+            ScaleAlarmState alarm = scale.Notifications.EnsureAlarm(ScaleNotificationId.GeneralMemoryFault);
+            MultiStateValueDiscreteState variable = category
+                ? alarm.NotificationCategory!
+                : alarm.NotificationId!;
+            PropertyState<LocalizedText> text = variable.ValueAsText!;
+            Assert.That(m_runtime.Manager.FindPredefinedNode(variable.NodeId), Is.SameAs(variable));
+            Assert.That(m_runtime.Manager.FindPredefinedNode(text.NodeId), Is.SameAs(text));
+            Assert.That(variable.OnWriteValueAsync, Is.Not.Null);
+            ArrayOf<EnumValueType> entries = variable.EnumValues!.Value;
+            Assert.That(entries.Count, Is.GreaterThan(1));
+            uint originalValue = variable.WrappedValue.GetUInt32();
+            LocalizedText originalText = text.Value;
+            StatusCode originalStatus = variable.StatusCode;
+            DateTimeUtc originalTimestamp = variable.Timestamp;
+            uint rejectedValue = checked((uint)entries.ToList().Min(entry => entry.Value));
+            while (entries.ToList().Any(entry => entry.Value == rejectedValue))
+            {
+                rejectedValue++;
+            }
+            Assert.That(entries.ToList().Any(entry => entry.Value == rejectedValue), Is.False);
+            if (!category)
+            {
+                Assert.That(rejectedValue, Is.LessThan(entries.ToList().Max(entry => entry.Value)),
+                    "NotificationId must exercise an interior sparse gap, not just an upper bound.");
+            }
+            EnumValueType accepted = entries.ToList().First(entry => entry.Value != originalValue);
+            uint acceptedValue = checked((uint)accepted.Value);
+
+            try
+            {
+                WriteResponse rejected = await m_session.WriteAsync(
+                    null,
+                    new[]
+                    {
+                        new WriteValue
+                        {
+                            NodeId = variable.NodeId,
+                            AttributeId = Attributes.Value,
+                            Value = new DataValue(Variant.From(rejectedValue))
+                        }
+                    }.ToArrayOf(),
+                    CancellationToken.None);
+
+                Assert.That(rejected.Results.Count, Is.EqualTo(1));
+                Assert.That(rejected.Results[0], Is.EqualTo((StatusCode)StatusCodes.BadOutOfRange));
+                Assert.That(variable.WrappedValue.GetUInt32(), Is.EqualTo(originalValue));
+                Assert.That(variable.StatusCode, Is.EqualTo(originalStatus));
+                Assert.That(variable.Timestamp, Is.EqualTo(originalTimestamp));
+                Assert.That(text.Value, Is.EqualTo(originalText));
+
+                WriteResponse written = await m_session.WriteAsync(
+                    null,
+                    new[]
+                    {
+                        new WriteValue
+                        {
+                            NodeId = variable.NodeId,
+                            AttributeId = Attributes.Value,
+                            Value = new DataValue(Variant.From(acceptedValue))
+                        }
+                    }.ToArrayOf(),
+                    CancellationToken.None);
+
+                Assert.That(written.Results.Count, Is.EqualTo(1));
+                Assert.That(written.Results[0], Is.EqualTo((StatusCode)StatusCodes.Good));
+                Assert.That(variable.WrappedValue.GetUInt32(), Is.EqualTo(acceptedValue));
+                Assert.That(variable.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+                Assert.That(text.Value, Is.EqualTo(accepted.DisplayName));
+
+                WriteResponse rejectedAfterCommit = await m_session.WriteAsync(
+                    null,
+                    new[]
+                    {
+                        new WriteValue
+                        {
+                            NodeId = variable.NodeId,
+                            AttributeId = Attributes.Value,
+                            Value = new DataValue(Variant.From(rejectedValue))
+                        }
+                    }.ToArrayOf(),
+                    CancellationToken.None);
+
+                Assert.That(rejectedAfterCommit.Results.Count, Is.EqualTo(1));
+                Assert.That(rejectedAfterCommit.Results[0], Is.EqualTo((StatusCode)StatusCodes.BadOutOfRange));
+                Assert.That(variable.WrappedValue.GetUInt32(), Is.EqualTo(acceptedValue));
+                Assert.That(text.Value, Is.EqualTo(accepted.DisplayName));
+            }
+            finally
+            {
+                variable.WrappedValue = Variant.From(originalValue);
+                variable.StatusCode = originalStatus;
+                variable.Timestamp = originalTimestamp;
+                text.Value = originalText;
+                await variable.ClearChangeMasksAsync(m_runtime.Manager.SystemContext, true);
+            }
+        }
+
         [Test]
         public async Task ClientStreamsWeightsEventsAndAlarmsAsync()
         {

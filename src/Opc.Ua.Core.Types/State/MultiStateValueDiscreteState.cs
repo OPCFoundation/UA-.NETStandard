@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Threading;
+using System.Threading.Tasks;
+
 namespace Opc.Ua
 {
     /// <summary>
@@ -83,6 +86,55 @@ namespace Opc.Ua
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Validates a native cache write after the async core's access, metadata and type checks.
+        /// Scales explicitly composes this policy only for audited stock types without application hooks.
+        /// </summary>
+        internal static ValueTask<AttributeWriteResult> WriteCachedValueAsync(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            Variant value,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var variable = (MultiStateValueDiscreteState)node;
+            if (variable.OnWriteValue != null || variable.OnSimpleWriteValue != null)
+            {
+                return new ValueTask<AttributeWriteResult>(
+                    new AttributeWriteResult(StatusCodes.BadNotSupported));
+            }
+
+            LocalizedText matchedText = LocalizedText.Null;
+            bool matched = false;
+            if (indexRange.IsNull &&
+                value.TypeInfo.IsScalar &&
+                TryGetIntegerValue(value, out long number) &&
+                variable.TryGetEnumValues(context, out ArrayOf<EnumValueType> enumValues))
+            {
+                foreach (EnumValueType entry in enumValues)
+                {
+                    if (entry.Value == number)
+                    {
+                        matchedText = entry.DisplayName;
+                        matched = true;
+                        break;
+                    }
+                }
+                if (!matched)
+                {
+                    return new ValueTask<AttributeWriteResult>(
+                        new AttributeWriteResult(StatusCodes.BadOutOfRange));
+                }
+            }
+
+            return new ValueTask<AttributeWriteResult>(new AttributeWriteResult(ServiceResult.Good)
+            {
+                UseOrdinaryCacheWrite = true,
+                AfterOrdinaryCacheCommit = matched ? () => variable.UpdateValueAsText(matchedText) : null
+            });
         }
 
         /// <summary>

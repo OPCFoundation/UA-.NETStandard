@@ -777,6 +777,80 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         /// <summary>
+        /// Dependent state updates run only after an ordinary cache commit, despite post-handler cancellation.
+        /// </summary>
+        [TestCase("success")]
+        [TestCase("cancel")]
+        [TestCase("reject")]
+        [TestCase("suppress")]
+        [TestCase("range")]
+        [TestCase("external")]
+        [TestCase("throw")]
+        public async Task OrdinaryCachePostCommitHonorsCommitBoundaryAsync(string scenario)
+        {
+            SystemContext context = CreateSystemContext();
+            BaseDataVariableState variable = CreateReadableVariable();
+            variable.Value = Variant.From(1.0);
+            variable.BindWriteOperationExecutor(CreateSerializedWriteExecutor());
+            using var cancellation = new CancellationTokenSource();
+            int calls = 0;
+            double observedValue = 0;
+            StatusCode reentrantStatus = StatusCodes.Good;
+            variable.OnWriteValueAsync = (_, _, _, _, _) =>
+            {
+                if (scenario == "cancel")
+                {
+                    cancellation.Cancel();
+                }
+                return new ValueTask<AttributeWriteResult>(new AttributeWriteResult(
+                    scenario == "reject" ? new ServiceResult(StatusCodes.BadOutOfRange) : ServiceResult.Good)
+                {
+                    UseOrdinaryCacheWrite = scenario != "external",
+                    SuppressCacheUpdate = scenario == "suppress",
+                    AfterOrdinaryCacheCommit = () =>
+                    {
+                        calls++;
+                        observedValue = variable.Value.GetDouble();
+                        reentrantStatus = variable.WriteAttribute(
+                            context, Attributes.Value, NumericRange.Null, new DataValue(Variant.From(9.0))).StatusCode;
+                        if (scenario == "throw")
+                        {
+                            throw new InvalidOperationException("Dependent state update failed.");
+                        }
+                    }
+                });
+            };
+
+            ServiceResult result = await variable.WriteAttributeAsync(
+                context,
+                Attributes.Value,
+                scenario == "range" ? NumericRange.Parse("0") : NumericRange.Null,
+                new DataValue(Variant.From(2.0)),
+                cancellation.Token).ConfigureAwait(false);
+
+            bool committed = scenario is "success" or "cancel" or "throw" or "external";
+            bool updatedDependentState = scenario is "success" or "cancel" or "throw";
+            Assert.That(variable.Value.GetDouble(), Is.EqualTo(committed ? 2.0 : 1.0));
+            Assert.That(calls, Is.EqualTo(updatedDependentState ? 1 : 0));
+            if (updatedDependentState)
+            {
+                Assert.That(observedValue, Is.EqualTo(2.0));
+                Assert.That(reentrantStatus, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            }
+            uint expected = scenario switch
+            {
+                "reject" => StatusCodes.BadOutOfRange,
+                "range" => StatusCodes.BadIndexRangeNoData,
+                "throw" => StatusCodes.BadUnexpectedError,
+                _ => StatusCodes.Good
+            };
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)expected));
+            Assert.That(ServiceResult.IsGood(variable.WriteAttribute(
+                context, Attributes.Value, NumericRange.Null, new DataValue(Variant.From(5.0)))), Is.True);
+            Assert.That(variable.Value.GetDouble(), Is.EqualTo(5.0));
+        }
+
+        /// <summary>
         /// Existing external full hooks keep accepted-write cache invalidation when a range cannot merge.
         /// </summary>
         [Test]

@@ -620,7 +620,7 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronous sibling of <see cref="OnWriteValue"/>. When set,
         /// the async path through
-        /// <see cref="WriteAttributeAsync(ISystemContext, uint, NumericRange, DataValue, CancellationToken)"/>
+        /// <see cref="NodeState.WriteAttributeAsync"/>
         /// invokes this delegate without holding <c>lock(this)</c>; on
         /// success the framework updates the cached value, status code
         /// and timestamp. Indexed writes merge into the cached value; if the
@@ -2234,9 +2234,9 @@ namespace Opc.Ua
                 context,
                 indexRange,
                 value,
-                cancellationToken,
                 onWriteValueAsync,
-                onSimpleWriteValueAsync);
+                onSimpleWriteValueAsync,
+                cancellationToken);
         }
 
         /// <summary>
@@ -2245,17 +2245,17 @@ namespace Opc.Ua
         /// <param name="context">The system context used to validate access and value type.</param>
         /// <param name="indexRange">The elements to replace, or a null range to replace the whole value.</param>
         /// <param name="value">The replacement value and requested status and source timestamp.</param>
-        /// <param name="cancellationToken">The token passed to the asynchronous handler.</param>
         /// <param name="onWriteValueAsync">The full write handler captured at entry.</param>
         /// <param name="onSimpleWriteValueAsync">The simple write handler captured at entry.</param>
+        /// <param name="cancellationToken">The token passed to the asynchronous handler.</param>
         /// <returns>The validation, handler, or cache-commit result.</returns>
         private async ValueTask<ServiceResult> WriteValueAttributeAsyncCore(
             ISystemContext context,
             NumericRange indexRange,
             DataValue value,
-            CancellationToken cancellationToken,
             NodeValueWriteEventHandlerAsync? onWriteValueAsync,
-            NodeValueSimpleWriteEventHandlerAsync? onSimpleWriteValueAsync)
+            NodeValueSimpleWriteEventHandlerAsync? onSimpleWriteValueAsync,
+            CancellationToken cancellationToken)
         {
             if (value.ServerTimestamp != DateTimeUtc.MinValue)
             {
@@ -2346,6 +2346,8 @@ namespace Opc.Ua
                             m_timestamp = effectiveTimestamp;
                             ChangeMasks |= NodeStateChangeMasks.Value;
                         }
+                        // Complete dependent state even if cancellation arrived after the cache commit.
+                        writeResult.AfterOrdinaryCacheCommit?.Invoke();
                         return writeResult.Result;
                     }
 

@@ -143,9 +143,12 @@ variables, including product targets, tolerances and recipe condition settings.
 That policy retains native validation and correlated cache commit. Custom
 synchronous-only handlers require an asynchronous implementation; they are
 neither invoked nor silently bypassed by the policy.
-Application-defined subclasses and stock SelectionList/MultiState variables do
-not receive the automatic cache policy; provide their native async behavior
-explicitly.
+Stock `MultiStateValueDiscreteState` notification settings use a separate native
+async enum policy, including `ValueAsText` updates after a successful cache
+commit. Native validation checks access/type before enum membership; the
+synchronous implementation checks enum membership first. Application-defined
+subclasses, `SelectionListState` and `MultiStateDiscreteState` do not receive
+these policies; provide their native async behavior explicitly.
 
 Unbound nodes retain their existing synchronous fallback. Non-Value attributes
 still dispatch to the protected core without Value-write admission.

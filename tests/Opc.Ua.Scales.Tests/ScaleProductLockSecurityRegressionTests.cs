@@ -492,7 +492,456 @@ namespace Opc.Ua.Scales.Tests
         }
 
         /// <summary>
-        /// Known variable types with synchronous semantic overrides do not receive a cache-only async policy.
+        /// Sparse enum validation and dependent text use the explicitly composed native policy.
+        /// </summary>
+        [TestCase(false, "sparse", 4u, StatusCodes.Good, "four")]
+        [TestCase(true, "sparse", 4u, StatusCodes.Good, "four")]
+        [TestCase(false, "sparse", 3u, StatusCodes.BadOutOfRange, "initial")]
+        [TestCase(false, "empty", 4u, StatusCodes.BadOutOfRange, "initial")]
+        [TestCase(false, "missing", 99u, StatusCodes.Good, "initial")]
+        [TestCase(false, "null", 99u, StatusCodes.Good, "initial")]
+        public async Task NativeEnumerationPolicyPreservesSparseAndMissingTablesAsync(
+            bool generic, string table, uint input, uint expected, string expectedText)
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            ProductState product = scale.ProductionPreset!.ActiveProduct!;
+            MultiStateValueDiscreteState variable = CreateNativeEnumeration(product, generic);
+            var timestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 1);
+            variable.StatusCode = StatusCodes.Uncertain;
+            variable.Timestamp = timestamp;
+            if (table == "missing")
+            {
+                variable.EnumValues = null;
+            }
+            else if (table is "empty" or "null")
+            {
+                variable.EnumValues!.Value = table == "empty" ? ArrayOf<EnumValueType>.Empty : default;
+            }
+            product.AddChild(variable);
+            await product.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+            Assert.That(variable.OnWriteValueAsync, Is.Not.Null);
+
+            ServiceResult result = await WriteAsync(harness.Owner, variable, Variant.From(input))
+                .ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)expected));
+            Assert.That(variable.Value.GetUInt32(), Is.EqualTo(expected == StatusCodes.Good ? input : 1u));
+            Assert.That(variable.ValueAsText!.Value.Text, Is.EqualTo(expectedText));
+            Assert.That(variable.StatusCode,
+                Is.EqualTo((StatusCode)(expected == StatusCodes.Good ? StatusCodes.Good : StatusCodes.Uncertain)));
+            if (expected != StatusCodes.Good)
+            {
+                Assert.That(variable.Timestamp, Is.EqualTo(timestamp));
+                Assert.That(variable.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+                Assert.That(variable.ValueAsText.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+            }
+        }
+
+        /// <summary>
+        /// Signed sparse values and overflowing UInt64 conversion retain the synchronous semantic rules.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task NativeEnumerationPolicyPreservesIntegerConversionRulesAsync(bool overflowingUnsigned)
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            ProductState product = scale.ProductionPreset!.ActiveProduct!;
+            MultiStateValueDiscreteState variable = CreateNativeEnumeration(product);
+            variable.DataType = overflowingUnsigned ? Ua.DataTypeIds.UInt64 : Ua.DataTypeIds.Int64;
+            variable.EnumValues!.Value = new[]
+            {
+                new EnumValueType { Value = -4, DisplayName = new LocalizedText("negative") }
+            }.ToArrayOf();
+            product.AddChild(variable);
+            await product.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+            Variant input = overflowingUnsigned ? Variant.From(ulong.MaxValue) : Variant.From(-4L);
+
+            AssertGood(await WriteAsync(harness.Owner, variable, input).ConfigureAwait(false));
+
+            if (overflowingUnsigned)
+            {
+                // Existing conversion rules defer to ordinary cache writing if UInt64 cannot fit Int64.
+                Assert.That(variable.Value.GetUInt64(), Is.EqualTo(ulong.MaxValue));
+                Assert.That(variable.ValueAsText!.Value.Text, Is.EqualTo("initial"));
+            }
+            else
+            {
+                Assert.That(variable.Value.GetInt64(), Is.EqualTo(-4L));
+                Assert.That(variable.ValueAsText!.Value.Text, Is.EqualTo("negative"));
+            }
+        }
+
+        /// <summary>
+        /// A matching value remains writable when the optional dependent text child is absent.
+        /// </summary>
+        [Test]
+        public async Task NativeEnumerationPolicyAllowsMissingValueAsTextAsync()
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            ProductState product = scale.ProductionPreset!.ActiveProduct!;
+            MultiStateValueDiscreteState variable = CreateNativeEnumeration(product);
+            variable.ValueAsText = null;
+            product.AddChild(variable);
+            await product.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+
+            AssertGood(await WriteAsync(harness.Owner, variable, Variant.From(4u)).ConfigureAwait(false));
+
+            Assert.That(variable.Value.GetUInt32(), Is.EqualTo(4u));
+            Assert.That(variable.ValueAsText, Is.Null);
+        }
+
+        /// <summary>
+        /// Access, metadata and type rejection precede sparse enum validation without dependent state updates.
+        /// </summary>
+        [TestCase("access", StatusCodes.BadNotWritable)]
+        [TestCase("user", StatusCodes.BadUserAccessDenied)]
+        [TestCase("type", StatusCodes.BadTypeMismatch)]
+        [TestCase("status", StatusCodes.BadWriteNotSupported)]
+        [TestCase("timestamp", StatusCodes.BadWriteNotSupported)]
+        [TestCase("server", StatusCodes.BadWriteNotSupported)]
+        [TestCase("range", StatusCodes.BadIndexRangeNoData)]
+        public async Task NativeEnumerationPolicyPreservesValidationPrecedenceAsync(string scenario, uint expected)
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            ProductState product = scale.ProductionPreset!.ActiveProduct!;
+            MultiStateValueDiscreteState variable = CreateNativeEnumeration(product);
+            var originalTimestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 1);
+            variable.StatusCode = StatusCodes.Uncertain;
+            variable.Timestamp = originalTimestamp;
+            if (scenario == "user")
+            {
+                variable.UserAccessLevel = AccessLevels.CurrentRead;
+            }
+            product.AddChild(variable);
+            await product.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+            if (scenario == "access")
+            {
+                variable.AccessLevel = AccessLevels.CurrentRead;
+                await variable.ClearChangeMasksAsync(harness.Context, false).ConfigureAwait(false);
+            }
+            // An empty enum table would reject every scalar value if the enum handler ran first.
+            variable.EnumValues!.Value = ArrayOf<EnumValueType>.Empty;
+            var value = new DataValue(scenario == "type" ? Variant.From("wrong") : Variant.From(3u));
+            if (scenario == "status")
+            {
+                value.StatusCode = StatusCodes.Uncertain;
+            }
+            if (scenario == "timestamp")
+            {
+                value.SourceTimestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 2);
+            }
+            if (scenario == "server")
+            {
+                value.ServerTimestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 2);
+            }
+
+            ServiceResult result = await variable.WriteAttributeAsync(
+                harness.Owner,
+                Attributes.Value,
+                scenario == "range" ? NumericRange.Parse("0") : NumericRange.Null,
+                value).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)expected));
+            Assert.That(variable.Value.GetUInt32(), Is.EqualTo(1u));
+            Assert.That(variable.StatusCode, Is.EqualTo(StatusCodes.Uncertain));
+            Assert.That(variable.Timestamp, Is.EqualTo(originalTimestamp));
+            Assert.That(variable.ValueAsText!.Value.Text, Is.EqualTo("initial"));
+            Assert.That(variable.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+            Assert.That(variable.ValueAsText.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+        }
+
+        /// <summary>
+        /// The child notification is awaited by the existing explicit traversal, after admitted writes return.
+        /// </summary>
+        [Test]
+        public async Task NativeEnumerationTextNotificationsAwaitExplicitFlushAsync()
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            ProductState product = scale.ProductionPreset!.ActiveProduct!;
+            MultiStateValueDiscreteState variable = CreateNativeEnumeration(product);
+            product.AddChild(variable);
+            await product.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int calls = 0;
+            string? observedText = null;
+            PropertyState<LocalizedText> text = variable.ValueAsText!;
+            text.OnStateChangedAsync = async (_, _, _, _) =>
+            {
+                calls++;
+                observedText = text.Value.Text;
+                entered.TrySetResult(true);
+                await release.Task.ConfigureAwait(false);
+            };
+
+            AssertGood(await WriteAsync(harness.Owner, variable, Variant.From(4u)).ConfigureAwait(false));
+            Assert.That(text.Value.Text, Is.EqualTo("four"));
+            Assert.That(calls, Is.Zero);
+            Task flush = variable.ClearChangeMasksAsync(harness.Context, true).AsTask();
+            try
+            {
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+                Assert.That(flush.IsCompleted, Is.False);
+                Assert.That(observedText, Is.EqualTo("four"));
+                // Admission was released by the write; notification sinks do not own it.
+                AssertGood(await WriteAsync(harness.Owner, variable, Variant.From(1u)).ConfigureAwait(false));
+                Assert.That(text.Value.Text, Is.EqualTo("one"));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await flush.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+            }
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(text.ChangeMasks & NodeStateChangeMasks.Value,
+                Is.EqualTo(NodeStateChangeMasks.Value));
+        }
+
+        /// <summary>
+        /// Native application hooks retain authority; existing and subsequently added sync hooks are not adapted.
+        /// </summary>
+        [TestCase("existing", false)]
+        [TestCase("existing", true)]
+        [TestCase("late", false)]
+        [TestCase("late", true)]
+        [TestCase("native", false)]
+        [TestCase("native", true)]
+        public async Task NativeEnumerationPolicyPreservesApplicationHookAuthorityAsync(string policy, bool simple)
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            ProductState product = scale.ProductionPreset!.ActiveProduct!;
+            MultiStateValueDiscreteState variable = CreateNativeEnumeration(product);
+            int synchronousCalls = 0;
+            int nativeCalls = 0;
+            NodeValueSimpleEventHandler sync = (_, _, ref _) =>
+            {
+                synchronousCalls++;
+                return ServiceResult.Good;
+            };
+            if (policy is "existing" or "native")
+            {
+                if (simple)
+                {
+                    variable.OnSimpleWriteValue = sync;
+                }
+                else
+                {
+                    variable.OnWriteValue = (
+                        ISystemContext _, NodeState _, NumericRange _, QualifiedName _,
+                        ref Variant _, ref StatusCode _, ref DateTimeUtc _) =>
+                    {
+                        synchronousCalls++;
+                        return ServiceResult.Good;
+                    };
+                }
+            }
+            if (policy == "native")
+            {
+                if (simple)
+                {
+                    variable.OnSimpleWriteValueAsync = (_, _, _, _) =>
+                    {
+                        nativeCalls++;
+                        return new ValueTask<AttributeWriteResult>(new AttributeWriteResult(ServiceResult.Good));
+                    };
+                }
+                else
+                {
+                    variable.OnWriteValueAsync = (_, _, _, _, _) =>
+                    {
+                        nativeCalls++;
+                        return new ValueTask<AttributeWriteResult>(new AttributeWriteResult(ServiceResult.Good));
+                    };
+                }
+            }
+            product.AddChild(variable);
+            await product.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+            if (policy == "late")
+            {
+                if (simple)
+                {
+                    variable.OnSimpleWriteValue = sync;
+                }
+                else
+                {
+                    variable.OnWriteValue = (
+                        ISystemContext _, NodeState _, NumericRange _, QualifiedName _,
+                        ref Variant _, ref StatusCode _, ref DateTimeUtc _) =>
+                    {
+                        synchronousCalls++;
+                        return ServiceResult.Good;
+                    };
+                }
+            }
+
+            ServiceResult result = await WriteAsync(harness.Owner, variable, Variant.From(3u))
+                .ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)(
+                policy == "native" ? StatusCodes.Good : StatusCodes.BadNotSupported)));
+            Assert.That(synchronousCalls, Is.Zero);
+            Assert.That(nativeCalls, Is.EqualTo(policy == "native" ? 1 : 0));
+            Assert.That(variable.Value.GetUInt32(), Is.EqualTo(policy == "native" ? 3u : 1u));
+            Assert.That(variable.ValueAsText!.Value.Text, Is.EqualTo("initial"));
+            if (policy == "late")
+            {
+                variable.OnSimpleWriteValue = null;
+                variable.OnWriteValue = null;
+                AssertGood(await WriteAsync(harness.Owner, variable, Variant.From(4u)).ConfigureAwait(false));
+                Assert.That(variable.ValueAsText.Value.Text, Is.EqualTo("four"));
+            }
+        }
+
+        /// <summary>
+        /// Both initial subtree binding and dynamic registration compose the stock enumeration policy.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task NativeEnumerationPolicyBindsInitialAndDynamicStockVariablesAsync(bool dynamic)
+        {
+            using var harness = new Harness();
+            var variables = new List<MultiStateValueDiscreteState>();
+            ScaleHandle scale = harness.CreateScale(
+                ScaleKind.AutomaticFilling,
+                (context, product) =>
+                {
+                    ConfigureFillingProduct(context, product);
+                    if (!dynamic)
+                    {
+                        MultiStateValueDiscreteState variable = CreateNativeEnumeration(product);
+                        variables.Add(variable);
+                        product.AddChild(variable);
+                    }
+                });
+            ProductState active = scale.ProductionPreset!.ActiveProduct!;
+            if (dynamic)
+            {
+                MultiStateValueDiscreteState variable = CreateNativeEnumeration(active);
+                variables.Add(variable);
+                active.AddChild(variable);
+                await active.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+            }
+
+            Assert.That(variables, Is.Not.Empty);
+            foreach (MultiStateValueDiscreteState variable in variables)
+            {
+                Assert.That(variable.OnWriteValueAsync, Is.Not.Null);
+                AssertGood(await WriteAsync(harness.Owner, variable, Variant.From(4u)).ConfigureAwait(false));
+                Assert.That(variable.Value.GetUInt32(), Is.EqualTo(4u));
+                Assert.That(variable.ValueAsText!.Value.Text, Is.EqualTo("four"));
+            }
+        }
+
+        /// <summary>
+        /// Real generated notification fields retain native sparse writes when their alarm is registered.
+        /// </summary>
+        [Test]
+        public async Task RegisteredNotificationFieldsUseNativeEnumerationPolicyAsync()
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            ScaleAlarmState alarm = scale.Notifications.EnsureAlarm(ScaleNotificationId.OverloadFault);
+            MultiStateValueDiscreteState[] variables = [alarm.NotificationCategory!, alarm.NotificationId!];
+            foreach (MultiStateValueDiscreteState variable in variables)
+            {
+                Assert.That(variable.AccessLevel & AccessLevels.CurrentWrite, Is.Not.Zero);
+                Assert.That(variable.OnWriteValueAsync, Is.Not.Null);
+                ArrayOf<EnumValueType> entries = variable.EnumValues!.Value;
+                Assert.That(entries.Count, Is.GreaterThan(0));
+                EnumValueType entry = entries[0];
+
+                AssertGood(await WriteAsync(harness.Owner, variable, Variant.From((uint)entry.Value))
+                    .ConfigureAwait(false));
+
+                Assert.That(variable.Value.GetUInt32(), Is.EqualTo((uint)entry.Value));
+                Assert.That(variable.ValueAsText!.Value, Is.EqualTo(entry.DisplayName));
+            }
+        }
+
+        /// <summary>
+        /// An application subclass cannot inherit automatic stock enum acceptance.
+        /// </summary>
+        [Test]
+        public async Task DerivedEnumerationRequiresExplicitNativeImplementationAsync()
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            ProductState product = scale.ProductionPreset!.ActiveProduct!;
+            var variable = new CustomEnumerationState(product)
+            {
+                NodeId = new NodeId("CustomEnumeration", 1),
+                BrowseName = new QualifiedName("CustomEnumeration", 1),
+                DataType = Ua.DataTypeIds.UInt32,
+                ValueRank = ValueRanks.Scalar,
+                AccessLevel = AccessLevels.CurrentReadOrWrite,
+                UserAccessLevel = AccessLevels.CurrentReadOrWrite,
+                Value = Variant.From(1u)
+            };
+            product.AddChild(variable);
+            await product.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+
+            Assert.That(variable.OnWriteValueAsync, Is.Null);
+            ServiceResult result = await WriteAsync(harness.Owner, variable, Variant.From(4u))
+                .ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotSupported));
+            Assert.That(variable.Value.GetUInt32(), Is.EqualTo(1u));
+        }
+
+        /// <summary>
+        /// Cancellation before admission cannot mutate either enumeration or dependent text.
+        /// </summary>
+        [Test]
+        public async Task NativeEnumerationCancellationBeforeAdmissionLeavesBothValuesUnchangedAsync()
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            ProductState product = scale.ProductionPreset!.ActiveProduct!;
+            MultiStateValueDiscreteState variable = CreateNativeEnumeration(product);
+            product.AddChild(variable);
+            await product.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+
+            await Assert.ThatAsync(
+                async () => await variable.WriteAttributeAsync(
+                    harness.Owner,
+                    Attributes.Value,
+                    NumericRange.Null,
+                    new DataValue(Variant.From(4u)),
+                    cancellation.Token).ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>());
+
+            Assert.That(variable.Value.GetUInt32(), Is.EqualTo(1u));
+            Assert.That(variable.ValueAsText!.Value.Text, Is.EqualTo("initial"));
+            Assert.That(variable.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+            Assert.That(variable.ValueAsText.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+            AssertGood(await WriteAsync(harness.Owner, variable, Variant.From(4u)).ConfigureAwait(false));
+            Assert.That(variable.ValueAsText.Value.Text, Is.EqualTo("four"));
+        }
+
+        /// <summary>
+        /// Models an unknown application enumeration subtype.
+        /// </summary>
+        private sealed class CustomEnumerationState : MultiStateValueDiscreteState
+        {
+            /// <summary>
+            /// Creates the application subtype beneath a product.
+            /// </summary>
+            internal CustomEnumerationState(NodeState parent)
+                : base(parent)
+            {
+            }
+        }
+
+        /// <summary>
+        /// Other variable types with synchronous semantic overrides do not receive a cache-only async policy.
         /// </summary>
         [Test]
         public async Task SemanticVariableOverridesDoNotReceiveNativeCachePolicyAsync()
@@ -503,8 +952,7 @@ namespace Opc.Ua.Scales.Tests
             BaseVariableState[] variables =
             [
                 new SelectionListState(product),
-                new MultiStateDiscreteState(product),
-                new MultiStateValueDiscreteState(product)
+                new MultiStateDiscreteState(product)
             ];
             for (int ii = 0; ii < variables.Length; ii++)
             {
@@ -1125,6 +1573,37 @@ namespace Opc.Ua.Scales.Tests
                 AssertGood(error);
             }
             return result;
+        }
+
+        /// <summary>
+        /// Creates an ordinary sparse stock enumeration before explicit product binding.
+        /// </summary>
+        private static MultiStateValueDiscreteState CreateNativeEnumeration(ProductState parent, bool generic = false)
+        {
+            MultiStateValueDiscreteState variable = generic
+                ? MultiStateValueDiscreteState<uint>.With<VariantBuilder>(parent)
+                : new MultiStateValueDiscreteState(parent);
+            variable.NodeId = new NodeId(parent.NodeId.ToString() + ".NativeEnumeration", 1);
+            variable.BrowseName = new QualifiedName("NativeEnumeration", 1);
+            variable.DataType = Ua.DataTypeIds.UInt32;
+            variable.ValueRank = ValueRanks.Scalar;
+            variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
+            variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+            variable.Value = Variant.From(1u);
+            variable.EnumValues = PropertyState<ArrayOf<EnumValueType>>.With<StructureBuilder<EnumValueType>>(
+                variable,
+                new[]
+                {
+                    new EnumValueType { Value = 1, DisplayName = new LocalizedText("one") },
+                    new EnumValueType { Value = 4, DisplayName = new LocalizedText("four") }
+                }.ToArrayOf());
+            variable.EnumValues.NodeId = new NodeId(variable.NodeId.ToString() + ".EnumValues", 1);
+            variable.EnumValues.BrowseName = new QualifiedName(Ua.BrowseNames.EnumValues);
+            variable.ValueAsText = PropertyState<LocalizedText>.With<VariantBuilder>(
+                variable, new LocalizedText("initial"));
+            variable.ValueAsText.NodeId = new NodeId(variable.NodeId.ToString() + ".ValueAsText", 1);
+            variable.ValueAsText.BrowseName = new QualifiedName(Ua.BrowseNames.ValueAsText);
+            return variable;
         }
 
         /// <summary>

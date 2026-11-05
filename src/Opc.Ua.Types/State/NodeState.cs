@@ -7257,6 +7257,12 @@ namespace Opc.Ua
         /// Gets whether the native core owns an ordinary cache write, including copying and range rejection.
         /// </summary>
         internal bool UseOrdinaryCacheWrite { get; init; }
+
+        /// <summary>
+        /// Gets the mandatory dependent-state update run after an ordinary cache commit, outside its lock.
+        /// Exceptions report a failed operation without rolling back the committed cache.
+        /// </summary>
+        internal Action? AfterOrdinaryCacheCommit { get; init; }
     }
 
     /// <summary>

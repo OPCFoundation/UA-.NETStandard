@@ -129,13 +129,19 @@ namespace Opc.Ua.Scales.Server.Runtime
                 node.BindWriteOperationExecutor(writeGate.NodeWriteExecutor);
                 if (node is BaseVariableState variable &&
                     (variable.AccessLevel & AccessLevels.CurrentWrite) != 0 &&
-                    IsOrdinaryCacheVariable(variable) &&
                     variable.OnWriteValueAsync == null &&
                     variable.OnSimpleWriteValueAsync == null &&
                     variable.OnWriteValue == null &&
                     variable.OnSimpleWriteValue == null)
                 {
-                    variable.OnWriteValueAsync = WriteCachedValueAsync;
+                    if (IsOrdinaryCacheVariable(variable))
+                    {
+                        variable.OnWriteValueAsync = WriteCachedValueAsync;
+                    }
+                    else if (IsNativeEnumerationVariable(variable))
+                    {
+                        variable.OnWriteValueAsync = MultiStateValueDiscreteState.WriteCachedValueAsync;
+                    }
                 }
             }
             if ((product != null || writeGate != null) &&
@@ -194,6 +200,17 @@ namespace Opc.Ua.Scales.Server.Runtime
         }
 
         /// <summary>
+        /// Selects only the stock semantic type whose sparse enum and dependent text writes are native.
+        /// </summary>
+        private static bool IsNativeEnumerationVariable(BaseVariableState variable)
+        {
+            Type type = variable.GetType();
+            return type == typeof(MultiStateValueDiscreteState) ||
+                (type.IsGenericType &&
+                    type.GetGenericTypeDefinition() == typeof(MultiStateValueDiscreteState<>.Implementation<>));
+        }
+
+        /// <summary>
         /// Accepts the Scales cache-writing policy without adapting synchronous application callbacks.
         /// </summary>
         /// <remarks>
@@ -202,8 +219,8 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// This callback does not mutate the cache. A synchronous handler installed after binding requires
         /// its own native async implementation;
         /// accepting its write here would otherwise bypass the application's write semantics. Variables with
-        /// SelectionList or MultiState write overrides and all unknown types are excluded by the exact type
-        /// list because their synchronous semantics require a separate native async implementation.
+        /// SelectionList and MultiStateDiscrete overrides and all unknown types are excluded by the exact
+        /// type list. MultiStateValueDiscrete uses its own native enum policy instead.
         /// </remarks>
         private static ValueTask<AttributeWriteResult> WriteCachedValueAsync(
             ISystemContext context,

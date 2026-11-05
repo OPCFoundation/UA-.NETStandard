@@ -20,6 +20,8 @@
   <ItemGroup>
     <!-- Server builders coordinate transitions through internal revision guards and per-transition callbacks. -->
     <InternalsVisibleTo Include="Opc.Ua.Server" />
+    <!-- Scales composes the stock native enum write policy without a public capability API. -->
+    <InternalsVisibleTo Include="Opc.Ua.Scales.Server" />
     <!-- Deterministic server regressions verify the internal state revision without exposing it as public API. -->
     <InternalsVisibleTo Include="Opc.Ua.Server.Tests" />
   </ItemGroup>
