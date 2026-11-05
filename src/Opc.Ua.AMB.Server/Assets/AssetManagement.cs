@@ -419,13 +419,39 @@ namespace Opc.Ua.AMB.Server.Assets
                 return;
             }
 
+            // The NodeId stays reserved until the cleanup ends, so a concurrent
+            // registration of the same node fails with BadNodeIdExists instead
+            // of rebinding the health and history of the retiring asset.
             AmbNodeManager? manager;
+            bool reserved;
             lock (m_lock)
             {
                 m_assets.Remove(handle.NodeId);
                 m_order.Remove(handle);
+                reserved = m_pending.Add(handle.NodeId);
                 manager = m_manager;
             }
+            try
+            {
+                await CleanUpAsync(handle, manager).ConfigureAwait(false);
+            }
+            finally
+            {
+                if (reserved)
+                {
+                    lock (m_lock)
+                    {
+                        m_pending.Remove(handle.NodeId);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Withdraws what an asset removed from the registry still holds.
+        /// </summary>
+        private async ValueTask CleanUpAsync(AssetHandle handle, AmbNodeManager? manager)
+        {
             var failures = new List<Exception>();
             try
             {

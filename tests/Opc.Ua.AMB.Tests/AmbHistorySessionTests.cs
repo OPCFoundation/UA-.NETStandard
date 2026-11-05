@@ -493,6 +493,91 @@ namespace Opc.Ua.AMB.Tests
             eventRelease.Verify(value => value.ReleaseAsync(It.IsAny<Func<ValueTask>>()), Times.Once);
         }
 
+        [Test]
+        public async Task UnregistrationReservesTheNodeIdUntilHistoryDisposalEndsAsync()
+        {
+            using var provider = new InMemoryHistorianProvider();
+            (AmbHostedServer server, IAssetHandle asset, DeviceState device) =
+                await HealthAlarmTests.StartWithSensorAsync(
+                    nameof(UnregistrationReservesTheNodeIdUntilHistoryDisposalEndsAsync),
+                    builder => builder.WithDeviceHealth()
+                        .WithHealthAlarm("Failure", AssetHealthAlarmKind.Failure, AmbConditionClass.ConnectionFailure))
+                    .ConfigureAwait(false);
+            await using AmbHostedServer scope = server;
+            var handle = (AssetHandle)asset;
+            var registry = new Mock<IHistorianProviderRegistry>(MockBehavior.Strict);
+            IHistorianNodeBindingRegistry actual =
+                (IHistorianNodeBindingRegistry)((IHistorianRegistryProvider)server.Server).HistorianRegistry;
+            Assert.That(actual.TryRegisterForNode(device.DeviceHealth!, provider, out IDisposable? health), Is.True);
+            Assert.That(actual.TryRegisterForNode(device, provider, out IDisposable? events), Is.True);
+            var releaseStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseAllowed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            async ValueTask ReleaseHealthAsync(Func<ValueTask> cleanup)
+            {
+                releaseStarted.SetResult(true);
+                await releaseAllowed.Task.ConfigureAwait(false);
+                await ((IHistorianNodeBinding)health!).ReleaseAsync(cleanup).ConfigureAwait(false);
+            }
+            var healthRelease = new Mock<IHistorianNodeBinding>(MockBehavior.Strict);
+            var eventRelease = new Mock<IHistorianNodeBinding>(MockBehavior.Strict);
+            healthRelease.Setup(value => value.ReleaseAsync(It.IsAny<Func<ValueTask>>()))
+                .Returns((Func<ValueTask> cleanup) => ReleaseHealthAsync(cleanup));
+            eventRelease.Setup(value => value.ReleaseAsync(It.IsAny<Func<ValueTask>>()))
+                .Returns((Func<ValueTask> cleanup) => ((IHistorianNodeBinding)events!).ReleaseAsync(cleanup));
+            IDisposable? healthRegistration = healthRelease.Object;
+            IDisposable? eventRegistration = eventRelease.Object;
+            registry.As<IHistorianNodeBindingRegistry>()
+                .Setup(value => value.TryRegisterForNode(device.DeviceHealth!, provider, out healthRegistration))
+                .Returns(true);
+            registry.As<IHistorianNodeBindingRegistry>()
+                .Setup(value => value.TryRegisterForNode(device, provider, out eventRegistration))
+                .Returns(true);
+            var host = new Mock<IServerInternal>();
+            host.SetupGet(value => value.Telemetry).Returns(server.Server.Telemetry);
+            host.SetupGet(value => value.NamespaceUris).Returns(server.Server.NamespaceUris);
+            host.SetupGet(value => value.TypeTree).Returns(server.Server.TypeTree);
+            host.As<IHistorianRegistryProvider>().SetupGet(value => value.HistorianRegistry).Returns(registry.Object);
+            handle.History = (await AssetHistoryBinding.CreateAsync(
+                handle, host.Object, new AssetHistoryOptions(provider), CancellationToken.None)
+                .ConfigureAwait(false))!;
+            await asset.Health!.SetDeviceHealthAsync(DeviceHealthEnumeration.FAILURE).ConfigureAwait(false);
+            DateTimeUtc timestamp = device.DeviceHealth!.Timestamp;
+            var managerBuilder = new Mock<INodeManagerBuilder>();
+            managerBuilder.SetupGet(value => value.NodeManager).Returns(handle.Owner);
+            managerBuilder.SetupGet(value => value.Context).Returns(handle.Context);
+            var assetBuilder = new Mock<INodeBuilder<BaseObjectState>>();
+            assetBuilder.SetupGet(value => value.Node).Returns(device);
+            assetBuilder.SetupGet(value => value.Builder).Returns(managerBuilder.Object);
+
+            Task unregistration = asset.UnregisterAsync().AsTask();
+            await releaseStarted.Task.ConfigureAwait(false);
+            try
+            {
+                ServiceResultException? duplicate = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await server.AssetManagement.RegisterAssetAsync(
+                        assetBuilder.Object, builder => builder.WithDeviceHealth()).ConfigureAwait(false));
+                Assert.That(duplicate!.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdExists));
+                Assert.That(unregistration.IsCompleted, Is.False);
+                Assert.That(server.AssetManagement.TryGetAsset(device.NodeId, out _), Is.False);
+                Assert.That(asset.Health.DeviceHealth, Is.EqualTo(DeviceHealthEnumeration.FAILURE));
+                Assert.That(device.DeviceHealth.Timestamp, Is.EqualTo(timestamp));
+            }
+            finally
+            {
+                releaseAllowed.SetResult(true);
+            }
+            await unregistration.ConfigureAwait(false);
+
+            IAssetHandle registered = await server.AssetManagement.RegisterAssetAsync(
+                assetBuilder.Object, builder => builder.WithDeviceHealth()).ConfigureAwait(false);
+            Assert.That(registered.IsRegistered, Is.True);
+            Assert.That(server.AssetManagement.TryGetAsset(device.NodeId, out IAssetHandle? found), Is.True);
+            Assert.That(found, Is.SameAs(registered));
+            await registered.UnregisterAsync().ConfigureAwait(false);
+            healthRelease.Verify(value => value.ReleaseAsync(It.IsAny<Func<ValueTask>>()), Times.Once);
+            eventRelease.Verify(value => value.ReleaseAsync(It.IsAny<Func<ValueTask>>()), Times.Once);
+        }
+
         [TestCase(AssetHistoryKinds.DeviceHealth, false)]
         [TestCase(AssetHistoryKinds.HealthEvents, false)]
         [TestCase(AssetHistoryKinds.MaintenanceEvents, false)]
