@@ -720,8 +720,8 @@ namespace Opc.Ua.AMB.Server.Assets
         }
 
         /// <summary>
-        /// Keeps the last transition timestamp when the owner's current health agrees with its archive.
-        /// A different current health starts a new state at registration.
+        /// Keeps the last transition timestamp when the owner's current Good health agrees with its archive.
+        /// A different or non-Good current health starts a new state at registration and is captured.
         /// </summary>
         private async ValueTask<bool> RestoreTimestampAsync(
             IHistorianDataProvider provider,
@@ -753,6 +753,7 @@ namespace Opc.Ua.AMB.Server.Assets
             }
             DataValue last = page.Values[0].Value;
             if (StatusCode.IsGood(last.StatusCode) &&
+                StatusCode.IsGood(health.StatusCode) &&
                 last.WrappedValue == health.WrappedValue &&
                 !last.SourceTimestamp.IsNull)
             {

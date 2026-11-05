@@ -2062,6 +2062,67 @@ namespace Opc.Ua.AMB.Tests
             Assert.That(binding.Kinds, Is.EqualTo(AssetHistoryKinds.DeviceHealth));
         }
 
+        [TestCase((uint)StatusCodes.UncertainLastUsableValue)]
+        [TestCase((uint)StatusCodes.BadOutOfService)]
+        public async Task NonGoodCurrentHealthKeepsItsTimestampAndIsCapturedAsync(uint status)
+        {
+            using var storage = new InMemoryHistorianProvider(new InMemoryHistorianOptions
+            {
+                RawDataRetentionPeriod = TimeSpan.Zero
+            });
+            Mock<IHistorianProvider> provider = RetainedRawProvider(storage);
+            (AmbHostedServer server, IAssetHandle asset, DeviceState device) =
+                await HealthAlarmTests.StartWithSensorAsync(
+                    nameof(NonGoodCurrentHealthKeepsItsTimestampAndIsCapturedAsync),
+                    builder => builder.WithDeviceHealth()).ConfigureAwait(false);
+            await using AmbHostedServer scope = server;
+            var handle = (AssetHandle)asset;
+            BaseVariableState health = device.DeviceHealth!;
+            health.StatusCode = status;
+            DateTimeUtc currentTimestamp = health.Timestamp;
+            DateTime archivedTimestamp = DateTime.UtcNow.AddDays(-1);
+            storage.Register(health.NodeId);
+            var context = (ServerSystemContext)handle.Context;
+            using var operation = new OperationContext(
+                new RequestHeader(), null, RequestType.HistoryUpdate, RequestLifetime.None);
+            HistorianUpdateOutcome<DataValue> inserted = await storage.InsertAsync(
+                new HistorianOperationContext(context, operation, health, HistoryUpdateType.Insert),
+                health.NodeId,
+                [new DataValue(health.WrappedValue, StatusCodes.Good, archivedTimestamp)],
+                CancellationToken.None).ConfigureAwait(false);
+            Assert.That(
+                inserted.OperationResults.ToArray(),
+                Is.EqualTo(new[] { (StatusCode)StatusCodes.GoodEntryInserted }));
+
+            await using AssetHistoryBinding binding = (await AssetHistoryBinding.CreateAsync(
+                handle, server.Server, new AssetHistoryOptions(provider.Object, AssetHistoryKinds.DeviceHealth),
+                CancellationToken.None).ConfigureAwait(false))!;
+
+            Assert.That(health.Timestamp, Is.EqualTo(currentTimestamp));
+            Assert.That(health.StatusCode, Is.EqualTo((StatusCode)status));
+            HistorianPage<HistoricalDataValue> page = default;
+            using var read = new OperationContext(
+                new RequestHeader(), null, RequestType.HistoryRead, RequestLifetime.None);
+            await WaitForAsync(async () =>
+            {
+                page = await storage.ReadRawAsync(
+                    new HistorianOperationContext(context, read, health, HistoryUpdateType.Insert),
+                    new HistorianRawReadRequest
+                    {
+                        NodeId = health.NodeId,
+                        StartTime = DateTimeUtc.MinValue,
+                        EndTime = DateTimeUtc.MaxValue,
+                        MaxValues = 10,
+                        PageLimit = 10
+                    },
+                    default, CancellationToken.None).ConfigureAwait(false);
+                return page.Values.Count == 2;
+            }).ConfigureAwait(false);
+            Assert.That(page.Values[0].Value.SourceTimestamp, Is.EqualTo((DateTimeUtc)archivedTimestamp));
+            Assert.That(page.Values[1].Value.SourceTimestamp, Is.EqualTo(currentTimestamp));
+            Assert.That(page.Values[1].Value.StatusCode, Is.EqualTo((StatusCode)status));
+        }
+
         /// <summary>
         /// Injects a release failure only after the actual registry has finished metadata cleanup.
         /// </summary>

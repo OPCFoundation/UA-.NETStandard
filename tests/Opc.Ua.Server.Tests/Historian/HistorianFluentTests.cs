@@ -678,6 +678,29 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         /// <summary>
+        /// Verifies that a builder disposed by its owner leaves the server's shutdown list.
+        /// </summary>
+        [Test]
+        public async Task DisposedBuilderUnregistersFromServerAsync()
+        {
+            var builders = new List<HistorianBuilder>();
+            IServerInternal server = CreateServerWithRegistry(builders);
+            Mock<IHistorianBuilderRegistry> lifecycle = Mock.Get(server).As<IHistorianBuilderRegistry>();
+            lifecycle
+                .Setup(value => value.UnregisterHistorianBuilder(It.IsAny<HistorianBuilder>()))
+                .Callback<HistorianBuilder>(builder => builders.Remove(builder));
+            var builder = new HistorianBuilder(server);
+            Assert.That(builders, Has.Count.EqualTo(1));
+            Assert.That(builders[0], Is.SameAs(builder));
+
+            await builder.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(builders, Is.Empty);
+            lifecycle.Verify(value => value.RegisterHistorianBuilder(builder), Times.Once);
+            lifecycle.Verify(value => value.UnregisterHistorianBuilder(builder), Times.Once);
+        }
+
+        /// <summary>
         /// Verifies that an explicitly supplied provider receives automatically captured values.
         /// </summary>
         [Test]

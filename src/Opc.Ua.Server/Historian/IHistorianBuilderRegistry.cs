@@ -38,5 +38,11 @@ namespace Opc.Ua.Server.Historian
         /// </summary>
         /// <param name="builder">The builder whose capture pipeline the server will drain during shutdown.</param>
         void RegisterHistorianBuilder(HistorianBuilder builder);
+
+        /// <summary>
+        /// Removes a builder that its owner disposed before server shutdown.
+        /// </summary>
+        /// <param name="builder">The disposed builder.</param>
+        void UnregisterHistorianBuilder(HistorianBuilder builder);
     }
 }

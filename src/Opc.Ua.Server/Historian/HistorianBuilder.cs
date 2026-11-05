@@ -436,11 +436,13 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Flushes pending auto-captured samples and tears down the
         /// per-builder <see cref="HistorianCaptureSink"/>, detaching the
-        /// <see cref="NodeState.StateChanged"/> handlers it installed.
+        /// <see cref="NodeState.StateChanged"/> handlers it installed. The
+        /// server no longer drains the builder at shutdown afterwards.
         /// </summary>
         /// <exception cref="AggregateException"></exception>
         public async ValueTask DisposeAsync()
         {
+            (m_server as IHistorianBuilderRegistry)?.UnregisterHistorianBuilder(this);
             CaptureHandlerRegistration[] handlers;
             EventCaptureHandlerRegistration[] eventHandlers;
             lock (m_captureSinkLock)
