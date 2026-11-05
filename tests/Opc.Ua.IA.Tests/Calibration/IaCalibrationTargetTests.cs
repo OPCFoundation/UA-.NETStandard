@@ -362,6 +362,72 @@ namespace Opc.Ua.IA.Tests.Calibration
         }
 
         /// <summary>
+        /// Custom variables and objects become read-only feature components through the fluent builder.
+        /// </summary>
+        [Test]
+        public void CustomFeatureComponentsCanBeConfiguredWithoutStandardFeatures()
+        {
+            var fixture = new IaTestContext();
+            BaseObjectState? publishedFeature = null;
+            BaseDataVariableState? publishedVariable = null;
+            IaCalibrationTargetConfiguration configuration =
+                new IaCalibrationTargetBuilder(IaCalibrationTargetCategory.Dynamic, new IaCalibrationIdentification())
+                    .WithCustomFeatures((context, folder) =>
+                    {
+                        var geometry = new BaseObjectState(folder);
+                        geometry.Create(context, NodeId.Null, fixture.Name("VendorGeometry"),
+                            new LocalizedText("Target geometry"), true);
+                        folder.AddChild(geometry);
+                        publishedFeature = geometry;
+                        var variable = new BaseDataVariableState(folder);
+                        variable.Create(context, NodeId.Null, fixture.Name("VendorOffset"),
+                            new LocalizedText("Vendor offset"), true);
+                        variable.DataType = DataTypeIds.Double;
+                        variable.ValueRank = ValueRanks.Scalar;
+                        variable.Value = 2.0;
+                        folder.AddChild(variable);
+                        publishedVariable = variable;
+                    })
+                    .Build();
+            CalibrationTargetState node = fixture.Context.CreateInstanceOfCalibrationTargetType(
+                browseName: fixture.Name("Target"));
+            var binding = new IaCalibrationTarget(fixture.Context, node,
+                Provider(configuration, new IaCalibrationTargetSnapshot([])).Object);
+            Assert.That(publishedFeature, Is.Not.Null);
+            Assert.That(fixture.Children(node.CalibrationTargetFeatures!), Has.Count.EqualTo(2));
+            Assert.That(publishedFeature!.BrowseName, Is.EqualTo(fixture.Name("VendorGeometry")));
+            Assert.That(publishedFeature.WriteMask, Is.Zero);
+            Assert.That(publishedVariable, Is.Not.Null);
+            Assert.That(publishedVariable!.AccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
+            Assert.That(binding.Configuration.Features.Count, Is.Zero);
+        }
+
+        /// <summary>
+        /// Standard and custom feature components cannot publish duplicate browse names.
+        /// </summary>
+        [Test]
+        public void CustomFeatureComponentsRequireUniqueBrowseNames()
+        {
+            var fixture = new IaTestContext();
+            IaCalibrationFeature feature = Feature(fixture);
+            IaCalibrationTargetConfiguration configuration =
+                new IaCalibrationTargetBuilder(IaCalibrationTargetCategory.Dynamic, new IaCalibrationIdentification())
+                    .WithFeature(feature)
+                    .WithCustomFeatures((context, folder) =>
+                    {
+                        var duplicate = new BaseObjectState(folder);
+                        duplicate.Create(context, NodeId.Null, feature.BrowseName,
+                            new LocalizedText("Duplicate feature"), true);
+                        folder.AddChild(duplicate);
+                    })
+                    .Build();
+            CalibrationTargetState node = fixture.Context.CreateInstanceOfCalibrationTargetType(
+                browseName: fixture.Name("Target"));
+            Assert.That(() => new IaCalibrationTarget(fixture.Context, node,
+                Provider(configuration, Snapshot(feature, 25)).Object), Throws.ArgumentException);
+        }
+
+        /// <summary>
         /// Numeric quantities retain their scalar, array or matrix representation rather than becoming strings.
         /// </summary>
         [TestCase(ValueRanks.Scalar)]

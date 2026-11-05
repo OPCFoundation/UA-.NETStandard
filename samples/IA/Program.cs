@@ -187,6 +187,26 @@ namespace IndustrialAutomationSample
                                 throw new ServiceResultException(
                                     StatusCodes.BadUnexpectedError, "The sample target information is incomplete.");
                             }
+                            CalibrationTargetTypeClient target = client.CalibrationTarget(entry.NodeId);
+                            ClientRead<DateTimeUtc> lastValidation = await target.LastValidationDateVariable()
+                                .ReadAsync(ct).ConfigureAwait(false);
+                            ClientRead<DateTimeUtc> nextValidation = await target.NextValidationDateVariable()
+                                .ReadAsync(ct).ConfigureAwait(false);
+                            ClientRead<byte> quality = await target.QualityVariable().ReadAsync(ct)
+                                .ConfigureAwait(false);
+                            ClientRead<string> certificate = await target.CertificateUriVariable().ReadAsync(ct)
+                                .ConfigureAwait(false);
+                            if (!lastValidation.HasValue || lastValidation.Value.IsNull ||
+                                !nextValidation.HasValue || nextValidation.Value.IsNull ||
+                                !quality.HasValue || quality.Value != 100 ||
+                                !certificate.HasValue || string.IsNullOrWhiteSpace(certificate.Value))
+                            {
+                                throw new ServiceResultException(
+                                    StatusCodes.BadUnexpectedError, "Calibration monitoring metadata is incomplete.");
+                            }
+                            Console.WriteLine(
+                                $"  quality={quality.Value}, validated={lastValidation.Value}, " +
+                                $"next={nextValidation.Value}, certificate={certificate.Value}");
                             break;
                     }
                 }

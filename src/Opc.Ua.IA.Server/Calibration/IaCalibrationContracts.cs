@@ -241,7 +241,9 @@ namespace Opc.Ua.IA.Server
     /// </summary>
     /// <param name="Category">A concrete target category.</param>
     /// <param name="Identification">The DI nameplate values.</param>
-    /// <param name="Features">At least one named feature.</param>
+    /// <param name="Features">
+    /// Named standard features; custom feature components may be supplied by ConfigureCustomFeatures.
+    /// </param>
     public sealed record IaCalibrationTargetConfiguration(
         IaCalibrationTargetCategory Category,
         IaCalibrationIdentification Identification,
@@ -251,6 +253,11 @@ namespace Opc.Ua.IA.Server
         /// Gets the selected optional target properties.
         /// </summary>
         public IaCalibrationTargetFields OptionalFields { get; init; }
+
+        /// <summary>
+        /// Gets the callback that adds application-defined components to CalibrationTargetFeatures.
+        /// </summary>
+        public Action<ISystemContext, BaseObjectState>? ConfigureCustomFeatures { get; init; }
 
         /// <summary>
         /// Gets vendor-defined operational conditions represented using typed calibration variables.
