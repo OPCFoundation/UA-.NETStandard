@@ -207,7 +207,8 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         internal static readonly DiagnosticDescriptor InvalidShape = new(
             "MODELGEN039", "ECM publication copy is not eligible", "{0}", SourceGenerator.Name,
-            DiagnosticSeverity.Error, isEnabledByDefault: true);
+            DiagnosticSeverity.Error, isEnabledByDefault: true,
+            customTags: [WellKnownDiagnosticTags.CompilationEnd]);
 
         /// <summary>
         /// The complete set of structures eligible for the first-party ECM copy.
