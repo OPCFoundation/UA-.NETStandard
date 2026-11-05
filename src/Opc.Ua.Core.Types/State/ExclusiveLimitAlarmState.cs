@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
@@ -68,6 +70,43 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Sets the active state and awaits state-change notification sinks.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="active">Whether the condition is active.</param>
+        /// <param name="cancellationToken">
+        /// The token is checked before mutation; cancellation is not observed after mutation starts.
+        /// </param>
+        /// <remarks>
+        /// Derived classes that customize <see cref="SetActiveState"/> must also override this method.
+        /// </remarks>
+        public override async ValueTask SetActiveStateAsync(
+            ISystemContext context,
+            bool active,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!active)
+            {
+                await SetLimitStateAsync(context, LimitAlarmStates.Inactive, cancellationToken)
+                    .ConfigureAwait(false);
+                return;
+            }
+
+            ExclusiveLimitStateMachineState limitState = LimitState!;
+            if (!limitState.CurrentState!.Id!.Value.IsNull)
+            {
+                await base.SetActiveStateAsync(context, true, cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
+            await SetLimitStateAsync(
+                context,
+                HighLimit != null ? LimitAlarmStates.High : LimitAlarmStates.Low,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Sets the limit state of the condition.
         /// </summary>
         /// <param name="context">The system context.</param>
@@ -101,6 +140,51 @@ namespace Opc.Ua
 
             SetActiveEffectiveSubState(context, limitState.CurrentState!.Value, DateTime.UtcNow);
             base.SetActiveState(context, limit != LimitAlarmStates.Inactive);
+        }
+
+        /// <summary>
+        /// Sets the limit state and awaits state-change notification sinks.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="limit">The bit masks specifying the current state.</param>
+        /// <param name="cancellationToken">
+        /// The token is checked before mutation; cancellation is not observed after mutation starts.
+        /// </param>
+        /// <remarks>
+        /// Derived classes that customize <see cref="SetLimitState"/> must also override this method.
+        /// </remarks>
+        public virtual async ValueTask SetLimitStateAsync(
+            ISystemContext context,
+            LimitAlarmStates limit,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            ExclusiveLimitStateMachineState limitState = LimitState!;
+            switch (limit)
+            {
+                case LimitAlarmStates.HighHigh:
+                    limitState.SetState(context, Objects.ExclusiveLimitStateMachineType_HighHigh);
+                    break;
+                case LimitAlarmStates.High:
+                    limitState.SetState(context, Objects.ExclusiveLimitStateMachineType_High);
+                    break;
+                case LimitAlarmStates.Low:
+                    limitState.SetState(context, Objects.ExclusiveLimitStateMachineType_Low);
+                    break;
+                case LimitAlarmStates.LowLow:
+                    limitState.SetState(context, Objects.ExclusiveLimitStateMachineType_LowLow);
+                    break;
+                case LimitAlarmStates.Inactive:
+                    limitState.SetState(context, 0);
+                    break;
+                default:
+                    throw new ServiceResultException(StatusCodes.BadInvalidArgument,
+                        $"Invalid limit state {limit} specified.");
+            }
+
+            SetActiveEffectiveSubState(context, limitState.CurrentState!.Value, DateTime.UtcNow);
+            await base.SetActiveStateAsync(
+                context, limit != LimitAlarmStates.Inactive, CancellationToken.None).ConfigureAwait(false);
         }
     }
 }
