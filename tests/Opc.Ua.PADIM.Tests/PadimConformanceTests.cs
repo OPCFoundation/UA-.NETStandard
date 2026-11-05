@@ -172,7 +172,7 @@ namespace Opc.Ua.PADIM.Tests
             using var cancellation = new CancellationTokenSource();
             cancellation.Cancel();
 
-            OperationCanceledException? error = await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            OperationCanceledException? error = await Assert.CatchAsync<OperationCanceledException>(async () =>
                 await device.AddOptionalValueAsync(
                     parent, ModelName("SensorClass"), "cancelled", provider.Object, cancellation.Token));
 
@@ -1328,6 +1328,7 @@ namespace Opc.Ua.PADIM.Tests
             device.State.ProductCode!.Value = "fixture";
             device.State.ProductInstanceUri!.Value = $"urn:fixture:{device.State.NodeId}";
             device.State.AddAssetId(device.Context).AssetId!.Value = $"asset:{device.State.NodeId}";
+            device.State.AssetId!.StatusCode = StatusCodes.Good;
             device.State.RevisionCounter!.Value = 0;
         }
 

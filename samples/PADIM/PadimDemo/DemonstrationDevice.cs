@@ -76,6 +76,7 @@ namespace PadimSample
             transmitter.Device.AddAssetId(manager.SystemContext).AssetId!.Value = "Transmitter-001";
             transmitter.Device.DeviceHealth!.Value = Opc.Ua.Di.DeviceHealthEnumeration.NORMAL;
             PadimDevice device = transmitter.BindPadim();
+            transmitter.Device.AssetId!.StatusCode = StatusCodes.Good;
             device.WithHealthAlarms("health", this);
             device.WithAdministration(this, this, this);
             AnalogSignalObjectState temperature = await device.AddMeasurementAsync(
@@ -132,6 +133,7 @@ namespace PadimSample
             analyser.Device.AddAssetId(manager.SystemContext).AssetId!.Value = "PH-001";
             analyser.Device.DeviceHealth!.Value = Opc.Ua.Di.DeviceHealthEnumeration.NORMAL;
             PadimDevice ph = analyser.BindPadim();
+            analyser.Device.AssetId!.StatusCode = StatusCodes.Good;
             ph.WithHealthAlarms("health", this);
             var phSignal = (PhSignalState)await ph.AddSignalAsync(
                 Name("Ph"), PadimSignalKind.Ph, "AT-001").ConfigureAwait(false);

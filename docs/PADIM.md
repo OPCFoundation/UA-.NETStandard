@@ -44,10 +44,11 @@ builder.Services.AddOpcUa()
             identity.ProductInstanceUri = "urn:example:instrument:12345";
             identity.RevisionCounter = 0;
         });
-        builder.Device.AddAssetId(context.Manager.SystemContext).Value = "TT-12345";
+        builder.Device.AddAssetId(context.Manager.SystemContext).AssetId!.Value = "TT-12345";
         builder.Device.DeviceHealth!.Value = DeviceHealthEnumeration.NORMAL;
 
         PadimDevice device = builder.BindPadim();
+        builder.Device.AssetId!.StatusCode = StatusCodes.Good;
         device.WithHealthAlarms("health", provider);
         AnalogSignalObjectState temperature = await device.AddMeasurementAsync(
             new QualifiedName("Temperature", context.Manager.InstanceNamespaceIndex),
@@ -255,6 +256,12 @@ When authorization is denied, the server returns `BadUserAccessDenied` without
 calling the write provider. A provider rejection leaves the published value
 unchanged. A provider must commit an accepted value before returning a Good
 status.
+
+New variables start with `BadWaitingForInitialData`, and device binding applies
+that status to previously writable variables. For identity supplied directly
+during trusted startup configuration, assign the value and its `Good` status
+after binding the device; this does not enable remote writes. Provider-bound
+variables publish their status when acquisition completes.
 
 ```csharp
 PadimValueBinding binding =

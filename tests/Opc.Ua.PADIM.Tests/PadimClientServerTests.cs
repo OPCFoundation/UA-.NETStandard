@@ -541,6 +541,11 @@ namespace Opc.Ua.PADIM.Tests
                             Assert.That(identityValue.Sample.WrappedValue.IsNull, Is.False, identityName);
                         });
                     }
+                    PadimValue assetId = identityValues.ToList().Single(value => value.BrowseName.Name == "AssetId");
+                    Assert.That(assetId.Sample.WrappedValue,
+                        Is.EqualTo(Variant.From($"asset:{device.Value.State.NodeId}")), browseName);
+                    Assert.That(device.Value.State.AssetId!.AccessLevel & AccessLevels.CurrentWrite, Is.Zero,
+                        "Publishing configured identity must not enable unbound remote writes.");
                     if (device.Key == PadimDeviceKind.Device)
                     {
                         foreach ((string name, Variant value) in new[]
@@ -981,6 +986,7 @@ namespace Opc.Ua.PADIM.Tests
             device.State.ProductCode!.Value = "fixture";
             device.State.ProductInstanceUri!.Value = $"urn:fixture:{device.State.NodeId}";
             device.State.AddAssetId(device.Context).AssetId!.Value = $"asset:{device.State.NodeId}";
+            device.State.AssetId!.StatusCode = StatusCodes.Good;
             device.State.RevisionCounter!.Value = 0;
         }
 
