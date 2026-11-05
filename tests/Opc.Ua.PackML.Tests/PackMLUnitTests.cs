@@ -882,6 +882,52 @@ namespace Opc.Ua.PackML.Tests
                 Is.EqualTo(1000));
         }
 
+        /// <summary>
+        /// Verifies every distinct server conformance unit defined in OPC 30050 v1.01 Table 63 can be enabled.
+        /// </summary>
+        [Test]
+        public async Task ConfiguredUnitAdvertisesEveryDefinedServerConformanceUnit()
+        {
+            SystemContext context = PackMLTestSupport.CreateContext();
+            await using Unit unit = await Unit.CreateAsync(
+                context, null, PackMLTestSupport.Name(context), new EquipmentProvider(),
+                new PackMLUnitOptions
+                {
+                    TagId = "All capabilities",
+                    IncludeVersion = true,
+                    EnableRemoteCommand = true,
+                    MaterialCount = 1,
+                    AdministrationExtents = new PackMLAdministrationExtents
+                    {
+                        Parameters = 1,
+                        Alarms = 1,
+                        AlarmHistory = 1,
+                        Warnings = 1,
+                        StopReasons = 1,
+                        ConsumedCounts = 1,
+                        ProcessedCounts = 1,
+                        DefectiveCounts = 1
+                    }
+                });
+            string?[] names = unit.ConformanceUnits.Span.ToArray().Select(name => name.Name).ToArray();
+            Assert.That(names, Is.EquivalentTo(s_definedServerConformanceUnits));
+            Assert.That(unit.ConformanceUnits.Span.ToArray().All(
+                name => name.NamespaceIndex == context.NamespaceUris.GetIndex(Namespaces.PackML)), Is.True);
+            Assert.That(unit.ServerProfiles.Count, Is.Zero);
+
+            PackMLExecuteStateMachineState execute =
+                unit.Node.BaseStateMachine.Required().MachineState.Required().ExecuteState.Required();
+            Assert.That(execute.ToComplete.Required().BrowseName.Name, Is.EqualTo("ToComplete"));
+            Good(await unit.RequestAsync(context, Command(PackMLCommand.Reset)));
+            Good(await unit.CompleteActingStateAsync(unit.PendingRequestId, PackMLStateNumbers.Resetting));
+            Good(await unit.RequestAsync(context, Command(PackMLCommand.Start)));
+            Good(await unit.CompleteActingStateAsync(unit.PendingRequestId, PackMLStateNumbers.Starting));
+            Good(await unit.RequestAsync(context, Command(PackMLCommand.ToComplete)));
+            Assert.That(unit.CurrentState, Is.EqualTo(PackMLStateNumbers.Completing));
+            Good(await unit.CompleteActingStateAsync(unit.PendingRequestId, PackMLStateNumbers.Completing));
+            Assert.That(unit.CurrentState, Is.EqualTo(PackMLStateNumbers.Complete));
+        }
+
         [TestCase(0, 1, 1, false)]
         [TestCase(1, 0, 1, false)]
         [TestCase(1, 1, 0, false)]
@@ -1382,5 +1428,23 @@ namespace Opc.Ua.PackML.Tests
             Assert.That(unit.CurrentState, Is.EqualTo(PackMLStateNumbers.Resetting));
             Assert.That(unit.PendingRequestId, Is.EqualTo(provider.Executed[0].RequestId));
         }
+
+        /// <summary>The distinct server titles in OPC 30050 v1.01 Table 63.</summary>
+        private static readonly string[] s_definedServerConformanceUnits =
+        [
+            "PackML Base Functionality", "PackML Base TagID", "PackML Base Version",
+            "PackML Base Admin", "PackML Base Status", "PackML State Information",
+            "PackML State Abort", "PackML State Clear", "PackML State Stop", "PackML State Reset",
+            "PackML State Complete", "PackML State Start", "PackML State Unhold",
+            "PackML State Suspend", "PackML State Hold", "PackML State Unsuspend",
+            "PackML SetUnitMode", "PackML Set Product", "PackML Machine Speed",
+            "PackML RemoteCommand", "PackML SetInterlock", "PackML Status UnitModeRequested",
+            "PackML Status UnitModeChangeInProcess", "PackML Status State", "PackML Status Interlock",
+            "PackML Status RemoteParameter", "PackML Status Product", "PackML Admin Alarm",
+            "PackML Admin Alarm History", "PackML Admin Warning", "PackML Admin Stop",
+            "PackML Admin mode statistics", "PackML Admin state Statistics", "PackML Admin",
+            "PackML Admin ResetTime", "PackML Admin machine speed.", "PackML Equipment Blocked",
+            "PackML Equipment Starved", "PackML ProdDefectiveCount", "PackML ProdProcessedCount"
+        ];
     }
 }

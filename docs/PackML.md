@@ -11,7 +11,9 @@ describes the .NET runtime around that model, not an alternative PackML protocol
 The [published specification](https://reference.opcfoundation.org/specs/OPC-30050/)
 defines the wire types and conformance units.
 The SDK provides full support for the defined PackML 1.01 capabilities through
-the runtime, typed clients, fluent hosting and sample. This describes available
+the runtime, typed clients, fluent hosting and sample, including the defined
+optional server and client capabilities. Individual units expose their configured
+capabilities. This describes available
 implementation functionality, not certification or the result of a particular
 test run.
 
@@ -447,6 +449,37 @@ contains their acting state. Optional alarm and count capabilities depend on
 their configured capacities. The combined production-count capability requires
 positive consumed, processed and defective capacities; an empty current sample
 does not disable a configured capability.
+
+The defined server and client conformance units in
+[Tables 63 and 64 (§7.1)](https://reference.opcfoundation.org/specs/OPC-30050/v1.01/7.1)
+map to the operations and fields above. The typed client reads optional TagID,
+version, remote parameters and interlocks through `PackMLFields`; its status
+and administration snapshots retain each field's presence, quality and timestamps.
+`CommandAsync` routes state commands to their owning machine, and the typed
+configuration, remote-command and interlock methods use the generated proxies.
+An omitted optional operation returns `BadNotSupported`; a configured operation
+that is unavailable in the current state remains subject to server authorization
+and executability.
+
+Tables 63 and 64 call the completion capability "PackML State Complete" and
+refer to a Complete Method. The actual Method is `ToComplete` in
+[Table 10 (§6.3.8)](https://reference.opcfoundation.org/specs/OPC-30050/v1.01/6.3.8),
+the published NodeSet and
+[§6.7.9](https://reference.opcfoundation.org/specs/OPC-30050/v1.01/6.7.9).
+The runtime and client use that wire name: an accepted `ToComplete` enters
+Completing, and matching equipment completion enters Complete. No separate
+Complete Method is added.
+
+`ConfiguredUnitAdvertisesEveryDefinedServerConformanceUnit` checks that one
+fully configured unit advertises every distinct server title in Table 63 and
+exercises the completion path. Disabled-capability and production-capacity cases
+check conditional advertisement. The real-session cases
+`EveryWireCommandReportsActingStateUntilMatchingEquipmentCompletion`,
+`OptionalBasePropertiesRetainTheirPublishedTypesAndPresence`,
+`EnabledWireOperationsPreservePayloadAndReadinessMeaning` and
+`AuthorizedAdministrationSnapshotDecodesMatricesStructuresAndAcquisitionMetadata`
+cover the corresponding typed-client paths. These are source-level coverage
+references, not an assertion that the current revision has passed execution.
 
 The [PackML test project](../tests/Opc.Ua.PackML.Tests/) contains direct runtime,
 administration and real-session scenarios. Existing controller regression cases

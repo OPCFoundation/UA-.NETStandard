@@ -225,7 +225,15 @@ namespace Opc.Ua.PackML.Server
             {
                 units[index].RejectShutdownReentry();
             }
-            return PackMLLifetime.CompleteShutdownAsync(() => m_lifetime.DisposeAsync(), DisposeUnitsAsync);
+            return PackMLLifetime.CompleteShutdownAsync(DisposeCompositionAsync, DisposeUnitsAsync);
+        }
+
+        /// <summary>
+        /// Closes composition admission and drains admitted creation operations.
+        /// </summary>
+        private async ValueTask DisposeCompositionAsync()
+        {
+            await m_lifetime.DisposeAsync().ConfigureAwait(false);
         }
 
         /// <summary>

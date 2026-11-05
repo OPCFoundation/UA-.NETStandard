@@ -993,7 +993,7 @@ namespace Opc.Ua.Scales.Tests
             FiniteStateVariableState currentState = scale.Scale.State!.CurrentState!;
             var notificationError = new InvalidOperationException("Notification failed.");
             var handlerError = new InvalidOperationException("StateChanged handler failed.");
-            var finalPublication = new PropertyState<uint>(currentState)
+            var finalPublication = new PropertyState(currentState)
             {
                 BrowseName = new QualifiedName("FinalPublication", currentState.BrowseName.NamespaceIndex)
             };
