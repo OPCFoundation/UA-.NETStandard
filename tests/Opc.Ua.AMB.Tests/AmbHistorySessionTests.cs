@@ -1852,7 +1852,7 @@ namespace Opc.Ua.AMB.Tests
                     .Returns(() =>
                     {
                         asynchronousReports++;
-                        return default(ValueTask);
+                        return default;
                     });
                 await AssetNodes.ReportEventAsync(handle.Context, condition).ConfigureAwait(false);
                 Assert.That(asynchronousReports, Is.EqualTo(1));
