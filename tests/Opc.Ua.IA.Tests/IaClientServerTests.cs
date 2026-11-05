@@ -159,6 +159,30 @@ namespace Opc.Ua.IA.Tests
                 }
                 Assert.That(numericFeatures, Is.EqualTo(2));
                 Assert.That(customFeatures, Is.EqualTo(1));
+                CalibrationTargetTypeClient target = client.CalibrationTarget(targetId);
+                var conditions = await target.GetOperationalConditionsAsync(
+                    clientHost.Services.GetRequiredService<ITelemetryContext>(), ct).ConfigureAwait(false);
+                Assert.That(conditions, Is.Not.Null);
+                var environment = new ClientVariable<string>(conditions!, IaSampleModel.InstanceUri,
+                    "Environment", false,
+                    static (value, _) => value.TryGetValue(out string? text) && text != null
+                        ? text : throw new ServiceResultException(StatusCodes.BadTypeMismatch),
+                    static value => Variant.From(value));
+                ClientRead<string> condition = await environment.ReadAsync(ct).ConfigureAwait(false);
+                Assert.That(condition.HasValue, Is.True);
+                Assert.That(condition.Value, Is.EqualTo("Dry indoor environment"));
+                Assert.That(condition.DataValue.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+                Assert.That(condition.DataValue.SourceTimestamp.IsNull, Is.False);
+                ClientRead<DateTimeUtc> nextValidation = await target.NextValidationDateVariable()
+                    .ReadAsync(ct).ConfigureAwait(false);
+                Assert.That(nextValidation.HasValue, Is.True);
+                Assert.That(nextValidation.Value.IsNull, Is.False);
+                ClientRead<byte> quality = await target.QualityVariable().ReadAsync(ct).ConfigureAwait(false);
+                Assert.That(quality.HasValue, Is.True);
+                Assert.That(quality.Value, Is.EqualTo(100));
+                ClientRead<string> certificate = await target.CertificateUriVariable().ReadAsync(ct)
+                    .ConfigureAwait(false);
+                Assert.That(certificate.Value, Is.EqualTo("https://example.invalid/ia/reference-certificate"));
                 ServiceResultException? write = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await stack.StacklightModeVariable().WriteAsync(StacklightOperationMode.Segmented, ct)
                         .ConfigureAwait(false));

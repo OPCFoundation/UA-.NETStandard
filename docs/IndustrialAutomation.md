@@ -51,7 +51,8 @@ same compiled model outside DI. `Opc.Ua.IA` remains its only producer.
 
 `IaStacklightBuilder` composes ordered light and acoustic elements on an existing
 `BasicStacklightState` or `StacklightState`. Callbacks retain access to generated
-optional members for intensities, control channels, RGBW values, and health.
+optional members for intensities, control channels, RGBW values, health, and
+audio samples.
 
 ```csharp
 BasicStacklightState state = context.CreateInstanceOfBasicStacklightType(
@@ -63,7 +64,8 @@ IaStacklight light = new IaStacklightBuilder(context, state)
     .WithModes(0, 100)
     .AddLight(new QualifiedName("Lamp", instanceNamespace))
     .AddAcoustic(new QualifiedName("Sound", instanceNamespace),
-        new QualifiedName("Warning", instanceNamespace))
+        new QualifiedName("Warning", instanceNamespace),
+        configureSignal: signal => signal.AddAudioSample(context))
     .Build(stacklightProvider);
 
 await light.RefreshAsync(cancellationToken);
@@ -81,6 +83,14 @@ Segmented mode exposes individual element observations. Level-meter mode require
 `StackRunning`. Separate control channels cannot coexist with direct light
 controls on one element. Acoustic `OperationMode` selects an actual signal's
 `NumberInList`; elements belonging to the mounting base precede other elements.
+`AcousticSignalType.AudioSample` is optional. Configure it through the
+`AddAcoustic` signal callback; the provider returns one `IaStacklightAudioSample`
+for each configured audio variable, in signal order. The binding copies the
+`ByteString` before publication and preserves its quality and source timestamp.
+The byte contents remain application-defined audio data: the stack does not
+select a codec or operate a speaker. When the DI `DeviceHealthAlarms` folder is
+present, the binding leaves that subtree and its access levels to the host's
+alarm implementation.
 
 This observation binding exposes variables as read-only. A generated client can
 represent a model-permitted write, but the server rejects writes to this binding
@@ -129,12 +139,11 @@ The binding publishes a detached copy of each supported provider value, so a
 provider can reuse its buffers after `RefreshAsync` returns without changing the
 address space. Arrays, matrices, byte strings, opaque identifiers, nested
 variants, data values and extension object type identifiers are copied into new
-storage with their type and dimensions unchanged. Nonempty arrays and matrices
-explicitly tagged as the abstract numeric types `Number`, `Integer` or
-`UInteger` are rejected with `Bad_NotSupported` before publication. Providers
-must use concrete numeric element types, such as `Double`, `Int64` or `UInt64`,
-or a supported `Variant` container; the binding does not infer a concrete type
-from an abstract container's elements or invoke their clone methods.
+storage with their type and dimensions unchanged. OPC UA Part 6 §5.1.6 requires
+abstract `Number`, `Integer` and `UInteger` structure fields to be encoded as
+`Variant` values. Providers therefore supply the concrete built-in value inside
+the `Variant`; nonempty arrays and matrices explicitly tagged with one of those
+abstract types are rejected with `Bad_NotSupported`.
 For scalar byte strings, node identifiers, expanded node identifiers, localized
 text, data values and extension objects, a payload that cannot be read as its
 declared type is rejected with `Bad_NotSupported`; it is not returned unchanged.
@@ -156,9 +165,19 @@ equality implementation or clone. Other decoded structures, including
 subclasses and custom `IEncodeable` implementations, are rejected with
 `Bad_NotSupported` before calling `Encode`, `Decode`, `IsEqual`, `Clone` or an
 encodeable-factory activator. Registering a structure does not make it safe to
-copy. `Argument.Value` is runtime-only and may reference arbitrary mutable
-state; an `Argument` with a non-null value is therefore rejected before
-publication.
+copy. Application-defined structures use an encoded `ExtensionObject` value:
+
+```csharp
+ExtensionObject encoded = EncodeableObject.Encode(
+    context.AsMessageContext(), applicationValue, useXml: false);
+DataValue reading = new(new Variant(encoded), StatusCodes.Good, acquiredAt);
+```
+
+The server copies the encoded type identifier and body without decoding or
+invoking application code. A client with the corresponding model and encodeable
+factory can decode the value. `Argument.Value` is runtime-only and is not part
+of the wire representation; the ordinary IA path rejects an `Argument` with a
+non-null runtime value rather than retaining that state.
 
 Localized text uses the shared `LocalizedText.Copy()` operation. It retains
 all translations, the selected locale and template, and the translation key
@@ -196,8 +215,10 @@ A non-null runtime-only `Value` is not copied. These field-wise rules
 apply to each `ExtensionObject` body reached through the supported `Variant`,
 array, matrix and `DataValue` traversal; they do not traverse fields in custom
 decoded structures.
-Statistics whose values require copying any other decoded structure are not
-supported by the ordinary IA path, even though the specification admits statistics of any kind.
+Other decoded structures are not accepted by the ordinary IA path; encode them
+as `ExtensionObject` values before returning them from the provider. This keeps
+application-defined statistic types available without retaining provider-owned
+buffers or invoking custom copy code.
 Opt-in composition additionally supports the two ECM structures described below.
 Calibration feature and operational-condition readings use the same copy, with
 one additional calibration-only case: an exact decoded `Range` is copied into a
@@ -379,12 +400,23 @@ await target.RefreshAsync(cancellationToken);
 ```
 
 Dynamic and one-time targets require at least one feature. Reusable and
-reusable-device targets additionally require manufacturer, model, serial number,
-an `OperationalConditions` object, and `LastValidationDate`. Applications can
-publish numeric calibration values or capacity ranges with units and positive
-resolution. Numeric values retain their actual scalar, array, or matrix type.
-Operational conditions use the same typed metadata. Dynamic categories can
-reference the instruments that measured the individual target.
+reusable-device targets additionally require `LastValidationDate`; DI
+identification properties remain optional. Applications can publish numeric
+calibration values or capacity ranges with units and positive resolution.
+Numeric values retain their actual scalar, array, or matrix type. Dynamic
+categories can reference the instruments that measured the individual target.
+
+`OperationalConditions` is optional and is omitted when no conditions are
+configured. Use `WithOperationalCondition` for typed numeric conditions with
+engineering-unit metadata. Use `WithCustomOperationalConditions` to add
+application-defined components to the folder; these nodes are read-only through
+the binding and remain application-owned, so they are not refreshed from the
+calibration provider. A configured custom folder must contain at least one named
+component, and its direct children must have unique browse names.
+The [sample](../samples/IA/README.md) publishes a custom environment description
+in this folder. Its client uses `GetOperationalConditionsAsync` on the generated
+target proxy; applications interpret the child nodes according to their own
+model rather than treating every condition as a numeric calibration value.
 
 Use `WithCustomFeatures` to add application-defined variables or objects under
 `CalibrationTargetFeatures`. The callback runs during binding construction,
@@ -532,8 +564,9 @@ proxies expose the corresponding model members.
 - **Calibration targets:** optional DI identification fields, `OperationalConditions`, `LastValidationDate`,
   `NextValidationDate`, `Quality`, `CertificateUri`, dynamic-target measurement-instrument references, and
   application-defined variable or object features are supported. Reusable categories require
-  `LastValidationDate`. `IaCalibrationTargetBuilder` fixes topology before registration; its
-  `WithCustomFeatures` callback adds custom components, while the provider supplies standard calibration readings.
+  `LastValidationDate`; the optional `OperationalConditions` folder is omitted when empty and accepts typed or
+  application-defined components. `IaCalibrationTargetBuilder` fixes topology before registration; custom
+  condition and feature callbacks add read-only components, while the provider supplies typed calibration readings.
   The generated client exposes target properties and reports custom feature names and values without assigning
   standard calibration semantics. The binding publishes certificate URIs without retrieving them.
   See `IaCalibrationTargetTests`.
@@ -546,16 +579,15 @@ Stop new requests and drain outstanding operations before disposing
 owned background resource. Existing Machinery, MachineTool, and Robotics
 integrations continue to consume the same generated IA model.
 
-Support remains bounded by executed evidence rather than loaded declarations.
-The IA test project separates provider/topology tests from the encrypted
-client/server scenario. NativeAOT, supported-framework solution results, and
-companion compatibility results must be recorded before changing a support
-rating to Full. IA support is **Partial**. OPC 10000-200 §6.2.1.1 admits
-statistics of any kind, but the ordinary statistics path rejects decoded structures
-outside the exact `EnumValueType` and `Argument` field-wise copy paths with
-`Bad_NotSupported`. It also rejects an `Argument` with a non-null runtime-only
-value. The binding does not invoke codecs, equality, clone methods or
-encodeable-factory activators to determine whether an unsupported structure is
-safe to copy. The
+Support depends on implemented behavior, not on model declarations alone.
+IA support is **Full** for the released information-model capabilities described
+above. Application-defined statistics use encoded `ExtensionObject` values;
+the binding copies their type identifiers and bodies without decoding or
+invoking application code. The provider API deliberately rejects arbitrary
+decoded custom structures with `Bad_NotSupported`, since it cannot safely copy
+their mutable state without application code. NativeAOT, supported-framework
+solution results, and companion compatibility evidence remain part of
+validation, but pending test execution does not itself reduce the support
+rating. The
 [published-specification matrix](Profiles.md#published-specification-support-matrix)
-records the same reason.
+records this rating.

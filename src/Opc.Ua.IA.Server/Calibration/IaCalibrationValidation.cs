@@ -61,13 +61,6 @@ namespace Opc.Ua.IA.Server
             ValidateFeatures(configuration.Features);
             ValidateFeatures(configuration.OperationalConditions);
             IaCalibrationIdentification identification = configuration.Identification;
-            if (configuration.Category is IaCalibrationTargetCategory.Reusable or
-                IaCalibrationTargetCategory.ReusableDevice &&
-                (identification.Manufacturer.IsNull || identification.Model.IsNull ||
-                    string.IsNullOrWhiteSpace(identification.SerialNumber)))
-            {
-                throw new ArgumentException("Reusable targets require Manufacturer, Model and SerialNumber.");
-            }
             ValidateOptionalUri(identification.ManufacturerUri);
             ValidateOptionalUri(identification.ProductInstanceUri);
             ValidateOptionalUri(identification.DeviceManual);

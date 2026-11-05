@@ -2512,6 +2512,23 @@ namespace Opc.Ua.IA.Tests.Statistics
         }
 
         /// <summary>
+        /// An encoded custom structure remains opaque and owns its binary body after publication.
+        /// </summary>
+        [Test]
+        public async Task PublishedStatisticsDoNotAliasEncodedExtensionObjectBodies()
+        {
+            byte[] body = [8, 1, 2, 3];
+            var typeId = new ExpandedNodeId(9021u, 1);
+            var extension = new ExtensionObject(typeId, new ByteString(body.AsMemory()));
+            Variant published = await PublishThenMutateAsync(Opc.Ua.DataTypeIds.BaseDataType, ValueRanks.Scalar,
+                new Variant(extension), () => body[0] = 99).ConfigureAwait(false);
+            Assert.That(published.TryGetValue(out ExtensionObject copy), Is.True);
+            Assert.That(copy.TypeId, Is.EqualTo(typeId));
+            Assert.That(copy.TryGetAsBinary(out ByteString copiedBody), Is.True);
+            Assert.That(copiedBody.Span.ToArray(), Is.EqualTo(new byte[] { 8, 1, 2, 3 }));
+        }
+
+        /// <summary>
         /// Unregistered receivers are rejected without invoking a potentially unsafe clone or decoder.
         /// </summary>
         [TestCase(true)]

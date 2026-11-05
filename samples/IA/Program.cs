@@ -207,6 +207,11 @@ namespace IndustrialAutomationSample
                             Console.WriteLine(
                                 $"  quality={quality.Value}, validated={lastValidation.Value}, " +
                                 $"next={nextValidation.Value}, certificate={certificate.Value}");
+                            var conditions = await target.GetOperationalConditionsAsync(
+                                host.Services.GetRequiredService<ITelemetryContext>(), ct).ConfigureAwait(false) ??
+                                throw new ServiceResultException(
+                                    StatusCodes.BadNotFound, "The sample operational conditions are missing.");
+                            Console.WriteLine($"  operational conditions={conditions.ObjectId}");
                             break;
                     }
                 }
