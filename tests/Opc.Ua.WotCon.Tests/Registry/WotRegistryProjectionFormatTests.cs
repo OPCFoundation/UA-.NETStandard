@@ -245,7 +245,8 @@ namespace Opc.Ua.WotCon.Tests.Registry
         public async Task RestoredPlanAdmissionRunsBeforeAnyRuntimePublication(
             string format, string contentType, WoTDocumentKindEnum storedKind)
         {
-            string root = Path.Combine(Path.GetTempPath(), "format-restore", Guid.NewGuid().ToString("N"));
+            string root = Path.Combine(
+                Path.GetTempPath(), "format-restore", Guid.NewGuid().ToString("N")[..12]);
             Directory.CreateDirectory(root);
             try
             {
@@ -496,7 +497,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             string root = Path.Combine(
                 Path.GetTempPath(),
                 "unsupported-format-restore",
-                Guid.NewGuid().ToString("N"));
+                Guid.NewGuid().ToString("N")[..12]);
             Directory.CreateDirectory(root);
             try
             {

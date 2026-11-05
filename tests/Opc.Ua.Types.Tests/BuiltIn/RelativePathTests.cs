@@ -525,10 +525,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var element = new RelativePathElement();
 
-            Assert.That(element.ReferenceTypeId, Is.Default);
+            Assert.That(element.ReferenceTypeId.IsNull, Is.True);
             Assert.That(element.IsInverse, Is.False);
             Assert.That(element.IncludeSubtypes, Is.True);
-            Assert.That(element.TargetName, Is.Default);
+            Assert.That(element.TargetName.IsNull, Is.True);
         }
 
         [Test]

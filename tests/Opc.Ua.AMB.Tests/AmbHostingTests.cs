@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -43,6 +44,7 @@ using Opc.Ua.AMB.Server.Hosting;
 using Opc.Ua.Di.Server.Hosting;
 using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.Hosting;
+using Opc.Ua.Server.TestFramework;
 
 namespace Opc.Ua.AMB.Tests
 {
@@ -252,6 +254,9 @@ namespace Opc.Ua.AMB.Tests
             });
         }
 
+        /// <summary>
+        /// A failing asset-management setup delegate aborts server startup.
+        /// </summary>
         [Test]
         public async Task AFailingSetupDelegateAbortsTheStartupAsync()
         {
@@ -261,13 +266,16 @@ namespace Opc.Ua.AMB.Tests
             {
                 options.ApplicationName = nameof(AFailingSetupDelegateAbortsTheStartupAsync);
                 options.ApplicationUri = "urn:localhost:" + nameof(AFailingSetupDelegateAbortsTheStartupAsync);
+                // Leave room for certificate filenames under the .NET Framework path limit.
                 options.PkiRoot = Path.Combine(
                     TestContext.CurrentContext.WorkDirectory,
-                    nameof(AFailingSetupDelegateAbortsTheStartupAsync),
+                    "amb",
                     Guid.NewGuid().ToString("N"));
                 options.AutoAcceptUntrustedCertificates = true;
                 options.EndpointUrls.Clear();
-                options.EndpointUrls.Add("opc.tcp://localhost:0/" + nameof(AFailingSetupDelegateAbortsTheStartupAsync));
+                string port = ServerFixtureUtils.GetNextFreeIPPort().ToString(CultureInfo.InvariantCulture);
+                options.EndpointUrls.Add(
+                    $"opc.tcp://localhost:{port}/{nameof(AFailingSetupDelegateAbortsTheStartupAsync)}");
             });
             bool ran = false;
             var failure = new InvalidDataException("broken setup");
@@ -309,6 +317,25 @@ namespace Opc.Ua.AMB.Tests
                     Is.SameAs(failure),
                     "Published-readiness startup failure must preserve the exact configurator cause.");
             });
+        }
+
+        /// <summary>
+        /// The fixture reports the startup exception instead of waiting for the readiness timeout.
+        /// </summary>
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task HostedFixtureReportsStartupFailureAsync(CancellationToken ct)
+        {
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+            {
+                await using AmbHostedServer server = await AmbHostedServer.StartAsync(
+                    nameof(HostedFixtureReportsStartupFailureAsync),
+                    builder => builder.AddAssetManagement().ConfigureAssetManagement(
+                        _ => throw new InvalidDataException("broken setup")),
+                    ct).ConfigureAwait(false);
+            }).ConfigureAwait(false);
+
+            Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadInternalError));
         }
 
         private static IOpcUaServerBuilder CreateServerBuilder()

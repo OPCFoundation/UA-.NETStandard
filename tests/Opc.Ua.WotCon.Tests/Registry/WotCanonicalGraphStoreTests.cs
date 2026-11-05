@@ -57,7 +57,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             m_root = Path.Combine(
                 Path.GetTempPath(),
                 nameof(WotCanonicalGraphStoreTests),
-                Guid.NewGuid().ToString("N"));
+                Guid.NewGuid().ToString("N")[..12]);
         }
 
         /// <summary>

@@ -49,7 +49,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         public void SetUp()
         {
             m_root = Path.Combine(Path.GetTempPath(),
-                nameof(WotPreparedLifecycleMutationTests), Guid.NewGuid().ToString("N"));
+                nameof(WotPreparedLifecycleMutationTests), Guid.NewGuid().ToString("N")[..12]);
         }
 
         /// <summary>
