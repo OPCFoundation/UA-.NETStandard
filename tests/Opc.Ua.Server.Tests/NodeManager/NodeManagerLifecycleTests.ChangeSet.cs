@@ -1128,6 +1128,134 @@ namespace Opc.Ua.Server.Tests.NodeManager
         private const string kNamespaceUri = "urn:test:change-set-cleanup";
 
         /// <summary>
+        /// Completed disposal tasks and their ordinary failures do not retain a private candidate.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CompletedPreparedDisposalTasksDoNotRetainPrivateCandidatesAsync(bool failCleanup)
+        {
+            (WeakReference candidate, Task disposal) = await CompletePrivateCandidateDisposalAsync(failCleanup)
+                .ConfigureAwait(false);
+            // Do not run collection inline in the producer's completion callback.
+            await Task.Yield();
+            try
+            {
+                for (int attempt = 0; attempt < 3 && candidate.IsAlive; attempt++)
+                {
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                    GC.Collect();
+                }
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(candidate.IsAlive, Is.False);
+                    Assert.That(disposal.Status, Is.EqualTo(
+                        failCleanup ? TaskStatus.Faulted : TaskStatus.RanToCompletion));
+                }
+            }
+            finally
+            {
+                GC.KeepAlive(disposal);
+            }
+        }
+
+        /// <summary>
+        /// Concurrent prepared-unit disposal joins the actual abort owner and its cleanup outcome.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PreparedUnitDisposalJoinsAbortAndSharesCleanupOutcomeAsync(bool failCleanup)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            await using var harness = new ChangeSetCleanupHarness();
+            Mock<IAsyncNodeManager> candidate = CreateManager(kNamespaceUri);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var failure = new InvalidOperationException("Private candidate abort failed.");
+            candidate.Setup(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()))
+                .Returns(async () =>
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    if (failCleanup)
+                    {
+                        throw failure;
+                    }
+                });
+            IPreparedChanges prepared = await harness.Lifecycle.PrepareAsync(
+                [LifecycleChange.Add(CreateFactory(candidate))], timeout.Token).ConfigureAwait(false);
+            Task disposal = prepared.DisposeAsync().AsTask();
+            Task? joined = null;
+            Task? drained = null;
+            try
+            {
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                joined = prepared.DisposeAsync().AsTask();
+                drained = await harness.Writer.BeginShutdownAsync(timeout.Token).ConfigureAwait(false);
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(disposal.IsCompleted, Is.False);
+                    Assert.That(joined.IsCompleted, Is.False);
+                    Assert.That(drained.IsCompleted, Is.False);
+                    Assert.That(harness.Writer.ActiveOperationCount, Is.EqualTo(1));
+                    candidate.As<IDisposable>().Verify(value => value.Dispose(), Times.Never);
+                }
+                release.TrySetResult(true);
+                await ObserveCleanupAsync(disposal).ConfigureAwait(false);
+                await ObserveCleanupAsync(joined).ConfigureAwait(false);
+                await drained.WaitAsync(timeout.Token).ConfigureAwait(false);
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(harness.Writer.ActiveOperationCount, Is.Zero);
+                    Assert.That(prepared.IsCommitted, Is.False);
+                    if (failCleanup)
+                    {
+                        Assert.That(joined.Exception!.InnerException, Is.SameAs(disposal.Exception!.InnerException));
+                    }
+                    candidate.As<IDisposable>().Verify(value => value.Dispose(), Times.Once);
+                    candidate.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
+                }
+                await prepared.DisposeAsync().ConfigureAwait(false);
+                candidate.As<IDisposable>().Verify(value => value.Dispose(), Times.Once);
+                candidate.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                try
+                {
+                    await ObserveCleanupAsync(disposal).ConfigureAwait(false);
+                    if (joined is not null)
+                    {
+                        await ObserveCleanupAsync(joined).ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    if (drained is not null)
+                    {
+                        await drained.WaitAsync(timeout.Token).ConfigureAwait(false);
+                        harness.Writer.EndShutdown(prepared: false);
+                        harness.Writer.BeginStartup(static () => { });
+                    }
+                }
+            }
+
+            async Task ObserveCleanupAsync(Task cleanup)
+            {
+                if (failCleanup)
+                {
+                    await Assert.ThatAsync(() => cleanup.WaitAsync(timeout.Token),
+                        Throws.TypeOf<AggregateException>().With.InnerException.SameAs(failure)).ConfigureAwait(false);
+                }
+                else
+                {
+                    await cleanup.WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
         /// Stale commit itself disposes the candidate and releases admission before caller disposal.
         /// </summary>
         [Test]
@@ -1285,6 +1413,53 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             candidate.As<IDisposable>().Verify(manager => manager.Dispose(), Times.Once);
             Assert.That(writer.ActiveOperationCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// Finishes candidate cleanup outside the collection test's stack while retaining its disposal task.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static async Task<(WeakReference Candidate, Task Disposal)> CompletePrivateCandidateDisposalAsync(
+            bool failCleanup)
+        {
+            await using var harness = new ChangeSetCleanupHarness();
+            Mock<IAsyncNodeManager> candidate = CreateManager(kNamespaceUri);
+            var reference = new WeakReference(candidate.Object);
+            var failure = new InvalidOperationException("Private candidate abort failed.");
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            candidate.Setup(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()))
+                .Returns(async () =>
+                {
+                    await release.Task.ConfigureAwait(false);
+                    if (failCleanup)
+                    {
+                        throw failure;
+                    }
+                });
+            IPreparedChanges prepared = await harness.Lifecycle.PrepareAsync(
+                [LifecycleChange.Add(CreateFactory(candidate))]).ConfigureAwait(false);
+            Task disposal = prepared.DisposeAsync().AsTask();
+            try
+            {
+                Assert.That(disposal.IsCompleted, Is.False);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+            if (failCleanup)
+            {
+                await Assert.ThatAsync(() => disposal,
+                    Throws.TypeOf<AggregateException>().With.InnerException.SameAs(failure)).ConfigureAwait(false);
+            }
+            else
+            {
+                await disposal.ConfigureAwait(false);
+            }
+            await prepared.DisposeAsync().ConfigureAwait(false);
+            candidate.As<IDisposable>().Verify(value => value.Dispose(), Times.Once);
+            candidate.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
+            return (reference, disposal);
         }
 
         private static Mock<IAsyncNodeManager> CreateManager(string namespaceUri)
