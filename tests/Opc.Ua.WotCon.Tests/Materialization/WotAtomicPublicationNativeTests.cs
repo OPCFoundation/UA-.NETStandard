@@ -55,6 +55,18 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     public sealed partial class WotAtomicPublicationNativeTests : IAsyncDisposable
     {
         /// <summary>
+        /// Removes the certificate store shared by this non-parallel fixture.
+        /// </summary>
+        [OneTimeTearDown]
+        public void DeleteCertificateStore()
+        {
+            if (Directory.Exists(m_pkiRoot))
+            {
+                Directory.Delete(m_pkiRoot, recursive: true);
+            }
+        }
+
+        /// <summary>
         /// Initializes native publication storage, failure injection, and server fixtures for the test.
         /// </summary>
         [SetUp]
@@ -99,7 +111,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 SecurityNone = true,
                 AutoAccept = true
             };
-            m_server = await m_fixture.StartAsync(Path.Combine(m_root, "pki")).ConfigureAwait(false);
+            // Only certificate files are reused; servers, sessions and registry state remain per-test.
+            m_server = await m_fixture.StartAsync(m_pkiRoot).ConfigureAwait(false);
             m_converter = new FakeWotDocumentConverter();
             m_coordinator = new WotMaterializationCoordinator(
                 m_registry,
@@ -110,7 +123,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             };
             m_coordinator.Event += (_, change) => m_events.Add(change);
             m_client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
-            await m_client.LoadClientConfigurationAsync(Path.Combine(m_root, "pki")).ConfigureAwait(false);
+            await m_client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             Assert.That(m_client.SessionFactory, Is.TypeOf<DefaultSessionFactory>());
             m_session = await m_client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
@@ -424,6 +437,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         private readonly List<WotMaterializationEventArgs> m_events = [];
+
+        private readonly string m_pkiRoot = Path.Combine(
+            Path.GetTempPath(), "apn-pki", Guid.NewGuid().ToString("N")[..12]);
+
         private string m_root = null!;
         private FileWotRegistryStore m_store = null!;
         private PreparedWotTestStorage m_storage = null!;

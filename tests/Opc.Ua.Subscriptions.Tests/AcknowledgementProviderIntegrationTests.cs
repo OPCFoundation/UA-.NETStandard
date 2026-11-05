@@ -142,6 +142,126 @@ namespace Opc.Ua.Subscriptions.Tests
             }
         }
 
+        /// <summary>
+        /// A split server Publish burst preserves its response markers through native partition forwarding.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [CancelAfter(90_000)]
+        public async Task NativeSplitPublishMetadataSurvivesPartitionForwardingAsync(
+            bool partitioned, CancellationToken ct)
+        {
+            var observer = new RecordingObserver();
+            await using ManagedSessionType session = await ConnectAsync(
+                nameof(NativeSplitPublishMetadataSurvivesPartitionForwardingAsync), observer, classic: false, ct)
+                .ConfigureAwait(false);
+            var handler = new MessageCollectingHandler();
+            var options = new OptionsMonitor<Client.Subscriptions.SubscriptionOptions>(
+                new Client.Subscriptions.SubscriptionOptions
+                {
+                    PublishingEnabled = false,
+                    PublishingInterval = TimeSpan.FromMilliseconds(100),
+                    KeepAliveCount = 1,
+                    MaxNotificationsPerPublish = 1,
+                    MaxMonitoredItemsPerPartition = 3,
+                    DisableUnboundedItemMode = !partitioned
+                });
+            Assert.That(session.TryGetSubscriptionManager(out ISubscriptionManager? manager), Is.True);
+            await using ISubscription subscription = manager!.Add(handler, options);
+            var items = new List<Client.Subscriptions.MonitoredItems.IMonitoredItem>();
+            int expected = partitioned ? 6 : 3;
+            for (int i = 0; i < expected; i++)
+            {
+                Assert.That(subscription.TryAddMonitoredItem(
+                    $"state-{i}",
+                    VariableIds.Server_ServerStatus_State,
+                    value => value with { QueueSize = 1, SamplingInterval = TimeSpan.FromMilliseconds(100) },
+                    out Client.Subscriptions.MonitoredItems.IMonitoredItem? item), Is.True);
+                items.Add(item!);
+            }
+            await WaitForAsync(() => items.All(item => item.Created), ct).ConfigureAwait(false);
+            options.CurrentValue = options.CurrentValue with { PublishingEnabled = true };
+            await WaitForAsync(() => handler.Messages.Count >= expected, ct).ConfigureAwait(false);
+
+            SubscriptionNotificationMessage[] messages = [.. handler.Messages.Take(expected)];
+            IGrouping<uint, SubscriptionNotificationMessage>[] groups =
+                [.. messages.GroupBy(message => message.Acknowledgement.SubscriptionId)];
+            Assert.That(groups, Has.Length.EqualTo(partitioned ? 2 : 1));
+            foreach (IGrouping<uint, SubscriptionNotificationMessage> group in groups)
+            {
+                SubscriptionNotificationMessage[] ordered =
+                    [.. group.OrderBy(message => message.Acknowledgement.SequenceNumber)];
+                Assert.That(ordered.Select(message => message.MoreNotifications),
+                    Is.EqualTo(new bool?[] { true, true, false }));
+                Assert.That(ordered.All(message => message.Notifications[0].DataChanges.Count == 1), Is.True);
+                foreach (SubscriptionNotificationMessage message in ordered)
+                {
+                    Assert.That(observer.WasAcknowledged(message.Acknowledgement), Is.False);
+                    session.Confirm(message.Acknowledgement);
+                }
+            }
+            await WaitForAsync(() => messages.All(message => observer.WasAcknowledged(message.Acknowledgement)), ct)
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Classic subscriptions retain live split markers through either session engine.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [CancelAfter(90_000)]
+        public async Task ClassicSplitPublishMetadataSurvivesSessionDispatchAsync(bool classic, CancellationToken ct)
+        {
+            var observer = new RecordingObserver();
+            await using ManagedSessionType session = await ConnectAsync(
+                nameof(ClassicSplitPublishMetadataSurvivesSessionDispatchAsync), observer, classic, ct)
+                .ConfigureAwait(false);
+            var handler = new MessageCollectingHandler();
+            using var subscription = new ClassicSubscription(Telemetry)
+            {
+                PublishingEnabled = false,
+                PublishingInterval = 100,
+                KeepAliveCount = 1,
+                MaxNotificationsPerPublish = 1,
+                NotificationMessageHandler = handler
+            };
+            for (int i = 0; i < 3; i++)
+            {
+                subscription.AddItem(new MonitoredItem(Telemetry)
+                {
+                    StartNodeId = VariableIds.Server_ServerStatus_State,
+                    AttributeId = Attributes.Value,
+                    SamplingInterval = 100,
+                    QueueSize = 1
+                });
+            }
+            Assert.That(session.AddSubscription(subscription), Is.True);
+            await subscription.CreateAsync(ct).ConfigureAwait(false);
+            await subscription.SetPublishingModeAsync(true, ct).ConfigureAwait(false);
+            await WaitForAsync(() => handler.Messages.Count >= 3, ct).ConfigureAwait(false);
+
+            SubscriptionNotificationMessage[] messages =
+                [.. handler.Messages.Take(3).OrderBy(message => message.Acknowledgement.SequenceNumber)];
+            Assert.That(messages.Select(message => message.MoreNotifications),
+                Is.EqualTo(new bool?[] { true, true, false }));
+            foreach (SubscriptionNotificationMessage message in messages)
+            {
+                Assert.That(message.Acknowledgement.SubscriptionId, Is.EqualTo(subscription.Id));
+                Assert.That(message.Notifications[0].DataChanges.Count, Is.EqualTo(1));
+            }
+            // The default engine's legacy dispatch fallback does not track acknowledgement handles.
+            if (classic)
+            {
+                foreach (SubscriptionNotificationMessage message in messages)
+                {
+                    Assert.That(observer.WasAcknowledged(message.Acknowledgement), Is.False);
+                    session.Confirm(message.Acknowledgement);
+                }
+                await WaitForAsync(() => messages.All(message => observer.WasAcknowledged(message.Acknowledgement)), ct)
+                    .ConfigureAwait(false);
+            }
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         [CancelAfter(90_000)]
@@ -332,10 +452,13 @@ namespace Opc.Ua.Subscriptions.Tests
         {
             public ConcurrentQueue<AcknowledgementHandle> Handles { get; } = new();
 
+            public ConcurrentQueue<SubscriptionNotificationMessage> Messages { get; } = new();
+
             public ValueTask OnNotificationMessageAsync(
                 SubscriptionNotificationMessage message, CancellationToken ct = default)
             {
                 Handles.Enqueue(message.Acknowledgement);
+                Messages.Enqueue(message);
                 return default;
             }
         }

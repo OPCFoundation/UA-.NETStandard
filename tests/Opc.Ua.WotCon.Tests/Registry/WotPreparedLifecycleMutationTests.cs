@@ -48,8 +48,8 @@ namespace Opc.Ua.WotCon.Tests.Registry
         [SetUp]
         public void SetUp()
         {
-            m_root = Path.Combine(TestContext.CurrentContext.WorkDirectory,
-                nameof(WotPreparedLifecycleMutationTests), Guid.NewGuid().ToString("N"));
+            m_root = Path.Combine(Path.GetTempPath(),
+                nameof(WotPreparedLifecycleMutationTests), Guid.NewGuid().ToString("N")[..12]);
         }
 
         /// <summary>

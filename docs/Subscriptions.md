@@ -488,7 +488,36 @@ The immutable envelope preserves payload order, the physical partition's acknowl
 identity, publish time and diagnostic string table. Each payload identifies data changes,
 events or a status change. Its arrays do not borrow pooled wire containers, so they can be
 retained after the callback returns; monitored-item references remain live SDK objects.
-`MoreNotifications` describes further Publish responses, not additional parts of this envelope.
+`message.MoreNotifications` preserves the originating Publish response's flag for that
+physical subscription, including through V2 partition forwarding and classic whole-message
+delivery. `true` means further notifications are queued; `false` means that Publish response
+reported no more queued notifications. Republish responses do not contain this flag, so the
+property is `null` (unknown) for republished messages, not a fabricated `false`. Manually
+constructed envelopes also default to `null`.
+
+The flag describes further Publish responses, not additional parts of this envelope or a
+larger acknowledgement unit. Applications that batch across responses must retain each
+message's handle and confirm each only after all of its downstream work succeeds. Do not
+interpret `null` as proof that a burst ended; apply an explicit recovery/batching policy.
+For example:
+
+```csharp
+switch (message.MoreNotifications)
+{
+    case true:
+        // More notifications were queued when this Publish response was sent.
+        break;
+    case false:
+        // This live Publish response reported an end to the queued burst.
+        break;
+    case null:
+        // Republish (or manually constructed message): the original flag is unknown.
+        break;
+}
+```
+
+The existing constructor and deconstruction shape are unchanged; the metadata is an
+additional immutable init property. Existing payload callbacks are unchanged.
 Whole-message delivery is opt-in and does not allocate an envelope for existing handlers.
 Data-change diagnostics are projected from the indexed wire diagnostic array, independently
 of classic monitored-item caching and local client-handle registration.

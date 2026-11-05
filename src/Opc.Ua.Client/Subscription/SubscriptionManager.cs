@@ -3516,6 +3516,7 @@ namespace Opc.Ua.Client.Subscriptions
                         moreNotifications = response.MoreNotifications;
                         uint subscriptionId = response.SubscriptionId;
                         NotificationMessage notificationMessage = response.NotificationMessage;
+                        notificationMessage.MoreNotifications = moreNotifications;
                         ArrayOf<uint> availableSequenceNumbers =
                             response.AvailableSequenceNumbers;
 

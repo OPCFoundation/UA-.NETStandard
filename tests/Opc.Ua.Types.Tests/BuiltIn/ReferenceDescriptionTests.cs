@@ -75,6 +75,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(rd.NodeClass, Is.EqualTo(NodeClass.Unspecified));
         }
 
+        /// <summary>
+        /// A new reference description has null OPC UA identifiers and names.
+        /// </summary>
         [Test]
         public void DefaultConstructorSetsNullDefaults()
         {

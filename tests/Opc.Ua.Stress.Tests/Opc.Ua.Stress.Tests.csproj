@@ -10,11 +10,10 @@
       When CustomTestTarget is set to a modern .NET TFM the standard
       TestsTargetFrameworks pipeline takes over so the matrix can still
       drive a single TFM. When CustomTestTarget is set to net48
-      the project still has to build (the CI matrix
-      restores+tests every **/*.Tests.csproj for that TFM combination),
-      so produce a placeholder assembly with no test code: the per-TFM
-      test command then discovers zero tests, exits cleanly, and the
-      matrix succeeds. The stress tests themselves still run on the
+      the project becomes a non-test placeholder through the shared
+      legacy-TFM restriction. The runner records it as not applicable
+      instead of treating zero discovered tests as a successful run.
+      The stress tests themselves still run on the
       net8.0/net9.0/net10.0 matrix entries where they are supported.
     -->
     <_StressTestSupportedTarget>false</_StressTestSupportedTarget>
@@ -22,13 +21,14 @@
     <_StressTestSupportedTarget Condition="'$(CustomTestTarget)' == 'net8.0'">true</_StressTestSupportedTarget>
     <_StressTestSupportedTarget Condition="'$(CustomTestTarget)' == 'net9.0'">true</_StressTestSupportedTarget>
     <_StressTestSupportedTarget Condition="'$(CustomTestTarget)' == 'net10.0'">true</_StressTestSupportedTarget>
+    <RestrictForLegacyTfm Condition="'$(_StressTestSupportedTarget)' != 'true'">true</RestrictForLegacyTfm>
     <TargetFrameworks Condition="'$(_StressTestSupportedTarget)' == 'true' AND '$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0</TargetFrameworks>
     <TargetFrameworks Condition="'$(_StressTestSupportedTarget)' == 'true' AND '$(CustomTestTarget)' != ''">$(TestsTargetFrameworks)</TargetFrameworks>
     <!--
       For incompatible matrix entries (net48) the
       project follows the matrix framework as a placeholder that contains no test
-      sources. The matrix step still runs dotnet test against the resulting
-      assembly; NUnit discovers zero tests and exits cleanly.
+      sources. The shared restriction also marks it IsTestProject=false,
+      so validation does not launch a test host for the placeholder.
     -->
     <TargetFrameworks Condition="'$(_StressTestSupportedTarget)' != 'true'">$(TestsTargetFrameworks)</TargetFrameworks>
     <EnableDefaultCompileItems Condition="'$(_StressTestSupportedTarget)' != 'true'">false</EnableDefaultCompileItems>

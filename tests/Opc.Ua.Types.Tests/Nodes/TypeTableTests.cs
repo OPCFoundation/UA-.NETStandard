@@ -573,8 +573,11 @@ namespace Opc.Ua.Types.Tests.Nodes
                 Is.False);
         }
 
+        /// <summary>
+        /// An unknown reference type has a null OPC UA qualified name.
+        /// </summary>
         [Test]
-        public void FindReferenceTypeNameReturnsDefaultForUnknownType()
+        public void FindReferenceTypeNameReturnsNullForUnknownType()
         {
             QualifiedName result = m_typeTable.FindReferenceTypeName(s_unknownTypeId);
             Assert.That(result.IsNull, Is.True);

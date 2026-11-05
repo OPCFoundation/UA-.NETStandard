@@ -254,24 +254,28 @@ namespace Opc.Ua.AMB.Tests
             });
         }
 
+        /// <summary>
+        /// A failing asset-management setup delegate aborts server startup.
+        /// </summary>
         [Test]
         public async Task AFailingSetupDelegateAbortsTheStartupAsync()
         {
             var services = new ServiceCollection();
             services.AddLogging();
-            string pkiRoot = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
             IOpcUaServerBuilder builder = services.AddOpcUa().AddServer(options =>
             {
                 options.ApplicationName = nameof(AFailingSetupDelegateAbortsTheStartupAsync);
                 options.ApplicationUri = "urn:localhost:" + nameof(AFailingSetupDelegateAbortsTheStartupAsync);
-                options.PkiRoot = pkiRoot;
+                // Leave room for certificate filenames under the .NET Framework path limit.
+                options.PkiRoot = Path.Combine(
+                    TestContext.CurrentContext.WorkDirectory,
+                    "amb",
+                    Guid.NewGuid().ToString("N"));
                 options.AutoAcceptUntrustedCertificates = true;
                 options.EndpointUrls.Clear();
+                string port = ServerFixtureUtils.GetNextFreeIPPort().ToString(CultureInfo.InvariantCulture);
                 options.EndpointUrls.Add(
-                    "opc.tcp://localhost:" +
-                    ServerFixtureUtils.GetNextFreeIPPort().ToString(CultureInfo.InvariantCulture) +
-                    "/" +
-                    nameof(AFailingSetupDelegateAbortsTheStartupAsync));
+                    $"opc.tcp://localhost:{port}/{nameof(AFailingSetupDelegateAbortsTheStartupAsync)}");
             });
             bool ran = false;
             builder.AddAssetManagement()
@@ -281,64 +285,47 @@ namespace Opc.Ua.AMB.Tests
                     throw new InvalidDataException("broken setup");
                 });
 
-            ServiceProvider provider = services.BuildServiceProvider();
+            await using ServiceProvider provider = services.BuildServiceProvider();
             var hosted = (BackgroundService)provider.GetServices<IHostedService>().Single();
 
-            try
-            {
-                // The hosted service starts the server in the background, so the
-                // failure surfaces on the task that runs it.
-                await hosted.StartAsync(CancellationToken.None).ConfigureAwait(false);
-                Task execute = hosted.ExecuteTask!;
-                Task finished = await Task.WhenAny(execute, Task.Delay(TimeSpan.FromSeconds(60)))
-                    .ConfigureAwait(false);
+            // The hosted service starts the server in the background, so the
+            // failure surfaces on the task that runs it.
+            await hosted.StartAsync(CancellationToken.None).ConfigureAwait(false);
+            Task execute = hosted.ExecuteTask!;
+            Task finished = await Task.WhenAny(execute, Task.Delay(TimeSpan.FromSeconds(60)))
+                .ConfigureAwait(false);
+            await hosted.StopAsync(CancellationToken.None).ConfigureAwait(false);
 
-                // The server reduces the cause to BadInternalError and logs it.
-                Assert.Multiple(() =>
-                {
-                    Assert.That(ran, Is.True);
-                    Assert.That(finished, Is.SameAs(execute), "the startup must fail");
-                    Assert.That(execute.IsFaulted, Is.True);
-                    Assert.That(
-                        execute.Exception!.InnerException,
-                        Is.InstanceOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
-                            .EqualTo(StatusCodes.BadInternalError));
-                });
-            }
-            finally
+            // The server reduces the cause to BadInternalError and logs it.
+            Assert.Multiple(() =>
             {
-                try
-                {
-                    await hosted.StopAsync(CancellationToken.None).ConfigureAwait(false);
-                }
-                finally
-                {
-                    await provider.DisposeAsync().ConfigureAwait(false);
-                    if (Directory.Exists(pkiRoot))
-                    {
-                        Directory.Delete(pkiRoot, recursive: true);
-                    }
-                }
-            }
+                Assert.That(ran, Is.True);
+                Assert.That(finished, Is.SameAs(execute), "the startup must fail");
+                Assert.That(execute.IsFaulted, Is.True);
+                Assert.That(
+                    execute.Exception!.InnerException,
+                    Is.InstanceOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                        .EqualTo((StatusCode)StatusCodes.BadInternalError));
+            });
         }
 
         /// <summary>
-        /// The test host reports the actual startup failure instead of waiting for its readiness timeout.
+        /// The fixture reports the startup exception instead of waiting for the readiness timeout.
         /// </summary>
         [Test]
         [CancelAfter(30_000)]
-        public async Task HostedHelperPropagatesStartupFailureAsync(CancellationToken ct)
+        public async Task HostedFixtureReportsStartupFailureAsync(CancellationToken ct)
         {
-            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 await using AmbHostedServer server = await AmbHostedServer.StartAsync(
-                    nameof(HostedHelperPropagatesStartupFailureAsync),
+                    nameof(HostedFixtureReportsStartupFailureAsync),
                     builder => builder.AddAssetManagement().ConfigureAssetManagement(
-                        _ => throw new InvalidDataException("broken setup")))
-                    .WaitAsync(ct).ConfigureAwait(false);
+                        _ => throw new InvalidDataException("broken setup")),
+                    ct).ConfigureAwait(false);
             }).ConfigureAwait(false);
-            Assert.That(error, Is.Not.Null);
-            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadInternalError));
+
+            Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadInternalError));
         }
 
         private static IOpcUaServerBuilder CreateServerBuilder()

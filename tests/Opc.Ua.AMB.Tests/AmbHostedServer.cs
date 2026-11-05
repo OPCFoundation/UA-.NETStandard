@@ -35,6 +35,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -54,13 +55,13 @@ namespace Opc.Ua.AMB.Tests
     internal sealed class AmbHostedServer : IAsyncDisposable
     {
         private AmbHostedServer(
-            ServiceProvider provider, IHostedService hostedService, string endpointUrl, string pkiRoot)
+            ServiceProvider provider, IHostedService hostedService, string endpointUrl, string testRoot)
         {
             Provider = provider;
             m_hostedService = hostedService;
+            m_testRoot = testRoot;
             EndpointUrl = endpointUrl;
             AssetManagement = provider.GetRequiredService<AssetManagement>();
-            m_pkiRoot = pkiRoot;
         }
 
         public ServiceProvider Provider { get; }
@@ -76,23 +77,30 @@ namespace Opc.Ua.AMB.Tests
         /// <summary>
         /// Builds and starts a server.
         /// </summary>
-        /// <param name="name">A name unique to the test, used for the application and endpoint.</param>
+        /// <param name="name">A name unique to the test, used for the application identity and endpoint.</param>
         /// <param name="compose">Adds the node managers and their configuration.</param>
-        public static async Task<AmbHostedServer> StartAsync(string name, Action<IOpcUaServerBuilder> compose)
+        /// <param name="ct">Cancels startup and the readiness wait.</param>
+        /// <exception cref="InvalidOperationException">The hosted service is not a background service.</exception>
+        /// <exception cref="AggregateException">Startup and cleanup both failed.</exception>
+        public static async Task<AmbHostedServer> StartAsync(
+            string name, Action<IOpcUaServerBuilder> compose, CancellationToken ct = default)
         {
+            string testRoot = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory,
+                "amb",
+                Guid.NewGuid().ToString("N"));
             string endpointUrl = "opc.tcp://localhost:" +
                 GetAvailablePort().ToString(CultureInfo.InvariantCulture) +
                 "/" +
                 name;
             var services = new ServiceCollection();
             services.AddLogging();
-            string pkiRoot = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
             IOpcUaServerBuilder builder = services.AddOpcUa().AddServer<StandardServer>(options =>
             {
                 options.ApplicationName = name;
                 options.ApplicationUri = "urn:localhost:" + name;
                 options.ProductUri = "urn:localhost:" + name + ":product";
-                options.PkiRoot = pkiRoot;
+                options.PkiRoot = Path.Combine(testRoot, "pki");
                 options.AutoAcceptUntrustedCertificates = true;
                 options.IncludeUnsecurePolicyNone = true;
                 options.EndpointUrls.Clear();
@@ -101,33 +109,46 @@ namespace Opc.Ua.AMB.Tests
             compose(builder);
 
             ServiceProvider provider = services.BuildServiceProvider();
-            var hostedService = (BackgroundService)provider.GetServices<IHostedService>().Single();
-            var server = new AmbHostedServer(provider, hostedService, endpointUrl, pkiRoot);
-
+            IHostedService? startingService = null;
             try
             {
-                await hostedService.StartAsync(CancellationToken.None).ConfigureAwait(false);
-                Task execution = hostedService.ExecuteTask ??
-                    throw new InvalidOperationException("The hosted server has no execution task.");
+                IHostedService hostedService = provider.GetServices<IHostedService>().Single();
+                if (hostedService is not BackgroundService backgroundService)
+                {
+                    throw new InvalidOperationException("The AMB fixture requires a BackgroundService.");
+                }
+                var server = new AmbHostedServer(provider, hostedService, endpointUrl, testRoot);
+                startingService = hostedService;
+                await hostedService.StartAsync(ct).ConfigureAwait(false);
                 var watch = Stopwatch.StartNew();
                 while (server.AssetManagement.Manager?.Server.IsRunning != true)
                 {
-                    if (execution.IsCompleted)
+                    if (backgroundService.ExecuteTask is { IsCompleted: true } execution)
                     {
                         await execution.ConfigureAwait(false);
-                        throw new InvalidOperationException("The hosted server stopped before becoming ready.");
+                        Assert.Fail("The server stopped before completing startup.");
                     }
                     if (watch.Elapsed > TimeSpan.FromSeconds(90))
                     {
                         Assert.Fail("The server did not start.");
                     }
-                    await Task.WhenAny(execution, Task.Delay(50)).ConfigureAwait(false);
+                    await Task.Delay(50, ct).ConfigureAwait(false);
                 }
                 return server;
             }
-            catch
+            catch (Exception startupFailure)
             {
-                await server.DisposeAsync().ConfigureAwait(false);
+                try
+                {
+                    await DisposeAsync(provider, startingService, testRoot).ConfigureAwait(false);
+                }
+                catch (Exception cleanupFailure)
+                {
+                    throw new AggregateException(
+                        "The AMB fixture failed to start and could not be fully cleaned up.",
+                        startupFailure,
+                        cleanupFailure);
+                }
                 throw;
             }
         }
@@ -269,25 +290,57 @@ namespace Opc.Ua.AMB.Tests
             return aliases;
         }
 
-        public async ValueTask DisposeAsync()
+        /// <inheritdoc/>
+        public ValueTask DisposeAsync()
         {
+            return DisposeAsync(Provider, m_hostedService, m_testRoot);
+        }
+
+        /// <summary>
+        /// Attempts every cleanup stage and preserves all failures.
+        /// </summary>
+        /// <exception cref="AggregateException">More than one cleanup stage failed.</exception>
+        private static async ValueTask DisposeAsync(
+            ServiceProvider provider, IHostedService? hostedService, string testRoot)
+        {
+            List<Exception> failures = [];
             try
             {
-                await m_hostedService.StopAsync(CancellationToken.None).ConfigureAwait(false);
+                if (hostedService is not null)
+                {
+                    await hostedService.StopAsync(CancellationToken.None).ConfigureAwait(false);
+                }
             }
-            finally
+            catch (Exception exception)
             {
-                try
+                failures.Add(exception);
+            }
+            try
+            {
+                await provider.DisposeAsync().ConfigureAwait(false);
+            }
+            catch (Exception exception)
+            {
+                failures.Add(exception);
+            }
+            try
+            {
+                if (Directory.Exists(testRoot))
                 {
-                    await Provider.DisposeAsync().ConfigureAwait(false);
+                    Directory.Delete(testRoot, recursive: true);
                 }
-                finally
-                {
-                    if (Directory.Exists(m_pkiRoot))
-                    {
-                        Directory.Delete(m_pkiRoot, recursive: true);
-                    }
-                }
+            }
+            catch (Exception exception)
+            {
+                failures.Add(exception);
+            }
+            if (failures.Count == 1)
+            {
+                ExceptionDispatchInfo.Capture(failures[0]).Throw();
+            }
+            if (failures.Count > 1)
+            {
+                throw new AggregateException("The AMB fixture could not be fully cleaned up.", failures);
             }
         }
 
@@ -316,6 +369,6 @@ namespace Opc.Ua.AMB.Tests
         }
 
         private readonly IHostedService m_hostedService;
-        private readonly string m_pkiRoot;
+        private readonly string m_testRoot;
     }
 }
