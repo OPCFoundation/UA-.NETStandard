@@ -398,7 +398,7 @@ namespace Opc.Ua.Scales.Tests
                 using var cancellation = new CancellationTokenSource();
                 Task<ServiceResult> pendingRegistration = scale.RegisterWeightAsync(cancellation.Token).AsTask();
                 cancellation.Cancel();
-                Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                     await pendingRegistration.ConfigureAwait(false));
                 release.TrySetResult(true);
                 AssertGood(await pendingReset.ConfigureAwait(false));
