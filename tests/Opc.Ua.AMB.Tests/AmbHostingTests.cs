@@ -320,22 +320,45 @@ namespace Opc.Ua.AMB.Tests
         }
 
         /// <summary>
-        /// The fixture reports the startup exception instead of waiting for the readiness timeout.
+        /// The fixture preserves the readiness failure and its exact cause after cleaning up the failed host.
         /// </summary>
         [Test]
         [CancelAfter(30_000)]
         public async Task HostedFixtureReportsStartupFailureAsync(CancellationToken ct)
         {
-            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+            var expected = new InvalidDataException("broken setup");
+            var cleanup = new Mock<IAsyncDisposable>();
+            cleanup.Setup(value => value.DisposeAsync()).Returns(default(ValueTask));
+            string? testRoot = null;
+            InvalidOperationException? exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
             {
                 await using AmbHostedServer server = await AmbHostedServer.StartAsync(
                     nameof(HostedFixtureReportsStartupFailureAsync),
-                    builder => builder.AddAssetManagement().ConfigureAssetManagement(
-                        _ => throw new InvalidDataException("broken setup")),
+                    builder =>
+                    {
+                        builder.Services.Configure<OpcUaServerOptions>(options =>
+                            testRoot = Path.GetDirectoryName(options.PkiRoot));
+                        builder.Services.AddSingleton(_ => cleanup.Object);
+                        builder.AddAssetManagement().ConfigureAssetManagement(context =>
+                        {
+                            _ = context.GetRequiredService<IAsyncDisposable>();
+                            throw expected;
+                        });
+                    },
                     ct).ConfigureAwait(false);
             }).ConfigureAwait(false);
 
-            Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadInternalError));
+            Assert.That(exception!.Message, Is.EqualTo("Initial generation reconciliation failed."));
+            Assert.That(exception.InnerException, Is.TypeOf<AggregateException>());
+            var reconciliation = (AggregateException)exception.InnerException!;
+            Assert.That(reconciliation.InnerExceptions, Has.Count.EqualTo(1));
+            Assert.That(reconciliation.InnerExceptions[0], Is.TypeOf<InvalidOperationException>());
+            Exception configurator = reconciliation.InnerExceptions[0];
+            Assert.That(configurator.Message, Does.Contain("ConfigureAssetManagement delegate #0 failed."));
+            Assert.That(configurator.InnerException, Is.SameAs(expected));
+            Assert.That(testRoot, Is.Not.Null);
+            Assert.That(Directory.Exists(testRoot), Is.False);
+            cleanup.Verify(value => value.DisposeAsync(), Times.Once);
         }
 
         private static IOpcUaServerBuilder CreateServerBuilder()
