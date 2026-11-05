@@ -325,6 +325,13 @@ provider accepts the command. The current sensor reading is unchanged. The
 overload without a value resets to zero; rejected commands leave the totalized
 value unchanged.
 
+Ordinary UA writes to scalar analog, discrete and timer `TargetValue` variables
+use the same provider command and runtime mutation as the direct setter. Writes
+to a multi-mode controller's `CurrentMode` use `SetModeAsync`, including index
+validation. A rejected write leaves both the node value and the runtime handle
+unchanged. The runtime publishes accepted values itself; the write pipeline
+does not overwrite that publication with a second cached copy.
+
 ## State machines
 
 | State machine | States | Methods bound on the server |

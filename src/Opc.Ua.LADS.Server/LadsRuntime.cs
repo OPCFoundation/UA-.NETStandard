@@ -557,6 +557,34 @@ namespace Opc.Ua.LADS.Server
         }
 
         /// <summary>
+        /// Routes client value writes through an asynchronous command that owns publication of the accepted value.
+        /// </summary>
+        public static void BindWrite(
+            BaseVariableState? variable,
+            Func<Variant, CancellationToken, ValueTask> handler)
+        {
+            if (variable == null)
+            {
+                return;
+            }
+            variable.AccessLevel |= AccessLevels.CurrentWrite;
+            variable.UserAccessLevel |= AccessLevels.CurrentWrite;
+            variable.OnWriteValueAsync = null;
+            variable.OnSimpleWriteValueAsync = async (_, _, value, ct) =>
+            {
+                try
+                {
+                    await handler(value, ct).ConfigureAwait(false);
+                    return new AttributeWriteResult(ServiceResult.Good) { SuppressCacheUpdate = true };
+                }
+                catch (ServiceResultException exception)
+                {
+                    return new AttributeWriteResult(exception.Result);
+                }
+            };
+        }
+
+        /// <summary>
         /// Binds a method to a handler. A <see cref="ServiceResultException"/> of the handler becomes the result.
         /// </summary>
         public void Bind(

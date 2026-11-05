@@ -35,6 +35,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.LADS.Client;
 using Opc.Ua.LADS.Server;
@@ -282,6 +283,131 @@ namespace Opc.Ua.LADS.Tests.Integration
             DataValue read = await connection.Server.ReadAsync(total).ConfigureAwait(false);
             Assert.That(read.WrappedValue.TryGetValue(out double value), Is.True);
             Assert.That(value, Is.EqualTo(12.5));
+        }
+
+        /// <summary>
+        /// Ordinary UA target writes use the same provider command and authoritative state as direct handle calls.
+        /// </summary>
+        [TestCase("Analog")]
+        [TestCase("Valve")]
+        [TestCase("Level")]
+        [TestCase("Timer")]
+        public async Task RawTargetWritesUpdateRuntimeOnlyAfterProviderAcceptanceAsync(string name)
+        {
+            var commands = new List<LadsFunctionCommand>();
+            ServiceResult outcome = ServiceResult.Good;
+            var provider = new Mock<ILadsFunctionProvider>();
+            provider.Setup(p => p.OnCommandAsync(It.IsAny<LadsFunctionCommand>(), It.IsAny<CancellationToken>()))
+                .Returns((LadsFunctionCommand command, CancellationToken _) =>
+                {
+                    commands.Add(command);
+                    return new ValueTask<ServiceResult>(outcome);
+                });
+            await using LadsClientConnection connection = await LadsClientConnection.StartAsync(
+                nameof(RawTargetWritesUpdateRuntimeOnlyAfterProviderAcceptanceAsync),
+                builder => builder.AddLads().ConfigureLads(context => LadsIncubator.Configure(
+                    context,
+                    LadsIncubator.DeviceName,
+                    device => device.FunctionalUnit("Aux", unit => unit
+                        .FunctionProvider(provider.Object)
+                        .AnalogControl("Analog")
+                        .TwoStateDiscreteControl("Valve")
+                        .MultiStateDiscreteControl("Level", options => options.States = new[]
+                        {
+                            new LocalizedText("Low"),
+                            new LocalizedText("High")
+                        }.ToArrayOf())
+                        .Timer("Timer"))))).ConfigureAwait(false);
+            ILadsDevice device = await connection.Server.DeviceAsync().ConfigureAwait(false);
+            ILadsFunction function = device.GetFunctionalUnit("Aux").GetFunction<ILadsFunction>(name);
+            Func<Variant> readTarget = function switch
+            {
+                IAnalogControlFunction analog => () => Variant.From(analog.TargetValue),
+                ITwoStateDiscreteControlFunction discrete => () => Variant.From(discrete.TargetValue),
+                IMultiStateDiscreteControlFunction discrete => () => Variant.From(discrete.TargetValue),
+                ITimerFunction timer => () => Variant.From(timer.TargetValue),
+                _ => throw new InvalidOperationException("The configured control function is missing.")
+            };
+            Variant accepted = name == "Valve" ? Variant.From(true) :
+                name == "Level" ? Variant.From(1u) : Variant.From(12.5);
+            Variant rejected = name == "Valve" ? Variant.From(false) :
+                name == "Level" ? Variant.From(0u) : Variant.From(13.5);
+            NodeId target = await connection.Server.ChildAsync(function.NodeId, "TargetValue").ConfigureAwait(false);
+            WriteResponse response = await connection.Session.WriteAsync(null,
+            [
+                new WriteValue { NodeId = target, AttributeId = Attributes.Value, Value = new DataValue(accepted) }
+            ], CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(response.Results[0], Is.EqualTo(StatusCodes.Good));
+            Assert.That(commands, Has.Count.EqualTo(1));
+            Assert.That(commands[0].Kind, Is.EqualTo(LadsFunctionCommandKind.SetTargetValue));
+            Assert.That(commands[0].Value, Is.EqualTo(accepted));
+            Assert.That(readTarget(), Is.EqualTo(accepted));
+            Assert.That((await connection.Server.ReadAsync(target).ConfigureAwait(false)).WrappedValue,
+                Is.EqualTo(accepted));
+
+            outcome = StatusCodes.BadDeviceFailure;
+            response = await connection.Session.WriteAsync(null,
+            [
+                new WriteValue { NodeId = target, AttributeId = Attributes.Value, Value = new DataValue(rejected) }
+            ], CancellationToken.None).ConfigureAwait(false);
+            Assert.That(response.Results[0], Is.EqualTo(StatusCodes.BadDeviceFailure));
+            Assert.That(commands, Has.Count.EqualTo(2));
+            Assert.That(commands[1].Value, Is.EqualTo(rejected));
+            Assert.That(readTarget(), Is.EqualTo(accepted));
+            Assert.That((await connection.Server.ReadAsync(target).ConfigureAwait(false)).WrappedValue,
+                Is.EqualTo(accepted));
+        }
+
+        /// <summary>
+        /// Raw mode selection validates the index and preserves both the node and selected runtime mode on veto.
+        /// </summary>
+        [Test]
+        public async Task RawModeWritesUseProviderAndRejectInvalidIndicesAsync()
+        {
+            int calls = 0;
+            ServiceResult outcome = ServiceResult.Good;
+            var provider = new Mock<ILadsFunctionProvider>();
+            provider.Setup(p => p.OnCommandAsync(It.IsAny<LadsFunctionCommand>(), It.IsAny<CancellationToken>()))
+                .Returns((LadsFunctionCommand command, CancellationToken _) =>
+                {
+                    calls++;
+                    Assert.That(command.Kind, Is.EqualTo(LadsFunctionCommandKind.SetMode));
+                    return new ValueTask<ServiceResult>(outcome);
+                });
+            await using LadsClientConnection connection = await LadsClientConnection.StartAsync(
+                nameof(RawModeWritesUseProviderAndRejectInvalidIndicesAsync),
+                builder => builder.AddLads().ConfigureLads(context => LadsIncubator.Configure(
+                    context,
+                    LadsIncubator.DeviceName,
+                    device => device.FunctionalUnit("Aux", unit => unit
+                        .FunctionProvider(provider.Object)
+                        .MultiModeAnalogControl("Mode", options => options.Modes = s_modes.ToArrayOf())))))
+                .ConfigureAwait(false);
+            ILadsDevice device = await connection.Server.DeviceAsync().ConfigureAwait(false);
+            IMultiModeAnalogControlFunction function = device.GetFunctionalUnit("Aux")
+                .GetFunction<IMultiModeAnalogControlFunction>("Mode");
+            NodeId current = await connection.Server.ChildAsync(function.NodeId, "CurrentMode").ConfigureAwait(false);
+            WriteResponse response = await connection.Session.WriteAsync(null,
+            [
+                new WriteValue { NodeId = current, AttributeId = Attributes.Value, Value = new DataValue(1u) }
+            ], CancellationToken.None).ConfigureAwait(false);
+            Assert.That(response.Results[0], Is.EqualTo(StatusCodes.Good));
+            Assert.That(function.CurrentMode, Is.EqualTo(1));
+
+            outcome = StatusCodes.BadDeviceFailure;
+            response = await connection.Session.WriteAsync(null,
+            [
+                new WriteValue { NodeId = current, AttributeId = Attributes.Value, Value = new DataValue(0u) },
+                new WriteValue { NodeId = current, AttributeId = Attributes.Value, Value = new DataValue(99u) }
+            ], CancellationToken.None).ConfigureAwait(false);
+            Assert.That(response.Results[0], Is.EqualTo(StatusCodes.BadDeviceFailure));
+            Assert.That(response.Results[1], Is.EqualTo(StatusCodes.BadOutOfRange));
+            Assert.That(calls, Is.EqualTo(2));
+            Assert.That(function.CurrentMode, Is.EqualTo(1));
+            DataValue read = await connection.Server.ReadAsync(current).ConfigureAwait(false);
+            Assert.That(read.WrappedValue.TryGetValue(out uint mode), Is.True);
+            Assert.That(mode, Is.EqualTo(1));
         }
 
         [Test]

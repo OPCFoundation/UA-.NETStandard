@@ -1022,6 +1022,10 @@ namespace Opc.Ua.LADS.Server
             m_target = options.InitialTargetValue;
             Runtime.Update(node.CurrentValue, Variant.From(m_current));
             Runtime.Update(node.TargetValue, Variant.From(m_target));
+            if (options.Kind != LadsAnalogControlKind.Composed)
+            {
+                LadsRuntime.BindWrite(node.TargetValue, SetTargetCoreAsync);
+            }
             m_lastUpdate = Runtime.TimeProvider.GetTimestamp();
             switch (node)
             {
@@ -1328,6 +1332,7 @@ namespace Opc.Ua.LADS.Server
             {
                 Runtime.Update(node.CurrentMode.EnumStrings, Variant.From((ArrayOf<LocalizedText>)texts));
                 Runtime.Update(node.CurrentMode, Variant.From(m_mode));
+                LadsRuntime.BindWrite(node.CurrentMode, SetModeValueAsync);
             }
             m_parameters = new ControllerParameterState[options.Modes.Count];
             NodeState set = node.ControllerModeSet ??
@@ -1426,6 +1431,18 @@ namespace Opc.Ua.LADS.Server
         }
 
         /// <summary>
+        /// Validates a client mode write before invoking the same provider path as the direct API.
+        /// </summary>
+        private ValueTask SetModeValueAsync(Variant value, CancellationToken cancellationToken)
+        {
+            if (!value.TryGetValue(out uint mode))
+            {
+                throw ServiceResultException.Create(StatusCodes.BadTypeMismatch, "A mode index is expected.");
+            }
+            return SetModeAsync(mode, cancellationToken);
+        }
+
+        /// <summary>
         /// Finds the controller parameter of a mode.
         /// </summary>
         private ControllerParameterState Find(string mode)
@@ -1468,6 +1485,7 @@ namespace Opc.Ua.LADS.Server
             m_targetValue = options.InitialValue;
             Runtime.Update(m_current, Variant.From(m_currentValue));
             Runtime.Update(m_target, Variant.From(m_targetValue));
+            LadsRuntime.BindWrite(m_target, SetTargetCoreAsync);
         }
 
         /// <inheritdoc/>
@@ -1575,6 +1593,7 @@ namespace Opc.Ua.LADS.Server
             m_targetValue = options.InitialValue;
             Runtime.Update(m_current, Variant.From(m_currentValue));
             Runtime.Update(m_target, Variant.From(m_targetValue));
+            LadsRuntime.BindWrite(m_target, SetTargetCoreAsync);
         }
 
         /// <inheritdoc/>
@@ -1715,6 +1734,7 @@ namespace Opc.Ua.LADS.Server
             ConfigureAnalog(node.DifferenceValue, units, null);
             m_target = options.InitialTargetValue;
             AssignValues();
+            LadsRuntime.BindWrite(node.TargetValue, SetTargetCoreAsync);
             Node.ClearChangeMasks(Runtime.Context, true);
         }
 
