@@ -76,7 +76,7 @@ namespace Opc.Ua.AMB.Server.Structure
                 text = null;
                 return m_allowNull;
             }
-            return value.TryGetValue(out text);
+            return value.TryGetValue(out text) && (text is not null || m_allowNull);
         }
 
         public Variant Decode(string text)

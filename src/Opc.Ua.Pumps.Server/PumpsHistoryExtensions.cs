@@ -361,6 +361,8 @@ namespace Opc.Ua.Pumps.Server
                 for (int i = 0; i < nodes.Count; i++)
                 {
                     NodeState node = nodes[i];
+                    BaseInstanceState? annotations = node.FindChild(
+                        runtime.SystemContext, new QualifiedName(Opc.Ua.BrowseNames.Annotations));
                     m_nodes[i] = new NodeSnapshot(
                         node,
                         node is BaseVariableState variable && variable.Historizing,
@@ -368,7 +370,9 @@ namespace Opc.Ua.Pumps.Server
                         (node as BaseVariableState)?.UserAccessLevel ?? 0,
                         (node as BaseObjectState)?.EventNotifier ?? 0,
                         node.FindChild(runtime.SystemContext, new QualifiedName(Opc.Ua.BrowseNames.HAConfiguration)),
-                        node.FindChild(runtime.SystemContext, new QualifiedName(Opc.Ua.BrowseNames.Annotations)));
+                        annotations,
+                        (annotations as BaseVariableState)?.AccessLevel ?? 0,
+                        (annotations as BaseVariableState)?.UserAccessLevel ?? 0);
                 }
                 Builder = new HistorianBuilder(runtime.Manager.Server);
                 m_capture = new HistoryCapture(DisposeCaptureAsync);
@@ -490,6 +494,11 @@ namespace Opc.Ua.Pumps.Server
                     {
                         notifier.EventNotifier = snapshot.Notifier;
                     }
+                    if (snapshot.Annotations is BaseVariableState annotations)
+                    {
+                        annotations.AccessLevel = snapshot.AnnotationAccess;
+                        annotations.UserAccessLevel = snapshot.AnnotationUserAccess;
+                    }
                     foreach ((string name, BaseInstanceState? original) in new[]
                     {
                         (Opc.Ua.BrowseNames.HAConfiguration, snapshot.Configuration),
@@ -527,6 +536,7 @@ namespace Opc.Ua.Pumps.Server
                         m_runtime.Manager.SystemContext, added.NodeId, CancellationToken.None).ConfigureAwait(false);
                     node.RemoveReference(
                         ReferenceTypeIds.HasHistoricalConfiguration, false, added.NodeId);
+                    node.RemoveReference(ReferenceTypeIds.HasProperty, false, added.NodeId);
                     node.RemoveChild(added);
                 }
             }
@@ -575,7 +585,9 @@ namespace Opc.Ua.Pumps.Server
             byte UserAccess,
             byte Notifier,
             BaseInstanceState? Configuration,
-            BaseInstanceState? Annotations);
+            BaseInstanceState? Annotations,
+            byte AnnotationAccess,
+            byte AnnotationUserAccess);
 
         /// <summary>Serializes startup activation without retaining disposed owners.</summary>
         private static readonly ConditionalWeakTable<PumpsRuntime, SemaphoreSlim> s_activationGates = new();

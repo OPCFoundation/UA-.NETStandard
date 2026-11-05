@@ -437,6 +437,73 @@ namespace Opc.Ua.Pumps.Tests
         }
 
         /// <summary>
+        /// A route conflict restores existing annotation access and removes newly created child references.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AnnotationRollbackRestoresChildrenAndExplicitReferencesAsync(bool existingAnnotations)
+        {
+            IPumpBuilder pump = await CreatePumpAsync();
+            BaseVariableState variable = Measurement(pump);
+            PropertyState? annotations = null;
+            if (existingAnnotations)
+            {
+                annotations = new PropertyState(variable)
+                {
+                    NodeId = new NodeId("rollback-annotations-" + Guid.NewGuid().ToString("N"),
+                        variable.NodeId.NamespaceIndex),
+                    BrowseName = new QualifiedName(Opc.Ua.BrowseNames.Annotations),
+                    ReferenceTypeId = ReferenceTypeIds.HasProperty,
+                    TypeDefinitionId = VariableTypeIds.PropertyType,
+                    DataType = DataTypeIds.Annotation,
+                    ValueRank = ValueRanks.OneDimension,
+                    AccessLevel = AccessLevels.CurrentRead,
+                    UserAccessLevel = AccessLevels.CurrentWrite
+                };
+                variable.AddChild(annotations);
+                variable.AddReference(ReferenceTypeIds.HasProperty, false, annotations.NodeId);
+                await m_fixture.Manager.AddPredefinedNodeAsync(variable, CancellationToken.None);
+            }
+            var originalReferences = new List<IReference>();
+            variable.GetReferences(m_fixture.Manager.SystemContext, originalReferences);
+            using var existing = new InMemoryHistorianProvider();
+            using var attempted = new InMemoryHistorianProvider();
+            existing.Register(variable.NodeId);
+            attempted.Register(variable.NodeId, HistorianNodeCapabilities.ReadWrite);
+            Registry.RegisterForNode(variable.NodeId, existing);
+            try
+            {
+                ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await m_fixture.Manager.Runtime.HistorizeAsync(pump, [variable], attempted, autoCapture: false));
+                Assert.That(error!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                Assert.That(variable.Historizing, Is.False);
+                Assert.That(variable.FindChild(m_fixture.Manager.SystemContext,
+                    new QualifiedName(Opc.Ua.BrowseNames.HAConfiguration)), Is.Null);
+                Assert.That(variable.FindChild(m_fixture.Manager.SystemContext,
+                    new QualifiedName(Opc.Ua.BrowseNames.Annotations)), Is.SameAs(annotations));
+                if (annotations is not null)
+                {
+                    Assert.That(annotations.AccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
+                    Assert.That(annotations.UserAccessLevel, Is.EqualTo(AccessLevels.CurrentWrite));
+                    Assert.That(m_fixture.Manager.FindPredefinedNode(annotations.NodeId), Is.SameAs(annotations));
+                }
+                var restoredReferences = new List<IReference>();
+                variable.GetReferences(m_fixture.Manager.SystemContext, restoredReferences);
+                Assert.That(restoredReferences, Has.Count.EqualTo(originalReferences.Count));
+                foreach (IReference reference in originalReferences)
+                {
+                    Assert.That(variable.ReferenceExists(
+                        reference.ReferenceTypeId, reference.IsInverse, reference.TargetId), Is.True);
+                }
+                Assert.That(Registry.Resolve(variable.NodeId), Is.SameAs(existing));
+            }
+            finally
+            {
+                Registry.UnregisterForNode(variable.NodeId);
+            }
+        }
+
+        /// <summary>
         /// A later route conflict rolls back earlier nodes without replacing the application's existing route.
         /// </summary>
         [Test]

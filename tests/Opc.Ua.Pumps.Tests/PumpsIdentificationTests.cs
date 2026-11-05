@@ -132,6 +132,38 @@ namespace Opc.Ua.Pumps.Tests
         }
 
         /// <summary>
+        /// Required string fields reject typed and untyped null without changing retained or live values.
+        /// </summary>
+        [TestCase(Opc.Ua.Di.BrowseNames.AssetId, false)]
+        [TestCase(Opc.Ua.Di.BrowseNames.AssetId, true)]
+        [TestCase(Opc.Ua.Machinery.BrowseNames.Location, false)]
+        [TestCase(Opc.Ua.Machinery.BrowseNames.Location, true)]
+        public async Task RequiredIdentityRejectsNullWithoutDeletingRetainedValueAsync(string field, bool typed)
+        {
+            await using var fixture = new PumpsServerFixture();
+            await fixture.StartAsync();
+            IPumpBuilder pump = await CreateAsync(fixture, "RequiredIdentity");
+            Mock<IAssetConfigurationStore> store = Store();
+            store.Setup(value => value.GetValueAsync(
+                    It.IsAny<string>(), field, It.IsAny<CancellationToken>()))
+                .ReturnsAsync("retained-value");
+            await fixture.Manager.Runtime.WithRetainedIdentificationAsync(pump, store.Object, Permissions);
+            var variable = (BaseVariableState)pump.Identification.Child(field)!;
+            Variant written = typed ? Variant.From((string)null!) : Variant.Null;
+
+            ServiceResult result = await variable.WriteAttributeAsync(fixture.Manager.SystemContext,
+                Attributes.Value, NumericRange.Null, new DataValue(written));
+
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadTypeMismatch));
+            Assert.That(variable.WrappedValue, Is.EqualTo(Variant.From("retained-value")));
+            store.Verify(value => value.SetValueAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+            Assert.That(await store.Object.GetValueAsync("urn:example:pump:stable", field, CancellationToken.None),
+                Is.EqualTo("retained-value"));
+        }
+
+        /// <summary>
         /// Waits for each asynchronous state notification without blocking the binding caller.
         /// </summary>
         [Test]
