@@ -416,15 +416,16 @@ namespace Opc.Ua.Pumps.Client
                 };
             }
 
+            ArrayOf<BrowsePath> requestPaths = paths.ToArrayOf();
             TranslateBrowsePathsToNodeIdsResponse response = await Session
-                .TranslateBrowsePathsToNodeIdsAsync(null, paths.ToArrayOf(), cancellationToken)
+                .TranslateBrowsePathsToNodeIdsAsync(null, requestPaths, cancellationToken)
                 .ConfigureAwait(false);
 
             ValidateBoundedResponse(
                 response.ResponseHeader, response.Results.Count, paths.Length, requireCompleteTarget);
             if (requireCompleteTarget)
             {
-                ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, paths.ToArrayOf());
+                ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, requestPaths);
             }
             for (int ii = 0; ii < response.Results.Count && ii < results.Length; ii++)
             {

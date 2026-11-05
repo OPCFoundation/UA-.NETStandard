@@ -43,11 +43,6 @@ Machine Vision, weighing, measurement, Pumps and MachineTool families.
 Source-generation tooling also implements selected modelling checks relevant
 to OPC 11030.
 
-Pumps support includes retained identification, conditions and history, but
-remains Partial: complete inherited-facet evidence and resolution of the
-published Base-profile URI discrepancy are required before Advanced
-advertisement.
-
 Support describes SDK functionality, not certification of every current
 feature, companion model or application. Historical reference-server
 certification applies only to its tested product version and profile scope.
