@@ -147,7 +147,8 @@ namespace Opc.Ua.IA.Client
             ArrayOf<ReferenceDescription> children = await ClientModelAccess.BrowseAsync(
                 Session, features, (uint)(NodeClass.Variable | NodeClass.Object), cancellationToken)
                 .ConfigureAwait(false);
-            var result = new List<IaCalibrationFeature>();
+            var featuresToRead = new List<ReferenceDescription>();
+            var nodes = new List<NodeId>();
             var seen = new HashSet<NodeId>();
             for (int i = 0; i < children.Count; i++)
             {
@@ -165,48 +166,104 @@ namespace Opc.Ua.IA.Client
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
-                DataValue value = child.NodeClass == NodeClass.Variable
-                    ? await ReadFeatureValueAsync(node, cancellationToken).ConfigureAwait(false)
-                    : DataValue.Null;
-                DataValue units = await ReadOptionalPropertyAsync(node, Opc.Ua.Namespaces.OpcUa,
-                    Opc.Ua.BrowseNames.EngineeringUnits, cancellationToken).ConfigureAwait(false);
-                DataValue resolution = await ReadOptionalPropertyAsync(node, Namespaces.IA,
-                    BrowseNames.Resolution, cancellationToken).ConfigureAwait(false);
-                result.Add(new IaCalibrationFeature(node, child.BrowseName, child.DisplayName,
-                    child.TypeDefinition, value, units, resolution));
+                featuresToRead.Add(child);
+                nodes.Add(node);
             }
-            return result.ToArray();
-        }
-
-        /// <summary>
-        /// Preserves metadata quality and represents an omitted optional property explicitly.
-        /// </summary>
-        private async ValueTask<DataValue> ReadOptionalPropertyAsync(
-            NodeId parent,
-            string namespaceUri,
-            string name,
-            CancellationToken cancellationToken)
-        {
-            NodeId node = await ClientModelAccess.ResolveAsync(Session, parent, namespaceUri, name,
-                cancellationToken).ConfigureAwait(false);
-            return node.IsNull
-                ? DataValue.Null
-                : await ReadFeatureValueAsync(node, cancellationToken).ConfigureAwait(false);
-        }
-
-        /// <summary>
-        /// Retains per-node bad quality while allowing service and transport failures to propagate.
-        /// </summary>
-        private async ValueTask<DataValue> ReadFeatureValueAsync(NodeId node, CancellationToken cancellationToken)
-        {
-            (ArrayOf<DataValue> values, ArrayOf<ServiceResult> _) =
-                await Session.ReadValuesAsync([node], cancellationToken).ConfigureAwait(false);
-            if (values.Count != 1)
+            if (nodes.Count == 0)
+            {
+                return [];
+            }
+            (ArrayOf<ArrayOf<ReferenceDescription>> properties, ArrayOf<ServiceResult> errors) =
+                await Session.ManagedBrowseAsync(null, null, nodes.ToArray(), 0, BrowseDirection.Forward,
+                    Opc.Ua.ReferenceTypeIds.HierarchicalReferences, true, 0, cancellationToken)
+                    .ConfigureAwait(false);
+            for (int i = 0; i < errors.Count; i++)
+            {
+                if (ServiceResult.IsBad(errors[i]))
+                {
+                    throw new ServiceResultException(errors[i]);
+                }
+            }
+            if (properties.Count != nodes.Count)
             {
                 throw ServiceResultException.Create(StatusCodes.BadUnexpectedError,
-                    "A calibration feature read returned no value.");
+                    "A calibration feature browse returned an invalid result.");
             }
-            return values[0];
+            var readNodes = new List<NodeId>();
+            var indexes = new (int Value, int Units, int Resolution)[nodes.Count];
+            for (int i = 0; i < nodes.Count; i++)
+            {
+                indexes[i] = (
+                    AddRead(featuresToRead[i].NodeClass == NodeClass.Variable ? nodes[i] : NodeId.Null),
+                    AddRead(ResolveFeatureProperty(properties[i], Opc.Ua.Namespaces.OpcUa,
+                        Opc.Ua.BrowseNames.EngineeringUnits)),
+                    AddRead(ResolveFeatureProperty(properties[i], Namespaces.IA, BrowseNames.Resolution)));
+            }
+            ArrayOf<DataValue> values = [];
+            if (readNodes.Count != 0)
+            {
+                (values, _) = await Session.ReadValuesAsync(readNodes.ToArray(), cancellationToken)
+                    .ConfigureAwait(false);
+                if (values.Count != readNodes.Count)
+                {
+                    throw ServiceResultException.Create(StatusCodes.BadUnexpectedError,
+                        "A calibration feature read returned an invalid result.");
+                }
+            }
+            var result = new List<IaCalibrationFeature>(nodes.Count);
+            for (int i = 0; i < nodes.Count; i++)
+            {
+                ReferenceDescription child = featuresToRead[i];
+                (int value, int units, int resolution) = indexes[i];
+                result.Add(new IaCalibrationFeature(nodes[i], child.BrowseName, child.DisplayName,
+                    child.TypeDefinition,
+                    value < 0 ? DataValue.Null : values[value],
+                    units < 0 ? DataValue.Null : values[units],
+                    resolution < 0 ? DataValue.Null : values[resolution]));
+            }
+            return result.ToArray();
+
+            int AddRead(NodeId node)
+            {
+                if (node.IsNull)
+                {
+                    return -1;
+                }
+                int index = readNodes.Count;
+                readNodes.Add(node);
+                return index;
+            }
+        }
+
+        /// <summary>
+        /// Resolves an optional property from the shared browse while rejecting ambiguous standard names.
+        /// </summary>
+        private NodeId ResolveFeatureProperty(
+            ArrayOf<ReferenceDescription> references,
+            string namespaceUri,
+            string name)
+        {
+            int namespaceIndex = Session.NamespaceUris.GetIndex(namespaceUri);
+            if (namespaceIndex < 0)
+            {
+                return NodeId.Null;
+            }
+            var browseName = new QualifiedName(name, (ushort)namespaceIndex);
+            NodeId found = NodeId.Null;
+            for (int i = 0; i < references.Count; i++)
+            {
+                if (references[i].BrowseName != browseName)
+                {
+                    continue;
+                }
+                if (!found.IsNull)
+                {
+                    throw ServiceResultException.Create(StatusCodes.BadBrowseNameDuplicated,
+                        "The server exposes an ambiguous standard child.");
+                }
+                found = ExpandedNodeId.ToNodeId(references[i].NodeId, Session.NamespaceUris);
+            }
+            return found;
         }
     }
 }

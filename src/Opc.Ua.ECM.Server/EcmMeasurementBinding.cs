@@ -31,6 +31,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Di.Server.Locking;
@@ -506,6 +507,7 @@ namespace Opc.Ua.ECM.Server
             return reading with
             {
                 Value = EcmOwnership.Own(reading.Value),
+                AccuracyDomain = EcmOwnership.Own(reading.AccuracyDomain),
                 EngineeringUnits = EcmOwnership.Own(reading.EngineeringUnits, nameof(reading.EngineeringUnits))
             };
         }

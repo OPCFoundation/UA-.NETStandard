@@ -220,6 +220,7 @@ namespace Opc.Ua.IA.Tests
                 ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await fixture.Client.ReadCalibrationFeaturesAsync(target, limit).ConfigureAwait(false));
                 Assert.That(error!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
+                Assert.That(fixture.ReadRequestSizes, Is.Empty);
                 return;
             }
             ArrayOf<IaCalibrationFeature> features = await fixture.Client.ReadCalibrationFeaturesAsync(target, limit)
@@ -242,6 +243,111 @@ namespace Opc.Ua.IA.Tests
             Assert.That(features[1].Value.IsNull, Is.True);
             Assert.That(features[1].EngineeringUnits.IsNull, Is.True);
             Assert.That(features[1].Resolution.IsNull, Is.True);
+            Assert.That(fixture.BrowseRequestSizes, Is.EqualTo(new[] { 1, 1, 2 }));
+            Assert.That(fixture.ReadRequestSizes, Is.EqualTo(new[] { 3 }));
+        }
+
+        /// <summary>
+        /// Feature count changes batch sizes rather than introducing a browse and read loop per feature.
+        /// </summary>
+        [TestCase(0, 0)]
+        [TestCase(1, 0)]
+        [TestCase(256, 0)]
+        [TestCase(256, 64)]
+        public async Task FeatureInspectionBatchesDiscoveryAndNativeReads(int count, int browseLimit)
+        {
+            var fixture = new SessionFixture();
+            fixture.Session.SetupGet(session => session.OperationLimits)
+                .Returns(new OperationLimits { MaxNodesPerBrowse = (uint)browseLimit });
+            NodeId target = fixture.Instance("Target");
+            NodeId folder = fixture.Instance("Features");
+            fixture.Browse(target, Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
+                [fixture.Reference(folder, new QualifiedName(BrowseNames.CalibrationTargetFeatures,
+                    fixture.IaNamespace), NodeClass.Object, Opc.Ua.ObjectTypeIds.BaseObjectType)]);
+            var children = new ReferenceDescription[count];
+            for (int i = 0; i < count; i++)
+            {
+                string suffix = i.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                NodeId node = fixture.Instance("Feature" + suffix);
+                NodeId units = fixture.Instance("Units" + suffix);
+                NodeId resolution = fixture.Instance("Resolution" + suffix);
+                children[i] = fixture.Reference(node, fixture.Name("Feature" + suffix), NodeClass.Variable,
+                    VariableTypeIds.CapacityRangeType);
+                fixture.Browse(node, Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
+                [
+                    fixture.Reference(units, new QualifiedName(Opc.Ua.BrowseNames.EngineeringUnits),
+                        NodeClass.Variable, Opc.Ua.VariableTypeIds.PropertyType),
+                    fixture.Reference(resolution, new QualifiedName(BrowseNames.Resolution, fixture.IaNamespace),
+                        NodeClass.Variable, Opc.Ua.VariableTypeIds.PropertyType)
+                ]);
+                fixture.Value(node, new DataValue(Variant.FromStructure(new Range { Low = i, High = i + 1 }),
+                    StatusCodes.BadNoData, IaTestContext.Timestamp));
+                fixture.Value(units, new DataValue(Variant.FromStructure(new EUInformation { UnitId = i }),
+                    StatusCodes.Good, IaTestContext.Timestamp));
+                fixture.Value(resolution, new DataValue(Variant.From((double)i),
+                    StatusCodes.UncertainLastUsableValue, IaTestContext.Timestamp));
+            }
+            fixture.Browse(folder, Opc.Ua.ReferenceTypeIds.HierarchicalReferences, children);
+            ArrayOf<IaCalibrationFeature> features = await fixture.Client.ReadCalibrationFeaturesAsync(target)
+                .ConfigureAwait(false);
+            Assert.That(features.Count, Is.EqualTo(count));
+            for (int i = 0; i < features.Count; i++)
+            {
+                Assert.That(features[i].NodeId,
+                    Is.EqualTo(ExpandedNodeId.ToNodeId(children[i].NodeId, fixture.Namespaces)));
+                Assert.That(features[i].Value.WrappedValue.TryGetStructure<Range>(out Range? range), Is.True);
+                Assert.That(range!.Low, Is.EqualTo(i));
+                Assert.That(range.High, Is.EqualTo(i + 1));
+                Assert.That(features[i].Value.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNoData));
+                Assert.That(features[i].Value.SourceTimestamp, Is.EqualTo(IaTestContext.Timestamp));
+                Assert.That(features[i].EngineeringUnits.WrappedValue.TryGetStructure<EUInformation>(
+                    out EUInformation? units), Is.True);
+                Assert.That(units!.UnitId, Is.EqualTo(i));
+                Assert.That(features[i].Resolution.WrappedValue, Is.EqualTo(Variant.From((double)i)));
+                Assert.That(features[i].Resolution.StatusCode,
+                    Is.EqualTo((StatusCode)StatusCodes.UncertainLastUsableValue));
+            }
+            var expectedBrowses = new List<int> { 1, 1 };
+            int batchSize = browseLimit == 0 ? count : browseLimit;
+            for (int remaining = count; remaining > 0; remaining -= batchSize)
+            {
+                expectedBrowses.Add(Math.Min(remaining, batchSize));
+            }
+            Assert.That(fixture.BrowseRequestSizes, Is.EqualTo(expectedBrowses));
+            Assert.That(fixture.ReadRequestSizes, Is.EqualTo(count == 0 ? Array.Empty<int>() : new[] { count * 3 }));
+        }
+
+        /// <summary>
+        /// Combining property discovery retains rejection of duplicate standard names before reading values.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task FeatureInspectionRejectsAmbiguousBatchedProperties(bool resolution)
+        {
+            var fixture = new SessionFixture();
+            NodeId target = fixture.Instance("Target");
+            NodeId folder = fixture.Instance("Features");
+            NodeId feature = fixture.Instance("Feature");
+            fixture.Browse(target, Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
+                [fixture.Reference(folder, new QualifiedName(BrowseNames.CalibrationTargetFeatures,
+                    fixture.IaNamespace), NodeClass.Object, Opc.Ua.ObjectTypeIds.BaseObjectType)]);
+            fixture.Browse(folder, Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
+                [fixture.Reference(feature, fixture.Name("Feature"), NodeClass.Variable,
+                    VariableTypeIds.CalibrationValueType)]);
+            QualifiedName name = resolution
+                ? new QualifiedName(BrowseNames.Resolution, fixture.IaNamespace)
+                : new QualifiedName(Opc.Ua.BrowseNames.EngineeringUnits);
+            fixture.Browse(feature, Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
+            [
+                fixture.Reference(fixture.Instance("First"), name, NodeClass.Variable,
+                    Opc.Ua.VariableTypeIds.PropertyType),
+                fixture.Reference(fixture.Instance("Second"), name, NodeClass.Variable,
+                    Opc.Ua.VariableTypeIds.PropertyType)
+            ]);
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await fixture.Client.ReadCalibrationFeaturesAsync(target).ConfigureAwait(false));
+            Assert.That(error!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadBrowseNameDuplicated));
+            Assert.That(fixture.ReadRequestSizes, Is.Empty);
         }
 
         /// <summary>
@@ -287,6 +393,7 @@ namespace Opc.Ua.IA.Tests
                     .Returns<RequestHeader, ViewDescription, uint, ArrayOf<BrowseDescription>, CancellationToken>(
                         (_, _, _, descriptions, _) =>
                         {
+                            BrowseRequestSizes.Add(descriptions.Count);
                             var results = new BrowseResult[descriptions.Count];
                             for (int i = 0; i < descriptions.Count; i++)
                             {
@@ -311,6 +418,7 @@ namespace Opc.Ua.IA.Tests
                     .Returns<RequestHeader, double, TimestampsToReturn, ArrayOf<ReadValueId>, CancellationToken>(
                         (_, _, _, descriptions, _) =>
                         {
+                            ReadRequestSizes.Add(descriptions.Count);
                             var values = new DataValue[descriptions.Count];
                             for (int i = 0; i < descriptions.Count; i++)
                             {
@@ -346,6 +454,16 @@ namespace Opc.Ua.IA.Tests
             /// Gets the facade under test.
             /// </summary>
             public IndustrialAutomationClient Client { get; }
+
+            /// <summary>
+            /// Gets the number of nodes in each transport browse request.
+            /// </summary>
+            public List<int> BrowseRequestSizes { get; } = [];
+
+            /// <summary>
+            /// Gets the number of nodes in each transport read request.
+            /// </summary>
+            public List<int> ReadRequestSizes { get; } = [];
 
             /// <summary>
             /// Creates an application namespace identity.

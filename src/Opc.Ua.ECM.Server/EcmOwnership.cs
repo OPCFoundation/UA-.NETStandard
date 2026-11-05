@@ -65,6 +65,17 @@ namespace Opc.Ua.ECM.Server
         }
 
         /// <summary>
+        /// Detaches an opaque NodeId from caller-owned byte storage.
+        /// </summary>
+        /// <param name="nodeId">The NodeId to detach.</param>
+        internal static NodeId Own(NodeId nodeId)
+        {
+            return nodeId.TryGetValue(out ByteString identifier)
+                ? new NodeId(ByteString.From(identifier.Span), nodeId.NamespaceIndex)
+                : nodeId;
+        }
+
+        /// <summary>
         /// Creates a detached field-wise copy of engineering-unit metadata.
         /// </summary>
         /// <param name="units">The units to detach, or null.</param>

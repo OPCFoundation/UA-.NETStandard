@@ -120,6 +120,38 @@ namespace Opc.Ua.ECM.Tests
         }
 
         /// <summary>
+        /// Published accuracy-domain NodeIds do not retain provider-owned opaque bytes.
+        /// </summary>
+        [Test]
+        public async Task SharedMeasurementBuilderCopiesOpaqueAccuracyDomainIdentifier()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queues = new MonitoredItemQueueFactory(telemetry);
+            await using EcmNodeManager manager = CreateManager(telemetry, queues);
+            ISystemContext context = manager.SystemContext;
+            ushort ecmNamespace = context.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
+            EnergyMeasurementState measurementPoint = context.CreateInstanceOfEnergyMeasurementType(
+                null,
+                new QualifiedName("Meter", manager.InstanceNamespaceIndex));
+            byte[] identifier = [1, 2, 3];
+            var accuracyDomain = new NodeId(new ByteString(identifier.AsMemory()), ecmNamespace);
+            NodeId expected = new(ByteString.From(identifier.AsSpan()), ecmNamespace);
+
+            EnergyMeasurementValueState measurement = EcmMeasurementNodeBuilder.AddMeasurement(
+                context,
+                measurementPoint,
+                new QualifiedName("Power", manager.InstanceNamespaceIndex),
+                Variant.From(12.5f),
+                Opc.Ua.DataTypeIds.Float,
+                Opc.Ua.ReferenceTypeIds.HasComponent,
+                accuracyDomain: accuracyDomain);
+
+            identifier[0] = 9;
+
+            Assert.That(measurement.AccuracyDomain!.Value, Is.EqualTo(expected));
+        }
+
+        /// <summary>
         /// Shutdown joins provider acquisition, closes new admission and releases completed bindings.
         /// </summary>
         [TestCase(false)]

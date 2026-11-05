@@ -1074,6 +1074,64 @@ namespace Opc.Ua.ECM.Tests
         }
 
         /// <summary>
+        /// Accuracy-domain metadata and its published property do not retain provider-owned opaque bytes.
+        /// </summary>
+        [Test]
+        public async Task AccuracyDomainCaptureAndPublicationCopyOpaqueIdentifierBytes()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queues = new MonitoredItemQueueFactory(telemetry);
+            await using EcmNodeManager manager = CreateManager(telemetry, queues);
+            ISystemContext context = manager.SystemContext;
+            ushort ecmNamespace = context.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
+            byte[] identifier = [1, 2, 3];
+            var accuracyDomainId = new NodeId(new ByteString(identifier.AsMemory()), ecmNamespace);
+            NodeId expectedAccuracyDomainId = new(ByteString.From(identifier.AsSpan()), ecmNamespace);
+            AccuracyDomainState domain = context.CreateInstanceOfAccuracyDomainType(
+                null,
+                new QualifiedName("OpaqueAccuracyDomain", ecmNamespace));
+            domain.NodeId = accuracyDomainId;
+            domain.EnumValues!.Value =
+                new EnumValueType[]
+                {
+                    new() { Value = 1, DisplayName = new LocalizedText("Class A") }
+                }.ToArrayOf();
+            var acquired = new DateTime(2026, 8, 14, 10, 0, 0, DateTimeKind.Utc);
+            var reading = new EcmMeasurementReading(
+                nameof(BrowseNames.AcActivePowerTotal),
+                Variant.From(8.5f),
+                new ExpandedNodeId(Opc.Ua.DataTypeIds.Float),
+                StatusCodes.Good,
+                acquired,
+                AccuracyClass: 1,
+                AccuracyDomain: accuracyDomainId);
+            var provider = new TestMeasurementProvider(
+                Snapshot("meter/opaque-accuracy", reading),
+                Snapshot("meter/opaque-accuracy", reading));
+            BaseObjectState parent = await AddParentAsync(manager, "OpaqueAccuracyDevice");
+            var browseName = new QualifiedName("OpaqueAccuracyMeter", manager.InstanceNamespaceIndex);
+            EnergyMeasurementState point = context.CreateInstanceOfEnergyMeasurementType(parent, browseName);
+            await using var binding = new EcmMeasurementBinding(
+                context,
+                point,
+                provider,
+                findNode: _ => domain);
+
+            await binding.RefreshAsync();
+            identifier[0] = 9;
+            await Assert.ThrowsAsync<InvalidOperationException>(async () => await binding.RefreshAsync());
+            EnergyMeasurementValueState measurement = RequiredMeasurement(
+                point,
+                context,
+                nameof(BrowseNames.AcActivePowerTotal),
+                ecmNamespace);
+
+            Assert.That(
+                ReadProperty(measurement, context, "AccuracyDomain"),
+                Is.EqualTo(Variant.From(expectedAccuracyDomainId)));
+        }
+
+        /// <summary>
         /// Accuracy-domain publication detaches its EnumValues and localized text from caller-owned objects.
         /// </summary>
         [Test]

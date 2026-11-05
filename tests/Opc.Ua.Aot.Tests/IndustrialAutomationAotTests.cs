@@ -245,8 +245,8 @@ namespace Opc.Ua.Aot.Tests
             acPp.L1L2 = 99;
             acPp.L2L3 = 99;
             acPp.L3L1 = 99;
-            await Assert.That(statistic.WrappedValue.TryGetStructure<ECM.AcPeDataType>(out var copiedPe)).IsTrue();
-            await Assert.That(companion.WrappedValue.TryGetStructure<ECM.AcPpDataType>(out var copiedPp)).IsTrue();
+            await Assert.That(statistic.WrappedValue.TryGetStructure(out ECM.AcPeDataType? copiedPe)).IsTrue();
+            await Assert.That(companion.WrappedValue.TryGetStructure(out ECM.AcPpDataType? copiedPp)).IsTrue();
             await Assert.That(copiedPe!.GetType()).IsEqualTo(typeof(ECM.AcPeDataType));
             await Assert.That(copiedPp!.GetType()).IsEqualTo(typeof(ECM.AcPpDataType));
             await Assert.That(ReferenceEquals(copiedPe, acPe)).IsFalse();

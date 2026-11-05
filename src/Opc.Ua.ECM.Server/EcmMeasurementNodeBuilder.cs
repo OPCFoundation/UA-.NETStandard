@@ -89,6 +89,7 @@ namespace Opc.Ua.ECM.Server
             }
 
             Variant ownedValue = EcmOwnership.Own(value);
+            NodeId ownedAccuracyDomain = EcmOwnership.Own(accuracyDomain);
             EUInformation? ownedUnits = EcmOwnership.Own(engineeringUnits, nameof(engineeringUnits));
 
             var children = new List<BaseInstanceState>();
@@ -130,10 +131,10 @@ namespace Opc.Ua.ECM.Server
                 measurement.CreateOrReplaceAccuracyClass(context, null);
                 Required(measurement.AccuracyClass).Value = accuracyClass.Value;
             }
-            if (!accuracyDomain.IsNull)
+            if (!ownedAccuracyDomain.IsNull)
             {
                 measurement.CreateOrReplaceAccuracyDomain(context, null);
-                Required(measurement.AccuracyDomain).Value = accuracyDomain;
+                Required(measurement.AccuracyDomain).Value = ownedAccuracyDomain;
             }
             if (accuracyRange.HasValue)
             {
