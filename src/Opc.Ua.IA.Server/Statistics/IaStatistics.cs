@@ -71,6 +71,26 @@ namespace Opc.Ua.IA.Server
         /// Gets statistic values in the binding's component order, with acquisition status and time.
         /// </summary>
         public required ArrayOf<DataValue> Values { get; init; }
+
+        /// <summary>
+        /// Gets companion readings in the configured composition node order.
+        /// </summary>
+        public ArrayOf<DataValue> CompanionValues { get; init; }
+    }
+
+    /// <summary>
+    /// Opts into staging and publishing companion variables with the statistics collection.
+    /// </summary>
+    /// <remarks>
+    /// Values for every node must be supplied on both refresh and reset. Uncertain or Bad null readings
+    /// are accepted without changing their quality. Good null readings remain invalid.
+    /// </remarks>
+    public sealed record IaStatisticsComposition
+    {
+        /// <summary>
+        /// Gets the fixed companion node order, including application properties where needed.
+        /// </summary>
+        public required ArrayOf<BaseVariableState> Nodes { get; init; }
     }
 
     /// <summary>
@@ -102,6 +122,11 @@ namespace Opc.Ua.IA.Server
         /// Gets the owning application's lookup for nonstandard grouping ObjectTypes.
         /// </summary>
         public Func<NodeId, BaseObjectTypeState?>? ResolveGroupType { get; init; }
+
+        /// <summary>
+        /// Gets the optional combined-publication configuration; null retains the existing statistics behavior.
+        /// </summary>
+        public IaStatisticsComposition? Composition { get; init; }
 
         /// <summary>
         /// Validates the selected interface's metadata before changing an address space.
@@ -170,6 +195,20 @@ namespace Opc.Ua.IA.Server
                         "Statistic components need distinct, assigned NodeIds.", nameof(components));
                 }
             }
+            m_companions = m_options.Composition == null
+                ? ArrayOf<BaseVariableState>.Empty
+                : ArrayOf.Create(m_options.Composition.Nodes.Span);
+            for (int i = 0; i < m_companions.Count; i++)
+            {
+                BaseVariableState companion = m_companions[i];
+                if (companion == null || companion.NodeId.IsNull || companion.NodeId == state.NodeId ||
+                    !names.Add(companion.NodeId))
+                {
+                    throw new ArgumentException(
+                        "Companion nodes need assigned identities distinct from the owner and statistics.",
+                        nameof(options));
+                }
+            }
             ValidateGroups(context, state, groups, names, m_options.ResolveGroupType, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             var children = new List<BaseInstanceState>();
@@ -178,7 +217,8 @@ namespace Opc.Ua.IA.Server
             {
                 if (child.BrowseName.NamespaceIndex == ns &&
                     child.BrowseName.Name is BrowseNames.StartTime or BrowseNames.ResetStatistics or
-                        BrowseNames.ResetCondition or BrowseNames.WindowDuration or BrowseNames.WindowNumberOfValues)
+                        BrowseNames.ResetCondition or BrowseNames.WindowDuration or
+                        BrowseNames.WindowNumberOfValues)
                 {
                     throw new ArgumentException("The object already contains statistics metadata.", nameof(state));
                 }
@@ -267,7 +307,7 @@ namespace Opc.Ua.IA.Server
             {
                 snapshot = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
                 cancellationToken.ThrowIfCancellationRequested();
-                Publish(snapshot);
+                Publish(snapshot, cancellationToken);
                 await ClearPublishedChangeMasksAsync().ConfigureAwait(false);
             }
             finally
@@ -485,43 +525,115 @@ namespace Opc.Ua.IA.Server
         /// <summary>
         /// Validates a complete provider response before publishing any field.
         /// </summary>
-        private void Publish(IaStatisticsSnapshot snapshot)
+        private void Publish(IaStatisticsSnapshot snapshot, CancellationToken cancellationToken = default)
         {
-            if (snapshot == null || snapshot.StartTime.IsNull || snapshot.Values.Count != m_components.Count)
+            if (snapshot == null || snapshot.StartTime.IsNull || snapshot.Values.Count != m_components.Count ||
+                snapshot.CompanionValues.Count != m_companions.Count)
             {
                 throw new ServiceResultException(StatusCodes.BadConfigurationError,
                     "The statistics provider returned an incomplete snapshot.");
             }
-            var values = new DataValue[m_components.Count];
-            for (int i = 0; i < m_components.Count; i++)
+            DataValue[] values = StageValues(snapshot.Values, m_components);
+            DataValue[] companions = StageValues(snapshot.CompanionValues, m_companions);
+            if (m_options.Composition != null)
             {
-                DataValue value = snapshot.Values[i];
+                var identities = new HashSet<NodeId>();
+                if (State.NodeId.IsNull || StartTime.NodeId.IsNull ||
+                    !identities.Add(State.NodeId) || !identities.Add(StartTime.NodeId))
+                {
+                    throw new ServiceResultException(StatusCodes.BadConfigurationError,
+                        "The collection and its start time need distinct assigned publication identities.");
+                }
+                var children = new List<BaseInstanceState>();
+                State.GetChildren(m_context, children);
+                foreach (BaseInstanceState child in children)
+                {
+                    if (!ReferenceEquals(child, StartTime) &&
+                        child.BrowseName.NamespaceIndex == StartTime.BrowseName.NamespaceIndex &&
+                        child.BrowseName.Name is BrowseNames.StartTime or BrowseNames.ResetStatistics or
+                            BrowseNames.ResetCondition or BrowseNames.WindowDuration or
+                            BrowseNames.WindowNumberOfValues)
+                    {
+                        if (child.NodeId.IsNull || !identities.Add(child.NodeId))
+                        {
+                            throw new ServiceResultException(StatusCodes.BadConfigurationError,
+                                "Collection metadata needs distinct assigned publication identities.");
+                        }
+                    }
+                }
+                foreach (BaseVariableState node in m_components.Span)
+                {
+                    if (node.NodeId.IsNull || !identities.Add(node.NodeId))
+                    {
+                        throw new ServiceResultException(StatusCodes.BadConfigurationError,
+                            "A statistic overlaps the collection's publication identities.");
+                    }
+                }
+                foreach (BaseVariableState node in m_companions.Span)
+                {
+                    if (node.NodeId.IsNull || !identities.Add(node.NodeId))
+                    {
+                        throw new ServiceResultException(StatusCodes.BadConfigurationError,
+                            "A companion overlaps the collection's publication identities.");
+                    }
+                }
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            CommitValues(values, m_components);
+            StartTime.Value = Variant.From(snapshot.StartTime);
+            StartTime.StatusCode = StatusCodes.Good;
+            StartTime.Timestamp = snapshot.StartTime;
+            CommitValues(companions, m_companions);
+        }
+
+        /// <summary>
+        /// Validates and detaches an entire group before any live-node assignments.
+        /// </summary>
+        private DataValue[] StageValues(ArrayOf<DataValue> source, ArrayOf<BaseVariableState> nodes)
+        {
+            var values = new DataValue[nodes.Count];
+            for (int i = 0; i < nodes.Count; i++)
+            {
+                DataValue value = source[i];
                 if (value.IsNull || value.SourceTimestamp.IsNull)
                 {
                     throw new ServiceResultException(StatusCodes.BadConfigurationError,
                         "A statistic requires a source timestamp and explicit quality.");
                 }
-                value = value.WithWrappedValue(IaValueCopy.Own(value.WrappedValue, m_context));
-                if ((value.WrappedValue.IsNull && !StatusCode.IsBad(value.StatusCode)) ||
+                value = value.WithWrappedValue(
+                    IaValueCopy.Own(value.WrappedValue, m_context, m_options.Composition != null));
+                bool acceptsNull = StatusCode.IsBad(value.StatusCode) ||
+                    m_options.Composition != null && StatusCode.IsUncertain(value.StatusCode);
+                if ((value.WrappedValue.IsNull && !acceptsNull) ||
                     !value.WrappedValue.IsNull &&
-                    TypeInfo.IsInstanceOfDataType(value.WrappedValue, m_components[i].DataType,
-                        m_components[i].ValueRank, m_context.NamespaceUris, m_context.TypeTable).IsUnknown)
+                    TypeInfo.IsInstanceOfDataType(value.WrappedValue, nodes[i].DataType,
+                        nodes[i].ValueRank, m_context.NamespaceUris, m_context.TypeTable).IsUnknown)
                 {
                     throw new ServiceResultException(StatusCodes.BadTypeMismatch);
                 }
                 values[i] = value;
+                if (m_options.Composition != null)
+                {
+                    // Existing setters compare with the live value; reject unsafe existing payloads before committing.
+                    _ = IaValueCopy.Own(nodes[i].WrappedValue, m_context, allowEcm: true);
+                }
             }
-            for (int i = 0; i < m_components.Count; i++)
+            return values;
+        }
+
+        /// <summary>
+        /// Assigns already validated values without invoking application callbacks.
+        /// </summary>
+        private static void CommitValues(DataValue[] values, ArrayOf<BaseVariableState> nodes)
+        {
+            for (int i = 0; i < nodes.Count; i++)
             {
                 DataValue value = values[i];
-                BaseVariableState component = m_components[i];
+                BaseVariableState component = nodes[i];
                 component.WrappedValue = value.WrappedValue;
                 component.StatusCode = value.StatusCode;
                 component.Timestamp = value.SourceTimestamp;
             }
-            StartTime.Value = Variant.From(snapshot.StartTime);
-            StartTime.StatusCode = StatusCodes.Good;
-            StartTime.Timestamp = snapshot.StartTime;
         }
 
         /// <summary>
@@ -533,6 +645,11 @@ namespace Opc.Ua.IA.Server
             for (int i = 0; i < m_components.Count; i++)
             {
                 await m_components[i].ClearChangeMasksAsync(m_context, false, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+            for (int i = 0; i < m_companions.Count; i++)
+            {
+                await m_companions[i].ClearChangeMasksAsync(m_context, false, CancellationToken.None)
                     .ConfigureAwait(false);
             }
         }
@@ -562,6 +679,9 @@ namespace Opc.Ua.IA.Server
 
         /// <summary>The fixed component order.</summary>
         private readonly ArrayOf<BaseVariableState> m_components;
+
+        /// <summary>The fixed combined-publication node order.</summary>
+        private readonly ArrayOf<BaseVariableState> m_companions;
 
         /// <summary>The selected calculation semantics.</summary>
         private readonly IaStatisticsOptions m_options;

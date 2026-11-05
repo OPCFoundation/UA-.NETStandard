@@ -15,6 +15,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Opc.Ua.IA\Opc.Ua.IA.csproj" />
+    <ProjectReference Include="..\Opc.Ua.ECM\Opc.Ua.ECM.csproj" />
     <ProjectReference Include="..\Opc.Ua.Di.Server\Opc.Ua.Di.Server.csproj" />
     <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj"
                       OutputItemType="Analyzer" ReferenceOutputAssembly="false" />

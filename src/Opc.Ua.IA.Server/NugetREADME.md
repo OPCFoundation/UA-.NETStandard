@@ -12,12 +12,22 @@ owner's system context and generated IA nodes.
 Applications own acquisition, calculation, storage, and reset policy.
 The bindings preserve source quality and timestamps. They do not operate
 physical lights, calculate unspecified analytics, retrieve certificate URIs,
-or perform calibration. `Opc.Ua.IA` remains the single generated-model package.
+or perform calibration. `Opc.Ua.IA` remains the single producer of the IA model.
 
-Decoded statistics require registered `IEncodeableType` activators that create
-independent receivers without provider-owned mutable storage. Unregistered
-bodies and binary copies that change decoded semantics are rejected with
-`BadNotSupported`; IA support remains Partial.
+Ordinary decoded statistics accept exact `EnumValueType` and `Argument` bodies
+through field-wise copies. Registering an `IEncodeableType` does not establish
+ownership; custom and derived bodies are rejected with `BadNotSupported`.
+Deferred localized text retains its templates and detached arguments.
+
+`WithCombinedPublication` stages statistics and companion readings before any
+notification. This opt-in path additionally copies exact decoded ECM
+`AcPeDataType` and `AcPpDataType` values through generated primitive-field
+assignments; it does not invoke their virtual codecs or clone methods.
+`Opc.Ua.IA.Server` therefore depends on the `Opc.Ua.ECM` model package, which
+depends on the IA and DI models, not on IA.Server or ECM.Server. Both model and
+server libraries use the same net48/net8.0/net9.0/net10.0 target selection.
+No application copier or pre-owned-value registration is exposed.
+IA support remains Partial.
 
 See the [Industrial Automation guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/IndustrialAutomation.md)
 and [public-API sample](https://github.com/OPCFoundation/UA-.NETStandard/tree/master/samples/IA).

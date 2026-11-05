@@ -16,6 +16,7 @@
     <PackageReference Include="coverlet.collector" PrivateAssets="all" />
     <Compile Include="..\Common\Main.cs" />
     <ProjectReference Include="..\..\src\Opc.Ua.IA.Server\Opc.Ua.IA.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.ECM\Opc.Ua.ECM.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.IA.Client\Opc.Ua.IA.Client.csproj" />
     <ProjectReference Include="..\..\samples\IA\IndustrialAutomationSample.csproj" />
     <ProjectReference Include="..\Opc.Ua.Server.TestFramework\Opc.Ua.Server.TestFramework.csproj" />

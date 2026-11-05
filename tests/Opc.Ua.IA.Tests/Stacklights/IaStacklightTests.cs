@@ -153,7 +153,7 @@ namespace Opc.Ua.IA.Tests.Stacklights
                     Assert.That(firstError, Is.Null);
                 }
                 Assert.That(light.SignalOn.Value, Is.False);
-                Assert.That(observed, Is.EqualTo(new[] { true, false }));
+                Assert.That(observed, Is.EqualTo(s_observedStates));
                 provider.Verify(source => source.ReadSnapshotAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
             }
             finally
@@ -651,5 +651,10 @@ namespace Opc.Ua.IA.Tests.Stacklights
             provider.Setup(source => source.ReadSnapshotAsync(It.IsAny<CancellationToken>())).ReturnsAsync(snapshot);
             return provider;
         }
+
+        /// <summary>
+        /// The expected state sequence across the queued refreshes.
+        /// </summary>
+        private static readonly bool[] s_observedStates = [true, false];
     }
 }

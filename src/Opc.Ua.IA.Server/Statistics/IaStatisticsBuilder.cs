@@ -65,7 +65,11 @@ namespace Opc.Ua.IA.Server
         /// </summary>
         public IaStatisticsBuilder WithAggregate(string? resetCondition = null)
         {
-            m_options = new IaStatisticsOptions { ResetCondition = resetCondition };
+            m_options = new IaStatisticsOptions
+            {
+                ResetCondition = resetCondition,
+                Composition = m_options.Composition
+            };
             return this;
         }
 
@@ -74,7 +78,12 @@ namespace Opc.Ua.IA.Server
         /// </summary>
         public IaStatisticsBuilder WithDurationWindow(double milliseconds)
         {
-            m_options = new IaStatisticsOptions { Rolling = true, WindowDuration = milliseconds };
+            m_options = new IaStatisticsOptions
+            {
+                Rolling = true,
+                WindowDuration = milliseconds,
+                Composition = m_options.Composition
+            };
             m_options.Validate();
             return this;
         }
@@ -84,8 +93,25 @@ namespace Opc.Ua.IA.Server
         /// </summary>
         public IaStatisticsBuilder WithCountWindow(uint count)
         {
-            m_options = new IaStatisticsOptions { Rolling = true, WindowNumberOfValues = count };
+            m_options = new IaStatisticsOptions
+            {
+                Rolling = true,
+                WindowNumberOfValues = count,
+                Composition = m_options.Composition
+            };
             m_options.Validate();
+            return this;
+        }
+
+        /// <summary>
+        /// Publishes the ordered companion variables with every statistics snapshot before notifying observers.
+        /// </summary>
+        public IaStatisticsBuilder WithCombinedPublication(ArrayOf<BaseVariableState> nodes)
+        {
+            m_options = m_options with
+            {
+                Composition = new IaStatisticsComposition { Nodes = ArrayOf.Create(nodes.Span) }
+            };
             return this;
         }
 

@@ -437,6 +437,692 @@ namespace Opc.Ua.IA.Tests.Statistics
         }
 
         /// <summary>
+        /// Combined publications assign every reading and tag before notifying and retain serialization through sinks.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task CombinedPublicationCommitsBeforeNotifications(bool reset, bool failSink)
+        {
+            var fixture = new IaTestContext();
+            BaseObjectState owner = fixture.Owner();
+            BaseVariableState statistic = fixture.Quantity(owner);
+            BaseVariableState reading = fixture.Quantity(fixture.Owner("Other"), "Instantaneous");
+            var tag = new PropertyState<string>(owner);
+            tag.Create(fixture.Context, NodeId.Null, fixture.Name("ApplicationTag"),
+                new LocalizedText("ApplicationTag"), true);
+            tag.DataType = Opc.Ua.DataTypeIds.String;
+            tag.ValueRank = ValueRanks.Scalar;
+            owner.AddChild(tag);
+            var provider = new Mock<IIaStatisticsProvider>(MockBehavior.Strict);
+            provider.SetupSequence(item => item.ReadAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(CombinedSnapshot(9))
+                .ReturnsAsync(CombinedSnapshot(23));
+            provider.Setup(item => item.AuthorizeResetAsync(fixture.Context, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(ServiceResult.Good);
+            provider.Setup(item => item.ResetAsync(It.IsAny<CancellationToken>())).ReturnsAsync(CombinedSnapshot(0));
+            BaseVariableState[] configured = [reading, tag];
+            var builder = new IaStatisticsBuilder().AddComponent(statistic)
+                .WithCombinedPublication(new ArrayOf<BaseVariableState>(configured.AsMemory()))
+                .WithAggregate();
+            configured[0] = statistic;
+            using var binding = builder.Build(fixture.Context, owner, provider.Object);
+            if (reset)
+            {
+                await binding.RefreshAsync().ConfigureAwait(false);
+            }
+            uint expected = reset ? 0u : 9u;
+            using var cancellation = new CancellationTokenSource();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var failure = new InvalidOperationException("Combined notification failed");
+            statistic.OnStateChangedAsync = async (_, _, _, token) =>
+            {
+                Assert.That(token.CanBeCanceled, Is.False);
+                AssertValue(statistic, expected);
+                AssertValue(reading, expected + 100);
+                Assert.That(tag.Value, Is.EqualTo($"tag-{expected}"));
+                Assert.That(reading.StatusCode, Is.EqualTo((StatusCode)StatusCodes.UncertainLastUsableValue));
+                Assert.That(reading.Timestamp, Is.EqualTo(IaTestContext.Timestamp));
+                Assert.That(binding.StartTime.Value.TryGetValue(out DateTimeUtc startTime), Is.True);
+                Assert.That(startTime, Is.EqualTo(IaTestContext.Timestamp));
+                cancellation.Cancel();
+                entered.TrySetResult(true);
+                await release.Task.ConfigureAwait(false);
+                AssertValue(reading, expected + 100);
+                if (failSink)
+                {
+                    throw failure;
+                }
+            };
+            int companionNotifications = 0;
+            reading.OnStateChangedAsync = (_, _, _, token) =>
+            {
+                Assert.That(token.CanBeCanceled, Is.False);
+                companionNotifications++;
+                return default;
+            };
+            Task first = reset
+                ? binding.ResetAsync(fixture.Context, cancellation.Token).AsTask()
+                : binding.RefreshAsync(cancellation.Token).AsTask();
+            Task? next = null;
+            try
+            {
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                next = binding.RefreshAsync().AsTask();
+                Assert.That(next.IsCompleted, Is.False);
+                provider.Verify(item => item.ReadAsync(It.IsAny<CancellationToken>()), Times.Once);
+                AssertValue(statistic, expected);
+                AssertValue(reading, expected + 100);
+            }
+            finally
+            {
+                statistic.OnStateChangedAsync = null;
+                release.TrySetResult(true);
+            }
+            if (failSink)
+            {
+                await Assert.ThatAsync(async () => await first.ConfigureAwait(false), Throws.SameAs(failure));
+            }
+            else
+            {
+                await first.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            }
+            if (next != null)
+            {
+                await next.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            }
+            AssertValue(statistic, 23);
+            AssertValue(reading, 123);
+            Assert.That(tag.Value, Is.EqualTo("tag-23"));
+            Assert.That(companionNotifications, Is.EqualTo(failSink ? 1 : 2));
+        }
+
+        /// <summary>
+        /// Combined publication accepts Uncertain and Bad nulls without changing default statistics behavior.
+        /// </summary>
+        [Test]
+        [Combinatorial]
+        public async Task CombinedNullQualityIsOptIn(
+            [Values(false, true)] bool composition,
+            [Values(false, true)] bool reset,
+            [Values(0, 1, 2)] int severity)
+        {
+            var fixture = new IaTestContext();
+            BaseObjectState owner = fixture.Owner();
+            BaseVariableState statistic = fixture.Quantity(owner);
+            BaseVariableState companion = fixture.Quantity(owner, "Instantaneous");
+            StatusCode status = severity switch
+            {
+                0 => StatusCodes.Good,
+                1 => StatusCodes.UncertainLastUsableValue,
+                _ => StatusCodes.BadNoData
+            };
+            var snapshot = Snapshot(0) with
+            {
+                Values = [new DataValue(Variant.Null, status, IaTestContext.Timestamp)],
+                CompanionValues = composition ? [new DataValue(Variant.Null, status, IaTestContext.Timestamp)] : default
+            };
+            var provider = new Mock<IIaStatisticsProvider>(MockBehavior.Strict);
+            provider.Setup(item => item.ReadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(snapshot);
+            provider.Setup(item => item.AuthorizeResetAsync(fixture.Context, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(ServiceResult.Good);
+            provider.Setup(item => item.ResetAsync(It.IsAny<CancellationToken>())).ReturnsAsync(snapshot);
+            var options = new IaStatisticsOptions
+            {
+                Composition = composition ? new IaStatisticsComposition { Nodes = [companion] } : null
+            };
+            using var binding = new IaStatistics(fixture.Context, owner, [statistic], provider.Object, options);
+            Task operation = reset
+                ? binding.ResetAsync(fixture.Context).AsTask()
+                : binding.RefreshAsync().AsTask();
+            if (severity == 0 || severity == 1 && !composition)
+            {
+                await Assert.ThatAsync(async () => await operation.ConfigureAwait(false),
+                    Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                        .EqualTo((StatusCode)StatusCodes.BadTypeMismatch));
+                Assert.That(binding.StartTime.Value.IsNull, Is.True);
+            }
+            else
+            {
+                await operation.ConfigureAwait(false);
+                Assert.That(statistic.WrappedValue.IsNull, Is.True);
+                Assert.That(statistic.StatusCode, Is.EqualTo(status));
+                Assert.That(statistic.Timestamp, Is.EqualTo(IaTestContext.Timestamp));
+                if (composition)
+                {
+                    Assert.That(companion.WrappedValue.IsNull, Is.True);
+                    Assert.That(companion.StatusCode, Is.EqualTo(status));
+                    Assert.That(companion.Timestamp, Is.EqualTo(IaTestContext.Timestamp));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Companion validation and provider failure cannot replace an earlier complete publication.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        [TestCase(3)]
+        [TestCase(4)]
+        public async Task CombinedInvalidSnapshotRetainsAllValues(int failure)
+        {
+            var fixture = new IaTestContext();
+            BaseObjectState owner = fixture.Owner();
+            BaseVariableState statistic = fixture.Quantity(owner);
+            BaseVariableState companion = fixture.Quantity(owner, "Instantaneous");
+            var provider = new Mock<IIaStatisticsProvider>(MockBehavior.Strict);
+            IaStatisticsSnapshot initial = Snapshot(9) with { CompanionValues = [Reading(19)] };
+            var unsupported = new LossyStructure();
+            IaStatisticsSnapshot invalid = Snapshot(0) with
+            {
+                CompanionValues = failure switch
+                {
+                    0 => [],
+                    1 => [new DataValue(Variant.From("wrong type"), StatusCodes.Good, IaTestContext.Timestamp)],
+                    2 => [new DataValue(Variant.From(20u), StatusCodes.Good)],
+                    3 => [new DataValue(Variant.FromStructure(unsupported),
+                        StatusCodes.Good, IaTestContext.Timestamp)],
+                    _ => [Reading(20)]
+                }
+            };
+            provider.Setup(item => item.ReadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(initial);
+            using var binding = new IaStatisticsBuilder().AddComponent(statistic)
+                .WithCombinedPublication([companion]).Build(fixture.Context, owner, provider.Object);
+            await binding.RefreshAsync().ConfigureAwait(false);
+            Variant start = binding.StartTime.Value;
+            int notifications = 0;
+            statistic.OnStateChangedAsync = (_, _, _, _) =>
+            {
+                notifications++;
+                return default;
+            };
+            if (failure == 4)
+            {
+                provider.Setup(item => item.ReadAsync(It.IsAny<CancellationToken>()))
+                    .ThrowsAsync(new InvalidOperationException("Provider failed"));
+            }
+            else
+            {
+                provider.Setup(item => item.ReadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(invalid);
+            }
+            if (failure == 4)
+            {
+                await Assert.ThatAsync(async () => await binding.RefreshAsync().ConfigureAwait(false),
+                    Throws.TypeOf<InvalidOperationException>().With.Message.EqualTo("Provider failed"));
+            }
+            else
+            {
+                StatusCode expected = failure switch
+                {
+                    1 => StatusCodes.BadTypeMismatch,
+                    3 => StatusCodes.BadNotSupported,
+                    _ => StatusCodes.BadConfigurationError
+                };
+                await Assert.ThatAsync(async () => await binding.RefreshAsync().ConfigureAwait(false),
+                    Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                        .EqualTo(expected));
+            }
+            AssertValue(statistic, 9);
+            AssertValue(companion, 19);
+            Assert.That(statistic.StatusCode, Is.EqualTo((StatusCode)StatusCodes.UncertainLastUsableValue));
+            Assert.That(companion.StatusCode, Is.EqualTo((StatusCode)StatusCodes.UncertainLastUsableValue));
+            Assert.That(companion.Timestamp, Is.EqualTo(IaTestContext.Timestamp));
+            Assert.That(binding.StartTime.Value, Is.EqualTo(start));
+            Assert.That(notifications, Is.Zero);
+            Assert.That(unsupported.CloneCalls, Is.Zero);
+            Assert.That(unsupported.EncodeCalls, Is.Zero);
+            Assert.That(unsupported.DecodeCalls, Is.Zero);
+            Assert.That(unsupported.EqualityCalls, Is.Zero);
+        }
+
+        /// <summary>
+        /// Refresh cancellation discards a staged composition while successful reset ignores later cancellation.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CombinedCancellationPreservesResetCommitRule(bool reset)
+        {
+            var fixture = new IaTestContext();
+            BaseObjectState owner = fixture.Owner();
+            BaseVariableState statistic = fixture.Quantity(owner);
+            BaseVariableState companion = fixture.Quantity(owner, "Instantaneous");
+            using var cancellation = new CancellationTokenSource();
+            var provider = new Mock<IIaStatisticsProvider>(MockBehavior.Strict);
+            provider.Setup(item => item.ReadAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(Snapshot(9) with { CompanionValues = [Reading(19)] });
+            using var binding = new IaStatisticsBuilder().AddComponent(statistic)
+                .WithCombinedPublication([companion]).Build(fixture.Context, owner, provider.Object);
+            await binding.RefreshAsync().ConfigureAwait(false);
+            IaStatisticsSnapshot next = Snapshot(0) with { CompanionValues = [Reading(19)] };
+            provider.Setup(item => item.ReadAsync(It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    cancellation.Cancel();
+                    return ValueTask.FromResult(next);
+                });
+            provider.Setup(item => item.AuthorizeResetAsync(fixture.Context, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(ServiceResult.Good);
+            provider.Setup(item => item.ResetAsync(It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    cancellation.Cancel();
+                    return ValueTask.FromResult(next);
+                });
+            int notifications = 0;
+            statistic.OnStateChangedAsync = (_, _, _, token) =>
+            {
+                Assert.That(token.CanBeCanceled, Is.False);
+                AssertValue(companion, 19);
+                notifications++;
+                return default;
+            };
+            if (reset)
+            {
+                ServiceResult result = await binding.ResetAsync(fixture.Context, cancellation.Token)
+                    .ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                AssertValue(statistic, 0);
+                Assert.That(notifications, Is.EqualTo(1));
+            }
+            else
+            {
+                await Assert.ThatAsync(async () => await binding.RefreshAsync(cancellation.Token).ConfigureAwait(false),
+                    Throws.InstanceOf<OperationCanceledException>());
+                AssertValue(statistic, 9);
+                Assert.That(notifications, Is.Zero);
+            }
+            AssertValue(companion, 19);
+            Assert.That(companion.StatusCode, Is.EqualTo((StatusCode)StatusCodes.UncertainLastUsableValue));
+            Assert.That(companion.Timestamp, Is.EqualTo(IaTestContext.Timestamp));
+        }
+
+        /// <summary>
+        /// Unsafe existing companion values cannot invoke custom equality after statistics have been assigned.
+        /// </summary>
+        [Test]
+        public async Task CombinedPublicationRejectsUnsafeExistingValueBeforeCommit()
+        {
+            var fixture = new IaTestContext();
+            BaseObjectState owner = fixture.Owner();
+            BaseVariableState statistic = fixture.Quantity(owner);
+            BaseVariableState companion = fixture.Quantity(owner, "Instantaneous");
+            companion.DataType = Opc.Ua.DataTypeIds.BaseDataType;
+            var unsupported = new LossyStructure();
+            companion.WrappedValue = Variant.FromStructure(unsupported);
+            statistic.WrappedValue = Variant.From(7u);
+            var provider = new Mock<IIaStatisticsProvider>(MockBehavior.Strict);
+            provider.Setup(item => item.ReadAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(Snapshot(9) with { CompanionValues = [Reading(19)] });
+            using var binding = new IaStatisticsBuilder().AddComponent(statistic)
+                .WithCombinedPublication([companion]).Build(fixture.Context, owner, provider.Object);
+            await Assert.ThatAsync(async () => await binding.RefreshAsync().ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo((StatusCode)StatusCodes.BadNotSupported));
+            AssertValue(statistic, 7);
+            Assert.That(binding.StartTime.Value.IsNull, Is.True);
+            Assert.That(companion.WrappedValue.TryGetStructure<LossyStructure>(out var retained), Is.True);
+            Assert.That(ReferenceEquals(retained, unsupported), Is.True);
+            Assert.That(unsupported.CloneCalls, Is.Zero);
+            Assert.That(unsupported.EncodeCalls, Is.Zero);
+            Assert.That(unsupported.DecodeCalls, Is.Zero);
+            Assert.That(unsupported.EqualityCalls, Is.Zero);
+        }
+
+        /// <summary>
+        /// Calculation mode selection retains the opt-in companion configuration.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        public async Task CombinedPublicationSurvivesBuilderModeSelection(int mode)
+        {
+            var fixture = new IaTestContext();
+            BaseObjectState owner = fixture.Owner();
+            BaseVariableState statistic = fixture.Quantity(owner);
+            BaseVariableState companion = fixture.Quantity(owner, "Instantaneous");
+            var provider = new Mock<IIaStatisticsProvider>(MockBehavior.Strict);
+            provider.Setup(item => item.ReadAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(Snapshot(9) with { CompanionValues = [Reading(19)] });
+            var builder = new IaStatisticsBuilder().AddComponent(statistic).WithCombinedPublication([companion]);
+            switch (mode)
+            {
+                case 0:
+                    builder.WithAggregate();
+                    break;
+                case 1:
+                    builder.WithDurationWindow(1000);
+                    break;
+                default:
+                    builder.WithCountWindow(10);
+                    break;
+            }
+            using var binding = builder.Build(fixture.Context, owner, provider.Object);
+            await binding.RefreshAsync().ConfigureAwait(false);
+            AssertValue(statistic, 9);
+            AssertValue(companion, 19);
+        }
+
+        /// <summary>
+        /// Companion buffers and deferred translations are detached using the same statistics copy contract.
+        /// </summary>
+        [Test]
+        public async Task CombinedCompanionStorageIsDetached()
+        {
+            var fixture = new IaTestContext();
+            BaseObjectState owner = fixture.Owner();
+            BaseVariableState statistic = fixture.Quantity(owner);
+            BaseVariableState bytes = fixture.Quantity(owner, "Bytes");
+            bytes.DataType = Opc.Ua.DataTypeIds.ByteString;
+            BaseVariableState text = fixture.Quantity(owner, "Text");
+            text.DataType = Opc.Ua.DataTypeIds.LocalizedText;
+            byte[] buffer = [1, 2, 3];
+            object[] args = ["Original"];
+            var translations = new Dictionary<string, string>
+            {
+                ["en-US"] = "English {0}",
+                ["de-DE"] = "Deutsch {0}"
+            };
+            var localized = new LocalizedText(translations,
+                new TranslationInfo("combined", "en-US", "Fallback {0}", args));
+            var provider = new Mock<IIaStatisticsProvider>(MockBehavior.Strict);
+            provider.Setup(item => item.ReadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Snapshot(9) with
+            {
+                CompanionValues =
+                [
+                    new DataValue(new Variant(ByteString.From(buffer)), StatusCodes.Good, IaTestContext.Timestamp),
+                    new DataValue(new Variant(localized), StatusCodes.Good, IaTestContext.Timestamp)
+                ]
+            });
+            using var binding = new IaStatisticsBuilder().AddComponent(statistic)
+                .WithCombinedPublication([bytes, text]).Build(fixture.Context, owner, provider.Object);
+            await binding.RefreshAsync().ConfigureAwait(false);
+            buffer[0] = 99;
+            args[0] = "Changed";
+            translations["de-DE"] = "Changed {0}";
+            Assert.That(bytes.WrappedValue.TryGetValue(out ByteString publishedBytes), Is.True);
+            Assert.That(publishedBytes.Span.ToArray(), Is.EqualTo(new byte[] { 1, 2, 3 }));
+            Assert.That(text.WrappedValue.TryGetValue(out LocalizedText publishedText), Is.True);
+            Assert.That(publishedText.FilterByPreferredLocales(["en-US"]).Text, Is.EqualTo("English Original"));
+            Assert.That(publishedText.FilterByPreferredLocales(["de-DE"]).Text, Is.EqualTo("Deutsch Original"));
+        }
+
+        /// <summary>
+        /// Companion identities cannot overlap each other or existing collection identities.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        [TestCase(3)]
+        [TestCase(4)]
+        public void CombinedCompositionRejectsInvalidIdentities(int invalid)
+        {
+            var fixture = new IaTestContext();
+            BaseObjectState owner = fixture.Owner();
+            BaseVariableState statistic = fixture.Quantity(owner);
+            BaseVariableState companion = fixture.Quantity(owner, "Instantaneous");
+            ArrayOf<BaseVariableState> nodes = invalid switch
+            {
+                0 => [companion, companion],
+                1 => [statistic],
+                4 => [null!],
+                _ => [companion]
+            };
+            if (invalid == 2)
+            {
+                companion.NodeId = owner.NodeId;
+            }
+            else if (invalid == 3)
+            {
+                companion.NodeId = NodeId.Null;
+            }
+            var provider = new Mock<IIaStatisticsProvider>(MockBehavior.Strict);
+            var options = new IaStatisticsOptions { Composition = new IaStatisticsComposition { Nodes = nodes } };
+            Assert.That(() => new IaStatistics(fixture.Context, owner, [statistic], provider.Object, options),
+                Throws.TypeOf<ArgumentException>());
+            var children = new List<BaseInstanceState>();
+            owner.GetChildren(fixture.Context, children);
+            Assert.That(children.Any(child => child.BrowseName.Name == BrowseNames.StartTime), Is.False);
+        }
+
+        /// <summary>
+        /// Metadata identity changes are rejected before replacing the collection's values.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        [TestCase(3)]
+        [TestCase(4)]
+        [TestCase(5)]
+        public async Task CombinedCompositionRejectsMetadataIdentityOverlap(int invalid)
+        {
+            var fixture = new IaTestContext();
+            BaseObjectState owner = fixture.Owner();
+            BaseVariableState statistic = fixture.Quantity(owner);
+            BaseVariableState companion = fixture.Quantity(owner, "Instantaneous");
+            var provider = new Mock<IIaStatisticsProvider>(MockBehavior.Strict);
+            provider.Setup(item => item.ReadAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(Snapshot(9) with { CompanionValues = [Reading(19)] });
+            using var binding = new IaStatisticsBuilder().AddComponent(statistic)
+                .WithCombinedPublication([companion]).Build(fixture.Context, owner, provider.Object);
+            await binding.RefreshAsync().ConfigureAwait(false);
+            switch (invalid)
+            {
+                case 0:
+                    companion.NodeId = binding.StartTime.NodeId;
+                    break;
+                case 1:
+                    binding.StartTime.NodeId = NodeId.Null;
+                    break;
+                case 2:
+                    owner.NodeId = NodeId.Null;
+                    break;
+                case 3:
+                    binding.StartTime.NodeId = owner.NodeId;
+                    break;
+                case 4:
+                    binding.ResetStatistics.NodeId = binding.StartTime.NodeId;
+                    break;
+                case 5:
+                    binding.StartTime.NodeId = statistic.NodeId;
+                    break;
+            }
+            int notifications = 0;
+            statistic.OnStateChangedAsync = (_, _, _, _) =>
+            {
+                notifications++;
+                return default;
+            };
+            provider.Setup(item => item.ReadAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(Snapshot(0) with
+                {
+                    StartTime = new DateTime(2027, 1, 2, 3, 4, 5, DateTimeKind.Utc),
+                    CompanionValues = [Reading(20)]
+                });
+            await Assert.ThatAsync(async () => await binding.RefreshAsync().ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo((StatusCode)StatusCodes.BadConfigurationError));
+            AssertValue(statistic, 9);
+            AssertValue(companion, 19);
+            Assert.That(binding.StartTime.WrappedValue.TryGetValue(out DateTimeUtc startTime), Is.True);
+            Assert.That(startTime, Is.EqualTo(IaTestContext.Timestamp));
+            Assert.That(statistic.StatusCode, Is.EqualTo((StatusCode)StatusCodes.UncertainLastUsableValue));
+            Assert.That(statistic.Timestamp, Is.EqualTo(IaTestContext.Timestamp));
+            Assert.That(companion.StatusCode, Is.EqualTo((StatusCode)StatusCodes.UncertainLastUsableValue));
+            Assert.That(companion.Timestamp, Is.EqualTo(IaTestContext.Timestamp));
+            Assert.That(notifications, Is.Zero);
+        }
+
+        /// <summary>
+        /// Exact decoded ECM values are detached in both publication groups before notifications.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task CombinedPublicationDetachesExactEcmStructures(bool phasePair, bool reset)
+        {
+            var fixture = new IaTestContext();
+            fixture.Context.NamespaceUris.GetIndexOrAppend(ECM.Namespaces.ECM);
+            BaseObjectState owner = fixture.Owner();
+            BaseVariableState statistic = fixture.Quantity(owner);
+            BaseVariableState companion = fixture.Quantity(owner, "Instantaneous");
+            statistic.DataType = Opc.Ua.DataTypeIds.BaseDataType;
+            companion.DataType = Opc.Ua.DataTypeIds.BaseDataType;
+            IEncodeable statisticSource = phasePair
+                ? new ECM.AcPpDataType { L1L2 = 1, L2L3 = 2, L3L1 = 3 }
+                : new ECM.AcPeDataType { L1 = 1, L2 = 2, L3 = 3 };
+            IEncodeable companionSource = phasePair
+                ? new ECM.AcPpDataType { L1L2 = 4, L2L3 = 5, L3L1 = 6 }
+                : new ECM.AcPeDataType { L1 = 4, L2 = 5, L3 = 6 };
+            var snapshot = new IaStatisticsSnapshot
+            {
+                StartTime = IaTestContext.Timestamp,
+                Values = [new DataValue(Variant.FromStructure(statisticSource),
+                    StatusCodes.Good, IaTestContext.Timestamp)],
+                CompanionValues = [new DataValue(Variant.FromStructure(companionSource),
+                    StatusCodes.UncertainLastUsableValue, IaTestContext.Timestamp)]
+            };
+            var provider = new Mock<IIaStatisticsProvider>(MockBehavior.Strict);
+            provider.Setup(item => item.ReadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(snapshot);
+            provider.Setup(item => item.AuthorizeResetAsync(fixture.Context, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(ServiceResult.Good);
+            provider.Setup(item => item.ResetAsync(It.IsAny<CancellationToken>())).ReturnsAsync(snapshot);
+            using var binding = new IaStatisticsBuilder().AddComponent(statistic)
+                .WithCombinedPublication([companion]).Build(fixture.Context, owner, provider.Object);
+            int notifications = 0;
+            statistic.OnStateChangedAsync = (_, _, _, token) =>
+            {
+                Assert.That(token.CanBeCanceled, Is.False);
+                AssertEcmValue(statistic, statisticSource, 1);
+                AssertEcmValue(companion, companionSource, 4);
+                notifications++;
+                return default;
+            };
+            if (reset)
+            {
+                Assert.That(ServiceResult.IsGood(await binding.ResetAsync(fixture.Context).ConfigureAwait(false)),
+                    Is.True);
+            }
+            else
+            {
+                await binding.RefreshAsync().ConfigureAwait(false);
+            }
+            Assert.That(notifications, Is.GreaterThan(0));
+            foreach (IEncodeable source in (IEncodeable[])[statisticSource, companionSource])
+            {
+                if (source is ECM.AcPeDataType acPe)
+                {
+                    acPe.L1 = 99;
+                    acPe.L2 = 99;
+                    acPe.L3 = 99;
+                }
+                else if (source is ECM.AcPpDataType acPp)
+                {
+                    acPp.L1L2 = 99;
+                    acPp.L2L3 = 99;
+                    acPp.L3L1 = 99;
+                }
+            }
+            AssertEcmValue(statistic, statisticSource, 1);
+            AssertEcmValue(companion, companionSource, 4);
+            Assert.That(statistic.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(companion.StatusCode, Is.EqualTo((StatusCode)StatusCodes.UncertainLastUsableValue));
+            Assert.That(statistic.Timestamp, Is.EqualTo(IaTestContext.Timestamp));
+            Assert.That(companion.Timestamp, Is.EqualTo(IaTestContext.Timestamp));
+        }
+
+        /// <summary>
+        /// The existing non-composed IA contract does not accept additional ECM decoded types.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task StatisticsRejectDecodedEcmWithoutComposition(bool phasePair)
+        {
+            var fixture = new IaTestContext();
+            BaseObjectState owner = fixture.Owner();
+            BaseVariableState statistic = fixture.Quantity(owner);
+            statistic.DataType = Opc.Ua.DataTypeIds.BaseDataType;
+            statistic.WrappedValue = Variant.From(7u);
+            IEncodeable source = phasePair ? new ECM.AcPpDataType() : new ECM.AcPeDataType();
+            var provider = new Mock<IIaStatisticsProvider>(MockBehavior.Strict);
+            provider.Setup(item => item.ReadAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(Snapshot(9) with
+                {
+                    Values = [new DataValue(Variant.FromStructure(source),
+                        StatusCodes.Good, IaTestContext.Timestamp)]
+                });
+            using var binding = new IaStatistics(fixture.Context, owner, [statistic], provider.Object);
+            await Assert.ThatAsync(async () => await binding.RefreshAsync().ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo((StatusCode)StatusCodes.BadNotSupported));
+            AssertValue(statistic, 7);
+            Assert.That(binding.StartTime.Value.IsNull, Is.True);
+        }
+
+        /// <summary>
+        /// Derived ECM bodies are rejected before any overridden member or partial commit.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task CombinedPublicationRejectsDerivedEcmBeforeCustomCode(bool phasePair, bool existing)
+        {
+            var fixture = new IaTestContext();
+            BaseObjectState owner = fixture.Owner();
+            BaseVariableState statistic = fixture.Quantity(owner);
+            BaseVariableState companion = fixture.Quantity(owner, "Instantaneous");
+            companion.DataType = Opc.Ua.DataTypeIds.BaseDataType;
+            statistic.WrappedValue = Variant.From(7u);
+            companion.WrappedValue = Variant.From(8u);
+            var acPe = new HostileAcPe();
+            var acPp = new HostileAcPp();
+            IEncodeable source = phasePair ? acPp : acPe;
+            ExpandedNodeId typeId = phasePair ? ECM.DataTypeIds.AcPpDataType : ECM.DataTypeIds.AcPeDataType;
+            Variant invalid = Variant.From(new ExtensionObject(typeId, source));
+            if (existing)
+            {
+                companion.WrappedValue = invalid;
+            }
+            var provider = new Mock<IIaStatisticsProvider>(MockBehavior.Strict);
+            provider.Setup(item => item.ReadAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(Snapshot(9) with
+                {
+                    CompanionValues = [new DataValue(existing ? Variant.From(19u) : invalid,
+                        StatusCodes.Good, IaTestContext.Timestamp)]
+                });
+            using var binding = new IaStatisticsBuilder().AddComponent(statistic)
+                .WithCombinedPublication([companion]).Build(fixture.Context, owner, provider.Object);
+            int notifications = 0;
+            statistic.OnStateChangedAsync = (_, _, _, _) =>
+            {
+                notifications++;
+                return default;
+            };
+            await Assert.ThatAsync(async () => await binding.RefreshAsync().ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo((StatusCode)StatusCodes.BadNotSupported));
+            AssertValue(statistic, 7);
+            if (existing)
+            {
+                Assert.That(companion.WrappedValue.TryGetValue(out ExtensionObject retained), Is.True);
+                Assert.That(retained.TryGetValue(out IEncodeable? body), Is.True);
+                Assert.That(ReferenceEquals(body, source), Is.True);
+            }
+            else
+            {
+                AssertValue(companion, 8);
+            }
+            Assert.That(binding.StartTime.Value.IsNull, Is.True);
+            Assert.That(notifications, Is.Zero);
+            Assert.That(acPe.Calls, Is.Zero);
+            Assert.That(acPp.Calls, Is.Zero);
+        }
+
+        /// <summary>
         /// Committed refresh and reset notifications await sinks without blocking the invocation thread.
         /// </summary>
         [TestCase(false, false)]
@@ -516,7 +1202,7 @@ namespace Opc.Ua.IA.Tests.Statistics
                 await returned.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                 Assert.That(operation.IsCompleted, Is.False);
                 AssertValue(quantity, reset ? 0u : 9u);
-                Assert.That(order, Is.EqualTo(new[] { "on-sync", "event-sync", "on-async" }));
+                Assert.That(order, Is.EqualTo(s_notificationEntered));
                 release.TrySetResult(true);
                 if (failSink)
                 {
@@ -524,19 +1210,18 @@ namespace Opc.Ua.IA.Tests.Statistics
                         await operation.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false),
                         Throws.TypeOf<InvalidOperationException>().And.SameAs(failure));
                     Assert.That(quantity.ChangeMasks, Is.Not.EqualTo(NodeStateChangeMasks.None));
-                    Assert.That(order, Is.EqualTo(new[] { "on-sync", "event-sync", "on-async" }));
+                    Assert.That(order, Is.EqualTo(s_notificationEntered));
                 }
                 else
                 {
                     await eventEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                     Assert.That(operation.IsCompleted, Is.False);
                     Assert.That(order, Is.EqualTo(
-                        new[] { "on-sync", "event-sync", "on-async", "on-complete", "event-async" }));
+                        s_notificationEventEntered));
                     eventRelease.TrySetResult(true);
                     await operation.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                     Assert.That(order, Is.EqualTo(
-                        new[] { "on-sync", "event-sync", "on-async", "on-complete", "event-async",
-                            "event-complete", "event-second", "owner" }));
+                        s_notificationCompleted));
                 }
                 AssertValue(quantity, reset ? 0u : 9u);
                 Assert.That(quantity.StatusCode, Is.EqualTo((StatusCode)StatusCodes.UncertainLastUsableValue));
@@ -879,8 +1564,8 @@ namespace Opc.Ua.IA.Tests.Statistics
                 await notificationEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                 await authorizationEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                 cancellation.Cancel();
-                await Assert.ThatAsync(async () => await reset.WaitAsync(TimeSpan.FromSeconds(5))
-                    .ConfigureAwait(false), Throws.InstanceOf<OperationCanceledException>());
+                await Assert.ThatAsync(() => reset.WaitAsync(TimeSpan.FromSeconds(5)),
+                    Throws.InstanceOf<OperationCanceledException>());
                 provider.Verify(source => source.ResetAsync(It.IsAny<CancellationToken>()), Times.Never);
                 AssertValue(quantity, 9);
                 Assert.That(refresh.IsCompleted, Is.False);
@@ -1194,7 +1879,7 @@ namespace Opc.Ua.IA.Tests.Statistics
             byte[] buffer = [1, 2, 3];
             Variant[] shared = [new Variant(ByteString.From(buffer))];
             var branch = new Variant(new ArrayOf<Variant>(shared.AsMemory()));
-            var elements = new ArrayOf<DataValue>([new DataValue(branch), new DataValue(branch)]);
+            ArrayOf<DataValue> elements = [new DataValue(branch), new DataValue(branch)];
             Variant source = matrix ? new Variant(elements.ToMatrix(1, 2)) : new Variant(elements);
             Variant published = await PublishThenMutateAsync(Opc.Ua.DataTypeIds.BaseDataType,
                 matrix ? ValueRanks.TwoDimensions : ValueRanks.OneDimension, source, () =>
@@ -1206,7 +1891,7 @@ namespace Opc.Ua.IA.Tests.Statistics
             if (matrix)
             {
                 Assert.That(published.TryGetValue(out MatrixOf<DataValue> values), Is.True);
-                Assert.That(values.Dimensions, Is.EqualTo(new[] { 1, 2 }));
+                Assert.That(values.Dimensions, Is.EqualTo(s_oneByTwo));
                 copies = ArrayOf.Create(values.Span);
             }
             else
@@ -1235,7 +1920,8 @@ namespace Opc.Ua.IA.Tests.Statistics
             Variant value = Variant.From(7u);
             for (int i = 0; i < depth; i++)
             {
-                value = new Variant(new ArrayOf<Variant>([value]));
+                ArrayOf<Variant> elements = [value];
+                value = new Variant(elements);
             }
             if (offset > 0)
             {
@@ -1280,9 +1966,11 @@ namespace Opc.Ua.IA.Tests.Statistics
             Variant accepted = Variant.From(7u);
             for (int i = 0; i < limit; i++)
             {
-                accepted = new Variant(new ArrayOf<Variant>([accepted]));
+                ArrayOf<Variant> elements = [accepted];
+                accepted = new Variant(elements);
             }
-            Variant rejected = new(new ArrayOf<Variant>([accepted]));
+            ArrayOf<Variant> rejectedElements = [accepted];
+            Variant rejected = new(rejectedElements);
             var provider = new Mock<IIaStatisticsProvider>(MockBehavior.Strict);
             provider.SetupSequence(item => item.ReadAsync(It.IsAny<CancellationToken>()))
                 .ReturnsAsync(Snapshot(7) with
@@ -1354,7 +2042,7 @@ namespace Opc.Ua.IA.Tests.Statistics
             await binding.RefreshAsync().ConfigureAwait(false);
             Variant previous = quantity.WrappedValue;
             StatusCode previousStatus = quantity.StatusCode;
-            DateTime previousTimestamp = quantity.Timestamp;
+            DateTimeUtc previousTimestamp = quantity.Timestamp;
             Variant previousStartTime = binding.StartTime.Value;
             await Assert.ThatAsync(async () => await binding.RefreshAsync().ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
@@ -1384,7 +2072,7 @@ namespace Opc.Ua.IA.Tests.Statistics
         {
             Variant value = builtInType switch
             {
-                BuiltInType.ByteString => new Variant(ByteString.Null),
+                BuiltInType.ByteString => new Variant(default(ByteString)),
                 BuiltInType.NodeId => new Variant(NodeId.Null),
                 BuiltInType.ExpandedNodeId => new Variant(ExpandedNodeId.Null),
                 BuiltInType.ExtensionObject => new Variant(ExtensionObject.Null),
@@ -1434,7 +2122,7 @@ namespace Opc.Ua.IA.Tests.Statistics
             if (matrix)
             {
                 Assert.That(value.TryGetMatrix(out MatrixOf<Variant> stored, builtInType), Is.True);
-                Assert.That(stored.Dimensions, Is.EqualTo(new int[] { 1, 2 }));
+                Assert.That(stored.Dimensions, Is.EqualTo(s_oneByTwo));
                 Assert.That(stored.Span.Length, Is.EqualTo(2));
             }
             else
@@ -1459,7 +2147,7 @@ namespace Opc.Ua.IA.Tests.Statistics
             await binding.RefreshAsync().ConfigureAwait(false);
             Variant previous = quantity.WrappedValue;
             StatusCode previousStatus = quantity.StatusCode;
-            DateTime previousTimestamp = quantity.Timestamp;
+            DateTimeUtc previousTimestamp = quantity.Timestamp;
             Variant previousStartTime = binding.StartTime.Value;
             await Assert.ThatAsync(async () => await binding.RefreshAsync().ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
@@ -1629,7 +2317,7 @@ namespace Opc.Ua.IA.Tests.Statistics
                 return array[0];
             }
             Assert.That(value.TryGetValue(out MatrixOf<LocalizedText> matrix), Is.True);
-            Assert.That(matrix.Dimensions, Is.EqualTo(new int[] { 1, 2 }));
+            Assert.That(matrix.Dimensions, Is.EqualTo(s_oneByTwo));
             return matrix.Span[0];
         }
 
@@ -1662,7 +2350,7 @@ namespace Opc.Ua.IA.Tests.Statistics
             int registeredActivations = activations;
             Variant previous = quantity.WrappedValue;
             StatusCode previousStatus = quantity.StatusCode;
-            DateTime previousTimestamp = quantity.Timestamp;
+            DateTimeUtc previousTimestamp = quantity.Timestamp;
             Variant previousStartTime = binding.StartTime.Value;
             await Assert.ThatAsync(async () => await binding.RefreshAsync().ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
@@ -1770,7 +2458,7 @@ namespace Opc.Ua.IA.Tests.Statistics
             await binding.RefreshAsync().ConfigureAwait(false);
             Variant previous = quantity.WrappedValue;
             StatusCode previousStatus = quantity.StatusCode;
-            DateTime previousTimestamp = quantity.Timestamp;
+            DateTimeUtc previousTimestamp = quantity.Timestamp;
             Variant previousStartTime = binding.StartTime.Value;
             await Assert.ThatAsync(async () => await binding.RefreshAsync().ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
@@ -1891,7 +2579,7 @@ namespace Opc.Ua.IA.Tests.Statistics
             }
             Assert.That(decoded.IsEqual(source), Is.True);
             Assert.That(decoded.DisplayName.Text, Is.EqualTo("Value Original"));
-            Assert.That(source.DisplayName.Translations!.Count, Is.EqualTo(2));
+            Assert.That(source.DisplayName.Translations, Has.Count.EqualTo(2));
             Assert.That(decoded.DisplayName.Translations, Is.Null);
             Assert.That(decoded.DisplayName.TranslationInfo.IsNull, Is.True);
         }
@@ -2047,7 +2735,7 @@ namespace Opc.Ua.IA.Tests.Statistics
             using var binding = new IaStatistics(fixture.Context, owner, [quantity], provider.Object);
             await binding.RefreshAsync().ConfigureAwait(false);
             StatusCode previousStatus = quantity.StatusCode;
-            DateTime previousTimestamp = quantity.Timestamp;
+            DateTimeUtc previousTimestamp = quantity.Timestamp;
             Variant previousStartTime = binding.StartTime.Value;
             await Assert.ThatAsync(async () => await binding.RefreshAsync().ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
@@ -2092,6 +2780,21 @@ namespace Opc.Ua.IA.Tests.Statistics
             activator.SetupGet(type => type.Type).Returns(create().GetType());
             activator.SetupGet(type => type.XmlName).Returns(new System.Xml.XmlQualifiedName("Custom", "urn:ia:test"));
             return activator.Object;
+        }
+
+        /// <summary>
+        /// Creates a complete statistic, instantaneous reading and application tag snapshot.
+        /// </summary>
+        private static IaStatisticsSnapshot CombinedSnapshot(uint value)
+        {
+            return Snapshot(value) with
+            {
+                CompanionValues =
+                [
+                    Reading(value + 100),
+                    new DataValue(Variant.From($"tag-{value}"), StatusCodes.Good, IaTestContext.Timestamp)
+                ]
+            };
         }
 
         /// <summary>
@@ -2140,8 +2843,140 @@ namespace Opc.Ua.IA.Tests.Statistics
             return value;
         }
 
-        /// <summary>The dimensions of the two-by-three statistics matrix.</summary>
+        /// <summary>
+        /// Checks exact context-free decoded ECM type, ownership and all three fields.
+        /// </summary>
+        private static void AssertEcmValue(BaseVariableState node, IEncodeable source, float first)
+        {
+            if (source is ECM.AcPeDataType)
+            {
+                Assert.That(node.WrappedValue.TryGetStructure<ECM.AcPeDataType>(out var value), Is.True);
+                Assert.That(value!.GetType(), Is.EqualTo(typeof(ECM.AcPeDataType)));
+                Assert.That(ReferenceEquals(value, source), Is.False);
+                Assert.That(value.L1, Is.EqualTo(first));
+                Assert.That(value.L2, Is.EqualTo(first + 1));
+                Assert.That(value.L3, Is.EqualTo(first + 2));
+            }
+            else
+            {
+                Assert.That(node.WrappedValue.TryGetStructure<ECM.AcPpDataType>(out var value), Is.True);
+                Assert.That(value!.GetType(), Is.EqualTo(typeof(ECM.AcPpDataType)));
+                Assert.That(ReferenceEquals(value, source), Is.False);
+                Assert.That(value.L1L2, Is.EqualTo(first));
+                Assert.That(value.L2L3, Is.EqualTo(first + 1));
+                Assert.That(value.L3L1, Is.EqualTo(first + 2));
+            }
+        }
+
+        /// <summary>
+        /// The dimensions of the two-by-three statistics matrix.
+        /// </summary>
         private static readonly int[] s_twoByThree = [2, 3];
+
+        /// <summary>
+        /// The dimensions of the one-by-two statistics matrix.
+        /// </summary>
+        private static readonly int[] s_oneByTwo = [1, 2];
+
+        /// <summary>
+        /// The notifications dispatched before the first asynchronous sink finishes.
+        /// </summary>
+        private static readonly string[] s_notificationEntered = ["on-sync", "event-sync", "on-async"];
+
+        /// <summary>
+        /// The notifications dispatched before the asynchronous event sink finishes.
+        /// </summary>
+        private static readonly string[] s_notificationEventEntered =
+            ["on-sync", "event-sync", "on-async", "on-complete", "event-async"];
+
+        /// <summary>
+        /// The complete notification order.
+        /// </summary>
+        private static readonly string[] s_notificationCompleted =
+            ["on-sync", "event-sync", "on-async", "on-complete", "event-async",
+                "event-complete", "event-second", "owner"];
+
+        /// <summary>
+        /// An ECM phase-to-neutral subclass whose virtual members must never be invoked.
+        /// </summary>
+        private sealed class HostileAcPe : ECM.AcPeDataType
+        {
+            /// <summary>
+            /// Gets the number of unexpected virtual calls.
+            /// </summary>
+            public int Calls { get; private set; }
+
+            /// <inheritdoc/>
+            public override ExpandedNodeId TypeId => throw UnexpectedCall();
+
+            /// <inheritdoc/>
+            public override ExpandedNodeId BinaryEncodingId => throw UnexpectedCall();
+
+            /// <inheritdoc/>
+            public override ExpandedNodeId XmlEncodingId => throw UnexpectedCall();
+
+            /// <inheritdoc/>
+            public override void Encode(IEncoder encoder) => throw UnexpectedCall();
+
+            /// <inheritdoc/>
+            public override void Decode(IDecoder decoder) => throw UnexpectedCall();
+
+            /// <inheritdoc/>
+            public override bool IsEqual(IEncodeable? encodeable) => throw UnexpectedCall();
+
+            /// <inheritdoc/>
+            public override object Clone() => throw UnexpectedCall();
+
+            /// <summary>
+            /// Records and reports an unexpected call.
+            /// </summary>
+            private InvalidOperationException UnexpectedCall()
+            {
+                Calls++;
+                return new InvalidOperationException("An unsupported ECM subclass was invoked.");
+            }
+        }
+
+        /// <summary>
+        /// An ECM phase-pair subclass whose virtual members must never be invoked.
+        /// </summary>
+        private sealed class HostileAcPp : ECM.AcPpDataType
+        {
+            /// <summary>
+            /// Gets the number of unexpected virtual calls.
+            /// </summary>
+            public int Calls { get; private set; }
+
+            /// <inheritdoc/>
+            public override ExpandedNodeId TypeId => throw UnexpectedCall();
+
+            /// <inheritdoc/>
+            public override ExpandedNodeId BinaryEncodingId => throw UnexpectedCall();
+
+            /// <inheritdoc/>
+            public override ExpandedNodeId XmlEncodingId => throw UnexpectedCall();
+
+            /// <inheritdoc/>
+            public override void Encode(IEncoder encoder) => throw UnexpectedCall();
+
+            /// <inheritdoc/>
+            public override void Decode(IDecoder decoder) => throw UnexpectedCall();
+
+            /// <inheritdoc/>
+            public override bool IsEqual(IEncodeable? encodeable) => throw UnexpectedCall();
+
+            /// <inheritdoc/>
+            public override object Clone() => throw UnexpectedCall();
+
+            /// <summary>
+            /// Records and reports an unexpected call.
+            /// </summary>
+            private InvalidOperationException UnexpectedCall()
+            {
+                Calls++;
+                return new InvalidOperationException("An unsupported ECM subclass was invoked.");
+            }
+        }
 
         /// <summary>
         /// A structure whose encoding does not reproduce its value.

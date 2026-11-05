@@ -150,7 +150,7 @@ before publication, retaining the previous values and collection metadata.
 Shared acyclic branches remain supported and are copied independently.
 
 A decoded
-`IEncodeable` extension object body is copied only when it is an exact
+`IEncodeable` extension object body in the ordinary IA path is copied only when it is an exact
 `EnumValueType` or `Argument`, using a field-wise copy rather than its codec,
 equality implementation or clone. Other decoded structures, including
 subclasses and custom `IEncodeable` implementations, are rejected with
@@ -197,7 +197,8 @@ apply to each `ExtensionObject` body reached through the supported `Variant`,
 array, matrix and `DataValue` traversal; they do not traverse fields in custom
 decoded structures.
 Statistics whose values require copying any other decoded structure are not
-supported, even though the specification admits statistics of any kind.
+supported by the ordinary IA path, even though the specification admits statistics of any kind.
+Opt-in composition additionally supports the two ECM structures described below.
 Calibration feature and operational-condition readings use the same copy.
 
 For vendor-defined grouping ObjectTypes, supply
@@ -232,6 +233,99 @@ These gates serialize operations made through the binding. Callers must
 coordinate direct in-process mutations through the exposed `NodeState`
 instances with refresh and reset; those setters do not acquire the binding's
 gates.
+
+### Publish companion readings with statistics
+
+`WithCombinedPublication` opts into one publication containing the statistic
+components, `StartTime`, and an ordered set of companion variables or properties.
+Use it when an application tag or instantaneous reading must already reflect the
+same provider snapshot when statistics notifications begin.
+
+```csharp
+IaStatistics statistics = new IaStatisticsBuilder()
+    .AddComponent(totalVariable)
+    .WithAggregate()
+    .WithCombinedPublication([instantaneousVariable, applicationTagProperty])
+    .Build(context, statisticsObject, statisticsProvider);
+
+// IIaStatisticsProvider.ReadAsync returns this complete snapshot.
+var snapshot = new IaStatisticsSnapshot
+{
+    StartTime = collectionStart,
+    Values = [totalReading],
+    CompanionValues = [instantaneousReading, tagReading]
+};
+```
+
+Direct construction sets
+`IaStatisticsOptions.Composition = new IaStatisticsComposition { Nodes = [...] }`.
+The binding copies the configured node array. Companion identities must be
+assigned and distinct from the statistics, owner, collection metadata and each
+other; companion properties are permitted. The composition does not change
+their access levels or make them statistic components.
+
+Both `ReadAsync` and `ResetAsync` return a value for every configured companion
+in `CompanionValues`. An application reset that changes only statistics supplies
+the retained companion values, quality and timestamps from its serialized
+application snapshot; the binding does not acquire them from another provider.
+There is no second acquisition or application commit callback inside publication.
+
+The binding validates and detaches all statistics and companion readings before
+assigning any live value. Every reading needs explicit quality and a source
+timestamp. In this opt-in path, a null value with Uncertain or Bad quality is
+accepted without changing its quality; Good/null still rejects with
+`Bad_TypeMismatch`. Without composition, statistics retain their existing rule
+that null requires Bad quality. The same selected rule applies to refresh and
+reset. Unsupported decoded structures and deferred formatting arguments retain
+the rejection rules above; composition is not a trusted-copier or pre-owned-value
+bypass. Exact decoded ECM `AcPeDataType` and `AcPpDataType` bodies are copied
+through generated assignments for their three scalar Float fields. Their runtime
+type must match the first-party model type before any member is read; subclasses
+and custom encodeables remain rejected. The copy preserves the decoded in-process
+representation, including context-free `TryGetStructure`, without calling
+`Clone`, `Encode`, `Decode` or an application copy callback.
+
+`Opc.Ua.IA.Server` depends directly on the `Opc.Ua.ECM` model package for these
+closed copy paths. ECM model depends on the IA and DI models, so this does not
+introduce an IA.Server/ECM.Server dependency cycle or load an ECM server runtime.
+Both libraries use the same net48/net8.0/net9.0/net10.0 target selection. The
+generated copies use direct constructors and field assignments, with no
+reflection or dynamic activation required by NativeAOT.
+
+The ECM model enables `ModelSourceGeneratorEcmFieldCopies`. Generation checks
+the published AcPe/AcPp definitions for their exact required scalar Float
+fields. A final-compilation analyzer checks the generated types after all
+generators have run: added source or peer-generated partial declarations,
+extra backing fields, inherited state and nonprimitive properties reject the
+model build with `MODELGEN039`. Each field property must read and assign its
+own distinct primitive backing field directly; a custom accessor call also
+rejects the build. This is a bounded first-party path for these
+two types, not an acceptance rule inferred from a public interface, attribute
+or factory registration. Other nested or mutable structure shapes are not
+eligible.
+
+After staging succeeds, the binding assigns statistics, `StartTime` and companion
+values before dispatching any notification. Statistics and companion setters
+compare with their current values, so composition also rejects unsafe existing
+statistic or companion payloads before assignment. A cancelled refresh before
+assignment, invalid snapshot or provider
+failure leaves the entire previous publication unchanged. When a reset provider
+returns a successful committed snapshot, subsequent caller cancellation does
+not prevent staging, publication or notification. A rejected reset snapshot
+still leaves the address-space cache unchanged; the binding cannot undo the
+provider's reset.
+
+Notifications await the owner's subtree and any remaining statistics and
+companions using `CancellationToken.None`, while the existing binding
+serialization remains held. A notification exception propagates after the
+complete publication; it does not roll back values or provider side effects.
+The serialization is released in `finally`, including after notification failure.
+Sinks must not await reentrant operations on the same binding.
+
+This ordering applies to binding-owned operations and notifications. It does
+not make multiple node assignments atomic to concurrent raw node reads, and
+callers must still coordinate direct in-process node mutations. The binding
+does not supply a public or internal lock or lease for external coordination.
 
 Cancellation or failure before a provider commit leaves its previous state
 intact. Once committed, a provider returns that committed snapshot even if
@@ -382,7 +476,7 @@ The IA test project separates provider/topology tests from the encrypted
 client/server scenario. NativeAOT, supported-framework solution results, and
 companion compatibility results must be recorded before changing a support
 rating to Full. IA support is **Partial**. OPC 10000-200 §6.2.1.1 admits
-statistics of any kind, but the statistics binding rejects decoded structures
+statistics of any kind, but the ordinary statistics path rejects decoded structures
 outside the exact `EnumValueType` and `Argument` field-wise copy paths with
 `Bad_NotSupported`. It also rejects an `Argument` with a non-null runtime-only
 value. The binding does not invoke codecs, equality, clone methods or

@@ -109,8 +109,7 @@ namespace Opc.Ua.Aot.Tests
         }
 
         /// <summary>
-        /// Publishes decoded structures through the public statistics binding and verifies that
-        /// the published copies stay detached after the provider changes its source buffers.
+        /// Copies supported decoded values and deferred text, and rejects registered custom bodies before publication.
         /// </summary>
         [Test]
         public async Task StatisticsPublishDetachedDecodedStructuresAsync()
@@ -157,27 +156,27 @@ namespace Opc.Ua.Aot.Tests
             };
             context.EncodeableFactory.Builder.AddEncodeableType(new MutableStructureActivator()).Commit();
             DateTimeUtc timestamp = new DateTime(2026, 1, 2, 3, 4, 5, DateTimeKind.Utc);
+            DataValue[] readings =
+            [
+                new DataValue(new Variant(new ExtensionObject(argument)), StatusCodes.Good, timestamp),
+                new DataValue(Variant.From(12u), StatusCodes.Good, timestamp),
+                new DataValue(new Variant(localizedText), StatusCodes.Good, timestamp)
+            ];
             var provider = new SnapshotProvider(new IaStatisticsSnapshot
             {
                 StartTime = timestamp,
-                Values =
-                [
-                    new DataValue(new Variant(new ExtensionObject(argument)), StatusCodes.Good, timestamp),
-                    new DataValue(new Variant(new ExtensionObject(structure)), StatusCodes.Good, timestamp),
-                    new DataValue(new Variant(localizedText), StatusCodes.Good, timestamp)
-                ]
+                Values = new ArrayOf<DataValue>(readings.AsMemory())
             });
-            using (var binding = new IaStatistics(context, owner, [registered, custom, localized], provider))
-            {
-                await binding.RefreshAsync().ConfigureAwait(false);
-            }
+            using var binding = new IaStatistics(context, owner, [registered, custom, localized], provider);
+            await binding.RefreshAsync().ConfigureAwait(false);
             dimensions[0] = 99;
             values[0] = 99;
             payload[0] = 99;
             nested[0] = 99;
             formatting[0] = "Changed";
             await Assert.That(localized.WrappedValue.TryGetValue(out LocalizedText localizedCopy)).IsTrue();
-            await Assert.That(localizedCopy.Text).IsEqualTo("Value: Original");
+            await Assert.That(localizedCopy.Text).IsEqualTo("Value: {0}");
+            await Assert.That(localizedCopy.FilterByPreferredLocales(["en-US"]).Text).IsEqualTo("Value: Original");
             await Assert.That(localizedCopy.TranslationInfo.Key).IsEqualTo("key");
 
             await Assert.That(registered.WrappedValue.TryGetValue(out ExtensionObject first)).IsTrue();
@@ -186,13 +185,80 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(argumentCopy!.Name).IsEqualTo("Input");
             await Assert.That(argumentCopy.ArrayDimensions.Span.SequenceEqual(s_dimensions)).IsTrue();
 
-            await Assert.That(custom.WrappedValue.TryGetValue(out ExtensionObject second)).IsTrue();
-            await Assert.That(second.TryGetValue(out MutableStructure? structureCopy)).IsTrue();
-            await Assert.That(ReferenceEquals(structureCopy, structure)).IsFalse();
-            await Assert.That(structureCopy!.Values.Span.SequenceEqual(s_values)).IsTrue();
-            await Assert.That(structureCopy.Payload.Span.SequenceEqual(s_payload)).IsTrue();
-            await Assert.That(structureCopy.Nested.TryGetValue(out ArrayOf<uint> nestedCopy)).IsTrue();
-            await Assert.That(nestedCopy.Span.SequenceEqual(s_nested)).IsTrue();
+            readings[1] = new DataValue(new Variant(new ExtensionObject(structure)), StatusCodes.Good, timestamp);
+            ServiceResultException error = await Assert.That(
+                async () => await binding.RefreshAsync().ConfigureAwait(false)).Throws<ServiceResultException>() ??
+                throw new InvalidOperationException("The exception assertion returned no exception.");
+            await Assert.That(error.StatusCode).IsEqualTo((StatusCode)StatusCodes.BadNotSupported);
+            await Assert.That(custom.WrappedValue.TryGetValue(out uint retained)).IsTrue();
+            await Assert.That(retained).IsEqualTo(12u);
+            await Assert.That(registered.WrappedValue.TryGetValue(out ExtensionObject retainedArgument)).IsTrue();
+            await Assert.That(retainedArgument.TryGetValue(out Argument? argumentAfterRejection)).IsTrue();
+            await Assert.That(ReferenceEquals(argumentAfterRejection, argumentCopy)).IsTrue();
+            await Assert.That(argumentAfterRejection!.ArrayDimensions.Span.SequenceEqual(s_dimensions)).IsTrue();
+            await Assert.That(localized.WrappedValue.TryGetValue(out LocalizedText textAfterRejection)).IsTrue();
+            await Assert.That(textAfterRejection.FilterByPreferredLocales(["en-US"]).Text).IsEqualTo("Value: Original");
+            await Assert.That(binding.StartTime.WrappedValue.TryGetValue(out DateTimeUtc retainedStart)).IsTrue();
+            await Assert.That(retainedStart).IsEqualTo(timestamp);
+        }
+
+        /// <summary>
+        /// Roots both first-party decoded ECM structures and their generated publication copies in NativeAOT.
+        /// </summary>
+        [Test]
+        public async Task StatisticsCombinedEcmRetainsDecodedValuesAsync()
+        {
+            ITelemetryContext telemetry = DefaultTelemetry.Create(
+                builder => builder.SetMinimumLevel(LogLevel.Warning));
+            var namespaces = new NamespaceTable();
+            var ids = new InstanceIds(namespaces.GetIndexOrAppend("urn:tests:ia:aot:ecm"));
+            namespaces.GetIndexOrAppend(DiNodeManager.DiNamespaceUri);
+            namespaces.GetIndexOrAppend(IA.Namespaces.IA);
+            namespaces.GetIndexOrAppend(ECM.Namespaces.ECM);
+            var context = new SystemContext(telemetry)
+            {
+                NamespaceUris = namespaces,
+                NodeIdFactory = ids,
+                TypeTable = new TypeTable(namespaces)
+            };
+            var owner = new BaseObjectState(null);
+            owner.Create(context, NodeId.Null, new QualifiedName("Statistics", ids.Namespace),
+                new LocalizedText("Statistics"), true);
+            BaseDataVariableState statistic = Quantity(context, owner, ids, "Statistic");
+            BaseDataVariableState companion = Quantity(context, owner, ids, "Instantaneous");
+            var acPe = new ECM.AcPeDataType { L1 = 1, L2 = 2, L3 = 3 };
+            var acPp = new ECM.AcPpDataType { L1L2 = 4, L2L3 = 5, L3L1 = 6 };
+            DateTimeUtc timestamp = new DateTime(2026, 1, 2, 3, 4, 5, DateTimeKind.Utc);
+            var provider = new SnapshotProvider(new IaStatisticsSnapshot
+            {
+                StartTime = timestamp,
+                Values = [new DataValue(Variant.FromStructure(acPe), StatusCodes.Good, timestamp)],
+                CompanionValues = [new DataValue(Variant.FromStructure(acPp),
+                    StatusCodes.UncertainLastUsableValue, timestamp)]
+            });
+            using var binding = new IaStatisticsBuilder().AddComponent(statistic)
+                .WithCombinedPublication([companion]).Build(context, owner, provider);
+            await binding.RefreshAsync().ConfigureAwait(false);
+            acPe.L1 = 99;
+            acPe.L2 = 99;
+            acPe.L3 = 99;
+            acPp.L1L2 = 99;
+            acPp.L2L3 = 99;
+            acPp.L3L1 = 99;
+            await Assert.That(statistic.WrappedValue.TryGetStructure<ECM.AcPeDataType>(out var copiedPe)).IsTrue();
+            await Assert.That(companion.WrappedValue.TryGetStructure<ECM.AcPpDataType>(out var copiedPp)).IsTrue();
+            await Assert.That(copiedPe!.GetType()).IsEqualTo(typeof(ECM.AcPeDataType));
+            await Assert.That(copiedPp!.GetType()).IsEqualTo(typeof(ECM.AcPpDataType));
+            await Assert.That(ReferenceEquals(copiedPe, acPe)).IsFalse();
+            await Assert.That(ReferenceEquals(copiedPp, acPp)).IsFalse();
+            await Assert.That(copiedPe.L1).IsEqualTo(1f);
+            await Assert.That(copiedPe.L2).IsEqualTo(2f);
+            await Assert.That(copiedPe.L3).IsEqualTo(3f);
+            await Assert.That(copiedPp.L1L2).IsEqualTo(4f);
+            await Assert.That(copiedPp.L2L3).IsEqualTo(5f);
+            await Assert.That(copiedPp.L3L1).IsEqualTo(6f);
+            await Assert.That(companion.StatusCode).IsEqualTo((StatusCode)StatusCodes.UncertainLastUsableValue);
+            await Assert.That(companion.Timestamp).IsEqualTo(timestamp);
         }
 
         /// <summary>
@@ -211,15 +277,6 @@ namespace Opc.Ua.Aot.Tests
 
         /// <summary>The published argument dimensions.</summary>
         private static readonly uint[] s_dimensions = [2, 3];
-
-        /// <summary>The published primitive-array field.</summary>
-        private static readonly double[] s_values = [1, 2];
-
-        /// <summary>The published byte string field.</summary>
-        private static readonly byte[] s_payload = [3, 4];
-
-        /// <summary>The published nested variant elements.</summary>
-        private static readonly uint[] s_nested = [5, 6];
 
         /// <summary>
         /// Allocates unique instance identities in a test-local namespace.

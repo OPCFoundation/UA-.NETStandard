@@ -123,7 +123,8 @@ namespace Opc.Ua.Types.Tests
             Assert.That(copy.TranslationInfo.Key, Is.EqualTo("greeting"));
             Assert.That(copy.TranslationInfo.Locale, Is.EqualTo("mul"));
             Assert.That(copy.TranslationInfo.Text, Is.EqualTo(json));
-            Assert.That(copy.Translations, Is.EquivalentTo(source.Translations));
+            Assert.That(source.Translations, Is.Not.Null);
+            Assert.That(copy.Translations, Is.EquivalentTo(source.Translations!));
             Assert.That(copy.Translations, Is.Not.SameAs(source.Translations));
             Assert.That(copy.TranslationInfo.Args, Is.Not.SameAs(args));
             Assert.That(copy.FilterByPreferredLocales(["EN-us"]).Locale,
