@@ -51,6 +51,7 @@ using Opc.Ua.Pumps.Server;
 using Opc.Ua.Pumps.Server.Builders;
 using Opc.Ua.Scales.Client;
 using Opc.Ua.Scales.Server;
+using Opc.Ua.Scales.Server.Builders;
 using Opc.Ua.Scales.Server.Runtime;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
@@ -263,6 +264,7 @@ namespace Opc.Ua.Scales.Tests
                 {
                     ScalesNodeManagerTests.FullScale(b, "Truck");
                     b.WithWeighingRange(new WeighingRangeDefinition(0, 60000, 20, 20))
+                        .WithVehicleTotals(_ => VehicleWeightAggregation.Signed)
                         .WithProductionPreset(p => p.AddProduct("T1", new LocalizedText("Truck 1")));
                 },
                 ct);
@@ -938,6 +940,82 @@ namespace Opc.Ua.Scales.Tests
             await m_client.RemoveRecipeAsync(scale.NodeId, "ClientRemoval");
 
             Assert.That(scale.Recipes.Recipes.ContainsKey("ClientRemoval"), Is.False);
+        }
+
+        /// <summary>
+        /// Completes native asynchronous vehicle methods and reads totals with the original quality and source time.
+        /// </summary>
+        [TestCase(VehicleWeightAggregation.Signed, 15000)]
+        [TestCase(VehicleWeightAggregation.Absolute, 35000)]
+        public async Task ClientVehicleTotalsPreserveSignedDeltaAndSourceQualityAsync(
+            VehicleWeightAggregation aggregation,
+            double expectedTotal)
+        {
+            ScaleHandle scale = await m_runtime.CreateScaleAsync(
+                Name("VehicleTotals" + aggregation), ScaleKind.Vehicle,
+                builder => builder.WithTypeFeatures()
+                    .WithWeighingRange(new WeighingRangeDefinition(0, 60000, 20, 20))
+                    .WithVehicleTotals(_ => aggregation)
+                    .WithProductionPreset(preset => preset.AddProduct("V", new LocalizedText("Vehicle"))));
+            var vehicle = (VehicleProductState)scale.ProductionPreset!.Find("V")!;
+            scale.PublishLoad(20000);
+            await m_client.WeighVehicleAsync(scale.NodeId, BrowseNames.InboundWeighing, "V");
+            ScaleVehicleWeightSnapshot inbound = await m_client.ReadVehicleWeightsAsync(vehicle.NodeId);
+            Assert.That(inbound.TotalWeight.HasValue, Is.True);
+            Assert.That(inbound.TotalWeight.Value.Net, Is.Zero);
+            scale.PublishLoad(30000);
+            await m_client.WeighVehicleAsync(scale.NodeId, BrowseNames.OutboundWeighing, "V");
+            scale.PublishLoad(40000);
+            await m_client.WeighVehicleAsync(scale.NodeId, BrowseNames.InboundWeighing, "V");
+            scale.PublishLoad(15000);
+            await m_client.WeighVehicleAsync(scale.NodeId, BrowseNames.OutboundWeighing, "V");
+            ScaleVehicleWeightSnapshot snapshot = await m_client.ReadVehicleWeightsAsync(vehicle.NodeId);
+            Assert.That(snapshot.ProductNodeId, Is.EqualTo(vehicle.NodeId));
+            Assert.That(snapshot.InboundWeight.Value.Net, Is.EqualTo(40000));
+            Assert.That(snapshot.OutboundWeight.Value.Net, Is.EqualTo(15000));
+            Assert.That(snapshot.DeltaWeight.Value.Net, Is.EqualTo(25000));
+            Assert.That(snapshot.TotalWeight.Value.Net, Is.EqualTo(expectedTotal));
+            Assert.That(snapshot.TotalWeight.Timestamp, Is.EqualTo((DateTime)vehicle.TotalWeight!.Timestamp));
+            Assert.That(snapshot.TotalWeightResetDate.HasValue, Is.True);
+            Assert.That(snapshot.TotalWeightResetDate.Value,
+                Is.EqualTo((DateTime)vehicle.TotalWeightResetDate!.Value));
+
+            var sourceTime = new DateTime(2026, 1, 2, 3, 4, 5, DateTimeKind.Utc);
+            vehicle.TotalWeight.Timestamp = sourceTime;
+            vehicle.TotalWeight.StatusCode = StatusCodes.UncertainSubNormal;
+            snapshot = await m_client.ReadVehicleWeightsAsync(vehicle.NodeId);
+            Assert.That(snapshot.TotalWeight.HasValue, Is.True);
+            Assert.That(snapshot.TotalWeight.StatusCode, Is.EqualTo(StatusCodes.UncertainSubNormal));
+            Assert.That(snapshot.TotalWeight.Timestamp, Is.EqualTo(sourceTime));
+            vehicle.TotalWeight.StatusCode = StatusCodes.BadOutOfService;
+            snapshot = await m_client.ReadVehicleWeightsAsync(vehicle.NodeId);
+            Assert.That(snapshot.TotalWeight.HasValue, Is.False);
+            Assert.That(snapshot.TotalWeight.StatusCode, Is.EqualTo(StatusCodes.BadOutOfService));
+            Assert.That(snapshot.TotalWeight.Timestamp, Is.EqualTo(sourceTime));
+            ServiceResult reset = await scale.Vehicle!.ResetTotalWeightAsync("V");
+            Assert.That(ServiceResult.IsGood(reset), Is.True, reset.ToString());
+            snapshot = await m_client.ReadVehicleWeightsAsync(vehicle.NodeId);
+            Assert.That(snapshot.TotalWeight.HasValue, Is.True);
+            Assert.That(snapshot.TotalWeight.Value.Net, Is.Zero);
+        }
+
+        /// <summary>
+        /// Missing optional vehicle totals are not presented as measured zero weights.
+        /// </summary>
+        [Test]
+        public async Task ClientVehicleWeightsRetainMissingOptionalTotalsAsync()
+        {
+            ScaleHandle scale = await m_runtime.CreateScaleAsync(
+                Name("VehicleWithoutTotals"), ScaleKind.Vehicle,
+                builder => builder.WithTypeFeatures()
+                    .WithWeighingRange(new WeighingRangeDefinition(0, 60000, 20, 20))
+                    .WithProductionPreset(preset => preset.AddProduct("V", new LocalizedText("Vehicle"))));
+            ProductState vehicle = scale.ProductionPreset!.Find("V")!;
+            ScaleVehicleWeightSnapshot snapshot = await m_client.ReadVehicleWeightsAsync(vehicle.NodeId);
+            Assert.That(snapshot.TotalWeight.HasValue, Is.False);
+            Assert.That(StatusCode.IsBad(snapshot.TotalWeight.StatusCode), Is.True);
+            Assert.That(snapshot.TotalWeightResetDate.HasValue, Is.False);
+            Assert.That(StatusCode.IsBad(snapshot.TotalWeightResetDate.StatusCode), Is.True);
         }
 
         /// <summary>

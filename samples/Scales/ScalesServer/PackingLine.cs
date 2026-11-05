@@ -163,6 +163,7 @@ namespace ScalesSample
                 ScaleKind.Vehicle,
                 scale => scale
                     .WithIdentification(Identity("Contoso Weighing", "WB-60", "Bridge-60t"))
+                    .WithVehicleTotals(_ => VehicleWeightAggregation.Absolute)
                     .WithWeighingRange(new WeighingRangeDefinition(0, 60000, 20, 20))
                     .WithWeightDetails()
                     .WithRegisterWeight()

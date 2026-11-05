@@ -323,6 +323,47 @@ namespace Opc.Ua.Scales
     }
 
     /// <summary>
+    /// Vehicle measurements and totals (OPC 40200 §7.49), retaining each property's quality and source time.
+    /// </summary>
+    public sealed record ScaleVehicleWeightSnapshot
+    {
+        /// <summary>
+        /// Gets the vehicle product node.
+        /// </summary>
+        public NodeId ProductNodeId { get; init; }
+
+        /// <summary>
+        /// Gets the last inbound measurement.
+        /// </summary>
+        public ScaleField<WeightType> InboundWeight { get; init; } =
+            new(default!, false, StatusCodes.BadNoData, DateTime.MinValue);
+
+        /// <summary>
+        /// Gets the last outbound measurement.
+        /// </summary>
+        public ScaleField<WeightType> OutboundWeight { get; init; } =
+            new(default!, false, StatusCodes.BadNoData, DateTime.MinValue);
+
+        /// <summary>
+        /// Gets the unchanged signed delta of the last completed transaction.
+        /// </summary>
+        public ScaleField<WeightType> DeltaWeight { get; init; } =
+            new(default!, false, StatusCodes.BadNoData, DateTime.MinValue);
+
+        /// <summary>
+        /// Gets the optional aggregate of completed transaction weights.
+        /// </summary>
+        public ScaleField<WeightType> TotalWeight { get; init; } =
+            new(default!, false, StatusCodes.BadNoData, DateTime.MinValue);
+
+        /// <summary>
+        /// Gets the optional date when the total was last reset.
+        /// </summary>
+        public ScaleField<DateTime> TotalWeightResetDate { get; init; } =
+            new(default, false, StatusCodes.BadNoData, DateTime.MinValue);
+    }
+
+    /// <summary>
     /// Recipe fields observed on a recipe product (OPC 40200 §7.29).
     /// </summary>
     public sealed record ScaleRecipeStatus

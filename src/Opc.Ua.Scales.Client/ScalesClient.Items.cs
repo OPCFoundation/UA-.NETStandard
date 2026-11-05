@@ -148,6 +148,34 @@ namespace Opc.Ua.Scales.Client
         }
 
         /// <summary>
+        /// Reads a vehicle's measurements and optional totals without substituting values for absent or bad data.
+        /// </summary>
+        /// <param name="product">The vehicle product node.</param>
+        /// <param name="cancellationToken">Cancels the read.</param>
+        public async ValueTask<ScaleVehicleWeightSnapshot> ReadVehicleWeightsAsync(
+            NodeId product,
+            CancellationToken cancellationToken = default)
+        {
+            ArrayOf<NodeId> ids = await ResolvePathsAsync(product,
+                [
+                    [ScalesName(BrowseNames.InboundWeight)], [ScalesName(BrowseNames.OutboundWeight)],
+                    [ScalesName(BrowseNames.DeltaWeight)], [ScalesName(BrowseNames.TotalWeight)],
+                    [ScalesName(BrowseNames.TotalWeightResetDate)]
+                ], cancellationToken).ConfigureAwait(false);
+            DataValue[] values = await ReadDataValuesAsync(ids, cancellationToken).ConfigureAwait(false);
+            bool hasDate = values[4].WrappedValue.TryGetValue(out DateTimeUtc reset);
+            return new ScaleVehicleWeightSnapshot
+            {
+                ProductNodeId = product,
+                InboundWeight = StructureField<WeightType>(values[0]),
+                OutboundWeight = StructureField<WeightType>(values[1]),
+                DeltaWeight = StructureField<WeightType>(values[2]),
+                TotalWeight = StructureField<WeightType>(values[3]),
+                TotalWeightResetDate = Field(values[4], hasDate, (DateTime)reset)
+            };
+        }
+
+        /// <summary>
         /// Reads the recipe selected on a product and its typed report entries.
         /// </summary>
         /// <param name="product">The recipe product node.</param>

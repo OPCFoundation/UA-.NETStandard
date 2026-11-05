@@ -122,6 +122,15 @@ foreach (ScaleEntry entry in all)
             ScaleRecipeStatus status = await scales.ReadRecipeStatusAsync(product, ct).ConfigureAwait(false);
             Console.WriteLine($"  recipe {status.RecipeNodeId.Value}, report entries {status.Report.Value.Count}");
         }
+        else if (entry.Kind == ScaleKind.Vehicle)
+        {
+            ScaleVehicleWeightSnapshot vehicle = await scales.ReadVehicleWeightsAsync(product, ct)
+                .ConfigureAwait(false);
+            string total = vehicle.TotalWeight.HasValue
+                ? vehicle.TotalWeight.Value.Net.ToString(CultureInfo.InvariantCulture) : "unavailable";
+            Console.WriteLine(
+                $"  vehicle total {total} ({vehicle.TotalWeight.StatusCode}, {vehicle.TotalWeight.Timestamp:O})");
+        }
     }
 }
 

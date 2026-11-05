@@ -230,6 +230,12 @@ namespace Opc.Ua.Scales.Server.Builders
         IScaleBuilder WithCompletedFills();
 
         /// <summary>
+        /// Enables vehicle totals with an application-selected aggregation rule for each vehicle.
+        /// </summary>
+        /// <param name="aggregation">Selects signed or absolute completed-transaction weights by vehicle id.</param>
+        IScaleBuilder WithVehicleTotals(Func<string, VehicleWeightAggregation> aggregation);
+
+        /// <summary>
         /// Configures the recipe controller after construction.
         /// </summary>
         /// <param name="configure">The recipe runtime configuration.</param>
@@ -260,6 +266,19 @@ namespace Opc.Ua.Scales.Server.Builders
         public static IScaleBuilder WithCompletedFills(this IScaleBuilder builder)
         {
             return RuntimeBuilder(builder).WithCompletedFills();
+        }
+
+        /// <summary>
+        /// Enables vehicle totals with an application-selected aggregation rule for each vehicle.
+        /// </summary>
+        /// <param name="builder">The scale builder.</param>
+        /// <param name="aggregation">Selects signed or absolute completed-transaction weights by vehicle id.</param>
+        public static IScaleBuilder WithVehicleTotals(
+            this IScaleBuilder builder,
+            Func<string, VehicleWeightAggregation> aggregation)
+        {
+            aggregation.ThrowIfNull(nameof(aggregation));
+            return RuntimeBuilder(builder).WithVehicleTotals(aggregation);
         }
 
         /// <summary>

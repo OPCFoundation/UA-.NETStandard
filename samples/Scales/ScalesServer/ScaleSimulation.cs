@@ -65,7 +65,7 @@ namespace ScalesSample
                 m_line.Laboratory.PublishLoad(0.1 + (random.NextDouble() * 0.000004), stable: tick % 4 != 0);
 #pragma warning restore CA5394
                 m_line.PieceCounter.PublishLoad(0.00498 * (tick % 200));
-                CrossWeighbridge(tick);
+                await CrossWeighbridgeAsync(tick, stoppingToken).ConfigureAwait(false);
                 await ReportItemsAsync(tick, stoppingToken).ConfigureAwait(false);
                 ObserveRecipeConditions(tick);
                 await Task.Delay(TimeSpan.FromMilliseconds(500), stoppingToken).ConfigureAwait(false);
@@ -179,7 +179,10 @@ namespace ScalesSample
                 new LocalizedText(outOfLabels ? "The labeler is out of labels." : "Labels restocked."));
         }
 
-        private void CrossWeighbridge(int tick)
+        /// <summary>
+        /// Registers the simulated truck's inbound and completed outbound measurements.
+        /// </summary>
+        private async ValueTask CrossWeighbridgeAsync(int tick, CancellationToken cancellationToken)
         {
             // A truck arrives loaded, unloads and leaves empty every 60 ticks.
             int phase = tick % 60;
@@ -192,6 +195,18 @@ namespace ScalesSample
                 < 50 => 14220,
                 _ => 0
             });
+            ServiceResult result = phase switch
+            {
+                10 => await bridge.Vehicle!.InboundWeighingAsync("TRUCK-17", cancellationToken)
+                    .ConfigureAwait(false),
+                40 => await bridge.Vehicle!.OutboundWeighingAsync("TRUCK-17", cancellationToken)
+                    .ConfigureAwait(false),
+                _ => ServiceResult.Good
+            };
+            if (ServiceResult.IsBad(result))
+            {
+                m_logger.LogVehicleWeighingRejected(result.StatusCode);
+            }
         }
 
         private readonly PackingLine m_line;
@@ -221,5 +236,14 @@ namespace ScalesSample
             Level = LogLevel.Warning,
             Message = "Recipe element {Element} timed out; the simulated operator explicitly completes it.")]
         public static partial void LogIntervention(this ILogger logger, string? element);
+
+        /// <summary>
+        /// Reports a rejected simulated vehicle measurement.
+        /// </summary>
+        [LoggerMessage(
+            EventId = global::Opc.Ua.ScalesServerEventIds.ScaleSimulation + 2,
+            Level = LogLevel.Warning,
+            Message = "The simulated vehicle weighing was rejected with {StatusCode}.")]
+        public static partial void LogVehicleWeighingRejected(this ILogger logger, StatusCode statusCode);
     }
 }

@@ -532,6 +532,19 @@ namespace Opc.Ua.Scales.Server.Builders
             return this;
         }
 
+        /// <inheritdoc/>
+        public IScaleBuilder WithVehicleTotals(Func<string, VehicleWeightAggregation> aggregation)
+        {
+            aggregation.ThrowIfNull(nameof(aggregation));
+            if (Kind != ScaleKind.Vehicle)
+            {
+                throw new InvalidOperationException("Vehicle totals require a vehicle scale.");
+            }
+            m_vehicleAggregation = aggregation;
+            WithTypeFeatures();
+            return this;
+        }
+
         public IScaleBuilder AddTotalizer(string name)
         {
             if (Scale is not ContinuousScaleState continuous)
@@ -704,7 +717,8 @@ namespace Opc.Ua.Scales.Server.Builders
                     m_recipeFiles,
                     m_itemProcessing,
                     m_priceCalculator,
-                    m_completedFills));
+                    m_completedFills,
+                    m_vehicleAggregation));
             if (handle.Recipes != null)
             {
                 m_configureRecipes?.Invoke(handle.Recipes);
@@ -885,6 +899,9 @@ namespace Opc.Ua.Scales.Server.Builders
 
         /// <summary>Post-construction recipe configuration.</summary>
         private Action<RecipeController>? m_configureRecipes;
+
+        /// <summary>The application-selected aggregation rule for each vehicle.</summary>
+        private Func<string, VehicleWeightAggregation>? m_vehicleAggregation;
     }
 
     /// <summary>

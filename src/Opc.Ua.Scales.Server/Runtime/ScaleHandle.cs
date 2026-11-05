@@ -226,8 +226,19 @@ namespace Opc.Ua.Scales.Server.Runtime
                     scale.ProductionPreset,
                     services.ScalesId(ScalesModel.ProductTypeOf(kind)),
                     () => AllowedEngineeringUnits,
-                    configuration.ItemProcessing || configuration.CompletedFills
-                        ? product => ScaleItemPublisher.Initialize(services.Context, product)
+                    configuration.ItemProcessing || configuration.CompletedFills ||
+                        configuration.VehicleAggregation != null
+                        ? product =>
+                        {
+                            if (configuration.ItemProcessing || configuration.CompletedFills)
+                            {
+                                ScaleItemPublisher.Initialize(services.Context, product);
+                            }
+                            if (configuration.VehicleAggregation != null && product is VehicleProductState vehicle)
+                            {
+                                VehicleController.InitializeTotals(services.Context, vehicle);
+                            }
+                        }
                         : null,
                     m_writeGate)
                 {
@@ -273,7 +284,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                     Hopper = new HopperController(this, hopper);
                     break;
                 case VehicleScaleState vehicle:
-                    Vehicle = new VehicleController(this, vehicle);
+                    Vehicle = new VehicleController(this, vehicle, configuration.VehicleAggregation);
                     break;
                 case RecipeScaleState recipe:
                     Recipes = new RecipeController(this, recipe, configuration.RecipeFiles);
@@ -1108,6 +1119,7 @@ namespace Opc.Ua.Scales.Server.Runtime
     /// <param name="ItemProcessing">Whether registered catchweigher items are reported.</param>
     /// <param name="PriceCalculator">The optional injected price calculator for price labelers.</param>
     /// <param name="CompletedFills">Whether completed totalizing-hopper fills are reported.</param>
+    /// <param name="VehicleAggregation">The optional per-vehicle aggregation rule.</param>
     internal sealed record ScaleConfiguration(
         IReadOnlyList<WeighingRangeDefinition> Ranges,
         EUInformation Unit,
@@ -1117,7 +1129,8 @@ namespace Opc.Ua.Scales.Server.Runtime
         bool RecipeFiles = false,
         bool ItemProcessing = false,
         IScalePriceCalculator? PriceCalculator = null,
-        bool CompletedFills = false);
+        bool CompletedFills = false,
+        Func<string, VehicleWeightAggregation>? VehicleAggregation = null);
 
     /// <summary>
     /// Sets the OPC 40001-1 state machines, which the model supplies without

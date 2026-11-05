@@ -421,6 +421,7 @@ them throws `NotSupportedException`. `WithRecipeReleaseCheck` composes
 | `WithMachineryBuildingBlocks()` | `MachineryItemState`, `MachineryOperationMode` and the `MachineryBuildingBlocks` folder, wired as add-ins |
 | `WithProcessState(id, message)` | `ProcessStateId` and `ProcessStateMessage` |
 | `WithTypeFeatures()` | Every optional member of the kind, for example the laboratory draft shields, the vehicle weighing methods, recipe management, or the continuous-scale figures and master totalizer |
+| `WithVehicleTotals(aggregation)` | Materializes vehicle totals and selects signed or absolute aggregation by `VehicleId`, or product id when no vehicle id is set |
 | `WithItemProcessing(calculator)` | Registered catchweigher or price-labeler item reports, product/output statistics and typed `LastItem`; an optional injected `IScalePriceCalculator` calculates labeler prices |
 | `WithCompletedFills()` | Completed-fill reports and the selected totalizing-hopper product's `TipCounter` |
 | `ConfigureRecipes(configure)` | Post-construction recipe runtime configuration, shared by standalone, DI and composed hosting |
@@ -574,10 +575,48 @@ The methods and the local API share the same rules.
 | `LaboratoryController` | Draft shields, leveling, calibration and ionisator with their `*Running` flags. `CompleteImmediately` or `CompleteLeveling` / `CompleteCalibration` end the running operations |
 | `HopperController` | `PublishLevels` for the limit switches and levels |
 | `AutomaticFillingController` | `EvaluateFilling` sets `Deviation` and `ToleranceState` against the product target |
-| `VehicleController` | `InboundWeighing`, `OutboundWeighing`, `OnePassWeighing` (method and local); computes `DeltaWeight` per Table 123 |
+| `VehicleController` | Native asynchronous and local weighing methods; signed `DeltaWeight`, per-vehicle signed/absolute totals and asynchronous total reset |
 | `RecipeController` | Recipe management and processing, see below |
 | `CatchweigherController` | `ReportAsync` publishes a registered item, its dimensions, zone and optional price |
 | `TotalizingHopperController` | `ReportCompletedFillAsync` increments the selected product's `TipCounter` once per completed acquisition |
+
+#### Vehicle transaction totals
+
+`WithVehicleTotals` adds `TotalWeight` and `TotalWeightResetDate` to existing
+and subsequently added vehicle products. The application supplies the
+aggregation rule for each vehicle; this is a runtime policy, not an OPC 40200
+requirement about the sign of a vehicle total:
+
+```csharp
+scale.WithVehicleTotals(vehicleId => vehicleId == "DELIVERY"
+    ? VehicleWeightAggregation.Absolute
+    : VehicleWeightAggregation.Signed);
+```
+
+`Signed` adds the transaction's signed net weight. `Absolute` adds its magnitude,
+so both loading and unloading increase the total. Neither mode changes
+`DeltaWeight`: an inbound/outbound transaction remains inbound minus outbound;
+a one-pass weighing or outbound weighing without a pending inbound remains
+outbound minus the vehicle's preset tare. A successful outbound or one-pass
+weighing completes a transaction. An inbound weighing and intervening live
+readings do not change the total.
+
+Use `SetTotalWeightAggregationAsync(vehicleId, mode)` to configure one vehicle
+directly or override its fluent policy without clearing accumulated weight.
+`ResetTotalWeightAsync(vehicleId)` clears that vehicle's total and updates
+`TotalWeightResetDate`; it retains the aggregation rule and any unfinished
+inbound weighing. An explicitly materialized total without a configured policy
+uses signed aggregation. Invalid policies and nonfinite totals reject completion
+before consuming the pending inbound measurement.
+
+`InboundWeighingAsync`, `OutboundWeighingAsync` and `OnePassWeighingAsync`, and
+the corresponding OPC UA methods, hold scale write admission through their
+asynchronous state notifications. Cancellation while awaiting admission leaves
+the transaction and total unchanged. The client exposes
+`ReadVehicleWeightsAsync(productNodeId)` with separate presence, status and
+source-time fields for the measurements, total and reset date. The sample
+weighbridge selects absolute aggregation; its choice does not assert that a
+physical vehicle or weighing instrument is ready.
 
 #### Registered items and completed fills
 
@@ -1052,7 +1091,7 @@ await foreach (ScaleField<ArrayOf<RecipeReportElementType>> report in
 | `WeighingRangeDefinition(Low, High, d, e)` | One weighing range; `Validate()` checks the limits and intervals |
 | `ScaleReading` | Gross, net, tare, tare mode, overload, underload, stability, zero, range, weight id, unit, timestamp, status |
 | `ScaleEntry`, `ScaleProductInfo`, `ScaleNotificationInfo`, `ScaleSnapshot` | The client's discovery, product, notification and snapshot results |
-| `ScaleField<T>`, `ScaleLastItemSnapshot`, `ScaleRecipeStatus` | Per-field presence, quality and source time for registered items, prices, counters and recipe reports |
+| `ScaleField<T>`, `ScaleLastItemSnapshot`, `ScaleVehicleWeightSnapshot`, `ScaleRecipeStatus` | Per-field presence, quality and source time for registered items, prices, counters, vehicle weights and recipe reports |
 | `ScaleKind`, `ScaleNotificationId`, `ScaleNotificationCategory` | The kinds and the Annex C tables |
 
 ## Conformance matrix
@@ -1064,7 +1103,7 @@ The tables identify implementation paths and their tests, not certification.
 Test names identify the cases associated with each behavior; names alone do not
 establish that the cases have passed. OPC 40200
 support remains Partial while optional statistic fields, piece-count
-registration/totalization, vehicle totals and notification metadata are being
+registration/totalization and notification metadata are being
 completed. A scale without PackML requires explicit application release or an
 allowing release callback before starting a recipe.
 
@@ -1097,7 +1136,7 @@ are left out (`ScaleFacetsBringTheMachineIdentificationTheyIncludeAsync`,
 | PieceCountingScale | ✅ | `PieceCountingReferencesAndCountsAsync`; `PieceCountingProductTargetsCanBeSetAsync`; `ClientCallsTheTypeSpecificMethodsAsync` |
 | RecipeScale | ✅ | `RecipesAreManagedAndProcessedAlongTheirGraphAsync`; `RecipeProcessingGuardsAsync`; `RecipeFilesAreUploadedParsedAndReportedAsync`; `ClientBuildsAndProcessesARecipeAsync` |
 | Totalizing Hopper Scale | ✅ | `CompletedHopperFillsRespectDuplicatesResetsProductsAndOverflowAsync`; `KindFacetsRequireTheirConfiguredRuntimeAsync`; `ClientReadsRegisteredItemsPricesAndCompletedFillsWithSourceMetadataAsync` (advertised only with `WithCompletedFills`) |
-| Vehicle Scale | ✅ | `VehicleWeighingComputesTheDeltaAsync`; `ClientCallsTheTypeSpecificMethodsAsync` |
+| Vehicle Scale | ✅ | `VehicleWeighingComputesTheDeltaAsync`; `CompletedTransactionsTotalizeSignedOrAbsoluteAsync`; `ResetClearsOnlyTheVehicleTotalAndPreservesIncompleteJourneyAsync`; `ClientVehicleTotalsPreserveSignedDeltaAndSourceQualityAsync` |
 
 ### Cross-cutting conformance units and behaviour
 
