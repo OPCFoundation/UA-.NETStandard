@@ -214,6 +214,10 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 {
                     results[i] = ex.StatusCode;
                 }
+                catch (Exception)
+                {
+                    results[i] = StatusCodes.BadUnexpectedError;
+                }
             }
 
             outputs[0] = Variant.From(results.ToArrayOf());
@@ -270,6 +274,10 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 catch (ServiceResultException ex)
                 {
                     results[i] = ex.StatusCode;
+                }
+                catch (Exception)
+                {
+                    results[i] = StatusCodes.BadUnexpectedError;
                 }
             }
 

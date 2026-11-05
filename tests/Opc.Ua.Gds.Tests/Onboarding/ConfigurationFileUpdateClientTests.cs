@@ -222,7 +222,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 m_updateClock = new DelayObservingTimeProvider(First.TimeProvider);
                 m_second = new SessionRequestContextTestContext(securityMode: MessageSecurityMode.SignAndEncrypt);
                 m_reconnected = new Session(m_second.Channel.Object, First.InnerSession, copyEventHandlers: false);
-                m_reconnected.SessionCreated(new NodeId("reconnected-session"), new NodeId("reconnected-token"));
+                m_reconnected.SessionCreated(new NodeId("reconnected-session", 0), new NodeId("reconnected-token", 0));
                 First.Handler = (request, _) => new ValueTask<IServiceResponse>(Respond(request, reconnected: false));
                 m_second.Handler = (request, _) => new ValueTask<IServiceResponse>(Respond(request, reconnected: true));
                 var factory = new Mock<ISessionFactory>();
@@ -343,7 +343,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Assert.That(identifier, Is.EqualTo(UpdateId));
                 Assert.That(First.Requests.OfType<CloseSessionRequest>().Count(), Is.EqualTo(1));
                 Assert.That(m_second.Requests.OfType<CallRequest>().Single().RequestHeader.AuthenticationToken,
-                    Is.EqualTo(new NodeId("reconnected-token")));
+                    Is.EqualTo(new NodeId("reconnected-token", 0)));
             }
 
             /// <inheritdoc/>
@@ -367,13 +367,15 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 if (request is TranslateBrowsePathsToNodeIdsRequest translate)
                 {
                     Assert.That(translate.BrowsePaths, Has.Count.EqualTo(1));
-                    string child = translate.BrowsePaths[0].RelativePath.Elements[0].TargetName.Name;
-                    Assert.That(child, Is.EqualTo(BrowseNames.ConfigurationFile).Or.EqualTo("CurrentVersion"));
-                    Assert.That(translate.BrowsePaths[0].StartingNode, Is.EqualTo(child == BrowseNames.ConfigurationFile
-                        ? ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration, First.MessageContext.NamespaceUris)
-                        : new NodeId("configuration-file", 1)));
+                    string? child = translate.BrowsePaths[0].RelativePath.Elements[0].TargetName.Name;
+                    Assert.That(child, Is.EqualTo(Ua.BrowseNames.ConfigurationFile).Or.EqualTo("CurrentVersion"));
+                    Assert.That(translate.BrowsePaths[0].StartingNode,
+                        Is.EqualTo(child == Ua.BrowseNames.ConfigurationFile
+                            ? ExpandedNodeId.ToNodeId(
+                                Ua.ObjectIds.ServerConfiguration, First.MessageContext.NamespaceUris)
+                            : new NodeId("configuration-file", 1)));
                     var targetId = new ExpandedNodeId(
-                        child == BrowseNames.ConfigurationFile ? "configuration-file" : "configuration-version", 1);
+                        child == Ua.BrowseNames.ConfigurationFile ? "configuration-file" : "configuration-version", 1);
                     return new TranslateBrowsePathsToNodeIdsResponse
                     {
                         Results = [new BrowsePathResult

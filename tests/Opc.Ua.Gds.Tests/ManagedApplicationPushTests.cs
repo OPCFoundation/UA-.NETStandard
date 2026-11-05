@@ -971,8 +971,8 @@ namespace Opc.Ua.Gds.Tests
                 await retryManager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
                     .ConfigureAwait(false);
 
-                ushort namespaceIndex = ReferenceServer.CurrentInstance.NamespaceUris.GetIndex(
-                    ProvisionableDeviceNodeManagerFactory.NamespaceUri);
+                ushort namespaceIndex = checked((ushort)ReferenceServer.CurrentInstance.NamespaceUris.GetIndex(
+                    ProvisionableDeviceNodeManagerFactory.NamespaceUri));
                 var applicationNodeId = new NodeId($"Application:{applicationUri}", namespaceIndex);
                 object handle = await retryManager.GetManagerHandleAsync(applicationNodeId).ConfigureAwait(false);
 
@@ -1016,8 +1016,8 @@ namespace Opc.Ua.Gds.Tests
                 var externalReferences = new Dictionary<NodeId, IList<IReference>>();
                 await manager.CreateAddressSpaceAsync(externalReferences).ConfigureAwait(false);
 
-                ushort namespaceIndex = ReferenceServer.CurrentInstance.NamespaceUris.GetIndex(
-                    ProvisionableDeviceNodeManagerFactory.NamespaceUri);
+                ushort namespaceIndex = checked((ushort)ReferenceServer.CurrentInstance.NamespaceUris.GetIndex(
+                    ProvisionableDeviceNodeManagerFactory.NamespaceUri));
                 var deviceNodeId = new NodeId("ProvisionableDevice", namespaceIndex);
                 var firstNodeId = new NodeId($"Application:{firstApplicationUri}", namespaceIndex);
                 var secondNodeId = new NodeId($"Application:{secondApplicationUri}", namespaceIndex);

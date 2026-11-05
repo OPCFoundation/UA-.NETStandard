@@ -31,6 +31,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Onboarding;
 using Opc.Ua.Onboarding;
 using Opc.Ua.Server;
@@ -393,7 +394,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             ProvisionableDeviceState device =
                 ProvisionableDeviceNodeManagerFactory.CreateProvisionableDevice(context, runtime);
             Assert.That(device.BrowseName, Is.EqualTo(new QualifiedName("ProvisionableDevice", 0)));
-            ushort namespaceIndex = context.NamespaceUris.GetIndex(ProvisionableDeviceNodeManagerFactory.NamespaceUri);
+            ushort namespaceIndex = checked((ushort)context.NamespaceUris.GetIndex(
+                ProvisionableDeviceNodeManagerFactory.NamespaceUri));
             Assert.That(device.NodeId, Is.EqualTo(new NodeId("ProvisionableDevice", namespaceIndex)));
             Assert.That(device.IsSingleton!.Value, Is.True);
             var references = new List<IReference>();
@@ -401,7 +403,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(references.Any(reference =>
                 reference.ReferenceTypeId == ReferenceTypeIds.Organizes &&
                 reference.IsInverse &&
-                reference.TargetId == ObjectIds.Resources), Is.True);
+                reference.TargetId == global::Opc.Ua.ObjectIds.Resources), Is.True);
         }
 
         /// <summary>

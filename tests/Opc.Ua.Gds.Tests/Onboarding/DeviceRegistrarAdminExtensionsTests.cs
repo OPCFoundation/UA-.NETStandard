@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -223,6 +224,127 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(
                 statuses,
                 Is.EqualTo(new StatusCode[] { StatusCodes.BadEntryExists }.ToArrayOf()));
+        }
+
+        /// <summary>
+        /// A failed middle storage operation preserves earlier results and does not skip later tickets.
+        /// </summary>
+        [TestCase(false, "io")]
+        [TestCase(true, "io")]
+        [TestCase(false, "checkpoint")]
+        [TestCase(true, "checkpoint")]
+        [TestCase(false, "service")]
+        [TestCase(true, "service")]
+        [TestCase(false, "uncancelled")]
+        [TestCase(true, "uncancelled")]
+        public async Task TicketMethodsReportStorageFailureAndContinueBatch(bool remove, string failureKind)
+        {
+            (SessionSystemContext context, DeviceRegistrarAdminState registrar) = CreateRegistrar();
+            Exception failure = failureKind switch
+            {
+                "io" => new IOException("Storage unavailable."),
+                "checkpoint" => new InvalidDataException("Checkpoint limit exceeded."),
+                "service" => new ServiceResultException(StatusCodes.BadEntryExists),
+                _ => new OperationCanceledException("Provider cancelled without caller cancellation.")
+            };
+            var store = new Mock<ITicketStore>(MockBehavior.Strict);
+            if (remove)
+            {
+                store.SetupSequence(value => value.RemoveAsync(
+                    It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<bool>(true))
+                    .Throws(failure)
+                    .Returns(new ValueTask<bool>(true));
+            }
+            else
+            {
+                store.SetupSequence(value => value.AddAsync(
+                    It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<TicketMetadata>(),
+                    It.IsAny<CancellationToken>()))
+                    .Returns(default(ValueTask))
+                    .Throws(failure)
+                    .Returns(default(ValueTask));
+            }
+            registrar.BindToTicketStore(store.Object, AcceptTickets());
+            MethodState method = remove ? registrar.UnregisterTickets! : registrar.RegisterTickets!;
+            ArrayOf<string> tickets = ["before", "failed", "after"];
+
+            (ServiceResult result, _, List<Variant> outputs) = await CallAsync(
+                method, context, registrar.NodeId, Variant.From(tickets)).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(outputs, Has.Count.EqualTo(1));
+            Assert.That(outputs[0].TryGetValue(out ArrayOf<StatusCode> statuses), Is.True);
+            StatusCode expectedFailure = failureKind == "service"
+                ? StatusCodes.BadEntryExists
+                : StatusCodes.BadUnexpectedError;
+            Assert.That(statuses, Is.EqualTo(
+                new StatusCode[] { StatusCodes.Good, expectedFailure, StatusCodes.Good }.ToArrayOf()));
+            if (remove)
+            {
+                store.Verify(value => value.RemoveAsync(
+                    It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
+            }
+            else
+            {
+                store.Verify(value => value.AddAsync(
+                    It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<TicketMetadata>(),
+                    It.IsAny<CancellationToken>()), Times.Exactly(3));
+            }
+            store.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Caller cancellation raised during storage stops the batch instead of becoming a ticket status.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task TicketMethodsPropagateCallerCancellationDuringStorage(bool remove)
+        {
+            (SessionSystemContext context, DeviceRegistrarAdminState registrar) = CreateRegistrar();
+            using var cancellation = new CancellationTokenSource();
+            var store = new Mock<ITicketStore>(MockBehavior.Strict);
+            int calls = 0;
+            if (remove)
+            {
+                store.Setup(value => value.RemoveAsync(It.IsAny<string>(), cancellation.Token))
+                    .Returns<string, CancellationToken>((_, ct) =>
+                    {
+                        if (++calls == 2)
+                        {
+                            cancellation.Cancel();
+                            ct.ThrowIfCancellationRequested();
+                        }
+                        return new ValueTask<bool>(true);
+                    });
+            }
+            else
+            {
+                store.Setup(value => value.AddAsync(
+                    It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<TicketMetadata>(), cancellation.Token))
+                    .Returns<string, byte[], TicketMetadata, CancellationToken>((_, _, _, ct) =>
+                    {
+                        if (++calls == 2)
+                        {
+                            cancellation.Cancel();
+                            ct.ThrowIfCancellationRequested();
+                        }
+                        return default;
+                    });
+            }
+            registrar.BindToTicketStore(store.Object, AcceptTickets());
+            MethodState method = remove ? registrar.UnregisterTickets! : registrar.RegisterTickets!;
+            List<Variant> outputs = [Variant.Null];
+            ArrayOf<string> tickets = ["before", "cancelled", "after"];
+
+            OperationCanceledException? error = await Assert.ThrowsAsync<OperationCanceledException>(
+                async () => await method.OnCallMethod2Async!(
+                    context, method, registrar.NodeId, [Variant.From(tickets)], outputs, cancellation.Token)
+                    .ConfigureAwait(false));
+
+            Assert.That(error!.CancellationToken, Is.EqualTo(cancellation.Token));
+            Assert.That(calls, Is.EqualTo(2), "The remaining ticket must not reach storage after cancellation.");
+            Assert.That(outputs[0].IsNull, Is.True);
         }
 
         [Test]

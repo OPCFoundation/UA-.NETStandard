@@ -31,6 +31,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
@@ -1309,8 +1310,23 @@ namespace Opc.Ua
                         sresult);
                 }
 
-                // check if certificate signature algorithm length is sufficient
-                if (isECDsaSignature)
+                // Signing keys are independent of the issuer's certificate-signature algorithm.
+                if (options?.ValidateForSigning == true)
+                {
+                    using ECDsa? signingKey = certificate.GetECDsaPublicKey();
+                    int keySize = signingKey?.KeySize ?? X509Utils.GetRSAPublicKeySize(certificate);
+                    int minimumKeySize = signingKey != null ? 256 : MinimumCertificateKeySize;
+                    if (keySize < minimumKeySize)
+                    {
+                        sresult = new ServiceResult(
+                            null,
+                            StatusCodes.BadCertificatePolicyCheckFailed,
+                            LocalizedText.From("Signing certificate does not meet the minimum public key length."),
+                            null,
+                            sresult);
+                    }
+                }
+                else if (isECDsaSignature)
                 {
                     int publicKeySize = X509Utils.GetPublicKeySize(certificate);
                     bool isInvalid =

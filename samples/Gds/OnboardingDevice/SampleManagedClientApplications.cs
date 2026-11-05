@@ -90,7 +90,7 @@ namespace OnboardingDevice
                 }
                 if (disposalErrors is { Count: > 0 })
                 {
-                    throw new AggregateException(error, disposalErrors);
+                    throw new AggregateException([error, .. disposalErrors]);
                 }
                 throw;
             }

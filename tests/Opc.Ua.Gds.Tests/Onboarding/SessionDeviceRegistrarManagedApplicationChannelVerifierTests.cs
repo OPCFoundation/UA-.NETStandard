@@ -893,13 +893,15 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 }
                 else
                 {
+                    ChannelRejectionRecordingSessionFactory rejectedFactory = observedFactory ??
+                        throw new InvalidOperationException("The rejection case requires a recording session factory.");
                     ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                         await verifier.VerifyAsync(endpoint.Server, target, pin, cancellation.Token)
                             .ConfigureAwait(false));
                     Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUntrusted));
-                    Assert.That(observedFactory!.ChannelCreationFailed, Is.True);
-                    Assert.That(observedFactory.SessionConstructionCount, Is.Zero);
-                    Assert.That(observedFactory.RejectionMessages.ToList(), Has.Some.Matches<string>(message =>
+                    Assert.That(rejectedFactory.ChannelCreationFailed, Is.True);
+                    Assert.That(rejectedFactory.SessionConstructionCount, Is.Zero);
+                    Assert.That(rejectedFactory.RejectionMessages.ToList(), Has.Some.Matches<string>(message =>
                         message.IndexOf(chain[0].Thumbprint, StringComparison.OrdinalIgnoreCase) >= 0 &&
                         message.IndexOf("BadCertificateUntrusted", StringComparison.Ordinal) >= 0));
                 }

@@ -805,7 +805,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                             Profiles.HttpsJsonTransport or
                             Profiles.HttpsOpenApiTransport;
                     description.SecurityMode = secureHttpsEndpoint
-                        ? MessageSecurityMode.Sign
+                        ? MessageSecurityMode.SignAndEncrypt
                         : MessageSecurityMode.None;
                     description.SecurityPolicyUri = secureHttpsEndpoint
                         ? SecurityPolicies.Basic256Sha256
