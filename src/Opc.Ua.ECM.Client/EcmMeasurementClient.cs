@@ -33,6 +33,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.IA;
 using Opc.Ua.IA.Client;
@@ -57,8 +58,8 @@ namespace Opc.Ua.ECM.Client
             NodeId measurementPointId,
             ITelemetryContext telemetry)
         {
-            ArgumentNullException.ThrowIfNull(session, nameof(session));
-            ArgumentNullException.ThrowIfNull(telemetry, nameof(telemetry));
+            session.ThrowIfNull(nameof(session));
+            telemetry.ThrowIfNull(nameof(telemetry));
             if (measurementPointId.IsNull)
             {
                 throw new ArgumentException("A measurement point is required.", nameof(measurementPointId));
@@ -240,8 +241,8 @@ namespace Opc.Ua.ECM.Client
             ITelemetryContext telemetry,
             CancellationToken cancellationToken = default)
         {
-            ArgumentNullException.ThrowIfNull(session, nameof(session));
-            ArgumentNullException.ThrowIfNull(telemetry, nameof(telemetry));
+            session.ThrowIfNull(nameof(session));
+            telemetry.ThrowIfNull(nameof(telemetry));
             return DiscoverCoreAsync(session, parent, telemetry, cancellationToken);
         }
 

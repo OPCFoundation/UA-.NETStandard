@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using Opc.Ua;
 
 namespace Opc.Ua.ECM.Server
 {
@@ -70,8 +71,8 @@ namespace Opc.Ua.ECM.Server
             DateTime sourceTimestamp = default,
             bool publishQuality = false)
         {
-            ArgumentNullException.ThrowIfNull(context, nameof(context));
-            ArgumentNullException.ThrowIfNull(measurementPoint, nameof(measurementPoint));
+            context.ThrowIfNull(nameof(context));
+            measurementPoint.ThrowIfNull(nameof(measurementPoint));
             string name = browseName.Name ?? string.Empty;
             if (browseName.IsNull || string.IsNullOrEmpty(name))
             {

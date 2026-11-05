@@ -30,6 +30,7 @@
 
 using System;
 using System.Collections.Generic;
+using Opc.Ua;
 
 namespace Opc.Ua.ECM.Server
 {
@@ -150,7 +151,7 @@ namespace Opc.Ua.ECM.Server
         /// <param name="member">The profile member.</param>
         internal static EUInformation? EngineeringUnitsOf(EcmProfileMember member)
         {
-            ArgumentNullException.ThrowIfNull(member, nameof(member));
+            member.ThrowIfNull(nameof(member));
             return member.Unit switch
             {
                 EcmMeasurementUnit.Ampere => Units("A", "ampere", 4_279_632),

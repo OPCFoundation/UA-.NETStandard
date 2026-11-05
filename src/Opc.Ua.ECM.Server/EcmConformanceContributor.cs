@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua;
 using Opc.Ua.Di.Server;
 using Opc.Ua.Server;
 
@@ -49,7 +50,7 @@ namespace Opc.Ua.ECM.Server
         /// <param name="binding">The published provider binding.</param>
         public static void RegisterEcmBinding(this DiNodeManager manager, EcmPowerBinding binding)
         {
-            ArgumentNullException.ThrowIfNull(manager, nameof(manager));
+            manager.ThrowIfNull(nameof(manager));
             EcmConformanceContributor contributor = EcmConformanceContributor.For(manager);
             contributor.Register(binding);
             contributor.SetServer(binding.Server);
@@ -66,8 +67,8 @@ namespace Opc.Ua.ECM.Server
             EcmPowerBinding binding,
             CancellationToken cancellationToken = default)
         {
-            ArgumentNullException.ThrowIfNull(manager, nameof(manager));
-            ArgumentNullException.ThrowIfNull(binding, nameof(binding));
+            manager.ThrowIfNull(nameof(manager));
+            binding.ThrowIfNull(nameof(binding));
             EcmConformanceContributor contributor = EcmConformanceContributor.For(manager);
             contributor.SetServer(binding.Server);
             contributor.EnsureServerAvailable();
@@ -82,7 +83,7 @@ namespace Opc.Ua.ECM.Server
         /// <param name="binding">The published provider binding.</param>
         public static void RegisterEcmBinding(this DiNodeManager manager, EcmWolBinding binding)
         {
-            ArgumentNullException.ThrowIfNull(manager, nameof(manager));
+            manager.ThrowIfNull(nameof(manager));
             EcmConformanceContributor contributor = EcmConformanceContributor.For(manager);
             contributor.Register(binding);
             contributor.SetServer(binding.Server);
@@ -99,8 +100,8 @@ namespace Opc.Ua.ECM.Server
             EcmWolBinding binding,
             CancellationToken cancellationToken = default)
         {
-            ArgumentNullException.ThrowIfNull(manager, nameof(manager));
-            ArgumentNullException.ThrowIfNull(binding, nameof(binding));
+            manager.ThrowIfNull(nameof(manager));
+            binding.ThrowIfNull(nameof(binding));
             EcmConformanceContributor contributor = EcmConformanceContributor.For(manager);
             contributor.SetServer(binding.Server);
             contributor.EnsureServerAvailable();
@@ -115,7 +116,7 @@ namespace Opc.Ua.ECM.Server
         /// <param name="binding">The published provider binding.</param>
         public static void RegisterEcmBinding(this DiNodeManager manager, EcmMeasurementBinding binding)
         {
-            ArgumentNullException.ThrowIfNull(manager, nameof(manager));
+            manager.ThrowIfNull(nameof(manager));
             EcmConformanceContributor contributor = EcmConformanceContributor.For(manager);
             contributor.Register(binding);
             contributor.SetServer(binding.Server);
@@ -132,8 +133,8 @@ namespace Opc.Ua.ECM.Server
             EcmMeasurementBinding binding,
             CancellationToken cancellationToken = default)
         {
-            ArgumentNullException.ThrowIfNull(manager, nameof(manager));
-            ArgumentNullException.ThrowIfNull(binding, nameof(binding));
+            manager.ThrowIfNull(nameof(manager));
+            binding.ThrowIfNull(nameof(binding));
             EcmConformanceContributor contributor = EcmConformanceContributor.For(manager);
             contributor.SetServer(binding.Server);
             contributor.EnsureServerAvailable();
@@ -150,7 +151,7 @@ namespace Opc.Ua.ECM.Server
             this DiNodeManager manager,
             CancellationToken cancellationToken = default)
         {
-            ArgumentNullException.ThrowIfNull(manager, nameof(manager));
+            manager.ThrowIfNull(nameof(manager));
             return EcmConformanceContributor.For(manager).PublishAsync(cancellationToken);
         }
     }
@@ -240,9 +241,10 @@ namespace Opc.Ua.ECM.Server
         /// Gets the ECM conformance contributor registered for <paramref name="manager"/>.
         /// </summary>
         /// <param name="manager">The DI address-space owner.</param>
+        /// <param name="server">The optional server receiving capability updates.</param>
         internal static EcmConformanceContributor For(DiNodeManager manager, IServerInternal? server = null)
         {
-            ArgumentNullException.ThrowIfNull(manager, nameof(manager));
+            manager.ThrowIfNull(nameof(manager));
             lock (s_gate)
             {
                 if (s_contributors.TryGetValue(manager, out EcmConformanceContributor? existing))
@@ -271,7 +273,7 @@ namespace Opc.Ua.ECM.Server
         /// <param name="binding">The published provider binding.</param>
         internal void Register(EcmPowerBinding binding)
         {
-            ArgumentNullException.ThrowIfNull(binding, nameof(binding));
+            binding.ThrowIfNull(nameof(binding));
             lock (m_gate)
             {
                 if (!m_powerBindings.Contains(binding))
@@ -287,7 +289,7 @@ namespace Opc.Ua.ECM.Server
         /// <param name="binding">The published provider binding.</param>
         internal void Register(EcmWolBinding binding)
         {
-            ArgumentNullException.ThrowIfNull(binding, nameof(binding));
+            binding.ThrowIfNull(nameof(binding));
             lock (m_gate)
             {
                 if (!m_wolBindings.Contains(binding))
@@ -303,7 +305,7 @@ namespace Opc.Ua.ECM.Server
         /// <param name="binding">The published provider binding.</param>
         internal void Register(EcmMeasurementBinding binding)
         {
-            ArgumentNullException.ThrowIfNull(binding, nameof(binding));
+            binding.ThrowIfNull(nameof(binding));
             lock (m_gate)
             {
                 if (!m_measurementBindings.Contains(binding))
@@ -320,7 +322,7 @@ namespace Opc.Ua.ECM.Server
         /// <param name="cancellationToken">Cancels capability publication.</param>
         internal ValueTask PublishAsync(EcmPowerBinding binding, CancellationToken cancellationToken)
         {
-            ArgumentNullException.ThrowIfNull(binding, nameof(binding));
+            binding.ThrowIfNull(nameof(binding));
             SetServer(binding.Server);
             return PublishAsync(cancellationToken);
         }
@@ -332,7 +334,7 @@ namespace Opc.Ua.ECM.Server
         /// <param name="cancellationToken">Cancels capability publication.</param>
         internal ValueTask PublishAsync(EcmWolBinding binding, CancellationToken cancellationToken)
         {
-            ArgumentNullException.ThrowIfNull(binding, nameof(binding));
+            binding.ThrowIfNull(nameof(binding));
             SetServer(binding.Server);
             return PublishAsync(cancellationToken);
         }
@@ -344,7 +346,7 @@ namespace Opc.Ua.ECM.Server
         /// <param name="cancellationToken">Cancels capability publication.</param>
         internal ValueTask PublishAsync(EcmMeasurementBinding binding, CancellationToken cancellationToken)
         {
-            ArgumentNullException.ThrowIfNull(binding, nameof(binding));
+            binding.ThrowIfNull(nameof(binding));
             SetServer(binding.Server);
             return PublishAsync(cancellationToken);
         }
