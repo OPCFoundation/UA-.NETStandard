@@ -34,6 +34,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Historian;
 using Opc.Ua.Server.Historian.InMemory;
@@ -67,6 +68,69 @@ namespace Opc.Ua.Server.Tests.Historian
 
             Assert.That(owned.DisposeCount, Is.EqualTo(1));
             Assert.That(external.DisposeCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// Borrowed node routes retain provider identity without transferring disposal responsibility.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void BorrowedNodeRegistrationDoesNotDisposeProvider(bool unregister)
+        {
+            var provider = new DisposableHistorianProvider();
+            using var registry = new HistorianProviderRegistry(new NamespaceTable());
+            IHistorianProviderRegistry routing = registry;
+            var nodeId = new NodeId("borrowed-node", 1);
+            routing.RegisterForNode(nodeId, provider, ownsProvider: false);
+            Assert.That(routing.Resolve(nodeId), Is.SameAs(provider));
+            Assert.That(routing.Providers.Contains(provider), Is.True);
+            if (unregister)
+            {
+                Assert.That(routing.UnregisterForNode(nodeId), Is.True);
+                Assert.That(routing.Resolve(nodeId), Is.Null);
+            }
+            registry.Dispose();
+            Assert.That(provider.DisposeCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// A later borrowed route cannot revoke disposal ownership retained by an owning registration.
+        /// </summary>
+        [Test]
+        public void BorrowedNodeRegistrationPreservesEarlierOwnership()
+        {
+            var provider = new DisposableHistorianProvider();
+            using var registry = new HistorianProviderRegistry(new NamespaceTable());
+            var nodeId = new NodeId("owned-then-borrowed", 1);
+            registry.RegisterForNode(nodeId, provider);
+            registry.RegisterForNode(nodeId, provider, ownsProvider: false);
+            registry.UnregisterForNode(nodeId);
+            registry.Dispose();
+            Assert.That(provider.DisposeCount, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Existing custom registries keep owning behavior and reject unsupported borrowed routes explicitly.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void OwnershipExtensionPreservesCustomRegistryContract(bool ownsProvider)
+        {
+            var registry = new Mock<IHistorianProviderRegistry>(MockBehavior.Strict);
+            var provider = new DisposableHistorianProvider();
+            var nodeId = new NodeId("custom-node", 1);
+            if (ownsProvider)
+            {
+                registry.Setup(value => value.RegisterForNode(nodeId, provider));
+                registry.Object.RegisterForNode(nodeId, provider, ownsProvider: true);
+                registry.Verify(value => value.RegisterForNode(nodeId, provider), Times.Once);
+            }
+            else
+            {
+                Assert.That(() => registry.Object.RegisterForNode(nodeId, provider, ownsProvider: false),
+                    Throws.TypeOf<NotSupportedException>());
+            }
+            registry.VerifyNoOtherCalls();
         }
 
         /// <summary>

@@ -670,6 +670,15 @@ activation grants read access, not `HistoryWrite`, and leaves unselected nodes
 unchanged. The owner drains capture on shutdown; the application or its DI
 container owns the provider.
 
+Pumps registers new node routes with `ownsProvider: false`, so full server
+shutdown does not dispose an application-owned archive. A custom registry must
+implement `IHistorianProviderOwnershipRegistry` for this registration; otherwise
+activation throws `NotSupportedException` and restores the affected node metadata.
+Existing application routes are preserved, including any disposal ownership the
+application previously transferred to the registry. Failed activation restores
+existing annotation access levels and removes newly created historical
+configuration and annotation nodes together with their explicit references.
+
 Raw capture preserves status and source timestamps. Processed reads use the
 shared provider/aggregate dispatcher, and event history snapshots the same
 conditions delivered live. Clients reuse `pumps.Session.Historian()` for

@@ -596,6 +596,58 @@ namespace Opc.Ua.Pumps.Tests
         }
 
         /// <summary>
+        /// Full server shutdown preserves caller-owned providers after activation or a later-node rollback.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        public async Task ServerShutdownPreservesBorrowedHistoryProviderAsync(bool events, bool rollback)
+        {
+            using var provider = new InMemoryHistorianProvider();
+            using var conflicting = new InMemoryHistorianProvider();
+            await using var fixture = new PumpsServerFixture();
+            await fixture.StartAsync();
+            IPumpBuilder pump = await fixture.Manager.CreatePumpAsync(fixture.PumpName("BorrowedProvider"));
+            pump.Measurements.SetAnalog(BrowseNames.MassFlow, 0)
+                .SetAnalog(BrowseNames.DifferentialPressure, 0);
+            BaseVariableState variable = Measurement(pump);
+            NodeId selectedId = events ? pump.NodeId : variable.NodeId;
+            HistorianNodeCapabilities capabilities = events
+                ? HistorianNodeCapabilities.EventReadWrite : HistorianNodeCapabilities.DataReadWrite;
+            provider.Register(selectedId, capabilities);
+            var registry = ((IHistorianRegistryProvider)fixture.Server).HistorianRegistry;
+            if (rollback)
+            {
+                var second = (BaseVariableState)pump.Measurements.Child(BrowseNames.DifferentialPressure)!;
+                provider.Register(second.NodeId, capabilities);
+                conflicting.Register(second.NodeId);
+                registry.RegisterForNode(second.NodeId, conflicting);
+                await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await fixture.Manager.Runtime.HistorizeAsync(
+                        pump, [variable, second], provider, autoCapture: false));
+                Assert.That(registry.Resolve(selectedId), Is.Null);
+                Assert.That(registry.Resolve(second.NodeId), Is.SameAs(conflicting));
+            }
+            else if (events)
+            {
+                await fixture.Manager.Runtime.HistorizeEventsAsync(pump, provider);
+                Assert.That(registry.Resolve(selectedId), Is.SameAs(provider));
+            }
+            else
+            {
+                await fixture.Manager.Runtime.HistorizeAsync(pump, [variable], provider);
+                Assert.That(registry.Resolve(selectedId), Is.SameAs(provider));
+            }
+
+            await fixture.DisposeAsync();
+
+            Assert.That(registry.Resolve(selectedId), Is.Null);
+            Assert.That(await provider.IsHistorizingAsync(selectedId, CancellationToken.None), Is.True);
+            Assert.That(await provider.GetCapabilitiesAsync(selectedId, CancellationToken.None),
+                Is.EqualTo(capabilities));
+        }
+
+        /// <summary>
         /// Captures pump telemetry and events and reads raw, processed and event history over a real session.
         /// </summary>
         [Test]

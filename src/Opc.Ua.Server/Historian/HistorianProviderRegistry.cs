@@ -39,7 +39,7 @@ namespace Opc.Ua.Server.Historian
     /// default fallback. Used by <c>ServerInternalData</c> via the additive
     /// <see cref="IHistorianRegistryProvider"/> interface.
     /// </summary>
-    public sealed class HistorianProviderRegistry : IHistorianProviderRegistry, IDisposable
+    public sealed class HistorianProviderRegistry : IHistorianProviderOwnershipRegistry, IDisposable
     {
         /// <summary>
         /// Creates an empty registry.
@@ -51,6 +51,12 @@ namespace Opc.Ua.Server.Historian
 
         /// <inheritdoc/>
         public void RegisterForNode(NodeId nodeId, IHistorianProvider provider)
+        {
+            RegisterForNode(nodeId, provider, ownsProvider: true);
+        }
+
+        /// <inheritdoc/>
+        public void RegisterForNode(NodeId nodeId, IHistorianProvider provider, bool ownsProvider)
         {
             if (nodeId.IsNull)
             {
@@ -65,7 +71,7 @@ namespace Opc.Ua.Server.Historian
             {
                 m_nodes.TryGetValue(nodeId, out IHistorianProvider? previous);
                 m_nodes[nodeId] = provider;
-                AddProvider(provider, ownsProvider: true);
+                AddProvider(provider, ownsProvider);
                 if (previous != null)
                 {
                     RebuildProviderSet(previous);

@@ -448,7 +448,7 @@ namespace Opc.Ua.Pumps.Server
                     }
                     return;
                 }
-                registry.RegisterForNode(nodeId, m_provider);
+                registry.RegisterForNode(nodeId, m_provider, ownsProvider: false);
                 m_routes.Add(nodeId);
             }
 
