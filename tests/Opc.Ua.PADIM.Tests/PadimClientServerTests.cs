@@ -390,6 +390,18 @@ namespace Opc.Ua.PADIM.Tests
                         {
                             BindRequiredChild(catalog, primary, childName, dataType, samples);
                         }
+                        string[] optionalChildren = kind switch
+                        {
+                            PadimMeasurementKind.Temperature =>
+                                ["SensorConnection", "SensorReference", "SensorClass"],
+                            PadimMeasurementKind.Flow => ["FlowDirection"],
+                            _ => []
+                        };
+                        foreach (string childName in optionalChildren)
+                        {
+                            await BindOptionalMeasurementChildAsync(
+                                catalog, primary, childName, samples, context.CancellationToken);
+                        }
 
                         if (kind == PadimMeasurementKind.Pat)
                         {
@@ -476,6 +488,32 @@ namespace Opc.Ua.PADIM.Tests
                         unit.Name?.StartsWith("PA-DIM ", StringComparison.Ordinal) == true),
                     Is.EquivalentTo(expectedPadimUnits),
                     "The live ConformanceUnits variable contains the configured PA-DIM units.");
+                QualifiedName[] independentlyExpectedUnits =
+                [
+                    new("PA-DIM Base"),
+                    new("PA-DIM Nano Embedded")
+                ];
+                Assert.That(
+                    advertisedUnits.ToList().Where(unit =>
+                        unit.Name?.StartsWith("PA-DIM ", StringComparison.Ordinal) == true),
+                    Is.SupersetOf(independentlyExpectedUnits),
+                    "The fully configured fixture independently requires its PA-DIM base units.");
+                QualifiedName[] independentlyExpectedMeasurementUnits =
+                [
+                    new("PA-DIM TemperatureMeasurementVariable"),
+                    new("PA-DIM TemperatureMeasurementVariable Connection"),
+                    new("PA-DIM TemperatureMeasurementVariable Reference"),
+                    new("PA-DIM TemperatureMeasurementVariable SensorClass"),
+                    new("PA-DIM FlowMeasurementVariable"),
+                    new("PA-DIM FlowMeasurementVariable FlowDirection")
+                ];
+                Assert.That(
+                    advertisedUnits.ToList().Where(unit =>
+                        unit.Name?.StartsWith(
+                            "PA-DIM TemperatureMeasurementVariable", StringComparison.Ordinal) == true ||
+                        unit.Name?.StartsWith("PA-DIM FlowMeasurementVariable", StringComparison.Ordinal) == true),
+                    Is.EquivalentTo(independentlyExpectedMeasurementUnits),
+                    "The independent measurement-unit catalogue matches the fully configured optional members.");
                 ArrayOf<PadimEntry> discoveredDevices = await client.DiscoverDevicesAsync(timeout.Token);
                 Assert.That(discoveredDevices.Count, Is.EqualTo(deviceStates.Count));
                 foreach (KeyValuePair<PadimDeviceKind, PadimDevice> device in deviceStates)
@@ -584,6 +622,42 @@ namespace Opc.Ua.PADIM.Tests
                             Is.EqualTo(MapNodeId(
                                 namespaceSource, session.NamespaceUris, expected.TypeDefinitionId)), expected.Key);
                     }
+                }
+
+                foreach ((string typeName, string memberName) in new[]
+                {
+                    ("TemperatureMeasurementVariableType", "SensorConnection"),
+                    ("TemperatureMeasurementVariableType", "SensorReference"),
+                    ("TemperatureMeasurementVariableType", "SensorClass"),
+                    ("FlowMeasurementVariableType", "FlowDirection")
+                })
+                {
+                    NodeId measurementId = expectedMeasurementTypes.Single(
+                        measurement => measurement.Value == typeName).Key;
+                    PadimPublishedSample optionalSample = samples.Samples.Single(
+                        sample => sample.ParentId == measurementId && sample.BrowseName.Name == memberName);
+                    NodeId optionalNodeId = MapNodeId(namespaceSource, session.NamespaceUris, optionalSample.NodeId);
+                    NodeId optionalParentId =
+                        MapNodeId(namespaceSource, session.NamespaceUris, optionalSample.ParentId);
+                    ArrayOf<PadimValue> optionalValues =
+                        await client.ReadValuesAsync(optionalParentId, timeout.Token);
+                    PadimValue actual = optionalValues.ToList().Single(value => value.NodeId == optionalNodeId);
+                    DataValue dataType = await session.ReadAsync(optionalNodeId, Attributes.DataType);
+                    DataValue valueRank = await session.ReadAsync(optionalNodeId, Attributes.ValueRank);
+                    Variant expectedValue = optionalSample.Binding.Variable is MultiStateValueDiscreteState enumeration
+                        ? Variant.From(checked((uint)enumeration.EnumValues!.Value[0].Value))
+                        : Variant.From(17u);
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(dataType.StatusCode, Is.EqualTo(StatusCodes.Good), memberName);
+                        Assert.That(dataType.WrappedValue, Is.EqualTo(Variant.From(Opc.Ua.DataTypeIds.UInt32)),
+                            memberName);
+                        Assert.That(valueRank.StatusCode, Is.EqualTo(StatusCodes.Good), memberName);
+                        Assert.That(valueRank.WrappedValue, Is.EqualTo(Variant.From(ValueRanks.Any)), memberName);
+                        Assert.That(actual.Sample.WrappedValue, Is.EqualTo(expectedValue), memberName);
+                        Assert.That(actual.Sample.StatusCode,
+                            Is.EqualTo(StatusCodes.UncertainSensorNotAccurate), memberName);
+                    });
                 }
 
                 PadimPublishedSample patMeasurand = samples.Samples.Single(
@@ -896,7 +970,7 @@ namespace Opc.Ua.PADIM.Tests
             device.State.HardwareRevision!.Value = "1.0";
             device.State.ProductCode!.Value = "fixture";
             device.State.ProductInstanceUri!.Value = $"urn:fixture:{device.State.NodeId}";
-            device.State.AddAssetId(device.Context).Value = $"asset:{device.State.NodeId}";
+            device.State.AddAssetId(device.Context).AssetId!.Value = $"asset:{device.State.NodeId}";
             device.State.RevisionCounter!.Value = 0;
         }
 
@@ -1028,6 +1102,33 @@ namespace Opc.Ua.PADIM.Tests
             Assert.That(child.DataType, Is.EqualTo(expectedDataType),
                 $"{parent.BrowseName}/{browseName} retains its published DataType.");
             samples.Bind(device, child);
+        }
+
+        /// <summary>
+        /// Materializes and binds an optional UInt32 measurement member declared by the PA-DIM NodeSet.
+        /// </summary>
+        private static async ValueTask BindOptionalMeasurementChildAsync(
+            PadimDevice device,
+            BaseVariableState parent,
+            string browseName,
+            PadimPublishedSampleSet samples,
+            CancellationToken cancellationToken)
+        {
+            PadimValueBinding binding = await device.AddOptionalValueAsync(
+                parent,
+                ModelName(device, browseName),
+                samples.NextKey(),
+                samples.Provider,
+                cancellationToken);
+            BaseVariableState child = binding.Variable;
+            Assert.Multiple(() =>
+            {
+                Assert.That(child.DataType, Is.EqualTo(Opc.Ua.DataTypeIds.UInt32), browseName);
+                Assert.That(child.ValueRank, Is.EqualTo(ValueRanks.Any), browseName);
+                Assert.That(child.TypeDefinitionId,
+                    Is.EqualTo(Opc.Ua.VariableTypeIds.MultiStateDictionaryEntryDiscreteType), browseName);
+            });
+            samples.Track(device, binding);
         }
     }
 }

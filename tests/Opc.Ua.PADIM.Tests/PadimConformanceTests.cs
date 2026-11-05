@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
@@ -80,6 +81,494 @@ namespace Opc.Ua.PADIM.Tests
                     Does.Not.Contain(new QualifiedName("PA-DIM IGeneralDeviceConditionSet DeviceComponentConditions")));
             });
             provider.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Optional variable binding accepts only exact optional declarations on an owned PA-DIM parent.
+        /// </summary>
+        [Test]
+        public async Task OptionalValueBindingRejectsUndeclaredMandatoryAndForeignMembers()
+        {
+            PadimDevice device = await CreateDeviceAsync("OptionalValueValidation");
+            PadimDevice otherDevice = await CreateDeviceAsync("OptionalValueOtherDevice");
+            var provider = new Mock<IPadimValueProvider>(MockBehavior.Strict);
+            AnalogSignalObjectState measurement = await device.AddMeasurementAsync(
+                Name("Temperature"), PadimMeasurementKind.Temperature, "TT-OPTIONAL");
+            AnalogSignalObjectState foreignMeasurement = await otherDevice.AddMeasurementAsync(
+                Name("OtherTemperature"), PadimMeasurementKind.Temperature, "TT-OTHER");
+
+            ServiceResultException? missing = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await device.AddOptionalValueAsync(
+                    measurement.AnalogSignal!, ModelName("NotPublished"), "missing", provider.Object));
+            ServiceResultException? mandatory = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await device.AddOptionalValueAsync(
+                    measurement.AnalogSignal!, ModelName("SensorType"), "mandatory", provider.Object));
+            ArgumentException? foreign = await Assert.ThrowsAsync<ArgumentException>(async () =>
+                await device.AddOptionalValueAsync(
+                    foreignMeasurement.AnalogSignal!, ModelName("SensorClass"), "foreign", provider.Object));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(missing!.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+                Assert.That(mandatory!.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+                Assert.That(foreign!.Message, Does.Contain("not a child of this device"));
+                Assert.That(measurement.AnalogSignal!.FindChild(device.Context, ModelName("NotPublished")), Is.Null);
+                Assert.That(measurement.AnalogSignal.FindChild(device.Context, ModelName("SensorType")), Is.Not.Null);
+                Assert.That(measurement.AnalogSignal.FindChild(device.Context, ModelName("SensorClass")), Is.Null);
+            });
+            provider.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Invalid declaration names, namespaces, keys and providers do not create an optional child.
+        /// </summary>
+        [Test]
+        public async Task OptionalValueBindingRejectsInvalidArgumentsWithoutChangingTheParent()
+        {
+            PadimDevice device = await CreateDeviceAsync("OptionalValueInvalidArguments");
+            AnalogSignalObjectState measurement = await device.AddMeasurementAsync(
+                Name("Temperature"), PadimMeasurementKind.Temperature, "TT-INVALID");
+            BaseVariableState parent = measurement.AnalogSignal!;
+            var provider = new Mock<IPadimValueProvider>(MockBehavior.Strict);
+            ushort padimNamespaceIndex = (ushort)device.Context.NamespaceUris.GetIndex(Namespaces.PADIM);
+            QualifiedName wrongNamespace = new("SensorClass", device.Manager.InstanceNamespaceIndex);
+            QualifiedName emptyName = new(string.Empty, padimNamespaceIndex);
+
+            ArgumentException? missingName = await Assert.ThrowsAsync<ArgumentException>(async () =>
+                await device.AddOptionalValueAsync(parent, QualifiedName.Null, "key", provider.Object));
+            ArgumentException? emptyNameError = await Assert.ThrowsAsync<ArgumentException>(async () =>
+                await device.AddOptionalValueAsync(parent, emptyName, "key", provider.Object));
+            ArgumentException? wrongNamespaceError = await Assert.ThrowsAsync<ArgumentException>(async () =>
+                await device.AddOptionalValueAsync(parent, wrongNamespace, "key", provider.Object));
+            ArgumentException? emptyKey = await Assert.ThrowsAsync<ArgumentException>(async () =>
+                await device.AddOptionalValueAsync(parent, ModelName("SensorClass"), " ", provider.Object));
+            ArgumentNullException? missingProvider = await Assert.ThrowsAsync<ArgumentNullException>(async () =>
+                await device.AddOptionalValueAsync(parent, ModelName("SensorClass"), "key", null!));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(missingName!.ParamName, Is.EqualTo("browseName"));
+                Assert.That(emptyNameError!.ParamName, Is.EqualTo("browseName"));
+                Assert.That(wrongNamespaceError!.ParamName, Is.EqualTo("browseName"));
+                Assert.That(emptyKey!.ParamName, Is.EqualTo("key"));
+                Assert.That(missingProvider!.ParamName, Is.EqualTo("provider"));
+                Assert.That(parent.FindChild(device.Context, ModelName("SensorClass")), Is.Null);
+            });
+            await device.RefreshAsync();
+            provider.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Cancellation before optional member registration leaves no child or provider binding.
+        /// </summary>
+        [Test]
+        public async Task OptionalValueBindingHonorsCancellationBeforeMutation()
+        {
+            PadimDevice device = await CreateDeviceAsync("OptionalValueCancelled");
+            AnalogSignalObjectState measurement = await device.AddMeasurementAsync(
+                Name("Temperature"), PadimMeasurementKind.Temperature, "TT-CANCELLED");
+            BaseVariableState parent = measurement.AnalogSignal!;
+            var provider = new Mock<IPadimValueProvider>(MockBehavior.Strict);
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+
+            OperationCanceledException? error = await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await device.AddOptionalValueAsync(
+                    parent, ModelName("SensorClass"), "cancelled", provider.Object, cancellation.Token));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(error, Is.Not.Null);
+                Assert.That(parent.FindChild(device.Context, ModelName("SensorClass")), Is.Null);
+                Assert.That(device.ConformanceUnits.ToArray(),
+                    Does.Not.Contain(new QualifiedName("PA-DIM TemperatureMeasurementVariable SensorClass")));
+            });
+            await device.RefreshAsync();
+            provider.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Uses a test-side catalogue, not the contributor's mappings, for this bounded optional fixture.
+        /// </summary>
+        [Test]
+        public async Task GasChromatographOptionalSignalUnitsMatchIndependentCatalogue([Values] bool configured)
+        {
+            // PADIM 1.02, group 219, profile 2197:
+            // https://profiles.opcfoundation.org/api/profile/includedconformanceunits/2197
+            // Mandatory: 5340, 5381, 5604. Optional: 5605, 5606, 5607, 5608.
+            // A bound condition set also implements catalogue unit 5341 (Signal Condition Set).
+            PadimDevice device = await CreateDeviceAsync($"GcOptionalCatalogue{configured}");
+            var provider = new Mock<IPadimValueProvider>(MockBehavior.Strict);
+            SignalState signal = await device.AddSignalAsync(
+                Name("Chromatogram"), PadimSignalKind.GasChromatograph, "GC-CATALOGUE");
+            device.BindValue((BaseVariableState)signal.FindChild(device.Context, ModelName("AnalogSignal"))!,
+                "gc/value", provider.Object);
+            var bindings = new List<PadimValueBinding>();
+            BaseObjectState conditions = await device.ConfigureSignalConditionsAsync(signal, group =>
+            {
+                if (configured)
+                {
+                    foreach (string field in new[]
+                    {
+                        "PeakWidth", "PeakHeight", "PeakArea", "TailingFactor",
+                        "ExpectedRetentionTime", "ActualRetentionTime", "InjectionTime", "ComponentName"
+                    })
+                    {
+                        bindings.Add(group.Bind(ModelName(field), $"gc/{field}", provider.Object));
+                    }
+                }
+            });
+            QualifiedName[] expected = configured
+                ? [
+                    new("PA-DIM Analog Signal"),
+                    new("PA-DIM AnalyticalSignalType"),
+                    new("PA-DIM GasChromatographSignalType"),
+                    new("PA-DIM GasChromatographSignalType Peak"),
+                    new("PA-DIM GasChromatographSignalType RetentionTime"),
+                    new("PA-DIM GasChromatographSignalType InjectionTime"),
+                    new("PA-DIM GasChromatographSignalType ComponentName"),
+                    new("PA-DIM Signal Condition Set")
+                ]
+                : [
+                    new("PA-DIM Analog Signal"),
+                    new("PA-DIM AnalyticalSignalType"),
+                    new("PA-DIM GasChromatographSignalType")
+                ];
+            Assert.Multiple(() =>
+            {
+                Assert.That(device.ConformanceUnits.ToArray(), Is.EquivalentTo(expected));
+                Assert.That(device.ServerProfiles.ToArray(), Is.EquivalentTo(new[]
+                {
+                    "http://opcfoundation.org/UA-Profile/PADIM/Server/GasChromatographSignal"
+                }));
+                Assert.That(bindings, Has.Count.EqualTo(configured ? 8 : 0));
+                Assert.That(device.Manager.FindPredefinedNode(conditions.NodeId), Is.SameAs(conditions));
+                Assert.That(conditions.FindChild(device.Context, ModelName("ComponentName")),
+                    configured ? Is.Not.Null : Is.Null);
+            });
+            foreach (PadimValueBinding binding in bindings)
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(binding.Key, Is.EqualTo($"gc/{binding.Variable.BrowseName.Name}"));
+                    Assert.That(device.Manager.FindPredefinedNode(binding.Variable.NodeId),
+                        Is.SameAs(binding.Variable));
+                    Assert.That(binding.Variable.Parent, Is.SameAs(conditions));
+                    Assert.That(binding.Variable.StatusCode, Is.EqualTo(StatusCodes.BadWaitingForInitialData));
+                });
+            }
+            provider.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Each of the four fields in catalogue unit 5605 is independently necessary.
+        /// </summary>
+        [TestCase("PeakWidth")]
+        [TestCase("PeakHeight")]
+        [TestCase("PeakArea")]
+        [TestCase("TailingFactor")]
+        [TestCase("")]
+        public async Task GasChromatographPeakUnitRequiresEveryPublishedField(string omitted)
+        {
+            PadimDevice device = await CreateDeviceAsync($"GcPeak{omitted}");
+            var provider = new Mock<IPadimValueProvider>(MockBehavior.Strict);
+            var signal = (GasChromatographSignalState)await device.AddSignalAsync(
+                Name("Chromatogram"), PadimSignalKind.GasChromatograph, "GC-PEAK");
+            device.BindValue(signal.AnalogSignal!, "gc/value", provider.Object);
+            var bindings = new List<PadimValueBinding>();
+            await device.ConfigureSignalConditionsAsync(signal, group =>
+            {
+                foreach (string field in new[] { "PeakWidth", "PeakHeight", "PeakArea", "TailingFactor" })
+                {
+                    if (field != omitted)
+                    {
+                        bindings.Add(group.Bind(ModelName(field), field, provider.Object));
+                    }
+                }
+            });
+            Assert.Multiple(() =>
+            {
+                Assert.That(device.ConformanceUnits.ToArray().Contains(
+                    new QualifiedName("PA-DIM GasChromatographSignalType Peak")), Is.EqualTo(omitted.Length == 0));
+                Assert.That(device.ConformanceUnits.ToArray(),
+                    Does.Contain(new QualifiedName("PA-DIM GasChromatographSignalType")));
+                Assert.That(device.ConformanceUnits.ToArray(),
+                    Does.Not.Contain(new QualifiedName("PA-DIM GasChromatographSignalType RetentionTime")));
+                Assert.That(bindings, Has.Count.EqualTo(omitted.Length == 0 ? 4 : 3));
+            });
+            foreach (PadimValueBinding binding in bindings)
+            {
+                Assert.That(device.Manager.FindPredefinedNode(binding.Variable.NodeId), Is.SameAs(binding.Variable));
+            }
+            provider.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Catalogue units 5572-5574 each require all three fields on one calibration.
+        /// </summary>
+        [Test]
+        public async Task GasChromatographCalibrationRangeRequiresEveryPublishedField(
+            [Values(1, 2, 3)] int range,
+            [Values("", "ResponseFactor", "LowerRangeValue", "UpperRangeValue")] string omitted)
+        {
+            PadimDevice device = await CreateDeviceAsync($"GcRange{range}{omitted}");
+            var provider = new Mock<IPadimValueProvider>(MockBehavior.Strict);
+            var signal = (GasChromatographSignalState)await device.AddSignalAsync(
+                Name("Chromatogram"), PadimSignalKind.GasChromatograph, "GC-RANGE");
+            device.BindValue(signal.AnalogSignal!, "gc/value", provider.Object);
+            await device.ConfigureSignalConditionsAsync(signal, _ => { });
+            var bindings = new List<PadimValueBinding>();
+            BaseObjectState calibration = await device.AddCalibrationAsync(signal, Name("Calibration"), group =>
+            {
+                foreach (string suffix in new[] { "ResponseFactor", "LowerRangeValue", "UpperRangeValue" })
+                {
+                    if (suffix != omitted)
+                    {
+                        string field = $"CalibrationRange{range}{suffix}";
+                        bindings.Add(group.Bind(ModelName(field), field, provider.Object));
+                    }
+                }
+            });
+            Assert.Multiple(() =>
+            {
+                Assert.That(device.ConformanceUnits.ToArray().Contains(
+                    new QualifiedName($"PA-DIM GasChromatograph CalibrationRange{range}")),
+                    Is.EqualTo(omitted.Length == 0));
+                Assert.That(device.ConformanceUnits.ToArray(), Does.Contain(new QualifiedName("PA-DIM ICalibration")));
+                Assert.That(bindings, Has.Count.EqualTo(omitted.Length == 0 ? 3 : 2));
+                Assert.That(device.Manager.FindPredefinedNode(calibration.NodeId), Is.SameAs(calibration));
+            });
+            foreach (int other in new[] { 1, 2, 3 }.Where(candidate => candidate != range))
+            {
+                Assert.That(device.ConformanceUnits.ToArray(),
+                    Does.Not.Contain(new QualifiedName($"PA-DIM GasChromatograph CalibrationRange{other}")));
+            }
+            provider.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Three different calibrations cannot jointly satisfy catalogue unit 5572.
+        /// </summary>
+        [Test]
+        public async Task GasChromatographCalibrationRangeDoesNotCombineSeparateCalibrations()
+        {
+            PadimDevice device = await CreateDeviceAsync("GcSplitCalibrationRange");
+            var provider = new Mock<IPadimValueProvider>(MockBehavior.Strict);
+            var signal = (GasChromatographSignalState)await device.AddSignalAsync(
+                Name("Chromatogram"), PadimSignalKind.GasChromatograph, "GC-SPLIT");
+            device.BindValue(signal.AnalogSignal!, "gc/value", provider.Object);
+            await device.ConfigureSignalConditionsAsync(signal, _ => { });
+            foreach (string suffix in new[] { "ResponseFactor", "LowerRangeValue", "UpperRangeValue" })
+            {
+                await device.AddCalibrationAsync(signal, Name(suffix), group =>
+                    group.Bind(ModelName($"CalibrationRange1{suffix}"), suffix, provider.Object));
+            }
+            Assert.That(device.ConformanceUnits.ToArray(),
+                Does.Not.Contain(new QualifiedName("PA-DIM GasChromatograph CalibrationRange1")));
+            BaseObjectState complete = await device.AddCalibrationAsync(signal, Name("Complete"), group =>
+            {
+                group.Bind(ModelName("CalibrationRange1ResponseFactor"), "complete/factor", provider.Object);
+                group.Bind(ModelName("CalibrationRange1LowerRangeValue"), "complete/low", provider.Object);
+                group.Bind(ModelName("CalibrationRange1UpperRangeValue"), "complete/high", provider.Object);
+            });
+            Assert.Multiple(() =>
+            {
+                Assert.That(device.ConformanceUnits.ToArray(),
+                    Does.Contain(new QualifiedName("PA-DIM GasChromatograph CalibrationRange1")));
+                Assert.That(device.Manager.FindPredefinedNode(complete.NodeId), Is.SameAs(complete));
+            });
+            provider.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Optional catalogue unit 5575 needs both published valve arrays.
+        /// </summary>
+        [TestCase("ValveName")]
+        [TestCase("ValveSwitchingCyclesCounter")]
+        [TestCase("")]
+        public async Task GasChromatographValveUnitRequiresBothPublishedFields(string omitted)
+        {
+            var builder = await m_manager.CreatePadimDeviceAsync(
+                Name($"GcValve{omitted}"), PadimDeviceKind.GasChromatograph);
+            PadimDevice device = builder.BindPadim();
+            SetIdentity(device);
+            var provider = new Mock<IPadimValueProvider>(MockBehavior.Strict);
+            device.BindValue(device.State.DeviceHealth!, "health", provider.Object);
+            var bindings = new List<PadimValueBinding>();
+            await device.ConfigureDeviceConditionsAsync(group =>
+            {
+                foreach (string field in new[] { "ValveName", "ValveSwitchingCyclesCounter" })
+                {
+                    if (field != omitted)
+                    {
+                        bindings.Add(group.Bind(ModelName(field), field, provider.Object));
+                    }
+                }
+            });
+            Assert.Multiple(() =>
+            {
+                Assert.That(device.ConformanceUnits.ToArray().Contains(
+                    new QualifiedName("PA-DIM GasChromatographType Valve")), Is.EqualTo(omitted.Length == 0));
+                Assert.That(device.ConformanceUnits.ToArray(),
+                    Does.Contain(new QualifiedName("PA-DIM GasChromatographType")));
+                Assert.That(device.ConformanceUnits.ToArray(),
+                    Does.Not.Contain(new QualifiedName("PA-DIM GasChromatographType BaselineNoise")));
+                Assert.That(bindings, Has.Count.EqualTo(omitted.Length == 0 ? 2 : 1));
+            });
+            foreach (PadimValueBinding binding in bindings)
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(binding.Variable.ValueRank, Is.EqualTo(ValueRanks.OneDimension));
+                    Assert.That(binding.Variable.DataType,
+                        Is.EqualTo(binding.Key == "ValveName"
+                            ? Opc.Ua.DataTypeIds.LocalizedText : Opc.Ua.DataTypeIds.UInt32));
+                    Assert.That(device.Manager.FindPredefinedNode(binding.Variable.NodeId),
+                        Is.SameAs(binding.Variable));
+                });
+            }
+            provider.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Unit 5616 requires peak and duration on one signal, not values pooled across signals.
+        /// </summary>
+        [Test]
+        public async Task GasDetectorRangeExceedanceRequiresBothFieldsOnOneSignal()
+        {
+            PadimDevice device = await CreateDeviceAsync("GasDetectorRangeExceedance");
+            var provider = new Mock<IPadimValueProvider>(MockBehavior.Strict);
+            foreach (string selection in new[] { "RangeExceedancePeakValue", "RangeExceedanceDuration", "Both" })
+            {
+                SignalState signal = await device.AddSignalAsync(
+                    Name(selection), PadimSignalKind.AmperometricGasDetector, $"GD-{selection}");
+                device.BindValue((BaseVariableState)signal.FindChild(device.Context, ModelName("AnalogSignal"))!,
+                    $"{selection}/value", provider.Object);
+                BaseObjectState conditions = await device.ConfigureSignalConditionsAsync(signal, group =>
+                {
+                    foreach (string field in new[] { "RangeExceedancePeakValue", "RangeExceedanceDuration" })
+                    {
+                        if (selection == field || selection == "Both")
+                        {
+                            group.Bind(ModelName(field), $"{selection}/{field}", provider.Object);
+                        }
+                    }
+                });
+                Assert.Multiple(() =>
+                {
+                    Assert.That(device.ConformanceUnits.ToArray().Contains(
+                        new QualifiedName("PA-DIM AmperometricGasDetectorSignalType RangeExceedance")),
+                        Is.EqualTo(selection == "Both"));
+                    Assert.That(device.ConformanceUnits.ToArray(),
+                        Does.Contain(new QualifiedName("PA-DIM AmperometricGasDetectorSignalType")));
+                    Assert.That(device.Manager.FindPredefinedNode(conditions.NodeId), Is.SameAs(conditions));
+                    Assert.That(device.ConformanceUnits.ToArray(),
+                        Does.Not.Contain(new QualifiedName("PA-DIM AmperometricGasDetectorSignalType ConsumedSensorCapacity")));
+                });
+            }
+            provider.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Pressure selects inherited optional unit 5348 through the public declaration-binding API.
+        /// </summary>
+        [Test]
+        public async Task OptionalDampingBindingPreservesInheritedDeclarationAndAcquiredSample([Values] bool existing)
+        {
+            PadimDevice device = await CreateDeviceAsync($"PressureOptionalDamping{existing}");
+            AnalogSignalObjectState signal = await device.AddMeasurementAsync(
+                Name("Pressure"), PadimMeasurementKind.Pressure, "PT-OPTIONAL");
+            AnalogSignalVariableState primary = signal.AnalogSignal!;
+            var provider = new Mock<IPadimValueProvider>(MockBehavior.Strict);
+            device.BindValue(primary, "pressure", provider.Object);
+            if (existing)
+            {
+                primary.AddDamping(device.Context);
+            }
+            BaseInstanceState? before = primary.FindChild(device.Context, ModelName("Damping"));
+            Assert.That(before, existing ? Is.Not.Null : Is.Null);
+            Assert.That(device.ConformanceUnits.ToArray(),
+                Does.Not.Contain(new QualifiedName("PA-DIM AnalogSignalVariable Damping")));
+
+            PadimValueBinding binding = await device.AddOptionalValueAsync(
+                primary, ModelName("Damping"), "pressure/damping", provider.Object);
+            DateTimeUtc timestamp = new(new DateTime(2026, 1, 2, 3, 4, 5, DateTimeKind.Utc));
+            var sample = new DataValue(Variant.From(2.5f), StatusCodes.Uncertain, timestamp);
+            provider.Setup(p => p.ReadAsync("pressure/damping", It.IsAny<CancellationToken>())).ReturnsAsync(sample);
+            // PA-DIM 1.02 NodeSet, AnalogSignalVariableType/Damping (i=1118).
+            var dictionaryEntry = new NodeId("0112/2///61987#ABH526#002",
+                (ushort)device.Context.NamespaceUris.GetIndex("http://opcfoundation.org/UA/Dictionary/IRDI"));
+            var references = new List<IReference>();
+            binding.Variable.GetReferences(device.Context, references);
+            Assert.Multiple(() =>
+            {
+                Assert.That(binding.Key, Is.EqualTo("pressure/damping"));
+                Assert.That(binding.Variable.DataType, Is.EqualTo(Opc.Ua.DataTypeIds.Float));
+                Assert.That(binding.Variable.TypeDefinitionId, Is.EqualTo(Opc.Ua.VariableTypeIds.PropertyType));
+                Assert.That(binding.Variable.NodeId.NamespaceIndex, Is.EqualTo(device.Manager.InstanceNamespaceIndex));
+                Assert.That(references.Any(reference => !reference.IsInverse &&
+                    reference.ReferenceTypeId == Opc.Ua.Types.ReferenceTypeIds.HasDictionaryEntry &&
+                    ExpandedNodeId.ToNodeId(reference.TargetId, device.Context.NamespaceUris) == dictionaryEntry),
+                    Is.True, "Optional cloning must retain the published damping IRDI, not invent a vendor field.");
+                Assert.That(binding.Variable.Parent, Is.SameAs(primary));
+                Assert.That(binding.Variable.BrowseName, Is.EqualTo(ModelName("Damping")));
+                Assert.That(binding.Variable.AccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
+                Assert.That(binding.Variable.UserAccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
+                Assert.That(binding.Variable.StatusCode, Is.EqualTo(StatusCodes.BadWaitingForInitialData));
+                Assert.That(device.Manager.FindPredefinedNode(binding.Variable.NodeId), Is.SameAs(binding.Variable));
+                Assert.That(device.ConformanceUnits.ToArray(), Is.EquivalentTo(new QualifiedName[]
+                {
+                    new("PA-DIM Analog Signal"), new("PA-DIM AnalogSignalVariableType"),
+                    new("PA-DIM PressureMeasurementVariable"), new("PA-DIM AnalogSignalVariable Damping")
+                }));
+            });
+            if (existing)
+            {
+                Assert.That(binding.Variable, Is.SameAs(before), "Reuse the declared child rather than replacing it.");
+            }
+            await binding.RefreshAsync();
+            Assert.Multiple(() =>
+            {
+                Assert.That(binding.Variable.WrappedValue, Is.EqualTo(Variant.From(2.5f)));
+                Assert.That(binding.Variable.StatusCode, Is.EqualTo(StatusCodes.Uncertain));
+                Assert.That(binding.Variable.Timestamp, Is.EqualTo(timestamp));
+            });
+            provider.Verify(p => p.ReadAsync("pressure/damping", It.IsAny<CancellationToken>()), Times.Once);
+            provider.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Rejecting a duplicate optional binding must preserve the registered node and original acquisition.
+        /// </summary>
+        [Test]
+        public async Task DuplicateOptionalDampingBindingKeepsOriginalNodeAndProvider()
+        {
+            PadimDevice device = await CreateDeviceAsync("DuplicatePressureDamping");
+            AnalogSignalObjectState signal = await device.AddMeasurementAsync(
+                Name("Pressure"), PadimMeasurementKind.Pressure, "PT-DUPLICATE");
+            var original = new Mock<IPadimValueProvider>(MockBehavior.Strict);
+            var replacement = new Mock<IPadimValueProvider>(MockBehavior.Strict);
+            PadimValueBinding binding = await device.AddOptionalValueAsync(
+                signal.AnalogSignal!, ModelName("Damping"), "original", original.Object);
+            NodeId nodeId = binding.Variable.NodeId;
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await device.AddOptionalValueAsync(
+                    signal.AnalogSignal!, ModelName("Damping"), "replacement", replacement.Object));
+            original.Setup(p => p.ReadAsync("original", It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new DataValue(Variant.From(4f)));
+            await device.RefreshAsync();
+            Assert.Multiple(() =>
+            {
+                Assert.That(signal.AnalogSignal!.FindChild(device.Context, ModelName("Damping")),
+                    Is.SameAs(binding.Variable));
+                Assert.That(binding.Variable.NodeId, Is.EqualTo(nodeId));
+                Assert.That(device.Manager.FindPredefinedNode(nodeId), Is.SameAs(binding.Variable));
+                Assert.That(binding.Variable.WrappedValue, Is.EqualTo(Variant.From(4f)));
+                Assert.That(binding.Variable.StatusCode, Is.EqualTo(StatusCodes.Good));
+            });
+            original.Verify(p => p.ReadAsync("original", It.IsAny<CancellationToken>()), Times.Once);
+            original.VerifyNoOtherCalls();
+            replacement.VerifyNoOtherCalls();
         }
 
         /// <summary>
@@ -845,7 +1334,7 @@ namespace Opc.Ua.PADIM.Tests
             device.State.HardwareRevision!.Value = "1.0";
             device.State.ProductCode!.Value = "fixture";
             device.State.ProductInstanceUri!.Value = $"urn:fixture:{device.State.NodeId}";
-            device.State.AddAssetId(device.Context).Value = $"asset:{device.State.NodeId}";
+            device.State.AddAssetId(device.Context).AssetId!.Value = $"asset:{device.State.NodeId}";
             device.State.RevisionCounter!.Value = 0;
         }
 

@@ -112,7 +112,29 @@ members in that callback so the manager registers the completed subtree.
 calibration variable below the device. It rejects a member belonging to another
 device. Call `RegisterAsync` after adding optional members to an already
 registered device; assigning a local object alone does not make its NodeId
-readable or subscribable.
+readable or subscribable. `AddOptionalValueAsync` registers the selected
+member as part of the call.
+
+Use `AddOptionalValueAsync` for an exact optional variable declared by a
+PA-DIM parent when its generated instance omits the child. The method resolves
+the declaration from the parent's type hierarchy, clones its metadata, assigns
+an instance NodeId, registers the device and binds the provider. The published
+type definition, `DataType`, `ValueRank` and semantic references are retained;
+the application does not need to recreate them. Mandatory or undeclared
+members, names outside the PA-DIM namespace and parents owned by another device
+are rejected. An existing child can be bound when it matches the declaration.
+
+```csharp
+ushort padimNamespaceIndex = context.Manager.SystemContext.NamespaceUris
+    .GetIndexOrAppend(Namespaces.PADIM);
+await device.AddOptionalValueAsync(
+    temperature.AnalogSignal!,
+    new QualifiedName("SensorClass", padimNamespaceIndex),
+    "TT-12345/SensorClass",
+    provider,
+    context.CancellationToken);
+```
+
 Facet contributions also require the relevant members and every node on their
 ownership path to be indexed by the DI manager. Adding a child and binding its
 provider after registration does not contribute its capability until
@@ -416,13 +438,15 @@ the default.
 
 ## Facet requirements and evidence
 
-The support rating remains **Partial**. The released
-[PADIM 1.02 catalogue](https://profiles.opcfoundation.org/?pg=219) contains
+The [PADIM 1.02 catalogue](https://profiles.opcfoundation.org/?pg=219) contains
 56 server facets and 194 distinct conformance units: 65 are mandatory in at
-least one facet, while 129 are optional everywhere they occur. An optional
-unit does not become mandatory merely because another facet includes its
-parent facet. In particular, Base Signal Calibration has four optional units
-and no mandatory units.
+least one facet, while 129 are optional everywhere they occur. The runtime
+provides configuration and provider-binding paths for all 129 optional
+capabilities. A device contributes an optional unit only when its required
+members are configured, provider-bound and registered; optional units are not
+required on every device instance. A unit does not become mandatory merely
+because another facet includes its parent facet. In particular, Base Signal
+Calibration has four optional units and no mandatory units.
 
 `PadimDevice` contributes configured capabilities through the DI owner's
 existing `IConformanceContributor` aggregation. A signal-family facet requires
@@ -489,20 +513,21 @@ suite or a list of advertised URIs as verification of every published unit:
 | Scope | Evidence and remaining limit |
 | --- | --- |
 | All 20 device selections and 26 signal selections | XML contract fixtures check inherited condition/calibration fields, interfaces, types, ranks, instance registration and IRDI identity. `HostedAllPublishedFamiliesDiscoverAndReadTypedFacetSamples` reads every configured acquisition sample through a client, including values, quality and source timestamps; it also checks mandatory identity and configured administration values. |
-| All 12 measurement selections | Structural fixtures retain published types, numeric restrictions and units. The hosted client reads each primary value, required measurement parameter and structured PAT value; optional-only measurement properties are not all instantiated. |
-| 56 facet URIs | `ConfiguredFamiliesCoverAllFiftySixReleasedFacetUris` checks the exact URI set. The hosted test reads `ServerProfileArray` and `ConformanceUnits` and compares their PA-DIM entries with the configured contributors. These tests do not constitute a 194-unit behavioral conformance test. |
+| All 12 measurement selections | Structural fixtures retain published types, numeric restrictions and units. The hosted client reads each primary value, required measurement parameter, structured PAT value and the optional Temperature/Flow properties `SensorConnection`, `SensorReference`, `SensorClass` and `FlowDirection`; other optional-only measurement properties are not all instantiated. |
+| 56 facet URIs and optional units | `ConfiguredFamiliesCoverAllFiftySixReleasedFacetUris` checks the exact URI set. The hosted test reads `ServerProfileArray` and `ConformanceUnits` and compares their PA-DIM entries with the configured contributors. Optional capabilities use declared-member selectors, optional-variable binding and dedicated operation/simulation APIs; contributors advertise a unit only when its complete required member set is configured. The tests do not configure every optional unit in one device or constitute a 194-unit behavioral conformance test. |
 | Simulation, authorization, operations and alarms | Runtime tests exercise accepted/rejected writes, cancellation, provider drain, simulation reversal, health-category transitions, acknowledgement and retained-condition refresh. Physical adjustment success remains the provider's responsibility. |
 | Required family members | Contributor tests withhold incomplete pH and TOC configurations, unregistered dynamic members and unregistered ownership paths, and reject combining different calibration or signal instances. The hosted fixture checks that late-bound health and primary measurement nodes return `BadNodeIdUnknown` before registration, then browses and reads their exact provider samples after registration. |
 | Runtime publication | `HostedRuntimeFacetChangesRequireExplicitPublication` starts with no PA-DIM facet, configures a discrete signal after startup, and reads both live arrays before and after explicit publication. It disposes the device and republishes to verify withdrawal; `ConformanceUnitsManager.IsSupported` is checked at each stage. |
 
-Two catalogue inconsistencies remain unresolved. The `CatalyticBeadSensor`
-facet lists seven optional `CatalyticBeadSignalType` condition units, but its
-published device-condition declaration has neither that signal interface nor
-those fields. The `InfraredSignalType PowerOnDurationSensor` and
-`InfraredSignalType SensingElementResidualLife` descriptions both refer to
-`SourceResidualLife`, although the NodeSet declares three distinct members.
-The SDK retains the published model and uses the named members; it does not
-invent device fields or treat these descriptions as interchangeable.
+The NodeSet places the seven optional `CatalyticBeadSignalType` units on the signal's
+`SignalConditionSet`, not the device's `DeviceConditionSet`; the NodeSet
+declares the catalytic-bead condition interface and fields on that signal
+group. The runtime resolves the signal group and does not invent device fields.
+The profile catalogue descriptions for `InfraredSignalType PowerOnDurationSensor`
+and `InfraredSignalType SensingElementResidualLife` both refer to
+`SourceResidualLife`, while the NodeSet declares three distinct members. The
+SDK retains and resolves those members by their BrowseNames rather than
+collapsing them based on the duplicated descriptions.
 
 The PA-DIM Nano Embedded unit explicitly requires Nano Embedded Device 2017
 for OPC UA v1.04 or Nano Embedded Device 2022 for OPC UA v1.05. The Core facet
@@ -518,13 +543,13 @@ support for the profile named by PA-DIM. A host that implements the required
 
 This checks the host's declaration; it does not verify the host's behavior
 against every Nano Embedded requirement. Loading PA-DIM alone does not
-establish host profile support. The hosted fixture exercises all configured
-PA-DIM facet contributions and reads them back, but it does not independently test the
-host's Nano Embedded behavior or every optional-only conformance unit. Keep the
-rating at Partial until those evidence limits and the catalogue
-interpretations above are resolved. No OPC Foundation certification is implied.
-Physical calibration algorithms, field-protocol adapters, optional MCP tools
-and UA Lens integration are outside this SDK runtime's scope.
+establish host profile support. The host must implement the Nano Embedded
+profile it declares. The runtime's optional-unit paths allow each device to
+configure the capabilities it supports, while the tests exercise configured
+facet contributions and selected optional bindings rather than every possible
+combination. No OPC Foundation certification is implied. Physical calibration
+algorithms, field-protocol adapters, optional MCP tools and UA Lens integration
+are outside this SDK runtime's scope.
 
 Existing Machinery process-value simulation remains implemented by
 `ProcessValueBuilder`; this runtime does not replace it.

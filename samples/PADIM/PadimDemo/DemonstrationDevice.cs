@@ -73,7 +73,7 @@ namespace PadimSample
                 identity.HardwareRevision = "1";
                 identity.RevisionCounter = 0;
             });
-            transmitter.Device.AddAssetId(manager.SystemContext).Value = "Transmitter-001";
+            transmitter.Device.AddAssetId(manager.SystemContext).AssetId!.Value = "Transmitter-001";
             transmitter.Device.DeviceHealth!.Value = Opc.Ua.Di.DeviceHealthEnumeration.NORMAL;
             PadimDevice device = transmitter.BindPadim();
             device.WithHealthAlarms("health", this);
@@ -129,7 +129,7 @@ namespace PadimSample
                 identity.HardwareRevision = "1";
                 identity.RevisionCounter = 0;
             });
-            analyser.Device.AddAssetId(manager.SystemContext).Value = "PH-001";
+            analyser.Device.AddAssetId(manager.SystemContext).AssetId!.Value = "PH-001";
             analyser.Device.DeviceHealth!.Value = Opc.Ua.Di.DeviceHealthEnumeration.NORMAL;
             PadimDevice ph = analyser.BindPadim();
             ph.WithHealthAlarms("health", this);
