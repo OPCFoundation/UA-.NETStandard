@@ -452,10 +452,15 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         /// <summary>
-        /// Explicit candidate scopes override bindings retained by fluent historization regardless of scope.
+        /// Explicit candidate scopes override borrowed and retained bindings in either registration order.
         /// </summary>
-        [Test]
-        public void ExplicitCandidateRegistrationsOverrideRetainedHistorizationBindings()
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public void ExplicitCandidateRegistrationsOverrideRetainedHistorizationBindings(
+            bool ownedServingBindings,
+            bool registerBeforeHistorization)
         {
             var namespaceTable = new NamespaceTable();
             namespaceTable.Append(kNamespaceUri);
@@ -469,30 +474,46 @@ namespace Opc.Ua.Server.Tests.Historian
             var nodeId = new NodeId("historized-node", 1);
             var namespaceNodeId = new NodeId("historized-namespace-node", 1);
             var defaultNodeId = new NodeId("historized-default-node", 0);
-            serving.RegisterForNode(nodeId, servingNodeProvider);
-            serving.RegisterForNamespace(kNamespaceUri, servingNamespaceProvider);
-            serving.RegisterDefault(servingDefaultProvider);
+            using var predecessor =
+                new StagedHistorianProviderRegistry(namespaceTable, serving, new object());
+            IHistorianProviderRegistry original = ownedServingBindings ? predecessor : serving;
+            original.RegisterForNode(nodeId, servingNodeProvider);
+            original.RegisterForNamespace(kNamespaceUri, servingNamespaceProvider);
+            original.RegisterDefault(servingDefaultProvider);
+            if (ownedServingBindings)
+            {
+                predecessor.Publish();
+            }
             using var candidate =
                 new StagedHistorianProviderRegistry(namespaceTable, serving, new object());
 
-            Assert.That(candidate.ResolveForHistorization(nodeId), Is.SameAs(servingNodeProvider));
+            if (registerBeforeHistorization)
+            {
+                RegisterExplicitProviders();
+            }
+            Assert.That(candidate.ResolveForHistorization(nodeId),
+                Is.SameAs(registerBeforeHistorization ? explicitNodeProvider : servingNodeProvider));
             Assert.That(
                 candidate.ResolveForHistorization(namespaceNodeId),
-                Is.SameAs(servingNamespaceProvider));
+                Is.SameAs(registerBeforeHistorization ? explicitNamespaceProvider : servingNamespaceProvider));
             Assert.That(
                 candidate.ResolveForHistorization(defaultNodeId),
-                Is.SameAs(servingDefaultProvider));
+                Is.SameAs(registerBeforeHistorization ? explicitDefaultProvider : servingDefaultProvider));
 
-            Assert.That(() => candidate.RegisterForNode(nodeId, explicitNodeProvider), Throws.Nothing);
-            Assert.That(
-                () => candidate.RegisterForNamespace(kNamespaceUri, explicitNamespaceProvider),
-                Throws.Nothing);
-            Assert.That(() => candidate.RegisterDefault(explicitDefaultProvider), Throws.Nothing);
+            if (!registerBeforeHistorization)
+            {
+                Assert.That(candidate.HasRegistrations, Is.EqualTo(ownedServingBindings),
+                    "Only bindings owned by a predecessor generation require candidate retention.");
+                RegisterExplicitProviders();
+            }
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(candidate.Resolve(nodeId), Is.SameAs(explicitNodeProvider));
                 Assert.That(candidate.Resolve(namespaceNodeId), Is.SameAs(explicitNamespaceProvider));
                 Assert.That(candidate.Resolve(defaultNodeId), Is.SameAs(explicitDefaultProvider));
+                Assert.That(serving.Resolve(nodeId), Is.SameAs(servingNodeProvider));
+                Assert.That(serving.Resolve(namespaceNodeId), Is.SameAs(servingNamespaceProvider));
+                Assert.That(serving.Resolve(defaultNodeId), Is.SameAs(servingDefaultProvider));
             }
 
             candidate.Publish();
@@ -502,6 +523,13 @@ namespace Opc.Ua.Server.Tests.Historian
                 Assert.That(serving.Resolve(nodeId), Is.SameAs(explicitNodeProvider));
                 Assert.That(serving.Resolve(namespaceNodeId), Is.SameAs(explicitNamespaceProvider));
                 Assert.That(serving.Resolve(defaultNodeId), Is.SameAs(explicitDefaultProvider));
+            }
+
+            void RegisterExplicitProviders()
+            {
+                candidate.RegisterForNode(nodeId, explicitNodeProvider);
+                candidate.RegisterForNamespace(kNamespaceUri, explicitNamespaceProvider);
+                candidate.RegisterDefault(explicitDefaultProvider);
             }
         }
 
