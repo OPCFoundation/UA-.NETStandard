@@ -1040,6 +1040,22 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Captures condition method identity and counters alongside snapshot attributes.
+        /// </summary>
+        /// <remarks>
+        /// The caller must serialize snapshot initialization with condition mutation.
+        /// Publication may occur after releasing that serialization gate.
+        /// </remarks>
+        /// <returns>The captured EventId and acknowledgement and confirmation state.</returns>
+        internal (ByteString EventId, ReportedConditionEvent Event) CaptureReportedEvent()
+        {
+            return (EventId is { } eventId ? eventId.Value : default, new ReportedConditionEvent(
+                this, false, false, m_acknowledgeCount, m_confirmCount,
+                this is AcknowledgeableConditionState { AckedState.Id.Value: true },
+                this is AcknowledgeableConditionState { ConfirmedState.Id.Value: true }));
+        }
+
+        /// <summary>
         /// Resolves the trunk or branch whose state an EventId identifies.
         /// </summary>
         /// <remarks>
@@ -1098,9 +1114,14 @@ namespace Opc.Ua
         /// </summary>
         private void RecordReportedEvent(IFilterTarget e)
         {
-            if (EventId is { } eventId &&
-                (ReferenceEquals(e, this) ||
-                    (e is InstanceStateSnapshot snapshot && ReferenceEquals(snapshot.Handle, this))))
+            if (e is InstanceStateSnapshot snapshot &&
+                ReferenceEquals(snapshot.Handle, this) &&
+                snapshot.ConditionEvent is { } captured &&
+                ReferenceEquals(captured.Owner, this))
+            {
+                GetRootCondition().RecordEventId(snapshot.ConditionEventId, captured);
+            }
+            else if (ReferenceEquals(e, this) && EventId is { } eventId)
             {
                 GetRootCondition().RecordEventId(this, eventId.Value);
             }
@@ -1112,6 +1133,17 @@ namespace Opc.Ua
         /// </summary>
         private void RecordEventId(ConditionState owner, ByteString eventId)
         {
+            var (_, reported) = owner.CaptureReportedEvent();
+            RecordEventId(eventId, reported);
+        }
+
+        /// <summary>
+        /// Registers captured condition method state without reading mutable owner attributes.
+        /// </summary>
+        /// <param name="eventId">The captured event identifier.</param>
+        /// <param name="reported">The captured acknowledgement and confirmation state.</param>
+        private void RecordEventId(ByteString eventId, ReportedConditionEvent reported)
+        {
             if (eventId.IsEmpty)
             {
                 return;
@@ -1120,9 +1152,7 @@ namespace Opc.Ua
             lock (m_reportedEventIdsLock)
             {
                 m_reportedEventIds ??= [];
-                if (!m_reportedEventIds.TryAdd(
-                    eventId,
-                    new ReportedConditionEvent(owner, false, false, owner.m_acknowledgeCount, owner.m_confirmCount)))
+                if (!m_reportedEventIds.TryAdd(eventId, reported))
                 {
                     return;
                 }
@@ -1217,22 +1247,28 @@ namespace Opc.Ua
         /// <param name="IsLive">True if the owner is the condition or one of its current branches.</param>
         /// <param name="AcknowledgeCount">The acknowledgements of the owner when the EventId was reported.</param>
         /// <param name="ConfirmCount">The confirmations of the owner when the EventId was reported.</param>
-        private protected sealed record class ReportedConditionEvent(
+        /// <param name="WasAcknowledged">Whether the captured state was already acknowledged.</param>
+        /// <param name="WasConfirmed">Whether the captured state was already confirmed.</param>
+        internal sealed record class ReportedConditionEvent(
             ConditionState Owner,
             bool IsCurrent,
             bool IsLive,
             uint AcknowledgeCount,
-            uint ConfirmCount)
+            uint ConfirmCount,
+            bool WasAcknowledged = false,
+            bool WasConfirmed = false)
         {
             /// <summary>
-            /// True if the owner was acknowledged after the EventId was reported.
+            /// True if the captured state was acknowledged or the owner was acknowledged after capture.
             /// </summary>
-            public bool AcknowledgedSince => !IsCurrent && Owner.m_acknowledgeCount != AcknowledgeCount;
+            public bool AcknowledgedSince =>
+                WasAcknowledged || (!IsCurrent && Owner.m_acknowledgeCount != AcknowledgeCount);
 
             /// <summary>
-            /// True if the owner was confirmed after the EventId was reported.
+            /// True if the captured state was confirmed or the owner was confirmed after capture.
             /// </summary>
-            public bool ConfirmedSince => !IsCurrent && Owner.m_confirmCount != ConfirmCount;
+            public bool ConfirmedSince =>
+                WasConfirmed || (!IsCurrent && Owner.m_confirmCount != ConfirmCount);
         }
 
         /// <summary>
