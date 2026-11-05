@@ -110,7 +110,10 @@ namespace Opc.Ua.Server.Tests.Network
                 .ConfigureAwait(false);
             Assert.That(original.Values, Does.Contain(NodeClass.Variable));
             Assert.That(original.Values, Does.Contain(NodeClass.Method));
-            Assert.That(original.Keys.Any(id => id.ToString().Contains(BrowseNames.InputArguments)), Is.True);
+            Assert.That(original.Keys.Any(id => id.IdentifierAsString.EndsWith(
+                "/" + BrowseNames.InputArguments, StringComparison.Ordinal)), Is.True);
+            Assert.That(original.Keys.Any(id => id.IdentifierAsString.Contains(
+                "%2F", StringComparison.OrdinalIgnoreCase)), Is.False);
 
             await TearDownAsync().ConfigureAwait(false);
             await StartServerAsync(prependNamespace: true).ConfigureAwait(false);
@@ -2007,6 +2010,98 @@ namespace Opc.Ua.Server.Tests.Network
                 .Speed.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That((await m_client.ReadStreamAsync(talker, cancellationToken).ConfigureAwait(false))
                 .StreamId.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+        }
+
+        /// <summary>
+        /// Repeated supplied names and standard-child names cannot alias stream-interface configuration nodes.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        [CancelAfter(60_000)]
+        public async Task StreamInterfaceNamesCannotAliasOrReplaceStableConfigurations(
+            bool talker, CancellationToken cancellationToken)
+        {
+            NodeId streamId = (await m_client.DiscoverStreamsAsync(talker, cancellationToken)
+                .ConfigureAwait(false))[0];
+            NetworkModelSnapshot snapshot = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            NetworkModelNodeManager manager = m_server.Server.CurrentInstance.NodeManager.AsyncNodeManagers
+                .OfType<NetworkModelNodeManager>().Single();
+            BaseVariableState? retainedName = null;
+            NodeId retainedId = NodeId.Null;
+            for (int phase = 0; phase < 2; phase++)
+            {
+                var delivered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                DateTime timestamp = snapshot.Timestamp.AddSeconds(1);
+                m_providerBoundary.AfterDelivery = current =>
+                {
+                    if (current.Timestamp == timestamp)
+                    {
+                        delivered.TrySetResult(true);
+                    }
+                };
+                string replacementId = phase == 0 ? "removed" : "replacement";
+                NetworkStreamSnapshot[] streams = snapshot.Streams.Span.ToArray();
+                for (int index = 0; index < streams.Length; index++)
+                {
+                    if (streams[index].IsTalker == talker)
+                    {
+                        streams[index] = streams[index] with
+                        {
+                            Interfaces =
+                            [
+                                new NetworkStreamInterfaceSnapshot("retained", "02:00:00:00:00:11")
+                                {
+                                    InterfaceName = phase == 0 ? "VlanTag" : "renamed"
+                                },
+                                new NetworkStreamInterfaceSnapshot(replacementId, "02:00:00:00:00:12")
+                                {
+                                    InterfaceName = "VlanTag"
+                                }
+                            ]
+                        };
+                    }
+                }
+                m_provider.Publish(snapshot with { Timestamp = timestamp, Streams = ArrayOf.Wrapped(streams) });
+                await delivered.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                ArrayOf<ReferenceDescription> children = await m_client.BrowseObjectsAsync(
+                    streamId, cancellationToken).ConfigureAwait(false);
+                foreach ((string id, string name, string address) in new[]
+                {
+                    ("retained", phase == 0 ? "VlanTag" : "renamed", "02:00:00:00:00:11"),
+                    (replacementId, "VlanTag", "02:00:00:00:00:12")
+                })
+                {
+                    ReferenceDescription child = children.ToList()
+                        .Single(value => value.BrowseName.Name == "Interface-" + id);
+                    NodeId configurationId = ExpandedNodeId.ToNodeId(child.NodeId, m_session.NamespaceUris);
+                    ArrayOf<NetworkParameterValue> values = await m_client.ReadParametersAsync(
+                        configurationId, cancellationToken).ConfigureAwait(false);
+                    NetworkParameterValue interfaceName = Parameter(values, BrowseNames.InterfaceName);
+                    Assert.That(interfaceName.DataValue.WrappedValue, Is.EqualTo(new Variant(name)));
+                    Assert.That(interfaceName.DataValue.SourceTimestamp, Is.EqualTo((DateTimeUtc)timestamp));
+                    Assert.That(Parameter(values, BrowseNames.MacAddress).DataValue.WrappedValue,
+                        Is.EqualTo(new Variant(address)));
+                    if (id == "retained")
+                    {
+                        BaseVariableState current = manager.FindPredefinedNode<BaseVariableState>(interfaceName.NodeId);
+                        if (phase == 0)
+                        {
+                            retainedId = configurationId;
+                            retainedName = current;
+                        }
+                        else
+                        {
+                            Assert.That(configurationId, Is.EqualTo(retainedId));
+                            Assert.That(current, Is.SameAs(retainedName));
+                        }
+                    }
+                }
+                Assert.That(children.ToList().Count(value => value.BrowseName.Name == BrowseNames.VlanTag),
+                    Is.EqualTo(1));
+                Assert.That(children.ToList().Any(value => value.BrowseName.Name == "Interface-removed"),
+                    Is.EqualTo(phase == 0));
+                snapshot = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            }
         }
 
         /// <summary>

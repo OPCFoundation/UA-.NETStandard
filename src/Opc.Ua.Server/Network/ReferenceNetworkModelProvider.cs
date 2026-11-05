@@ -403,14 +403,6 @@ namespace Opc.Ua.Server.Network
         }
 
         /// <summary>
-        /// Accepts an omitted optional address or an address of its standard fixed length.
-        /// </summary>
-        private static bool IsOptionalLength(ByteString value, int expectedLength)
-        {
-            return value.Length == 0 || value.Length == expectedLength;
-        }
-
-        /// <summary>
         /// Publishes an independent copy of the complete latest revision to active observers.
         /// </summary>
         private void NotifyWatchers()

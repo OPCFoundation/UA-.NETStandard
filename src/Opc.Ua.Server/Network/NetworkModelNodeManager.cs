@@ -689,7 +689,7 @@ namespace Opc.Ua.Server.Network
             {
                 BaseObjectState configuration = AddObject(
                     node,
-                    QualifiedComponentName(streamInterface.InterfaceName ?? streamInterface.Id),
+                    $"Interface-{streamInterface.Id}",
                     NodeIdFor(stream.IsTalker ? "talker" : "listener", stream.Id,
                         $"interface-{streamInterface.Id}"),
                     ObjectTypeIds.BaseObjectType,
@@ -872,7 +872,7 @@ namespace Opc.Ua.Server.Network
                     ? generated
                     : throw new ServiceResultException(StatusCodes.BadConfigurationError,
                         "The generated priority-mapping method is missing.");
-            method.NodeId = NodeIdFor(tableNode.NodeId.WithNamespaceIndex(0).ToString(), name);
+            method.NodeId = ChildNodeIdFor(tableNode.NodeId, name);
             method.BrowseName = new QualifiedName(name, 0);
             method.DisplayName = new LocalizedText(name);
             method.ReferenceTypeId = ReferenceTypeIds.HasComponent;
@@ -953,8 +953,7 @@ namespace Opc.Ua.Server.Network
                     }
                 ];
             var argumentsProperty = PropertyState<ArrayOf<Argument>>.With<StructureBuilder<Argument>>(method);
-            argumentsProperty.NodeId = NodeIdFor(
-                method.NodeId.WithNamespaceIndex(0).ToString(), BrowseNames.InputArguments);
+            argumentsProperty.NodeId = ChildNodeIdFor(method.NodeId, BrowseNames.InputArguments);
             argumentsProperty.BrowseName = new QualifiedName(BrowseNames.InputArguments, 0);
             argumentsProperty.DisplayName = new LocalizedText(BrowseNames.InputArguments);
             argumentsProperty.ReferenceTypeId = ReferenceTypeIds.HasProperty;
@@ -1019,7 +1018,7 @@ namespace Opc.Ua.Server.Network
                     is BaseVariableState typed ? typed : null;
             BaseVariableState variable = generated ??
                 (property ? new PropertyState(parent) : new BaseDataVariableState(parent));
-            variable.NodeId = NodeIdFor(parent.NodeId.WithNamespaceIndex(0).ToString(), name);
+            variable.NodeId = ChildNodeIdFor(parent.NodeId, name);
             variable.BrowseName = new QualifiedName(name, 0);
             variable.DisplayName = new LocalizedText(name);
             variable.ReferenceTypeId = property
@@ -1317,11 +1316,11 @@ namespace Opc.Ua.Server.Network
         }
 
         /// <summary>
-        /// Normalizes a stream-interface browse name while retaining provider identity in its NodeId.
+        /// Appends one escaped path component without formatting or re-escaping the parent identifier.
         /// </summary>
-        private static string QualifiedComponentName(string name)
+        private NodeId ChildNodeIdFor(NodeId parent, string name)
         {
-            return string.IsNullOrWhiteSpace(name) ? "Interface" : name;
+            return new NodeId($"{parent.IdentifierAsString}/{Uri.EscapeDataString(name)}", NamespaceIndex);
         }
 
         /// <summary>
