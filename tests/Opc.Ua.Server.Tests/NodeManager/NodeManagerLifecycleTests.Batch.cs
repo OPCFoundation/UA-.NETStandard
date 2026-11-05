@@ -37,6 +37,7 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Schema;
 using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.RuntimeNodeSet;
 using Opc.Ua.Tests;
@@ -1584,8 +1585,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             return factory.Object;
         }
 
+        /// <summary>
+        /// Constructs the lifecycle and routing publisher without starting server workers.
+        /// </summary>
         private sealed class BatchConflictHarness : IAsyncDisposable
         {
+            /// <summary>
+            /// Creates independent serving metadata and construction-bound lifecycle services.
+            /// </summary>
             public BatchConflictHarness()
             {
                 ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -1594,20 +1601,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     ApplicationUri = "urn:test:batch-conflict:server",
                     ServerConfiguration = new ServerConfiguration()
                 };
-                Server = new StandardServer(telemetry) { LoadComplexTypes = false };
+                var status = new ServerStatusValue(new ServerStatusState(null),
+                    new ServerStatusDataType { State = ServerState.Running }, new Lock());
                 Data = new ServerInternalData(new ServerProperties(), configuration,
-                    new ServiceMessageContext(telemetry, EncodeableFactory.Create()));
+                    new ServiceMessageContext(telemetry, EncodeableFactory.Create()), null, null, status);
                 Data.NamespaceUris.GetIndexOrAppend(DeterministicServerMock.TestNamespaceUri);
                 Data.TypeTree.AddSubtype(DataTypeIds.BaseDataType, NodeId.Null);
                 Data.TypeTree.AddSubtype(DataTypeIds.Structure, DataTypeIds.BaseDataType);
-                var status = new ServerStatusValue(new ServerStatusState(null),
-                    new ServerStatusDataType { State = ServerState.Running }, new Lock());
-                typeof(ServerInternalData).GetProperty("NonThreadSafeStatus",
-                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.SetValue(Data, status);
-                typeof(ServerBase).GetProperty("Configuration",
-                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.SetValue(Server, configuration);
-                typeof(StandardServer).GetField("m_serverInternal",
-                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.SetValue(Server, Data);
                 var mainFactory = new Mock<IMainNodeManagerFactory>();
                 var configurationNodeManager = new Mock<IConfigurationNodeManager>();
                 configurationNodeManager.As<IDiagnosticsNodeManager>()
@@ -1621,15 +1621,25 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 ServingManager = CreateManager(DeterministicServerMock.TestNamespaceUri);
                 Master = new MasterNodeManager(Data, configuration, null, [ServingManager.Object], null);
                 Data.SetNodeManager(Master);
-                Lifecycle = (NodeManagerLifecycle)Server.NodeManagerLifecycle;
+                var host = new Mock<INodeManagerLifecycleHost>(MockBehavior.Strict);
+                host.SetupGet(value => value.CurrentInstance).Returns(Data);
+                host.SetupGet(value => value.CurrentConfiguration).Returns(configuration);
+                host.Setup(value => value.PrepareComplexTypesAsync(
+                        It.IsAny<IServerInternal>(), It.IsAny<IAsyncNodeManager>(), It.IsAny<CancellationToken>()))
+                    .Returns(default(ValueTask<IDataTypeDefinitionResolver?>));
+                Lifecycle = new NodeManagerLifecycle(host.Object, TimeProvider.System, null);
                 Assert.That(Data.IsRunning, Is.True);
                 Assert.That(Master.AsyncNodeManagers, Does.Contain(ServingManager.Object));
             }
 
-            public StandardServer Server { get; }
             public ServerInternalData Data { get; }
             public MasterNodeManager Master { get; }
+
+            /// <summary>
+            /// Gets the lifecycle owning this harness's candidates and publication state.
+            /// </summary>
             public NodeManagerLifecycle Lifecycle { get; }
+
             public Mock<IAsyncNodeManager> ServingManager { get; }
 
             public Mock<IAsyncNodeManager> CreateManager(string namespaceUri)
@@ -1650,12 +1660,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             public async ValueTask DisposeAsync()
             {
-                // The facade was never started: no listeners, timers, sessions, or background workers exist.
                 Lifecycle.Dispose();
-                typeof(StandardServer).GetField("m_serverInternal",
-                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.SetValue(Server, null);
                 await Data.DisposeAsync().ConfigureAwait(false);
-                Server.Dispose();
             }
         }
     }
