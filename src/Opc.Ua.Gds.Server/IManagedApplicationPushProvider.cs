@@ -67,12 +67,14 @@ namespace Opc.Ua.Gds.Server
             IApplicationConfigurationPushTarget target,
             IPushConfigurationAuthorization authorization,
             IPendingCertificateKeyStore? pendingKeyStore = null,
-            IPushCertificateKeyGenerator? keyGenerator = null)
+            IPushCertificateKeyGenerator? keyGenerator = null,
+            IApplicationConfigurationFileProvider? configurationFileProvider = null)
         {
             Target = target ?? throw new ArgumentNullException(nameof(target));
             Authorization = authorization ?? throw new ArgumentNullException(nameof(authorization));
             PendingKeyStore = pendingKeyStore;
             KeyGenerator = keyGenerator;
+            ConfigurationFileProvider = configurationFileProvider;
         }
 
         /// <summary>
@@ -95,5 +97,12 @@ namespace Opc.Ua.Gds.Server
         /// Gets the regenerated-key provider, or null to use the standard additional-entropy generator.
         /// </summary>
         public IPushCertificateKeyGenerator? KeyGenerator { get; }
+
+        /// <summary>
+        /// Gets the optional application-specific configuration-file provider.
+        /// The provider remains externally owned and must not be shared with another application or the host.
+        /// Confirmation-required updates use an <see cref="IRecoverableApplicationConfigurationFileProvider"/>.
+        /// </summary>
+        public IApplicationConfigurationFileProvider? ConfigurationFileProvider { get; }
     }
 }

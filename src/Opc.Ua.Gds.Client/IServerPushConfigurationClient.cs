@@ -275,5 +275,24 @@ namespace Opc.Ua.Gds.Client
             double revertAfterTime,
             double restartDelayTime,
             CancellationToken ct = default);
+
+        /// <summary>
+        /// Updates one managed application's ConfigurationFile and confirms its returned update identifier
+        /// after reconnecting to the management server. The namespace URI is resolved again on the new session.
+        /// </summary>
+        /// <param name="applicationConfigurationId">The application instance's namespace-URI node address.</param>
+        /// <param name="configuration">The serialized configuration file content.</param>
+        /// <param name="targets">The explicit update targets within that application.</param>
+        /// <param name="revertAfterTime">The application's confirmation window in milliseconds.</param>
+        /// <param name="restartDelayTime">The delay before reconnecting, in milliseconds.</param>
+        /// <param name="ct">A token used to cancel the exchange.</param>
+        /// <returns>The update and confirmation outcome without redirecting to ServerConfiguration.</returns>
+        ValueTask<ConfigurationFileUpdateResult> UpdateApplicationConfigurationFileAsync(
+            ExpandedNodeId applicationConfigurationId,
+            ByteString configuration,
+            ArrayOf<ConfigurationUpdateTargetType> targets,
+            double revertAfterTime,
+            double restartDelayTime,
+            CancellationToken ct = default);
     }
 }

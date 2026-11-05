@@ -95,6 +95,71 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
+        /// A managed application's file is resolved on both sessions without using the host's configuration node.
+        /// </summary>
+        [Test]
+        public async Task ManagedApplicationUpdateRetainsSelectedOwnerAfterReconnect()
+        {
+            await using var fixture = new UpdateFixture();
+            fixture.ApplicationConfigurationId =
+                new ExpandedNodeId("application", "urn:managed:configuration:namespace");
+            fixture.RegisterApplicationNamespaceOnBothGenerations();
+            await fixture.ConnectAsync().ConfigureAwait(false);
+
+            ConfigurationFileUpdateResult result = await fixture.UpdateAsync().ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(ConfigurationFileUpdateOutcome.Confirmed));
+            Assert.That(result.UpdateId, Is.EqualTo(fixture.UpdateId));
+            fixture.AssertSingleUpdateAndConfirmation();
+        }
+
+        /// <summary>
+        /// An unknown application namespace is rejected before upload rather than redirected to the host.
+        /// </summary>
+        [Test]
+        public async Task ManagedApplicationUnknownNamespaceDoesNotMutateHostConfiguration()
+        {
+            await using var fixture = new UpdateFixture();
+            fixture.ApplicationConfigurationId =
+                new ExpandedNodeId("application", "urn:managed:configuration:unknown");
+            await fixture.ConnectAsync().ConfigureAwait(false);
+
+            ServiceResultException? rejected = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await fixture.UpdateAsync().ConfigureAwait(false)).ConfigureAwait(false);
+
+            Assert.That(rejected!.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            Assert.That(fixture.FirstCalls, Is.Empty);
+            Assert.That(fixture.SecondCalls, Is.Empty);
+            Assert.That(fixture.ConnectionCount, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Application updates require namespace-stable local instance addresses.
+        /// </summary>
+        [TestCase("null")]
+        [TestCase("index")]
+        [TestCase("remote")]
+        [TestCase("standard")]
+        public async Task ManagedApplicationUpdateRejectsUnstableOrNonApplicationAddress(string address)
+        {
+            await using var fixture = new UpdateFixture();
+            fixture.ApplicationConfigurationId = address switch
+            {
+                "null" => ExpandedNodeId.Null,
+                "index" => new ExpandedNodeId("application", 2),
+                "remote" => new ExpandedNodeId("application", "urn:managed:configuration:namespace", 1),
+                "standard" => new ExpandedNodeId("application", Namespaces.OpcUa),
+                _ => throw new ArgumentOutOfRangeException(nameof(address))
+            };
+
+            Assert.Throws<ArgumentException>(() =>
+                fixture.Client.UpdateApplicationConfigurationFileAsync(
+                    fixture.ApplicationConfigurationId, UpdateFixture.Content, UpdateFixture.Targets, 30_000, 0));
+            Assert.That(fixture.FirstCalls, Is.Empty);
+            Assert.That(fixture.ConnectionCount, Is.Zero);
+        }
+
+        /// <summary>
         /// The restart interval elapses before reconnect and confirmation, even when staging already returned.
         /// </summary>
         [Test]
@@ -265,6 +330,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             public ServerPushConfigurationClient Client { get; }
 
             /// <summary>
+            /// Gets or sets the managed configuration owner, or null for the management server itself.
+            /// </summary>
+            public ExpandedNodeId ApplicationConfigurationId { get; set; }
+
+            /// <summary>
             /// Gets or sets whether the server requires confirmation.
             /// </summary>
             public bool RequiresConfirmation { get; set; } = true;
@@ -320,11 +390,27 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             }
 
             /// <summary>
+            /// Publishes the same application namespace at different indexes on the two session generations.
+            /// </summary>
+            public void RegisterApplicationNamespaceOnBothGenerations()
+            {
+                ushort firstIndex = First.InnerSession.NamespaceUris.GetIndexOrAppend(
+                    ApplicationConfigurationId.NamespaceUri!);
+                m_reconnected.NamespaceUris.GetIndexOrAppend("urn:managed:configuration:second-generation");
+                ushort secondIndex = m_reconnected.NamespaceUris.GetIndexOrAppend(
+                    ApplicationConfigurationId.NamespaceUri!);
+                Assert.That(firstIndex, Is.Not.EqualTo(secondIndex));
+            }
+
+            /// <summary>
             /// Uploads one exact versioned update with the selected rollback and restart intervals.
             /// </summary>
             public ValueTask<ConfigurationFileUpdateResult> UpdateAsync(double restartDelayTime = 0)
             {
-                return Client.UpdateConfigurationFileAsync(Content, Targets, 30_000, restartDelayTime);
+                return ApplicationConfigurationId.IsNull
+                    ? Client.UpdateConfigurationFileAsync(Content, Targets, 30_000, restartDelayTime)
+                    : Client.UpdateApplicationConfigurationFileAsync(
+                        ApplicationConfigurationId, Content, Targets, 30_000, restartDelayTime);
             }
 
             /// <summary>
@@ -372,7 +458,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     Assert.That(translate.BrowsePaths[0].StartingNode,
                         Is.EqualTo(child == Ua.BrowseNames.ConfigurationFile
                             ? ExpandedNodeId.ToNodeId(
-                                Ua.ObjectIds.ServerConfiguration, First.MessageContext.NamespaceUris)
+                                ApplicationConfigurationId.IsNull
+                                    ? Ua.ObjectIds.ServerConfiguration
+                                    : ApplicationConfigurationId,
+                                reconnected ? m_reconnected.NamespaceUris : First.InnerSession.NamespaceUris)
                             : new NodeId("configuration-file", 1)));
                     var targetId = new ExpandedNodeId(
                         child == Ua.BrowseNames.ConfigurationFile ? "configuration-file" : "configuration-version", 1);

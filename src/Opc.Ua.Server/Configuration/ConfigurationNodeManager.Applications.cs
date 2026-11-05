@@ -41,6 +41,14 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Excludes the host's provider from independently managed application configuration.
+        /// </summary>
+        internal bool UsesConfigurationFileProvider(IApplicationConfigurationFileProvider provider)
+        {
+            return ReferenceEquals(m_serverConfigurationOptions.ConfigurationFileProvider, provider);
+        }
+
+        /// <summary>
         /// Checks against the host engine's actual configuration rather than relying on a caller's descriptor.
         /// </summary>
         internal void ValidateManagedApplicationIsolation(ApplicationConfiguration application)
@@ -71,6 +79,14 @@ namespace Opc.Ua.Server
                 .AddProductUri(context)
                 .AddApplicationType(context)
                 .AddApplicationNames(context);
+            if (m_serverConfigurationOptions.ConfigurationFileProvider != null)
+            {
+                node.AddConfigurationFile(context);
+            }
+            else
+            {
+                node.ConfigurationFile = null;
+            }
 
             CertificateGroupFolderState groups = node.CertificateGroups ??
                 throw new ArgumentException("The application has no certificate-groups folder.", nameof(node));
@@ -106,6 +122,52 @@ namespace Opc.Ua.Server
             foreach (ServerCertificateGroup group in m_certificateGroups)
             {
                 WrapTrustListCalls(group.Node!.TrustList!, binding);
+            }
+            if (node.ConfigurationFile != null)
+            {
+                WrapConfigurationFileCalls(node.ConfigurationFile, binding);
+            }
+        }
+
+        /// <summary>
+        /// Admits all application file operations through the same deployment, registrar and software policy.
+        /// </summary>
+        private void WrapConfigurationFileCalls(
+            ApplicationConfigurationFileState node,
+            ApplicationConfigurationPushBinding binding)
+        {
+            var open = node.Open!.OnCallAsync!;
+            node.Open.OnCallAsync = (c, m, o, mode, ct) =>
+                RunAsync(c, () => open(c, m, o, mode, ct), ct);
+            var read = node.Read!.OnCallAsync!;
+            node.Read.OnCallAsync = (c, m, o, handle, length, ct) =>
+                RunAsync(c, () => read(c, m, o, handle, length, ct), ct);
+            var write = node.Write!.OnCallAsync!;
+            node.Write.OnCallAsync = (c, m, o, handle, data, ct) =>
+                RunAsync(c, () => write(c, m, o, handle, data, ct), ct);
+            var close = node.Close!.OnCallAsync!;
+            node.Close.OnCallAsync = (c, m, o, handle, ct) =>
+                RunAsync(c, () => close(c, m, o, handle, ct), ct);
+            var getPosition = node.GetPosition!.OnCallAsync!;
+            node.GetPosition.OnCallAsync = (c, m, o, handle, ct) =>
+                RunAsync(c, () => getPosition(c, m, o, handle, ct), ct);
+            var setPosition = node.SetPosition!.OnCallAsync!;
+            node.SetPosition.OnCallAsync = (c, m, o, handle, position, ct) =>
+                RunAsync(c, () => setPosition(c, m, o, handle, position, ct), ct);
+            var update = node.CloseAndUpdate!.OnCallAsync!;
+            node.CloseAndUpdate.OnCallAsync = (c, m, o, handle, version, targets, revert, restart, ct) =>
+                RunAsync(c, () => update(c, m, o, handle, version, targets, revert, restart, ct), ct);
+            var confirm = node.ConfirmUpdate!.OnCallAsync!;
+            node.ConfirmUpdate.OnCallAsync = (c, m, o, id, ct) =>
+                RunAsync(c, () => confirm(c, m, o, id, ct), ct);
+
+            ValueTask<T> RunAsync<T>(ISystemContext context, Func<ValueTask<T>> action, CancellationToken ct)
+            {
+                return binding.RunAsync(async () =>
+                {
+                    await AuthorizePushMutationAsync(context, false, ct).ConfigureAwait(false);
+                    return await action().ConfigureAwait(false);
+                }, ct);
             }
         }
 

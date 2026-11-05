@@ -52,7 +52,8 @@ namespace Opc.Ua.Server
             IApplicationConfigurationPushTarget target,
             IPushConfigurationAuthorization authorization,
             IPendingCertificateKeyStore? pendingKeyStore = null,
-            IPushCertificateKeyGenerator? keyGenerator = null)
+            IPushCertificateKeyGenerator? keyGenerator = null,
+            IApplicationConfigurationFileProvider? configurationFileProvider = null)
         {
             if (server == null)
             {
@@ -76,6 +77,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(authorization));
             }
             m_operations = authorization as IApplicationConfigurationPushOperations;
+            m_hasConfigurationFile = configurationFileProvider != null;
             ApplicationConfiguration configuration = target.Configuration ??
                 throw new ArgumentException("The target has no configuration.", nameof(target));
             if (string.IsNullOrEmpty(configuration.ApplicationUri) ||
@@ -96,7 +98,7 @@ namespace Opc.Ua.Server
             }
             IPendingCertificateKeyStore pendingKeys = pendingKeyStore ?? new DirectoryPendingCertificateKeyStore();
             m_registry = s_registries.GetValue(server, static _ => new BindingRegistry());
-            m_registry.Reserve(configuration, managementConfiguration, pendingKeys,
+            m_registry.Reserve(configuration, managementConfiguration, pendingKeys, configurationFileProvider,
                 server.ConfigurationNodeManager as ConfigurationNodeManager);
             try
             {
@@ -110,7 +112,8 @@ namespace Opc.Ua.Server
                     keyGenerator: keyGenerator,
                     serverConfigurationOptions: new ServerConfigurationOptions
                     {
-                        PushAuthorization = authorization
+                        PushAuthorization = authorization,
+                        ConfigurationFileProvider = configurationFileProvider
                     });
                 m_manager.BindApplicationConfiguration(context, node, target, this);
             }
@@ -138,6 +141,22 @@ namespace Opc.Ua.Server
         public Task DrainPendingApplyChangesAsync(CancellationToken cancellationToken = default)
         {
             return m_manager.DrainPendingApplyChangesAsync(cancellationToken);
+        }
+
+        /// <summary>
+        /// Recovers this application's durable configuration update before its nodes are published.
+        /// </summary>
+        public async ValueTask RecoverConfigurationFileUpdateAsync(CancellationToken cancellationToken = default)
+        {
+            if (!m_hasConfigurationFile)
+            {
+                return;
+            }
+            await RunAsync(async () =>
+            {
+                await m_manager.RecoverConfigurationFileUpdateAsync(cancellationToken).ConfigureAwait(false);
+                return true;
+            }, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -393,6 +412,7 @@ namespace Opc.Ua.Server
                 ApplicationConfiguration configuration,
                 ApplicationConfiguration managementConfiguration,
                 IPendingCertificateKeyStore pendingKeyStore,
+                IApplicationConfigurationFileProvider? configurationFileProvider,
                 ConfigurationNodeManager? host)
             {
                 lock (m_sync)
@@ -403,6 +423,14 @@ namespace Opc.Ua.Server
                     {
                         throw new ArgumentException("The target cannot reuse the management server's pending keys.",
                             nameof(pendingKeyStore));
+                    }
+                    if (configurationFileProvider != null &&
+                        (host?.UsesConfigurationFileProvider(configurationFileProvider) == true ||
+                            m_configurationFiles.ContainsValue(configurationFileProvider)))
+                    {
+                        throw new ArgumentException(
+                            "The target cannot reuse another application's configuration-file provider.",
+                            nameof(configurationFileProvider));
                     }
                     foreach (KeyValuePair<ApplicationConfiguration, IPendingCertificateKeyStore> existing
                         in m_applications)
@@ -415,6 +443,10 @@ namespace Opc.Ua.Server
                         }
                     }
                     m_applications.Add(configuration, pendingKeyStore);
+                    if (configurationFileProvider != null)
+                    {
+                        m_configurationFiles.Add(configuration, configurationFileProvider);
+                    }
                 }
             }
 
@@ -426,6 +458,7 @@ namespace Opc.Ua.Server
                 lock (m_sync)
                 {
                     m_applications.Remove(configuration);
+                    m_configurationFiles.Remove(configuration);
                 }
             }
 
@@ -434,6 +467,10 @@ namespace Opc.Ua.Server
 
             /// <summary>The configurations and pending keys reserved until their bindings have drained.</summary>
             private readonly Dictionary<ApplicationConfiguration, IPendingCertificateKeyStore> m_applications = [];
+
+            /// <summary>The externally owned configuration providers reserved by live bindings.</summary>
+            private readonly Dictionary<ApplicationConfiguration, IApplicationConfigurationFileProvider>
+                m_configurationFiles = [];
         }
 
         /// <summary>The externally owned application runtime.</summary>
@@ -441,6 +478,9 @@ namespace Opc.Ua.Server
 
         /// <summary>The deployment admission shared by calls and deferred effects.</summary>
         private readonly IApplicationConfigurationPushOperations? m_operations;
+
+        /// <summary>Whether this binding exposes an independently configured application file.</summary>
+        private readonly bool m_hasConfigurationFile;
 
         /// <summary>The binding-owned push engine.</summary>
         private readonly ConfigurationNodeManager m_manager;

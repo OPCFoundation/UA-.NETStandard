@@ -225,6 +225,24 @@ after restart. Reconnection failure leaves the returned identifier pending;
 the client does not repeat the update or cancel the server's revert deadline.
 See [provider migration](MigrationGuide.md#migrating-confirmation-enabled-configurationfile-providers).
 
+For an application exposed under a management server's `ManagedApplications`
+folder or as a provisionable-device component, use its namespace-URI node address:
+
+```csharp
+ExpandedNodeId applicationNode = ExpandedNodeId.ToExpandedNodeId(
+    applicationConfigurationNodeId, pushClient.Session!.NamespaceUris);
+ConfigurationFileUpdateResult result = await pushClient.UpdateApplicationConfigurationFileAsync(
+    applicationNode, configurationFile, targets,
+    revertAfterTime: 30_000, restartDelayTime: 0);
+```
+
+Connect this owned client to the management server, not to the managed
+application's endpoint. The method resolves the selected application's
+`ConfigurationFile` on both session generations. It resolves the namespace URI
+again after reconnecting and never substitutes the host's `ServerConfiguration`
+when the application namespace or file is unavailable. The same result and
+uncertain-outcome rules apply as for the host's own file.
+
 ### OPC 10000-21 OnboardingClient
 
 `Opc.Ua.Gds` ships the generated `Opc.Ua.Onboarding` model,
@@ -1699,8 +1717,44 @@ its affected channels after the method response grace period.
 `ApplyTrustListChangesAsync` revalidates the target's channels and certificate
 user identities. Providers implement these effects against their own runtime;
 the binding does not close the management server's channels on their behalf.
-The runtime provider does not implement a ConfigurationFile proxy to a remote
-application.
+
+An application registration can expose its own `ConfigurationFile` through the
+same remote node:
+
+```csharp
+var registration = new ManagedApplicationPushRegistration(
+    applicationTarget, applicationAuthorization,
+    configurationFileProvider: applicationConfigurationFileProvider);
+```
+
+The provider belongs to that application and remains externally owned.
+Bindings reject reuse of the host's or a sibling application's provider instance.
+Distinct provider objects must also use independent backing state; the binding
+cannot inspect arbitrary external storage aliases. Without a provider, the
+optional file node is absent. Metadata-only `IConfigurationDataStore` entries do
+not acquire live file handlers.
+
+When confirmation is required, the provider implements
+`IRecoverableApplicationConfigurationFileProvider`. Startup recovers each
+application's pending update before publishing that application: a due update is
+applied, an expired update is reverted, and an already-applied update retains its
+original confirmation identifier. File calls use the application's standard
+channel and SecurityAdmin checks plus its registered policy. On a provisionable
+device they also check the installed registrar and software approval. Deferred
+apply and revert effects re-enter the deployment gate after their timer expires;
+they do not retain admission during the delay or run after deployment revocation.
+Shutdown cancels the timers and drains active file effects before releasing the
+binding.
+
+The connected application fixture
+`EncryptedChannelRoutesIndependentApplicationsAndEnforcesSecurityAdmin` covers
+file upload and exact-identifier confirmation on the selected runtime, and
+rejects an observer's file read before provider access.
+`ProvisionableDeviceFactoryRecoversApplicationConfigurationBeforePublishing`
+covers applied, due and expired recovery through the actual device factory.
+`ManagedApplicationUpdateRetainsSelectedOwnerAfterReconnect` covers namespace
+index changes between client session generations. These are test-source
+references, not an assertion that the current head has passed execution.
 
 For a non-singleton device, register a separate
 `IProvisionableDeviceApplicationsProvider` with the server builder:
@@ -1999,16 +2053,17 @@ These optional members are exposed **only when their backing option/provider is 
 
 ### GDS-managed applications proxy (§7.10.14–§7.10.16)
 
-The ManagedApplications folder supports independent in-process application
-targets through `IManagedApplicationPushProvider`. Metadata-only registration
-does not supply push handlers. The generic ConfigurationFile client method
-targets the connected server's own `ServerConfiguration`; it does not select or
-update a remote ManagedApplications entry.
+The ManagedApplications folder supports independent runtime targets through
+`IManagedApplicationPushProvider`, including an optional configuration-file
+provider on each registration. Metadata-only registration does not supply push
+handlers. `UpdateApplicationConfigurationFileAsync` selects an application by
+namespace-URI node address and confirms its update after reconnecting to the
+management server; `UpdateConfigurationFileAsync` targets the host itself.
 
 | Section | Feature | Status | Source |
 |---------|---------|--------|--------|
-| §7.10.14 | `ApplicationConfigurationType` | ⚠️ | Runtime-backed registrations bind independent certificate and trust handlers; connected multiapplication lifecycle evidence remains incomplete |
-| §7.10.16 | `ManagedApplications` folder | ⚠️ | `DefaultManagedApplicationsNodeManager` supports metadata or runtime providers; remote ConfigurationFile transactions for individual ManagedApplications entries remain unimplemented |
+| §7.10.14 | `ApplicationConfigurationType` | 🔲 provider-gated | Runtime-backed registrations bind independent certificate, trust and optional configuration-file handlers. File transfer and open-handle limitations are listed separately below |
+| §7.10.16 | `ManagedApplications` folder | 🔲 provider-gated | `DefaultManagedApplicationsNodeManager` supports metadata or runtime providers; runtime entries expose per-application update, confirmation and restart recovery through their configured file providers |
 
 ## TrustList (§7.8)
 
@@ -2118,7 +2173,7 @@ conformance units separately.
 |----------|--------|-------|
 | `ServerConfiguration.AuthorizationServices` folder (§9.6.2 / *Authorization Service Configuration Server* CU) | ❌ not exposed | A push Server does not expose the configuration folder listing trusted Authorization Services. Client access-token validation is instead handled by the pluggable [Identity Providers](IdentityProviders.md). |
 | `ConfigurationFile` transfer and FileType open handles (§7.8.5.1; Part 20 §4.2.2) | ⚠️ partial | The client does not read the existing content or rewind before writing; this server starts a Read + Write stream empty, while Read-only opens load provider content. The server replaces an existing handle on each successful new open instead of retaining multiple readers or rejecting incompatible opens with `Bad_NotWritable` / `Bad_NotReadable`. Replacement behavior for shorter content on other servers is not established. |
-| `ManagedApplications` / `ApplicationConfigurationType` proxy (§7.10.14–§7.10.16) | ⚠️ partial | `ServerPushConfigurationClient` updates only the connected server's own `ServerConfiguration`; it does not target individual managed applications. `DefaultManagedApplicationsNodeManager` creates metadata-backed nodes using metadata supplied by `IConfigurationDataStore`; those nodes have no push handlers. Runtime providers bind independent in-process certificate and trust management. Per-entry remote `ConfigurationFile` update/confirm remains unimplemented. Connected recovery fixtures are present; their execution result is tracked separately. |
+| `ManagedApplications` / `ApplicationConfigurationType` proxy (§7.10.14–§7.10.16) | 🔲 provider-gated | Runtime-backed entries bind independent certificate and trust management plus an optional per-application `ConfigurationFile` provider with update, confirmation and restart recovery. `UpdateApplicationConfigurationFileAsync` selects the same application after reconnecting. Metadata-only `IConfigurationDataStore` entries have no push handlers. The shared ConfigurationFile transfer and open-handle limitations above apply to application files too |
 | KeyCredential authentication `ProfileUris` — AMQP SASL Plain / MQTT UserName / UA transport UserName (§8, optional CUs) | 🔲 provider-defined | The push binding is implemented; the concrete ProfileUri set advertised is defined by the credential provider, not fixed by the stack. |
 | A & C CertificateExpiration optional CUs — *Comment* / *Confirm* / *Shelving* | 🔲 inherited | Available through the standard OPC 10000-9 condition model on the alarm instances; not separately exercised by the certificate-alarm tests. |
 | Onboarding / OPC 10000-21 device setup interplay with `ResetToServerDefaults` / `InApplicationSetup` (§7.10.13, Annex G) | ⚠️ partial | Ticket administration, signing, ticket-scoped identity trust, composite-aware selection and registrar runtime bindings are implemented. GDS issuance receipts and the file-backed registrar lifecycle provider retain state across restart for a single-host deployment. Push queue acceptance remains process-local, so a deployment must retry or reconcile accepted work after restart. Connected recovery fixtures are present; their execution and interoperability results are not asserted here. |

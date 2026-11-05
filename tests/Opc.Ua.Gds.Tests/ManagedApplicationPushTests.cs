@@ -89,11 +89,14 @@ namespace Opc.Ua.Gds.Tests
                 [Role.AuthenticatedUser, Role.SecurityAdmin]), Is.True);
             Assert.That(users.CreateUser("observer", Encoding.UTF8.GetBytes(password),
                 [Role.AuthenticatedUser]), Is.True);
+            Mock<IRecoverableApplicationConfigurationFileProvider> configurationFile =
+                CreateConfigurationFileProvider();
             var applications = new Mock<IManagedApplicationPushProvider>();
             applications.Setup(value => value.GetApplicationsAsync(It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<ArrayOf<ManagedApplicationPushRegistration>>(
                 [
-                    new(first, Mock.Of<IPushConfigurationAuthorization>()),
+                    new(first, Mock.Of<IPushConfigurationAuthorization>(),
+                        configurationFileProvider: configurationFile.Object),
                     new(second, Mock.Of<IPushConfigurationAuthorization>())
                 ]));
             var services = new ServiceCollection();
@@ -207,6 +210,33 @@ namespace Opc.Ua.Gds.Tests
                 var (_, stillAccessible) = await secondClient.GetCertificatesAsync(NodeId.Null, timeout.Token)
                     .ConfigureAwait(false);
                 Assert.That(stillAccessible[0], Is.EqualTo(secondCertificate.RawData.ToByteString()));
+
+                ApplicationConfigurationFileTypeClient? firstFile =
+                    await firstClient.GetConfigurationFileAsync(s_telemetry, timeout.Token).ConfigureAwait(false);
+                Assert.That(firstFile, Is.Not.Null);
+                Assert.That(await secondClient.GetConfigurationFileAsync(s_telemetry, timeout.Token)
+                    .ConfigureAwait(false), Is.Null);
+                uint fileHandle = await firstFile!.OpenAsync(
+                    (byte)(OpenFileMode.Read | OpenFileMode.Write), timeout.Token).ConfigureAwait(false);
+                ByteString content = ByteString.From(new byte[] { 1, 2, 3 });
+                await firstFile.WriteAsync(fileHandle, content, timeout.Token).ConfigureAwait(false);
+                var update = await firstFile.CloseAndUpdateAsync(
+                    fileHandle, 1,
+                    [new ConfigurationUpdateTargetType
+                    {
+                        Path = "ApplicationIdentity",
+                        UpdateType = ConfigurationUpdateType.InsertOrReplace
+                    }],
+                    0, 0, timeout.Token).ConfigureAwait(false);
+                Assert.That(update.newVersion, Is.EqualTo(2));
+                Assert.That(update.updateId.Guid, Is.Not.EqualTo(Guid.Empty));
+                await firstFile.ConfirmUpdateAsync(update.updateId, timeout.Token).ConfigureAwait(false);
+                configurationFile.Verify(provider => provider.ValidateConfigurationAsync(
+                    content, It.IsAny<CancellationToken>()), Times.Once);
+                configurationFile.Verify(provider => provider.ApplyPendingUpdateAsync(
+                    update.updateId, It.IsAny<CancellationToken>()), Times.Once);
+                configurationFile.Verify(provider => provider.ConfirmPendingUpdateAsync(
+                    update.updateId, It.IsAny<CancellationToken>()), Times.Once);
                 await session.CloseAsync(5000, true).ConfigureAwait(false);
 
                 using Opc.Ua.Client.ISession observer = await client.ConnectAsync(
@@ -217,6 +247,13 @@ namespace Opc.Ua.Gds.Tests
                     await observerClient.GetCertificatesAsync(NodeId.Null).ConfigureAwait(false))
                     .ConfigureAwait(false);
                 Assert.That(denied!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                var observerFile = new ApplicationConfigurationFileTypeClient(
+                    observer, firstFile.ObjectId, s_telemetry);
+                ServiceResultException? fileDenied = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await observerFile.OpenAsync((byte)OpenFileMode.Read).ConfigureAwait(false)).ConfigureAwait(false);
+                Assert.That(fileDenied!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                configurationFile.Verify(provider => provider.ReadConfigurationAsync(
+                    It.IsAny<CancellationToken>()), Times.Never);
                 await observer.CloseAsync(5000, true).ConfigureAwait(false);
             }
             finally
@@ -1044,6 +1081,213 @@ namespace Opc.Ua.Gds.Tests
         }
 
         /// <summary>
+        /// A configuration provider cannot be shared by sibling bindings, and shutdown releases its reservation.
+        /// </summary>
+        [Test]
+        public async Task ManagedConfigurationFileProviderCannotBeSharedAndIsReleasedAfterDisposal()
+        {
+            using var first = await TestTarget.CreateAsync("urn:managed:file-isolation:first").ConfigureAwait(false);
+            using var second = await TestTarget.CreateAsync("urn:managed:file-isolation:second").ConfigureAwait(false);
+            Mock<IRecoverableApplicationConfigurationFileProvider> file = CreateConfigurationFileProvider();
+            var firstRegistration = new ManagedApplicationPushRegistration(
+                first, Mock.Of<IPushConfigurationAuthorization>(), configurationFileProvider: file.Object);
+            var secondRegistration = new ManagedApplicationPushRegistration(
+                second, Mock.Of<IPushConfigurationAuthorization>(), configurationFileProvider: file.Object);
+            await using (DefaultManagedApplicationsNodeManager rejected =
+                CreateRegisteredManager(firstRegistration, secondRegistration))
+            {
+                ArgumentException? error = await Assert.ThrowsAsync<ArgumentException>(async () =>
+                    await rejected.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
+                        .ConfigureAwait(false)).ConfigureAwait(false);
+                Assert.That(error!.ParamName, Is.EqualTo("configurationFileProvider"));
+                Assert.That(rejected.ApplicationNodes.Keys,
+                    Is.EquivalentTo(new[] { first.Configuration.ApplicationUri }));
+            }
+
+            await using DefaultManagedApplicationsNodeManager retry = CreateRegisteredManager(secondRegistration);
+            await retry.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
+            Assert.That(retry.ApplicationNodes[second.Configuration.ApplicationUri!].ConfigurationFile, Is.Not.Null);
+        }
+
+        /// <summary>
+        /// Recovery failure does not publish an application or retain a reservation that prevents a corrected retry.
+        /// </summary>
+        [Test]
+        public async Task ManagedConfigurationRecoveryFailureDoesNotPublishApplicationOrRetainBinding()
+        {
+            using var target = await TestTarget.CreateAsync("urn:managed:file-recovery-failure").ConfigureAwait(false);
+            Mock<IRecoverableApplicationConfigurationFileProvider> file = CreateConfigurationFileProvider();
+            file.Setup(provider => provider.GetPendingUpdateAsync(It.IsAny<CancellationToken>()))
+                .Throws(new ServiceResultException(StatusCodes.BadResourceUnavailable));
+            var registration = new ManagedApplicationPushRegistration(
+                target, Mock.Of<IPushConfigurationAuthorization>(), configurationFileProvider: file.Object);
+            await using (DefaultManagedApplicationsNodeManager rejected = CreateRegisteredManager(registration))
+            {
+                ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await rejected.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
+                        .ConfigureAwait(false)).ConfigureAwait(false);
+                Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadResourceUnavailable));
+                Assert.That(rejected.ApplicationNodes, Is.Empty);
+            }
+
+            file.Setup(provider => provider.GetPendingUpdateAsync(It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask<PendingApplicationConfigurationUpdate?>));
+            await using DefaultManagedApplicationsNodeManager retry = CreateRegisteredManager(registration);
+            await retry.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
+            Assert.That(retry.ApplicationNodes[target.Configuration.ApplicationUri!].ConfigurationFile, Is.Not.Null);
+        }
+
+        /// <summary>
+        /// The real factory recovers the selected application's update before publishing stable file nodes.
+        /// </summary>
+        [TestCase("applied")]
+        [TestCase("due")]
+        [TestCase("expired")]
+        public async Task ProvisionableDeviceFactoryRecoversApplicationConfigurationBeforePublishing(string state)
+        {
+            using var target = await TestTarget.CreateAsync("urn:managed:device:file-recovery").ConfigureAwait(false);
+            Mock<IRecoverableApplicationConfigurationFileProvider> fileProvider = CreateConfigurationFileProvider();
+            Uuid updateId = Uuid.NewUuid();
+            var pending = new PendingApplicationConfigurationUpdate(
+                updateId, DateTime.UtcNow.AddMinutes(-10),
+                state == "expired" ? DateTime.UtcNow.AddMinutes(-5) : null,
+                state != "due");
+            fileProvider.Setup(provider => provider.GetPendingUpdateAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<PendingApplicationConfigurationUpdate?>(pending));
+            var applications = new Mock<IProvisionableDeviceApplicationsProvider>();
+            applications.Setup(provider => provider.GetApplicationsAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ArrayOf<ManagedApplicationPushRegistration>>(
+                [
+                    new(target, Mock.Of<IPushConfigurationAuthorization>(),
+                        configurationFileProvider: fileProvider.Object)
+                ]));
+            var security = new Mock<IProvisionableDeviceSecurity>();
+            security.Setup(value => value.CreateApplicationOperations()).Returns(new TestApplicationOperations());
+            IAsyncNodeManager manager = await CreateProvisionableDeviceNodeManagerAsync(
+                false, applications.Object, security.Object).ConfigureAwait(false);
+            try
+            {
+                await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
+                    .ConfigureAwait(false);
+                ushort namespaceIndex = checked((ushort)ReferenceServer.CurrentInstance.NamespaceUris.GetIndex(
+                    ProvisionableDeviceNodeManagerFactory.NamespaceUri));
+                object handle = await manager.GetManagerHandleAsync(
+                    new NodeId($"Application:{target.Configuration.ApplicationUri}", namespaceIndex))
+                    .ConfigureAwait(false);
+                var application = (ApplicationConfigurationState)((NodeHandle)handle).Node;
+                ApplicationConfigurationFileState file = application.ConfigurationFile!;
+                Assert.That(file, Is.Not.Null);
+                var children = new List<BaseInstanceState>();
+                file.GetChildren(((AsyncCustomNodeManager)manager).SystemContext, children);
+                Assert.That(children, Is.Not.Empty);
+                Assert.That(children.Select(child => child.NodeId.NamespaceIndex),
+                    Has.All.EqualTo(namespaceIndex));
+                Assert.That(children.Select(child => child.NodeId).Distinct().Count(), Is.EqualTo(children.Count));
+                fileProvider.Verify(provider => provider.GetPendingUpdateAsync(
+                    It.IsAny<CancellationToken>()), Times.Once);
+                fileProvider.Verify(provider => provider.ApplyPendingUpdateAsync(
+                    updateId, It.IsAny<CancellationToken>()), state == "due" ? Times.Once() : Times.Never());
+                fileProvider.Verify(provider => provider.RevertPendingUpdateAsync(
+                    updateId, It.IsAny<CancellationToken>()), state == "expired" ? Times.Once() : Times.Never());
+
+                ConfigurationFileConfirmUpdateMethodStateResult confirmation = await file.ConfirmUpdate!.OnCallAsync!(
+                    ((AsyncCustomNodeManager)manager).SystemContext, file.ConfirmUpdate, file.NodeId,
+                    updateId, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(confirmation.ServiceResult.StatusCode,
+                    Is.EqualTo(state == "expired" ? StatusCodes.BadInvalidArgument : StatusCodes.Good));
+                fileProvider.Verify(provider => provider.ConfirmPendingUpdateAsync(
+                    updateId, It.IsAny<CancellationToken>()), state == "expired" ? Times.Never() : Times.Once());
+                security.Verify(value => value.RequireInstalledRegistrarAsync(
+                    It.IsAny<ISystemContext>(), It.IsAny<CancellationToken>()), Times.Once);
+            }
+            finally
+            {
+                await ((IAsyncDisposable)manager).DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Configuration-file reads and writes cannot bypass registrar policy or survive deployment revocation.
+        /// </summary>
+        [Test]
+        public async Task ProvisionableDeviceFactoryGatesApplicationConfigurationFileAccess()
+        {
+            using var target = await TestTarget.CreateAsync("urn:managed:device:file-gate").ConfigureAwait(false);
+            Mock<IRecoverableApplicationConfigurationFileProvider> fileProvider = CreateConfigurationFileProvider();
+            var applications = new Mock<IProvisionableDeviceApplicationsProvider>();
+            applications.Setup(provider => provider.GetApplicationsAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ArrayOf<ManagedApplicationPushRegistration>>(
+                [
+                    new(target, Mock.Of<IPushConfigurationAuthorization>(),
+                        configurationFileProvider: fileProvider.Object)
+                ]));
+            var operations = new TestApplicationOperations();
+            var security = new Mock<IProvisionableDeviceSecurity>();
+            security.Setup(value => value.CreateApplicationOperations()).Returns(operations);
+            security.Setup(value => value.RequireInstalledRegistrarAsync(
+                It.IsAny<ISystemContext>(), It.IsAny<CancellationToken>()))
+                .Throws(new ServiceResultException(StatusCodes.BadUserAccessDenied));
+            IAsyncNodeManager manager = await CreateProvisionableDeviceNodeManagerAsync(
+                false, applications.Object, security.Object).ConfigureAwait(false);
+            try
+            {
+                await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
+                    .ConfigureAwait(false);
+                ushort namespaceIndex = checked((ushort)ReferenceServer.CurrentInstance.NamespaceUris.GetIndex(
+                    ProvisionableDeviceNodeManagerFactory.NamespaceUri));
+                object handle = await manager.GetManagerHandleAsync(
+                    new NodeId($"Application:{target.Configuration.ApplicationUri}", namespaceIndex))
+                    .ConfigureAwait(false);
+                var application = (ApplicationConfigurationState)((NodeHandle)handle).Node;
+                ApplicationConfigurationFileState file = application.ConfigurationFile!;
+                ServerSystemContext context = ((AsyncCustomNodeManager)manager).SystemContext;
+                ServiceResultException? denied = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await file.Open!.OnCallAsync!(context, file.Open, file.NodeId, (byte)OpenFileMode.Read,
+                        CancellationToken.None).ConfigureAwait(false)).ConfigureAwait(false);
+                Assert.That(denied!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                fileProvider.Verify(provider => provider.ReadConfigurationAsync(
+                    It.IsAny<CancellationToken>()), Times.Never);
+                security.Setup(value => value.RequireInstalledRegistrarAsync(
+                    It.IsAny<ISystemContext>(), It.IsAny<CancellationToken>())).Returns(default(ValueTask));
+                OpenMethodStateResult opened = await file.Open!.OnCallAsync!(
+                    context, file.Open, file.NodeId, (byte)(OpenFileMode.Read | OpenFileMode.Write),
+                    CancellationToken.None).ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(opened.ServiceResult), Is.True);
+                operations.Revoked = true;
+
+                ServiceResultException? revoked = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await file.Write!.OnCallAsync!(
+                        context, file.Write, file.NodeId, opened.FileHandle,
+                        ByteString.From(new byte[] { 1 }), CancellationToken.None).ConfigureAwait(false))
+                    .ConfigureAwait(false);
+                Assert.That(revoked!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                fileProvider.Verify(provider => provider.BeginUpdateAsync(
+                    It.IsAny<Uuid>(), It.IsAny<ByteString>(), It.IsAny<ArrayOf<ConfigurationUpdateTargetType>>(),
+                    It.IsAny<DateTime>(), It.IsAny<DateTime?>(), It.IsAny<CancellationToken>()), Times.Never);
+            }
+            finally
+            {
+                await ((IAsyncDisposable)manager).DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Creates an application-scoped provider whose applied version is observable through the file node.
+        /// </summary>
+        private static Mock<IRecoverableApplicationConfigurationFileProvider> CreateConfigurationFileProvider()
+        {
+            uint version = 1;
+            var provider = new Mock<IRecoverableApplicationConfigurationFileProvider>();
+            provider.SetupGet(value => value.CurrentVersion).Returns(() => version);
+            provider.SetupGet(value => value.LastUpdateTime).Returns(DateTime.UtcNow);
+            provider.SetupGet(value => value.RequiresConfirmation).Returns(true);
+            provider.Setup(value => value.ApplyPendingUpdateAsync(It.IsAny<Uuid>(), It.IsAny<CancellationToken>()))
+                .Callback(() => version++)
+                .Returns(default(ValueTask));
+            return provider;
+        }
+
+        /// <summary>
         /// Creates the provider-backed device node manager over the fixture's already-hosted in-process server.
         /// </summary>
         private Task<IAsyncNodeManager> CreateProvisionableDeviceNodeManagerAsync(
@@ -1104,11 +1348,59 @@ namespace Opc.Ua.Gds.Tests
                 registrations.Add(new ManagedApplicationPushRegistration(
                     target, Mock.Of<IPushConfigurationAuthorization>()));
             }
+            return CreateRegisteredManager(registrations.ToArray());
+        }
+
+        /// <summary>
+        /// Creates a runtime-backed manager with explicit application-scoped optional providers.
+        /// </summary>
+        private DefaultManagedApplicationsNodeManager CreateRegisteredManager(
+            params ManagedApplicationPushRegistration[] registrations)
+        {
             var provider = new Mock<IManagedApplicationPushProvider>();
             provider.Setup(p => p.GetApplicationsAsync(It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<ArrayOf<ManagedApplicationPushRegistration>>(registrations.ToArrayOf()));
+                .Returns(new ValueTask<ArrayOf<ManagedApplicationPushRegistration>>(ArrayOf.Wrapped(registrations)));
             return new DefaultManagedApplicationsNodeManager(
                 ReferenceServer.CurrentInstance, ServerFixture.Config, provider.Object);
+        }
+
+        /// <summary>
+        /// Executes admitted application operations and allows tests to revoke the deployment.
+        /// </summary>
+        private sealed class TestApplicationOperations : IApplicationConfigurationPushOperations
+        {
+            /// <summary>
+            /// Gets or sets whether the deployment has been reset.
+            /// </summary>
+            public bool Revoked { get; set; }
+
+            /// <inheritdoc/>
+            public ValueTask<T> ExecuteAsync<T>(
+                Func<ValueTask<T>> operation,
+                CancellationToken cancellationToken = default)
+            {
+                RequireActive(cancellationToken);
+                return operation();
+            }
+
+            /// <inheritdoc/>
+            public ValueTask ExecuteAsync(Func<ValueTask> operation, CancellationToken cancellationToken = default)
+            {
+                RequireActive(cancellationToken);
+                return operation();
+            }
+
+            /// <summary>
+            /// Rejects calls after the test revokes the deployment.
+            /// </summary>
+            private void RequireActive(CancellationToken cancellationToken)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (Revoked)
+                {
+                    throw new ServiceResultException(StatusCodes.BadInvalidState);
+                }
+            }
         }
 
         /// <summary>

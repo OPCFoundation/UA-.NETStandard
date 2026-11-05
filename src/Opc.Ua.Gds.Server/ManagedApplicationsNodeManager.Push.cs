@@ -91,7 +91,7 @@ namespace Opc.Ua.Gds.Server
                     registration.Authorization);
                 await CreatePushApplicationAsync(
                     new ManagedApplicationPushRegistration(registration.Target, authorization,
-                        registration.PendingKeyStore, registration.KeyGenerator),
+                        registration.PendingKeyStore, registration.KeyGenerator, registration.ConfigurationFileProvider),
                     device,
                     externalReferences,
                     cancellationToken).ConfigureAwait(false);
@@ -188,7 +188,9 @@ namespace Opc.Ua.Gds.Server
                     registration.Target,
                     registration.Authorization,
                     registration.PendingKeyStore,
-                    registration.KeyGenerator);
+                    registration.KeyGenerator,
+                    registration.ConfigurationFileProvider);
+                await binding.RecoverConfigurationFileUpdateAsync(cancellationToken).ConfigureAwait(false);
                 await AddPredefinedNodeAsync(SystemContext, node, cancellationToken).ConfigureAwait(false);
                 NodeId parentId = device is null ? ManagedApplicationsFolderId : device.NodeId;
                 NodeId referenceType = device == null ? ReferenceTypeIds.Organizes : ReferenceTypeIds.HasComponent;

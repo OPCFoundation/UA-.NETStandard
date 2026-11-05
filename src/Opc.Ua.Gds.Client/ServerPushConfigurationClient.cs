@@ -862,12 +862,48 @@ namespace Opc.Ua.Gds.Client
         }
 
         /// <inheritdoc/>
-        public async ValueTask<ConfigurationFileUpdateResult> UpdateConfigurationFileAsync(
+        public ValueTask<ConfigurationFileUpdateResult> UpdateConfigurationFileAsync(
             ByteString configuration,
             ArrayOf<ConfigurationUpdateTargetType> targets,
             double revertAfterTime,
             double restartDelayTime,
             CancellationToken ct = default)
+        {
+            return UpdateConfigurationFileAsync(
+                ExpandedNodeId.Null, configuration, targets, revertAfterTime, restartDelayTime, ct);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<ConfigurationFileUpdateResult> UpdateApplicationConfigurationFileAsync(
+            ExpandedNodeId applicationConfigurationId,
+            ByteString configuration,
+            ArrayOf<ConfigurationUpdateTargetType> targets,
+            double revertAfterTime,
+            double restartDelayTime,
+            CancellationToken ct = default)
+        {
+            if (applicationConfigurationId.IsNull || applicationConfigurationId.ServerIndex != 0 ||
+                string.IsNullOrEmpty(applicationConfigurationId.NamespaceUri) ||
+                applicationConfigurationId.NamespaceUri == Namespaces.OpcUa)
+            {
+                throw new ArgumentException(
+                    "A local application instance addressed by its own namespace URI is required.",
+                    nameof(applicationConfigurationId));
+            }
+            return UpdateConfigurationFileAsync(
+                applicationConfigurationId, configuration, targets, revertAfterTime, restartDelayTime, ct);
+        }
+
+        /// <summary>
+        /// Retains the selected configuration owner throughout upload, reconnection and confirmation.
+        /// </summary>
+        private async ValueTask<ConfigurationFileUpdateResult> UpdateConfigurationFileAsync(
+            ExpandedNodeId configurationId,
+            ByteString configuration,
+            ArrayOf<ConfigurationUpdateTargetType> targets,
+            double revertAfterTime,
+            double restartDelayTime,
+            CancellationToken ct)
         {
             RequireOwnedConnection();
             if (Session is not { Connected: true } session)
@@ -881,6 +917,7 @@ namespace Opc.Ua.Gds.Client
             {
                 return await UpdateConfigurationFileCoreAsync(
                     session,
+                    configurationId,
                     configuration,
                     targets,
                     revertAfterTime,
@@ -901,6 +938,7 @@ namespace Opc.Ua.Gds.Client
         /// </summary>
         private async ValueTask<ConfigurationFileUpdateResult> UpdateConfigurationFileCoreAsync(
             ISession session,
+            ExpandedNodeId configurationId,
             ByteString configuration,
             ArrayOf<ConfigurationUpdateTargetType> targets,
             double revertAfterTime,
@@ -925,8 +963,7 @@ namespace Opc.Ua.Gds.Client
                     "ConfigurationFile update timings must be finite and non-negative.");
             }
 
-            ServerConfigurationTypeClient serverConfiguration = m_serverConfiguration
-                ?? throw new ServiceResultException(StatusCodes.BadInvalidState);
+            ServerConfigurationTypeClient serverConfiguration = GetConfigurationOwner(session, configurationId);
             ApplicationConfigurationFileTypeClient? file =
                 await serverConfiguration.GetConfigurationFileAsync(MessageContext.Telemetry, ct)
                     .ConfigureAwait(false);
@@ -934,7 +971,7 @@ namespace Opc.Ua.Gds.Client
             {
                 throw new ServiceResultException(
                     StatusCodes.BadNotSupported,
-                    "The connected server does not expose ConfigurationFile.");
+                    "The selected configuration owner does not expose ConfigurationFile.");
             }
 
             uint versionToUpdate = await ReadConfigurationFileVersionAsync(session, file, ct).ConfigureAwait(false);
@@ -1078,8 +1115,10 @@ namespace Opc.Ua.Gds.Client
 
                 try
                 {
-                    ServerConfigurationTypeClient reconnectedServerConfiguration = m_serverConfiguration
-                        ?? throw new ServiceResultException(StatusCodes.BadInvalidState);
+                    ISession reconnectedSession = Session ??
+                        throw new ServiceResultException(StatusCodes.BadInvalidState);
+                    ServerConfigurationTypeClient reconnectedServerConfiguration =
+                        GetConfigurationOwner(reconnectedSession, configurationId);
                     ApplicationConfigurationFileTypeClient? reconnectedFile =
                         await reconnectedServerConfiguration.GetConfigurationFileAsync(MessageContext.Telemetry, ct)
                             .ConfigureAwait(false);
@@ -1150,6 +1189,25 @@ namespace Opc.Ua.Gds.Client
                 }
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Resolves an application address in the active namespace table without falling back to the host.
+        /// </summary>
+        private ServerConfigurationTypeClient GetConfigurationOwner(ISession session, ExpandedNodeId configurationId)
+        {
+            if (configurationId.IsNull)
+            {
+                return m_serverConfiguration ?? throw new ServiceResultException(StatusCodes.BadInvalidState);
+            }
+            NodeId nodeId = ExpandedNodeId.ToNodeId(configurationId, session.NamespaceUris);
+            if (nodeId.IsNull || nodeId.NamespaceIndex == 0)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNodeIdUnknown,
+                    "The selected application's namespace is not present on this session.");
+            }
+            return new ServerConfigurationTypeClient(session, nodeId, MessageContext.Telemetry);
         }
 
         /// <inheritdoc/>

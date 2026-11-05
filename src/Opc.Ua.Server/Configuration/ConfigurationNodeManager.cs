@@ -557,6 +557,10 @@ namespace Opc.Ua.Server
         {
             StopAlarmMonitoring();
             CancelPendingApplyChanges();
+            if (m_configurationFile != null)
+            {
+                await m_configurationFile.StopAsync().ConfigureAwait(false);
+            }
 
             UserManagement.UserManagementBinding? userManagement =
                 Volatile.Read(ref m_userManagementBinding);
@@ -878,7 +882,8 @@ namespace Opc.Ua.Server
                 Server.Telemetry,
                 m_coordinator,
                 m_timeProvider,
-                m_serverConfigurationOptions.ConfigurationFileActivityTimeout);
+                m_serverConfigurationOptions.ConfigurationFileActivityTimeout,
+                m_applicationOperations);
 
             fileNode.ActivityTimeout?.Value = m_serverConfigurationOptions.ConfigurationFileActivityTimeout;
             fileNode.CurrentVersion?.Value = fileProvider.CurrentVersion;

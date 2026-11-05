@@ -107,6 +107,9 @@ namespace Opc.Ua.Server
         /// called within this window after <c>Open</c>. Non-positive disables
         /// the auto-close.
         /// </param>
+        /// <param name="operations">
+        /// Optional deployment admission for deferred apply and revert effects.
+        /// </param>
         public ApplicationConfigurationFile(
             ApplicationConfigurationFileState node,
             IApplicationConfigurationFileProvider provider,
@@ -115,7 +118,8 @@ namespace Opc.Ua.Server
             ITelemetryContext telemetry,
             IPushConfigurationTransactionCoordinator? coordinator,
             TimeProvider timeProvider,
-            double activityTimeout)
+            double activityTimeout,
+            IApplicationConfigurationPushOperations? operations = null)
         {
             m_node = node ?? throw new ArgumentNullException(nameof(node));
             m_provider = provider ?? throw new ArgumentNullException(nameof(provider));
@@ -126,6 +130,7 @@ namespace Opc.Ua.Server
             m_coordinator = coordinator;
             m_timeProvider = timeProvider ?? TimeProvider.System;
             m_activityTimeout = activityTimeout;
+            m_operations = operations;
 
             node.Open!.OnCallAsync = OpenAsync;
             node.Read!.OnCallAsync = ReadAsync;
@@ -157,6 +162,15 @@ namespace Opc.Ua.Server
             }
 
             m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
+        }
+
+        /// <summary>
+        /// Cancels pending timers and drains deferred provider effects before the owning runtime is released.
+        /// </summary>
+        public async ValueTask StopAsync()
+        {
+            CancelPendingRevert();
+            await m_backgroundWork.DisposeAsync().ConfigureAwait(false);
         }
 
         /// <summary>
@@ -921,44 +935,49 @@ namespace Opc.Ua.Server
                         return;
                     }
 
-                    try
-                    {
-                        if (recoverableProvider != null && m_provider.RequiresConfirmation)
-                        {
-                            await recoverableProvider.ApplyPendingUpdateAsync(updateId, ct).ConfigureAwait(false);
-                        }
-                        else
-                        {
-                            await targetProvider.ApplyConfigurationAsync(proposed, targets, ct)
-                                .ConfigureAwait(false);
-                        }
-                    }
-                    catch (Exception ex) when (ex is not OperationCanceledException)
-                    {
-                        m_logger.ConfigurationFileUpdateFailedWhileApplying(ex);
-                        if (recoverableProvider != null && m_provider.RequiresConfirmation)
-                        {
-                            await RevertPendingUpdateAsync(recoverableProvider, updateId).ConfigureAwait(false);
-                        }
-                        else
-                        {
-                            AbandonPendingRevert(updateId);
-                        }
-                        StatusCode failure = ex is ServiceResultException sre
-                            ? sre.StatusCode
-                            : StatusCodes.BadInternalError;
-                        ReportConfigurationUpdatedAuditEvent(
-                            context, objectId, methodId, inputArguments, failure, oldVersion, oldVersion);
-                        return;
-                    }
+                    await ExecuteDeferredAsync(ApplyAsync, ct).ConfigureAwait(false);
 
-                    uint appliedVersion = m_provider.CurrentVersion;
-                    RefreshVersionNodes(context);
-                    ReportConfigurationUpdatedAuditEvent(
-                        context, objectId, methodId, inputArguments, StatusCodes.Good, oldVersion, appliedVersion);
-                    m_logger.ConfigurationFileUpdatedToVersion(
-                        appliedVersion,
-                        m_provider.RequiresConfirmation ? "is" : "not");
+                    async ValueTask ApplyAsync()
+                    {
+                        try
+                        {
+                            if (recoverableProvider != null && m_provider.RequiresConfirmation)
+                            {
+                                await recoverableProvider.ApplyPendingUpdateAsync(updateId, ct).ConfigureAwait(false);
+                            }
+                            else
+                            {
+                                await targetProvider.ApplyConfigurationAsync(proposed, targets, ct)
+                                    .ConfigureAwait(false);
+                            }
+                        }
+                        catch (Exception ex) when (ex is not OperationCanceledException)
+                        {
+                            m_logger.ConfigurationFileUpdateFailedWhileApplying(ex);
+                            if (recoverableProvider != null && m_provider.RequiresConfirmation)
+                            {
+                                await RevertPendingUpdateAsync(recoverableProvider, updateId).ConfigureAwait(false);
+                            }
+                            else
+                            {
+                                AbandonPendingRevert(updateId);
+                            }
+                            StatusCode failure = ex is ServiceResultException sre
+                                ? sre.StatusCode
+                                : StatusCodes.BadInternalError;
+                            ReportConfigurationUpdatedAuditEvent(
+                                context, objectId, methodId, inputArguments, failure, oldVersion, oldVersion);
+                            return;
+                        }
+
+                        uint appliedVersion = m_provider.CurrentVersion;
+                        RefreshVersionNodes(context);
+                        ReportConfigurationUpdatedAuditEvent(
+                            context, objectId, methodId, inputArguments, StatusCodes.Good, oldVersion, appliedVersion);
+                        m_logger.ConfigurationFileUpdatedToVersion(
+                            appliedVersion,
+                            m_provider.RequiresConfirmation ? "is" : "not");
+                    }
                 }
                 finally
                 {
@@ -1330,17 +1349,7 @@ namespace Opc.Ua.Server
                     {
                         await m_timeProvider.Delay(update.ApplyAtUtc - m_timeProvider.GetUtcNow().UtcDateTime, ct)
                             .ConfigureAwait(false);
-                        await m_updateGate.WaitAsync(ct).ConfigureAwait(false);
-                        try
-                        {
-                            await recoverableProvider.ApplyPendingUpdateAsync(update.UpdateId, ct)
-                                .ConfigureAwait(false);
-                            RefreshVersionNodes(context);
-                        }
-                        finally
-                        {
-                            m_updateGate.Release();
-                        }
+                        await ExecuteDeferredAsync(ApplyRecoveredAsync, ct).ConfigureAwait(false);
                     }
                     catch (OperationCanceledException)
                     {
@@ -1348,7 +1357,30 @@ namespace Opc.Ua.Server
                     catch (Exception ex)
                     {
                         m_logger.ConfigurationFileUpdateFailedWhileApplying(ex);
-                        await RevertPendingUpdateAsync(recoverableProvider, update.UpdateId).ConfigureAwait(false);
+                    }
+
+                    async ValueTask ApplyRecoveredAsync()
+                    {
+                        await m_updateGate.WaitAsync(ct).ConfigureAwait(false);
+                        try
+                        {
+                            try
+                            {
+                                await recoverableProvider.ApplyPendingUpdateAsync(update.UpdateId, ct)
+                                    .ConfigureAwait(false);
+                                RefreshVersionNodes(context);
+                            }
+                            catch (Exception ex) when (ex is not OperationCanceledException)
+                            {
+                                m_logger.ConfigurationFileUpdateFailedWhileApplying(ex);
+                                await RevertPendingUpdateAsync(recoverableProvider, update.UpdateId)
+                                    .ConfigureAwait(false);
+                            }
+                        }
+                        finally
+                        {
+                            m_updateGate.Release();
+                        }
                     }
                 });
                 if (!scheduled)
@@ -1383,6 +1415,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
+            CancellationToken revertToken = cts!.Token;
             m_backgroundWork.Run("RevertWindow", async _ =>
             {
                 try
@@ -1390,16 +1423,13 @@ namespace Opc.Ua.Server
                     TimeSpan remaining = deadline - m_timeProvider.GetUtcNow().UtcDateTime;
                     if (remaining > TimeSpan.Zero)
                     {
-                        await m_timeProvider.Delay(remaining, cts!.Token)
+                        await m_timeProvider.Delay(remaining, revertToken)
                             .ConfigureAwait(false);
                     }
                     else
                     {
-                        cts!.Token.ThrowIfCancellationRequested();
+                        revertToken.ThrowIfCancellationRequested();
                     }
-
-                    await m_updateGate.WaitAsync(cts.Token)
-                        .ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
                 {
@@ -1408,44 +1438,63 @@ namespace Opc.Ua.Server
 
                 try
                 {
-                    lock (m_lock)
-                    {
-                        if (m_pendingUpdateId.Guid != updateId.Guid)
-                        {
-                            return;
-                        }
-                    }
-
-                    if (m_provider is IRecoverableApplicationConfigurationFileProvider recoverableProvider)
-                    {
-                        await recoverableProvider.RevertPendingUpdateAsync(updateId, CancellationToken.None)
-                            .ConfigureAwait(false);
-                    }
-                    else
-                    {
-                        await m_provider.RevertUpdateAsync(CancellationToken.None).ConfigureAwait(false);
-                    }
-                    lock (m_lock)
-                    {
-                        if (m_pendingUpdateId.Guid == updateId.Guid)
-                        {
-                            m_pendingUpdateId = Uuid.Empty;
-                            m_pendingRevertCts = null;
-                        }
-                    }
-                    cts.Dispose();
-                    RefreshVersionNodes(context);
-                    m_logger.ConfigurationFileUpdateNotConfirmedReverted(updateId.Guid);
+                    await ExecuteDeferredAsync(RevertAsync, revertToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (revertToken.IsCancellationRequested)
+                {
                 }
                 catch (Exception ex)
                 {
                     m_logger.ConfigurationFileRevertFailed(ex);
                 }
-                finally
+
+                async ValueTask RevertAsync()
                 {
-                    m_updateGate.Release();
+                    await m_updateGate.WaitAsync(revertToken).ConfigureAwait(false);
+                    try
+                    {
+                        lock (m_lock)
+                        {
+                            if (m_pendingUpdateId.Guid != updateId.Guid)
+                            {
+                                return;
+                            }
+                        }
+                        if (m_provider is IRecoverableApplicationConfigurationFileProvider recoverableProvider)
+                        {
+                            await recoverableProvider.RevertPendingUpdateAsync(updateId, CancellationToken.None)
+                                .ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            await m_provider.RevertUpdateAsync(CancellationToken.None).ConfigureAwait(false);
+                        }
+                        lock (m_lock)
+                        {
+                            if (m_pendingUpdateId.Guid == updateId.Guid)
+                            {
+                                m_pendingUpdateId = Uuid.Empty;
+                                m_pendingRevertCts = null;
+                            }
+                        }
+                        cts.Dispose();
+                        RefreshVersionNodes(context);
+                        m_logger.ConfigurationFileUpdateNotConfirmedReverted(updateId.Guid);
+                    }
+                    finally
+                    {
+                        m_updateGate.Release();
+                    }
                 }
             });
+        }
+
+        /// <summary>
+        /// Rechecks deployment admission after a timer expires, without retaining it during the delay.
+        /// </summary>
+        private ValueTask ExecuteDeferredAsync(Func<ValueTask> operation, CancellationToken cancellationToken)
+        {
+            return m_operations == null ? operation() : m_operations.ExecuteAsync(operation, cancellationToken);
         }
 
         /// <summary>
@@ -1597,6 +1646,9 @@ namespace Opc.Ua.Server
         private readonly Lock m_lock = new();
         private readonly ApplicationConfigurationFileState m_node;
         private readonly IApplicationConfigurationFileProvider m_provider;
+
+        /// <summary>The owning deployment's admission for timer-triggered provider effects.</summary>
+        private readonly IApplicationConfigurationPushOperations? m_operations;
         private readonly SecureAccess m_readAccess;
         private readonly SecureAccess m_writeAccess;
         private readonly ILogger m_logger;

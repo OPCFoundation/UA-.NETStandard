@@ -397,6 +397,10 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 node.ApplicationType!.Value = configuration.ApplicationType;
                 node.Enabled!.Value = true;
                 node.IsNonUaApplication!.Value = false;
+                if (registration.ConfigurationFileProvider != null)
+                {
+                    node.AddConfigurationFile(SystemContext);
+                }
 
                 var mapping = new Dictionary<NodeId, NodeId>();
                 var assigned = new HashSet<NodeId>();
@@ -419,7 +423,9 @@ namespace Opc.Ua.Gds.Server.Onboarding
                         registration.Target,
                         authorization,
                         registration.PendingKeyStore,
-                        registration.KeyGenerator);
+                        registration.KeyGenerator,
+                        registration.ConfigurationFileProvider);
+                    await binding.RecoverConfigurationFileUpdateAsync(cancellationToken).ConfigureAwait(false);
                     await AddPredefinedNodeAsync(SystemContext, node, cancellationToken).ConfigureAwait(false);
                     node.AddReference(ReferenceTypeIds.HasComponent, true, device.NodeId);
                     if (!externalReferences.TryGetValue(device.NodeId, out IList<IReference>? references))
