@@ -54,6 +54,48 @@ namespace Opc.Ua.LADS.Tests.Server
     [NonParallelizable]
     public sealed class LadsStoredDataTests
     {
+        /// <summary>
+        /// Restoring stored templates keeps the current application's selected optional methods.
+        /// </summary>
+        [TestCase(LadsTemplateOperations.None)]
+        [TestCase(LadsTemplateOperations.Download)]
+        [TestCase(LadsTemplateOperations.All)]
+        public async Task RestartPreservesConfiguredTemplateOperationsAsync(LadsTemplateOperations operations)
+        {
+            var store = new InMemoryLadsStore();
+            await using (LadsHostedServer first = await LadsHostedServer.StartAsync(
+                nameof(RestartPreservesConfiguredTemplateOperationsAsync),
+                builder => builder.AddLads(options => options.Store = store)
+                    .ConfigureLads(context => context.AddDevice("Device", device => device
+                        .FunctionalUnit("Unit", unit => unit.Programs()))),
+                "Device").ConfigureAwait(false))
+            {
+                ILadsDevice device = await first.DeviceAsync("Device").ConfigureAwait(false);
+                await device.GetFunctionalUnit("Unit").Programs!.AddTemplateAsync(
+                    new LadsProgramTemplate("Stored").Step("Retained", TimeSpan.Zero)).ConfigureAwait(false);
+            }
+
+            await using LadsHostedServer restarted = await LadsHostedServer.StartAsync(
+                nameof(RestartPreservesConfiguredTemplateOperationsAsync) + "Restart",
+                builder => builder.AddLads(options => options.Store = store)
+                    .ConfigureLads(context => context.AddDevice("Device", device => device
+                        .FunctionalUnit("Unit", unit => unit.Programs(operations)))),
+                "Device").ConfigureAwait(false);
+            ILadsDevice restored = await restarted.DeviceAsync("Device").ConfigureAwait(false);
+            ILadsFunctionalUnit restoredUnit = restored.GetFunctionalUnit("Unit");
+            ILadsProgramManager programs = restoredUnit.Programs!;
+            Assert.That(programs.Templates.Count, Is.EqualTo(1));
+            Assert.That(programs.Templates[0].Id, Is.EqualTo("Stored"));
+            Assert.That(programs.Templates[0].Steps[0].Name, Is.EqualTo("Retained"));
+            Assert.That(programs.ActiveRun, Is.Null);
+            Assert.That(restoredUnit.State, Is.EqualTo(LadsFunctionalStateValue.Stopped));
+            NodeId manager = await restarted.ChildAsync(restoredUnit.NodeId, "ProgramManager").ConfigureAwait(false);
+            string[] children = await restarted.ChildNamesAsync(manager).ConfigureAwait(false);
+            Assert.That(children.Contains("Download"), Is.EqualTo((operations & LadsTemplateOperations.Download) != 0));
+            Assert.That(children.Contains("Upload"), Is.EqualTo((operations & LadsTemplateOperations.Upload) != 0));
+            Assert.That(children.Contains("Remove"), Is.EqualTo((operations & LadsTemplateOperations.Remove) != 0));
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public async Task RestartRestoresTemplatesResultsFilesMaintenanceAndCountersAsync(bool registerStore)

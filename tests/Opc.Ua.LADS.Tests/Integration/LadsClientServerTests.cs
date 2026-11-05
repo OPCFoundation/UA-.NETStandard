@@ -61,6 +61,104 @@ namespace Opc.Ua.LADS.Tests.Integration
     [NonParallelizable]
     public sealed class LadsClientServerTests
     {
+        /// <summary>
+        /// A passive cover remains readable by the client without offering equipment-control methods.
+        /// </summary>
+        [Test]
+        public async Task ClientReadsPassiveCoverAndRejectsOmittedMethodsAsync()
+        {
+            ICoverFunction? hardware = null;
+            await using LadsClientConnection connection = await LadsClientConnection.StartAsync(
+                nameof(ClientReadsPassiveCoverAndRejectsOmittedMethodsAsync),
+                builder => builder.AddLads().ConfigureLads(context => context.AddDevice(
+                    "Device", device => device.FunctionalUnit("Unit", unit => unit.Cover(
+                        "Guard", options => options.Controllable = false, out hardware)))),
+                "Device").ConfigureAwait(false);
+            LadsDevice device = await connection.Client.GetDeviceAsync("Device").ConfigureAwait(false);
+            LadsFunctionalUnit unit = await device.GetFunctionalUnitAsync("Unit").ConfigureAwait(false);
+            LadsFunction cover = await unit.GetFunctionAsync("Guard").ConfigureAwait(false);
+            LadsFunctionSnapshot initial = await cover.ReadAsync().ConfigureAwait(false);
+            Assert.That(initial.Kind, Is.EqualTo(LadsFunctionKind.Cover));
+            Assert.That(initial.State, Is.EqualTo("Closed"));
+
+            await hardware!.ReportStateAsync(LadsCoverStateValue.Opened).ConfigureAwait(false);
+            LadsFunctionSnapshot observed = await cover.ReadAsync().ConfigureAwait(false);
+            Assert.That(observed.State, Is.EqualTo("Opened"));
+            await LadsAssert.ThrowsStatusAsync(StatusCodes.BadMethodInvalid, () => cover.OpenAsync())
+                .ConfigureAwait(false);
+            await LadsAssert.ThrowsStatusAsync(StatusCodes.BadMethodInvalid, () => cover.CloseAsync())
+                .ConfigureAwait(false);
+            await LadsAssert.ThrowsStatusAsync(StatusCodes.BadMethodInvalid, () => cover.ResetAsync())
+                .ConfigureAwait(false);
+            await LadsAssert.ThrowsStatusAsync(StatusCodes.BadMethodInvalid, () => cover.LockAsync())
+                .ConfigureAwait(false);
+            await LadsAssert.ThrowsStatusAsync(StatusCodes.BadMethodInvalid, () => cover.UnlockAsync())
+                .ConfigureAwait(false);
+            Assert.That(hardware.State, Is.EqualTo(LadsCoverStateValue.Opened));
+            Assert.That((await cover.ReadAsync().ConfigureAwait(false)).State, Is.EqualTo("Opened"));
+        }
+
+        /// <summary>
+        /// Selected template-transfer methods execute over the wire; omitted methods cannot change templates.
+        /// </summary>
+        [TestCase(LadsTemplateOperations.None)]
+        [TestCase(LadsTemplateOperations.Download)]
+        [TestCase(LadsTemplateOperations.Upload)]
+        [TestCase(LadsTemplateOperations.Remove)]
+        [TestCase(LadsTemplateOperations.All)]
+        public async Task ClientTemplateOperationsMatchSelectionAsync(LadsTemplateOperations operations)
+        {
+            var template = new Opc.Ua.LADS.Server.LadsProgramTemplate("Seed").Step("Retained", TimeSpan.Zero);
+            await using LadsClientConnection connection = await LadsClientConnection.StartAsync(
+                nameof(ClientTemplateOperationsMatchSelectionAsync),
+                builder => builder.AddLads().ConfigureLads(context => context.AddDevice(
+                    "Device", device => device.FunctionalUnit("Unit", unit => unit.Programs(operations)))),
+                "Device").ConfigureAwait(false);
+            ILadsDevice hardware = await connection.Server.DeviceAsync("Device").ConfigureAwait(false);
+            ILadsProgramManager programs = hardware.GetFunctionalUnit("Unit").Programs!;
+            await programs.AddTemplateAsync(template).ConfigureAwait(false);
+            LadsDevice device = await connection.Client.GetDeviceAsync("Device").ConfigureAwait(false);
+            LadsFunctionalUnit unit = await device.GetFunctionalUnitAsync("Unit").ConfigureAwait(false);
+            ByteString content = template.ToContent();
+
+            if ((operations & LadsTemplateOperations.Download) != 0)
+            {
+                (ArrayOf<KeyValueType> _, ByteString downloaded) = await unit.DownloadProgramTemplateAsync("Seed")
+                    .ConfigureAwait(false);
+                Assert.That(downloaded.ToArray(), Is.EqualTo(content.ToArray()));
+            }
+            else
+            {
+                await LadsAssert.ThrowsStatusAsync(
+                    StatusCodes.BadMethodInvalid, () => unit.DownloadProgramTemplateAsync("Seed"))
+                    .ConfigureAwait(false);
+            }
+            ArrayOf<KeyValueType> parameters = [new KeyValueType { Key = "TemplateId", Value = "Copy" }];
+            if ((operations & LadsTemplateOperations.Upload) != 0)
+            {
+                string uploaded = await unit.UploadProgramTemplateAsync(content, parameters).ConfigureAwait(false);
+                Assert.That(uploaded, Is.EqualTo("Copy"));
+                Assert.That(programs.Templates.ToList().Select(value => value.Id), Does.Contain("Copy"));
+            }
+            else
+            {
+                await LadsAssert.ThrowsStatusAsync(
+                    StatusCodes.BadMethodInvalid, () => unit.UploadProgramTemplateAsync(content, parameters))
+                    .ConfigureAwait(false);
+                Assert.That(programs.Templates.ToList().Select(value => value.Id), Does.Not.Contain("Copy"));
+            }
+            if ((operations & LadsTemplateOperations.Remove) != 0)
+            {
+                await unit.RemoveProgramTemplateAsync("Seed").ConfigureAwait(false);
+                Assert.That(programs.Templates.ToList().Select(value => value.Id), Does.Not.Contain("Seed"));
+            }
+            else
+            {
+                await LadsAssert.ThrowsStatusAsync(
+                    StatusCodes.BadMethodInvalid, () => unit.RemoveProgramTemplateAsync("Seed")).ConfigureAwait(false);
+                Assert.That(programs.Templates.ToList().Select(value => value.Id), Does.Contain("Seed"));
+            }
+        }
 
         [Test]
         public async Task ClientDiscoversDeviceAndReadsSnapshotAsync()
