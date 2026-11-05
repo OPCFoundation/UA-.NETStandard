@@ -28,8 +28,10 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -40,6 +42,7 @@ using Opc.Ua.LADS.Tests.Integration;
 using Opc.Ua.Machinery.Server;
 using Opc.Ua.Server.Hosting;
 using LadsClientModel = Opc.Ua.LADS.Client;
+using LadsNotificationTestSupport = Opc.Ua.LADS.Tests.Server.LadsMaintenanceTaskTests.LadsNotificationTestSupport;
 
 namespace Opc.Ua.LADS.Tests.Server
 {
@@ -152,7 +155,8 @@ namespace Opc.Ua.LADS.Tests.Server
             var executor = new CountingExecutor();
             string runId;
             string next;
-            Exception? testFailure = null;
+            ExceptionDispatchInfo? testFailure = null;
+            var cleanupFailures = new List<Exception>();
             try
             {
                 {
@@ -220,8 +224,7 @@ namespace Opc.Ua.LADS.Tests.Server
             }
             catch (Exception exception)
             {
-                testFailure = exception;
-                throw;
+                testFailure = ExceptionDispatchInfo.Capture(exception);
             }
             finally
             {
@@ -234,14 +237,10 @@ namespace Opc.Ua.LADS.Tests.Server
                 }
                 catch (Exception cleanupFailure)
                 {
-                    if (testFailure != null)
-                    {
-                        throw new AggregateException(
-                            "The test and temporary directory cleanup both failed.", testFailure, cleanupFailure);
-                    }
-                    throw;
+                    cleanupFailures.Add(cleanupFailure);
                 }
             }
+            LadsNotificationTestSupport.ThrowFailures(testFailure, cleanupFailures);
         }
 
         [Test]

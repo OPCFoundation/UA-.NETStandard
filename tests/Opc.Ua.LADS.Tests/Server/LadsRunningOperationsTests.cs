@@ -1396,15 +1396,7 @@ namespace Opc.Ua.LADS.Tests.Server
 
             Assert.That(
                 observations,
-                Is.EqualTo(new[]
-                {
-                    "typed:Holding",
-                    "raw:Holding",
-                    "typed:Held",
-                    "raw:Held",
-                    "typed:Execute",
-                    "raw:Execute"
-                }));
+                Is.EqualTo(s_expectedRunningStateObservations));
         }
 
         /// <summary>
@@ -1435,7 +1427,7 @@ namespace Opc.Ua.LADS.Tests.Server
             Assert.That(hold.Executable, Is.True);
             await function.StopAsync().ConfigureAwait(false);
 
-            Assert.That(observedAvailability, Is.EqualTo(new[] { false, true }));
+            Assert.That(observedAvailability, Is.EqualTo(s_expectedControlFunctionAvailability));
             Assert.That(hold.Executable, Is.False);
         }
 
@@ -1527,11 +1519,7 @@ namespace Opc.Ua.LADS.Tests.Server
                     await unit.RunningOperations!.ToCompleteAsync().ConfigureAwait(false)).ConfigureAwait(false);
                 Assert.That(
                     failure!.Flatten().InnerExceptions.Select(exception => exception.Message),
-                    Is.EqualTo(new[]
-                    {
-                        "availability notification 1 failed",
-                        "availability notification 2 failed"
-                    }));
+                    Is.EqualTo(s_expectedAvailabilityNotificationFailures));
             }
             finally
             {
@@ -2670,5 +2658,10 @@ namespace Opc.Ua.LADS.Tests.Server
         private static readonly TimeSpan s_timeout = TimeSpan.FromSeconds(30);
         private static readonly string[] s_methods =
             ["Hold", "Unhold", "Suspend", "Unsuspend", "Reset", "ToComplete"];
+        private static readonly string[] s_expectedRunningStateObservations =
+            ["typed:Holding", "raw:Holding", "typed:Held", "raw:Held", "typed:Execute", "raw:Execute"];
+        private static readonly bool[] s_expectedControlFunctionAvailability = [false, true];
+        private static readonly string[] s_expectedAvailabilityNotificationFailures =
+            ["availability notification 1 failed", "availability notification 2 failed"];
     }
 }

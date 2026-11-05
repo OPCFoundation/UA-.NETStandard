@@ -847,10 +847,12 @@ namespace Opc.Ua.LADS.Tests.Server
             ConcurrentQueue<Task<Exception?>> queuedCommands)
         {
             using var cancellation = new CancellationTokenSource();
+            // A delayed worker must not access the source after this helper disposes it.
+            CancellationToken token = cancellation.Token;
             // The same command is invalid in the committed destination state. If the gate were
             // released early, Require would fault inline, before reaching any notification sink.
             Task<Task> invocation = Task.Factory.StartNew(
-                () => InvokeMaintenance(task, command, cancellation.Token).AsTask(),
+                () => InvokeMaintenance(task, command, token).AsTask(),
                 CancellationToken.None,
                 TaskCreationOptions.DenyChildAttach,
                 TaskScheduler.Default);

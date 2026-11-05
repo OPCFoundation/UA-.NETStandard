@@ -110,12 +110,12 @@ namespace Opc.Ua.LADS.Tests.Server
             try
             {
                 // Do not unwrap Task.Run around the call alone: that would hide a blocking bridge.
-                start = Task.Run(async () =>
+                start = Task.Run(() =>
                 {
                     Task<string> pending = programs.StartProgramAsync(
                         LadsIncubator.QuickTemplate, cancellationToken: cancellation.Token).AsTask();
                     returned.TrySetResult(true);
-                    return await pending.ConfigureAwait(false);
+                    return pending;
                 });
                 await notification.Entered.Task.WaitAsync(LadsNotificationTestSupport.Timeout)
                     .ConfigureAwait(false);
@@ -142,10 +142,10 @@ namespace Opc.Ua.LADS.Tests.Server
                 if (failNotification)
                 {
                     await Assert.ThatAsync(
-                        async () => await start.WaitAsync(LadsNotificationTestSupport.Timeout).ConfigureAwait(false),
+                        () => start.WaitAsync(LadsNotificationTestSupport.Timeout),
                         Throws.Exception.SameAs(failure)).ConfigureAwait(false);
                     await Assert.ThatAsync(
-                        async () => await result.WaitAsync(LadsNotificationTestSupport.Timeout).ConfigureAwait(false),
+                        () => result.WaitAsync(LadsNotificationTestSupport.Timeout),
                         Throws.Exception.SameAs(failure)).ConfigureAwait(false);
                     Assert.That(programs.ActiveRun, Is.Null);
                     Assert.That(runIdNode.Value, Is.Empty);
