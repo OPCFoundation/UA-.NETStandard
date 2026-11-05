@@ -325,7 +325,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             NodeStateChangedAsyncHandler handler = (_, _, _, _) =>
             {
                 notifications++;
-                return ValueTask.CompletedTask;
+                return default;
             };
             condition.Severity!.StateChangedAsync += handler;
 
@@ -426,15 +426,16 @@ namespace Opc.Ua.Core.Tests.Stack.State
             alarm.SilenceState!.Id!.StateChangedAsync += (_, _, _, _) =>
             {
                 order.Add("silence");
-                return ValueTask.CompletedTask;
+                return default;
             };
             alarm.ActiveState!.Id!.StateChangedAsync += (_, _, _, _) =>
             {
                 order.Add("active");
-                return ValueTask.CompletedTask;
+                return default;
             };
 
             using var cancellation = new CancellationTokenSource();
+            CancellationToken token = cancellation.Token;
             Task<Task>? invocation = null;
             Task<Exception?>? updateObserver = null;
             ExceptionDispatchInfo? testFailure = null;
@@ -442,7 +443,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             try
             {
                 invocation = Task.Factory.StartNew(
-                    () => alarm.SetActiveStateAsync(m_context, true, cancellation.Token).AsTask(),
+                    () => alarm.SetActiveStateAsync(m_context, true, token).AsTask(),
                     CancellationToken.None,
                     TaskCreationOptions.DenyChildAttach,
                     TaskScheduler.Default);
@@ -491,7 +492,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             Assert.That(alarm.LatchedState.Id.Value, Is.True);
             Assert.That(alarm.SilenceState.Id.Value, Is.False);
             Assert.That(alarm.ActiveState.Id.Value, Is.True);
-            Assert.That(order, Is.EqualTo(new[] { "latched", "silence", "active" }));
+            Assert.That(order, Is.EqualTo(s_activationNotificationOrder));
         }
 
         /// <summary>
@@ -525,10 +526,11 @@ namespace Opc.Ua.Core.Tests.Stack.State
             alarm.ActiveState!.Id!.StateChangedAsync += (_, _, _, _) =>
             {
                 order.Add("active");
-                return ValueTask.CompletedTask;
+                return default;
             };
 
             using var cancellation = new CancellationTokenSource();
+            CancellationToken token = cancellation.Token;
             Task<Task>? invocation = null;
             Task<Exception?>? updateObserver = null;
             ExceptionDispatchInfo? testFailure = null;
@@ -536,7 +538,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             try
             {
                 invocation = Task.Factory.StartNew(
-                    () => alarm.SetActiveStateAsync(m_context, false, cancellation.Token).AsTask(),
+                    () => alarm.SetActiveStateAsync(m_context, false, token).AsTask(),
                     CancellationToken.None,
                     TaskCreationOptions.DenyChildAttach,
                     TaskScheduler.Default);
@@ -585,7 +587,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             Assert.That(alarm.ShelvingState.CurrentState.Id.Value, Is.EqualTo(
                 ObjectIds.ShelvedStateMachineType_Unshelved));
             Assert.That(alarm.ActiveState!.Id!.Value, Is.False);
-            Assert.That(order, Is.EqualTo(new[] { "shelving", "active" }));
+            Assert.That(order, Is.EqualTo(s_unshelvingNotificationOrder));
         }
 
         /// <summary>
@@ -672,8 +674,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 new ValueTask(Task.FromException(failure));
             condition.AckedState!.Id!.StateChangedAsync += failureHandler;
 
-            InvalidOperationException thrown = await Assert.ThrowsAsync<InvalidOperationException>(
-                async () => await condition.SetAcknowledgedStateAsync(m_context, true).ConfigureAwait(false))!;
+            InvalidOperationException? thrown = await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await condition.SetAcknowledgedStateAsync(m_context, true).ConfigureAwait(false));
 
             Assert.That(thrown, Is.SameAs(failure));
             Assert.That(condition.AckedState.Id.Value, Is.True);
@@ -1690,5 +1692,11 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 Retain!.Value = true;
             }
         }
+
+        /// <summary>The expected notification order when an alarm activates.</summary>
+        private static readonly string[] s_activationNotificationOrder = ["latched", "silence", "active"];
+
+        /// <summary>The expected notification order when a one-shot alarm becomes inactive.</summary>
+        private static readonly string[] s_unshelvingNotificationOrder = ["shelving", "active"];
     }
 }
