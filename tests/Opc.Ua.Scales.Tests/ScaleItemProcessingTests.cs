@@ -737,7 +737,8 @@ namespace Opc.Ua.Scales.Tests
                     Assert.That(
                         rejectedZoneValueWrite.StatusCode,
                         Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
-                    Assert.That(Count(zone.ZoneStatistic!), Is.Zero);
+                    Assert.That(ScaleItemPublisher.TryUnsigned(zoneCount.WrappedValue, out ulong count), Is.True);
+                    Assert.That(count, Is.Zero);
                 }
                 ServiceResult rejectedValueWrite = gross.WriteAttribute(
                     m_fixture.Context,
@@ -831,7 +832,7 @@ namespace Opc.Ua.Scales.Tests
                 Assert.That(firstWeight, Is.EqualTo(1));
                 cancellation.Cancel();
                 await Assert.ThatAsync(
-                    async () => await cancelled.WaitAsync(TimeSpan.FromSeconds(15)),
+                    () => cancelled.WaitAsync(TimeSpan.FromSeconds(15)),
                     Throws.InstanceOf<OperationCanceledException>());
                 Assert.That(Count(scale.ProductionOutput!.Statistic), Is.Zero);
                 release.TrySetResult(true);
@@ -945,7 +946,7 @@ namespace Opc.Ua.Scales.Tests
                 }
                 return release.Wait(TimeSpan.FromSeconds(15))
                     ? ServiceResult.Good
-                    : ServiceResult.Create(StatusCodes.BadTimeout);
+                    : new ServiceResult(StatusCodes.BadTimeout);
             };
 
             DataValue firstValue = new(Variant.From(2.0));
@@ -1066,7 +1067,7 @@ namespace Opc.Ua.Scales.Tests
                     cancellation.Token).AsTask();
                 cancellation.Cancel();
                 await Assert.ThatAsync(
-                    async () => await cancelledWrite.WaitAsync(TimeSpan.FromSeconds(15)),
+                    () => cancelledWrite.WaitAsync(TimeSpan.FromSeconds(15)),
                     Throws.InstanceOf<OperationCanceledException>());
                 Assert.That(writeHandlerCalls, Is.Zero);
                 Assert.That(gross.WrappedValue.TryGetValue(out duringAcquisition), Is.True);
@@ -1140,8 +1141,8 @@ namespace Opc.Ua.Scales.Tests
         public async Task ValueWriteAsyncRejectsSynchronousFallbackAndSyncWriteStillReentersAsync()
         {
             ScaleHandle scale = await CreateAsync(ScaleKind.Catchweigher);
-            BaseVariableState gross = scale.ProductionPreset!.ActiveProduct!
-                .LastItem!.MeasuredWeight!.Gross!;
+            var product = (CatchweigherProductState)scale.ProductionPreset!.ActiveProduct!;
+            BaseVariableState gross = product.LastItem!.MeasuredWeight!.Gross!;
             var acquisitionEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var acquisitionRelease = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             gross.OnStateChangedAsync = async (_, _, _, _) =>
@@ -1230,7 +1231,7 @@ namespace Opc.Ua.Scales.Tests
                 NodeId = new NodeId("UnsupportedAsync", 0),
                 BrowseName = new QualifiedName("UnsupportedAsync", 0),
                 DisplayName = new LocalizedText("UnsupportedAsync"),
-                DataType = DataTypeIds.Double,
+                DataType = Ua.DataTypeIds.Double,
                 ValueRank = ValueRanks.Scalar,
                 AccessLevel = AccessLevels.CurrentReadOrWrite,
                 UserAccessLevel = AccessLevels.CurrentReadOrWrite,

@@ -314,7 +314,7 @@ namespace Opc.Ua.Scales.Tests
                 AccessLevel = AccessLevels.CurrentReadOrWrite | AccessLevels.StatusWrite | AccessLevels.TimestampWrite,
                 UserAccessLevel = AccessLevels.CurrentReadOrWrite |
                     AccessLevels.StatusWrite | AccessLevels.TimestampWrite,
-                Value = Variant.From(new[] { 1.0, 2.0, 3.0 }),
+                Value = Variant.From(s_initialArray),
                 StatusCode = StatusCodes.Good
             };
             product.AddChild(variable);
@@ -323,17 +323,17 @@ namespace Opc.Ua.Scales.Tests
             await harness.AcquireAsync(product).ConfigureAwait(false);
             var timestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 2);
             var requested = new DataValue(
-                Variant.From(new[] { 20.0, 30.0 }), StatusCodes.Uncertain, timestamp);
+                Variant.From(s_slice), StatusCodes.Uncertain, timestamp);
 
             ServiceResult denied = await variable.WriteAttributeAsync(
                 harness.Other, Attributes.Value, NumericRange.Parse("1:2"), requested).ConfigureAwait(false);
             AssertDenied(denied);
-            Assert.That(variable.Value.GetDoubleArray(), Is.EqualTo(new[] { 1.0, 2.0, 3.0 }.ToArrayOf()));
+            Assert.That(variable.Value.GetDoubleArray(), Is.EqualTo(s_initialArray.ToArrayOf()));
             ServiceResult result = await variable.WriteAttributeAsync(
                 harness.Owner, Attributes.Value, NumericRange.Parse("1:2"), requested).ConfigureAwait(false);
 
             AssertGood(result);
-            Assert.That(variable.Value.GetDoubleArray(), Is.EqualTo(new[] { 1.0, 20.0, 30.0 }.ToArrayOf()));
+            Assert.That(variable.Value.GetDoubleArray(), Is.EqualTo(s_mergedArray.ToArrayOf()));
             Assert.That(variable.StatusCode, Is.EqualTo(StatusCodes.Uncertain));
             Assert.That(variable.Timestamp, Is.EqualTo(timestamp));
         }
@@ -363,7 +363,7 @@ namespace Opc.Ua.Scales.Tests
             double[] input = [1.0, 2.0, 3.0];
             AssertGood(await WriteAsync(harness.Owner, variable, Variant.From(input)).ConfigureAwait(false));
             input[0] = 99;
-            Assert.That(variable.Value.GetDoubleArray(), Is.EqualTo(new[] { 1.0, 2.0, 3.0 }.ToArrayOf()));
+            Assert.That(variable.Value.GetDoubleArray(), Is.EqualTo(s_initialArray.ToArrayOf()));
 
             double[] slice = [20.0, 30.0];
             AssertGood(await variable.WriteAttributeAsync(
@@ -372,7 +372,7 @@ namespace Opc.Ua.Scales.Tests
                 NumericRange.Parse("1:2"),
                 new DataValue(Variant.From(slice))).ConfigureAwait(false));
             slice[0] = 99;
-            Assert.That(variable.Value.GetDoubleArray(), Is.EqualTo(new[] { 1.0, 20.0, 30.0 }.ToArrayOf()));
+            Assert.That(variable.Value.GetDoubleArray(), Is.EqualTo(s_mergedArray.ToArrayOf()));
         }
 
         /// <summary>
@@ -448,13 +448,13 @@ namespace Opc.Ua.Scales.Tests
                 Attributes.Value,
                 NumericRange.Parse(range),
                 new DataValue(
-                    Variant.From(new[] { 20.0 }),
+                    Variant.From(s_invalidSlice),
                     StatusCodes.Good,
                     new DateTimeUtc(2026, 1, 1, 0, 0, 4))).ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo(expected));
-            Assert.That(variable.Value.GetDoubleArray(), Is.EqualTo(new[] { 1.0, 2.0, 3.0 }.ToArrayOf()));
-            Assert.That(original, Is.EqualTo(new[] { 1.0, 2.0, 3.0 }));
+            Assert.That(variable.Value.GetDoubleArray(), Is.EqualTo(s_initialArray.ToArrayOf()));
+            Assert.That(original, Is.EqualTo(s_initialArray));
             Assert.That(variable.StatusCode, Is.EqualTo(StatusCodes.Uncertain));
             Assert.That(variable.Timestamp, Is.EqualTo(timestamp));
             Assert.That(variable.ChangeMasks, Is.EqualTo(changeMasks));
@@ -653,15 +653,15 @@ namespace Opc.Ua.Scales.Tests
             var value = new DataValue(scenario == "type" ? Variant.From("wrong") : Variant.From(3u));
             if (scenario == "status")
             {
-                value.StatusCode = StatusCodes.Uncertain;
+                value = value.WithStatus(StatusCodes.Uncertain);
             }
             if (scenario == "timestamp")
             {
-                value.SourceTimestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 2);
+                value = value.WithSourceTimestamp(new DateTimeUtc(2026, 1, 1, 0, 0, 2));
             }
             if (scenario == "server")
             {
-                value.ServerTimestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 2);
+                value = value.WithServerTimestamp(new DateTimeUtc(2026, 1, 1, 0, 0, 2));
             }
 
             ServiceResult result = await variable.WriteAttributeAsync(
@@ -985,7 +985,7 @@ namespace Opc.Ua.Scales.Tests
                 (context, product) =>
                 {
                     ConfigureFillingProduct(context, product);
-                    product.TargetWeight!.OnReadUserAccessLevel = (_, _, ref _) =>
+                    ((AutomaticFillingProductState)product).TargetWeight!.OnReadUserAccessLevel = (_, _, ref _) =>
                     {
                         cancellation.Cancel();
                         return ServiceResult.Good;
@@ -1759,6 +1759,18 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(variable.WrappedValue.TryGetValue(out uint value), Is.True);
             return value;
         }
+
+        /// <summary>The unchanged array used in indexed-write assertions.</summary>
+        private static readonly double[] s_initialArray = [1.0, 2.0, 3.0];
+
+        /// <summary>The valid replacement slice.</summary>
+        private static readonly double[] s_slice = [20.0, 30.0];
+
+        /// <summary>The expected indexed-write result.</summary>
+        private static readonly double[] s_mergedArray = [1.0, 20.0, 30.0];
+
+        /// <summary>A slice shorter than its requested range.</summary>
+        private static readonly double[] s_invalidSlice = [20.0];
 
         /// <summary>
         /// Builds real scale nodes, controllers and locks with in-memory address-space services.
