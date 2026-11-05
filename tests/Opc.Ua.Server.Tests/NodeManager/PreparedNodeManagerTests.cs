@@ -207,6 +207,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Guid Id)> CreateRetainedInspectionAsync(string outcome)
         {
             var manager = new Mock<IAsyncNodeManager>(MockBehavior.Strict);
+            manager.SetupGet(value => value.SyncNodeManager).Returns(new SyncNodeManagerAdapter(manager.Object));
             manager.SetupGet(value => value.NamespaceUris).Returns(["urn:opcua:tests:inspection"]);
             var registration = new NodeManagerRegistration(Guid.NewGuid(), 1, manager.Object);
             var provider = new Mock<IPreparedNodeManagerBatch>(MockBehavior.Strict);
@@ -285,6 +286,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             string[] namespaceUris = ["urn:opcua:tests:prepared-snapshot"];
             var manager = new Mock<IAsyncNodeManager>(MockBehavior.Strict);
+            manager.SetupGet(value => value.SyncNodeManager).Returns(new SyncNodeManagerAdapter(manager.Object));
             manager.SetupGet(value => value.NamespaceUris).Returns(namespaceUris);
             var registration = new NodeManagerRegistration(Guid.NewGuid(), 1, manager.Object);
             var provider = new Mock<IPreparedNodeManagerBatch>(MockBehavior.Strict);
@@ -316,6 +318,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             CreateDisposedChangesWithIndependentOwnerAsync()
         {
             var manager = new Mock<IAsyncNodeManager>(MockBehavior.Strict);
+            manager.SetupGet(value => value.SyncNodeManager).Returns(new SyncNodeManagerAdapter(manager.Object));
             manager.SetupGet(value => value.NamespaceUris).Returns(["urn:opcua:tests:prepared-owner"]);
             var owner = new NodeManagerRegistration(Guid.NewGuid(), 1, manager.Object);
             var provider = new Mock<IPreparedNodeManagerBatch>(MockBehavior.Strict);

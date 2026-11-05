@@ -248,7 +248,9 @@ namespace Opc.Ua.Server
             }
             return identity is AsyncCustomNodeManager asynchronous
                 ? asynchronous.Server as StagingServer
-                : (identity.SyncNodeManager as CustomNodeManager2)?.Server as StagingServer;
+                : identity is AsyncNodeManagerAdapter { SyncNodeManager: CustomNodeManager2 synchronous }
+                    ? synchronous.Server as StagingServer
+                    : null;
         }
 
         /// <summary>

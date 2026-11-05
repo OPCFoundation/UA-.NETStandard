@@ -1258,6 +1258,13 @@ registration handle must retain one explicitly. The legacy
 `NodeManagerBatchResult` continues to expose strong registration and slot
 snapshots during the compatibility period.
 
+Routing, candidate ownership and generation lookup use the same resource identity.
+Standard adapters and custom facades that expose the same synchronous manager
+share one generation; the first registered facade remains its owner. An alias
+cannot register a retiring resource again or assign a live resource to another
+slot. Converting a native asynchronous manager through a synchronous adapter
+preserves its generation identity.
+
 The routing swap commits the transaction. A later callback failure cannot
 abort it. Retain `LifecycleResult` and retry unfinished
 [reconciliation](#retrying-committed-reconciliation), not the change set.

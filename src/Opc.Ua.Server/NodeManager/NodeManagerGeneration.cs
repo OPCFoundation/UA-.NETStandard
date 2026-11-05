@@ -1398,25 +1398,48 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Uses one resource identity for public wrappers without replacing the generation's owning facade.
+        /// Tests resource identity without creating a generation or taking the registry writer lock.
+        /// </summary>
+        /// <param name="left">The first facade.</param>
+        /// <param name="right">The second facade.</param>
+        /// <returns>Whether both facades identify the same generation resource.</returns>
+        internal static bool HasSameIdentity(IAsyncNodeManager left, IAsyncNodeManager right)
+        {
+            return ReferenceEquals(left, right) || ReferenceEquals(GetIdentity(left), GetIdentity(right));
+        }
+
+        /// <summary>
+        /// Uses one resource identity for standard and custom facades without replacing the generation owner.
         /// </summary>
         /// <param name="nodeManager">The facade supplied by the owner.</param>
         /// <returns>The canonical resource key.</returns>
         internal static IAsyncNodeManager GetIdentity(IAsyncNodeManager nodeManager)
         {
-            if (nodeManager is not AsyncNodeManagerAdapter adapter)
+            return s_resourceIdentities.GetValue(nodeManager, static manager =>
             {
-                return nodeManager;
-            }
-            if (adapter.SyncNodeManager is SyncNodeManagerAdapter synchronous)
-            {
-                return GetIdentity(synchronous.AsyncNodeManager);
-            }
-            return adapter.SyncNodeManager.ToAsyncNodeManager();
+                if (manager.SyncNodeManager is not { } resource)
+                {
+                    return manager;
+                }
+                if (resource is SyncNodeManagerAdapter synchronous)
+                {
+                    return ReferenceEquals(synchronous.AsyncNodeManager, manager)
+                        ? manager
+                        : GetIdentity(synchronous.AsyncNodeManager);
+                }
+                return resource.ToAsyncNodeManager();
+            });
         }
 
         /// <summary>Serializes generation identity changes on writer paths.</summary>
         private static readonly Lock s_lock = new();
+
+        /// <summary>Fixes each facade's resource identity without extending its lifetime.</summary>
+#if NET8_0_OR_GREATER
+        private static readonly ConditionalWeakTable<IAsyncNodeManager, IAsyncNodeManager> s_resourceIdentities = [];
+#else
+        private static readonly ConditionalWeakTable<IAsyncNodeManager, IAsyncNodeManager> s_resourceIdentities = new();
+#endif
 
         /// <summary>Associates each manager instance with its current generation identity.</summary>
         private static readonly ConditionalWeakTable<IAsyncNodeManager, NodeManagerGeneration> s_generations = new();

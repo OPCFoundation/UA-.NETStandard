@@ -213,7 +213,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                                 NamespaceUri = uri,
                                 MaterializeAliasNodes = false,
                                 RefreshAliasNodesOnChange = false
-                            }) { CallBase = true };
+                            })
+                        { CallBase = true };
                         manager.As<INodeManagerReloadParticipant>().Setup(owner => owner.PrepareReloadAsync(
                             It.IsAny<IAsyncNodeManager>(), It.IsAny<CancellationToken>()))
                             .Returns(new ValueTask<ArrayOf<LocalReference>>([]));
@@ -493,6 +494,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var first = new ChangePreparer(m_server.CurrentInstance);
             var second = new ChangePreparer(m_server.CurrentInstance);
             Mock<IAsyncNodeManager> manager = CreateLifecycleNodeManager(kModelNamespaceUri);
+            manager.SetupGet(value => value.SyncNodeManager).Returns(new SyncNodeManagerAdapter(manager.Object));
             IAsyncNodeManager resource = manager.Object;
             var factory = new Mock<IAsyncNodeManagerFactory>();
             factory.Setup(value => value.CreateAsync(It.IsAny<IServerInternal>(),
@@ -557,7 +559,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     if (synchronous)
                     {
                         var adapter = new Mock<AsyncNodeManagerAdapter>(
-                            new ReferenceSynchronousNodeManager(server, configuration)) { CallBase = true };
+                            new ReferenceSynchronousNodeManager(server, configuration))
+                        { CallBase = true };
                         adapter.As<INodeManagerReloadParticipant>().Setup(value => value.PrepareReloadAsync(
                             It.IsAny<IAsyncNodeManager>(), It.IsAny<CancellationToken>()))
                             .Returns(new ValueTask<ArrayOf<LocalReference>>([]));
