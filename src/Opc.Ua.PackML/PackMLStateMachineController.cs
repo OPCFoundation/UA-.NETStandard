@@ -30,7 +30,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.ExceptionServices;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.PackML
 {
@@ -178,7 +180,24 @@ namespace Opc.Ua.PackML
         /// Gets or sets whether acting states are completed as soon as they
         /// are entered. Defaults to <see langword="true"/>.
         /// </summary>
-        public bool AutoCompleteActingStates { get; set; } = true;
+        public bool AutoCompleteActingStates
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_autoCompleteActingStates;
+                }
+            }
+            set
+            {
+                lock (m_lock)
+                {
+                    ThrowIfNotificationPending();
+                    m_autoCompleteActingStates = value;
+                }
+            }
+        }
 
         /// <summary>
         /// Gets or sets a guard consulted before every command, from a method
@@ -285,6 +304,10 @@ namespace Opc.Ua.PackML
 
             lock (m_lock)
             {
+                if (m_asyncWrite)
+                {
+                    return NotificationPending();
+                }
                 if (!AllActiveStatesSupported(states))
                 {
                     return ServiceResult.Create(
@@ -319,6 +342,10 @@ namespace Opc.Ua.PackML
 
             lock (m_lock)
             {
+                if (m_asyncWrite)
+                {
+                    return NotificationPending();
+                }
                 if (mode == m_currentMode && !AllActiveStatesSupported(states))
                 {
                     return ServiceResult.Create(
@@ -347,6 +374,10 @@ namespace Opc.Ua.PackML
         {
             lock (m_lock)
             {
+                if (m_asyncWrite)
+                {
+                    return NotificationPending();
+                }
                 HashSet<uint> states = m_modeStates.TryGetValue(mode, out HashSet<uint>? configured)
                     ? configured
                     : new HashSet<uint>(s_allStateNumbers);
@@ -396,6 +427,68 @@ namespace Opc.Ua.PackML
         /// </exception>
         public void ConfigureStates(ArrayOf<uint> states, PackMLInitialState initialState)
         {
+            lock (m_lock)
+            {
+                ThrowIfNotificationPending();
+                ConfigureStatesCore(states, initialState, notify: true);
+            }
+            RaisePendingChanges();
+        }
+
+        /// <summary>
+        /// Configures the active mode's supported states and initializes the
+        /// state machines, then awaits the state-change notification of the
+        /// node and its children.
+        /// </summary>
+        /// <remarks>
+        /// Cancellation is observed before the state machines change. An
+        /// applied change is always published, so the notification ignores
+        /// the token. Callers that need every intermediate value sampled
+        /// serialize their asynchronous calls.
+        /// </remarks>
+        /// <param name="states">The supported PackML state numbers.</param>
+        /// <param name="initialState">The state to initialize.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <exception cref="ArgumentException">
+        /// The state list is invalid or does not include the requested initial
+        /// state.
+        /// </exception>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// The initial state value is not defined.
+        /// </exception>
+        public async ValueTask ConfigureStatesAsync(
+            ArrayOf<uint> states,
+            PackMLInitialState initialState,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            await BeginAsyncWriteAsync(cancellationToken).ConfigureAwait(false);
+            m_asyncOwner.Value = true;
+            try
+            {
+                await RunStateOperationAsync(async token =>
+                {
+                    token.ThrowIfCancellationRequested();
+                    ConfigureStatesCore(states, initialState, notify: false);
+                    await PublishChangesAsync(changed: true).ConfigureAwait(false);
+                    return ServiceResult.Good;
+                }, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_asyncOwner.Value = false;
+                EndAsyncWrite();
+            }
+        }
+
+        /// <summary>
+        /// Validates and applies a mode's supported states and initial state.
+        /// </summary>
+        private void ConfigureStatesCore(
+            ArrayOf<uint> states,
+            PackMLInitialState initialState,
+            bool notify)
+        {
             if (!TryCreateSupportedStates(states, out HashSet<uint> supportedStates))
             {
                 throw new ArgumentException(
@@ -414,9 +507,8 @@ namespace Opc.Ua.PackML
                 }
                 m_modeStates[m_currentMode] = supportedStates;
                 m_supportedStates = supportedStates;
-                InitializeCore(initialState);
+                InitializeCore(initialState, notify);
             }
-            RaisePendingChanges();
         }
 
         /// <summary>
@@ -435,15 +527,18 @@ namespace Opc.Ua.PackML
         {
             lock (m_lock)
             {
-                InitializeCore(initialState);
+                ThrowIfNotificationPending();
+                InitializeCore(initialState, notify: true);
             }
             RaisePendingChanges();
         }
 
         /// <summary>
         /// Initializes all nested states while the controller owns serialization.
+        /// Without <paramref name="notify"/> the caller publishes the change
+        /// masks after releasing the lock.
         /// </summary>
-        private void InitializeCore(PackMLInitialState initialState)
+        private void InitializeCore(PackMLInitialState initialState, bool notify)
         {
             uint[] initialStates = InitialStateNumbers(initialState);
             if (initialStates.Any(state => !m_supportedStates.Contains(state)))
@@ -473,7 +568,10 @@ namespace Opc.Ua.PackML
                     break;
             }
             UpdateExecutable();
-            StateMachine.ClearChangeMasks(m_context, includeChildren: true);
+            if (notify)
+            {
+                StateMachine.ClearChangeMasks(m_context, includeChildren: true);
+            }
             QueueChanged(previous);
         }
 
@@ -516,6 +614,91 @@ namespace Opc.Ua.PackML
         }
 
         /// <summary>
+        /// Executes a PackML command and awaits the state-change notification
+        /// of the state machines.
+        /// </summary>
+        /// <remarks>
+        /// The command follows the same guard and state rules as
+        /// <see cref="Execute"/>. The cause runs through the native
+        /// <c>DoCauseAsync</c> and <c>DoTransitionAsync</c> counterparts, so a machine's cause
+        /// mapping and <c>OnCheckUserPermission</c> handler apply as in
+        /// <see cref="Execute"/>, and its transition events are
+        /// reported with <see cref="NodeState.ReportEventAsync"/> before the
+        /// next transition. A machine subclass that customizes
+        /// <c>DoCause</c> or <c>DoTransition</c> must override their async
+        /// counterparts for this method; a synchronous-only override is used by
+        /// <see cref="Execute"/> and the Methods, not here. Cancellation is
+        /// observed before the state machines change. An applied change is
+        /// always published, so the notification ignores the token. Callers
+        /// are serialized through notification delivery. Overlapping synchronous
+        /// writes return BadInvalidState; void setters throw ServiceResultException.
+        /// Notification callbacks must not await another operation on this controller.
+        /// </remarks>
+        /// <param name="command">The command.</param>
+        /// <param name="startParameters">
+        /// The parameters of a <see cref="PackMLCommand.Start"/>; ignored
+        /// otherwise.
+        /// </param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>
+        /// <c>Good</c>, or <c>Bad_InvalidState</c> when the command is not
+        /// allowed in the current state, or the guard's result.
+        /// </returns>
+        public async ValueTask<ServiceResult> ExecuteAsync(
+            PackMLCommand command,
+            ArrayOf<PackMLDescriptorDataType> startParameters = default,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            await BeginAsyncWriteAsync(cancellationToken).ConfigureAwait(false);
+            m_asyncOwner.Value = true;
+            try
+            {
+                return await RunStateOperationAsync(async token =>
+                {
+                    (FiniteStateMachineState Machine, uint Cause)? target;
+                    uint previous;
+                    lock (m_lock)
+                    {
+                        target = Resolve(command);
+                        if (target == null)
+                        {
+                            return NotAllowed(command);
+                        }
+                        previous = CurrentStateCore();
+                    }
+                    ServiceResult guard = Guard(command);
+                    if (ServiceResult.IsBad(guard))
+                    {
+                        return guard;
+                    }
+                    token.ThrowIfCancellationRequested();
+                    ServiceResult result = await target.Value.Machine.DoCauseAsync(
+                        m_context, null, target.Value.Cause, default, [], token).ConfigureAwait(false);
+                    if (ServiceResult.IsBad(result))
+                    {
+                        return result;
+                    }
+                    lock (m_lock)
+                    {
+                        if (command == PackMLCommand.Start)
+                        {
+                            m_startParameters = startParameters;
+                        }
+                        OnEntered(target.Value.Machine);
+                    }
+                    await SettleAsync(previous).ConfigureAwait(false);
+                    return ServiceResult.Good;
+                }, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_asyncOwner.Value = false;
+                EndAsyncWrite();
+            }
+        }
+
+        /// <summary>
         /// Completes the current acting state (the ISA-TR88 "state complete"
         /// event), moving on to the state that follows it.
         /// </summary>
@@ -525,6 +708,173 @@ namespace Opc.Ua.PackML
         /// example the veto of an <c>OnBeforeTransition</c> handler.
         /// </returns>
         public ServiceResult CompleteActingState()
+        {
+            ServiceResult result;
+            lock (m_lock)
+            {
+                if (m_asyncWrite)
+                {
+                    return NotificationPending();
+                }
+                result = CompleteActingStateCore();
+            }
+            RaisePendingChanges();
+            return result;
+        }
+
+        /// <summary>
+        /// Completes the current acting state and awaits the state-change
+        /// notification of the state machines.
+        /// </summary>
+        /// <remarks>
+        /// The completion transitions run through <c>DoTransitionAsync</c>,
+        /// and their events are reported with
+        /// <see cref="NodeState.ReportEventAsync"/> after the lock is
+        /// released. Cancellation is observed before the state machines
+        /// change. An applied change is always published, so the notification
+        /// ignores the token. Synchronous writes are rejected while notifications
+        /// are pending; callbacks must not await reentrant controller operations.
+        /// </remarks>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>
+        /// <c>Good</c>, <c>Bad_InvalidState</c> when no acting state is
+        /// active, or the result the completion transition failed with.
+        /// </returns>
+        public async ValueTask<ServiceResult> CompleteActingStateAsync(
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            await BeginAsyncWriteAsync(cancellationToken).ConfigureAwait(false);
+            m_asyncOwner.Value = true;
+            try
+            {
+                return await RunStateOperationAsync(async token =>
+                {
+                    token.ThrowIfCancellationRequested();
+                    uint previous;
+                    lock (m_lock)
+                    {
+                        previous = CurrentStateCore();
+                    }
+                    ServiceResult? result = await TryCompleteActingStateAsync().ConfigureAwait(false);
+                    if (result == null)
+                    {
+                        return ServiceResult.Create(
+                            StatusCodes.BadInvalidState,
+                            "The PackML state machine is not in an acting state.");
+                    }
+                    if (ServiceResult.IsBad(result))
+                    {
+                        return result;
+                    }
+                    await SettleAsync(previous).ConfigureAwait(false);
+                    return ServiceResult.Good;
+                }, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_asyncOwner.Value = false;
+                EndAsyncWrite();
+            }
+        }
+
+        /// <summary>
+        /// Serializes asynchronous writes and reserves synchronous admission
+        /// before the first mutation.
+        /// </summary>
+        private async ValueTask BeginAsyncWriteAsync(CancellationToken cancellationToken)
+        {
+            if (m_asyncOwner.Value)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidState,
+                    "A PackML callback cannot await a reentrant controller write.");
+            }
+            await m_asyncGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            lock (m_lock)
+            {
+                m_asyncWrite = true;
+            }
+        }
+
+        /// <summary>
+        /// Reopens synchronous admission after all notifications finish.
+        /// </summary>
+        private void EndAsyncWrite()
+        {
+            lock (m_lock)
+            {
+                m_asyncWrite = false;
+            }
+            m_asyncGate.Release();
+        }
+
+        /// <summary>
+        /// Returns the explicit rejection for an overlapping synchronous write.
+        /// </summary>
+        private static ServiceResult NotificationPending()
+        {
+            return ServiceResult.Create(
+                StatusCodes.BadInvalidState,
+                "An asynchronous PackML state notification is pending.");
+        }
+
+        /// <summary>
+        /// Rejects a void synchronous setter while publication is pending.
+        /// </summary>
+        private void ThrowIfNotificationPending()
+        {
+            if (m_asyncWrite)
+            {
+                throw new ServiceResultException(NotificationPending());
+            }
+        }
+
+        /// <summary>
+        /// Reserves the complete machine hierarchy until publication finishes,
+        /// then reopens write admission before delivering controller events.
+        /// </summary>
+        private async ValueTask<ServiceResult> RunStateOperationAsync(
+            Func<CancellationToken, ValueTask<ServiceResult>> operation,
+            CancellationToken cancellationToken)
+        {
+            Exception? notificationError = null;
+            ServiceResult result = ServiceResult.Good;
+            try
+            {
+                result = await StateMachine.ExecuteWithStateAdmissionAsync(
+                    m_context, operation, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                notificationError = e;
+            }
+            lock (m_lock)
+            {
+                m_asyncWrite = false;
+            }
+            try
+            {
+                RaisePendingChanges();
+            }
+            catch (Exception handlerError) when (notificationError != null)
+            {
+                throw new AggregateException(
+                    "Publishing the PackML state machines and raising StateChanged both failed.",
+                    notificationError,
+                    handlerError);
+            }
+            if (notificationError != null)
+            {
+                ExceptionDispatchInfo.Capture(notificationError).Throw();
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Completes the innermost acting state under the lock.
+        /// </summary>
+        private ServiceResult CompleteActingStateCore()
         {
             lock (m_lock)
             {
@@ -538,8 +888,47 @@ namespace Opc.Ua.PackML
                 }
                 Settle(previous);
             }
-            RaisePendingChanges();
             return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Publishes live change masks, then raises the queued
+        /// <see cref="StateChanged"/> events.
+        /// </summary>
+        /// <remarks>
+        /// A rejected operation changed no state, so, as on the synchronous
+        /// path, it publishes no change masks of the state machines. When the
+        /// notification fails and this call also drains the queue and a
+        /// <see cref="StateChanged"/> handler fails, an
+        /// <see cref="AggregateException"/> carries both failures. A
+        /// concurrent command that drains the queue first receives the
+        /// handler failure instead.
+        /// </remarks>
+        /// <param name="changed">Whether the operation changed the state machines.</param>
+        private async ValueTask PublishChangesAsync(bool changed)
+        {
+            Exception? notificationError = null;
+            if (changed)
+            {
+                try
+                {
+                    await StateMachine.PublishStateChangesAsync(
+                        m_context, includeChildren: true, CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    notificationError = notificationError == null
+                        ? e
+                        : new AggregateException(
+                            "Publishing the PackML state machines failed.",
+                            notificationError,
+                            e);
+                }
+            }
+            if (notificationError != null)
+            {
+                ExceptionDispatchInfo.Capture(notificationError).Throw();
+            }
         }
 
         /// <summary>
@@ -559,6 +948,10 @@ namespace Opc.Ua.PackML
         {
             lock (m_lock)
             {
+                if (m_asyncWrite)
+                {
+                    return NotificationPending();
+                }
                 if (Resolve(command) == null)
                 {
                     return NotAllowed(command);
@@ -572,6 +965,10 @@ namespace Opc.Ua.PackML
             ServiceResult result;
             lock (m_lock)
             {
+                if (m_asyncWrite)
+                {
+                    return NotificationPending();
+                }
                 result = ExecuteCore(command, causeMethod, startParameters);
             }
             RaisePendingChanges();
@@ -593,6 +990,12 @@ namespace Opc.Ua.PackML
                 CurrentStateCore());
         }
 
+        /// <summary>
+        /// Applies a command under the lock.
+        /// </summary>
+        /// <param name="command">The command.</param>
+        /// <param name="causeMethod">The called Method, if any.</param>
+        /// <param name="startParameters">The parameters of a Start.</param>
         private ServiceResult ExecuteCore(
             PackMLCommand command,
             MethodState? causeMethod,
@@ -719,6 +1122,71 @@ namespace Opc.Ua.PackML
         }
 
         /// <summary>
+        /// Completes and publishes each acting-state transition before the
+        /// next mutation, then publishes the final composite state.
+        /// </summary>
+        private async ValueTask SettleAsync(uint previous)
+        {
+            if (AutoCompleteActingStates)
+            {
+                for (int ii = 0; ii < 16; ii++)
+                {
+                    ServiceResult? result = await TryCompleteActingStateAsync().ConfigureAwait(false);
+                    if (result == null || ServiceResult.IsBad(result))
+                    {
+                        break;
+                    }
+                }
+            }
+            lock (m_lock)
+            {
+                UpdateExecutable();
+                QueueChanged(previous);
+            }
+            await PublishChangesAsync(changed: true).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Publishes a completion transition before applying nested entry rules.
+        /// </summary>
+        private async ValueTask<ServiceResult?> TryCompleteActingStateAsync()
+        {
+            FiniteStateMachineState? target = null;
+            uint transition = 0;
+            lock (m_lock)
+            {
+                foreach (FiniteStateMachineState machine in InnermostFirst())
+                {
+                    if (!IsActive(machine))
+                    {
+                        continue;
+                    }
+                    transition = CompletionOf(StateOf(machine));
+                    if (transition == 0 || !IsTransitionSupported(transition))
+                    {
+                        return null;
+                    }
+                    target = machine;
+                    break;
+                }
+            }
+            if (target == null)
+            {
+                return null;
+            }
+            ServiceResult result = await target.DoTransitionAsync(
+                m_context, transition, 0, default, [], CancellationToken.None).ConfigureAwait(false);
+            if (ServiceResult.IsGood(result))
+            {
+                lock (m_lock)
+                {
+                    OnEntered(target);
+                }
+            }
+            return result;
+        }
+
+        /// <summary>
         /// Performs the completion transition of the innermost active acting
         /// state, if there is one.
         /// </summary>
@@ -839,6 +1307,10 @@ namespace Opc.Ua.PackML
                 // The guard runs outside the lock, as in ExecuteGuarded.
                 lock (m_lock)
                 {
+                    if (m_asyncWrite)
+                    {
+                        return NotificationPending();
+                    }
                     if (!IsPermittedCause(machine, causeId))
                     {
                         return ResetNotAllowed();
@@ -851,6 +1323,10 @@ namespace Opc.Ua.PackML
                 }
                 lock (m_lock)
                 {
+                    if (m_asyncWrite)
+                    {
+                        return NotificationPending();
+                    }
                     if (!IsPermittedCause(machine, causeId))
                     {
                         return ResetNotAllowed();
@@ -1037,16 +1513,25 @@ namespace Opc.Ua.PackML
         /// </summary>
         private bool IsCauseTransitionSupported(FiniteStateMachineState machine, uint causeId)
         {
+            return SupportedCauseTransition(machine, causeId) != 0;
+        }
+
+        /// <summary>
+        /// Gets the supported transition a cause performs from the owning
+        /// machine's current state, or zero.
+        /// </summary>
+        private uint SupportedCauseTransition(FiniteStateMachineState machine, uint causeId)
+        {
             uint state = StateOf(machine);
             foreach (uint transitionId in CauseTransitions(causeId))
             {
                 (uint fromState, _) = TransitionEndpoints(transitionId);
                 if (fromState == state && IsTransitionSupported(transitionId))
                 {
-                    return true;
+                    return transitionId;
                 }
             }
-            return false;
+            return 0;
         }
 
         /// <summary>
@@ -1156,7 +1641,8 @@ namespace Opc.Ua.PackML
                 Objects.PackMLExecuteStateMachineType_CompleteToResetting =>
                     (Objects.PackMLExecuteStateMachineType_Complete, Objects.PackMLExecuteStateMachineType_Resetting),
                 Objects.PackMLExecuteStateMachineType_SuspendedToUnsuspending =>
-                    (Objects.PackMLExecuteStateMachineType_Suspended, Objects.PackMLExecuteStateMachineType_Unsuspending),
+                    (Objects.PackMLExecuteStateMachineType_Suspended,
+                        Objects.PackMLExecuteStateMachineType_Unsuspending),
                 Objects.PackMLExecuteStateMachineType_StartingToHolding =>
                     (Objects.PackMLExecuteStateMachineType_Starting, Objects.PackMLExecuteStateMachineType_Holding),
                 Objects.PackMLExecuteStateMachineType_UnsuspendingToHolding =>
@@ -1329,6 +1815,17 @@ namespace Opc.Ua.PackML
         private readonly PackMLExecuteStateMachineState m_execute;
         private readonly ushort m_namespaceIndex;
         private readonly Lock m_lock = new();
+        /// <summary>Serializes asynchronous composite operations through their notifications.</summary>
+        private readonly SemaphoreSlim m_asyncGate = new(1, 1);
+
+        /// <summary>Identifies reentry from an asynchronous operation's callback context.</summary>
+        private readonly AsyncLocal<bool> m_asyncOwner = new();
+
+        /// <summary>Whether an asynchronous operation owns synchronous write admission.</summary>
+        private bool m_asyncWrite;
+
+        /// <summary>Whether acting states complete immediately after entry.</summary>
+        private bool m_autoCompleteActingStates = true;
         private readonly Queue<PackMLStateChangedEventArgs> m_pendingChanges = new();
 
         /// <summary>The supported state subset for each configured host-defined mode.</summary>

@@ -22,6 +22,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -34,10 +35,12 @@ using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Configuration;
 using Opc.Ua.PackML.Client;
 using Opc.Ua.PackML.Server;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
+using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using Unit = Opc.Ua.PackML.Server.PackMLUnit;
 
@@ -132,6 +135,214 @@ namespace Opc.Ua.PackML.Tests
                         }
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        /// Verifies PackML's directly required size-five queue retains and publishes samples in order.
+        /// </summary>
+        [TestCase(1)]
+        [TestCase(34)]
+        public async Task PackMLMonitoredItemSupportsQueueSizeOfAtLeastFive(int queuedItemCount)
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            CancellationToken ct = deadline.Token;
+            var speed = m_unit.Node.Status.Required().CurMachSpeed.Required();
+            bool verifyCapacity = queuedItemCount == 34;
+            int itemCount = verifyCapacity ? 102 : 2;
+            uint witnessHandle = (uint)queuedItemCount + 1;
+            ArrayOf<SubscriptionAcknowledgement> acknowledgements = default;
+            CreateSubscriptionResponse subscription = await m_session.CreateSubscriptionAsync(
+                null, 100, 100, 10, 0, true, 0, ct).ConfigureAwait(false);
+            try
+            {
+                Assert.That(StatusCode.IsGood(subscription.ResponseHeader.ServiceResult), Is.True);
+                Assert.That(subscription.SubscriptionId, Is.GreaterThan(0u));
+                if (verifyCapacity)
+                {
+                    ReadResponse limits = await m_session.ReadAsync(
+                        null, 0, TimestampsToReturn.Neither,
+                        [
+                            new ReadValueId
+                            {
+                                NodeId = VariableIds.Server_ServerCapabilities_MaxMonitoredItems,
+                                AttributeId = Attributes.Value
+                            },
+                            new ReadValueId
+                            {
+                                NodeId = VariableIds.Server_ServerCapabilities_MaxMonitoredItemsPerSubscription,
+                                AttributeId = Attributes.Value
+                            }
+                        ], ct).ConfigureAwait(false);
+                    Assert.That(StatusCode.IsGood(limits.ResponseHeader.ServiceResult), Is.True);
+                    Assert.That(limits.Results.Count, Is.EqualTo(2));
+                    foreach (DataValue limit in limits.Results)
+                    {
+                        Assert.That(StatusCode.IsGood(limit.StatusCode), Is.True);
+                        Assert.That(limit.WrappedValue.TryGetValue(out uint supported), Is.True);
+                        Assert.That(supported, Is.EqualTo(102u));
+                    }
+                    Assert.That(queuedItemCount, Is.EqualTo((itemCount + 2) / 3));
+                }
+                MonitoredItemCreateRequest[] requests = Enumerable.Range(1, itemCount)
+                    .Select(handle => CreateRequest((uint)handle, handle <= queuedItemCount ? 5u : 1u))
+                    .ToArray();
+                CreateMonitoredItemsResponse response = await m_session.CreateMonitoredItemsAsync(
+                    null,
+                    subscription.SubscriptionId,
+                    TimestampsToReturn.Both,
+                    requests.ToArrayOf(),
+                    ct).ConfigureAwait(false);
+                Assert.That(StatusCode.IsGood(response.ResponseHeader.ServiceResult), Is.True);
+                Assert.That(response.Results.Count, Is.EqualTo(itemCount));
+                Assert.That(response.Results.ToList().Select(result => result.MonitoredItemId).Distinct().Count(),
+                    Is.EqualTo(itemCount));
+                foreach (MonitoredItemCreateResult result in response.Results)
+                {
+                    Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
+                    Assert.That(result.MonitoredItemId, Is.GreaterThan(0u));
+                    Assert.That(result.RevisedSamplingInterval, Is.Zero);
+                }
+                for (int index = 0; index < queuedItemCount; index++)
+                {
+                    Assert.That(response.Results[index].RevisedQueueSize, Is.GreaterThanOrEqualTo(5u));
+                }
+                if (verifyCapacity)
+                {
+                    CreateMonitoredItemsResponse excess = await m_session.CreateMonitoredItemsAsync(
+                        null, subscription.SubscriptionId, TimestampsToReturn.Both,
+                        [CreateRequest(103, 5)], ct).ConfigureAwait(false);
+                    Assert.That(StatusCode.IsGood(excess.ResponseHeader.ServiceResult), Is.True);
+                    Assert.That(excess.Results.Count, Is.EqualTo(1));
+                    Assert.That(excess.Results[0].StatusCode,
+                        Is.EqualTo((StatusCode)StatusCodes.BadTooManyMonitoredItems));
+                }
+
+                await MonitoredNodeSamplingFence.WaitAsync(speed, ct).ConfigureAwait(false);
+                ArrayOf<MonitoredItemNotification> initial = await PublishChangesAsync(itemCount)
+                    .ConfigureAwait(false);
+                Assert.That(initial.ToList().Select(item => item.ClientHandle).Distinct(),
+                    Is.EquivalentTo(Enumerable.Range(1, itemCount).Select(handle => (uint)handle)));
+
+                uint[] queuedIds = response.Results.ToList().Take(queuedItemCount)
+                    .Select(result => result.MonitoredItemId).ToArray();
+                if (itemCount > queuedItemCount + 1)
+                {
+                    SetMonitoringModeResponse fillers = await m_session.SetMonitoringModeAsync(
+                        null, subscription.SubscriptionId, MonitoringMode.Sampling,
+                        response.Results.ToList().Skip(queuedItemCount + 1)
+                            .Select(result => result.MonitoredItemId).ToArray().ToArrayOf(), ct).ConfigureAwait(false);
+                    Assert.That(fillers.Results.Count, Is.EqualTo(itemCount - queuedItemCount - 1));
+                    Assert.That(fillers.Results.ToList().All(StatusCode.IsGood), Is.True);
+                }
+
+                SetMonitoringModeResponse sampling = await m_session.SetMonitoringModeAsync(
+                    null, subscription.SubscriptionId, MonitoringMode.Sampling,
+                    queuedIds.ToArrayOf(), ct).ConfigureAwait(false);
+                Assert.That(sampling.Results.Count, Is.EqualTo(queuedItemCount));
+                Assert.That(sampling.Results.ToList().All(StatusCode.IsGood), Is.True);
+
+                // Fence the shared consumer before publishing the witness or changing the source again.
+                float[] expected = [1, 2, 3, 4, 5];
+                foreach (float value in expected)
+                {
+                    m_equipment.Snapshot = m_equipment.Snapshot with { CurrentMachineSpeed = value };
+                    await m_unit.RefreshAsync(ct).ConfigureAwait(false);
+                    await MonitoredNodeSamplingFence.WaitAsync(speed, ct).ConfigureAwait(false);
+                    ArrayOf<MonitoredItemNotification> witness = await PublishChangesAsync(1)
+                        .ConfigureAwait(false);
+                    foreach (MonitoredItemNotification sample in witness)
+                    {
+                        Assert.That(sample.ClientHandle, Is.EqualTo(witnessHandle));
+                        Assert.That(StatusCode.IsGood(sample.Value.StatusCode), Is.True);
+                        Assert.That(sample.Value.WrappedValue.TryGetValue(out float sampled), Is.True);
+                        Assert.That(sampled, Is.EqualTo(value));
+                    }
+                }
+
+                SetMonitoringModeResponse disabled = await m_session.SetMonitoringModeAsync(
+                    null, subscription.SubscriptionId, MonitoringMode.Disabled,
+                    [response.Results[queuedItemCount].MonitoredItemId], ct).ConfigureAwait(false);
+                Assert.That(disabled.Results.Count, Is.EqualTo(1));
+                Assert.That(StatusCode.IsGood(disabled.Results[0]), Is.True);
+                SetMonitoringModeResponse reporting = await m_session.SetMonitoringModeAsync(
+                    null, subscription.SubscriptionId, MonitoringMode.Reporting,
+                    queuedIds.ToArrayOf(), ct).ConfigureAwait(false);
+                Assert.That(reporting.Results.Count, Is.EqualTo(queuedItemCount));
+                Assert.That(reporting.Results.ToList().All(StatusCode.IsGood), Is.True);
+
+                ArrayOf<MonitoredItemNotification> queued = await PublishChangesAsync(5 * queuedItemCount)
+                    .ConfigureAwait(false);
+                for (uint handle = 1; handle <= queuedItemCount; handle++)
+                {
+                    MonitoredItemNotification[] retained = queued.ToList()
+                        .Where(item => item.ClientHandle == handle).ToArray();
+                    Assert.That(retained.Length, Is.EqualTo(5));
+                    for (int index = 0; index < expected.Length; index++)
+                    {
+                        Assert.That(StatusCode.IsGood(retained[index].Value.StatusCode), Is.True);
+                        Assert.That(retained[index].Value.WrappedValue.TryGetValue(out float sampled), Is.True);
+                        Assert.That(sampled, Is.EqualTo(expected[index]));
+                    }
+                }
+            }
+            finally
+            {
+                if (subscription.SubscriptionId != 0)
+                {
+                    DeleteSubscriptionsResponse deleted = await m_session.DeleteSubscriptionsAsync(
+                        null, [subscription.SubscriptionId], CancellationToken.None).ConfigureAwait(false);
+                    Assert.That(deleted.Results.Count, Is.EqualTo(1));
+                    Assert.That(StatusCode.IsGood(deleted.Results[0]), Is.True);
+                }
+            }
+
+            MonitoredItemCreateRequest CreateRequest(uint clientHandle, uint queueSize)
+            {
+                return new MonitoredItemCreateRequest
+                {
+                    ItemToMonitor = new ReadValueId { NodeId = speed.NodeId, AttributeId = Attributes.Value },
+                    MonitoringMode = MonitoringMode.Reporting,
+                    RequestedParameters = new MonitoringParameters
+                    {
+                        ClientHandle = clientHandle,
+                        SamplingInterval = 0,
+                        QueueSize = queueSize,
+                        DiscardOldest = true
+                    }
+                };
+            }
+
+            async Task<ArrayOf<MonitoredItemNotification>> PublishChangesAsync(int count)
+            {
+                var changes = new List<MonitoredItemNotification>();
+                while (changes.Count < count)
+                {
+                    PublishResponse published = await m_session.PublishAsync(null, acknowledgements, ct)
+                        .ConfigureAwait(false);
+                    Assert.That(StatusCode.IsGood(published.ResponseHeader.ServiceResult), Is.True);
+                    Assert.That(published.SubscriptionId, Is.EqualTo(subscription.SubscriptionId));
+                    if (published.NotificationMessage.NotificationData.Count == 0)
+                    {
+                        continue;
+                    }
+                    acknowledgements =
+                    [
+                        new SubscriptionAcknowledgement
+                        {
+                            SubscriptionId = subscription.SubscriptionId,
+                            SequenceNumber = published.NotificationMessage.SequenceNumber
+                        }
+                    ];
+                    foreach (ExtensionObject extension in published.NotificationMessage.NotificationData)
+                    {
+                        Assert.That(extension.TryGetValue(out DataChangeNotification? notification), Is.True);
+                        Assert.That(notification, Is.Not.Null);
+                        changes.AddRange(notification!.MonitoredItems.ToList());
+                    }
+                }
+                Assert.That(changes.Count, Is.EqualTo(count));
+                return changes.ToArray().ToArrayOf();
             }
         }
 
@@ -496,6 +707,167 @@ namespace Opc.Ua.PackML.Tests
         }
 
         [Test]
+        public async Task RuntimeRollsBackUnitWhenParentNotificationFailsAndPermitsRetry()
+        {
+            var parent = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("FailingLine", m_manager.InstanceNamespaceIndex),
+                BrowseName = new QualifiedName("FailingLine", m_manager.InstanceNamespaceIndex),
+                DisplayName = new LocalizedText("FailingLine"),
+                TypeDefinitionId = Ua.ObjectTypeIds.BaseObjectType
+            };
+            await m_manager.AddPredefinedNodeAsync(parent);
+            var notificationError = new InvalidOperationException("Parent subscriber failed.");
+            parent.OnStateChangedAsync = async (_, _, _, _) =>
+            {
+                await Task.Yield();
+                throw notificationError;
+            };
+            var browseName = new QualifiedName("Capper", m_manager.InstanceNamespaceIndex);
+            int unitCount = m_manager.Runtime.Units.Count;
+
+            InvalidOperationException failure = (await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await m_manager.Runtime.AddUnitAsync(
+                    browseName, new EquipmentProvider(), parent: parent)))!;
+
+            Assert.That(failure, Is.SameAs(notificationError));
+            Assert.That(m_manager.Runtime.Units.Count, Is.EqualTo(unitCount));
+            Assert.That(
+                m_manager.Runtime.Units.ToList().Exists(unit => unit.Node.BrowseName == browseName), Is.False);
+            var children = new List<BaseInstanceState>();
+            parent.GetChildren(m_manager.SystemContext, children);
+            Assert.That(children.Exists(child => child.BrowseName == browseName), Is.False);
+
+            parent.OnStateChangedAsync = null;
+            Unit retried = await m_manager.Runtime.AddUnitAsync(browseName, new EquipmentProvider(), parent: parent);
+
+            Assert.That(retried.Node.Parent, Is.SameAs(parent));
+            Assert.That(m_manager.Runtime.Units.Count, Is.EqualTo(unitCount + 1));
+            Assert.That(m_manager.Runtime.Units.ToList(), Does.Contain(retried));
+        }
+
+        [Test]
+        public async Task RuntimeUnitsHideUnitWhileParentNotificationIsPending()
+        {
+            var parent = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("GatedLine", m_manager.InstanceNamespaceIndex),
+                BrowseName = new QualifiedName("GatedLine", m_manager.InstanceNamespaceIndex),
+                DisplayName = new LocalizedText("GatedLine"),
+                TypeDefinitionId = Ua.ObjectTypeIds.BaseObjectType
+            };
+            await m_manager.AddPredefinedNodeAsync(parent);
+            TaskCompletionSource<bool> entered = PackMLTestSupport.Signal();
+            TaskCompletionSource<bool> release = PackMLTestSupport.Signal();
+            var notificationError = new InvalidOperationException("Parent subscriber failed.");
+            parent.OnStateChangedAsync = async (_, _, _, _) =>
+            {
+                entered.TrySetResult(true);
+                await release.Task.ConfigureAwait(false);
+                throw notificationError;
+            };
+            var browseName = new QualifiedName("Labeler", m_manager.InstanceNamespaceIndex);
+            int unitCount = m_manager.Runtime.Units.Count;
+
+            Task<Unit> adding = m_manager.Runtime.AddUnitAsync(
+                browseName, new EquipmentProvider(), parent: parent).AsTask();
+            ArrayOf<Unit> whilePending;
+            try
+            {
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                whilePending = m_manager.Runtime.Units;
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+            InvalidOperationException failure = (await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await adding.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false)))!;
+
+            Assert.That(failure, Is.SameAs(notificationError));
+            Assert.That(whilePending.Count, Is.EqualTo(unitCount));
+            Assert.That(whilePending.ToList().Exists(unit => unit.Node.BrowseName == browseName), Is.False);
+            Assert.That(m_manager.Runtime.Units.Count, Is.EqualTo(unitCount));
+            parent.OnStateChangedAsync = null;
+        }
+
+        [Test]
+        public async Task RuntimeAdmitsWireCallsWhileParentNotificationIsPending(
+            [Values(true, false)] bool published)
+        {
+            string lineName = published ? "AdmittingLine" : "RollbackLine";
+            var parent = new BaseObjectState(null)
+            {
+                NodeId = new NodeId(lineName, m_manager.InstanceNamespaceIndex),
+                BrowseName = new QualifiedName(lineName, m_manager.InstanceNamespaceIndex),
+                DisplayName = new LocalizedText(lineName),
+                TypeDefinitionId = Ua.ObjectTypeIds.BaseObjectType
+            };
+            await m_manager.AddPredefinedNodeAsync(parent);
+            TaskCompletionSource<bool> entered = PackMLTestSupport.Signal();
+            TaskCompletionSource<bool> release = PackMLTestSupport.Signal();
+            var notificationError = new InvalidOperationException("Parent subscriber failed.");
+            parent.OnStateChangedAsync = async (_, _, _, _) =>
+            {
+                entered.TrySetResult(true);
+                await release.Task.ConfigureAwait(false);
+                if (!published)
+                {
+                    throw notificationError;
+                }
+            };
+            var browseName = new QualifiedName("Sealer", m_manager.InstanceNamespaceIndex);
+            var provider = new EquipmentProvider();
+            bool listedWhenExecuted = true;
+            provider.Execute = (request, _) =>
+            {
+                listedWhenExecuted = m_manager.Runtime.Units.ToList()
+                    .Exists(unit => unit.Node.BrowseName == browseName);
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            };
+
+            Task<Unit> adding = m_manager.Runtime.AddUnitAsync(browseName, provider, parent: parent).AsTask();
+            ServiceResult result;
+            try
+            {
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                var children = new List<BaseInstanceState>();
+                parent.GetChildren(m_manager.SystemContext, children);
+                PackMLBaseObjectState pending = children.OfType<PackMLBaseObjectState>()
+                    .Single(child => child.BrowseName == browseName);
+                result = await pending.SetMachSpeed.Required().CallAsync(
+                    m_manager.SystemContext, pending.NodeId, new[] { Variant.From(10f) }.ToArrayOf(),
+                    new List<ServiceResult>(), new List<Variant>()).AsTask()
+                    .WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+
+                Assert.That(adding.IsCompleted, Is.False);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(provider.Executed, Has.Count.EqualTo(1));
+            Assert.That(provider.Executed[0].MachineSpeed, Is.EqualTo(10f));
+            Assert.That(listedWhenExecuted, Is.False);
+            if (published)
+            {
+                Unit unit = await adding.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                Assert.That(m_manager.Runtime.Units.ToList(), Does.Contain(unit));
+            }
+            else
+            {
+                InvalidOperationException failure = (await Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await adding.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false)))!;
+                Assert.That(failure, Is.SameAs(notificationError));
+                Assert.That(
+                    m_manager.Runtime.Units.ToList().Exists(unit => unit.Node.BrowseName == browseName), Is.False);
+            }
+            Assert.That(provider.Executed, Has.Count.EqualTo(1));
+            parent.OnStateChangedAsync = null;
+        }
+        [Test]
         public async Task EnabledWireOperationsPreservePayloadAndReadinessMeaning()
         {
             var provider = new EquipmentProvider
@@ -724,6 +1096,19 @@ namespace Opc.Ua.PackML.Tests
 
         private void ConfigureServer(OpcUaServerOptions options)
         {
+            if (TestContext.CurrentContext.Test.MethodName == nameof(PackMLMonitoredItemSupportsQueueSizeOfAtLeastFive))
+            {
+                options.ConfigureBuilder = builder =>
+                {
+                    if (builder is not ApplicationConfigurationBuilder configuration)
+                    {
+                        throw new InvalidOperationException("The test requires the application configuration builder.");
+                    }
+                    configuration.ApplicationConfiguration.ServerConfiguration.MaxMonitoredItemCount = 102;
+                    configuration.ApplicationConfiguration.ServerConfiguration.MaxMonitoredItemsPerSubscription = 102;
+                    configuration.ApplicationConfiguration.ServerConfiguration.MaxNotificationQueueSize = 5;
+                };
+            }
             options.ApplicationName = nameof(PackMLClientServerTests);
             options.ApplicationUri = "urn:localhost:packml-tests";
             options.ProductUri = "urn:localhost:packml-tests:product";

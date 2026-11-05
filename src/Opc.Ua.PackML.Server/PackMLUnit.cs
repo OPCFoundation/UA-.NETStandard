@@ -231,28 +231,29 @@ namespace Opc.Ua.PackML.Server
                         .ConfigureAwait(false);
                     if (saved is not null)
                     {
-                        unit.Administration.Restore(saved);
+                        await unit.Administration.RestoreAsync(saved, cancellationToken).ConfigureAwait(false);
                     }
                 }
-                unit.ApplyMode(captured.InitialMode);
-                unit.Set(status.UnitModeRequested, false);
-                unit.Set(status.UnitModeChangeInProcess, false);
-                unit.Set(status.StateRequested, (int)unit.CurrentState);
-                unit.Set(status.MachSpeed, 0f, StatusCodes.BadWaitingForInitialData);
-                unit.Set(status.Parameter, Variant.FromStructure(ArrayOf<PackMLDescriptorDataType>.Empty),
-                    StatusCodes.BadWaitingForInitialData);
-                unit.Set(status.Product, Variant.FromStructure(ArrayOf<PackMLProductDataType>.Empty),
-                    StatusCodes.BadWaitingForInitialData);
+                await unit.ApplyModeAsync(captured.InitialMode).ConfigureAwait(false);
+                await unit.SetAsync(status.UnitModeRequested, false).ConfigureAwait(false);
+                await unit.SetAsync(status.UnitModeChangeInProcess, false).ConfigureAwait(false);
+                await unit.SetAsync(status.StateRequested, (int)unit.CurrentState).ConfigureAwait(false);
+                await unit.SetAsync(status.MachSpeed, 0f, StatusCodes.BadWaitingForInitialData)
+                    .ConfigureAwait(false);
+                await unit.SetAsync(status.Parameter, Variant.FromStructure(ArrayOf<PackMLDescriptorDataType>.Empty),
+                    StatusCodes.BadWaitingForInitialData).ConfigureAwait(false);
+                await unit.SetAsync(status.Product, Variant.FromStructure(ArrayOf<PackMLProductDataType>.Empty),
+                    StatusCodes.BadWaitingForInitialData).ConfigureAwait(false);
                 if (captured.EnableRemoteCommand)
                 {
-                    unit.Set(status.RemoteParameter,
+                    await unit.SetAsync(status.RemoteParameter,
                         Variant.FromStructure(ArrayOf<PackMLRemoteInterfaceDataType>.Empty),
-                        StatusCodes.BadWaitingForInitialData);
+                        StatusCodes.BadWaitingForInitialData).ConfigureAwait(false);
                 }
-                unit.Administration.Apply(new PackMLAdministrationData
+                await unit.Administration.ApplyAsync(new PackMLAdministrationData
                 {
                     SourceTimestamp = captured.TimeProvider.GetUtcNow().UtcDateTime
-                }, captured.AdministrationExtents);
+                }, captured.AdministrationExtents).ConfigureAwait(false);
                 await unit.RefreshAsync(cancellationToken).ConfigureAwait(false);
                 return unit;
             }
@@ -347,30 +348,34 @@ namespace Opc.Ua.PackML.Server
             {
                 return authorization;
             }
-            Variant previousStateRequest = Require(Status.StateRequested).WrappedValue;
-            SetRequestIndicators(request, true);
+            IndicatorValue[] previousIndicators = CaptureRequestIndicators(request);
             ServiceResult accepted;
             try
             {
+                await SetRequestIndicatorsAsync(request).ConfigureAwait(false);
                 accepted = await m_lifetime.CallProviderAsync(
                     () => m_provider.ExecuteAsync(request, cancellationToken)).ConfigureAwait(false);
             }
-            catch
+            catch (Exception admissionError)
             {
-                RestoreRequestIndicators(request, previousStateRequest);
+                await RestoreRequestIndicatorsAsync(previousIndicators, admissionError).ConfigureAwait(false);
                 throw;
             }
             if (!ServiceResult.IsGood(accepted))
             {
-                RestoreRequestIndicators(request, previousStateRequest);
+                Exception rejection = ServiceResult.IsUncertain(accepted)
+                    ? new InvalidOperationException(
+                        "PackML equipment acceptance must return a Good or Bad status.",
+                        new ServiceResultException(accepted))
+                    : new ServiceResultException(accepted);
+                await RestoreRequestIndicatorsAsync(previousIndicators, rejection).ConfigureAwait(false);
                 if (ServiceResult.IsUncertain(accepted))
                 {
-                    throw new InvalidOperationException(
-                        "PackML equipment acceptance must return a Good or Bad status.");
+                    throw rejection;
                 }
                 return accepted;
             }
-            ApplyAccepted(request);
+            await ApplyAcceptedAsync(request).ConfigureAwait(false);
             await SaveAdministrationAsync(cancellationToken).ConfigureAwait(false);
             return accepted;
         }
@@ -402,8 +407,9 @@ namespace Opc.Ua.PackML.Server
             {
                 return ServiceResult.Create(StatusCodes.BadInvalidState, "The equipment completion is stale.");
             }
-            ServiceResult result = m_controller.CompleteActingState();
-            PublishState();
+            ServiceResult result = await m_controller.CompleteActingStateAsync(CancellationToken.None)
+                .ConfigureAwait(false);
+            await PublishStateAsync().ConfigureAwait(false);
             await SaveAdministrationAsync(cancellationToken).ConfigureAwait(false);
             return result;
         }
@@ -431,38 +437,44 @@ namespace Opc.Ua.PackML.Server
             {
                 if (m_requestedMode is int requested && snapshot.CurrentMode == requested)
                 {
-                    ApplyMode(requested);
+                    await ApplyModeAsync(requested).ConfigureAwait(false);
                     m_requestedMode = null;
-                    Set(Status.UnitModeRequested, false);
-                    Set(Status.UnitModeChangeInProcess, false);
+                    await SetAsync(Status.UnitModeRequested, false).ConfigureAwait(false);
+                    await SetAsync(Status.UnitModeChangeInProcess, false).ConfigureAwait(false);
                 }
                 else if (snapshot.CurrentMode != m_currentMode)
                 {
                     throw new InvalidOperationException("The provider changed mode without an accepted request.");
                 }
             }
-            Set(Status.CurMachSpeed, snapshot.CurrentMachineSpeed, snapshot.StatusCode, snapshot.SourceTimestamp);
-            Set(Status.EquipmentBlocked, snapshot.EquipmentBlocked, snapshot.StatusCode, snapshot.SourceTimestamp);
-            Set(Status.EquipmentStarved, snapshot.EquipmentStarved, snapshot.StatusCode, snapshot.SourceTimestamp);
+            await SetAsync(Status.CurMachSpeed, snapshot.CurrentMachineSpeed, snapshot.StatusCode,
+                snapshot.SourceTimestamp).ConfigureAwait(false);
+            await SetAsync(Status.EquipmentBlocked, snapshot.EquipmentBlocked, snapshot.StatusCode,
+                snapshot.SourceTimestamp).ConfigureAwait(false);
+            await SetAsync(Status.EquipmentStarved, snapshot.EquipmentStarved, snapshot.StatusCode,
+                snapshot.SourceTimestamp).ConfigureAwait(false);
             if (m_options.EnableRemoteCommand)
             {
-                Set(Status.RemoteParameter, Variant.FromStructure(snapshot.RemoteParameters, true),
-                    snapshot.StatusCode, snapshot.SourceTimestamp);
+                await SetAsync(Status.RemoteParameter, Variant.FromStructure(snapshot.RemoteParameters, true),
+                    snapshot.StatusCode, snapshot.SourceTimestamp).ConfigureAwait(false);
             }
             if (m_options.MaterialCount > 0)
             {
-                Set(Status.MaterialInterlock, Variant.From(snapshot.MaterialReadiness.Span.ToArray().ToArrayOf()),
-                    snapshot.StatusCode, snapshot.SourceTimestamp);
+                await SetAsync(Status.MaterialInterlock,
+                    Variant.From(snapshot.MaterialReadiness.Span.ToArray().ToArrayOf()),
+                    snapshot.StatusCode, snapshot.SourceTimestamp).ConfigureAwait(false);
                 bool interlocked = false;
                 foreach (bool ready in snapshot.MaterialReadiness)
                 {
                     interlocked |= !ready;
                 }
-                Set(Status.MaterialInterlocked, interlocked, snapshot.StatusCode, snapshot.SourceTimestamp);
+                await SetAsync(Status.MaterialInterlocked, interlocked, snapshot.StatusCode, snapshot.SourceTimestamp)
+                    .ConfigureAwait(false);
             }
-            Set(Status.UnitModeCurrent, m_currentMode, snapshot.StatusCode, snapshot.SourceTimestamp);
-            PublishState();
-            Administration.Refresh();
+            await SetAsync(Status.UnitModeCurrent, m_currentMode, snapshot.StatusCode, snapshot.SourceTimestamp)
+                .ConfigureAwait(false);
+            await PublishStateAsync().ConfigureAwait(false);
+            await Administration.RefreshAsync(CancellationToken.None).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -503,7 +515,8 @@ namespace Opc.Ua.PackML.Server
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            Administration.Apply(data, m_options.AdministrationExtents);
+            await Administration.ApplyAsync(data, m_options.AdministrationExtents, cancellationToken)
+                .ConfigureAwait(false);
             await SaveAdministrationAsync(cancellationToken).ConfigureAwait(false);
         }
 
@@ -527,12 +540,14 @@ namespace Opc.Ua.PackML.Server
             {
                 await m_lifetime.CallProviderAsync(async () =>
                 {
-                    await store.SaveAsync(Administration.Capture(), cancellationToken).ConfigureAwait(false);
+                    PackMLAdministrationSnapshot snapshot = await Administration.CaptureAsync(cancellationToken)
+                        .ConfigureAwait(false);
+                    await store.SaveAsync(snapshot, cancellationToken).ConfigureAwait(false);
                     return true;
                 }).ConfigureAwait(false);
                 return;
             }
-            Administration.Refresh();
+            await Administration.RefreshAsync(cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -604,65 +619,120 @@ namespace Opc.Ua.PackML.Server
         /// <summary>
         /// Commits accepted setpoints without fabricating actual equipment data.
         /// </summary>
-        private void ApplyAccepted(PackMLRequest request)
+        private async ValueTask ApplyAcceptedAsync(PackMLRequest request)
         {
             switch (request.Operation)
             {
                 case PackMLOperation.Command:
-                    ServiceResult result = m_controller.Execute(request.Command, request.Parameters);
+                    ServiceResult result = await m_controller.ExecuteAsync(
+                        request.Command, request.Parameters, CancellationToken.None).ConfigureAwait(false);
                     if (ServiceResult.IsBad(result))
                     {
                         throw new ServiceResultException(result);
                     }
                     m_pendingRequestId = request.RequestId;
-                    PublishState();
+                    await PublishStateAsync().ConfigureAwait(false);
                     break;
                 case PackMLOperation.SetUnitMode:
                     m_requestedMode = request.Mode;
                     break;
                 case PackMLOperation.SetMachSpeed:
-                    Set(Status.MachSpeed, request.MachineSpeed);
+                    await SetAsync(Status.MachSpeed, request.MachineSpeed).ConfigureAwait(false);
                     break;
                 case PackMLOperation.SetProduct:
-                    Set(Status.Product, Variant.FromStructure(request.Products, true));
+                    await SetAsync(Status.Product, Variant.FromStructure(request.Products, true))
+                        .ConfigureAwait(false);
                     break;
                 case PackMLOperation.SetParameter:
-                    Set(Status.Parameter, Variant.FromStructure(request.Parameters, true));
+                    await SetAsync(Status.Parameter, Variant.FromStructure(request.Parameters, true))
+                        .ConfigureAwait(false);
                     break;
                 case PackMLOperation.ResetCounters:
-                    Administration.ResetCounters();
+                    await Administration.ResetCountersAsync(CancellationToken.None).ConfigureAwait(false);
                     break;
             }
         }
 
         /// <summary>
-        /// Updates indicators while authorization/execution is pending.
+        /// Captures the indicators a request changes while its admission is pending.
         /// </summary>
-        private void SetRequestIndicators(PackMLRequest request, bool pending)
+        private IndicatorValue[] CaptureRequestIndicators(PackMLRequest request)
+        {
+            BaseVariableState[] variables = request.Operation switch
+            {
+                PackMLOperation.SetUnitMode =>
+                    [Require(Status.UnitModeRequested), Require(Status.UnitModeChangeInProcess)],
+                PackMLOperation.Command =>
+                    [Require(Status.StateRequested), Require(Status.StateChangeInProcess)],
+                _ => []
+            };
+            return Array.ConvertAll(
+                variables,
+                variable => new IndicatorValue(
+                    variable, variable.WrappedValue, variable.StatusCode, variable.Timestamp));
+        }
+
+        /// <summary>
+        /// Publishes the pending indicators of a request before the provider is asked to accept it.
+        /// </summary>
+        private async ValueTask SetRequestIndicatorsAsync(PackMLRequest request)
         {
             if (request.Operation == PackMLOperation.SetUnitMode)
             {
-                Set(Status.UnitModeRequested, pending);
-                Set(Status.UnitModeChangeInProcess, pending);
+                await SetAsync(Status.UnitModeRequested, true).ConfigureAwait(false);
+                await SetAsync(Status.UnitModeChangeInProcess, true).ConfigureAwait(false);
             }
             if (request.Operation == PackMLOperation.Command)
             {
-                Set(Status.StateRequested, pending ? (int)RequestedState(request.Command) : (int)CurrentState);
-                Set(Status.StateChangeInProcess, pending);
+                await SetAsync(Status.StateRequested, (int)RequestedState(request.Command)).ConfigureAwait(false);
+                await SetAsync(Status.StateChangeInProcess, true).ConfigureAwait(false);
             }
         }
 
         /// <summary>
-        /// Restores an existing acting sequence when a superseding request is rejected.
+        /// Restores the captured indicators when a request is not accepted, including an
+        /// existing acting sequence that a rejected request would have superseded.
         /// </summary>
-        private void RestoreRequestIndicators(PackMLRequest request, Variant previousStateRequest)
+        /// <remarks>
+        /// Every value is restored before any notification is published, so a failing
+        /// subscriber cannot leave an indicator partially applied. Each notification is
+        /// attempted; failures are reported together with the admission failure. For a
+        /// Bad acceptance the admission failure is a <see cref="ServiceResultException"/>
+        /// carrying the provider's result, so the result is not lost when restoration fails.
+        /// </remarks>
+        private async ValueTask RestoreRequestIndicatorsAsync(
+            IndicatorValue[] previous,
+            Exception? admissionError)
         {
-            SetRequestIndicators(request, false);
-            if (request.Operation == PackMLOperation.Command)
+            foreach (IndicatorValue indicator in previous)
             {
-                Set(Status.StateRequested, previousStateRequest);
-                PublishState();
+                indicator.Variable.WrappedValue = indicator.Value;
+                indicator.Variable.StatusCode = indicator.StatusCode;
+                indicator.Variable.Timestamp = indicator.Timestamp;
             }
+            List<Exception>? errors = null;
+            foreach (IndicatorValue indicator in previous)
+            {
+                try
+                {
+                    await indicator.Variable.ClearChangeMasksAsync(m_context, false, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception restoreError)
+                {
+                    (errors ??= []).Add(restoreError);
+                }
+            }
+            if (errors is null)
+            {
+                return;
+            }
+            if (admissionError is not null)
+            {
+                errors.Insert(0, admissionError);
+            }
+            throw new AggregateException(
+                "PackML request indicators were restored, but publishing them failed.", errors);
         }
 
         /// <summary>
@@ -685,14 +755,15 @@ namespace Opc.Ua.PackML.Server
         /// <summary>
         /// Publishes acting-state progress independently of method acceptance.
         /// </summary>
-        private void PublishState()
+        private async ValueTask PublishStateAsync()
         {
-            Administration.RecordState(m_currentMode, CurrentState);
+            await Administration.RecordStateAsync(m_currentMode, CurrentState, CancellationToken.None)
+                .ConfigureAwait(false);
             bool acting = CurrentState is PackMLStateNumbers.Aborting or PackMLStateNumbers.Clearing or
                 PackMLStateNumbers.Stopping or PackMLStateNumbers.Resetting or PackMLStateNumbers.Starting or
                 PackMLStateNumbers.Holding or PackMLStateNumbers.Unholding or PackMLStateNumbers.Suspending or
                 PackMLStateNumbers.Unsuspending or PackMLStateNumbers.Completing;
-            Set(Status.StateChangeInProcess, acting);
+            await SetAsync(Status.StateChangeInProcess, acting).ConfigureAwait(false);
             if (!acting)
             {
                 m_pendingRequestId = 0;
@@ -702,16 +773,17 @@ namespace Opc.Ua.PackML.Server
         /// <summary>
         /// Applies a confirmed mode and its initial state.
         /// </summary>
-        private void ApplyMode(int mode)
+        private async ValueTask ApplyModeAsync(int mode)
         {
             PackMLMode definition = m_modes[mode];
             ArrayOf<uint> states = definition.States.Count == 0
                 ? Enumerable.Range(1, (int)PackMLStateNumbers.Cleared).Select(state => (uint)state).ToArrayOf()
                 : definition.States;
-            m_controller.ConfigureStates(states, definition.InitialState);
+            await m_controller.ConfigureStatesAsync(states, definition.InitialState, CancellationToken.None)
+                .ConfigureAwait(false);
             m_currentMode = mode;
-            Set(Status.UnitModeCurrent, mode);
-            PublishState();
+            await SetAsync(Status.UnitModeCurrent, mode).ConfigureAwait(false);
+            await PublishStateAsync().ConfigureAwait(false);
         }
 
         /// <summary>
@@ -730,9 +802,12 @@ namespace Opc.Ua.PackML.Server
         }
 
         /// <summary>
-        /// Sets a generated variable with quality and time, then notifies monitors.
+        /// Sets a generated variable with quality and time, then awaits the
+        /// monitor notification. Callers await each update before the next so
+        /// that monitored items sample every value in order. Applied values
+        /// are always published, so the notification is not cancellable.
         /// </summary>
-        private void Set(
+        private ValueTask SetAsync(
             BaseVariableState? variable,
             Variant value,
             StatusCode status = default,
@@ -745,7 +820,7 @@ namespace Opc.Ua.PackML.Server
             variable.WrappedValue = value;
             variable.StatusCode = status;
             variable.Timestamp = timestamp.IsNull ? m_options.TimeProvider.GetUtcNow().UtcDateTime : timestamp;
-            variable.ClearChangeMasks(m_context, false);
+            return variable.ClearChangeMasksAsync(m_context, false, CancellationToken.None);
         }
 
         /// <summary>
@@ -1072,5 +1147,14 @@ namespace Opc.Ua.PackML.Server
 
         /// <summary>The accepted mode request awaiting an equipment snapshot.</summary>
         private int? m_requestedMode;
+
+        /// <summary>
+        /// A captured request indicator restored when the request is not accepted.
+        /// </summary>
+        private readonly record struct IndicatorValue(
+            BaseVariableState Variable,
+            Variant Value,
+            StatusCode StatusCode,
+            DateTimeUtc Timestamp);
     }
 }

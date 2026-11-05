@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server.StateMachines
@@ -934,6 +935,39 @@ namespace Opc.Ua.Server.StateMachines
             m_dispatcher.AddInitialStateSynchronizer(SyncChildToParentState);
             m_stateMachine.InitialStateSynchronization += SyncChildToParentState;
 
+            async ValueTask SyncChildToParentStateAsync(ISystemContext ctx, uint parentCurrentStateId)
+            {
+                bool attached = parentCurrentStateId == parentStateId;
+                uint? selectedState = null;
+                if (!attached)
+                {
+                    if (!preserveOnReentry)
+                    {
+                        selectedState = 0;
+                    }
+                }
+                else if (initialChildStateId != 0)
+                {
+                    bool childHasState = !(materializedChild.CurrentState?.Value.IsNullOrEmpty ?? true);
+                    if (Interlocked.Exchange(ref resetOnNextActivation, 0) != 0 ||
+                        !preserveOnReentry || !childHasState)
+                    {
+                        selectedState = initialChildStateId;
+                    }
+                }
+                if (materializedChild is FluentFiniteStateMachineState fluent)
+                {
+                    await fluent.SetSuspendedAsync(ctx, !attached, selectedState).ConfigureAwait(false);
+                }
+                else
+                {
+                    await materializedChild.SetStateAndActiveAsync(ctx, selectedState, attached)
+                        .ConfigureAwait(false);
+                }
+            }
+
+            m_stateMachine.InitialStateSynchronizationAsync += SyncChildToParentStateAsync;
+
             void ScheduleChildSynchronization(ISystemContext ctx, TState parent)
             {
                 parent.ScheduleTransitionCompletion(materializedChild.NodeId, () =>
@@ -956,6 +990,16 @@ namespace Opc.Ua.Server.StateMachines
                 if (from == parentStateId || to == parentStateId)
                 {
                     ScheduleChildSynchronization(ctx, parent);
+                }
+            });
+
+            m_dispatcher.AddAsyncTransitionSynchronizer((ctx, parent, from, to) =>
+            {
+                if (from == parentStateId || to == parentStateId)
+                {
+                    parent.ScheduleAsyncTransitionCompletion(
+                        materializedChild.NodeId,
+                        () => SyncChildToParentStateAsync(ctx, ExtractCurrentStateId(parent)));
                 }
             });
 
@@ -1064,7 +1108,7 @@ namespace Opc.Ua.Server.StateMachines
         /// the transition.</param>
         /// <param name="transitionId">The transition to fire when the
         /// timer expires — driven via
-        /// <see cref="FiniteStateMachineState.DoTransition"/>.</param>
+        /// <c>FiniteStateMachineState.DoTransition</c>.</param>
         /// <param name="causeId">The cause id reported in the audit
         /// event (0 if no human-meaningful cause).</param>
         /// <exception cref="ArgumentOutOfRangeException">
@@ -1554,6 +1598,16 @@ namespace Opc.Ua.Server.StateMachines
         private readonly StateMachineTransitionCallbackFactory? m_originalCallbacks;
 
         /// <summary>
+        /// Preserves native asynchronous coordination installed before this dispatcher.
+        /// </summary>
+        private readonly StateMachineAsyncTransitionCallbackFactory? m_originalAsyncCallbacks;
+
+        /// <summary>
+        /// Schedules native hierarchical synchronization for an admitted asynchronous transition.
+        /// </summary>
+        private readonly List<Action<ISystemContext, TState, uint, uint>> m_transitionSynchronizersAsync = [];
+
+        /// <summary>
         /// Protects timed-transition registrations and their shutdown state.
         /// </summary>
         private readonly Lock m_timerLock = new();
@@ -1586,6 +1640,7 @@ namespace Opc.Ua.Server.StateMachines
             m_context = context;
             m_timeProvider = timeProvider ?? TimeProvider.System;
             m_originalCallbacks = stateMachine.TransitionCallbackFactory;
+            m_originalAsyncCallbacks = stateMachine.AsyncTransitionCallbackFactory;
             m_logger = context.Telemetry.CreateLogger<StateMachineDispatcher<TState>>();
         }
 
@@ -1649,6 +1704,15 @@ namespace Opc.Ua.Server.StateMachines
         }
 
         /// <summary>
+        /// Registers hierarchical completion scheduling for native asynchronous transitions.
+        /// </summary>
+        public void AddAsyncTransitionSynchronizer(Action<ISystemContext, TState, uint, uint> synchronizer)
+        {
+            m_transitionSynchronizersAsync.Add(synchronizer);
+            EnsureInstalled();
+        }
+
+        /// <summary>
         /// Runs every registered synchronizer against
         /// <paramref name="stateId"/>, and re-arms the timed-transition
         /// timers to match — <c>SetState</c> fires no transition, so
@@ -1662,6 +1726,14 @@ namespace Opc.Ua.Server.StateMachines
                 SafeInvoke(() => synchronizer(context, stateId), 0, stateId);
             }
 
+            SynchronizeInitialTimers(stateId);
+        }
+
+        /// <summary>
+        /// Brings timed registrations in line with initial state without invoking synchronous child synchronizers.
+        /// </summary>
+        private void SynchronizeInitialTimers(uint stateId)
+        {
             KeyValuePair<uint, TimedTransitionEntry>[] snapshot;
             lock (m_timerLock)
             {
@@ -1832,6 +1904,12 @@ namespace Opc.Ua.Server.StateMachines
             }
             m_installed = true;
             m_stateMachine.TransitionCallbackFactory = CreateCallbacks;
+            m_stateMachine.AsyncTransitionCallbackFactory = CreateAsyncCallbacks;
+            m_stateMachine.InitialStateSynchronizationAsync += (_, stateId) =>
+            {
+                SynchronizeInitialTimers(stateId);
+                return default;
+            };
         }
 
         /// <summary>
@@ -1852,6 +1930,95 @@ namespace Opc.Ua.Server.StateMachines
                     DispatchBefore(context, machine, transition, cause, inputs, outputs, before),
                 (context, machine, transition, cause, inputs, outputs) =>
                     DispatchAfter(context, machine, transition, cause, inputs, outputs, from, to, after));
+        }
+
+        /// <summary>
+        /// Composes native callbacks without using this dispatcher's synchronous notification coordinators.
+        /// </summary>
+        private (StateMachineTransitionHandler? Before, StateMachineTransitionAsyncHandler? After) CreateAsyncCallbacks(
+            uint from,
+            uint to,
+            StateMachineTransitionHandler? before,
+            StateMachineTransitionHandler? after,
+            StateMachineTransitionAsyncHandler? afterAsync)
+        {
+            StateMachineTransitionAsyncHandler? originalAfterAsync = afterAsync;
+            if (m_originalAsyncCallbacks != null)
+            {
+                (before, originalAfterAsync) = m_originalAsyncCallbacks(from, to, before, after, afterAsync);
+                after = null;
+            }
+            else if (m_originalCallbacks != null)
+            {
+                (before, after) = m_originalCallbacks(from, to, before, after);
+            }
+            return (
+                (context, machine, transition, cause, inputs, outputs) =>
+                    DispatchBefore(context, machine, transition, cause, inputs, outputs, before),
+                (context, machine, transition, cause, inputs, outputs, ct) =>
+                    DispatchAfterAsync(
+                        context, machine, transition, cause, inputs, outputs, from, to, after, originalAfterAsync));
+        }
+
+        /// <summary>
+        /// Awaits original native coordination and schedules native child synchronization before lifecycle observers.
+        /// </summary>
+        private async ValueTask<ServiceResult> DispatchAfterAsync(
+            ISystemContext context,
+            StateMachineState machine,
+            uint transitionId,
+            uint causeId,
+            ArrayOf<Variant> inputArguments,
+            List<Variant>? outputArguments,
+            uint from,
+            uint to,
+            StateMachineTransitionHandler? originalAfter,
+            StateMachineTransitionAsyncHandler? originalAfterAsync)
+        {
+            long revision = m_stateMachine.StateRevision;
+            if (from != 0)
+            {
+                CancelTimer(from);
+            }
+            List<Exception> failures = [];
+            ServiceResult result = ServiceResult.Good;
+            try
+            {
+                if (originalAfterAsync != null)
+                {
+                    result = await originalAfterAsync(
+                        context, machine, transitionId, causeId,
+                        inputArguments, outputArguments, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+                else if (originalAfter != null)
+                {
+                    result = originalAfter(
+                        context, machine, transitionId, causeId, inputArguments, outputArguments);
+                }
+            }
+            catch (Exception ex)
+            {
+                failures.Add(ex);
+            }
+            foreach (Action<ISystemContext, TState, uint, uint> synchronizer in m_transitionSynchronizersAsync)
+            {
+                try
+                {
+                    synchronizer(context, m_stateMachine, from, to);
+                }
+                catch (Exception ex)
+                {
+                    failures.Add(ex);
+                }
+            }
+            m_stateMachine.ScheduleAsyncTransitionObserver(
+                () => DispatchLifecycleAsync(context, from, to, revision));
+            if (failures.Count != 0)
+            {
+                throw new AggregateException("Native transition coordination failed.", failures);
+            }
+            return result;
         }
 
         /// <summary>
@@ -1985,6 +2152,100 @@ namespace Opc.Ua.Server.StateMachines
             if (to != 0 && armEntry != null && m_stateMachine.StateRevision == revision)
             {
                 ArmTimer(to, armEntry);
+            }
+        }
+
+        /// <summary>
+        /// Awaits lifecycle callbacks in exit, transition, entry order while admission retains the live state.
+        /// </summary>
+        private async ValueTask DispatchLifecycleAsync(ISystemContext context, uint from, uint to, long revision)
+        {
+            List<Exception> failures = [];
+            if (from != 0 && m_exitHandlers.TryGetValue(from, out List<Action<ISystemContext, TState>>? exits))
+            {
+                foreach (Action<ISystemContext, TState> handler in exits)
+                {
+                    InvokeObserved(() => handler(context, m_stateMachine), failures);
+                }
+            }
+            if (from != 0 && m_exitHandlersAsync.TryGetValue(
+                from, out List<Func<ISystemContext, TState, CancellationToken, ValueTask>>? asyncExits))
+            {
+                foreach (Func<ISystemContext, TState, CancellationToken, ValueTask> handler in asyncExits)
+                {
+                    await InvokeObservedAsync(
+                        () => handler(context, m_stateMachine, CancellationToken.None), failures).ConfigureAwait(false);
+                }
+            }
+            foreach (Action<ISystemContext, TState, uint, uint> observer in m_transitionObservers)
+            {
+                InvokeObserved(() => observer(context, m_stateMachine, from, to), failures);
+            }
+            foreach (Func<ISystemContext, TState, uint, uint, CancellationToken, ValueTask> observer
+                in m_transitionObserversAsync)
+            {
+                await InvokeObservedAsync(
+                    () => observer(context, m_stateMachine, from, to, CancellationToken.None), failures)
+                    .ConfigureAwait(false);
+            }
+            if (to != 0 && m_enterHandlers.TryGetValue(to, out List<Action<ISystemContext, TState>>? entries))
+            {
+                foreach (Action<ISystemContext, TState> handler in entries)
+                {
+                    InvokeObserved(() => handler(context, m_stateMachine), failures);
+                }
+            }
+            if (to != 0 && m_enterHandlersAsync.TryGetValue(
+                to, out List<Func<ISystemContext, TState, CancellationToken, ValueTask>>? asyncEntries))
+            {
+                foreach (Func<ISystemContext, TState, CancellationToken, ValueTask> handler in asyncEntries)
+                {
+                    await InvokeObservedAsync(
+                        () => handler(context, m_stateMachine, CancellationToken.None), failures).ConfigureAwait(false);
+                }
+            }
+            TimedTransitionEntry? armEntry;
+            lock (m_timerLock)
+            {
+                m_timedTransitions.TryGetValue(to, out armEntry);
+            }
+            if (to != 0 && armEntry != null && m_stateMachine.StateRevision == revision)
+            {
+                InvokeObserved(() => ArmTimer(to, armEntry), failures);
+            }
+            if (failures.Count != 0)
+            {
+                throw new AggregateException("Native lifecycle observers failed.", failures);
+            }
+        }
+
+        /// <summary>
+        /// Retains a synchronous observer's failure without skipping subsequent lifecycle callbacks.
+        /// </summary>
+        private static void InvokeObserved(Action action, List<Exception> failures)
+        {
+            try
+            {
+                action();
+            }
+            catch (Exception ex)
+            {
+                failures.Add(ex);
+            }
+        }
+
+        /// <summary>
+        /// Retains an asynchronous observer's failure without skipping subsequent lifecycle callbacks.
+        /// </summary>
+        private static async ValueTask InvokeObservedAsync(Func<ValueTask> action, List<Exception> failures)
+        {
+            try
+            {
+                await action().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                failures.Add(ex);
             }
         }
 

@@ -157,11 +157,19 @@ namespace Opc.Ua.PackML.Server
                 {
                     await standalone.RegisterUnitNotifierAsync(unit.Node, cancellationToken).ConfigureAwait(false);
                 }
+                if (parent is not null)
+                {
+                    await parent.ClearChangeMasksAsync(m_manager.SystemContext, false, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+                // Composition is serialized, so committing after the parent
+                // notification cannot admit a duplicate; the Units snapshot
+                // never lists a unit that a failed notification rolls back.
+                // The node itself is already reachable in the address space.
                 lock (m_unitsLock)
                 {
                     m_units.Add(unit);
                 }
-                parent?.ClearChangeMasks(m_manager.SystemContext, false);
                 return unit;
             }
             catch (Exception creationError)

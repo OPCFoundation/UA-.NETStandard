@@ -986,6 +986,59 @@ namespace Opc.Ua.Scales.Tests
         }
 
         [Test]
+        public async Task PackMLAsyncPublicationReportsNotificationAndStateChangedFailuresAsync()
+        {
+            ScaleHandle scale = await CreateAsync(ScaleKind.Simple).ConfigureAwait(false);
+            PackMLStateMachineController packMl = scale.PackML!;
+            FiniteStateVariableState currentState = scale.Scale.State!.CurrentState!;
+            var notificationError = new InvalidOperationException("Notification failed.");
+            var handlerError = new InvalidOperationException("StateChanged handler failed.");
+            currentState.OnStateChangedAsync = async (_, _, _, _) =>
+            {
+                await Task.Yield();
+                throw notificationError;
+            };
+            packMl.StateChanged += (_, _) => throw handlerError;
+
+            AggregateException? failure = await Assert.ThrowsAsync<AggregateException>(async () =>
+                await packMl.ExecuteAsync(PackMLCommand.Abort).ConfigureAwait(false));
+
+            Assert.That(failure, Is.Not.Null);
+            Assert.That(
+                failure!.InnerExceptions,
+                Is.EqualTo(new Exception[] { notificationError, handlerError }));
+            Assert.That(packMl.CurrentState, Is.EqualTo(PackMLStateNumbers.Aborted));
+        }
+
+        [Test]
+        public async Task PackMLAsyncRejectedCommandPublishesNoChangeMasksAsync()
+        {
+            ScaleHandle scale = await CreateAsync(ScaleKind.Simple).ConfigureAwait(false);
+            PackMLStateMachineController packMl = scale.PackML!;
+            PackMLBaseStateMachineState stateMachine = scale.Scale.State!;
+            FiniteStateVariableState currentState = stateMachine.CurrentState!;
+            int notifications = 0;
+            currentState.OnStateChangedAsync = (_, _, _, _) =>
+            {
+                notifications++;
+                return default;
+            };
+            stateMachine.OnCheckUserPermission = (_, _, _, _, _, _) =>
+                ServiceResult.Create(StatusCodes.BadUserAccessDenied, "The test denies the transition.");
+            // A pending change made by other code must stay pending, as it does
+            // when the synchronous Execute rejects the same command.
+            currentState.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            uint before = packMl.CurrentState;
+
+            ServiceResult result = await packMl.ExecuteAsync(PackMLCommand.Abort).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+            Assert.That(packMl.CurrentState, Is.EqualTo(before));
+            Assert.That(notifications, Is.Zero);
+            Assert.That(currentState.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.Value));
+        }
+
+        [Test]
         public async Task ProductionPresetSelectsDeselectsAndSwitchesProductsAsync()
         {
             ScaleHandle scale = await CreateAsync(

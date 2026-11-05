@@ -247,6 +247,95 @@ atomically and report failures. No commands, active states or downtime
 intervals are replayed on restart. The equipment provider owns persistence
 of production counts and alarm data.
 
+### Publication order
+
+A subscriber sees status, administration and state-machine values in the
+order the unit writes them. After each write, the unit's asynchronous
+operations await that node's change notification, including asynchronous
+monitored-item sinks, before they write the next node.
+
+The cancellation token is checked when an operation is admitted, and it is
+passed to provider and store calls. Value writes take no token. Once an
+operation has started changing values, the unit publishes each change with
+`CancellationToken.None`, because an abandoned notification would leave
+subscribers sampling a stale value.
+
+If the notification of a request indicator fails before the provider runs, the
+unit restores the indicators' prior values, status codes and timestamps,
+publishes them and does not call the provider. The unit also restores them when
+the provider rejects the request with a Bad or Uncertain result. If publishing
+the restored indicators also fails, an `AggregateException` carries the
+original failure first and then every restoration failure. For a provider
+rejection, that first entry is a `ServiceResultException` with the provider's
+result; an Uncertain result is wrapped in the `InvalidOperationException` that
+reports the invalid outcome. A rejected command changes nothing and
+publishes no change masks, as on the synchronous path. When the
+state-machine notification fails and the same operation also drains the
+`StateChanged` queue and a handler fails, an `AggregateException` carries both
+failures. If a concurrent command drains that queue first, it receives the
+handler failure, and the asynchronous operation reports only its notification
+failure.
+
+`PackMLRuntime.Units` lists a unit only after the parent's change
+notification succeeds. Composition operations run one at a time, so a later
+composition still detects a duplicate browse name while that notification is
+pending, and no `Units` snapshot contains a unit that a failed notification
+then rolls back. This is a boundary of the `Units` list only. The unit's node
+is added to its parent and to the node manager before the parent notification
+is awaited, so while that notification is pending a client can browse, read
+and call methods on the node, and a method call can reach the provider. If the
+notification then fails, the runtime removes the node, waits for admitted
+provider calls to finish and disposes the unit; a command that the provider
+accepted in that interval is not reversed.
+
+Each owner keeps its serialization gate for the whole operation, including
+the awaited notification callbacks. The runtime holds its composition gate
+while it awaits the parent's `OnStateChangedAsync` sink, and a unit holds its
+operation gate while it awaits its own node sinks and provider calls. A
+callback must not await an operation that needs the gate of the owner that is
+awaiting it: a parent notification sink must not await `AddUnitAsync` or
+`DisposeAsync` on the same runtime, and a unit's node sink or provider
+callback must not await a mutation of that unit. Reentry from the callback's
+own execution context throws `InvalidOperationException`. An operation started
+from another context is either rejected by the busy-admission rule above, while
+provider or persistence work is outstanding, or queues behind the callback,
+which then never completes.
+Method calls on other units, and on the unit being added, are not part of the
+composition gate and run while the parent notification is pending.
+
+A controller raises `StateChanged` events from one queue, and whichever caller
+drains the queue raises them in state order. Synchronous admission stays closed
+until the asynchronous operation's state-machine notifications finish, then
+reopens before the controller raises `StateChanged`. A concurrent command can
+still drain the queue at that point, and a handler failure reaches that draining
+caller. The controller does not assign handler failures to the operation that
+originally queued the change.
+
+`ExecuteAsync` and `CompleteActingStateAsync` await each transition's event and
+change notification before applying nested entry rules or completing the next
+acting state. A callback therefore reads the live state of that transition,
+rather than the final state of an automatically completed chain. Asynchronous
+controller operations are serialized through notification delivery; callbacks
+must not await reentrant operations that require the same controller.
+
+While an asynchronous operation owns notification delivery, synchronous
+commands, completion calls, mode changes and supported-state changes return
+`BadInvalidState` without mutating the state. `Initialize` and `ConfigureStates`,
+which have no status return, throw `ServiceResultException` with that status.
+Admission reopens after publication finishes, including when publication fails.
+Read-only controller access remains available. This restriction applies when
+the async path is active; ordinary synchronous calls retain their ordering.
+
+A machine subclass passed to the controller must override `DoCauseAsync` or
+`DoTransitionAsync` to customize asynchronous transitions. An override of only
+the synchronous method still applies to synchronous controller and wire calls,
+but is not invoked by the async counterpart. Cancellation is observed before
+mutation; after mutation the transition finishes notification delivery without
+rolling back the state. A transition failure stops the remaining completion
+chain, as it does on the synchronous path. See
+[Asynchronous causes and transitions](StateMachines.md#asynchronous-causes-and-transitions)
+for the publication and failure rules.
+
 ## Typed client
 
 ```csharp
@@ -307,8 +396,11 @@ dotnet run --project samples\PackML\PackMLSample -f net10.0 `
 
 Existing Scales and Lens compositions continue to use
 `PackMLStateMachineController` with its synchronous defaults. Standalone
-provider hosting does not change those defaults. MCP tools and additional
-Lens UI are outside this package's scope.
+provider hosting does not change those defaults. Asynchronous hosts call
+`ExecuteAsync`, `ConfigureStatesAsync` and `CompleteActingStateAsync`, which
+await the state-machine notification; the synchronous methods still notify
+synchronously. MCP tools and additional Lens UI are outside this package's
+scope.
 
 Model/runtime support does not certify an installed machine. The
 [PackML Base Functionality Server Facet](https://reference.opcfoundation.org/specs/OPC-30050/7.2.2.1)
@@ -358,6 +450,34 @@ extensions. The runtime exposes and executes those five Hold transitions when a
 configured mode includes their source and destination states. The specification
 does not say whether the conformance unit requires one, some or all five, or
 define other criteria; the runtime therefore does not advertise it. OPC 30050
-remains Partial in the
+does not lose base-facet support solely because this optional conformance unit
+is undefined.
+
+Table 66 directly requires `Monitor MinQueueSize_05`, independently of the
+inherited Standard DataChange Subscription Server Facet, whose
+[Part 7 Table 38](https://reference.opcfoundation.org/specs/OPC-10000-7/full)
+requires `Monitor MinQueueSize_02`. The current evidence does not explicitly
+verify a revised monitored-item queue size of at least five.
+Existing SDK subscription services support
+configurable queues; the unverified threshold is not evidence that those
+queues are unsupported.
+
+[Part 7 v1.04 Table 9](https://reference.opcfoundation.org/specs/OPC-10000-7/v1.04/5.2#tbl_9_monitored-item-services)
+also expects this minimum queue size for at least one third of supported
+MonitoredItems. Evidence for one queue does not establish that capacity.
+Verification against a finite configured or declared supported item limit
+remains outstanding.
+
+The inherited Security Time Synchronization configuration and selected
+synchronization mechanism also lack explicit evidence for the tested PackML host.
+Time-source selection and clock synchronization belong to the hosting
+application and operating environment; this evidence gap does not establish
+that the SDK must implement an NTP service.
+
+OPC 30050 remains Partial in the
 [published specification support matrix](Profiles.md#published-specification-support-matrix)
-until the conformance unit is defined.
+while the direct queue-size and inherited time-synchronization evidence is
+reconciled. This is a validation limit, not a demonstrated missing PackML runtime
+capability. Verifying an installed
+server's providers, clock configuration and selected optional capabilities
+remains separate from the SDK implementation rating.

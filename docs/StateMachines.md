@@ -46,6 +46,7 @@ the same activation and inactive-state quality handling.
   - [Client side — typed sub-SM accessors (generated)](#client-side--typed-sub-sm-accessors-generated)
   - [Fluent builder behavior — `HasSubStateMachine` is on the state node](#fluent-builder-behavior--hassubstatemachine-is-on-the-state-node)
 - [Extensibility recipes](#extensibility-recipes)
+  - [Asynchronous causes and transitions](#asynchronous-causes-and-transitions)
 - [Tests](#tests)
 - [See also](#see-also)
 
@@ -727,6 +728,55 @@ per-invocation source and destination snapshots, including nested callbacks.
 If a before-handler changes the state, the stale outer transition is rejected
 with `BadInvalidState`. Transition events capture their state data before
 after-handlers run, so a nested transition cannot rewrite an earlier event.
+
+### Asynchronous causes and transitions
+
+`DoCause` and `DoTransition` report transition and audit events through the
+synchronous `ReportEvent` and publish change masks through `ClearChangeMasks`.
+When a monitored-event or change-notification sink completes asynchronously,
+the calling thread waits for it. The native virtual `DoCauseAsync` and
+`DoTransitionAsync` counterparts await `ReportEventAsync` and
+`ClearChangeMasksAsync` without blocking that thread. Each transition publishes
+its live state before another admitted async transition can mutate the machine.
+
+```csharp
+ServiceResult result = await machine.DoCauseAsync(
+    context,
+    startMethod,
+    Methods.ProgramStateMachineType_Start,
+    inputArguments,
+    outputArguments,
+    cancellationToken);
+```
+
+The new state is committed before its notification is published, so readers
+can observe it while an event sink is pending. Synchronous `DoCause` and
+`DoTransition` return `BadInvalidState` during async notification delivery;
+`SetState` throws `ServiceResultException` with that status. Ordinary legacy
+synchronous transitions retain their callback ordering. An async callback must
+not await another operation on the same machine; reentry from its execution
+context is rejected rather than waiting on itself.
+
+Cancellation is checked before mutation. After mutation, notification delivery
+finishes without using the caller's token and does not roll the state back.
+Processing and notification failures are retained in delivery order; a single
+failure is rethrown and several failures are reported in `AggregateException`.
+These rules do not change `NodeState`'s handling of multiple sinks within one
+notification. The audit status records the cause outcome.
+
+A subclass that customizes `DoCause` or `DoTransition` must override its native
+async counterpart for asynchronous behavior. Existing synchronous overrides
+still serve synchronous callers and wire Methods, but are not called by the
+async counterpart. Protected cause mapping and event creation hooks apply on
+both paths. `FluentFiniteStateMachineState` rejects causes and transitions on a
+suspended sub-state machine with `BadStateNotActive` on either path.
+
+Builder-composed async transitions await hierarchical activation and lifecycle
+observers through native async callbacks. Use `OnAfterTransitionAsync` for an
+injected transition callback that performs asynchronous work. The legacy
+synchronous callback remains available, but application code must not block it
+on an asynchronous sink. Synchronous wire Methods retain their synchronous
+behavior.
 
 ## Tests
 

@@ -23,6 +23,7 @@
 
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.PackML.Server;
 
@@ -43,13 +44,13 @@ namespace Opc.Ua.PackML.Tests
         }
 
         [Test]
-        public void SparseModeNumbersUseRankTwoModeThenStateIndexing()
+        public async Task SparseModeNumbersUseRankTwoModeThenStateIndexing()
         {
             var (admin, node, clock) = Create();
-            admin.RecordState(7, PackMLStateNumbers.Execute);
+            await admin.RecordStateAsync(7, PackMLStateNumbers.Execute);
             clock.Advance(TimeSpan.FromSeconds(3));
-            admin.Refresh();
-            PackMLAdministrationSnapshot snapshot = admin.Capture();
+            await admin.RefreshAsync();
+            PackMLAdministrationSnapshot snapshot = await admin.CaptureAsync();
             Assert.That(snapshot.ModeCurrentTime.Count, Is.EqualTo(8));
             Assert.That(snapshot.ModeCurrentTime[7], Is.EqualTo(3));
             Assert.That(snapshot.StateCumulativeTime.Dimensions, Is.EqualTo(s_stateDimensions));
@@ -60,20 +61,20 @@ namespace Opc.Ua.PackML.Tests
         }
 
         [Test]
-        public void FractionalSecondsSurviveRefreshAndDuplicateStateNotifications()
+        public async Task FractionalSecondsSurviveRefreshAndDuplicateStateNotifications()
         {
             var (admin, node, clock) = Create();
-            admin.RecordState(7, PackMLStateNumbers.Execute);
+            await admin.RecordStateAsync(7, PackMLStateNumbers.Execute);
             clock.Advance(TimeSpan.FromMilliseconds(600));
-            admin.Refresh();
-            Assert.That(admin.Capture().ModeCurrentTime[7], Is.Zero);
-            admin.RecordState(7, PackMLStateNumbers.Execute);
+            await admin.RefreshAsync();
+            Assert.That((await admin.CaptureAsync()).ModeCurrentTime[7], Is.Zero);
+            await admin.RecordStateAsync(7, PackMLStateNumbers.Execute);
             clock.Advance(TimeSpan.FromMilliseconds(600));
-            admin.Refresh();
-            Assert.That(admin.Capture().ModeCurrentTime[7], Is.EqualTo(1));
-            admin.RecordState(7, PackMLStateNumbers.Held);
+            await admin.RefreshAsync();
+            Assert.That((await admin.CaptureAsync()).ModeCurrentTime[7], Is.EqualTo(1));
+            await admin.RecordStateAsync(7, PackMLStateNumbers.Held);
             clock.Advance(TimeSpan.FromSeconds(2));
-            PackMLAdministrationSnapshot snapshot = admin.Capture();
+            PackMLAdministrationSnapshot snapshot = await admin.CaptureAsync();
             Assert.That(snapshot.ModeCurrentTime[7], Is.EqualTo(3));
             Assert.That(snapshot.StateCurrentTime.Span[(7 * 20) + (int)PackMLStateNumbers.Held], Is.EqualTo(2));
             Assert.That(snapshot.StateCumulativeTime.Span[(7 * 20) + (int)PackMLStateNumbers.Execute], Is.EqualTo(1));
@@ -84,70 +85,71 @@ namespace Opc.Ua.PackML.Tests
         }
 
         [Test]
-        public void ReenteringStateResetsCurrentButPreservesCumulativeTime()
+        public async Task ReenteringStateResetsCurrentButPreservesCumulativeTime()
         {
             var (admin, _, clock) = Create();
-            admin.RecordState(1, PackMLStateNumbers.Execute);
+            await admin.RecordStateAsync(1, PackMLStateNumbers.Execute);
             clock.Advance(TimeSpan.FromSeconds(2));
-            admin.RecordState(1, PackMLStateNumbers.Held);
+            await admin.RecordStateAsync(1, PackMLStateNumbers.Held);
             clock.Advance(TimeSpan.FromSeconds(3));
-            admin.RecordState(1, PackMLStateNumbers.Execute);
+            await admin.RecordStateAsync(1, PackMLStateNumbers.Execute);
             clock.Advance(TimeSpan.FromSeconds(1));
-            PackMLAdministrationSnapshot snapshot = admin.Capture();
+            PackMLAdministrationSnapshot snapshot = await admin.CaptureAsync();
             Assert.That(snapshot.StateCurrentTime.Span[20 + (int)PackMLStateNumbers.Execute], Is.EqualTo(1));
             Assert.That(snapshot.StateCumulativeTime.Span[20 + (int)PackMLStateNumbers.Execute], Is.EqualTo(3));
             Assert.That(snapshot.ModeCurrentTime[1], Is.EqualTo(6));
-            admin.RecordState(1, 0);
+            await admin.RecordStateAsync(1, 0);
             clock.Advance(TimeSpan.FromSeconds(5));
-            Assert.That(admin.Capture().ModeCumulativeTime[1], Is.EqualTo(6), "inactive nested machine");
-            Assert.That(admin.Capture().AccTimeSinceReset, Is.EqualTo(11));
+            Assert.That((await admin.CaptureAsync()).ModeCumulativeTime[1], Is.EqualTo(6), "inactive nested machine");
+            Assert.That((await admin.CaptureAsync()).AccTimeSinceReset, Is.EqualTo(11));
         }
 
         [Test]
-        public void TimersRollAtInt32MaximumAndResetStartsNewEpoch()
+        public async Task TimersRollAtInt32MaximumAndResetStartsNewEpoch()
         {
             var (admin, _, clock) = Create();
-            admin.RecordState(7, PackMLStateNumbers.Execute);
+            await admin.RecordStateAsync(7, PackMLStateNumbers.Execute);
             clock.Advance(TimeSpan.FromSeconds(int.MaxValue - 1));
-            PackMLAdministrationSnapshot before = admin.Capture();
+            PackMLAdministrationSnapshot before = await admin.CaptureAsync();
             Assert.That(before.ModeCurrentTime[7], Is.EqualTo(int.MaxValue - 1));
             Assert.That(before.AccTimeSinceReset, Is.EqualTo(int.MaxValue - 1));
             clock.Advance(TimeSpan.FromSeconds(1));
-            PackMLAdministrationSnapshot at = admin.Capture();
+            PackMLAdministrationSnapshot at = await admin.CaptureAsync();
             Assert.That(at.ModeCurrentTime[7], Is.Zero);
             Assert.That(at.ModeCumulativeTime[7], Is.Zero);
             Assert.That(at.StateCurrentTime.Span[(7 * 20) + (int)PackMLStateNumbers.Execute], Is.Zero);
             Assert.That(at.StateCumulativeTime.Span[(7 * 20) + (int)PackMLStateNumbers.Execute], Is.Zero);
             Assert.That(at.AccTimeSinceReset, Is.Zero);
             clock.Advance(TimeSpan.FromSeconds(1));
-            Assert.That(admin.Capture().AccTimeSinceReset, Is.EqualTo(1));
-            admin.ResetCounters();
-            PackMLAdministrationSnapshot reset = admin.Capture();
+            Assert.That((await admin.CaptureAsync()).AccTimeSinceReset, Is.EqualTo(1));
+            await admin.ResetCountersAsync();
+            PackMLAdministrationSnapshot reset = await admin.CaptureAsync();
             Assert.That(reset.ModeCumulativeTime.ToArray(), Is.All.Zero);
             Assert.That(reset.StateCumulativeTime.Span.ToArray(), Is.All.Zero);
             Assert.That(reset.AccTimeSinceReset, Is.Zero);
             clock.Advance(TimeSpan.FromSeconds(2));
-            Assert.That(admin.Capture().ModeCurrentTime[7], Is.EqualTo(2),
+            Assert.That((await admin.CaptureAsync()).ModeCurrentTime[7], Is.EqualTo(2),
                 "counter reset does not reset machine state");
         }
 
         [Test]
-        public void RestartRestoresCumulativeTimersWithoutCountingDowntimeOrReplayingState()
+        public async Task RestartRestoresCumulativeTimersWithoutCountingDowntimeOrReplayingState()
         {
             var (first, _, firstClock) = Create();
-            first.RecordState(7, PackMLStateNumbers.Execute);
+            await first.RecordStateAsync(7, PackMLStateNumbers.Execute);
             firstClock.Advance(TimeSpan.FromSeconds(12));
-            PackMLAdministrationSnapshot saved = first.Capture();
+            PackMLAdministrationSnapshot saved = await first.CaptureAsync();
             var (second, _, secondClock) = Create();
             secondClock.Advance(TimeSpan.FromDays(3));
-            second.Restore(saved);
+            await second.RestoreAsync(saved);
             secondClock.Advance(TimeSpan.FromSeconds(5));
-            Assert.That(second.Capture().ModeCumulativeTime[7], Is.EqualTo(12));
-            Assert.That(second.Capture().StateCumulativeTime.Span[(7 * 20) + (int)PackMLStateNumbers.Execute],
+            PackMLAdministrationSnapshot restored = await second.CaptureAsync();
+            Assert.That(restored.ModeCumulativeTime[7], Is.EqualTo(12));
+            Assert.That(restored.StateCumulativeTime.Span[(7 * 20) + (int)PackMLStateNumbers.Execute],
                 Is.EqualTo(12));
-            second.RecordState(7, PackMLStateNumbers.Stopped);
+            await second.RecordStateAsync(7, PackMLStateNumbers.Stopped);
             secondClock.Advance(TimeSpan.FromSeconds(2));
-            PackMLAdministrationSnapshot actual = second.Capture();
+            PackMLAdministrationSnapshot actual = await second.CaptureAsync();
             Assert.That(actual.ModeCurrentTime[7], Is.EqualTo(2));
             Assert.That(actual.ModeCumulativeTime[7], Is.EqualTo(14));
             Assert.That(actual.StateCurrentTime.Span[(7 * 20) + (int)PackMLStateNumbers.Stopped], Is.EqualTo(2));
@@ -156,44 +158,47 @@ namespace Opc.Ua.PackML.Tests
 
         [TestCase(-1)]
         [TestCase(int.MaxValue)]
-        public void InvalidPersistedValueDoesNotPartiallyRestore(int invalid)
+        public async Task InvalidPersistedValueDoesNotPartiallyRestore(int invalid)
         {
             var (admin, _, clock) = Create();
-            admin.RecordState(1, PackMLStateNumbers.Execute);
+            await admin.RecordStateAsync(1, PackMLStateNumbers.Execute);
             clock.Advance(TimeSpan.FromSeconds(4));
-            PackMLAdministrationSnapshot valid = admin.Capture();
+            PackMLAdministrationSnapshot valid = await admin.CaptureAsync();
             int[] changed = valid.ModeCumulativeTime.Span.ToArray();
             changed[7] = invalid;
-            Assert.That(() => admin.Restore(valid with { ModeCumulativeTime = changed.ToArrayOf() }),
+            await Assert.ThatAsync(
+                async () => await admin.RestoreAsync(valid with { ModeCumulativeTime = changed.ToArrayOf() }),
                 Throws.ArgumentException);
-            Assert.That(admin.Capture().ModeCumulativeTime[1], Is.EqualTo(4));
-            Assert.That(admin.Capture().ModeCumulativeTime[7], Is.Zero);
+            Assert.That((await admin.CaptureAsync()).ModeCumulativeTime[1], Is.EqualTo(4));
+            Assert.That((await admin.CaptureAsync()).ModeCumulativeTime[7], Is.Zero);
         }
 
         [Test]
-        public void RestoreRejectsTransposedAndWrongSizedStateMatrices()
+        public async Task RestoreRejectsTransposedAndWrongSizedStateMatrices()
         {
             var (admin, _, _) = Create();
-            PackMLAdministrationSnapshot valid = admin.Capture();
-            Assert.That(() => admin.Restore(valid with { StateCurrentTime = new int[20, 8] }),
+            PackMLAdministrationSnapshot valid = await admin.CaptureAsync();
+            await Assert.ThatAsync(
+                async () => await admin.RestoreAsync(valid with { StateCurrentTime = new int[20, 8] }),
                 Throws.ArgumentException);
-            Assert.That(() => admin.Restore(valid with { StateCumulativeTime = new int[8, 19] }),
+            await Assert.ThatAsync(
+                async () => await admin.RestoreAsync(valid with { StateCumulativeTime = new int[8, 19] }),
                 Throws.ArgumentException);
-            Assert.That(admin.Capture().StateCurrentTime.Dimensions, Is.EqualTo(s_stateDimensions));
+            Assert.That((await admin.CaptureAsync()).StateCurrentTime.Dimensions, Is.EqualTo(s_stateDimensions));
         }
 
         [Test]
-        public void ResetClearsCountButPreservesAccCountAndProviderOwnedStructures()
+        public async Task ResetClearsCountButPreservesAccCountAndProviderOwnedStructures()
         {
             var (admin, node, _) = Create();
             var count = new PackMLCountDataType { Count = 5, AccCount = 100 };
-            admin.Apply(new PackMLAdministrationData
+            await admin.ApplyAsync(new PackMLAdministrationData
             {
                 ProcessedCounts = [count],
                 StatusCode = StatusCodes.Good,
                 SourceTimestamp = DateTime.UtcNow
             }, new PackMLAdministrationExtents { ProcessedCounts = 1 });
-            admin.ResetCounters();
+            await admin.ResetCountersAsync();
             ArrayOf<PackMLCountDataType> published =
                 node.ProdProcessedCount.Required().Value;
             Assert.That(published[0].Count, Is.Zero);
@@ -203,7 +208,7 @@ namespace Opc.Ua.PackML.Tests
         }
 
         [Test]
-        public void AdministrationExtentsAreCapacityNotPopulationAndRejectBeforePublication()
+        public async Task AdministrationExtentsAreCapacityNotPopulationAndRejectBeforePublication()
         {
             var (admin, node, _) = Create();
             var extents = new PackMLAdministrationExtents { Alarms = 4, Warnings = 3, StopReasons = 1 };
@@ -213,14 +218,14 @@ namespace Opc.Ua.PackML.Tests
                 StatusCode = StatusCodes.UncertainDataSubNormal,
                 SourceTimestamp = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
             };
-            admin.Apply(sample, extents);
+            await admin.ApplyAsync(sample, extents);
             Assert.That(node.AlarmExtent.Required().Value, Is.EqualTo(4));
             Assert.That(node.WarningExtent.Required().Value, Is.EqualTo(3));
             Assert.That(node.StopReasonExtent.Required().Value, Is.EqualTo(1));
             Assert.That(node.MachDesignSpeed.Required().Value, Is.EqualTo(80f));
             Assert.That(node.MachDesignSpeed.Required().StatusCode, Is.EqualTo(sample.StatusCode));
             Assert.That(node.MachDesignSpeed.Required().Timestamp, Is.EqualTo(sample.SourceTimestamp));
-            Assert.That(() => admin.Apply(sample with
+            await Assert.ThatAsync(async () => await admin.ApplyAsync(sample with
             {
                 MachineDesignSpeed = 99,
                 Alarms = [new PackMLAlarmDataType()]
@@ -231,7 +236,7 @@ namespace Opc.Ua.PackML.Tests
         }
 
         [Test]
-        public void NullAdministrationStructuresAreRejectedBeforeAnyFieldChanges()
+        public async Task NullAdministrationStructuresAreRejectedBeforeAnyFieldChanges()
         {
             var (admin, node, _) = Create();
             var sample = new PackMLAdministrationData
@@ -241,8 +246,8 @@ namespace Opc.Ua.PackML.Tests
                 StatusCode = StatusCodes.Good
             };
             var extents = new PackMLAdministrationExtents { ProcessedCounts = 1 };
-            admin.Apply(sample, extents);
-            Assert.That(() => admin.Apply(sample with
+            await admin.ApplyAsync(sample, extents);
+            await Assert.ThatAsync(async () => await admin.ApplyAsync(sample with
             {
                 MachineDesignSpeed = 99,
                 ProcessedCounts = [null!]

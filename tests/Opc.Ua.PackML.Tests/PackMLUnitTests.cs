@@ -22,6 +22,8 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -40,6 +42,22 @@ namespace Opc.Ua.PackML.Tests
 
         private static void Good(ServiceResult result) =>
             Assert.That(ServiceResult.IsGood(result), Is.True, result.ToString());
+
+        /// <summary>
+        /// Collects every instance below a node.
+        /// </summary>
+        private static List<BaseInstanceState> Descendants(ISystemContext context, NodeState root)
+        {
+            var result = new List<BaseInstanceState>();
+            var children = new List<BaseInstanceState>();
+            root.GetChildren(context, children);
+            foreach (BaseInstanceState child in children)
+            {
+                result.Add(child);
+                result.AddRange(Descendants(context, child));
+            }
+            return result;
+        }
 
         [Test]
         public async Task EveryCommandSeparatesAcceptanceFromCorrelatedCompletion()
@@ -436,7 +454,7 @@ namespace Opc.Ua.PackML.Tests
             Assert.That(second.CurrentState, Is.EqualTo(PackMLStateNumbers.Stopped));
             Assert.That(second.PendingRequestId, Is.Zero);
             Assert.That(provider.Executed, Is.Empty);
-            PackMLAdministrationSnapshot restored = second.Administration.Capture();
+            PackMLAdministrationSnapshot restored = await second.Administration.CaptureAsync();
             Assert.That(restored.ModeCumulativeTime[1], Is.EqualTo(9));
             Assert.That(restored.ModeCurrentTime[1], Is.Zero);
             Assert.That(restored.AccTimeSinceReset, Is.EqualTo(9));
@@ -585,19 +603,214 @@ namespace Opc.Ua.PackML.Tests
                 unit.Node.Admin.Required().ProdProcessedCount.Required().Value;
             Assert.That(counts[0].Count, Is.EqualTo(5));
             Assert.That(counts[0].AccCount, Is.EqualTo(100));
-            Assert.That(unit.Administration.Capture().AccTimeSinceReset, Is.EqualTo(30));
+            Assert.That((await unit.Administration.CaptureAsync()).AccTimeSinceReset, Is.EqualTo(30));
             provider.Authorization = new ServiceResult(StatusCodes.BadUserAccessDenied);
             Assert.That((await unit.RequestAsync(context,
                 new PackMLRequest { Operation = PackMLOperation.ResetCounters })).StatusCode,
                 Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
-            Assert.That(unit.Administration.Capture().AccTimeSinceReset, Is.EqualTo(30));
+            Assert.That((await unit.Administration.CaptureAsync()).AccTimeSinceReset, Is.EqualTo(30));
             provider.Authorization = ServiceResult.Good;
             Good(await unit.RequestAsync(context, new PackMLRequest { Operation = PackMLOperation.ResetCounters }));
             counts = unit.Node.Admin.Required().ProdProcessedCount.Required().Value;
             Assert.That(counts[0].Count, Is.Zero);
             Assert.That(counts[0].AccCount, Is.EqualTo(100));
-            Assert.That(unit.Administration.Capture().AccTimeSinceReset, Is.Zero);
+            Assert.That((await unit.Administration.CaptureAsync()).AccTimeSinceReset, Is.Zero);
             Assert.That(unit.CurrentState, Is.EqualTo(PackMLStateNumbers.Idle));
+        }
+
+        [Test]
+        public async Task RefreshAwaitsAsynchronousMonitorSinksInOrderWithoutBlockingTheCaller()
+        {
+            SystemContext context = PackMLTestSupport.CreateContext();
+            var provider = new EquipmentProvider();
+            await using Unit unit = await Unit.CreateAsync(context, null, PackMLTestSupport.Name(context), provider);
+            PackMLStatusObjectState status = unit.Node.Status.Required();
+            TaskCompletionSource<bool> entered = PackMLTestSupport.Signal();
+            TaskCompletionSource<bool> release = PackMLTestSupport.Signal();
+            var notified = new ConcurrentQueue<string>();
+            status.CurMachSpeed.Required().OnStateChangedAsync = async (_, _, _, _) =>
+            {
+                notified.Enqueue(nameof(PackMLStatusObjectState.CurMachSpeed));
+                entered.TrySetResult(true);
+                // Bounded so that a blocking regression fails instead of hanging.
+                await Task.WhenAny(release.Task, Task.Delay(TimeSpan.FromSeconds(5)));
+            };
+            status.EquipmentBlocked.Required().OnStateChangedAsync = (_, _, _, _) =>
+            {
+                notified.Enqueue(nameof(PackMLStatusObjectState.EquipmentBlocked));
+                return default;
+            };
+            provider.Snapshot = new PackMLEquipmentSnapshot
+            {
+                CurrentMode = 1,
+                CurrentMachineSpeed = 20f,
+                EquipmentBlocked = true,
+                SourceTimestamp = new DateTime(2026, 1, 2, 3, 4, 6, DateTimeKind.Utc),
+                StatusCode = StatusCodes.Good
+            };
+
+            ValueTask refresh = unit.RefreshAsync();
+            bool returnedPending = !refresh.IsCompleted;
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+            Assert.That(returnedPending, Is.True);
+            Assert.That(notified, Is.EqualTo(new[] { nameof(PackMLStatusObjectState.CurMachSpeed) }));
+            release.TrySetResult(true);
+            await refresh.AsTask().WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.That(notified, Is.EqualTo(new[]
+            {
+                nameof(PackMLStatusObjectState.CurMachSpeed),
+                nameof(PackMLStatusObjectState.EquipmentBlocked)
+            }));
+            Assert.That(status.CurMachSpeed.Required().Value, Is.EqualTo(20f));
+            Assert.That(status.EquipmentBlocked.Required().Value, Is.True);
+        }
+
+        [Test]
+        public async Task AcceptedCommandAwaitsAsynchronousStateMachineSinksWithoutBlockingTheCaller()
+        {
+            SystemContext context = PackMLTestSupport.CreateContext();
+            var provider = new EquipmentProvider();
+            await using Unit unit = await Unit.CreateAsync(context, null, PackMLTestSupport.Name(context), provider);
+            TaskCompletionSource<bool> entered = PackMLTestSupport.Signal();
+            TaskCompletionSource<bool> release = PackMLTestSupport.Signal();
+            int notifications = 0;
+            NodeStateChangedAsyncHandler sink = async (_, _, _, _) =>
+            {
+                if (Interlocked.Increment(ref notifications) == 1)
+                {
+                    entered.TrySetResult(true);
+                    // Bounded so that a blocking regression fails instead of hanging.
+                    await Task.WhenAny(release.Task, Task.Delay(TimeSpan.FromSeconds(5)));
+                }
+            };
+            foreach (BaseInstanceState node in Descendants(context, unit.Node.BaseStateMachine.Required()))
+            {
+                node.OnStateChangedAsync = sink;
+            }
+
+            ValueTask<ServiceResult> request = unit.RequestAsync(context, Command(PackMLCommand.Reset));
+            bool returnedPending = !request.IsCompleted;
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+            Assert.That(returnedPending, Is.True);
+            Assert.That(unit.CurrentState, Is.EqualTo(PackMLStateNumbers.Resetting));
+            release.TrySetResult(true);
+            Good(await request.AsTask().WaitAsync(TimeSpan.FromSeconds(10)));
+            Assert.That(unit.PendingRequestId, Is.EqualTo(provider.Executed[0].RequestId));
+            Assert.That(unit.Node.Status.Required().StateChangeInProcess.Required().Value, Is.True);
+        }
+
+        [Test]
+        public async Task FailedIndicatorNotificationRestoresPriorIndicatorsWithoutExecutingProvider()
+        {
+            SystemContext context = PackMLTestSupport.CreateContext();
+            var provider = new EquipmentProvider();
+            await using Unit unit = await Unit.CreateAsync(context, null, PackMLTestSupport.Name(context), provider);
+            PackMLStatusObjectState status = unit.Node.Status.Required();
+            BaseVariableState requested = status.StateRequested.Required();
+            BaseVariableState inProcess = status.StateChangeInProcess.Required();
+            Variant requestedBefore = requested.WrappedValue;
+            Variant inProcessBefore = inProcess.WrappedValue;
+            StatusCode inProcessStatusBefore = inProcess.StatusCode;
+            DateTimeUtc inProcessTimestampBefore = inProcess.Timestamp;
+            uint stateBefore = unit.CurrentState;
+            var notificationError = new InvalidOperationException("Indicator subscriber failed.");
+            int notifications = 0;
+            // Fails only for the pending value, so publishing the restored value succeeds.
+            inProcess.OnStateChangedAsync = (_, node, _, _) =>
+            {
+                Interlocked.Increment(ref notifications);
+                return ((BaseVariableState)node).WrappedValue == Variant.From(true)
+                    ? throw notificationError
+                    : default;
+            };
+
+            InvalidOperationException failure = (await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await unit.RequestAsync(context, Command(PackMLCommand.Reset))))!;
+
+            Assert.That(failure, Is.SameAs(notificationError));
+            Assert.That(notifications, Is.EqualTo(2));
+            Assert.That(provider.Executed, Is.Empty);
+            Assert.That(unit.CurrentState, Is.EqualTo(stateBefore));
+            Assert.That(unit.PendingRequestId, Is.Zero);
+            Assert.That(requested.WrappedValue, Is.EqualTo(requestedBefore));
+            Assert.That(inProcess.WrappedValue, Is.EqualTo(inProcessBefore));
+            Assert.That(inProcess.StatusCode, Is.EqualTo(inProcessStatusBefore));
+            Assert.That(inProcess.Timestamp, Is.EqualTo(inProcessTimestampBefore));
+
+            inProcess.OnStateChangedAsync = null;
+            Good(await unit.RequestAsync(context, Command(PackMLCommand.Reset)));
+            Assert.That(provider.Executed.Count, Is.EqualTo(1));
+            Assert.That(inProcess.WrappedValue, Is.EqualTo(Variant.From(true)));
+        }
+
+        [Test]
+        public async Task FailedIndicatorRestorationReportsAdmissionAndRestorationFailures()
+        {
+            SystemContext context = PackMLTestSupport.CreateContext();
+            var provider = new EquipmentProvider();
+            await using Unit unit = await Unit.CreateAsync(context, null, PackMLTestSupport.Name(context), provider);
+            PackMLStatusObjectState status = unit.Node.Status.Required();
+            BaseVariableState requested = status.StateRequested.Required();
+            BaseVariableState inProcess = status.StateChangeInProcess.Required();
+            Variant requestedBefore = requested.WrappedValue;
+            Variant inProcessBefore = inProcess.WrappedValue;
+            var admissionError = new InvalidOperationException("Pending indicator subscriber failed.");
+            var restorationError = new InvalidOperationException("Restored indicator subscriber failed.");
+            int notifications = 0;
+            inProcess.OnStateChangedAsync = (_, _, _, _) =>
+                Interlocked.Increment(ref notifications) == 1
+                    ? throw admissionError
+                    : throw restorationError;
+
+            AggregateException failure = (await Assert.ThrowsAsync<AggregateException>(
+                async () => await unit.RequestAsync(context, Command(PackMLCommand.Reset))))!;
+
+            Assert.That(failure.InnerExceptions, Is.EqualTo(new Exception[] { admissionError, restorationError }));
+            Assert.That(provider.Executed, Is.Empty);
+            Assert.That(unit.PendingRequestId, Is.Zero);
+            Assert.That(requested.WrappedValue, Is.EqualTo(requestedBefore));
+            Assert.That(inProcess.WrappedValue, Is.EqualTo(inProcessBefore));
+        }
+
+        [TestCase(StatusCodes.BadOutOfService)]
+        [TestCase(StatusCodes.Uncertain)]
+        public async Task FailedIndicatorRestorationAfterRejectedAcceptanceReportsProviderResult(uint acceptance)
+        {
+            SystemContext context = PackMLTestSupport.CreateContext();
+            var provider = new EquipmentProvider { Acceptance = new ServiceResult(acceptance) };
+            await using Unit unit = await Unit.CreateAsync(context, null, PackMLTestSupport.Name(context), provider);
+            PackMLStatusObjectState status = unit.Node.Status.Required();
+            BaseVariableState requested = status.StateRequested.Required();
+            BaseVariableState inProcess = status.StateChangeInProcess.Required();
+            Variant requestedBefore = requested.WrappedValue;
+            Variant inProcessBefore = inProcess.WrappedValue;
+            var restorationError = new InvalidOperationException("Restored indicator subscriber failed.");
+            inProcess.OnStateChangedAsync = (_, _, _, _) =>
+                provider.Executed.Count > 0 ? throw restorationError : default(ValueTask);
+
+            AggregateException failure = (await Assert.ThrowsAsync<AggregateException>(
+                async () => await unit.RequestAsync(context, Command(PackMLCommand.Reset))))!;
+
+            Assert.That(failure.InnerExceptions, Has.Count.EqualTo(2));
+            Exception outcome = failure.InnerExceptions[0];
+            if (StatusCode.IsBad(acceptance))
+            {
+                Assert.That(outcome, Is.TypeOf<ServiceResultException>());
+            }
+            else
+            {
+                Assert.That(outcome, Is.TypeOf<InvalidOperationException>());
+                outcome = outcome.InnerException!;
+                Assert.That(outcome, Is.TypeOf<ServiceResultException>());
+            }
+            Assert.That(((ServiceResultException)outcome).StatusCode, Is.EqualTo((StatusCode)acceptance));
+            Assert.That(failure.InnerExceptions[1], Is.SameAs(restorationError));
+            Assert.That(provider.Executed, Has.Count.EqualTo(1));
+            Assert.That(unit.PendingRequestId, Is.Zero);
+            Assert.That(requested.WrappedValue, Is.EqualTo(requestedBefore));
+            Assert.That(inProcess.WrappedValue, Is.EqualTo(inProcessBefore));
         }
 
         [Test]

@@ -23,6 +23,7 @@
 
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.PackML.Server
 {
@@ -73,14 +74,21 @@ namespace Opc.Ua.PackML.Server
             m_stateCurrent = new long[maxMode + 1, k_stateCount];
             m_stateCumulative = new long[maxMode + 1, k_stateCount];
             m_lastTimestamp = m_timeProvider.GetTimestamp();
-            PublishTimers();
+            SetTimers();
         }
 
         /// <summary>
         /// Records the actual mode and innermost active state. Duplicate notifications
         /// do not restart an interval. State zero deactivates machine accounting.
         /// </summary>
-        public void RecordState(int mode, uint state)
+        /// <remarks>
+        /// Each asynchronous method observes cancellation before it changes the
+        /// accounting. It then awaits the change notification of the Admin
+        /// object outside the internal lock. An applied change is always
+        /// published, so the notification ignores the token. Callers that need
+        /// every intermediate value sampled serialize their calls.
+        /// </remarks>
+        public async ValueTask RecordStateAsync(int mode, uint state, CancellationToken cancellationToken = default)
         {
             if (mode < 0 || mode >= m_modeCurrent.Length)
             {
@@ -90,6 +98,7 @@ namespace Opc.Ua.PackML.Server
             {
                 throw new ArgumentOutOfRangeException(nameof(state));
             }
+            cancellationToken.ThrowIfCancellationRequested();
             lock (m_gate)
             {
                 Accumulate();
@@ -107,21 +116,24 @@ namespace Opc.Ua.PackML.Server
                 m_mode = mode;
                 m_state = state;
                 m_active = state != 0;
-                PublishTimers();
+                SetTimers();
             }
+            await PublishAsync().ConfigureAwait(false);
         }
 
         /// <summary>
         /// Refreshes runtime values without changing the active state.
         /// Fractional seconds survive refreshes and state transitions.
         /// </summary>
-        public void Refresh()
+        public async ValueTask RefreshAsync(CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             lock (m_gate)
             {
                 Accumulate();
-                PublishTimers();
+                SetTimers();
             }
+            await PublishAsync().ConfigureAwait(false);
         }
 
         /// <summary>
@@ -129,8 +141,9 @@ namespace Opc.Ua.PackML.Server
         /// Never invokes a state-machine Reset or resets AccCount. The application
         /// must first authorize and reset equipment-owned Count fields through its provider.
         /// </summary>
-        public void ResetCounters()
+        public async ValueTask ResetCountersAsync(CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             lock (m_gate)
             {
                 Array.Clear(m_modeCurrent, 0, m_modeCurrent.Length);
@@ -142,21 +155,25 @@ namespace Opc.Ua.PackML.Server
                 ResetCounts(m_node.ProdConsumedCount);
                 ResetCounts(m_node.ProdProcessedCount);
                 ResetCounts(m_node.ProdDefectiveCount);
-                PublishTimers();
+                SetTimers();
             }
+            await PublishAsync().ConfigureAwait(false);
         }
 
         /// <summary>
         /// Captures timer values for application-owned persistence.
         /// Fractional seconds are truncated only at this persistence boundary.
         /// </summary>
-        public PackMLAdministrationSnapshot Capture()
+        public async ValueTask<PackMLAdministrationSnapshot> CaptureAsync(
+            CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+            PackMLAdministrationSnapshot snapshot;
             lock (m_gate)
             {
                 Accumulate();
-                PublishTimers();
-                return new PackMLAdministrationSnapshot
+                SetTimers();
+                snapshot = new PackMLAdministrationSnapshot
                 {
                     ModeCurrentTime = Seconds(m_modeCurrent),
                     ModeCumulativeTime = Seconds(m_modeCumulative),
@@ -165,14 +182,18 @@ namespace Opc.Ua.PackML.Server
                     AccTimeSinceReset = (int)(m_sinceReset / TimeSpan.TicksPerSecond)
                 };
             }
+            await PublishAsync().ConfigureAwait(false);
+            return snapshot;
         }
 
         /// <summary>
         /// Restores counters after validating the complete snapshot. Downtime is not
         /// counted and no former active mode or state is resumed. The application must
-        /// call RecordState with the actual initial state after restoration.
+        /// call RecordStateAsync with the actual initial state after restoration.
         /// </summary>
-        public void Restore(PackMLAdministrationSnapshot snapshot)
+        public async ValueTask RestoreAsync(
+            PackMLAdministrationSnapshot snapshot,
+            CancellationToken cancellationToken = default)
         {
             if (snapshot is null)
             {
@@ -183,6 +204,7 @@ namespace Opc.Ua.PackML.Server
             Validate(snapshot.StateCurrentTime);
             Validate(snapshot.StateCumulativeTime);
             ValidateSeconds(snapshot.AccTimeSinceReset);
+            cancellationToken.ThrowIfCancellationRequested();
             lock (m_gate)
             {
                 for (int mode = 0; mode < m_modeCurrent.Length; mode++)
@@ -201,8 +223,9 @@ namespace Opc.Ua.PackML.Server
                 m_sinceReset = (long)snapshot.AccTimeSinceReset * TimeSpan.TicksPerSecond;
                 m_active = false;
                 m_lastTimestamp = m_timeProvider.GetTimestamp();
-                PublishTimers();
+                SetTimers();
             }
+            await PublishAsync().ConfigureAwait(false);
         }
 
         /// <summary>
@@ -210,7 +233,10 @@ namespace Opc.Ua.PackML.Server
         /// maxima, never inferred from current alarm population. Quality and acquisition
         /// time are preserved, including for an absent stop reason.
         /// </summary>
-        public void Apply(PackMLAdministrationData data, PackMLAdministrationExtents extents)
+        public async ValueTask ApplyAsync(
+            PackMLAdministrationData data,
+            PackMLAdministrationExtents extents,
+            CancellationToken cancellationToken = default)
         {
             if (data is null)
             {
@@ -233,6 +259,7 @@ namespace Opc.Ua.PackML.Server
             {
                 throw new ArgumentOutOfRangeException(nameof(data));
             }
+            cancellationToken.ThrowIfCancellationRequested();
             lock (m_gate)
             {
                 Set(m_node.Parameter, Variant.FromStructure(data.Parameters, true),
@@ -258,8 +285,8 @@ namespace Opc.Ua.PackML.Server
                     StatusCodes.Good, data.SourceTimestamp);
                 Set(m_node.WarningExtent, Variant.From(extents.Warnings), StatusCodes.Good, data.SourceTimestamp);
                 Set(m_node.StopReasonExtent, Variant.From(extents.StopReasons), StatusCodes.Good, data.SourceTimestamp);
-                m_node.ClearChangeMasks(m_context, true);
             }
+            await PublishAsync().ConfigureAwait(false);
         }
 
         /// <summary>
@@ -426,9 +453,10 @@ namespace Opc.Ua.PackML.Server
         }
 
         /// <summary>
-        /// Publishes counters using whole seconds while retaining fractional ticks internally.
+        /// Sets counters using whole seconds while retaining fractional ticks internally.
+        /// Called under the lock; <see cref="PublishAsync"/> notifies after it is released.
         /// </summary>
-        private void PublishTimers()
+        private void SetTimers()
         {
             DateTimeUtc now = m_timeProvider.GetUtcNow().UtcDateTime;
             Set(m_node.ModeCurrentTime, Variant.From(Seconds(m_modeCurrent)), StatusCodes.Good, now);
@@ -437,7 +465,14 @@ namespace Opc.Ua.PackML.Server
             Set(m_node.StateCumulativeTime, Variant.From(Seconds(m_stateCumulative)), StatusCodes.Good, now);
             Set(m_node.AccTimeSinceReset, Variant.From((int)(m_sinceReset / TimeSpan.TicksPerSecond)),
                 StatusCodes.Good, now);
-            m_node.ClearChangeMasks(m_context, true);
+        }
+
+        /// <summary>
+        /// Awaits the change notification of the Admin object and its children.
+        /// </summary>
+        private ValueTask PublishAsync()
+        {
+            return m_node.ClearChangeMasksAsync(m_context, true, CancellationToken.None);
         }
 
         /// <summary>The standard state values zero through nineteen, including inactive zero.</summary>
