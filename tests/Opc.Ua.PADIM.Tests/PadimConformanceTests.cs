@@ -208,11 +208,7 @@ namespace Opc.Ua.PADIM.Tests
             {
                 if (configured)
                 {
-                    foreach (string field in new[]
-                    {
-                        "PeakWidth", "PeakHeight", "PeakArea", "TailingFactor",
-                        "ExpectedRetentionTime", "ActualRetentionTime", "InjectionTime", "ComponentName"
-                    })
+                    foreach (string field in s_gasChromatographOptionalSignalFields)
                     {
                         bindings.Add(group.Bind(ModelName(field), $"gc/{field}", provider.Object));
                     }
@@ -237,10 +233,7 @@ namespace Opc.Ua.PADIM.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(device.ConformanceUnits.ToArray(), Is.EquivalentTo(expected));
-                Assert.That(device.ServerProfiles.ToArray(), Is.EquivalentTo(new[]
-                {
-                    "http://opcfoundation.org/UA-Profile/PADIM/Server/GasChromatographSignal"
-                }));
+                Assert.That(device.ServerProfiles.ToArray(), Is.EquivalentTo(s_gasChromatographSignalProfiles));
                 Assert.That(bindings, Has.Count.EqualTo(configured ? 8 : 0));
                 Assert.That(device.Manager.FindPredefinedNode(conditions.NodeId), Is.SameAs(conditions));
                 Assert.That(conditions.FindChild(device.Context, ModelName("ComponentName")),
@@ -278,7 +271,7 @@ namespace Opc.Ua.PADIM.Tests
             var bindings = new List<PadimValueBinding>();
             await device.ConfigureSignalConditionsAsync(signal, group =>
             {
-                foreach (string field in new[] { "PeakWidth", "PeakHeight", "PeakArea", "TailingFactor" })
+                foreach (string field in s_gasChromatographPeakFields)
                 {
                     if (field != omitted)
                     {
@@ -320,7 +313,7 @@ namespace Opc.Ua.PADIM.Tests
             var bindings = new List<PadimValueBinding>();
             BaseObjectState calibration = await device.AddCalibrationAsync(signal, Name("Calibration"), group =>
             {
-                foreach (string suffix in new[] { "ResponseFactor", "LowerRangeValue", "UpperRangeValue" })
+                foreach (string suffix in s_calibrationRangeFieldSuffixes)
                 {
                     if (suffix != omitted)
                     {
@@ -338,7 +331,7 @@ namespace Opc.Ua.PADIM.Tests
                 Assert.That(bindings, Has.Count.EqualTo(omitted.Length == 0 ? 3 : 2));
                 Assert.That(device.Manager.FindPredefinedNode(calibration.NodeId), Is.SameAs(calibration));
             });
-            foreach (int other in new[] { 1, 2, 3 }.Where(candidate => candidate != range))
+            foreach (int other in s_calibrationRanges.Where(candidate => candidate != range))
             {
                 Assert.That(device.ConformanceUnits.ToArray(),
                     Does.Not.Contain(new QualifiedName($"PA-DIM GasChromatograph CalibrationRange{other}")));
@@ -358,7 +351,7 @@ namespace Opc.Ua.PADIM.Tests
                 Name("Chromatogram"), PadimSignalKind.GasChromatograph, "GC-SPLIT");
             device.BindValue(signal.AnalogSignal!, "gc/value", provider.Object);
             await device.ConfigureSignalConditionsAsync(signal, _ => { });
-            foreach (string suffix in new[] { "ResponseFactor", "LowerRangeValue", "UpperRangeValue" })
+            foreach (string suffix in s_calibrationRangeFieldSuffixes)
             {
                 await device.AddCalibrationAsync(signal, Name(suffix), group =>
                     group.Bind(ModelName($"CalibrationRange1{suffix}"), suffix, provider.Object));
@@ -397,7 +390,7 @@ namespace Opc.Ua.PADIM.Tests
             var bindings = new List<PadimValueBinding>();
             await device.ConfigureDeviceConditionsAsync(group =>
             {
-                foreach (string field in new[] { "ValveName", "ValveSwitchingCyclesCounter" })
+                foreach (string field in s_gasChromatographValveFields)
                 {
                     if (field != omitted)
                     {
@@ -438,7 +431,7 @@ namespace Opc.Ua.PADIM.Tests
         {
             PadimDevice device = await CreateDeviceAsync("GasDetectorRangeExceedance");
             var provider = new Mock<IPadimValueProvider>(MockBehavior.Strict);
-            foreach (string selection in new[] { "RangeExceedancePeakValue", "RangeExceedanceDuration", "Both" })
+            foreach (string selection in s_rangeExceedanceSelections)
             {
                 SignalState signal = await device.AddSignalAsync(
                     Name(selection), PadimSignalKind.AmperometricGasDetector, $"GD-{selection}");
@@ -446,7 +439,7 @@ namespace Opc.Ua.PADIM.Tests
                     $"{selection}/value", provider.Object);
                 BaseObjectState conditions = await device.ConfigureSignalConditionsAsync(signal, group =>
                 {
-                    foreach (string field in new[] { "RangeExceedancePeakValue", "RangeExceedanceDuration" })
+                    foreach (string field in s_rangeExceedanceFields)
                     {
                         if (selection == field || selection == "Both")
                         {
@@ -1337,6 +1330,40 @@ namespace Opc.Ua.PADIM.Tests
             device.State.AddAssetId(device.Context).AssetId!.Value = $"asset:{device.State.NodeId}";
             device.State.RevisionCounter!.Value = 0;
         }
+
+        /// <summary>The optional signal fields in the gas chromatograph catalogue fixture.</summary>
+        private static readonly string[] s_gasChromatographOptionalSignalFields =
+        [
+            "PeakWidth", "PeakHeight", "PeakArea", "TailingFactor",
+            "ExpectedRetentionTime", "ActualRetentionTime", "InjectionTime", "ComponentName"
+        ];
+
+        /// <summary>The exact profile expected from the gas chromatograph signal fixture.</summary>
+        private static readonly string[] s_gasChromatographSignalProfiles =
+            ["http://opcfoundation.org/UA-Profile/PADIM/Server/GasChromatographSignal"];
+
+        /// <summary>The fields required by the gas chromatograph peak unit.</summary>
+        private static readonly string[] s_gasChromatographPeakFields =
+            ["PeakWidth", "PeakHeight", "PeakArea", "TailingFactor"];
+
+        /// <summary>The field suffixes required on each gas chromatograph calibration range.</summary>
+        private static readonly string[] s_calibrationRangeFieldSuffixes =
+            ["ResponseFactor", "LowerRangeValue", "UpperRangeValue"];
+
+        /// <summary>The published gas chromatograph calibration range numbers.</summary>
+        private static readonly int[] s_calibrationRanges = [1, 2, 3];
+
+        /// <summary>The paired fields required by the gas chromatograph valve unit.</summary>
+        private static readonly string[] s_gasChromatographValveFields =
+            ["ValveName", "ValveSwitchingCyclesCounter"];
+
+        /// <summary>The individual and complete range-exceedance configurations.</summary>
+        private static readonly string[] s_rangeExceedanceSelections =
+            ["RangeExceedancePeakValue", "RangeExceedanceDuration", "Both"];
+
+        /// <summary>The paired fields required by the range-exceedance unit.</summary>
+        private static readonly string[] s_rangeExceedanceFields =
+            ["RangeExceedancePeakValue", "RangeExceedanceDuration"];
 
         /// <summary>The mandatory condition fields required by the pH signal facet.</summary>
         private static readonly string[] s_requiredPhConditionFields =

@@ -642,8 +642,18 @@ namespace Opc.Ua.PADIM.Tests
                     ArrayOf<PadimValue> optionalValues =
                         await client.ReadValuesAsync(optionalParentId, timeout.Token);
                     PadimValue actual = optionalValues.ToList().Single(value => value.NodeId == optionalNodeId);
-                    DataValue dataType = await session.ReadAsync(optionalNodeId, Attributes.DataType);
-                    DataValue valueRank = await session.ReadAsync(optionalNodeId, Attributes.ValueRank);
+                    ReadResponse metadata = await session.ReadAsync(
+                        null,
+                        0,
+                        TimestampsToReturn.Neither,
+                        [
+                            new ReadValueId { NodeId = optionalNodeId, AttributeId = Attributes.DataType },
+                            new ReadValueId { NodeId = optionalNodeId, AttributeId = Attributes.ValueRank }
+                        ],
+                        timeout.Token);
+                    Assert.That(metadata.Results.Count, Is.EqualTo(2), memberName);
+                    DataValue dataType = metadata.Results[0];
+                    DataValue valueRank = metadata.Results[1];
                     Variant expectedValue = optionalSample.Binding.Variable is MultiStateValueDiscreteState enumeration
                         ? Variant.From(checked((uint)enumeration.EnumValues!.Value[0].Value))
                         : Variant.From(17u);
