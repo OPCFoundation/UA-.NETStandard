@@ -209,10 +209,15 @@ Normal category or changing the previous active state.
 Health publication awaits acknowledgement, activation and severity notifications
 in setter order while retaining the device gate. Once the provider sample has
 been published, caller cancellation does not interrupt these updates or their
-notifications. Event reporting still observes the caller's cancellation token;
+notifications. All four alarms complete their state updates and notifications
+before captured event snapshots are reported. Event reporting still observes
+the caller's cancellation token;
 cancellation before reporting prevents event-sink entry without reverting the
 published value or completed health updates. Notification errors propagate and
-do not roll back mutations that have already occurred.
+do not roll back mutations that have already occurred. The next refresh retries
+incomplete alarm attributes and retained notification masks even if the category
+and quality are unchanged. Fully published unchanged samples do not emit another
+event; interrupted event delivery is not automatically replayed by acquisition.
 
 ## Simulation, damping and configuration
 

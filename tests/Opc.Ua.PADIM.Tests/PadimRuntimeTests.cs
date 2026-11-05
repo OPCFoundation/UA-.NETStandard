@@ -747,6 +747,136 @@ namespace Opc.Ua.PADIM.Tests
         }
 
         /// <summary>
+        /// Reconciles attributes and retained change masks when the same health sample follows a sink failure.
+        /// </summary>
+        [TestCase("acknowledged")]
+        [TestCase("active")]
+        [TestCase("severity")]
+        public async Task HealthRefreshRetriesIncompletePublicationForUnchangedSample(string failingMember)
+        {
+            PadimDevice device = await CreateDeviceAsync($"HealthRetry{failingMember}");
+            DateTimeUtc timestamp = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            var provider = new Mock<IPadimValueProvider>(MockBehavior.Strict);
+            provider.Setup(p => p.ReadAsync("health", It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new DataValue(Variant.From(1), StatusCodes.Good, timestamp));
+            PadimValueBinding binding = device.WithHealthAlarms("health", provider.Object);
+            await device.RegisterAsync();
+            var children = new List<BaseInstanceState>();
+            device.State.GetChildren(device.Context, children);
+            AlarmConditionState alarm = children.OfType<AlarmConditionState>()
+                .Single(condition => condition.BrowseName.Name == "Failure");
+            NodeState failingNode = failingMember switch
+            {
+                "acknowledged" => alarm.AckedState!.Id!,
+                "active" => alarm.ActiveState!.Id!,
+                _ => alarm.Severity!
+            };
+            int attempts = 0;
+            int reports = 0;
+            failingNode.OnStateChangedAsync = (_, _, _, token) =>
+            {
+                Assert.That(token, Is.EqualTo(CancellationToken.None));
+                if (++attempts == 1)
+                {
+                    throw new InvalidOperationException("Health notification failed.");
+                }
+                return default;
+            };
+            alarm.OnReportEventAsync = (_, _, _, _) =>
+            {
+                reports++;
+                return default;
+            };
+
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await AwaitWithinAsync(binding.RefreshAsync().AsTask()));
+            Assert.That(failingNode.ChangeMasks, Is.Not.EqualTo(NodeStateChangeMasks.None));
+            Assert.That(reports, Is.Zero);
+
+            await AwaitWithinAsync(binding.RefreshAsync().AsTask());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(device.State.DeviceHealth!.Value, Is.EqualTo(Opc.Ua.Di.DeviceHealthEnumeration.FAILURE));
+                Assert.That(alarm.AckedState!.Id!.Value, Is.False);
+                Assert.That(alarm.ActiveState!.Id!.Value, Is.True);
+                Assert.That(alarm.ActiveState.Timestamp, Is.EqualTo(timestamp));
+                Assert.That(alarm.Severity!.Value, Is.EqualTo((ushort)EventSeverity.High));
+                Assert.That(alarm.Quality!.Value, Is.EqualTo(StatusCodes.Good));
+                Assert.That(alarm.Retain!.Value, Is.True);
+                Assert.That(failingNode.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+                Assert.That(alarm.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+                Assert.That(attempts, Is.EqualTo(2));
+                Assert.That(reports, Is.EqualTo(1));
+            });
+            await AwaitWithinAsync(binding.RefreshAsync().AsTask());
+            Assert.That(reports, Is.EqualTo(1), "A fully published unchanged sample must not emit another event.");
+            provider.Verify(p => p.ReadAsync("health", It.IsAny<CancellationToken>()), Times.Exactly(3));
+        }
+
+        /// <summary>
+        /// Finishes every alarm transition before caller cancellation interrupts the first captured event report.
+        /// </summary>
+        [TestCase(2, "CheckFunction")]
+        [TestCase(3, "OffSpec")]
+        [TestCase(4, "MaintenanceRequired")]
+        public async Task HealthRefreshCompletesAllAlarmsBeforeCancellableReports(int category, string target)
+        {
+            PadimDevice device = await CreateDeviceAsync($"HealthReportCancellation{target}");
+            var provider = new Mock<IPadimValueProvider>(MockBehavior.Strict);
+            provider.SetupSequence(p => p.ReadAsync("health", It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new DataValue(Variant.From(1), StatusCodes.Good))
+                .ReturnsAsync(new DataValue(Variant.From(category), StatusCodes.Good));
+            PadimValueBinding binding = device.WithHealthAlarms("health", provider.Object);
+            await device.RegisterAsync();
+            await AwaitWithinAsync(binding.RefreshAsync().AsTask());
+            var children = new List<BaseInstanceState>();
+            device.State.GetChildren(device.Context, children);
+            AlarmConditionState[] alarms = children.OfType<AlarmConditionState>().ToArray();
+            AlarmConditionState failure = alarms.Single(alarm => alarm.BrowseName.Name == "Failure");
+            AlarmConditionState next = alarms.Single(alarm => alarm.BrowseName.Name == target);
+            using var cancellation = new CancellationTokenSource();
+            CancellationToken callerToken = cancellation.Token;
+            bool reconciledBeforeReport = false;
+            int nextReports = 0;
+            failure.OnReportEventAsync = (_, _, _, token) =>
+            {
+                reconciledBeforeReport = !failure.ActiveState!.Id!.Value && next.ActiveState!.Id!.Value &&
+                    next.Severity!.Value == (ushort)EventSeverity.High &&
+                    failure.Severity!.Value == (ushort)EventSeverity.Low;
+                cancellation.Cancel();
+                token.ThrowIfCancellationRequested();
+                return default;
+            };
+            next.OnReportEventAsync = (_, _, _, _) =>
+            {
+                nextReports++;
+                return default;
+            };
+
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await AwaitWithinAsync(binding.RefreshAsync(callerToken).AsTask()));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(cancellation.IsCancellationRequested, Is.True);
+                Assert.That(reconciledBeforeReport, Is.True);
+                Assert.That(device.State.DeviceHealth!.WrappedValue, Is.EqualTo(Variant.From(category)));
+                Assert.That(nextReports, Is.Zero, "Cancellation still applies to event delivery.");
+                foreach (AlarmConditionState alarm in alarms)
+                {
+                    bool expectedActive = alarm.BrowseName.Name == target;
+                    Assert.That(alarm.ActiveState!.Id!.Value, Is.EqualTo(expectedActive));
+                    Assert.That(alarm.Severity!.Value, Is.EqualTo(
+                        (ushort)(expectedActive ? EventSeverity.High : EventSeverity.Low)));
+                    Assert.That(alarm.Quality!.Value, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(alarm.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+                }
+            });
+            provider.VerifyAll();
+        }
+
+        /// <summary>
         /// Awaits an asynchronous state-change sink after a provider-approved write commits.
         /// </summary>
         [Test]

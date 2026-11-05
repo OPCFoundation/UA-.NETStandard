@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Di;
@@ -63,6 +64,7 @@ namespace Opc.Ua.PADIM.Server
                 root.CreateAlarm(new QualifiedName("MaintenanceRequired", ns),
                     static owner => new MaintenanceRequiredAlarmState(owner)).Alarm
             ];
+            m_healthPublicationPending = new bool[m_healthAlarms.Length];
             for (int ii = 0; ii < m_healthAlarms.Length; ii++)
             {
                 AlarmConditionState alarm = m_healthAlarms[ii];
@@ -94,16 +96,19 @@ namespace Opc.Ua.PADIM.Server
         private async ValueTask PublishHealthAsync(DataValue sample, CancellationToken cancellationToken)
         {
             bool hasCategory = sample.WrappedValue.TryGetValue(out int category);
+            var events = new List<(AlarmConditionState Alarm, InstanceStateSnapshot Snapshot)>();
+            bool[] pending = m_healthPublicationPending!;
             for (int ii = 0; ii < m_healthAlarms!.Length; ii++)
             {
                 AlarmConditionState alarm = m_healthAlarms[ii];
                 bool active = hasCategory ? category == ii + 1 : alarm.ActiveState!.Id!.Value;
                 bool activeChanged = active != alarm.ActiveState!.Id!.Value;
                 bool qualityChanged = alarm.Quality!.Value != sample.StatusCode;
-                if (!activeChanged && !qualityChanged)
+                if (!activeChanged && !qualityChanged && !pending[ii])
                 {
                     continue;
                 }
+                pending[ii] = true;
                 alarm.Quality.Value = sample.StatusCode;
                 alarm.Quality.SourceTimestamp?.Value = sample.SourceTimestamp;
                 alarm.Quality.Timestamp = sample.SourceTimestamp;
@@ -116,25 +121,43 @@ namespace Opc.Ua.PADIM.Server
                     await alarm.SetActiveStateAsync(Context, active, CancellationToken.None).ConfigureAwait(false);
                     alarm.ActiveState.TransitionTime?.Value = sample.SourceTimestamp;
                     alarm.ActiveState.Timestamp = sample.SourceTimestamp;
-                    await alarm.SetSeverityAsync(
-                        Context, active ? EventSeverity.High : EventSeverity.Low, CancellationToken.None)
-                        .ConfigureAwait(false);
+                }
+                EventSeverity severity = active ? EventSeverity.High : EventSeverity.Low;
+                if (alarm.Severity!.Value != (ushort)severity)
+                {
+                    if (!activeChanged)
+                    {
+                        alarm.ActiveState.TransitionTime?.Value = sample.SourceTimestamp;
+                        alarm.ActiveState.Timestamp = sample.SourceTimestamp;
+                    }
+                    await alarm.SetSeverityAsync(Context, severity, CancellationToken.None).ConfigureAwait(false);
                 }
                 if (alarm.EnabledState!.Id!.Value)
                 {
                     alarm.EventId!.Value = Uuid.NewUuid().ToByteString();
                     alarm.Time!.Value = sample.SourceTimestamp;
                     alarm.ReceiveTime!.Value = TimeProvider.GetUtcNow().UtcDateTime;
-                    await alarm.ClearChangeMasksAsync(Context, includeChildren: true, CancellationToken.None)
-                        .ConfigureAwait(false);
+                }
+                await alarm.ClearChangeMasksAsync(Context, includeChildren: true, CancellationToken.None)
+                    .ConfigureAwait(false);
+                pending[ii] = false;
+                if (alarm.EnabledState!.Id!.Value)
+                {
                     var snapshot = new InstanceStateSnapshot();
                     snapshot.Initialize(Context, alarm);
-                    await alarm.ReportEventAsync(Context, snapshot, cancellationToken).ConfigureAwait(false);
+                    events.Add((alarm, snapshot));
                 }
+            }
+            foreach ((AlarmConditionState alarm, InstanceStateSnapshot snapshot) in events)
+            {
+                await alarm.ReportEventAsync(Context, snapshot, cancellationToken).ConfigureAwait(false);
             }
         }
 
         /// <summary>The native DI conditions managed by the server's existing alarm infrastructure.</summary>
         private AlarmConditionState[]? m_healthAlarms;
+
+        /// <summary>Alarms whose attributes or notification masks need reconciliation after a sink failure.</summary>
+        private bool[]? m_healthPublicationPending;
     }
 }
