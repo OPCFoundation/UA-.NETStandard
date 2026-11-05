@@ -76,6 +76,16 @@ namespace Opc.Ua.IA.Server
         }
 
         /// <summary>
+        /// Copies the identifier of an opaque node id.
+        /// </summary>
+        internal static NodeId Own(NodeId value)
+        {
+            return value.IdType == IdType.Opaque && value.TryGetValue(out ByteString identifier)
+                ? new NodeId(Own(identifier), value.NamespaceIndex)
+                : value;
+        }
+
+        /// <summary>
         /// Bounds recursive copies using the codec nesting and remaining-stack checks.
         /// </summary>
         private static Variant Own(in Variant value, int maxDepth, int depth, bool allowEcm)
@@ -278,16 +288,6 @@ namespace Opc.Ua.IA.Server
         private static ByteString Own(ByteString value)
         {
             return value.IsEmpty ? value : ByteString.From(value.Span);
-        }
-
-        /// <summary>
-        /// Copies the identifier of an opaque node id.
-        /// </summary>
-        private static NodeId Own(NodeId value)
-        {
-            return value.IdType == IdType.Opaque && value.TryGetValue(out ByteString identifier)
-                ? new NodeId(Own(identifier), value.NamespaceIndex)
-                : value;
         }
 
         /// <summary>

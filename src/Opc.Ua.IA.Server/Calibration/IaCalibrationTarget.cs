@@ -65,9 +65,16 @@ namespace Opc.Ua.IA.Server
             IaCalibrationValidation.ValidateConfiguration(source);
             Configuration = source with
             {
-                Features = source.Features.Span.ToArray(),
-                OperationalConditions = source.OperationalConditions.Span.ToArray(),
-                ReferenceMeasurementInstruments = source.ReferenceMeasurementInstruments.Span.ToArray()
+                Identification = source.Identification with
+                {
+                    Manufacturer = source.Identification.Manufacturer.Copy(),
+                    Model = source.Identification.Model.Copy(),
+                    ComponentName = source.Identification.ComponentName.Copy()
+                },
+                Features = source.Features.ConvertAll(CopyFeature),
+                OperationalConditions = source.OperationalConditions.ConvertAll(CopyFeature),
+                ReferenceMeasurementInstruments = source.ReferenceMeasurementInstruments.ConvertAll(
+                    static identifier => IaValueCopy.Own(identifier))
             };
             if (state.Identification == null || state.CalibrationTargetFeatures == null ||
                 state.CalibrationTargetCategory == null)
@@ -363,6 +370,21 @@ namespace Opc.Ua.IA.Server
         }
 
         /// <summary>
+        /// Captures the mutable translation state nested in fixed feature metadata.
+        /// </summary>
+        private static IaCalibrationFeature CopyFeature(IaCalibrationFeature feature)
+        {
+            return feature with
+            {
+                EngineeringUnits = feature.EngineeringUnits with
+                {
+                    DisplayName = feature.EngineeringUnits.DisplayName.Copy(),
+                    Description = feature.EngineeringUnits.Description.Copy()
+                }
+            };
+        }
+
+        /// <summary>
         /// Copies mutable structured and array payloads out of provider-owned buffers.
         /// </summary>
         private ArrayOf<IaCalibrationReading> CopyReadings(ArrayOf<IaCalibrationReading> readings)
@@ -371,9 +393,21 @@ namespace Opc.Ua.IA.Server
             for (int ii = 0; ii < readings.Count; ii++)
             {
                 IaCalibrationReading reading = readings[ii];
+                Variant value = reading.Value.WrappedValue;
+                Variant owned;
+                if (value.TryGetValue(out ExtensionObject extension) &&
+                    extension.TryGetValue(out IEncodeable? body) &&
+                    body is Range range && range.GetType() == typeof(Range))
+                {
+                    owned = Variant.FromStructure(new Range { Low = range.Low, High = range.High });
+                }
+                else
+                {
+                    owned = IaValueCopy.Own(value, m_context);
+                }
                 copy[ii] = reading with
                 {
-                    Value = reading.Value.WithWrappedValue(IaValueCopy.Own(reading.Value.WrappedValue, m_context))
+                    Value = reading.Value.WithWrappedValue(owned)
                 };
             }
             return copy;

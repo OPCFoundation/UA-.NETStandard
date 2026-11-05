@@ -175,7 +175,7 @@ namespace Opc.Ua.Aot.Tests
             nested[0] = 99;
             formatting[0] = "Changed";
             await Assert.That(localized.WrappedValue.TryGetValue(out LocalizedText localizedCopy)).IsTrue();
-            await Assert.That(localizedCopy.Text).IsEqualTo("Value: {0}");
+            await Assert.That(localizedCopy.TranslationInfo.Text).IsEqualTo("Value: {0}");
             await Assert.That(localizedCopy.FilterByPreferredLocales(["en-US"]).Text).IsEqualTo("Value: Original");
             await Assert.That(localizedCopy.TranslationInfo.Key).IsEqualTo("key");
 
