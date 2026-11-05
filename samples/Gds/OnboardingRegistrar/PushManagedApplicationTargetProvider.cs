@@ -50,7 +50,8 @@ namespace OnboardingRegistrar
             ArrayOf<string> serverCapabilities,
             ExpandedNodeId certificateTypeId,
             IClientIdentityProvider identityProvider,
-            Func<ApplicationConfiguration> configurationFactory)
+            Func<ApplicationConfiguration> configurationFactory,
+            string? httpsCertificatePath = null)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(applicationUri);
             ArgumentException.ThrowIfNullOrWhiteSpace(endpointUrl);
@@ -61,6 +62,7 @@ namespace OnboardingRegistrar
             m_securityPolicyUri = securityPolicyUri;
             m_certificatePath = certificatePath;
             m_certificateTypeId = certificateTypeId;
+            m_httpsCertificatePath = httpsCertificatePath;
             if (serverCapabilities.IsEmpty)
             {
                 throw new ArgumentException(
@@ -75,7 +77,8 @@ namespace OnboardingRegistrar
             m_configurationFactory = configurationFactory ??
                 throw new ArgumentNullException(nameof(configurationFactory));
             if (!Uri.TryCreate(applicationUri, UriKind.Absolute, out _) ||
-                !Uri.TryCreate(endpointUrl, UriKind.Absolute, out _) ||
+                !Uri.TryCreate(endpointUrl, UriKind.Absolute, out Uri? endpoint) ||
+                endpoint.Scheme is not ("opc.tcp" or "https" or "opc.https") ||
                 !Uri.TryCreate(securityPolicyUri, UriKind.Absolute, out _) ||
                 !Path.IsPathFullyQualified(certificatePath) ||
                 !IsSupportedSecurityPolicy(securityPolicyUri))
@@ -84,6 +87,15 @@ namespace OnboardingRegistrar
                     "Managed application settings must identify absolute URIs " +
                     "and a supported SHA-256 security policy.");
             }
+            if (httpsCertificatePath != null &&
+                (endpoint.Scheme == "opc.tcp" || !Path.IsPathFullyQualified(httpsCertificatePath)))
+            {
+                throw new ArgumentException(
+                    "A TLS certificate pin requires an HTTPS endpoint and an absolute public certificate path.",
+                    nameof(httpsCertificatePath));
+            }
+            m_securityMode = endpoint.Scheme == "opc.tcp" ?
+                MessageSecurityMode.SignAndEncrypt : MessageSecurityMode.Sign;
         }
 
         /// <inheritdoc/>
@@ -97,16 +109,10 @@ namespace OnboardingRegistrar
                 throw new ServiceResultException(StatusCodes.BadNotSupported);
             }
 
-            byte[] encodedCertificate = await File.ReadAllBytesAsync(
+            ByteString installedCertificate = await ReadPublicCertificateAsync(
                 m_certificatePath, cancellationToken).ConfigureAwait(false);
-            using X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(encodedCertificate);
-            if (certificate.HasPrivateKey)
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadConfigurationError,
-                    "The managed application certificate file must not contain a private key.");
-            }
-            ByteString installedCertificate = ByteString.From(certificate.RawData.AsSpan());
+            ByteString httpsCertificate = m_httpsCertificatePath == null ? default :
+                await ReadPublicCertificateAsync(m_httpsCertificatePath, cancellationToken).ConfigureAwait(false);
 
             ApplicationConfiguration configuration = m_configurationFactory() ??
                 throw new InvalidOperationException("The client application configuration is not initialized.");
@@ -117,16 +123,45 @@ namespace OnboardingRegistrar
                 new Uri(m_endpointUrl),
                 endpointConfiguration,
                 ct: cancellationToken).ConfigureAwait(false);
+            if (m_securityMode == MessageSecurityMode.Sign)
+            {
+                if (discovery.TransportChannel is not IHttpsServerCertificateValidation tls)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNotSupported, "The discovery channel cannot enforce the selected TLS policy.");
+                }
+                tls.RequireServerCertificateValidation(httpsCertificate);
+            }
             ArrayOf<EndpointDescription> endpoints = await discovery.GetEndpointsAsync(
                 default, cancellationToken).ConfigureAwait(false);
 
+            EndpointDescription selected = SelectEndpoint(endpoints);
+
+            return new DeviceRegistrarManagedApplicationTarget(
+                [m_endpointUrl],
+                installedCertificate,
+                new ConfiguredEndpoint(null, selected, endpointConfiguration),
+                await m_identityProvider.AcquireIdentityAsync(
+                    selected, configuration.CreateMessageContext(), cancellationToken).ConfigureAwait(false),
+                m_serverCapabilities)
+            {
+                CertificateTypeId = m_certificateTypeId,
+                HttpsServerCertificate = httpsCertificate
+            };
+        }
+
+        /// <summary>
+        /// Selects the exact application endpoint under the operator's transport and security policy.
+        /// </summary>
+        internal EndpointDescription SelectEndpoint(ArrayOf<EndpointDescription> endpoints)
+        {
             EndpointDescription? selected = null;
             for (int index = 0; index < endpoints.Count; index++)
             {
                 EndpointDescription offered = endpoints[index];
                 if (!string.Equals(offered.EndpointUrl, m_endpointUrl, StringComparison.Ordinal) ||
                     !string.Equals(offered.Server?.ApplicationUri, m_applicationUri, StringComparison.Ordinal) ||
-                    offered.SecurityMode != MessageSecurityMode.SignAndEncrypt ||
+                    offered.SecurityMode != m_securityMode ||
                     !string.Equals(offered.SecurityPolicyUri, m_securityPolicyUri, StringComparison.Ordinal))
                 {
                     continue;
@@ -142,19 +177,27 @@ namespace OnboardingRegistrar
             {
                 throw new ServiceResultException(
                     StatusCodes.BadSecurityChecksFailed,
-                    "Discovery did not return the configured encrypted endpoint for the managed application.");
+                    "Discovery did not return the configured secured endpoint for the managed application.");
             }
 
-            return new DeviceRegistrarManagedApplicationTarget(
-                [m_endpointUrl],
-                installedCertificate,
-                new ConfiguredEndpoint(null, selected, endpointConfiguration),
-                await m_identityProvider.AcquireIdentityAsync(
-                    selected, configuration.CreateMessageContext(), cancellationToken).ConfigureAwait(false),
-                m_serverCapabilities)
+            return selected;
+        }
+
+        /// <summary>
+        /// Reads an operator-supplied public certificate without retaining caller-owned storage.
+        /// </summary>
+        private static async ValueTask<ByteString> ReadPublicCertificateAsync(
+            string path,
+            CancellationToken cancellationToken)
+        {
+            byte[] encoded = await File.ReadAllBytesAsync(path, cancellationToken).ConfigureAwait(false);
+            using X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(encoded);
+            if (certificate.HasPrivateKey)
             {
-                CertificateTypeId = m_certificateTypeId
-            };
+                throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError, "A certificate pin must not contain a private key.");
+            }
+            return ByteString.From(certificate.RawData.AsSpan());
         }
 
         /// <summary>
@@ -178,6 +221,12 @@ namespace OnboardingRegistrar
 
         /// <summary>The operator-supplied public certificate file for the currently installed credential.</summary>
         private readonly string m_certificatePath;
+
+        /// <summary>The optional public TLS leaf pin, independent of the application certificate.</summary>
+        private readonly string? m_httpsCertificatePath;
+
+        /// <summary>The security mode required by the configured transport.</summary>
+        private readonly MessageSecurityMode m_securityMode;
 
         /// <summary>The optional operator-selected certificate type for this managed application.</summary>
         private readonly ExpandedNodeId m_certificateTypeId;

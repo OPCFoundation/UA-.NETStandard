@@ -88,6 +88,13 @@ namespace OnboardingRegistrar
                     m_managedApplicationSecurityPolicyUri, "managedApplicationSecurityPolicyUri");
                 m_managedApplicationCertificatePath =
                     Required(configuration, "managedApplicationCertificatePath");
+                m_managedApplicationHttpsCertificatePath = configuration["managedApplicationHttpsCertificatePath"];
+                if (m_managedApplicationHttpsCertificatePath != null &&
+                    !Path.IsPathFullyQualified(m_managedApplicationHttpsCertificatePath))
+                {
+                    throw new ArgumentException(
+                        "--managedApplicationHttpsCertificatePath must be an absolute public certificate path.");
+                }
                 string capabilities = Required(configuration, "managedApplicationServerCapabilities");
                 string[] identifiers = capabilities.Split(',');
                 for (int index = 0; index < identifiers.Length; index++)
@@ -110,6 +117,7 @@ namespace OnboardingRegistrar
             else if (configuration["managedApplicationEndpoint"] != null ||
                 configuration["managedApplicationSecurityPolicyUri"] != null ||
                 configuration["managedApplicationCertificatePath"] != null ||
+                configuration["managedApplicationHttpsCertificatePath"] != null ||
                 configuration["managedApplicationServerCapabilities"] != null ||
                 configuration["managedApplicationCertificateTypeId"] != null)
             {
@@ -196,7 +204,8 @@ namespace OnboardingRegistrar
                         sample.m_managedApplicationServerCapabilities,
                         sample.m_managedApplicationCertificateTypeId,
                         managedIdentity,
-                        () => provider.GetRequiredService<IOpcUaApplicationConfigurationProvider>().Configuration));
+                        () => provider.GetRequiredService<IOpcUaApplicationConfigurationProvider>().Configuration,
+                        sample.m_managedApplicationHttpsCertificatePath));
                 builder.Services.AddDeviceRegistrarManagedApplicationChannelVerifier(
                     provider => provider.GetRequiredService<IOpcUaApplicationConfigurationProvider>().Configuration);
             }
@@ -480,6 +489,11 @@ namespace OnboardingRegistrar
 
         /// <summary>The operator-supplied public certificate file for the managed application.</summary>
         private readonly string? m_managedApplicationCertificatePath;
+
+        /// <summary>
+        /// The optional operator-selected HTTPS leaf certificate, separate from the application pin.
+        /// </summary>
+        private readonly string? m_managedApplicationHttpsCertificatePath;
 
         /// <summary>The explicit managed server capability identifiers selected by the operator.</summary>
         private readonly ArrayOf<string> m_managedApplicationServerCapabilities;

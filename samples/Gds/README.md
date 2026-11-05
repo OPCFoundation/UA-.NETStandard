@@ -224,7 +224,8 @@ This sample uses the endpoint URL as the discovery URL recorded in the GDS
 application entry. The provider contract also accepts distinct discovery and
 connection URLs; a custom provider can supply them separately. Discovery must
 return the selected connection endpoint with the configured application
-URI, `SignAndEncrypt` and security policy. The policy must be
+URI and security policy. UA-TCP requires `SignAndEncrypt`; an HTTPS managed
+endpoint requires `Sign`. The policy must be
 `Basic256Sha256`, `Aes128_Sha256_RsaOaep` or `Aes256_Sha256_RsaPss`; SHA-1
 policies are rejected. The certificate file must contain the
 currently installed public X.509 certificate in DER form and must not contain a
@@ -240,6 +241,19 @@ instance.
 registrar uses `--pushCertificateTypeId`; when supplied, it selects that
 expanded NodeId for this managed application and rejects provisioning unless
 the application's default application group advertises the type.
+
+For an HTTPS managed endpoint, set `--managedApplicationEndpoint` to its actual
+`https://` or `opc.https://` URL. By default, discovery and application connections
+use operating-system TLS trust and revocation checking. To select an exact TLS
+leaf pin instead, add
+`--managedApplicationHttpsCertificatePath "D:\temp\managed-tls.der"`.
+This must be a public DER certificate; hostname and validity checks still apply
+on every handshake, including replacement connections. It is independent of
+`--managedApplicationCertificatePath`, which pins the OPC UA application
+certificate. The application must prove that key and return the configured
+application URI before credentials are sent. The TLS terminator is part of the
+trust boundary; legacy application signatures do not cryptographically bind it.
+The device's separate `--pushEndpoint` remains UA-TCP.
 
 `--managedApplicationServerCapabilities` is required with managed application
 configuration. Supply the capability identifiers selected by the application

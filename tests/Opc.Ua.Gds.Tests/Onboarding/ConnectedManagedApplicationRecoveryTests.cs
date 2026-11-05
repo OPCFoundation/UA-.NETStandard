@@ -621,7 +621,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 EndpointDescription managedEndpoint = await DiscoverAsync(m_managed).ConfigureAwait(false);
                 ManagedTargets = new PushManagedApplicationTargetProvider(
                     m_managed.Config.ApplicationUri!, managedEndpoint.EndpointUrl!, SecurityPolicies.Basic256Sha256,
-                    Path.Combine(m_root, "managed-operator.der"), ["DA"],
+                    Path.Combine(m_root, "managed-operator.der"), ["DA"], default,
                     new UserNamePasswordIdentityProvider(
                         m_userName, new SecretRegistry(m_managedPasswords), m_managedPasswordId),
                     () => m_client.Config);
