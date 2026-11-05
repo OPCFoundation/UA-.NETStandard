@@ -1420,7 +1420,8 @@ namespace Opc.Ua.LADS.Tests.Server
             ILadsDevice device = await connection.Server.DeviceAsync().ConfigureAwait(false);
             ILadsControlFunction function = device.GetFunctionalUnit(UnitName)
                 .GetFunction<ILadsControlFunction>("Analog");
-            MethodState hold = ((LadsControlFunction)function).Node.ControlFunctionState!.RunningStateMachine!.Hold!;
+            var node = (BaseControlFunctionState)((LadsControlFunction)function).Node;
+            MethodState hold = node.ControlFunctionState!.RunningStateMachine!.Hold!;
             var observedAvailability = new List<bool>();
             function.StateChanged += state =>
             {
@@ -1452,7 +1453,8 @@ namespace Opc.Ua.LADS.Tests.Server
             ILadsDevice device = await connection.Server.DeviceAsync().ConfigureAwait(false);
             ILadsControlFunction function = device.GetFunctionalUnit(UnitName)
                 .GetFunction<ILadsControlFunction>("Analog");
-            MethodState hold = ((LadsControlFunction)function).Node.ControlFunctionState!.RunningStateMachine!.Hold!;
+            var node = (BaseControlFunctionState)((LadsControlFunction)function).Node;
+            MethodState hold = node.ControlFunctionState!.RunningStateMachine!.Hold!;
             await function.StartAsync().ConfigureAwait(false);
             Assert.That(hold.Executable, Is.True);
             function.StateChanged += state =>

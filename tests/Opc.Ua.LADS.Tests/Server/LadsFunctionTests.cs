@@ -524,18 +524,20 @@ namespace Opc.Ua.LADS.Tests.Server
             await unit.Functional.TransitionToAsync(LadsFunctionalStateValue.Running).ConfigureAwait(false);
             await unit.Functional.SetStateAsync(LadsFunctionalStateValue.Stopped).ConfigureAwait(false);
 
-            Assert.That(rawStates, Is.EqualTo(new[] { "Running", "Stopped" }));
+            var expectedStates = new[] { "Running", "Stopped" };
+            var expectedFunctionalStates = new[]
+            {
+                LadsFunctionalStateValue.Running,
+                LadsFunctionalStateValue.Stopped
+            };
+            Assert.That(rawStates, Is.EqualTo(expectedStates));
             Assert.That(
                 typedStates,
-                Is.EqualTo(new[]
-                {
-                    LadsFunctionalStateValue.Running,
-                    LadsFunctionalStateValue.Stopped
-                }));
-            Assert.That(rawAsyncStates, Is.EqualTo(new[] { "Running", "Stopped" }));
+                Is.EqualTo(expectedFunctionalStates));
+            Assert.That(rawAsyncStates, Is.EqualTo(expectedStates));
             Assert.That(
                 typedAsyncStates,
-                Is.EqualTo(new[] { LadsFunctionalStateValue.Running, LadsFunctionalStateValue.Stopped }));
+                Is.EqualTo(expectedFunctionalStates));
             var expectedItemStates = new[]
             {
                 MachineryItemStateValue.Executing,
@@ -550,19 +552,18 @@ namespace Opc.Ua.LADS.Tests.Server
             Assert.That(typedItemStates, Is.EqualTo(expectedItemStates));
             Assert.That(rawAsyncItemStates, Is.EqualTo(expectedAsyncItemStates));
             Assert.That(typedAsyncItemStates, Is.EqualTo(expectedAsyncItemStates));
-            Assert.That(
-                order,
-                Is.EqualTo(new[]
-                {
-                    "typed-sync:Running",
-                    "raw-sync:Running",
-                    "typed-async:Running",
-                    "raw-async:Running",
-                    "typed-sync:Stopped",
-                    "raw-sync:Stopped",
-                    "typed-async:Stopped",
-                    "raw-async:Stopped"
-                }));
+            var expectedOrder = new[]
+            {
+                "typed-sync:Running",
+                "raw-sync:Running",
+                "typed-async:Running",
+                "raw-async:Running",
+                "typed-sync:Stopped",
+                "raw-sync:Stopped",
+                "typed-async:Stopped",
+                "raw-async:Stopped"
+            };
+            Assert.That(order, Is.EqualTo(expectedOrder));
         }
 
         /// <summary>
@@ -591,8 +592,10 @@ namespace Opc.Ua.LADS.Tests.Server
                 .ConfigureAwait(false);
 
             Assert.That(failure!.Message, Is.EqualTo("public async observer failed"));
-            Assert.That(states, Is.EqualTo(new[] { "typed:Running", "raw:Running" }));
-            Assert.That(itemStates, Is.EqualTo(new[] { MachineryItemStateValue.Executing }));
+            var expectedStates = new[] { "typed:Running", "raw:Running" };
+            var expectedItemStates = new[] { MachineryItemStateValue.Executing };
+            Assert.That(states, Is.EqualTo(expectedStates));
+            Assert.That(itemStates, Is.EqualTo(expectedItemStates));
             Assert.That(device.ItemState, Is.EqualTo(MachineryItemStateValue.Executing));
         }
 

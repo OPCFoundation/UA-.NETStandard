@@ -279,7 +279,8 @@ namespace Opc.Ua.LADS.Tests.Server
                 if (device.ItemState == MachineryItemStateValue.OutOfService)
                 {
                     notificationEntered.TrySetResult(true);
-                    await releaseNotification.Task.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds))
+                    await releaseNotification.Task.WaitAsync(
+                        TimeSpan.FromMilliseconds(timeoutMilliseconds), CancellationToken.None)
                         .ConfigureAwait(false);
                 }
             };
@@ -395,7 +396,8 @@ namespace Opc.Ua.LADS.Tests.Server
                 if (state == LadsFunctionalStateValue.Running)
                 {
                     notificationEntered.TrySetResult(true);
-                    await releaseNotification.Task.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds))
+                    await releaseNotification.Task.WaitAsync(
+                        TimeSpan.FromMilliseconds(timeoutMilliseconds), CancellationToken.None)
                         .ConfigureAwait(false);
                 }
             };
@@ -565,10 +567,12 @@ namespace Opc.Ua.LADS.Tests.Server
                 {
                     return;
                 }
-                await executorEntered.Task.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds))
+                await executorEntered.Task.WaitAsync(
+                    TimeSpan.FromMilliseconds(timeoutMilliseconds), CancellationToken.None)
                     .ConfigureAwait(false);
                 notificationEntered.TrySetResult(true);
-                await releaseNotification.Task.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds))
+                await releaseNotification.Task.WaitAsync(
+                    TimeSpan.FromMilliseconds(timeoutMilliseconds), CancellationToken.None)
                     .ConfigureAwait(false);
             };
             Func<LadsDeviceStateValue, CancellationToken, ValueTask> deviceHandler = (state, _) =>
