@@ -44,8 +44,9 @@ await foreach (AutoIdScanEventTypeRecord e in
 
 A browse the server rejects throws `ServiceResultException` instead of yielding an
 empty list, cancellation is honoured by every asynchronous member, and the
-session is borrowed, never closed. `ScanAsync` refuses an optical verifier (the
-NodeSet types its `Scan` results as `WGS84Coordinate`); use `ScanStartAsync` and
-the scan events.
+session is borrowed, never closed. Optical-verifier `ScanAsync` returns
+`OpticalVerifierScanResult[]` as specified by OPC 30010 6.4.3.1; the imported
+model corrects the published NodeSet's conflicting result type. Asynchronous
+scanning and scan events remain available for verifiers.
 
 See the [AutoID guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/AutoID.md).

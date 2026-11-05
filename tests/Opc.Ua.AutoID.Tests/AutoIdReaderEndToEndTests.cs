@@ -551,7 +551,7 @@ namespace Opc.Ua.AutoID.Tests
         }
 
         [Test]
-        public async Task AVerifierReportsThroughEventsAndItsSynchronousScanIsNotOfferedAsync()
+        public async Task AVerifierReturnsTypedSynchronousResultsAndRetainsScanEventsAsync()
         {
             AutoIdReaderEntry verifier = await ReaderAsync(AutoIdHostFixture.VerifierName).ConfigureAwait(false);
             m_host!.Verifier.Present(new OpticalVerifierScanResult
@@ -563,9 +563,11 @@ namespace Opc.Ua.AutoID.Tests
             });
             try
             {
-                NotSupportedException unsupported = (await Assert.ThrowsAsync<NotSupportedException>(
-                    async () => await m_client!.ScanAsync(verifier, AutoIdTestData.Settings(cycles: 1))
+                ServiceResultException invalid = (await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await m_client!.ScanAsync(verifier, new ScanSettings())
                         .ConfigureAwait(false)))!;
+                AutoIdScanResponse response = await m_client!.ScanAsync(
+                    verifier, AutoIdTestData.Settings(cycles: 1)).ConfigureAwait(false);
                 await m_client!.ScanStartAsync(verifier, AutoIdTestData.Settings()).ConfigureAwait(false);
                 AutoIdScanEventTypeRecord record = await FirstEventAsync(
                     ct => m_client.ObserveScanEventsAsync(m_session!.DefaultStreaming, verifier, ct),
@@ -576,7 +578,12 @@ namespace Opc.Ua.AutoID.Tests
 
                 Assert.Multiple(() =>
                 {
-                    Assert.That(unsupported.Message, Does.Contain("WGS84Coordinate"));
+                    Assert.That(invalid.StatusCode, Is.EqualTo((uint)StatusCodes.BadInvalidArgument));
+                    Assert.That(response.Status, Is.EqualTo(AutoIdOperationStatusEnumeration.SUCCESS));
+                    Assert.That(response.Results, Has.Count.EqualTo(1));
+                    Assert.That(response.Results[0], Is.TypeOf<OpticalVerifierScanResult>());
+                    Assert.That(((OpticalVerifierScanResult)response.Results[0]).IsoGrade, Is.EqualTo("B"));
+                    Assert.That(response.Results[0].ScanData.String, Is.EqualTo("V-1"));
                     Assert.That(record.DeviceName, Is.EqualTo(AutoIdHostFixture.VerifierName));
                 });
             }

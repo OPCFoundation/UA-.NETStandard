@@ -68,12 +68,17 @@ if (!autoId.IsSupported)
 
 // Discovery looks in the DI DeviceSet and returns readers of the five concrete kinds.
 AutoIdReaderEntry? rfid = null;
+AutoIdReaderEntry? verifier = null;
 await foreach (AutoIdReaderEntry entry in autoId.EnumerateReadersAsync(ct).ConfigureAwait(false))
 {
     Console.WriteLine($"{entry.Kind} reader {entry.BrowseName.Name}  ({entry.NodeId})");
     if (entry.Kind == AutoIdReaderKind.Rfid)
     {
         rfid ??= entry;
+    }
+    if (entry.Kind == AutoIdReaderKind.OpticalVerifier)
+    {
+        verifier ??= entry;
     }
 }
 if (rfid is null)
@@ -135,6 +140,22 @@ if (StatusCode.IsGood(parameters.Status.Duration))
     if (StatusCode.IsBad(stopped))
     {
         return 1;
+    }
+}
+
+if (verifier != null)
+{
+    AutoIdScanResponse verified = await autoId.ScanAsync(
+        verifier, new ScanSettings { Cycles = 1 }, ct).ConfigureAwait(false);
+    if (verified.Status != AutoIdOperationStatusEnumeration.SUCCESS)
+    {
+        Console.Error.WriteLine($"Verifier Scan rejected: {verified.Status}");
+        return 1;
+    }
+    foreach (ScanResult result in verified.Results)
+    {
+        var quality = (OpticalVerifierScanResult)result;
+        Console.WriteLine($"Verifier Scan: {verified.Status}, ISO grade {quality.IsoGrade}");
     }
 }
 

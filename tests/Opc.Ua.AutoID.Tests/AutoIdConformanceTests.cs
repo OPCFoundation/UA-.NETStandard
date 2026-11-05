@@ -60,7 +60,10 @@ namespace Opc.Ua.AutoID.Tests
             string[] passiveUnits = UnitsOf(fixture, ns);
 
             await fixture.Runtime.CreateReaderAsync(
-                fixture.Name("Verifier"), new InMemoryOpticalVerifierProvider()).ConfigureAwait(false);
+                fixture.Name("AsyncOptical"), new AutoIdParameterControlTests.ParameterProvider
+                {
+                    Kind = AutoIdReaderKind.Optical
+                }).ConfigureAwait(false);
             string[] asyncProfiles = AutoIdProfilesOf(fixture);
             string[] asyncUnits = UnitsOf(fixture, ns);
 

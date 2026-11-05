@@ -104,6 +104,9 @@ namespace Opc.Ua.AutoID.Server
                 case OcrReaderDeviceState ocr when scan:
                     ocr.AddScan(context);
                     break;
+                case OpticalVerifierDeviceState verifier when scan:
+                    verifier.AddScan(context);
+                    break;
                 case OpticalReaderDeviceState optical when scan:
                     optical.AddScan(context);
                     break;

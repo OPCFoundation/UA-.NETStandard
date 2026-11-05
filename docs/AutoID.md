@@ -918,40 +918,40 @@ and checks the output.
   The generated proxy and the server follow the NodeSet.
 - The NodeSet declares the `Scan` method of `OpticalVerifierDeviceType` with
   `WGS84Coordinate` results where OPC 30010 6.4.3.1 names
-  `OpticalVerifierScanResult`. The method cannot be served consistently, so a
-  verifier does not publish `Scan`; it reports through `ScanStart` and scan
-  events, and `AutoIdClient.ScanAsync` refuses a verifier.
-- The `GetUnits` method of `RtlsDeviceType` declares no output argument; it is not
-  published.
+  `OpticalVerifierScanResult`. The local model corrects the `Results` argument to `OpticalVerifierScanResult[]`
+  from the published method table. The method NodeId `i=7054`, OutputArguments
+  property `i=6076`, argument order and value rank are unchanged. Generated
+  server/client contracts use the corrected type; the in-memory verifier
+  supports synchronous `Scan` alongside `ScanStart` and scan events.
+- Table 16 lists `RtlsDeviceType.GetUnits` as Optional, but neither the NodeSet
+  nor the published method chapter defines its inputs or outputs. Reader instances
+  omit that method. The mandatory `LengthUnit`, `RotationalUnit`,
+  `GeographicalUnit` and `SpeedUnit` properties remain published as `EUInformation`;
+  applications configure them with `WithRtlsUnits`.
 
 The published reference still identifies version 1.01 as current. The
 `UA-Nodeset/latest/AutoID` XML has Git blob
 `2cdca69cd86c4f46c61ea4da9ce7d625a02ed53a`, identical to the pinned source.
-No corrected authoritative artifact has been established for these contracts,
-so this implementation does not rewrite the standard namespace, enable the
-disputed methods. The Full Server Facet is evaluated separately for each hosted
-reader's implemented capabilities.
+No corrected upstream artifact has been established. The verifier correction
+follows the published method table and is recorded explicitly in
+`Model/provenance.json`; it is not represented as an upstream model revision.
+RTLS signatures remain unchanged. The Full Server Facet is evaluated separately
+for each hosted reader's implemented capabilities.
 
 ### Remaining work for Full support
 
-Two wire methods remain unimplemented because the published contracts do not
-provide a consistent signature:
+One wire method remains unimplemented because the published model provides no
+signature:
 
-- Optical-verifier `Scan` needs an authoritative result type resolving
-  `OpticalVerifierScanResult` in the text versus `WGS84Coordinate` in the NodeSet.
-  Once resolved, the SDK needs the matching generated method contract, server
-  provider binding and typed client call, with sample and client/server
-  interoperability coverage for the agreed result encoding.
-- RTLS `GetUnits` needs authoritative output metadata, including its type and
-  value rank. Once supplied, the SDK needs the generated method contract,
-  provider-backed server implementation and typed client call, with sample and
-  client/server coverage for the agreed output.
+- RTLS `GetUnits` is deliberately omitted until its inputs, outputs, types and
+  value ranks are defined by an authoritative contract. The four unit properties
+  do not determine a method signature. No output array or structure is invented.
 
-The RTLS `GetLocation` argument-order discrepancy and prescribed
-`AutoIdModelVersion` value also need an authoritative disposition; their current
-NodeSet-based behavior is described above. No replacement signature or version
-string is inferred here. Contract resolution and any resulting implementation
-work determine the scope of SDK support. Current-head client/server, sample and
+The SDK retains the released NodeSet's `GetLocation` wire order for compatibility;
+the typed convenience API accepts identifier, code type and location type and
+translates them to that order. `AutoIdModelVersion` retains the specification's
+prescribed value. These are explicit implementation decisions, not pending
+features. Current-head client/server, sample and
 NativeAOT execution is recorded separately as validation evidence; pending tests
 alone do not make implemented support Partial.
 Hardware-specific IO definitions and additional real-world formatter capabilities
@@ -964,6 +964,7 @@ readers. These cases are implementation evidence, not OPC certification.
 
 | Requirement | Test in `tests/Opc.Ua.AutoID.Tests` |
 |---|---|
+| Corrected verifier method metadata, typed synchronous results and unchanged asynchronous events | `VerifierScanMetadataUsesPublishedResultType`, `AVerifierReturnsTypedSynchronousResultsAndRetainsScanEventsAsync`, `TheVerifierReportsVerificationResultsAsync` |
 | Opt-in capability and legacy-provider compatibility | `CapabilityIsOptInAndExistingProvidersRemainCompatibleAsync` |
 | Runtime metadata and configured conformance units; async-only parameters do not qualify for Full | `ParametersHavePublishedMetadataAndContributeOnlyConfiguredUnitsAsync` |
 | Full-facet eligibility for all mandatory capability combinations, without optional ScanActive | `FullFacetRequiresAllMandatoryCapabilitiesOnOneReaderAsync` |
@@ -1005,10 +1006,12 @@ four optional RFID parameter encodings and complete-snapshot commits.
 
 ## Provenance
 
-`src/Opc.Ua.AutoID/Model` holds the unmodified NodeSet and identifier table
+`src/Opc.Ua.AutoID/Model` holds the NodeSet and identifier table
 from UA-Nodeset revision `9f6c7660b94af24d32c4248d4b13bf60adab0301`;
-`provenance.json` records the source URLs and SHA-256 hashes. The published
-identifier table predates model 1.01 and lacks 67 NodeSet declarations, so
+`provenance.json` records the source URLs and upstream SHA-256 hashes, and the
+effective NodeSet hash after the documented verifier argument correction.
+Reversing that single correction recovers the byte-identical publication.
+The published identifier table predates model 1.01 and lacks 67 NodeSet declarations, so
 `Opc.Ua.AutoID.Derived.NodeIds.csv` is generated from it with
 `tools/nodesets/derive-identifier-table.py` and used as the source generator's
 drift guard. NodeIds always come from the NodeSet.

@@ -26,8 +26,8 @@ capabilities from its simulated antenna names or signal measurements.
 
 | Sample | What it does |
 | --- | --- |
-| [AutoIdServer](AutoIdServer/) | Serves the reader `DockDoor1` backed by `InMemoryRfidReaderProvider`: two pallets in range, a third entering and leaving every two seconds, a triggered scan every six |
-| [AutoIdClient](AutoIdClient/) | Discovers the readers, prints the device, runs a synchronous scan, reads and writes tag memory, then starts a scan and prints scan and presence events |
+| [AutoIdServer](AutoIdServer/) | Serves `DockDoor1` with simulated RFID pallets and `LabelVerifier` with a label print-quality result |
+| [AutoIdClient](AutoIdClient/) | Discovers the readers, prints the device, scans the RFID portal and verifier, reads and writes tag memory, then prints scan and presence events |
 
 The [AutoID guide](../../docs/AutoID.md) explains every API used here.
 

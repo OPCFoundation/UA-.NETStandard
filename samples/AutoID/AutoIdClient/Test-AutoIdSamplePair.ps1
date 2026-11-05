@@ -139,6 +139,8 @@ try
         'DockDoor1: Idle, Example Automation RFID portal R-100, serial R100-0001',
         'ScanActive: coherent data at .*antenna .*dBm',
         'Scan: SUCCESS, \d+ tag\(s\)',
+        'OpticalVerifier reader LabelVerifier',
+        'Verifier Scan: SUCCESS, ISO grade A',
         'ReadTag user memory: SUCCESS, "PALLET-\d{4}"',
         'WriteTag: SUCCESS; read back: "CHECKED"',
         'ScanStart: SUCCESS',

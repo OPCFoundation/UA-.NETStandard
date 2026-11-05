@@ -121,6 +121,21 @@ namespace Opc.Ua.Aot.Tests
         }
 
         /// <summary>
+        /// Executes the corrected verifier method metadata and typed result through generated AOT proxies.
+        /// </summary>
+        [Test]
+        public async Task VerifierScanReturnsPublishedResultTypeThroughTypedClientAsync()
+        {
+            AutoIdScanResponse response = await fixture.Client.ScanAsync(
+                fixture.Verifier, new ScanSettings { Cycles = 1 }).ConfigureAwait(false);
+            await Assert.That(response.Status).IsEqualTo(AutoIdOperationStatusEnumeration.SUCCESS);
+            await Assert.That(response.Results.Count).IsEqualTo(1);
+            await Assert.That(response.Results[0] is OpticalVerifierScanResult).IsTrue();
+            await Assert.That(((OpticalVerifierScanResult)response.Results[0]).IsoGrade).IsEqualTo("A");
+            await Assert.That(response.Results[0].ScanData.String).IsEqualTo("AOT-LABEL");
+        }
+
+        /// <summary>
         /// Executes the standard diagnostics projection and reads its encoded values over a session.
         /// </summary>
         [Test]
@@ -145,7 +160,7 @@ namespace Opc.Ua.Aot.Tests
     }
 
     /// <summary>
-    /// Hosts one AutoID reader and connects a managed client session for AOT execution tests.
+    /// Hosts RFID and verifier readers and connects a managed client session for AOT execution tests.
     /// </summary>
     public sealed class AutoIdAotFixture : IAsyncInitializer, IAsyncDisposable
     {
@@ -158,6 +173,11 @@ namespace Opc.Ua.Aot.Tests
         /// Gets the AutoID reader entry discovered through the typed client.
         /// </summary>
         public AutoIdReaderEntry Reader { get; private set; } = null!;
+
+        /// <summary>
+        /// Gets the verifier discovered through the typed client.
+        /// </summary>
+        public AutoIdReaderEntry Verifier { get; private set; } = null!;
 
         /// <summary>
         /// Gets the provider backing the hosted reader.
@@ -187,6 +207,18 @@ namespace Opc.Ua.Aot.Tests
                         .ConfigureAwait(false);
                     m_readerId = reader.NodeId;
                     m_hostedReader = reader;
+                    var verifier = new InMemoryOpticalVerifierProvider();
+                    verifier.Present(new OpticalVerifierScanResult
+                    {
+                        CodeType = "RAW:STRING",
+                        ScanData = new ScanData { SwitchField = ScanDataFields.String, String = "AOT-LABEL" },
+                        Timestamp = DateTimeUtc.Now,
+                        IsoGrade = "A"
+                    });
+                    AutoIdReader verifierReader = await context.Runtime.Reader(
+                        new QualifiedName("AotVerifier", context.Runtime.InstanceNamespaceIndex), verifier)
+                        .OwnsProvider().BuildAsync(context.CancellationToken).ConfigureAwait(false);
+                    m_verifierId = verifierReader.NodeId;
                 })
                 .AddStartupTask((_, _, _) =>
                 {
@@ -219,6 +251,7 @@ namespace Opc.Ua.Aot.Tests
                 .ConfigureAwait(false);
             Client = new AutoIdClient(m_session, m_telemetry);
             Reader = await Client.GetReaderAsync(m_readerId).ConfigureAwait(false);
+            Verifier = await Client.GetReaderAsync(m_verifierId).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -481,6 +514,11 @@ namespace Opc.Ua.Aot.Tests
         /// Holds the NodeId of the configured test reader.
         /// </summary>
         private NodeId m_readerId = NodeId.Null;
+
+        /// <summary>
+        /// Holds the NodeId of the configured verifier.
+        /// </summary>
+        private NodeId m_verifierId = NodeId.Null;
 
         /// <summary>
         /// Holds the private PKI directory used by the client.

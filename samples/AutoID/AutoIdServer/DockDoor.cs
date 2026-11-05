@@ -96,6 +96,20 @@ namespace AutoIdSample
                     identification.SerialNumber = "R100-0001";
                 })
                 .BuildAsync(context.CancellationToken).ConfigureAwait(false);
+
+            var verifier = new InMemoryOpticalVerifierProvider();
+            verifier.Present(new OpticalVerifierScanResult
+            {
+                CodeType = "RAW:STRING",
+                ScanData = new ScanData { SwitchField = ScanDataFields.String, String = "PALLET-LABEL" },
+                Timestamp = DateTimeUtc.Now,
+                IsoGrade = "A"
+            });
+            await context.Runtime.Reader(
+                new QualifiedName("LabelVerifier", context.Manager.InstanceNamespaceIndex), verifier)
+                .OwnsProvider()
+                .WithDeviceInfo("Dock door label print-quality verifier")
+                .BuildAsync(context.CancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>

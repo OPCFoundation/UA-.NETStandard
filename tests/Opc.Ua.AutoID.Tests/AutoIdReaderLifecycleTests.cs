@@ -153,6 +153,38 @@ namespace Opc.Ua.AutoID.Tests
             });
         }
 
+        /// <summary>
+        /// Publishes mandatory RTLS units without inventing an undefined optional GetUnits signature.
+        /// </summary>
+        [Test]
+        public async Task RtlsPublishesConfiguredUnitsAndPreservesLocationWireOrderAsync()
+        {
+            AutoIdManagerFixture fixture = m_fixture ??
+                throw new InvalidOperationException("The reader fixture is not initialized.");
+            var provider = new FakeRtlsProvider(AutoIdReaderKind.Rtls, [LocationTypeEnumeration.LOCAL]);
+            AutoIdReader reader = await fixture.Runtime.Reader(fixture.Name(Unique("Units")), provider)
+                .WithRtlsUnits(
+                    new EUInformation { UnitId = 1 },
+                    new EUInformation { UnitId = 2 },
+                    new EUInformation { UnitId = 3 },
+                    new EUInformation { UnitId = 4 })
+                .BuildAsync().ConfigureAwait(false);
+            var device = (RtlsDeviceState)reader.Device;
+            PropertyState<ArrayOf<Argument>> arguments = device.GetLocation?.InputArguments ??
+                throw new InvalidOperationException("The RTLS location method has no input metadata.");
+            Assert.Multiple(() =>
+            {
+                Assert.That(device.GetUnits, Is.Null);
+                Assert.That(device.LengthUnit!.Value.UnitId, Is.EqualTo(1));
+                Assert.That(device.RotationalUnit!.Value.UnitId, Is.EqualTo(2));
+                Assert.That(device.GeographicalUnit!.Value.UnitId, Is.EqualTo(3));
+                Assert.That(device.SpeedUnit!.Value.UnitId, Is.EqualTo(4));
+                Assert.That(arguments.Value[0].Name, Is.EqualTo("Identifier"));
+                Assert.That(arguments.Value[1].Name, Is.EqualTo("LocationType"));
+                Assert.That(arguments.Value[2].Name, Is.EqualTo("CodeType"));
+            });
+        }
+
         [Test]
         public async Task ADuplicateNameIsRejectedAndTheNameStaysUsableAsync()
         {
@@ -625,9 +657,6 @@ namespace Opc.Ua.AutoID.Tests
                     () => runtime.Reader(m_fixture.Name(Unique("G")), new FakeRtlsProvider(
                         AutoIdReaderKind.Rtls, [(LocationTypeEnumeration)99])),
                     "undefined location type");
-                Assert.Throws<ArgumentException>(
-                    () => runtime.Reader(m_fixture.Name(Unique("H")), new InMemoryScanReaderProviderShim()),
-                    "a verifier cannot publish the Scan method the NodeSet declares incorrectly");
             });
         }
 
@@ -740,29 +769,6 @@ namespace Opc.Ua.AutoID.Tests
             CancellationToken cancellationToken = default)
         {
             return new ValueTask<RtlsLocationResult?>((RtlsLocationResult?)null);
-        }
-    }
-
-    /// <summary>
-    /// A verifier provider that wrongly offers the synchronous scan.
-    /// </summary>
-    internal sealed class InMemoryScanReaderProviderShim : IAutoIdScanProvider
-    {
-        public AutoIdReaderKind Kind => AutoIdReaderKind.OpticalVerifier;
-
-        public ValueTask AttachAsync(IAutoIdReaderSink sink, CancellationToken cancellationToken = default)
-        {
-            return default;
-        }
-
-        public ValueTask DetachAsync(CancellationToken cancellationToken = default)
-        {
-            return default;
-        }
-
-        public ValueTask<AutoIdScanOutcome> ScanAsync(ScanSettings settings, CancellationToken cancellationToken = default)
-        {
-            return default;
         }
     }
 }

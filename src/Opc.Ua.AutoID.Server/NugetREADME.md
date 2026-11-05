@@ -82,9 +82,11 @@ locks and kill; `InMemoryScanReaderProvider`; `InMemoryOpticalVerifierProvider`;
   disposal stops scans, detaches providers and disposes the providers the
   reader owns.
 - Conformance units and facets are advertised only for what the hosted readers
-  implement; the Full AutoID facet is not claimed.
-- An optical verifier does not publish `Scan`: the NodeSet types its results
-  as `WGS84Coordinate`, contradicting OPC 30010 6.4.3.1.
+  implement. Full requires synchronous scans, asynchronous control and enabled
+  runtime parameters on the same reader.
+- Optical verifier `Scan` returns `OpticalVerifierScanResult[]` from OPC 30010
+  6.4.3.1. The imported model explicitly corrects the published NodeSet's
+  conflicting result metadata without changing NodeIds or argument order.
 
 Runtime parameter writes are validated and acknowledged after provider commit.
 Writes during scanning are rejected. ScanActive shares the existing scan

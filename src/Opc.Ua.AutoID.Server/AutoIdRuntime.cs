@@ -630,16 +630,6 @@ namespace Opc.Ua.AutoID.Server
             {
                 throw new ArgumentException("The provider reports an unknown reader kind.", nameof(provider));
             }
-            if (provider.Kind == AutoIdReaderKind.OpticalVerifier && provider is IAutoIdScanProvider)
-            {
-                // The NodeSet declares the Scan method of OpticalVerifierDeviceType with WGS84Coordinate
-                // results (node i=7054) where OPC 30010 6.4.3.1 names OpticalVerifierScanResult, so
-                // the method cannot be served consistently; verifier results flow through ScanStart
-                // and the scan events.
-                throw new ArgumentException(
-                    "An optical verifier reports through ScanStart and scan events; its Scan method is not published.",
-                    nameof(provider));
-            }
             if (provider is IAutoIdRfidProvider rfid)
             {
                 if (provider.Kind != AutoIdReaderKind.Rfid)

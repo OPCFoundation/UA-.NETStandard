@@ -107,6 +107,20 @@ namespace Opc.Ua.AutoID.Server
                         };
                     };
                     break;
+                case OpticalVerifierDeviceState { Scan: { } scan }:
+                    scan.OnCallAsync = async (context, method, objectId, setting, ct) =>
+                    {
+                        ScanCallOutcome o = await ScanCoreAsync(context, setting, ct).ConfigureAwait(false);
+                        return new ScanOpticalVerifierDeviceTypeMethodStateResult
+                        {
+                            ServiceResult = o.ServiceResult,
+                            ResultsOut = ServiceResult.IsGood(o.ServiceResult)
+                                ? Cast<OpticalVerifierScanResult>(o.Results)
+                                : default,
+                            Status = o.Status
+                        };
+                    };
+                    break;
                 case OpticalReaderDeviceState { Scan: { } scan }:
                     scan.OnCallAsync = async (context, method, objectId, setting, ct) =>
                     {
