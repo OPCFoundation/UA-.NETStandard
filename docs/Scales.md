@@ -804,11 +804,21 @@ application-owned state check:
 builder.WithRecipeReleaseCheck(() => equipment.IsEnabled && equipment.IsReleased);
 ```
 
+Without a callback, the controller starts unreleased. The application can grant
+or revoke permission for subsequent starts through
+`await controller.SetApplicationReleaseAsync(released, ct)`. This operation waits
+for scale-write admission. Revoking permission does not stop an already running
+recipe; use the recipe processing methods for that operation.
+`ApplicationReleased` reports the explicit application permission, not the
+physical equipment's readiness. A configured callback takes precedence over
+that permission, and PackML takes precedence over both.
+
 For dependency injection, resolve the application service in the Scales setup
 callback and pass its check to the builder. The callback may coordinate with
 other threads reading the scale or recipe controller. Returning `false` rejects the start with
 `BadInvalidState`. Before committing a start, the runtime verifies that the
-check configuration has not changed; replacing it rejects the start with
+release configuration has not changed; changing the explicit release state or
+replacing the callback rejects the start with
 `BadInvalidState`, even if the original delegate is subsequently restored.
 The Boolean result is a point-in-time observation. Equipment state can change
 after the check returns and before the start commits; the configuration revision
@@ -817,9 +827,8 @@ The runtime does not reserve the application's enabled/released state. Any
 equipment coordination needed to keep that state valid through the start remains
 application-owned. §7.29.4 states the precondition but does not specify an atomic
 state-observation protocol.
-If neither PackML nor an
-application check is configured, the runtime preserves its existing behavior
-and does not verify that precondition.
+If neither PackML nor an allowing callback nor explicit application release is
+present, the runtime rejects `StartRecipe` with `BadInvalidState`.
 
 For a remote start, the current product selection remains unchanged until
 the request completes, including when no product or multiple products are
@@ -1054,9 +1063,10 @@ path · ❌ not shipped.
 The tables identify implementation paths and their tests, not certification.
 Test names identify the cases associated with each behavior; names alone do not
 establish that the cases have passed. OPC 40200
-support remains Partial because a recipe scale without PackML cannot verify
-the enabled/released precondition unless the application supplies a release
-check.
+support remains Partial while optional statistic fields, piece-count
+registration/totalization, vehicle totals and notification metadata are being
+completed. A scale without PackML requires explicit application release or an
+allowing release callback before starting a recipe.
 
 OPC 40200 defines server facets only; there are no client facets or client
 conformance units (§12). The server advertises the facets and CUs of what
@@ -1102,13 +1112,13 @@ are left out (`ScaleFacetsBringTheMachineIdentificationTheyIncludeAsync`,
 | Machinery Machine Identification, Find Machines | ✅ | `IdentificationWithoutMandatoryFieldsIsRejectedAsync`; `ClientDiscoversEveryScaleOnceWithItsKindAsync` |
 | Machinery building blocks, MachineryItemState, OperationMode | 🧪 | `StateSettersPublishTheMachineryStatesAndProcessStateAsync` |
 | *RecipeManagment*, *DynamicRecipeManagement*, *FileRecipeManagement* | ✅ | as RecipeScale above |
-| §7.29.4 enabled/released precondition | 🔧 | `ApplicationReleaseCheckRejectsStartWhenNotReleased`; `ApplicationReleaseCheckAllowsStartWhenReleased`; `LocalStartRejectsReleaseCheckReplacedBeforeCommitAsync`; `FluentRecipeReleaseCheckRejectsStartWhenNotReleased`; `PackMLStartUsesPackMLStateInsteadOfApplicationReleaseCheck`; `ClientStartsRecipeWithoutConfiguredReleaseCheckAsync`; `ClientReleaseCheckRunsOutsideBothLocksAndRejectsReplacementAsync` |
+| §7.29.4 enabled/released precondition | 🔧 | `ApplicationReleaseDefaultsToWithheldAndCanBeGrantedAndRevokedAsync`; `CancelledApplicationReleaseDoesNotChangePermissionAsync`; `ApplicationReleaseCheckRejectsStartWhenNotReleased`; `ApplicationReleaseCheckAllowsStartWhenReleased`; `LocalStartRejectsReleaseCheckReplacedBeforeCommitAsync`; `FluentRecipeReleaseCheckRejectsStartWhenNotReleased`; `PackMLStartUsesPackMLStateInsteadOfApplicationReleaseCheck`; `ClientRecipeStartRequiresExplicitReleaseOrAllowingCallbackAsync`; `ClientReleaseCheckRunsOutsideBothLocksAndRejectsReplacementAsync` |
 | StartRecipe callback coordination and replacement | 🔧 | `ClientReleaseCheckRunsOutsideBothLocksAndRejectsReplacementAsync` contains assertions for both `ScaleHandle.CurrentReading` and `RecipeController.CurrentElements`, then replaces the callback before allowing it to return |
 | StartRecipe product-selection snapshot and release-check failures | 🔧 | `ClientRecipeStartRetainsSelectionAndReleasesReservationAsync` contains cases for absent and multiple-product selections, concurrent selection changes, allowing/rejecting/throwing checks, reservation release and one interceptor invocation |
 | Opt-in analog and edge recipe condition waits | ✅ / 🧪 | Real-session tests: `ClientRecipeWaitsForAnalogSourceBeforeProgressingAsync`; `ClientRecipeWaitsForBooleanEdgeBeforeProgressingAsync`. They configure settings through native async service writes before observing progression. In-process tests: `AnalogOperatorsObserveEqualityAndAdjacentBoundaries`; `BooleanEdgesRequireTransitionAfterActivation`; `TimeoutLatchesInterventionInsteadOfAutomaticSuccess`; `DisabledConditionWaitsRetainManualExecution` |
 | Method veto through `CommandInterceptor` | 🧪 | `CommandInterceptorCanVetoACommandAsync`; `PieceCountingLocalCallsMatchTheMethodsAsync` |
 | Runtime members thread-safe against method calls | 🧪 | `EquipmentReportsAreAtomicAgainstTheScaleLockAsync`; `CalibrationReportsAreAtomicAgainstTheScaleLockAsync` |
-| Awaited acquisition publication and runtime/OPC UA Value-write admission | 🔧 | `CatchweigherNotificationRejectsOverlappingSynchronousWritersAsync`; `CatchweigherReportsSerializeAndWaitingCancellationReleasesAdmissionAsync`; `CatchweigherNotificationFailureLeavesSequenceRetryableAsync`; `HopperNotificationRejectsOverlapAfterTipCounterSetterAsync`; `ProductValueWritesPreserveConcurrentSynchronousAdmissionAsync`; `ProductValueWriteAsyncWaitsForAcquisitionAndRejectsSyncOverlapAsync`; `BoundWriteExecutorPreservesCopyAndTimestampSemanticsAsync`; `WriteAttributeAsyncIsNonVirtualAndGuardsCoreOverrideThroughCacheCommitAsync`; `WriteAttributeAsyncGuardsCoreOverrideWithoutBaseCallAsync`; `CoreOverrideSameNodePublicWriteCancellationReleasesAdmissionAsync`. Direct property assignments require application serialization. |
+| Awaited acquisition publication and runtime/OPC UA Value-write admission | 🔧 | `CatchweigherNotificationRejectsOverlappingSynchronousWritersAsync`; `CatchweigherReportsSerializeAndWaitingCancellationReleasesAdmissionAsync`; `CatchweigherNotificationFailureLeavesSequenceRetryableAsync`; `HopperNotificationRejectsOverlapAfterTipCounterSetterAsync`; `ProductValueWritesPreserveConcurrentSynchronousAdmissionAsync`; `ProductValueWriteAsyncWaitsForAcquisitionAndRejectsSyncOverlapAsync`; `BoundWriteExecutorPreservesSynchronousArrayAndTimestampSemanticsAsync`; `WriteAttributeAsyncIsNonVirtualAndGuardsCoreOverrideThroughCacheCommitAsync`; `WriteAttributeAsyncGuardsCoreOverrideWithoutBaseCallAsync`; `CoreOverrideSameNodePublicWriteCancellationReleasesAdmissionAsync`. Direct property assignments require application serialization. |
 | Native notification enum writes and dependent text | ✅ / 🧪 | `ClientWritesGeneratedNotificationEnumsAndRejectsSparseGapsAsync`; `RegisteredNotificationFieldsUseNativeEnumerationPolicyAsync`; `NativeEnumerationPolicyPreservesSparseAndMissingTablesAsync`; `NativeEnumerationPolicyPreservesValidationPrecedenceAsync`; `NativeEnumerationTextNotificationsAwaitExplicitFlushAsync`; `OrdinaryCachePostCommitHonorsCommitBoundaryAsync`. |
 | Local operator calls for piece counting and vehicle weighing | 🧪 | `PieceCountingLocalCallsMatchTheMethodsAsync`; `VehicleLocalCallsMatchTheMethodsAsync` |
 | Recipe events raised outside the lock | 🧪 | `HandlersMayCompleteElementsSynchronouslyAsync`; `LongChainOfSatisfiedConditionsCompletesWithoutRecursion` |
@@ -1147,7 +1157,7 @@ coverage is recorded separately in the status tables above.
 | §7.15, `AutomaticWeightPriceLabelerProductType` | The product adds an optional unit price with a mandatory currency unit when present. The configured calculator applies the documented rounding rule to net mass and unit price; conflicting currencies reject the report. | `PricesUseEquipmentOrExplicitRoundingAndPublishMandatoryCurrencyAsync`; `ClientReadsRegisteredItemsPricesAndCompletedFillsWithSourceMetadataAsync` |
 | §7.16, `PriceItemType` | A price item extends the weighing item with an optional item price and its required currency unit. The client reads price fields without collapsing missing values or source quality. | `PricesUseEquipmentOrExplicitRoundingAndPublishMandatoryCurrencyAsync`; `ClientReadsRegisteredItemsPricesAndCompletedFillsWithSourceMetadataAsync` |
 | §7.29, `RecipeScaleType` | The recipe scale exposes optional recipe management, supported targets and thresholds, and start, stop, continue, skip and abort methods. The runtime processes the selected recipe graph; the typed client invokes each processing method. | `RecipesAreManagedAndProcessedAlongTheirGraphAsync`; `ClientBuildsAndProcessesARecipeAsync` |
-| §7.29.4, `StartRecipe` precondition | With PackML, the runtime accepts Idle or Execute and bypasses the application check. Without PackML, `WithRecipeReleaseCheck` or `SetApplicationReleaseCheck` can supply a point-in-time check; a false result rejects the start. Callback configuration changes reject the pending start, but equipment-state changes are not tracked or reserved. If no check is configured, enabled/released state is not verified. | `ApplicationReleaseCheckRejectsStartWhenNotReleased`; `ApplicationReleaseCheckAllowsStartWhenReleased`; `FluentRecipeReleaseCheckRejectsStartWhenNotReleased`; `PackMLStartUsesPackMLStateInsteadOfApplicationReleaseCheck`; `DisabledConditionWaitsRetainManualExecution`; `ClientStartsRecipeWithoutConfiguredReleaseCheckAsync` |
+| §7.29.4, `StartRecipe` precondition | With PackML, the runtime accepts Idle or Execute and bypasses application permission. Without PackML, a configured callback must allow the start; otherwise explicit application release is required and defaults to false. Release configuration changes reject the pending start, but external equipment-state changes are not tracked or reserved. | `ApplicationReleaseDefaultsToWithheldAndCanBeGrantedAndRevokedAsync`; `ApplicationReleaseCheckRejectsStartWhenNotReleased`; `ApplicationReleaseCheckAllowsStartWhenReleased`; `FluentRecipeReleaseCheckRejectsStartWhenNotReleased`; `PackMLStartUsesPackMLStateInsteadOfApplicationReleaseCheck`; `DisabledConditionWaitsRetainManualExecution`; `ClientRecipeStartRequiresExplicitReleaseOrAllowingCallbackAsync` |
 | §7.30, `RecipeProductType` | The recipe product exposes its recipe node id and report; file-report support is optional. The client decodes report entries with source metadata, and the file tests cover recipe file upload and reporting. | `RecipeReadsDecodeTypedReportsAndKeepTheirSourceMetadataAsync`; `RecipeFilesAreUploadedParsedAndReportedAsync`; `ClientBuildsAndProcessesARecipeAsync` |
 | §7.31, `RecipeType` | Recipes carry their id and name and may manage graph elements through `AddRecipeElement` and `RemoveRecipeElement`. The client exposes both operations. File-loaded recipes reject graph edits so the address space cannot diverge from the uploaded file. | `RecipesAreManagedAndProcessedAlongTheirGraphAsync`; `RecipeProcessingGuardsAsync`; `RecipeFilesAreUploadedParsedAndReportedAsync`; `ClientRemovesRecipeElementsAndRecipesAsync` |
 | §7.32, `RecipeManagementType` | The recipe folder supports adding and removing recipes. The typed client exposes both operations; removal of an active recipe is rejected by the server. | `RecipesAreManagedAndProcessedAlongTheirGraphAsync`; `RecipeProcessingGuardsAsync`; `ClientRemovesRecipeElementsAndRecipesAsync` |

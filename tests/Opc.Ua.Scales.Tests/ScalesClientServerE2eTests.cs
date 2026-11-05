@@ -941,10 +941,11 @@ namespace Opc.Ua.Scales.Tests
         }
 
         /// <summary>
-        /// Preserves start behavior on a fresh scale without PackML or an application release check.
+        /// Requires application permission on a fresh scale and accepts both supported release paths.
         /// </summary>
-        [Test]
-        public async Task ClientStartsRecipeWithoutConfiguredReleaseCheckAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ClientRecipeStartRequiresExplicitReleaseOrAllowingCallbackAsync(bool callback)
         {
             ScaleHandle scale = await m_runtime.CreateScaleAsync(
                 new QualifiedName("NoReleaseCheck", m_runtime.InstanceNamespaceIndex),
@@ -968,6 +969,26 @@ namespace Opc.Ua.Scales.Tests
                 "Wait",
                 [recipe]);
 
+            RecipeController controller = scale.Recipes!;
+            bool released = false;
+            if (callback)
+            {
+                controller.SetApplicationReleaseCheck(() => released);
+            }
+            ServiceResultException? denied = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await m_client.ProcessRecipeAsync(scale.NodeId, BrowseNames.StartRecipe, recipe));
+            Assert.That(denied!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            Assert.That(controller.State, Is.EqualTo(RecipeRunState.Idle));
+            Assert.That(controller.CurrentElements.Count, Is.Zero);
+            Assert.That(controller.ApplicationReleased, Is.False);
+            if (callback)
+            {
+                released = true;
+            }
+            else
+            {
+                await controller.SetApplicationReleaseAsync(true).ConfigureAwait(false);
+            }
             bool startAttempted = false;
             try
             {
@@ -979,6 +1000,18 @@ namespace Opc.Ua.Scales.Tests
             {
                 await AbortRecipeIfRunningAsync(scale, recipe, startAttempted);
             }
+            if (callback)
+            {
+                released = false;
+            }
+            else
+            {
+                await controller.SetApplicationReleaseAsync(false).ConfigureAwait(false);
+            }
+            denied = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await m_client.ProcessRecipeAsync(scale.NodeId, BrowseNames.StartRecipe, recipe));
+            Assert.That(denied!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            Assert.That(controller.State, Is.EqualTo(RecipeRunState.Idle));
         }
 
         /// <summary>

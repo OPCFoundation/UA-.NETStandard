@@ -206,14 +206,61 @@ namespace Opc.Ua.Scales.Server.Runtime
         public event EventHandler<RecipeState>? RecipeCompleted;
 
         /// <summary>
+        /// Gets the application's explicit release state, initially false.
+        /// PackML state or a configured release callback takes precedence when starting a recipe.
+        /// </summary>
+        public bool ApplicationReleased
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return !m_disposed && m_applicationReleased;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Sets the application's processing release after waiting for scale-write admission.
+        /// Changing this state does not stop a recipe that is already running.
+        /// </summary>
+        /// <param name="released">Whether the application permits a new recipe to start.</param>
+        /// <param name="cancellationToken">Cancels while waiting for admission.</param>
+        /// <returns>A task that completes after the release state is updated.</returns>
+        public async ValueTask SetApplicationReleaseAsync(
+            bool released,
+            CancellationToken cancellationToken = default)
+        {
+            await m_owner.WriteOperations.ExecuteAsynchronouslyAsync(
+                token =>
+                {
+                    token.ThrowIfCancellationRequested();
+                    lock (m_lock)
+                    {
+                        if (m_disposed)
+                        {
+                            throw new ObjectDisposedException(nameof(RecipeController));
+                        }
+                        if (m_applicationReleased != released)
+                        {
+                            m_applicationReleaseCheckRevision = checked(m_applicationReleaseCheckRevision + 1);
+                            m_applicationReleased = released;
+                        }
+                    }
+                    return new ValueTask<bool>(true);
+                },
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Sets the application-owned check used before starting recipes when
         /// this scale has no PackML state machine.
         /// </summary>
         /// <param name="isEnabledAndReleased">Returns whether the scale is enabled and released for processing.</param>
         /// <remarks>
         /// The callback may coordinate with other threads reading the scale or recipe controller.
-        /// StartRecipe rejects the start if the callback is replaced before the start commits. Without this check,
-        /// a scale without PackML retains its existing start behavior.
+        /// StartRecipe rejects the start if the callback or explicit release state changes before the start commits.
+        /// Without this check, a scale without PackML uses its explicit application release state.
         /// </remarks>
         public void SetApplicationReleaseCheck(Func<bool> isEnabledAndReleased)
         {
@@ -685,7 +732,8 @@ namespace Opc.Ua.Scales.Server.Runtime
                     },
                     checkRelease: () =>
                     {
-                        if (applicationReleaseCheck is not null && !applicationReleaseCheck())
+                        if (m_owner.PackML == null &&
+                            !(applicationReleaseCheck?.Invoke() ?? ApplicationReleased))
                         {
                             return ApplicationReleaseFailure();
                         }
@@ -812,7 +860,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                     applicationReleaseCheckRevision = m_applicationReleaseCheckRevision;
                 }
             }
-            if (applicationReleaseCheck is not null && !applicationReleaseCheck())
+            if (m_owner.PackML == null && !(applicationReleaseCheck?.Invoke() ?? ApplicationReleased))
             {
                 return ApplicationReleaseFailure();
             }
@@ -850,6 +898,10 @@ namespace Opc.Ua.Scales.Server.Runtime
                 if (validateReleaseCheck && m_applicationReleaseCheckRevision != applicationReleaseCheckRevision)
                 {
                     return ApplicationReleaseCheckChanged();
+                }
+                if (validateReleaseCheck && m_applicationReleaseCheck == null && !m_applicationReleased)
+                {
+                    return ApplicationReleaseFailure();
                 }
                 // §7.29.4: with PackML, Idle or Execute represents enabled/released for processing.
                 if (m_owner.PackML is { } packMl &&
@@ -1282,6 +1334,9 @@ namespace Opc.Ua.Scales.Server.Runtime
 
         /// <summary>The optional application-owned enabled/released check for scales without PackML.</summary>
         private Func<bool>? m_applicationReleaseCheck;
+
+        /// <summary>The application-owned processing release, initially withheld.</summary>
+        private bool m_applicationReleased;
 
         /// <summary>
         /// Revision of the application release-check configuration, including reinstallation of an earlier delegate.

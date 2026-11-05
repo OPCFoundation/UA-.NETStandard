@@ -288,6 +288,7 @@ namespace ScalesSample
                     }),
                 context.CancellationToken).ConfigureAwait(false);
             RecipeController conditions = ConditionBatching.Recipes!;
+            await conditions.SetApplicationReleaseAsync(true, context.CancellationToken).ConfigureAwait(false);
             ConditionRecipe = conditions.AddRecipe("CONDITIONS", new LocalizedText("Conditions with intervention"));
             ((RecipeProductState)ConditionBatching.ProductionPreset!.ActiveProduct!).RecipeNodeId!.Value =
                 ConditionRecipe.NodeId;

@@ -1464,6 +1464,7 @@ namespace Opc.Ua.Scales.Tests
                 ScaleKind.Recipe,
                 (_, state) => ((RecipeProductState)state).Report!.Value = default);
             RecipeController recipes = scale.Recipes!;
+            await recipes.SetApplicationReleaseAsync(true).ConfigureAwait(false);
             if (automaticWaits)
             {
                 recipes.EnableConditionWaits(TimeSpan.FromSeconds(5));

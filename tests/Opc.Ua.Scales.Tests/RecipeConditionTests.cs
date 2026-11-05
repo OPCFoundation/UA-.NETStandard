@@ -73,6 +73,7 @@ namespace Opc.Ua.Scales.Tests
                     .WithTypeFeatures());
             m_scale = scale;
             m_controller = scale.Recipes!;
+            await m_controller.SetApplicationReleaseAsync(true).ConfigureAwait(false);
             m_clock = new RecipeClock();
             m_recipe = m_controller.AddRecipe("R", new LocalizedText("Recipe"));
         }
@@ -222,6 +223,139 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(calls, Is.EqualTo(1));
             Assert.That(m_controller.State, Is.EqualTo(RecipeRunState.Running));
             Assert.That(m_controller.CurrentElements.ToArray(), Does.Contain(element));
+        }
+
+        /// <summary>
+        /// Requires an explicit application release on a scale without PackML or a release callback.
+        /// </summary>
+        [Test]
+        public async Task ApplicationReleaseDefaultsToWithheldAndCanBeGrantedAndRevokedAsync()
+        {
+            ScaleHandle scale = await m_fixture.Manager.CreateScaleAsync(
+                m_fixture.Name("ExplicitRelease"), ScaleKind.Recipe, builder => builder
+                    .WithIdentification(ScalesNodeManagerTests.Identity("ExplicitRelease"))
+                    .WithWeighingRange(new WeighingRangeDefinition(0, 100, 0.001, 0.001))
+                    .WithTypeFeatures()).ConfigureAwait(false);
+            RecipeController recipes = scale.Recipes!;
+            RecipeState recipe = recipes.AddRecipe("R", new LocalizedText("Recipe"));
+            recipes.AddRecipeElement(
+                recipe, new NodeId(ObjectTypes.TimerType, m_fixture.Manager.NamespaceIndices.Scales),
+                "Wait", recipe.NodeId);
+
+            Assert.That(recipes.ApplicationReleased, Is.False);
+            Assert.That(recipes.Start(recipe.NodeId).StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            Assert.That(recipes.State, Is.EqualTo(RecipeRunState.Idle));
+            Assert.That(recipes.CurrentElements.Count, Is.Zero);
+
+            await recipes.SetApplicationReleaseAsync(true).ConfigureAwait(false);
+            Assert.That(recipes.ApplicationReleased, Is.True);
+            AssertGood(recipes.Start(recipe.NodeId));
+            await recipes.SetApplicationReleaseAsync(false).ConfigureAwait(false);
+            Assert.That(recipes.State, Is.EqualTo(RecipeRunState.Running));
+            AssertGood(recipes.Abort(recipe.NodeId));
+            Assert.That(recipes.Start(recipe.NodeId).StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            Assert.That(recipes.ApplicationReleased, Is.False);
+
+            recipes.SetApplicationReleaseCheck(() => true);
+            AssertGood(recipes.Start(recipe.NodeId));
+        }
+
+        /// <summary>
+        /// Preserves the current release when an update is cancelled before admission.
+        /// </summary>
+        [Test]
+        public async Task CancelledApplicationReleaseDoesNotChangePermissionAsync()
+        {
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await m_controller.SetApplicationReleaseAsync(false, cancellation.Token).ConfigureAwait(false));
+
+            Assert.That(m_controller.ApplicationReleased, Is.True);
+            await m_controller.SetApplicationReleaseAsync(false).ConfigureAwait(false);
+            Assert.That(m_controller.ApplicationReleased, Is.False);
+            m_controller.Dispose();
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+                await m_controller.SetApplicationReleaseAsync(true).ConfigureAwait(false));
+        }
+
+        /// <summary>
+        /// Waits for the scale writer and preserves permission when an admitted update is cancelled.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ApplicationReleaseWaitsForScaleAdmissionAsync(bool cancel)
+        {
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var cancellation = new CancellationTokenSource();
+            Task writer = m_scale.WriteOperations.ExecuteAsynchronouslyAsync(async _ =>
+            {
+                entered.SetResult(true);
+                await release.Task.ConfigureAwait(false);
+                return true;
+            }, CancellationToken.None).AsTask();
+            await entered.Task.ConfigureAwait(false);
+            Task update = m_controller.SetApplicationReleaseAsync(false, cancellation.Token).AsTask();
+            try
+            {
+                Assert.That(update.IsCompleted, Is.False);
+                Assert.That(m_controller.ApplicationReleased, Is.True);
+                if (cancel)
+                {
+                    cancellation.Cancel();
+                    await Assert.ThatAsync(() => update, Throws.InstanceOf<OperationCanceledException>());
+                    Assert.That(m_controller.ApplicationReleased, Is.True);
+                }
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await writer.ConfigureAwait(false);
+            }
+            if (!cancel)
+            {
+                await update.ConfigureAwait(false);
+                Assert.That(m_controller.ApplicationReleased, Is.False);
+            }
+        }
+
+        /// <summary>
+        /// Rejects a start after explicit permission changes while its callback runs, even if permission is restored.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task LocalStartRejectsExplicitReleaseChangedBeforeCommitAsync(bool restoreRelease)
+        {
+            AnalogConditionSleepState element = Analog(0, 10.0);
+            using var callbackEntered = new ManualResetEventSlim(false);
+            using var releaseCallback = new ManualResetEventSlim(false);
+            m_controller.SetApplicationReleaseCheck(() =>
+            {
+                callbackEntered.Set();
+                return releaseCallback.Wait(TimeSpan.FromSeconds(20));
+            });
+            Task<ServiceResult> start = Task.Run(() => m_controller.Start(m_recipe.NodeId));
+            try
+            {
+                Assert.That(callbackEntered.Wait(TimeSpan.FromSeconds(5)), Is.True);
+                await m_controller.SetApplicationReleaseAsync(false).ConfigureAwait(false);
+                if (restoreRelease)
+                {
+                    await m_controller.SetApplicationReleaseAsync(true).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                releaseCallback.Set();
+            }
+            ServiceResult result = await start.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            Assert.That(m_controller.State, Is.EqualTo(RecipeRunState.Idle));
+            Assert.That(m_controller.CurrentElements.ToArray(), Does.Not.Contain(element));
         }
 
         /// <summary>
