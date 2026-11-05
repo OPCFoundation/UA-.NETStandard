@@ -238,6 +238,9 @@ acceptance first. It resets timer values and each production `Count` but
 preserves `AccCount`. No additional remote ResetCounters method is invented.
 Admin reads default to the SecurityAdmin role; use
 `AdministrationRolePermissions` to grant the application's chosen roles access.
+The option requires at least one explicit role entry. Empty and null arrays
+are rejected rather than inheriting the namespace's default permissions; to
+allow anonymous reads, explicitly grant them to the Anonymous role.
 
 An optional `IPackMLAdministrationStore` loads timer snapshots before the fresh
 initial state is entered and saves after accepted changes or an explicit
@@ -284,9 +287,10 @@ then rolls back. This is a boundary of the `Units` list only. The unit's node
 is added to its parent and to the node manager before the parent notification
 is awaited, so while that notification is pending a client can browse, read
 and call methods on the node, and a method call can reach the provider. If the
-notification then fails, the runtime removes the node, waits for admitted
-provider calls to finish and disposes the unit; a command that the provider
-accepted in that interval is not reversed.
+notification then fails, the runtime cancels and drains admitted provider work
+before unlinking and deleting the unit's nodes. A command that the provider
+accepted in that interval is not reversed. The creation error is preserved;
+shutdown and node-deletion failures are reported alongside it.
 
 Each owner keeps its serialization gate for the whole operation, including
 the awaited notification callbacks. The runtime holds its composition gate

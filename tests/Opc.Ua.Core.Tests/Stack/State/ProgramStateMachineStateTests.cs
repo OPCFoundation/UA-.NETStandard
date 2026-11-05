@@ -907,7 +907,6 @@ namespace Opc.Ua.Core.Tests.Stack.State
             {
                 await entered.Task.WaitAsync(s_timeout).ConfigureAwait(false);
                 Assert.That(publishing.IsCompleted, Is.False);
-                Assert.That(reentrant!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
                 Assert.That(child.DoCause(
                     m_context, null, Methods.ProgramStateMachineType_Halt, default, []).StatusCode,
                     Is.EqualTo(StatusCodes.BadInvalidState));
@@ -921,6 +920,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 release.TrySetResult(true);
                 await publishing.WaitAsync(s_timeout).ConfigureAwait(false);
             }
+            Assert.That(reentrant, Is.Not.Null);
+            Assert.That(reentrant!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             child.CurrentState!.OnStateChangedAsync = null;
             Assert.That(ServiceResult.IsGood(child.DoTransition(
                 m_context, Objects.ProgramStateMachineType_RunningToHalted, 0, default, [])), Is.True);

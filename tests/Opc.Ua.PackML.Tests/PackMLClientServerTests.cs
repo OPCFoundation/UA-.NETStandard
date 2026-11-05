@@ -791,6 +791,139 @@ namespace Opc.Ua.PackML.Tests
             parent.OnStateChangedAsync = null;
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RuntimeRollbackDrainsPendingWireProviderBeforeUnlinkingUnit(bool cancellationFails)
+        {
+            var parent = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("RollbackDrain", m_manager.InstanceNamespaceIndex),
+                BrowseName = new QualifiedName("RollbackDrain", m_manager.InstanceNamespaceIndex),
+                DisplayName = new LocalizedText("RollbackDrain"),
+                TypeDefinitionId = Ua.ObjectTypeIds.BaseObjectType
+            };
+            await m_manager.AddPredefinedNodeAsync(parent);
+            var parentEntered = PackMLTestSupport.Signal();
+            var parentRelease = PackMLTestSupport.Signal();
+            var providerEntered = PackMLTestSupport.Signal();
+            var providerCancelled = PackMLTestSupport.Signal();
+            var providerRelease = PackMLTestSupport.Signal();
+            var notificationError = new InvalidOperationException("Parent notification failed.");
+            var cancellationError = new InvalidOperationException("Provider cancellation failed.");
+            parent.OnStateChangedAsync = async (_, _, _, _) =>
+            {
+                parentEntered.TrySetResult(true);
+                await parentRelease.Task.ConfigureAwait(false);
+                throw notificationError;
+            };
+            var provider = new EquipmentProvider
+            {
+                Execute = async (_, token) =>
+                {
+                    using CancellationTokenRegistration registration = token.Register(() =>
+                    {
+                        providerCancelled.TrySetResult(true);
+                        if (cancellationFails)
+                        {
+                            throw cancellationError;
+                        }
+                    });
+                    providerEntered.TrySetResult(true);
+                    await providerRelease.Task.WaitAsync(TimeSpan.FromSeconds(30), CancellationToken.None);
+                    token.ThrowIfCancellationRequested();
+                    return ServiceResult.Good;
+                }
+            };
+            int count = m_manager.Runtime.Units.Count;
+            Task<Unit> adding = m_manager.Runtime.AddUnitAsync(
+                new QualifiedName("DrainedSealer", m_manager.InstanceNamespaceIndex),
+                provider, parent: parent).AsTask();
+            Task<ServiceResult>? wire = null;
+            try
+            {
+                await parentEntered.Task.WaitAsync(TimeSpan.FromSeconds(30));
+                var children = new List<BaseInstanceState>();
+                parent.GetChildren(m_manager.SystemContext, children);
+                PackMLBaseObjectState pending = children.OfType<PackMLBaseObjectState>().Single();
+                wire = pending.SetMachSpeed.Required().CallAsync(
+                    m_manager.SystemContext, pending.NodeId, new[] { Variant.From(10f) }.ToArrayOf(),
+                    new List<ServiceResult>(), new List<Variant>()).AsTask();
+                await providerEntered.Task.WaitAsync(TimeSpan.FromSeconds(30));
+                parentRelease.TrySetResult(true);
+                await providerCancelled.Task.WaitAsync(TimeSpan.FromSeconds(30));
+                Assert.That(adding.IsCompleted, Is.False, "rollback must join provider drain before unlinking");
+                Assert.That(wire.IsCompleted, Is.False);
+                children.Clear();
+                parent.GetChildren(m_manager.SystemContext, children);
+                Assert.That(children, Does.Contain(pending));
+                Assert.That(m_manager.Runtime.Units.Count, Is.EqualTo(count));
+            }
+            finally
+            {
+                parentRelease.TrySetResult(true);
+                providerRelease.TrySetResult(true);
+                parent.OnStateChangedAsync = null;
+            }
+            if (cancellationFails)
+            {
+                AggregateException? error = await Assert.ThrowsAsync<AggregateException>(
+                    async () => await adding.WaitAsync(TimeSpan.FromSeconds(30)));
+                Assert.That(error!.Flatten().InnerExceptions, Does.Contain(notificationError));
+                Assert.That(error.Flatten().InnerExceptions, Does.Contain(cancellationError));
+            }
+            else
+            {
+                InvalidOperationException? error = await Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await adding.WaitAsync(TimeSpan.FromSeconds(30)));
+                Assert.That(error, Is.SameAs(notificationError));
+            }
+            Assert.That(ServiceResult.IsBad(await wire!.WaitAsync(TimeSpan.FromSeconds(30))), Is.True);
+            var remaining = new List<BaseInstanceState>();
+            parent.GetChildren(m_manager.SystemContext, remaining);
+            Assert.That(remaining, Is.Empty);
+            Assert.That(m_manager.Runtime.Units.Count, Is.EqualTo(count));
+            Assert.That(provider.Executed, Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        public async Task RuntimeDisposeReentryLeavesCommittedUnitsAndRuntimeOpen()
+        {
+            var parent = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("DisposeReentry", m_manager.InstanceNamespaceIndex),
+                BrowseName = new QualifiedName("DisposeReentry", m_manager.InstanceNamespaceIndex),
+                DisplayName = new LocalizedText("DisposeReentry"),
+                TypeDefinitionId = Ua.ObjectTypeIds.BaseObjectType
+            };
+            await m_manager.AddPredefinedNodeAsync(parent);
+            InvalidOperationException? rejection = null;
+            parent.OnStateChangedAsync = async (_, _, _, _) =>
+            {
+                rejection = await Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await m_manager.Runtime.DisposeAsync().AsTask()
+                        .WaitAsync(TimeSpan.FromSeconds(30), CancellationToken.None));
+            };
+            Unit added;
+            try
+            {
+                added = await m_manager.Runtime.AddUnitAsync(
+                    new QualifiedName("ReentrantSealer", m_manager.InstanceNamespaceIndex),
+                    new EquipmentProvider(), parent: parent).AsTask().WaitAsync(TimeSpan.FromSeconds(30));
+            }
+            finally
+            {
+                parent.OnStateChangedAsync = null;
+            }
+            Assert.That(rejection, Is.Not.Null);
+            Assert.That(m_manager.Runtime.Units.ToList(), Does.Contain(added));
+            var request = new PackMLRequest { Operation = PackMLOperation.SetMachSpeed, MachineSpeed = 5 };
+            Assert.That(ServiceResult.IsGood(await m_unit.RequestAsync(m_manager.SystemContext, request)), Is.True);
+            Assert.That(ServiceResult.IsGood(await added.RequestAsync(m_manager.SystemContext, request)), Is.True);
+            Unit next = await m_manager.Runtime.AddUnitAsync(
+                new QualifiedName("AfterDisposeReentry", m_manager.InstanceNamespaceIndex), new EquipmentProvider());
+            Assert.That(m_manager.Runtime.Units.ToList(), Does.Contain(next));
+        }
+
         [Test]
         public async Task RuntimeAdmitsWireCallsWhileParentNotificationIsPending(
             [Values(true, false)] bool published)

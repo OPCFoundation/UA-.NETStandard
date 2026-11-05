@@ -104,6 +104,24 @@ namespace Opc.Ua.PackML.Tests
             Assert.That(provider.Executed.Select(r => r.Command), Is.EqualTo(sequence.Select(s => s.Command)));
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task EmptyAdministrationPermissionsAreRejectedBeforeUnitCreation(bool useNullArray)
+        {
+            SystemContext context = PackMLTestSupport.CreateContext();
+            var options = new PackMLUnitOptions
+            {
+                AdministrationRolePermissions = useNullArray ? default : ArrayOf<RolePermissionType>.Empty
+            };
+            var provider = new EquipmentProvider();
+
+            ArgumentException? error = await Assert.ThrowsAsync<ArgumentException>(
+                async () => await Unit.CreateAsync(context, null, PackMLTestSupport.Name(context), provider, options));
+
+            Assert.That(error!.Message, Does.Contain("explicit role"));
+            Assert.That(provider.Executed, Is.Empty);
+        }
+
         [Test]
         public async Task NestedMachinesActivateAndDeactivateWithTheirParents()
         {
@@ -774,11 +792,12 @@ namespace Opc.Ua.PackML.Tests
             Assert.That(inProcess.WrappedValue, Is.EqualTo(inProcessBefore));
         }
 
-        [TestCase(StatusCodes.BadOutOfService)]
-        [TestCase(StatusCodes.Uncertain)]
-        public async Task FailedIndicatorRestorationAfterRejectedAcceptanceReportsProviderResult(uint acceptance)
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task FailedIndicatorRestorationAfterRejectedAcceptanceReportsProviderResult(bool uncertain)
         {
             SystemContext context = PackMLTestSupport.CreateContext();
+            StatusCode acceptance = uncertain ? StatusCodes.Uncertain : StatusCodes.BadOutOfService;
             var provider = new EquipmentProvider { Acceptance = new ServiceResult(acceptance) };
             await using Unit unit = await Unit.CreateAsync(context, null, PackMLTestSupport.Name(context), provider);
             PackMLStatusObjectState status = unit.Node.Status.Required();
@@ -805,7 +824,7 @@ namespace Opc.Ua.PackML.Tests
                 outcome = outcome.InnerException!;
                 Assert.That(outcome, Is.TypeOf<ServiceResultException>());
             }
-            Assert.That(((ServiceResultException)outcome).StatusCode, Is.EqualTo((StatusCode)acceptance));
+            Assert.That(((ServiceResultException)outcome).StatusCode, Is.EqualTo(acceptance));
             Assert.That(failure.InnerExceptions[1], Is.SameAs(restorationError));
             Assert.That(provider.Executed, Has.Count.EqualTo(1));
             Assert.That(unit.PendingRequestId, Is.Zero);

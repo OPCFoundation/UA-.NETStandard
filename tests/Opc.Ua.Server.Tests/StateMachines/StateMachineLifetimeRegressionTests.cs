@@ -110,6 +110,237 @@ namespace Opc.Ua.Server.Tests.StateMachines
         }
 
         /// <summary>
+        /// Verifies that an expired timer waits for the entering transition's asynchronous node notification.
+        /// </summary>
+        [Test]
+        public async Task TimedTransitionWaitsForAsyncEntryNotificationAsync()
+        {
+            ServerSystemContext context = StateMachineTestFixtures.CreateContext();
+            FluentFiniteStateMachineState machine = NewMachine(context);
+            var clock = new CapturingClock();
+            var dispatcher = new StateMachineDispatcher<FluentFiniteStateMachineState>(machine, context, clock);
+            dispatcher.AddTimedTransition(2, TimeSpan.FromSeconds(10), 20, 0);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            machine.CurrentState!.OnStateChangedAsync = async (_, _, _, cancellationToken) =>
+            {
+                if (Current(machine) == 2)
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(s_timerTimeout, cancellationToken).ConfigureAwait(false);
+                }
+            };
+            Task<ServiceResult> transition = machine.DoTransitionAsync(context, 10, 0, default, []).AsTask();
+            CapturedTimer timer;
+            try
+            {
+                await entered.Task.WaitAsync(s_timerTimeout).ConfigureAwait(false);
+                timer = clock.Timers[0];
+                clock.Advance(TimeSpan.FromSeconds(10));
+                Assert.That(Current(machine), Is.EqualTo(2));
+                Assert.That(transition.IsCompleted, Is.False);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await transition.WaitAsync(s_timerTimeout).ConfigureAwait(false);
+            }
+            await timer.WhenDisposed.WaitAsync(s_timerTimeout).ConfigureAwait(false);
+            Assert.That(Current(machine), Is.EqualTo(3));
+            Assert.That(machine.GetTransitionId(machine.LastTransition!.Id!.Value), Is.EqualTo(20));
+            dispatcher.StopTimers();
+        }
+
+        /// <summary>
+        /// Verifies initial-state timers survive delayed publication and cancellation after the state is committed.
+        /// </summary>
+        [Test]
+        public async Task InitialStateTimerWaitsForAsyncPublicationAsync(
+            [Values(false, true)] bool nativeInitialSelection,
+            [Values(false, true)] bool cancelAfterCommit)
+        {
+            ServerSystemContext context = StateMachineTestFixtures.CreateContext();
+            FluentFiniteStateMachineState machine = NewMachine(context);
+            var clock = new CapturingClock();
+            var dispatcher = new StateMachineDispatcher<FluentFiniteStateMachineState>(machine, context, clock);
+            dispatcher.AddTimedTransition(1, TimeSpan.FromSeconds(10), 10, 0);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var cancellation = new CancellationTokenSource();
+            machine.CurrentState!.OnStateChangedAsync = async (_, _, _, cancellationToken) =>
+            {
+                if (Current(machine) == 1)
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(s_timerTimeout, cancellationToken).ConfigureAwait(false);
+                }
+            };
+            Task initialization = nativeInitialSelection
+                ? machine.SetStateAndActiveAsync(context, 1, true, cancellation.Token).AsTask()
+                : machine.PublishStateChangesAsync(context, true, cancellation.Token).AsTask();
+            CapturedTimer timer;
+            try
+            {
+                await entered.Task.WaitAsync(s_timerTimeout).ConfigureAwait(false);
+                Assert.That(clock.Timers[0].Disposed, Is.EqualTo(nativeInitialSelection));
+                timer = clock.Timers[nativeInitialSelection ? 1 : 0];
+                clock.Advance(TimeSpan.FromSeconds(10));
+                if (cancelAfterCommit)
+                {
+                    cancellation.Cancel();
+                }
+                Assert.That(Current(machine), Is.EqualTo(1));
+                Assert.That(initialization.IsCompleted, Is.False);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await initialization.WaitAsync(s_timerTimeout).ConfigureAwait(false);
+            }
+            await timer.WhenDisposed.WaitAsync(s_timerTimeout).ConfigureAwait(false);
+            Assert.That(Current(machine), Is.EqualTo(2));
+            dispatcher.StopTimers();
+        }
+
+        /// <summary>
+        /// Verifies that waiting for admission does not revive a timer from an earlier state revision.
+        /// </summary>
+        [Test]
+        public async Task TimerCannotFireAfterLeavingAndReenteringItsStateAsync(
+            [Values(false, true)] bool nativeInitialSelection)
+        {
+            ServerSystemContext context = StateMachineTestFixtures.CreateContext();
+            FluentFiniteStateMachineState machine = NewMachine(context);
+            var clock = new CapturingClock();
+            var dispatcher = new StateMachineDispatcher<FluentFiniteStateMachineState>(machine, context, clock);
+            dispatcher.AddTimedTransition(1, TimeSpan.FromSeconds(10), 10, 0);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task<ServiceResult> owner = machine.ExecuteWithStateAdmissionAsync(
+                context,
+                async cancellationToken =>
+                {
+                    if (nativeInitialSelection)
+                    {
+                        await machine.SetStateAndActiveAsync(context, 1, true, cancellationToken).ConfigureAwait(false);
+                    }
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(s_timerTimeout, cancellationToken).ConfigureAwait(false);
+                    machine.SetState(context, 2);
+                    machine.SetState(context, 1);
+                    return ServiceResult.Good;
+                }).AsTask();
+            CapturedTimer timer;
+            try
+            {
+                await entered.Task.WaitAsync(s_timerTimeout).ConfigureAwait(false);
+                timer = clock.Timers[nativeInitialSelection ? 1 : 0];
+                clock.Advance(TimeSpan.FromSeconds(10));
+                Assert.That(Current(machine), Is.EqualTo(1));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await owner.WaitAsync(s_timerTimeout).ConfigureAwait(false);
+            }
+            await timer.WhenDisposed.WaitAsync(s_timerTimeout).ConfigureAwait(false);
+            Assert.That(Current(machine), Is.EqualTo(1));
+            dispatcher.StopTimers();
+        }
+
+        /// <summary>
+        /// Verifies stopping or replacing an expired registration cancels its pending admission without mutation.
+        /// </summary>
+        [Test]
+        public async Task RetiringExpiredAsyncTimerPreventsTransitionAsync([Values(false, true)] bool replace)
+        {
+            ServerSystemContext context = StateMachineTestFixtures.CreateContext();
+            FluentFiniteStateMachineState machine = NewMachine(context);
+            var clock = new CapturingClock();
+            var dispatcher = new StateMachineDispatcher<FluentFiniteStateMachineState>(machine, context, clock);
+            dispatcher.AddTimedTransition(2, TimeSpan.FromSeconds(10), 20, 0);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            machine.CurrentState!.OnStateChangedAsync = async (_, _, _, cancellationToken) =>
+            {
+                entered.TrySetResult(true);
+                await release.Task.WaitAsync(s_timerTimeout, cancellationToken).ConfigureAwait(false);
+            };
+            Task<ServiceResult> transition = machine.DoTransitionAsync(context, 10, 0, default, []).AsTask();
+            try
+            {
+                await entered.Task.WaitAsync(s_timerTimeout).ConfigureAwait(false);
+                CapturedTimer timer = clock.Timers[0];
+                clock.Advance(TimeSpan.FromSeconds(10));
+                if (replace)
+                {
+                    dispatcher.AddTimedTransition(2, TimeSpan.FromHours(1), 20, 0);
+                }
+                else
+                {
+                    dispatcher.StopTimers();
+                }
+                await timer.WhenDisposed.WaitAsync(s_timerTimeout).ConfigureAwait(false);
+                Assert.That(Current(machine), Is.EqualTo(2));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await transition.WaitAsync(s_timerTimeout).ConfigureAwait(false);
+                dispatcher.StopTimers();
+            }
+            Assert.That(Current(machine), Is.EqualTo(2));
+        }
+
+        /// <summary>
+        /// Verifies synchronous timer overrides and lifecycle callbacks remain synchronous after admission contention.
+        /// </summary>
+        [Test]
+        public async Task SynchronousTimerRetainsOverridesAfterAsyncContentionAsync([Values(false, true)] bool cause)
+        {
+            ServerSystemContext context = StateMachineTestFixtures.CreateContext();
+            using var timeout = new CancellationTokenSource(s_timerTimeout);
+            var machine = new SynchronousOverrideMachine(NewMachine(context).Definition);
+            machine.Create(context, new NodeId(9001u, 1), new QualifiedName("SyncTimer", 1),
+                new LocalizedText("SyncTimer"), false);
+            machine.SetState(context, 1);
+            var clock = new CapturingClock();
+            var dispatcher = new StateMachineDispatcher<SynchronousOverrideMachine>(machine, context, clock);
+            int enteredState = 0;
+            dispatcher.AddEnterStateHandler(2, (_, _) =>
+            {
+                Assert.That(machine.SynchronousTransitions, Is.EqualTo(1));
+                enteredState++;
+            });
+            dispatcher.AddTimedTransition(1, TimeSpan.FromSeconds(10), cause ? 0u : 10u, cause ? 100u : 0u);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            machine.CurrentState!.OnStateChangedAsync = async (_, _, _, cancellationToken) =>
+            {
+                entered.TrySetResult(true);
+                await release.Task.WaitAsync(s_timerTimeout, cancellationToken).ConfigureAwait(false);
+            };
+            Task publication = machine.PublishStateChangesAsync(context, true, timeout.Token).AsTask();
+            try
+            {
+                await entered.Task.WaitAsync(s_timerTimeout, timeout.Token).ConfigureAwait(false);
+                clock.Advance(TimeSpan.FromSeconds(10));
+                Assert.That(machine.SynchronousTransitions, Is.Zero);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await publication.WaitAsync(s_timerTimeout, timeout.Token).ConfigureAwait(false);
+            }
+            await clock.Timers[0].WhenDisposed.WaitAsync(s_timerTimeout, timeout.Token).ConfigureAwait(false);
+            Assert.That(machine.SynchronousTransitions, Is.EqualTo(1));
+            Assert.That(machine.SynchronousCauses, Is.EqualTo(cause ? 1 : 0));
+            Assert.That(enteredState, Is.EqualTo(1));
+            Assert.That(Current(machine), Is.EqualTo(2));
+            dispatcher.StopTimers();
+        }
+
+        /// <summary>
         /// Verifies that nested after-transition callbacks preserve each invocation's observer and event state pair.
         /// </summary>
         [Test]
@@ -363,6 +594,52 @@ namespace Opc.Ua.Server.Tests.StateMachines
         }
 
         /// <summary>
+        /// Bounds notification barriers and asynchronous timer completion without advancing wall-clock time.
+        /// </summary>
+        private static readonly TimeSpan s_timerTimeout = TimeSpan.FromSeconds(5);
+
+        /// <summary>
+        /// Distinguishes synchronous virtual dispatch from native asynchronous timer execution.
+        /// </summary>
+        private sealed class SynchronousOverrideMachine(StateMachineDefinition definition)
+            : FluentFiniteStateMachineState(null!, definition)
+        {
+            /// <summary>
+            /// Gets the number of synchronous transition overrides invoked.
+            /// </summary>
+            public int SynchronousTransitions { get; private set; }
+
+            /// <summary>
+            /// Gets the number of synchronous cause overrides invoked.
+            /// </summary>
+            public int SynchronousCauses { get; private set; }
+
+            /// <inheritdoc/>
+            public override ServiceResult DoTransition(
+                ISystemContext context,
+                uint transitionId,
+                uint causeId,
+                ArrayOf<Variant> inputArguments,
+                List<Variant> outputArguments)
+            {
+                SynchronousTransitions++;
+                return base.DoTransition(context, transitionId, causeId, inputArguments, outputArguments);
+            }
+
+            /// <inheritdoc/>
+            public override ServiceResult DoCause(
+                ISystemContext context,
+                MethodState? causeMethod,
+                uint causeId,
+                ArrayOf<Variant> inputArguments,
+                List<Variant> outputArguments)
+            {
+                SynchronousCauses++;
+                return base.DoCause(context, causeMethod, causeId, inputArguments, outputArguments);
+            }
+        }
+
+        /// <summary>
         /// Wraps a fake clock and retains timers so stale callbacks can be fired explicitly.
         /// </summary>
         private sealed class CapturingClock : TimeProvider
@@ -429,6 +706,11 @@ namespace Opc.Ua.Server.Tests.StateMachines
             /// </summary>
             public bool Disposed { get; private set; }
 
+            /// <summary>
+            /// Gets the completion signal for disposal after callback execution or registration cancellation.
+            /// </summary>
+            public Task WhenDisposed => m_disposed.Task;
+
             /// <inheritdoc/>
             public bool Change(TimeSpan dueTime, TimeSpan period)
             {
@@ -450,6 +732,7 @@ namespace Opc.Ua.Server.Tests.StateMachines
             {
                 Disposed = true;
                 inner.Dispose();
+                m_disposed.TrySetResult(true);
             }
 
             /// <summary>
@@ -460,6 +743,12 @@ namespace Opc.Ua.Server.Tests.StateMachines
                 Dispose();
                 return default;
             }
+
+            /// <summary>
+            /// Signals timer retirement so asynchronous callback assertions do not require sleeps or polling.
+            /// </summary>
+            private readonly TaskCompletionSource<bool> m_disposed =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
         }
     }
 }

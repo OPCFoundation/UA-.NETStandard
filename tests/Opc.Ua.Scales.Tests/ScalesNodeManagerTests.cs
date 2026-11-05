@@ -993,7 +993,24 @@ namespace Opc.Ua.Scales.Tests
             FiniteStateVariableState currentState = scale.Scale.State!.CurrentState!;
             var notificationError = new InvalidOperationException("Notification failed.");
             var handlerError = new InvalidOperationException("StateChanged handler failed.");
-            currentState.OnStateChangedAsync = async (_, _, _, _) =>
+            var finalPublication = new BaseDataVariableState<uint>(currentState)
+            {
+                BrowseName = new QualifiedName("FinalPublication", currentState.BrowseName.NamespaceIndex)
+            };
+            currentState.AddChild(finalPublication);
+            finalPublication.ClearChangeMasks(m_fixture.Context, false);
+            currentState.OnStateChangedAsync = (_, _, _, _) =>
+            {
+                if (packMl.StateMachine.GetStateId(currentState.Id!.Value) ==
+                    Objects.PackMLBaseStateMachineType_Aborted)
+                {
+                    // This child was visited before its owner's sink; retain its
+                    // mask for the final composite publication after QueueChanged.
+                    finalPublication.UpdateChangeMasks(NodeStateChangeMasks.Value);
+                }
+                return default;
+            };
+            finalPublication.OnStateChangedAsync = async (_, _, _, _) =>
             {
                 await Task.Yield();
                 throw notificationError;

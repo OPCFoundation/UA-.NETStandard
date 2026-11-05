@@ -119,6 +119,7 @@ namespace Opc.Ua.PackML.Server
         /// <summary>
         /// Gets or sets permissions applied to Admin and every administrative
         /// variable. Defaults to SecurityAdmin; samples can explicitly allow reads.
+        /// Requires at least one explicit role entry; empty and null arrays are rejected.
         /// </summary>
         public ArrayOf<RolePermissionType> AdministrationRolePermissions { get; set; } =
         [
@@ -172,6 +173,10 @@ namespace Opc.Ua.PackML.Server
                 {
                     throw new ArgumentException("Mode changes require a stable configured state.");
                 }
+            }
+            if (AdministrationRolePermissions.Count == 0)
+            {
+                throw new ArgumentException("Administration permissions require at least one explicit role entry.");
             }
             return new PackMLUnitOptions
             {

@@ -174,9 +174,24 @@ namespace Opc.Ua.PackML.Server
             }
             catch (Exception creationError)
             {
-                parent?.RemoveChild(unit.Node);
-                parent?.RemoveNotifier(m_manager.SystemContext, unit.Node, true);
                 var errors = new List<Exception> { creationError };
+                try
+                {
+                    await unit.ShutdownAsync().ConfigureAwait(false);
+                }
+                catch (Exception cleanupError)
+                {
+                    errors.Add(cleanupError);
+                }
+                try
+                {
+                    parent?.RemoveChild(unit.Node);
+                    parent?.RemoveNotifier(m_manager.SystemContext, unit.Node, true);
+                }
+                catch (Exception cleanupError)
+                {
+                    errors.Add(cleanupError);
+                }
                 NodeId[] registeredNodes = [unit.Node.NodeId, unit.ModeDataType.NodeId];
                 foreach (NodeId registeredNode in registeredNodes)
                 {
@@ -189,14 +204,6 @@ namespace Opc.Ua.PackML.Server
                     {
                         errors.Add(cleanupError);
                     }
-                }
-                try
-                {
-                    await unit.DisposeAsync().ConfigureAwait(false);
-                }
-                catch (Exception cleanupError)
-                {
-                    errors.Add(cleanupError);
                 }
                 if (errors.Count > 1)
                 {
@@ -212,7 +219,7 @@ namespace Opc.Ua.PackML.Server
         /// </summary>
         public ValueTask DisposeAsync()
         {
-            return PackMLLifetime.CompleteShutdownAsync(() => m_lifetime.DisposeAsync(), DisposeUnitsAsync);
+            return m_lifetime.StopAsync(DisposeUnitsAsync);
         }
 
         /// <summary>

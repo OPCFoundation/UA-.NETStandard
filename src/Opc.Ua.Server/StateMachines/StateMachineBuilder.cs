@@ -1732,7 +1732,7 @@ namespace Opc.Ua.Server.StateMachines
         /// <summary>
         /// Brings timed registrations in line with initial state without invoking synchronous child synchronizers.
         /// </summary>
-        private void SynchronizeInitialTimers(uint stateId)
+        private void SynchronizeInitialTimers(uint stateId, bool nativeAsync = false)
         {
             KeyValuePair<uint, TimedTransitionEntry>[] snapshot;
             lock (m_timerLock)
@@ -1747,7 +1747,7 @@ namespace Opc.Ua.Server.StateMachines
             {
                 if (timed.Key == stateId)
                 {
-                    ArmTimer(timed.Key, timed.Value);
+                    ArmTimer(timed.Key, timed.Value, nativeAsync);
                 }
                 else
                 {
@@ -1907,7 +1907,7 @@ namespace Opc.Ua.Server.StateMachines
             m_stateMachine.AsyncTransitionCallbackFactory = CreateAsyncCallbacks;
             m_stateMachine.InitialStateSynchronizationAsync += (_, stateId) =>
             {
-                SynchronizeInitialTimers(stateId);
+                SynchronizeInitialTimers(stateId, nativeAsync: true);
                 return default;
             };
         }
@@ -2211,7 +2211,7 @@ namespace Opc.Ua.Server.StateMachines
             }
             if (to != 0 && armEntry != null && m_stateMachine.StateRevision == revision)
             {
-                InvokeObserved(() => ArmTimer(to, armEntry), failures);
+                InvokeObserved(() => ArmTimer(to, armEntry, nativeAsync: true), failures);
             }
             if (failures.Count != 0)
             {
@@ -2252,7 +2252,7 @@ namespace Opc.Ua.Server.StateMachines
         /// <summary>
         /// Arms a one-shot transition whose callback must still own its registration and state revision when fired.
         /// </summary>
-        private void ArmTimer(uint stateId, TimedTransitionEntry entry)
+        private void ArmTimer(uint stateId, TimedTransitionEntry entry, bool nativeAsync = false)
         {
             TimedTransitionRegistration? previous;
             TimedTransitionRegistration registration;
@@ -2273,12 +2273,30 @@ namespace Opc.Ua.Server.StateMachines
             {
                 registration.SetTimer(m_timeProvider.CreateTimer(_ =>
                 {
+                    if (nativeAsync)
+                    {
+                        // Timer providers can invoke callbacks in the arming operation's execution context.
+                        // Do not inherit its admission: the expired transition must wait as a separate invocation.
+                        QueueTimedTransition(stateId, revision, entry, registration, nativeAsync: true);
+                        return;
+                    }
+                    bool deferred = false;
                     try
                     {
                         ServiceResult result = m_stateMachine.TryTimedTransition(
                             m_context, stateId, revision, entry.TransitionId, entry.CauseId,
                             () => !registration.IsDisposed &&
-                                ReferenceEquals(Interlocked.CompareExchange(ref entry.Active, null, registration), registration));
+                                ReferenceEquals(
+                                    Interlocked.CompareExchange(ref entry.Active, null, registration), registration));
+                        if (result.StatusCode == StatusCodes.BadInvalidState &&
+                            !registration.IsDisposed &&
+                            m_stateMachine.StateRevision == revision &&
+                            ReferenceEquals(Volatile.Read(ref entry.Active), registration))
+                        {
+                            QueueTimedTransition(stateId, revision, entry, registration, nativeAsync: false);
+                            deferred = true;
+                            return;
+                        }
                         if (ServiceResult.IsGood(result))
                         {
                             m_stateMachine.ClearChangeMasks(m_context, true);
@@ -2294,8 +2312,11 @@ namespace Opc.Ua.Server.StateMachines
                     }
                     finally
                     {
-                        Interlocked.CompareExchange(ref entry.Active, null, registration);
-                        registration.Dispose();
+                        if (!deferred)
+                        {
+                            Interlocked.CompareExchange(ref entry.Active, null, registration);
+                            registration.Dispose();
+                        }
                     }
                 }, null, entry.Timeout, Timeout.InfiniteTimeSpan));
             }
@@ -2304,6 +2325,128 @@ namespace Opc.Ua.Server.StateMachines
                 Interlocked.CompareExchange(ref entry.Active, null, registration);
                 registration.Dispose();
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// Starts an independent invocation without inheriting the admission that armed or fired the timer.
+        /// </summary>
+        private void QueueTimedTransition(
+            uint stateId,
+            long revision,
+            TimedTransitionEntry entry,
+            TimedTransitionRegistration registration,
+            bool nativeAsync)
+        {
+            ThreadPool.UnsafeQueueUserWorkItem(
+                unused =>
+                {
+                    _ = ExecuteTimedTransitionAsync(stateId, revision, entry, registration, nativeAsync);
+                }, null);
+        }
+
+        /// <summary>
+        /// Waits for live notifications to finish before validating and executing an expired native timer.
+        /// </summary>
+        private async Task ExecuteTimedTransitionAsync(
+            uint stateId,
+            long revision,
+            TimedTransitionEntry entry,
+            TimedTransitionRegistration registration,
+            bool nativeAsync)
+        {
+            try
+            {
+                if (!nativeAsync)
+                {
+                    await RetrySynchronousTimedTransitionAsync(stateId, revision, entry, registration)
+                        .ConfigureAwait(false);
+                    return;
+                }
+                ServiceResult result = await m_stateMachine.ExecuteWithStateAdmissionAsync(
+                    m_context,
+                    async cancellationToken =>
+                    {
+                        if (m_stateMachine.StateRevision != revision ||
+                            ExtractStateId(m_stateMachine.CurrentState?.Id?.Value ?? NodeId.Null) != stateId ||
+                            registration.IsDisposed ||
+                            !ReferenceEquals(
+                                Interlocked.CompareExchange(ref entry.Active, null, registration), registration))
+                        {
+                            return StatusCodes.BadInvalidState;
+                        }
+                        return entry.TransitionId == 0
+                            ? await m_stateMachine.DoCauseAsync(
+                                m_context, null, entry.CauseId, default, [], cancellationToken).ConfigureAwait(false)
+                            : await m_stateMachine.DoTransitionAsync(
+                                m_context, entry.TransitionId, entry.CauseId, default, [], cancellationToken)
+                                .ConfigureAwait(false);
+                    },
+                    registration.CancellationToken).ConfigureAwait(false);
+                if (ServiceResult.IsBad(result) && result.StatusCode != StatusCodes.BadInvalidState)
+                {
+                    m_logger.TimedTransitionRejected(stateId, result);
+                }
+            }
+            catch (OperationCanceledException) when (registration.IsDisposed)
+            {
+                // Retired timers must not retain an admission waiter or execute after shutdown.
+            }
+            catch (Exception ex)
+            {
+                m_logger.TimedTransitionFailed(ex, stateId);
+            }
+            finally
+            {
+                Interlocked.CompareExchange(ref entry.Active, null, registration);
+                registration.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Waits outside the original invocation and retries synchronous dispatch without changing override semantics.
+        /// </summary>
+        private async Task RetrySynchronousTimedTransitionAsync(
+            uint stateId,
+            long revision,
+            TimedTransitionEntry entry,
+            TimedTransitionRegistration registration)
+        {
+            while (!registration.IsDisposed &&
+                m_stateMachine.StateRevision == revision &&
+                ReferenceEquals(Volatile.Read(ref entry.Active), registration))
+            {
+                ServiceResult admitted = await m_stateMachine.ExecuteWithStateAdmissionAsync(
+                    m_context,
+                    cancellationToken =>
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        return new ValueTask<ServiceResult>(ServiceResult.Good);
+                    },
+                    registration.CancellationToken).ConfigureAwait(false);
+                if (ServiceResult.IsBad(admitted))
+                {
+                    return;
+                }
+                registration.CancellationToken.ThrowIfCancellationRequested();
+                ServiceResult result = m_stateMachine.TryTimedTransition(
+                    m_context, stateId, revision, entry.TransitionId, entry.CauseId,
+                    () => !registration.IsDisposed &&
+                        ReferenceEquals(
+                            Interlocked.CompareExchange(ref entry.Active, null, registration), registration));
+                if (ServiceResult.IsGood(result))
+                {
+                    m_stateMachine.ClearChangeMasks(m_context, true);
+                }
+                else if (result.StatusCode != StatusCodes.BadInvalidState)
+                {
+                    m_logger.TimedTransitionRejected(stateId, result);
+                }
+                if (result.StatusCode != StatusCodes.BadInvalidState ||
+                    ExtractStateId(m_stateMachine.CurrentState?.Id?.Value ?? NodeId.Null) != stateId)
+                {
+                    return;
+                }
             }
         }
 
@@ -2426,9 +2569,22 @@ namespace Opc.Ua.Server.StateMachines
         private sealed class TimedTransitionRegistration : IDisposable
         {
             /// <summary>
+            /// Captures the cancellation token before the registration can be disposed.
+            /// </summary>
+            public TimedTransitionRegistration()
+            {
+                CancellationToken = m_cancellation.Token;
+            }
+
+            /// <summary>
             /// Gets whether this registration has been retired and must no longer fire its transition.
             /// </summary>
             public bool IsDisposed => Volatile.Read(ref m_disposed) != 0;
+
+            /// <summary>
+            /// Gets the token that retires pending asynchronous admission.
+            /// </summary>
+            public CancellationToken CancellationToken { get; }
 
             /// <summary>
             /// Attaches the timer, disposing it immediately if the registration was already retired.
@@ -2445,9 +2601,25 @@ namespace Opc.Ua.Server.StateMachines
             /// <inheritdoc/>
             public void Dispose()
             {
-                Interlocked.Exchange(ref m_disposed, 1);
-                Interlocked.Exchange(ref m_timer, null)?.Dispose();
+                if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+                {
+                    return;
+                }
+                try
+                {
+                    m_cancellation.Cancel();
+                }
+                finally
+                {
+                    m_cancellation.Dispose();
+                    Interlocked.Exchange(ref m_timer, null)?.Dispose();
+                }
             }
+
+            /// <summary>
+            /// Cancels admission waits when this registration is replaced, stopped, or completed.
+            /// </summary>
+            private readonly CancellationTokenSource m_cancellation = new();
 
             /// <summary>
             /// Atomically records that the registration is no longer eligible to fire.
