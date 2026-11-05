@@ -37,6 +37,102 @@ namespace Opc.Ua.Core.Tests.Stack.State
     public partial class MultiStateValueDiscreteStateTests
     {
         /// <summary>
+        /// A successful externally published write does not validate or alter an intentionally stale local cache.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AsyncEnumSuppressedWriteLeavesPublisherCacheUntouched(bool fullHandler)
+        {
+            MultiStateValueDiscreteState node = CreateNode(s_states);
+            BaseDataVariableState entries = AddDictionary(node);
+            NodeStateChangeMasks previousMasks = node.ChangeMasks;
+            NodeStateChangeMasks previousEntryMasks = entries.ChangeMasks;
+            bool notified = false;
+            node.OnStateChangedAsync = (_, _, _, _) =>
+            {
+                notified = true;
+                return default;
+            };
+            var accepted = new AttributeWriteResult(ServiceResult.Good) { SuppressCacheUpdate = true };
+            if (fullHandler)
+            {
+                node.OnWriteValueAsync = (_, _, _, _, _) => new ValueTask<AttributeWriteResult>(accepted);
+            }
+            else
+            {
+                node.OnSimpleWriteValueAsync = (_, _, _, _) => new ValueTask<AttributeWriteResult>(accepted);
+            }
+
+            ServiceResult result = await node.WriteAttributeAsync(
+                m_context, Attributes.Value, NumericRange.Null, new DataValue(Variant.From(4u)));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                Assert.That(node.WrappedValue, Is.EqualTo(Variant.From(0u)));
+                Assert.That(node.ValueAsText!.Value.Text, Is.EqualTo("initial"));
+                Assert.That(entries.WrappedValue, Is.EqualTo(Variant.From(
+                    (ArrayOf<NodeId>)[new NodeId("initial", 0), new NodeId("initial", 0)])));
+                Assert.That(node.ChangeMasks, Is.EqualTo(previousMasks));
+                Assert.That(entries.ChangeMasks, Is.EqualTo(previousEntryMasks));
+                Assert.That(notified, Is.False);
+            });
+        }
+
+        /// <summary>
+        /// Handler-owned publication does not let the outer write overwrite or notify a newer pending sample.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AsyncEnumWritePreservesHandlerOwnedPublication(bool fullHandler)
+        {
+            MultiStateValueDiscreteState node = CreateNode(s_states);
+            BaseDataVariableState entries = AddDictionary(node);
+            int notifications = 0;
+            node.OnStateChangedAsync = (_, _, _, _) =>
+            {
+                notifications++;
+                return default;
+            };
+            async ValueTask<AttributeWriteResult> PublishAsync()
+            {
+                ServiceResult published = await node.UpdateEnumValueAsync(
+                    m_context, new DataValue(Variant.From(4u)));
+                Assert.That(ServiceResult.IsGood(published), Is.True);
+                node.WrappedValue = Variant.From(8u);
+                node.ValueAsText!.Value = new LocalizedText("eight");
+                entries.WrappedValue = Variant.From(
+                    (ArrayOf<NodeId>)[new NodeId("eight-a", 0), new NodeId("eight-b", 0)]);
+                return new AttributeWriteResult(ServiceResult.Good) { SuppressCacheUpdate = true };
+            }
+            if (fullHandler)
+            {
+                node.OnWriteValueAsync = (_, _, _, _, _) => PublishAsync();
+            }
+            else
+            {
+                node.OnSimpleWriteValueAsync = (_, _, _, _) => PublishAsync();
+            }
+
+            ServiceResult result = await node.WriteAttributeAsync(
+                m_context, Attributes.Value, NumericRange.Null, new DataValue(Variant.From(4u)));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                Assert.That(node.WrappedValue, Is.EqualTo(Variant.From(8u)));
+                Assert.That(node.ValueAsText!.Value.Text, Is.EqualTo("eight"));
+                Assert.That(entries.WrappedValue, Is.EqualTo(Variant.From(
+                    (ArrayOf<NodeId>)[new NodeId("eight-a", 0), new NodeId("eight-b", 0)])));
+                Assert.That(notifications, Is.EqualTo(1), "Only the handler's first sample was reported.");
+                Assert.That(node.ChangeMasks, Is.Not.EqualTo(NodeStateChangeMasks.None));
+                Assert.That(entries.ChangeMasks, Is.Not.EqualTo(NodeStateChangeMasks.None));
+            });
+            await node.ClearChangeMasksAsync(m_context, includeChildren: true);
+            Assert.That(notifications, Is.EqualTo(2), "The newer sample remains owned by its publisher.");
+        }
+
+        /// <summary>
         /// Validates sparse enum values before calling the async provider and updates the accepted row.
         /// </summary>
         [TestCase(4u, true)]

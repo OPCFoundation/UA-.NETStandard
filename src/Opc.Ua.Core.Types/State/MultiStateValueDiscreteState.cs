@@ -149,9 +149,10 @@ namespace Opc.Ua
                 {
                     return validation;
                 }
-                ServiceResult result = await base.WriteAttributeAsync(
+                AttributeWriteResult writeResult = await WriteAttributeWithResultAsync(
                     context, attributeId, indexRange, value, cancellationToken).ConfigureAwait(false);
-                if (ServiceResult.IsGood(result))
+                ServiceResult result = writeResult.Result;
+                if (ServiceResult.IsGood(result) && !writeResult.SuppressCacheUpdate)
                 {
                     var accepted = new DataValue(WrappedValue, StatusCode, Timestamp);
                     if (accepted.WrappedValue.IsNull && !StatusCode.IsBad(accepted.StatusCode))
