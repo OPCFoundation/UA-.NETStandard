@@ -22,6 +22,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -107,7 +108,8 @@ namespace Opc.Ua.IA.Tests.Calibration
                 Configuration(IaCalibrationTargetCategory.Reusable, feature)
                 with
             { OptionalFields = IaCalibrationTargetFields.Quality | IaCalibrationTargetFields.CertificateUri };
-            var reading = new DataValue(Variant.FromStructure(new Range { Low = 10, High = 40 }),
+            var sourceRange = new Range { Low = 10, High = 40 };
+            var reading = new DataValue(Variant.FromStructure(sourceRange),
                 StatusCodes.UncertainLastUsableValue, IaTestContext.Timestamp);
             IaCalibrationTargetSnapshot snapshot = new([new IaCalibrationReading(feature.BrowseName, reading)])
             {
@@ -120,9 +122,12 @@ namespace Opc.Ua.IA.Tests.Calibration
                 browseName: fixture.Name("Target"));
             var binding = new IaCalibrationTarget(fixture.Context, node, Provider(configuration, snapshot).Object);
             await binding.RefreshAsync().ConfigureAwait(false);
+            sourceRange.Low = 99;
+            sourceRange.High = 100;
             CapacityRangeState value = fixture.Children(node.CalibrationTargetFeatures!)
                 .OfType<CapacityRangeState>().Single();
             Assert.That(value.WrappedValue.TryGetStructure<Range>(out Range? range), Is.True);
+            Assert.That(range, Is.Not.SameAs(sourceRange));
             Assert.That(range!.Low, Is.EqualTo(10));
             Assert.That(range.High, Is.EqualTo(40));
             Assert.That(value.Resolution!.Value, Is.EqualTo(0.1));
@@ -131,6 +136,116 @@ namespace Opc.Ua.IA.Tests.Calibration
             Assert.That(value.Timestamp, Is.EqualTo(IaTestContext.Timestamp));
             Assert.That(node.Quality!.Value, Is.EqualTo(quality));
             Assert.That(node.CertificateUri!.Value, Is.EqualTo(snapshot.CertificateUri!.Value));
+        }
+
+        /// <summary>
+        /// Derived ranges cannot introduce custom copy code or replace a retained calibration reading.
+        /// </summary>
+        [Test]
+        public async Task CapacityRangesRejectDerivedBodiesWithoutCloning()
+        {
+            var fixture = new IaTestContext();
+            IaCalibrationFeature feature = Feature(fixture) with
+            { Kind = IaCalibrationFeatureKind.CapacityRange, Resolution = 0.1 };
+            var source = new Range { Low = 10, High = 40 };
+            IaCalibrationTargetSnapshot snapshot = new([new IaCalibrationReading(feature.BrowseName,
+                new DataValue(Variant.FromStructure(source), StatusCodes.Good, IaTestContext.Timestamp))]);
+            var provider = Provider(Configuration(IaCalibrationTargetCategory.Dynamic, feature), snapshot);
+            provider.Setup(value => value.GetSnapshotAsync(It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<IaCalibrationTargetSnapshot>(snapshot));
+            CalibrationTargetState node = fixture.Context.CreateInstanceOfCalibrationTargetType(
+                browseName: fixture.Name("Target"));
+            var binding = new IaCalibrationTarget(fixture.Context, node, provider.Object);
+            await binding.RefreshAsync().ConfigureAwait(false);
+            var derived = new DerivedRange { Low = 20, High = 30 };
+            snapshot = new IaCalibrationTargetSnapshot([new IaCalibrationReading(feature.BrowseName,
+                new DataValue(Variant.FromStructure(derived), StatusCodes.Good, IaTestContext.Timestamp))]);
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await binding.RefreshAsync().ConfigureAwait(false));
+            Assert.That(error!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotSupported));
+            Assert.That(derived.CloneCalls, Is.Zero);
+            BaseVariableState variable = fixture.Children(node.CalibrationTargetFeatures!)
+                .OfType<BaseVariableState>().Single();
+            Assert.That(variable.WrappedValue.TryGetStructure<Range>(out Range? retained), Is.True);
+            Assert.That(retained!.Low, Is.EqualTo(10));
+            Assert.That(retained.High, Is.EqualTo(40));
+        }
+
+        /// <summary>
+        /// Configuration captures nested translation state and opaque instrument identifiers before publication.
+        /// </summary>
+        [Test]
+        public void ConfigurationDetachesNestedMetadataAndInstrumentIdentifiers()
+        {
+            var fixture = new IaTestContext();
+            object[] arguments = ["Original"];
+            var translations = new Dictionary<string, string> { ["en-US"] = "Text: {0}" };
+            var text = new LocalizedText(translations,
+                new TranslationInfo("metadata", "en-US", "Fallback: {0}", arguments));
+            IaCalibrationFeature feature = Feature(fixture) with
+            {
+                EngineeringUnits = new IaCalibrationUnit("urn:units", 1, text, text)
+            };
+            IaCalibrationFeature condition = feature with { BrowseName = fixture.Name("Temperature") };
+            byte[] identifier = [1, 2];
+            var instrument = new NodeId(new ByteString(identifier.AsMemory()), 1);
+            var configuration = new IaCalibrationTargetConfiguration(IaCalibrationTargetCategory.Dynamic,
+                new IaCalibrationIdentification { Manufacturer = text, Model = text, ComponentName = text },
+                [feature])
+            {
+                OperationalConditions = [condition],
+                ReferenceMeasurementInstruments = [instrument]
+            };
+            CalibrationTargetState node = fixture.Context.CreateInstanceOfCalibrationTargetType(
+                browseName: fixture.Name("Target"));
+            var binding = new IaCalibrationTarget(fixture.Context, node,
+                Provider(configuration, Snapshot(feature, 25)).Object);
+            arguments[0] = "Changed";
+            translations["en-US"] = "Changed";
+            identifier[0] = 99;
+            Assert.That(text.FilterByPreferredLocales(["en-US"]).Text, Is.EqualTo("Changed"));
+            LocalizedText[] captured =
+            [
+                binding.Configuration.Identification.Manufacturer,
+                binding.Configuration.Identification.Model,
+                binding.Configuration.Identification.ComponentName,
+                binding.Configuration.Features[0].EngineeringUnits.DisplayName,
+                binding.Configuration.Features[0].EngineeringUnits.Description,
+                binding.Configuration.OperationalConditions[0].EngineeringUnits.DisplayName,
+                binding.Configuration.OperationalConditions[0].EngineeringUnits.Description
+            ];
+            foreach (LocalizedText actual in captured)
+            {
+                Assert.That(actual.TranslationInfo.Args, Is.Not.SameAs(arguments));
+                Assert.That(actual.Translations, Is.Not.SameAs(translations));
+                Assert.That(actual.FilterByPreferredLocales(["en-US"]).Text, Is.EqualTo("Text: Original"));
+                Assert.That(actual.TranslationInfo.Text, Is.EqualTo("Fallback: {0}"));
+            }
+            BaseVariableState[] properties = [.. fixture.Children(node.Identification!)
+                .OfType<BaseVariableState>()];
+            Assert.That(properties, Has.Length.EqualTo(3));
+            foreach (BaseVariableState property in properties)
+            {
+                Assert.That(property.WrappedValue.TryGetValue(out LocalizedText actual), Is.True);
+                Assert.That(actual.FilterByPreferredLocales(["en-US"]).Text, Is.EqualTo("Text: Original"));
+            }
+            BaseVariableState[] variables = [.. fixture.Children(node.CalibrationTargetFeatures!)
+                .Concat(fixture.Children(node.OperationalConditions!)).OfType<BaseVariableState>()];
+            Assert.That(variables, Has.Length.EqualTo(2));
+            foreach (BaseVariableState variable in variables)
+            {
+                var value = (CalibrationValueState)variable;
+                EUInformation units = value.EngineeringUnits!.Value!;
+                Assert.That(units.DisplayName.FilterByPreferredLocales(["en-US"]).Text,
+                    Is.EqualTo("Text: Original"));
+                Assert.That(units.Description.FilterByPreferredLocales(["en-US"]).Text,
+                    Is.EqualTo("Text: Original"));
+            }
+            var expected = new NodeId(ByteString.From((ReadOnlySpan<byte>)[1, 2]), 1);
+            Assert.That(binding.Configuration.ReferenceMeasurementInstruments[0], Is.EqualTo(expected));
+            Assert.That(node.CalibrationTargetCategory!.ReferenceExists(
+                ExpandedNodeId.ToNodeId(ReferenceTypeIds.HasReferenceMeasurementInstrument,
+                    fixture.Context.NamespaceUris), false, expected), Is.True);
         }
 
         /// <summary>
@@ -525,6 +640,24 @@ namespace Opc.Ua.IA.Tests.Calibration
             provider.SetupGet(source => source.Configuration).Returns(configuration);
             provider.Setup(source => source.GetSnapshotAsync(It.IsAny<CancellationToken>())).ReturnsAsync(snapshot);
             return provider;
+        }
+
+        /// <summary>
+        /// A provider subclass that must not be copied through its virtual clone.
+        /// </summary>
+        private sealed class DerivedRange : Range
+        {
+            /// <summary>
+            /// Gets the number of unexpected clone calls.
+            /// </summary>
+            public int CloneCalls { get; private set; }
+
+            /// <inheritdoc/>
+            public override object Clone()
+            {
+                CloneCalls++;
+                throw new InvalidOperationException("A provider clone must not be invoked.");
+            }
         }
 
         /// <summary>The dimensions of the two-by-two calibration matrix.</summary>

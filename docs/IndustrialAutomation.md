@@ -199,7 +199,10 @@ decoded structures.
 Statistics whose values require copying any other decoded structure are not
 supported by the ordinary IA path, even though the specification admits statistics of any kind.
 Opt-in composition additionally supports the two ECM structures described below.
-Calibration feature and operational-condition readings use the same copy.
+Calibration feature and operational-condition readings use the same copy, with
+one additional calibration-only case: an exact decoded `Range` is copied into a
+new instance through its `Low` and `High` fields. Derived ranges reject before
+copying; statistics do not gain support for `Range`.
 
 For vendor-defined grouping ObjectTypes, supply
 `.WithGroupTypeResolver(nodeId => manager.FindPredefinedNode<BaseObjectTypeState>(nodeId))`.
@@ -383,6 +386,12 @@ resolution. Numeric values retain their actual scalar, array, or matrix type.
 Operational conditions use the same typed metadata. Dynamic categories can
 reference the instruments that measured the individual target.
 
+Construction detaches identification and engineering-unit translation dictionaries
+and formatting arguments, including operational-condition units, and copies
+opaque reference-instrument identifier bytes. Reusing the provider's metadata
+buffers does not change the configured nodes. Unsupported translation state
+rejects construction rather than remaining shared with the provider.
+
 Each refresh supplies exactly the configured features and optional fields.
 The binding validates native type, rank, ranges, acquisition time, validation
 dates, and quality from 0 through 100 before publishing. A failed or cancelled
@@ -424,6 +433,11 @@ IndustrialAutomationClient client = await servicesProvider
 The factory borrows the DI container's cached session. Do not close or dispose
 `client.Session`; the container owns it. Direct construction accepts an existing
 `ISession` and `ITelemetryContext` without opening another connection.
+
+Calibration feature inspection retains each returned `DataValue`, including Bad
+quality and source timestamps, for feature values, engineering units and range
+resolution. An absent optional property is `DataValue.Null`; service and
+transport failures still propagate to the caller.
 
 ```csharp
 await foreach (IaEntry entry in client.DiscoverAsync(

@@ -166,7 +166,7 @@ namespace Opc.Ua.IA.Client
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
                 DataValue value = child.NodeClass == NodeClass.Variable
-                    ? await Session.ReadValueAsync(node, cancellationToken).ConfigureAwait(false)
+                    ? await ReadFeatureValueAsync(node, cancellationToken).ConfigureAwait(false)
                     : DataValue.Null;
                 DataValue units = await ReadOptionalPropertyAsync(node, Opc.Ua.Namespaces.OpcUa,
                     Opc.Ua.BrowseNames.EngineeringUnits, cancellationToken).ConfigureAwait(false);
@@ -191,7 +191,22 @@ namespace Opc.Ua.IA.Client
                 cancellationToken).ConfigureAwait(false);
             return node.IsNull
                 ? DataValue.Null
-                : await Session.ReadValueAsync(node, cancellationToken).ConfigureAwait(false);
+                : await ReadFeatureValueAsync(node, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Retains per-node bad quality while allowing service and transport failures to propagate.
+        /// </summary>
+        private async ValueTask<DataValue> ReadFeatureValueAsync(NodeId node, CancellationToken cancellationToken)
+        {
+            (ArrayOf<DataValue> values, ArrayOf<ServiceResult> _) =
+                await Session.ReadValuesAsync([node], cancellationToken).ConfigureAwait(false);
+            if (values.Count != 1)
+            {
+                throw ServiceResultException.Create(StatusCodes.BadUnexpectedError,
+                    "A calibration feature read returned no value.");
+            }
+            return values[0];
         }
     }
 }

@@ -176,10 +176,14 @@ namespace Opc.Ua.IA.Tests
         /// <summary>
         /// Feature inspection retains metadata, distinguishes custom objects and counts unique feature identities.
         /// </summary>
-        [TestCase(1, false)]
-        [TestCase(2, true)]
-        [TestCase(3, true)]
-        public async Task FeatureInspectionPreservesNativeInformationAndDistinctLimits(int limit, bool accepted)
+        [TestCase(1, false, 0)]
+        [TestCase(2, true, 0)]
+        [TestCase(3, true, 0)]
+        [TestCase(2, true, 1)]
+        [TestCase(2, true, 2)]
+        [TestCase(2, true, 3)]
+        public async Task FeatureInspectionPreservesNativeInformationAndDistinctLimits(
+            int limit, bool accepted, int badField)
         {
             var fixture = new SessionFixture();
             NodeId target = fixture.Instance("Target");
@@ -204,10 +208,13 @@ namespace Opc.Ua.IA.Tests
                     NodeClass.Variable, Opc.Ua.VariableTypeIds.PropertyType)
             ]);
             var unit = new EUInformation { UnitId = 5066068, DisplayName = new LocalizedText("mm") };
-            fixture.Value(numeric, new DataValue(Variant.From(25.0),
-                StatusCodes.UncertainLastUsableValue, IaTestContext.Timestamp));
-            fixture.Value(units, new DataValue(Variant.FromStructure(unit), StatusCodes.Good, IaTestContext.Timestamp));
-            fixture.Value(resolution, new DataValue(Variant.From(0.1), StatusCodes.Good, IaTestContext.Timestamp));
+            StatusCode valueStatus = badField == 1
+                ? StatusCodes.BadNoData : StatusCodes.UncertainLastUsableValue;
+            StatusCode unitStatus = badField == 2 ? StatusCodes.BadNoData : StatusCodes.Good;
+            StatusCode resolutionStatus = badField == 3 ? StatusCodes.BadNoData : StatusCodes.Good;
+            fixture.Value(numeric, new DataValue(Variant.From(25.0), valueStatus, IaTestContext.Timestamp));
+            fixture.Value(units, new DataValue(Variant.FromStructure(unit), unitStatus, IaTestContext.Timestamp));
+            fixture.Value(resolution, new DataValue(Variant.From(0.1), resolutionStatus, IaTestContext.Timestamp));
             if (!accepted)
             {
                 ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
@@ -221,12 +228,15 @@ namespace Opc.Ua.IA.Tests
             Assert.That(features[0].NodeId, Is.EqualTo(numeric));
             Assert.That(features[0].Value.WrappedValue, Is.EqualTo(Variant.From(25.0)));
             Assert.That(features[0].Value.SourceTimestamp, Is.EqualTo(IaTestContext.Timestamp));
-            Assert.That(features[0].Value.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.UncertainLastUsableValue));
+            Assert.That(features[0].Value.StatusCode, Is.EqualTo(valueStatus));
             Assert.That(features[0].EngineeringUnits.WrappedValue.TryGetStructure<EUInformation>(
                 out EUInformation? information), Is.True);
             Assert.That(information!.UnitId, Is.EqualTo(5066068));
+            Assert.That(features[0].EngineeringUnits.StatusCode, Is.EqualTo(unitStatus));
+            Assert.That(features[0].EngineeringUnits.SourceTimestamp, Is.EqualTo(IaTestContext.Timestamp));
             Assert.That(features[0].Resolution.WrappedValue, Is.EqualTo(Variant.From(0.1)));
+            Assert.That(features[0].Resolution.StatusCode, Is.EqualTo(resolutionStatus));
+            Assert.That(features[0].Resolution.SourceTimestamp, Is.EqualTo(IaTestContext.Timestamp));
             Assert.That(features[1].NodeId, Is.EqualTo(custom));
             Assert.That(features[1].DisplayName, Is.EqualTo(new LocalizedText("Geometry")));
             Assert.That(features[1].Value.IsNull, Is.True);
