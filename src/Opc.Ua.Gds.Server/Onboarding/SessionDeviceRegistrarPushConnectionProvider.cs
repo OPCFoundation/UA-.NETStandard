@@ -200,7 +200,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// <summary>
         /// Closes an owned session with bounded cleanup and preserves both service and disposal failures.
         /// </summary>
-        private static async ValueTask CloseAsync(ISession session)
+        internal static async ValueTask CloseAsync(ISession session)
         {
             Exception? failure = null;
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));

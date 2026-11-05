@@ -724,9 +724,11 @@ public sealed class MyResetProvider : IServerConfigurationResetProvider
 whole `FileType` surface (`Open`, `Read`, `Write`, `Close`, `SetPosition`,
 `GetPosition`, `CloseAndUpdate`, `ConfirmUpdate`) and owns:
 
-- **Stream lifecycle & single-writer** semantics (last open wins; an abandoned
-  Session's open handle is released on Session close and after the
-  `ActivityTimeout` elapses).
+- **Stream lifecycle**: the current handler replaces any existing handle when
+  a new open succeeds. This does not retain multiple read handles or reject
+  incompatible opens with the `Bad_NotWritable` and `Bad_NotReadable` statuses
+  required by OPC 10000-20 §4.2.2. An abandoned Session's handle is also
+  released on Session close and after the `ActivityTimeout` elapses.
 - **Security**: read requires SecurityAdmin over an encrypted channel; the
   update Methods require SecurityAdmin over an authenticated channel.
 - **Transaction exclusion**: opening for writing is rejected with
@@ -766,6 +768,21 @@ The file content exchanged through the provider is the §7.8.5.1 `FileType`
 stream body (a serialized `UABinaryFileDataType` whose `SupportedDataType` is
 `ApplicationConfigurationDataType`) and is treated opaquely by the node manager,
 so the concrete encoding is entirely the provider's responsibility.
+
+For a Read + Write open, the current server creates an empty stream; it reads
+the provider's configuration only for a Read-only open. Part 12 §7.8.5.1
+requires the Client to read the existing configuration and set the position
+to the beginning before writing. The current `ServerPushConfigurationClient`
+does not perform those calls. The provider-backed update surface therefore
+does not yet implement the required transfer sequence, and shorter-content
+replacement behavior on other servers has not been established.
+
+The Read + Write mode restriction in Part 12 does not state an exception to
+the Part 20 §4.2.2 open-handle rules. The current handler replaces a live
+handle rather than allowing multiple readers or returning the required busy
+statuses for incompatible opens. Part 12 also requires the inherited `Size`
+property to return `Bad_NotSupported`; its current wire-read result has not
+been established and is not assessed here.
 
 A provider that also implements `IApplicationConfigurationFileTargetProvider`
 receives the `CloseAndUpdate` `Targets` (§7.8.5.2: contents not referenced by a

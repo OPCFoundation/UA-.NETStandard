@@ -37,6 +37,7 @@ using Opc.Ua.Configuration;
 using Opc.Ua.Gds;
 using Opc.Ua.Gds.Server.Hosting;
 using Opc.Ua.Gds.Server.Onboarding;
+using Opc.Ua.Identity;
 using Opc.Ua.Onboarding;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
@@ -44,7 +45,7 @@ using Opc.Ua.Server.Hosting;
 namespace OnboardingRegistrar
 {
     /// <summary>
-    /// Admits one explicitly configured device after signed-ticket validation, without authorizing managed apps.
+    /// Admits one explicitly configured device and an optional managed application after signed-ticket validation.
     /// The sample uses preconfigured certificate-store trust; it never autoaccepts discovery certificates.
     /// </summary>
     internal sealed class PushRegistrarSample :
@@ -74,6 +75,42 @@ namespace OnboardingRegistrar
             m_groupId = ReadAddress(configuration, "pushCertificateGroupId");
             m_typeId = ReadAddress(configuration, "pushCertificateTypeId");
             m_trustId = ReadAddress(configuration, "pushTrustListId");
+            string? managedApplicationUri = configuration["managedApplicationUri"];
+            if (!string.IsNullOrWhiteSpace(managedApplicationUri))
+            {
+                RequireAbsoluteUri(managedApplicationUri, "managedApplicationUri");
+                m_managedApplicationUri = managedApplicationUri;
+                m_managedApplicationEndpoint = Required(configuration, "managedApplicationEndpoint");
+                RequireAbsoluteUri(m_managedApplicationEndpoint, "managedApplicationEndpoint");
+                m_managedApplicationSecurityPolicyUri =
+                    Required(configuration, "managedApplicationSecurityPolicyUri");
+                RequireAbsoluteUri(
+                    m_managedApplicationSecurityPolicyUri, "managedApplicationSecurityPolicyUri");
+                m_managedApplicationCertificatePath =
+                    Required(configuration, "managedApplicationCertificatePath");
+                string capabilities = Required(configuration, "managedApplicationServerCapabilities");
+                string[] identifiers = capabilities.Split(',');
+                for (int index = 0; index < identifiers.Length; index++)
+                {
+                    identifiers[index] = identifiers[index].Trim();
+                    ArgumentException.ThrowIfNullOrWhiteSpace(identifiers[index]);
+                }
+                m_managedApplicationServerCapabilities = identifiers.ToArrayOf();
+                if (!Path.IsPathFullyQualified(m_managedApplicationCertificatePath))
+                {
+                    throw new ArgumentException(
+                        "--managedApplicationCertificatePath must be an absolute path.");
+                }
+            }
+            else if (configuration["managedApplicationEndpoint"] != null ||
+                configuration["managedApplicationSecurityPolicyUri"] != null ||
+                configuration["managedApplicationCertificatePath"] != null ||
+                configuration["managedApplicationServerCapabilities"] != null)
+            {
+                throw new ArgumentException(
+                    "Managed application endpoint, security policy and certificate settings " +
+                    "require --managedApplicationUri.");
+            }
             if (m_typeId != new ExpandedNodeId(Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType) &&
                 m_typeId != new ExpandedNodeId(
                     Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType, Opc.Ua.Namespaces.OpcUa))
@@ -100,10 +137,10 @@ namespace OnboardingRegistrar
         }
 
         /// <summary>
-        /// Registers real GDS issuance, durable public-only checkpoints and the supervised push processor.
-        /// Private keys remain in certificate stores; outbound user credentials come only from the host environment.
+        /// Registers GDS issuance, durable public-only checkpoints, the supervised processor and an optional
+        /// host-configured managed-server target. Private keys remain in certificate stores.
         /// </summary>
-        public static void Configure(
+        public static async Task ConfigureAsync(
             HostApplicationBuilder builder,
             IGdsServerBuilder gds,
             string pkiRoot,
@@ -137,6 +174,25 @@ namespace OnboardingRegistrar
                 options.RejectSHA1SignedCertificates = true;
                 options.MinimumCertificateKeySize = 2048;
             });
+            if (sample.m_managedApplicationUri is { } managedApplicationUri &&
+                sample.m_managedApplicationEndpoint is { } managedApplicationEndpoint &&
+                sample.m_managedApplicationSecurityPolicyUri is { } managedApplicationSecurityPolicyUri &&
+                sample.m_managedApplicationCertificatePath is { } managedApplicationCertificatePath)
+            {
+                UserNamePasswordIdentityProvider managedIdentity =
+                    await CreateManagedApplicationIdentityAsync().ConfigureAwait(false);
+                builder.Services.AddDeviceRegistrarManagedApplicationProvider(provider =>
+                    new PushManagedApplicationTargetProvider(
+                        managedApplicationUri,
+                        managedApplicationEndpoint,
+                        managedApplicationSecurityPolicyUri,
+                        managedApplicationCertificatePath,
+                        sample.m_managedApplicationServerCapabilities,
+                        managedIdentity,
+                        () => provider.GetRequiredService<IOpcUaApplicationConfigurationProvider>().Configuration));
+                builder.Services.AddDeviceRegistrarManagedApplicationChannelVerifier(
+                    provider => provider.GetRequiredService<IOpcUaApplicationConfigurationProvider>().Configuration);
+            }
             builder.Services.AddSingleton(sample);
             builder.Services.AddSingleton<IDeviceRegistrarOnboardingPolicy>(sample);
             builder.Services.AddSingleton<IDeviceRegistrarApplicationAuthorization>(sample);
@@ -192,10 +248,13 @@ namespace OnboardingRegistrar
             string protocolUri,
             CancellationToken cancellationToken = default)
         {
+            ArgumentNullException.ThrowIfNull(application);
             cancellationToken.ThrowIfCancellationRequested();
-            // The sample denies every managed application, so registrar push provisions only the DCA.
-            // Return true for approved Client applications to provision them after DCA proof.
-            return new ValueTask<bool>(false);
+            bool allowed = string.Equals(productInstanceUri, m_product, StringComparison.Ordinal) &&
+                m_managedApplicationUri != null &&
+                string.Equals(application.ApplicationUri, m_managedApplicationUri, StringComparison.Ordinal) &&
+                application.ApplicationType is ApplicationType.Server or ApplicationType.ClientAndServer;
+            return new ValueTask<bool>(allowed);
         }
 
         /// <inheritdoc/>
@@ -234,6 +293,27 @@ namespace OnboardingRegistrar
         private void SetScheduler(IDeviceRegistrarPushScheduler scheduler)
         {
             m_scheduler = scheduler ?? throw new ArgumentNullException(nameof(scheduler));
+        }
+
+        /// <summary>
+        /// Imports the managed password into a dedicated secret store and resolves identities per activation.
+        /// </summary>
+        private static async Task<UserNamePasswordIdentityProvider> CreateManagedApplicationIdentityAsync()
+        {
+            string userName = RequiredEnvironment("ONBOARDING_MANAGED_APPLICATION_USER");
+            string password = RequiredEnvironment("ONBOARDING_MANAGED_APPLICATION_PASSWORD");
+            var passwordStore = new InMemorySecretStore("OnboardingManagedApplicationCredentials");
+            var passwordId = new SecretIdentifier("managed-application-password", passwordStore.StoreType);
+            byte[] passwordBytes = Encoding.UTF8.GetBytes(password);
+            try
+            {
+                await passwordStore.SetAsync(passwordId, passwordBytes).ConfigureAwait(false);
+            }
+            finally
+            {
+                CryptographicOperations.ZeroMemory(passwordBytes);
+            }
+            return new UserNamePasswordIdentityProvider(userName, new SecretRegistry(passwordStore), passwordId);
         }
 
         /// <summary>
@@ -381,6 +461,21 @@ namespace OnboardingRegistrar
 
         /// <summary>The trust list belonging to the target certificate group.</summary>
         private readonly ExpandedNodeId m_trustId;
+
+        /// <summary>The one managed Server or ClientAndServer application permitted by sample policy.</summary>
+        private readonly string? m_managedApplicationUri;
+
+        /// <summary>The exact endpoint URL selected for the managed application.</summary>
+        private readonly string? m_managedApplicationEndpoint;
+
+        /// <summary>The exact encrypted security policy selected for the managed application.</summary>
+        private readonly string? m_managedApplicationSecurityPolicyUri;
+
+        /// <summary>The operator-supplied public certificate file for the managed application.</summary>
+        private readonly string? m_managedApplicationCertificatePath;
+
+        /// <summary>The explicit managed server capability identifiers selected by the operator.</summary>
+        private readonly ArrayOf<string> m_managedApplicationServerCapabilities;
 
         /// <summary>The existing software manager; this sample does not implement a firmware engine.</summary>
         private readonly ManagerDescription? m_softwareManager;

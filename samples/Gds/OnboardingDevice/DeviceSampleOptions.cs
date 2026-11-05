@@ -24,6 +24,7 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using Microsoft.Extensions.Configuration;
 using Opc.Ua;
 
@@ -59,6 +60,44 @@ namespace OnboardingDevice
                 tickets[i] = AbsolutePath(tickets[i], "ticketFiles");
             }
             TicketFiles = tickets;
+            string? managedApplicationUris = configuration["managedApplicationUris"];
+            if (string.IsNullOrWhiteSpace(managedApplicationUris))
+            {
+                ManagedApplicationUris = [];
+            }
+            else
+            {
+                string[] applicationUris = managedApplicationUris.Split(';');
+                if (applicationUris.Length > 32 ||
+                    applicationUris.Any(static value => string.IsNullOrWhiteSpace(value)))
+                {
+                    throw new ArgumentException(
+                        "--managedApplicationUris requires 1 to 32 semicolon-separated absolute URIs.");
+                }
+                for (int i = 0; i < applicationUris.Length; i++)
+                {
+                    applicationUris[i] = applicationUris[i].Trim();
+                    if (!Uri.TryCreate(applicationUris[i], UriKind.Absolute, out _))
+                    {
+                        throw new ArgumentException(
+                            "--managedApplicationUris requires 1 to 32 semicolon-separated absolute URIs.");
+                    }
+                    if (string.Equals(applicationUris[i], ApplicationUri, StringComparison.Ordinal))
+                    {
+                        throw new ArgumentException(
+                            "--managedApplicationUris cannot include the device application URI.");
+                    }
+                    for (int j = 0; j < i; j++)
+                    {
+                        if (string.Equals(applicationUris[j], applicationUris[i], StringComparison.Ordinal))
+                        {
+                            throw new ArgumentException(
+                                "--managedApplicationUris cannot contain duplicate application URIs.");
+                        }
+                    }
+                }
+                ManagedApplicationUris = applicationUris.ToArrayOf();
+            }
             EndpointUrl = AbsoluteUri(configuration, "endpointUrl");
             var endpoint = new Uri(EndpointUrl);
             if (endpoint.Scheme != "opc.tcp" || endpoint.Port is < 1 or > 65535 ||
@@ -131,6 +170,11 @@ namespace OnboardingDevice
         /// Gets the original signed envelopes; inputs are required again on restart and revalidated.
         /// </summary>
         public ArrayOf<string> TicketFiles { get; }
+
+        /// <summary>
+        /// Gets the optional application URIs published as separate client components beneath a non-singleton device.
+        /// </summary>
+        public ArrayOf<string> ManagedApplicationUris { get; }
 
         /// <summary>
         /// Gets the single listening endpoint.

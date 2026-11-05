@@ -225,8 +225,9 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// <summary>
         /// Authorizes and associates one managed application of an already identified device.
         /// The DCA call path supplies the device from its session; registrar push supplies the device
-        /// whose installed DCA credential it has just proven. Each application is authorized independently
-        /// before any existing registry entry is read, and singleton-restricted devices are rejected.
+        /// whose installed DCA credential it has just proven. Authorization sees the final application metadata
+        /// before credential verification or any existing registry entry is read.
+        /// Singleton-restricted devices are rejected.
         /// </summary>
         internal static async ValueTask<NodeId> RegisterDeviceApplicationAsync(
             IApplicationsDatabase applications,
@@ -235,7 +236,9 @@ namespace Opc.Ua.Gds.Server.Onboarding
             string device,
             ApplicationRecordDataType application,
             string protocolUri,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            Func<CancellationToken, ValueTask>? prepareAuthorizationRecord = null,
+            Func<CancellationToken, ValueTask>? beforeRegistration = null)
         {
             if (application == null)
             {
@@ -254,12 +257,21 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 RequireUri(protocolUri);
             }
 
+            if (prepareAuthorizationRecord != null)
+            {
+                await prepareAuthorizationRecord(cancellationToken).ConfigureAwait(false);
+            }
+
             // Authorize every call before even looking up an existing registry entry.
             await authorization.RequireApplicationAsync(
                 device,
                 application,
                 protocolUri,
                 cancellationToken).ConfigureAwait(false);
+            if (beforeRegistration != null)
+            {
+                await beforeRegistration(cancellationToken).ConfigureAwait(false);
+            }
             await scope.RequireManagedApplicationAllowedAsync(device, cancellationToken).ConfigureAwait(false);
             return await RegisterSharedApplicationAsync(
                 applications,

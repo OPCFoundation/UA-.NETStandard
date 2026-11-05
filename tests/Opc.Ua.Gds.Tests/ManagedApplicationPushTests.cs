@@ -863,6 +863,201 @@ namespace Opc.Ua.Gds.Tests
         }
 
         /// <summary>
+        /// A provider cannot publish application components on a singleton device.
+        /// </summary>
+        [Test]
+        public async Task ProvisionableDeviceNodeManagerRejectsApplicationsOnSingletonDevice()
+        {
+            var applications = new Mock<IProvisionableDeviceApplicationsProvider>(MockBehavior.Strict);
+            applications.Setup(provider => provider.GetApplicationsAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ArrayOf<ManagedApplicationPushRegistration>>(
+                [
+                    new(Mock.Of<IApplicationConfigurationPushTarget>(),
+                        Mock.Of<IPushConfigurationAuthorization>())
+                ]));
+            IAsyncNodeManager manager = await CreateProvisionableDeviceNodeManagerAsync(
+                isSingleton: true, applications.Object).ConfigureAwait(false);
+
+            try
+            {
+                ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
+                        .ConfigureAwait(false)).ConfigureAwait(false);
+
+                Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+                Assert.That(error.Message, Does.Contain("singleton"));
+                applications.Verify(provider =>
+                    provider.GetApplicationsAsync(It.IsAny<CancellationToken>()), Times.Once);
+            }
+            finally
+            {
+                await ((IAsyncDisposable)manager).DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// A non-empty provider requires the device security gate before any application binding can be installed.
+        /// </summary>
+        [Test]
+        public async Task ProvisionableDeviceNodeManagerRejectsApplicationsWithoutSecurityProvider()
+        {
+            var applications = new Mock<IProvisionableDeviceApplicationsProvider>(MockBehavior.Strict);
+            applications.Setup(provider => provider.GetApplicationsAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ArrayOf<ManagedApplicationPushRegistration>>(
+                [
+                    new(Mock.Of<IApplicationConfigurationPushTarget>(),
+                        Mock.Of<IPushConfigurationAuthorization>())
+                ]));
+            IAsyncNodeManager manager = await CreateProvisionableDeviceNodeManagerAsync(
+                isSingleton: false, applications.Object).ConfigureAwait(false);
+
+            try
+            {
+                ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
+                        .ConfigureAwait(false)).ConfigureAwait(false);
+
+                Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+                Assert.That(error.Message, Does.Contain("security provider"));
+                applications.Verify(provider =>
+                    provider.GetApplicationsAsync(It.IsAny<CancellationToken>()), Times.Once);
+            }
+            finally
+            {
+                await ((IAsyncDisposable)manager).DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Duplicate application URIs fail address-space creation, dispose earlier bindings, and permit a clean retry.
+        /// </summary>
+        [Test]
+        public async Task ProvisionableDeviceNodeManagerRejectsDuplicateApplicationUrisAndReleasesEarlierBinding()
+        {
+            const string applicationUri = "urn:opcfoundation.org:tests:provisionable-device:managed-app";
+            using TestTarget target = await TestTarget.CreateAsync(applicationUri).ConfigureAwait(false);
+            var registration = new ManagedApplicationPushRegistration(
+                target, Mock.Of<IPushConfigurationAuthorization>());
+            var duplicateApplications = new Mock<IProvisionableDeviceApplicationsProvider>(MockBehavior.Strict);
+            duplicateApplications.Setup(provider => provider.GetApplicationsAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ArrayOf<ManagedApplicationPushRegistration>>(
+                    [registration, registration]));
+            IProvisionableDeviceSecurity security = Mock.Of<IProvisionableDeviceSecurity>();
+            IAsyncNodeManager firstManager = await CreateProvisionableDeviceNodeManagerAsync(
+                isSingleton: false, duplicateApplications.Object, security).ConfigureAwait(false);
+
+            try
+            {
+                ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await firstManager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
+                        .ConfigureAwait(false)).ConfigureAwait(false);
+
+                Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+                Assert.That(error.Message, Does.Contain("unique"));
+            }
+            finally
+            {
+                await ((IAsyncDisposable)firstManager).DisposeAsync().ConfigureAwait(false);
+            }
+
+            var retryApplications = new Mock<IProvisionableDeviceApplicationsProvider>(MockBehavior.Strict);
+            retryApplications.Setup(provider => provider.GetApplicationsAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ArrayOf<ManagedApplicationPushRegistration>>([registration]));
+            IAsyncNodeManager retryManager = await CreateProvisionableDeviceNodeManagerAsync(
+                isSingleton: false, retryApplications.Object, security).ConfigureAwait(false);
+
+            try
+            {
+                await retryManager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
+                    .ConfigureAwait(false);
+
+                ushort namespaceIndex = ReferenceServer.CurrentInstance.NamespaceUris.GetIndex(
+                    ProvisionableDeviceNodeManagerFactory.NamespaceUri);
+                var applicationNodeId = new NodeId($"Application:{applicationUri}", namespaceIndex);
+                object handle = await retryManager.GetManagerHandleAsync(applicationNodeId).ConfigureAwait(false);
+
+                Assert.That(handle, Is.TypeOf<NodeHandle>());
+                var node = ((NodeHandle)handle).Node;
+                Assert.That(node, Is.TypeOf<ApplicationConfigurationState>());
+                Assert.That(((ApplicationConfigurationState)node).ApplicationUri!.Value, Is.EqualTo(applicationUri));
+                retryApplications.Verify(provider =>
+                    provider.GetApplicationsAsync(It.IsAny<CancellationToken>()), Times.Once);
+            }
+            finally
+            {
+                await ((IAsyncDisposable)retryManager).DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// A non-singleton device publishes each configured application as a separate component.
+        /// </summary>
+        [Test]
+        public async Task ProvisionableDeviceNodeManagerPublishesMultipleApplicationComponents()
+        {
+            const string firstApplicationUri = "urn:opcfoundation.org:tests:provisionable-device:application:first";
+            const string secondApplicationUri = "urn:opcfoundation.org:tests:provisionable-device:application:second";
+            using TestTarget firstTarget = await TestTarget.CreateAsync(firstApplicationUri).ConfigureAwait(false);
+            using TestTarget secondTarget = await TestTarget.CreateAsync(secondApplicationUri).ConfigureAwait(false);
+            var applications = new Mock<IProvisionableDeviceApplicationsProvider>(MockBehavior.Strict);
+            applications.Setup(provider => provider.GetApplicationsAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ArrayOf<ManagedApplicationPushRegistration>>(
+                [
+                    new(firstTarget, Mock.Of<IPushConfigurationAuthorization>()),
+                    new(secondTarget, Mock.Of<IPushConfigurationAuthorization>())
+                ]));
+            IAsyncNodeManager manager = await CreateProvisionableDeviceNodeManagerAsync(
+                isSingleton: false,
+                applications.Object,
+                Mock.Of<IProvisionableDeviceSecurity>()).ConfigureAwait(false);
+
+            try
+            {
+                var externalReferences = new Dictionary<NodeId, IList<IReference>>();
+                await manager.CreateAddressSpaceAsync(externalReferences).ConfigureAwait(false);
+
+                ushort namespaceIndex = ReferenceServer.CurrentInstance.NamespaceUris.GetIndex(
+                    ProvisionableDeviceNodeManagerFactory.NamespaceUri);
+                var deviceNodeId = new NodeId("ProvisionableDevice", namespaceIndex);
+                var firstNodeId = new NodeId($"Application:{firstApplicationUri}", namespaceIndex);
+                var secondNodeId = new NodeId($"Application:{secondApplicationUri}", namespaceIndex);
+                object firstHandle = await manager.GetManagerHandleAsync(firstNodeId).ConfigureAwait(false);
+                object secondHandle = await manager.GetManagerHandleAsync(secondNodeId).ConfigureAwait(false);
+                Assert.That(firstHandle, Is.TypeOf<NodeHandle>());
+                Assert.That(secondHandle, Is.TypeOf<NodeHandle>());
+                Assert.That(((NodeHandle)firstHandle).Node, Is.TypeOf<ApplicationConfigurationState>());
+                Assert.That(((NodeHandle)secondHandle).Node, Is.TypeOf<ApplicationConfigurationState>());
+                Assert.That(((ApplicationConfigurationState)((NodeHandle)firstHandle).Node)
+                    .ApplicationUri!.Value, Is.EqualTo(firstApplicationUri));
+                Assert.That(((ApplicationConfigurationState)((NodeHandle)secondHandle).Node)
+                    .ApplicationUri!.Value, Is.EqualTo(secondApplicationUri));
+                Assert.That(externalReferences[deviceNodeId], Has.Count.EqualTo(2));
+                Assert.That(externalReferences[deviceNodeId].Select(reference => reference.TargetId)
+                    .ToArray(), Is.EquivalentTo(new[] { firstNodeId, secondNodeId }));
+                applications.Verify(provider =>
+                    provider.GetApplicationsAsync(It.IsAny<CancellationToken>()), Times.Once);
+            }
+            finally
+            {
+                await ((IAsyncDisposable)manager).DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Creates the provider-backed device node manager over the fixture's already-hosted in-process server.
+        /// </summary>
+        private Task<IAsyncNodeManager> CreateProvisionableDeviceNodeManagerAsync(
+            bool isSingleton,
+            IProvisionableDeviceApplicationsProvider applications,
+            IProvisionableDeviceSecurity? security = null)
+        {
+            var runtime = new Mock<IProvisionableDeviceRuntime>();
+            runtime.SetupGet(value => value.IsSingleton).Returns(isSingleton);
+            var factory = new ProvisionableDeviceNodeManagerFactory(runtime.Object, applications, security);
+            return factory.CreateAsync(ReferenceServer.CurrentInstance, ServerFixture.Config).AsTask();
+        }
+
+        /// <summary>
         /// Resolves standard browse names relative to the application instance rather than namespace-zero ids.
         /// </summary>
         private static async ValueTask<NodeId> ResolveChildAsync(

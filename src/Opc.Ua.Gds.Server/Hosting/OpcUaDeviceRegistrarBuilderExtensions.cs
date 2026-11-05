@@ -24,6 +24,7 @@
 
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -82,8 +83,8 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
-        /// Registers device ticket/configuration services without creating Resources or claiming its namespace.
-        /// The host binds the runtime to its generated ProvisionableDevice before publishing that resource.
+        /// Registers the device runtime and generated ProvisionableDevice node manager.
+        /// The host must register the shared Part 22 Resources manager that owns the device's parent object.
         /// </summary>
         public static IOpcUaServerBuilder AddProvisionableDeviceRuntime(
             this IOpcUaServerBuilder builder,
@@ -94,7 +95,14 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 throw new ArgumentNullException(nameof(builder));
             }
+            if (builder.Services.Any(static descriptor =>
+                !descriptor.IsKeyedService &&
+                descriptor.ServiceType == typeof(ProvisionableDeviceNodeManagerFactory)))
+            {
+                throw new InvalidOperationException("The provisionable-device node manager is already registered.");
+            }
             builder.Services.AddProvisionableDeviceRuntime(isSingleton, ticketIds);
+            builder.AddNodeManager<ProvisionableDeviceNodeManagerFactory>();
             return builder;
         }
 
@@ -580,10 +588,72 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Registers fresh secure-channel verification for managed Server and ClientAndServer applications.
+        /// The managed-application provider supplies authoritative URLs, an installed certificate, endpoint and
+        /// user identity for each application.
+        /// </summary>
+        /// <param name="services">The service collection to configure.</param>
+        /// <param name="configurationFactory">Resolves the initialized client configuration.</param>
+        /// <param name="sessionFactory">Optionally supplies the host's session factory.</param>
+        /// <returns>The same service collection for fluent configuration.</returns>
+        public static IServiceCollection AddDeviceRegistrarManagedApplicationChannelVerifier(
+            this IServiceCollection services,
+            Func<IServiceProvider, ApplicationConfiguration> configurationFactory,
+            ISessionFactory? sessionFactory = null)
+        {
+            services.ThrowIfNull(nameof(services));
+            configurationFactory.ThrowIfNull(nameof(configurationFactory));
+            foreach (ServiceDescriptor descriptor in services)
+            {
+                if (!descriptor.IsKeyedService &&
+                    descriptor.ServiceType == typeof(IDeviceRegistrarManagedApplicationChannelVerifier))
+                {
+                    throw new InvalidOperationException(
+                        "Select only one managed-application channel verifier.");
+                }
+            }
+            services.AddSingleton<IDeviceRegistrarManagedApplicationChannelVerifier>(provider =>
+                new SessionDeviceRegistrarManagedApplicationChannelVerifier(
+                    configurationFactory(provider) ??
+                        throw new InvalidOperationException(
+                            "The managed application client configuration factory returned null."),
+                    sessionFactory ?? provider.GetService<ISessionFactory>() ??
+                        new DefaultSessionFactory(provider.GetRequiredService<ITelemetryContext>())));
+            return services;
+        }
+
+        /// <summary>
+        /// Registers the host's authoritative metadata, installed-certificate and authentication provider for
+        /// managed Server and ClientAndServer applications.
+        /// </summary>
+        /// <param name="services">The service collection to configure.</param>
+        /// <param name="factory">Creates the host's managed-application provider.</param>
+        /// <returns>The same service collection for fluent configuration.</returns>
+        public static IServiceCollection AddDeviceRegistrarManagedApplicationProvider(
+            this IServiceCollection services,
+            Func<IServiceProvider, IDeviceRegistrarManagedApplicationProvider> factory)
+        {
+            services.ThrowIfNull(nameof(services));
+            factory.ThrowIfNull(nameof(factory));
+            foreach (ServiceDescriptor descriptor in services)
+            {
+                if (!descriptor.IsKeyedService &&
+                    descriptor.ServiceType == typeof(IDeviceRegistrarManagedApplicationProvider))
+                {
+                    throw new InvalidOperationException(
+                        "Select only one managed-application endpoint and authentication provider.");
+                }
+            }
+            services.AddSingleton(factory);
+            return services;
+        }
+
+        /// <summary>
         /// Selects the concrete generated-client push processor and its supervised bounded queue.
         /// The host must explicitly provide authenticated connections, durable enrollment/request recovery,
         /// the shared lifecycle, and the existing GDS issuance store. No trust or software approval is inferred.
-        /// Managed Client applications are authorized through the runtime's IDeviceRegistrarAuthorization.
+        /// Managed applications are authorized through the runtime's IDeviceRegistrarAuthorization.
+        /// Server applications also require an endpoint metadata provider and channel verifier.
         /// Register before AddDeviceRegistrarRuntime validates the remaining registrar providers.
         /// </summary>
         public static IServiceCollection AddDeviceRegistrarPush(

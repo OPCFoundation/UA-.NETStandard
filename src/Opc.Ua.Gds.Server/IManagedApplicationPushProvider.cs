@@ -43,6 +43,19 @@ namespace Opc.Ua.Gds.Server
     }
 
     /// <summary>
+    /// Supplies applications to publish as components of one non-singleton provisionable device.
+    /// </summary>
+    public interface IProvisionableDeviceApplicationsProvider
+    {
+        /// <summary>
+        /// Returns application runtimes and their authorization policies before the device address space is published.
+        /// The provider retains ownership of each runtime and certificate-manager lifetime.
+        /// </summary>
+        ValueTask<ArrayOf<ManagedApplicationPushRegistration>> GetApplicationsAsync(
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
     /// Pairs an independent target application with its additional push access policy.
     /// </summary>
     public sealed class ManagedApplicationPushRegistration

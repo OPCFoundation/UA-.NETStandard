@@ -5,7 +5,7 @@
     <IsPackable>false</IsPackable>
     <AssemblyName>OnboardingDevice</AssemblyName>
     <RootNamespace>OnboardingDevice</RootNamespace>
-    <Description>Connected singleton OPC 10000-21 provisionable device sample.</Description>
+    <Description>Connected OPC 10000-21 provisionable device sample.</Description>
     <PublishAot>true</PublishAot>
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
   </PropertyGroup>

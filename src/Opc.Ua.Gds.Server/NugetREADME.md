@@ -73,9 +73,25 @@ and trust stores instead of replaying them over a compensated transaction.
 Custom installers and coordinators need the applied-security capture and
 transaction-completion contracts for standard push. The repository's
 `OnboardingDevice` sample composes these providers with retained factory keys,
-restricted public journals and local/network reset. Its singleton object
-currently uses ordinary `Objects` placement pending shared Part 22 integration;
-connected device execution and multiapplication sample coverage remain incomplete.
+restricted public journals and local/network reset. It hosts a singleton device
+by default; `--managedApplicationUris` selects a non-singleton device with
+separate managed Client application components and URI-specific certificate
+stores. The sample does not run those client applications, so it does not
+exercise active-channel rotation or trust revalidation for them. The device
+node manager adds a Part 22 `Resources` parent reference; the shared Base
+Network integration and verified connected interoperability evidence remain
+pending.
+
+For a non-singleton device, implement `IProvisionableDeviceApplicationsProvider`
+and register it with `AddProvisionableDeviceApplications` on the server builder.
+The device node manager publishes each returned `ApplicationConfigurationType`
+as a component before the address space is available. This provider is separate
+from the GDS `IManagedApplicationPushProvider`; its targets own their application
+runtimes and certificate managers. Each binding requires installed device
+registrar trust and applies the optional software-update policy before the
+application-specific authorization. A singleton device with application
+components is rejected. This API does not proxy remote `ConfigurationFile`
+transactions for GDS-managed applications.
 
 Deployments requiring software updates register
 `IProvisionableDeviceSoftwareUpdatePolicy` through

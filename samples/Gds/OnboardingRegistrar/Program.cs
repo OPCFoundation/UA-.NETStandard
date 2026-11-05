@@ -115,7 +115,8 @@ try
         new OnboardingReadyStartupTask(endpoint));
     if (runPullRegistrar || runPushRegistrar)
     {
-        ConfigureConnectedRegistrar(builder, pkiRoot, endpoint, userName, runPushRegistrar);
+        await ConfigureConnectedRegistrarAsync(builder, pkiRoot, endpoint, userName, runPushRegistrar)
+            .ConfigureAwait(false);
     }
     else
     {
@@ -206,7 +207,7 @@ static string GetRequiredEnvironmentVariable(string name)
     return value;
 }
 
-static void ConfigureConnectedRegistrar(
+static async Task ConfigureConnectedRegistrarAsync(
     HostApplicationBuilder builder,
     string pkiRoot,
     string endpoint,
@@ -265,7 +266,7 @@ static void ConfigureConnectedRegistrar(
             Path.Combine(pkiRoot, "identity-authorities", "issuers"));
     if (runPushRegistrar)
     {
-        PushRegistrarSample.Configure(builder, gds, pkiRoot, product, application);
+        await PushRegistrarSample.ConfigureAsync(builder, gds, pkiRoot, product, application).ConfigureAwait(false);
     }
     else
     {

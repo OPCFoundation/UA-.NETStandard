@@ -322,6 +322,118 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
+        /// A denied managed server resolves metadata for authorization but does not open its application channel.
+        /// </summary>
+        [Test]
+        public async Task DeniedManagedServerIsRejectedBeforeChannelVerification()
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued);
+            ManagedApplication denied = harness.AddManaged(
+                "managed-a", ManagedUriA, m_managedA, ApplicationType.Server);
+            harness.ConfigureManagedTarget(denied);
+            harness.DeniedUris.Add(ManagedUriA);
+
+            AggregateException? error = await Assert.ThrowsAsync<AggregateException>(async () =>
+                await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false));
+
+            Assert.That(error!.InnerExceptions, Has.Count.EqualTo(1));
+            Assert.That(((ServiceResultException)error.InnerExceptions[0]).StatusCode,
+                Is.EqualTo(StatusCodes.BadRequestNotAllowed));
+            Assert.That(harness.ManagedApplicationProofs, Is.Empty);
+            Assert.That(denied.Calls, Is.Empty);
+            Assert.That(harness.RegisteredName(denied), Is.Null);
+            harness.ManagedApplications.Verify(
+                provider => provider.GetTargetAsync(ManagedUriA, It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
+        /// A DNS restriction authorizes the resolved discovery URL before registry lookup or credential verification.
+        /// </summary>
+        [Test]
+        public async Task DeniedManagedServerDnsRestrictionSeesResolvedMetadataBeforeRegistryLookup()
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued);
+            ManagedApplication server = harness.AddManaged(
+                "managed-a", ManagedUriA, m_managedA, ApplicationType.Server);
+            DeviceRegistrarManagedApplicationTarget target = harness.ConfigureManagedTarget(server) with
+            {
+                DiscoveryUrls = ["opc.tcp://blocked.example.test:4840"],
+                ServerCapabilities = ["DA", "AC"]
+            };
+            harness.ManagedApplications.Setup(provider => provider.GetTargetAsync(
+                ManagedUriA, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<DeviceRegistrarManagedApplicationTarget>(target));
+            ApplicationRecordDataType? authorizedRecord = null;
+            harness.Authorization.Setup(value => value.RequireApplicationAsync(
+                Harness.Product,
+                It.Is<ApplicationRecordDataType>(record => record.ApplicationUri == ManagedUriA),
+                string.Empty,
+                It.IsAny<CancellationToken>()))
+                .Returns<string, ApplicationRecordDataType, string, CancellationToken>((_, record, _, _) =>
+                {
+                    authorizedRecord = record;
+                    Uri discoveryUri = new(record.DiscoveryUrls[0], UriKind.Absolute);
+                    if (discoveryUri.DnsSafeHost == "blocked.example.test")
+                    {
+                        throw new ServiceResultException(StatusCodes.BadRequestNotAllowed);
+                    }
+                    return default;
+                });
+
+            AggregateException? error = await Assert.ThrowsAsync<AggregateException>(async () =>
+                await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false));
+
+            Assert.That(error!.InnerExceptions, Has.Count.EqualTo(1));
+            Assert.That(((ServiceResultException)error.InnerExceptions[0]).StatusCode,
+                Is.EqualTo(StatusCodes.BadRequestNotAllowed));
+            Assert.That(authorizedRecord, Is.Not.Null);
+            Assert.That(authorizedRecord!.DiscoveryUrls.ToArray(),
+                Is.EqualTo(new[] { "opc.tcp://blocked.example.test:4840" }));
+            Assert.That(authorizedRecord.ServerCapabilities.ToArray(), Is.EqualTo(new[] { "DA", "AC" }));
+            Assert.That(harness.ManagedApplicationProofs, Is.Empty);
+            Assert.That(server.Calls, Is.Empty);
+            Assert.That(harness.RegisteredName(server), Is.Null);
+            harness.Database.Verify(database => database.FindApplications(ManagedUriA), Times.Never);
+            harness.ManagedApplicationChannels.Verify(channel => channel.VerifyAsync(
+                It.IsAny<ApplicationDescription>(),
+                It.IsAny<DeviceRegistrarManagedApplicationTarget>(),
+                It.IsAny<ByteString>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+            harness.ManagedApplications.Verify(
+                provider => provider.GetTargetAsync(ManagedUriA, It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
+        /// Failed managed-server channel proof does not register or associate the application.
+        /// </summary>
+        [Test]
+        public async Task FailedManagedServerChannelProofPreventsRegistration()
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued);
+            ManagedApplication server = harness.AddManaged(
+                "managed-a", ManagedUriA, m_managedA, ApplicationType.Server);
+            harness.ConfigureManagedTarget(server);
+            harness.ManagedApplicationChannels.Setup(verifier => verifier.VerifyAsync(
+                It.IsAny<ApplicationDescription>(),
+                It.IsAny<DeviceRegistrarManagedApplicationTarget>(),
+                It.IsAny<ByteString>(),
+                It.IsAny<CancellationToken>()))
+                .Throws(new ServiceResultException(StatusCodes.BadCertificateInvalid));
+
+            AggregateException? error = await Assert.ThrowsAsync<AggregateException>(async () =>
+                await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false));
+
+            Assert.That(error!.InnerExceptions, Has.Count.EqualTo(1));
+            Assert.That(((ServiceResultException)error.InnerExceptions[0]).StatusCode,
+                Is.EqualTo(StatusCodes.BadCertificateInvalid));
+            Assert.That(harness.AuthorizedUris, Is.EqualTo(new[] { ManagedUriA }));
+            Assert.That(harness.ManagedApplicationProofs, Is.Empty);
+            Assert.That(harness.RegisteredName(server), Is.Null);
+            Assert.That(server.Calls,
+                Is.EqualTo(new[] { Ua.MethodIds.ServerConfigurationType_GetCertificates }));
+        }
+
+        /// <summary>
         /// A singleton device's DCA never registers or configures other applications.
         /// </summary>
         [Test]
@@ -342,12 +454,12 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
-        /// A managed server cannot be registered without DiscoveryUrls, which Part 21 does not expose.
+        /// A managed server remains unsupported unless the host supplies authoritative metadata and channel proof.
         /// </summary>
         [Test]
-        public async Task ManagedServerApplicationIsNotSupported()
+        public async Task ManagedServerWithoutEndpointProvidersIsNotSupported()
         {
-            await using var harness = new Harness(m_bootstrap, m_issued);
+            await using var harness = new Harness(m_bootstrap, m_issued, managedApplicationProviders: false);
             ManagedApplication server = harness.AddManaged(
                 "managed-a", ManagedUriA, m_managedA, ApplicationType.Server);
 
@@ -361,6 +473,297 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(server.Calls, Is.Empty);
             Assert.That(harness.AuthorizedUris, Is.Empty);
             Assert.That(harness.RegisteredName(server), Is.Null);
+        }
+
+        /// <summary>
+        /// Managed Server and ClientAndServer records use provider-owned URLs and verify the installed peer twice.
+        /// </summary>
+        [TestCase(ApplicationType.Server)]
+        [TestCase(ApplicationType.ClientAndServer)]
+        public async Task ManagedServerUsesAuthoritativeMetadataAndSecureChannelProof(ApplicationType type)
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued);
+            ManagedApplication server = harness.AddManaged("managed-a", ManagedUriA, m_managedA, type);
+            server.Installed = true;
+            DeviceRegistrarManagedApplicationTarget target = harness.ConfigureManagedTarget(server);
+
+            await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false);
+
+            ApplicationRecordDataType record = harness.RegisteredRecord(server);
+            Assert.That(record.ApplicationType, Is.EqualTo(type));
+            Assert.That(record.DiscoveryUrls.ToArray(), Is.EqualTo(target.DiscoveryUrls.ToArray()));
+            Assert.That(record.ServerCapabilities.ToArray(), Is.EqualTo(target.ServerCapabilities.ToArray()));
+            Assert.That(harness.ManagedApplicationProofs, Is.EqualTo(new[] { server.Certificate, server.Certificate }));
+            Assert.That(harness.AuthorizedUris, Is.EqualTo(new[] { ManagedUriA }));
+        }
+
+        /// <summary>
+        /// Discovery URLs are registered independently of the host-selected connection endpoint.
+        /// </summary>
+        [TestCase(ApplicationType.Server)]
+        [TestCase(ApplicationType.ClientAndServer)]
+        public async Task ManagedServerAcceptsDistinctDiscoveryAndConnectionUrls(ApplicationType type)
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued);
+            ManagedApplication server = harness.AddManaged("managed-a", ManagedUriA, m_managedA, type);
+            server.Installed = true;
+            DeviceRegistrarManagedApplicationTarget target = harness.ConfigureManagedTarget(server) with
+            {
+                DiscoveryUrls = ["https://discovery.example.test/managed"]
+            };
+            harness.ManagedApplications.Setup(provider => provider.GetTargetAsync(
+                ManagedUriA, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<DeviceRegistrarManagedApplicationTarget>(target));
+
+            await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false);
+
+            Assert.That(harness.RegisteredRecord(server).DiscoveryUrls.ToArray(),
+                Is.EqualTo(target.DiscoveryUrls.ToArray()));
+            Assert.That(target.DiscoveryUrls.ToList(), Does.Not.Contain(target.Endpoint.Description.EndpointUrl));
+            Assert.That(harness.ManagedApplicationProofs, Is.EqualTo(new[] { server.Certificate, server.Certificate }));
+        }
+
+        /// <summary>
+        /// Captured provider metadata remains detached during proof and registration despite Clone overrides.
+        /// </summary>
+        [Test]
+        public async Task ProviderMetadataMutationDuringProofCannotChangeRegisteredManagedApplication()
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued);
+            ManagedApplication server = harness.AddManaged(
+                "managed-a", ManagedUriA, m_managedA, ApplicationType.Server);
+            server.Installed = true;
+            DeviceRegistrarManagedApplicationTarget original = harness.ConfigureManagedTarget(server);
+            string[] urls = ["https://discovery.example.test/managed"];
+            string[] capabilities = ["DA"];
+            var application = new SelfCloningApplicationDescription { ApplicationUri = ManagedUriA };
+            var policy = new SelfCloningUserTokenPolicy { PolicyId = "captured" };
+            var description = new SelfCloningEndpointDescription
+            {
+                EndpointUrl = original.Endpoint.Description.EndpointUrl,
+                Server = application,
+                UserIdentityTokens = [policy],
+                SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+            };
+            var quotas = new SelfCloningEndpointConfiguration { OperationTimeout = 12345 };
+            DeviceRegistrarManagedApplicationTarget target = original with
+            {
+                DiscoveryUrls = urls.ToArrayOf(),
+                ServerCapabilities = capabilities.ToArrayOf(),
+                Endpoint = new ConfiguredEndpoint(null, description, quotas)
+            };
+            harness.ManagedApplications.Setup(provider => provider.GetTargetAsync(
+                ManagedUriA, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<DeviceRegistrarManagedApplicationTarget>(target));
+            harness.ManagedApplicationChannels.Setup(verifier => verifier.VerifyAsync(
+                It.IsAny<ApplicationDescription>(), It.IsAny<DeviceRegistrarManagedApplicationTarget>(),
+                It.IsAny<ByteString>(), It.IsAny<CancellationToken>()))
+                .Returns<ApplicationDescription, DeviceRegistrarManagedApplicationTarget,
+                    ByteString, CancellationToken>(
+                    async (capturedApplication, captured, expected, _) =>
+                    {
+                        await Task.Yield();
+                        urls[0] = "relative";
+                        capabilities[0] = "mutated";
+                        description.EndpointUrl = "opc.tcp://wrong-peer:4840";
+                        application.ApplicationUri = "urn:wrong:application";
+                        policy.PolicyId = "mutated";
+                        quotas.OperationTimeout = 1;
+                        EndpointConfiguration capturedQuotas = captured.Endpoint.Configuration ??
+                            throw new InvalidOperationException("The captured endpoint configuration is missing.");
+
+                        Assert.That(captured.Endpoint.Description, Is.Not.SameAs(description));
+                        Assert.That(captured.Endpoint.Description.Server, Is.Not.SameAs(application));
+                        Assert.That(captured.Endpoint.Description.UserIdentityTokens[0], Is.Not.SameAs(policy));
+                        Assert.That(capturedQuotas, Is.Not.SameAs(quotas));
+                        Assert.That(captured.Endpoint.Description.EndpointUrl,
+                            Is.EqualTo(original.Endpoint.Description.EndpointUrl));
+                        Assert.That(captured.Endpoint.Description.Server.ApplicationUri, Is.EqualTo(ManagedUriA));
+                        Assert.That(captured.Endpoint.Description.UserIdentityTokens[0].PolicyId,
+                            Is.EqualTo("captured"));
+                        Assert.That(capturedQuotas.OperationTimeout, Is.EqualTo(12345));
+                        Assert.That(capturedApplication.DiscoveryUrls[0],
+                            Is.EqualTo("https://discovery.example.test/managed"));
+                        harness.ManagedApplicationProofs.Add(expected);
+                    });
+
+            await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false);
+
+            ApplicationRecordDataType record = harness.RegisteredRecord(server);
+            Assert.That(record.ApplicationUri, Is.EqualTo(ManagedUriA));
+            Assert.That(record.DiscoveryUrls.ToArray(), Is.EqualTo(new[] { "https://discovery.example.test/managed" }));
+            Assert.That(record.ServerCapabilities.ToArray(), Is.EqualTo(new[] { "DA" }));
+            Assert.That(harness.ManagedApplicationProofs, Is.EqualTo(new[] { server.Certificate, server.Certificate }));
+        }
+
+        /// <summary>
+        /// Missing or blank authoritative capabilities prevent registration and remote changes.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ManagedServerRejectsInvalidCapabilitiesBeforeRegistration(bool blank)
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued);
+            ManagedApplication server = harness.AddManaged(
+                "managed-a", ManagedUriA, m_managedA, ApplicationType.ClientAndServer);
+            DeviceRegistrarManagedApplicationTarget target = harness.ConfigureManagedTarget(server);
+            harness.ManagedApplications.Setup(provider => provider.GetTargetAsync(
+                ManagedUriA, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<DeviceRegistrarManagedApplicationTarget>(
+                    target with { ServerCapabilities = blank ? [" "] : ArrayOf<string>.Empty }));
+
+            AggregateException? error = await Assert.ThrowsAsync<AggregateException>(async () =>
+                await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false));
+
+            Assert.That(((ServiceResultException)error!.InnerExceptions[0]).StatusCode,
+                Is.EqualTo(StatusCodes.BadConfigurationError));
+            Assert.That(harness.RegisteredName(server), Is.Null);
+            Assert.That(server.Calls, Is.Empty);
+            Assert.That(harness.ManagedApplicationProofs, Is.Empty);
+        }
+
+        /// <summary>
+        /// A restart after certificate rotation resumes only the exact retained issuance despite a stale operator pin.
+        /// </summary>
+        [Test]
+        public async Task ManagedServerRestartResumesRetainedCertificateProofAfterRotation()
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued);
+            ManagedApplication server = harness.AddManaged(
+                "managed-a", ManagedUriA, m_managedA, ApplicationType.Server);
+            server.CurrentCertificate = ByteString.From([0x21, 0x22, 0x23]);
+            DeviceRegistrarManagedApplicationTarget target = harness.ConfigureManagedTarget(server);
+            bool interruptAfterRotation = true;
+            harness.ManagedApplicationChannels.Setup(verifier => verifier.VerifyAsync(
+                It.IsAny<ApplicationDescription>(),
+                It.IsAny<DeviceRegistrarManagedApplicationTarget>(),
+                It.IsAny<ByteString>(),
+                It.IsAny<CancellationToken>()))
+                .Callback<ApplicationDescription, DeviceRegistrarManagedApplicationTarget, ByteString,
+                    CancellationToken>((_, _, expected, _) =>
+                {
+                    harness.ManagedApplicationProofs.Add(expected);
+                    if (expected == server.Certificate && interruptAfterRotation)
+                    {
+                        interruptAfterRotation = false;
+                        throw new ServiceResultException(StatusCodes.BadNotConnected);
+                    }
+                })
+                .Returns(new ValueTask());
+
+            AggregateException? interrupted = await Assert.ThrowsAsync<AggregateException>(async () =>
+                await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false));
+
+            Assert.That(((ServiceResultException)interrupted!.InnerExceptions[0]).StatusCode,
+                Is.EqualTo(StatusCodes.BadNotConnected));
+            Assert.That(server.CurrentCertificate, Is.EqualTo(server.Certificate));
+            Assert.That(server.Installed, Is.True);
+            int callsBeforeRestart = server.Calls.Count;
+            int csrCallsBeforeRestart = server.CsrCalls;
+
+            harness.RestartProcessor();
+            await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false);
+
+            Assert.That(harness.ManagedApplicationProofs,
+                Is.EqualTo(new[] { target.InstalledCertificate, server.Certificate, server.Certificate }));
+            Assert.That(server.CurrentCertificate, Is.EqualTo(server.Certificate));
+            Assert.That(harness.AuthorizedUris, Is.EqualTo(new[] { ManagedUriA, ManagedUriA }));
+            Assert.That(server.CsrCalls, Is.EqualTo(csrCallsBeforeRestart));
+            Assert.That(server.Calls.GetRange(callsBeforeRestart, server.Calls.Count - callsBeforeRestart),
+                Does.Not.Contain(Ua.MethodIds.ServerConfigurationType_UpdateCertificate));
+        }
+
+        /// <summary>
+        /// A restart rejects a managed certificate that is neither the operator pin nor the retained issuance.
+        /// </summary>
+        [Test]
+        public async Task ManagedServerRestartRejectsCertificateOutsideRetainedIssuance()
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued);
+            ManagedApplication server = harness.AddManaged(
+                "managed-a", ManagedUriA, m_managedA, ApplicationType.Server);
+            server.CurrentCertificate = ByteString.From([0x31, 0x32, 0x33]);
+            harness.ConfigureManagedTarget(server);
+            bool interruptAfterRotation = true;
+            harness.ManagedApplicationChannels.Setup(verifier => verifier.VerifyAsync(
+                It.IsAny<ApplicationDescription>(),
+                It.IsAny<DeviceRegistrarManagedApplicationTarget>(),
+                It.IsAny<ByteString>(),
+                It.IsAny<CancellationToken>()))
+                .Callback<ApplicationDescription, DeviceRegistrarManagedApplicationTarget, ByteString,
+                    CancellationToken>((_, _, expected, _) =>
+                {
+                    harness.ManagedApplicationProofs.Add(expected);
+                    if (expected == server.Certificate && interruptAfterRotation)
+                    {
+                        interruptAfterRotation = false;
+                        throw new ServiceResultException(StatusCodes.BadNotConnected);
+                    }
+                })
+                .Returns(new ValueTask());
+
+            await Assert.ThrowsAsync<AggregateException>(async () =>
+                await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false));
+            server.CurrentCertificate = ByteString.From([0x41, 0x42, 0x43]);
+            harness.RestartProcessor();
+
+            AggregateException? error = await Assert.ThrowsAsync<AggregateException>(async () =>
+                await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false));
+
+            Assert.That(((ServiceResultException)error!.InnerExceptions[0]).StatusCode,
+                Is.EqualTo(StatusCodes.BadCertificateInvalid));
+            Assert.That(harness.ManagedApplicationProofs,
+                Is.EqualTo(new[] { ByteString.From([0x31, 0x32, 0x33]), server.Certificate }));
+        }
+
+        /// <summary>
+        /// A provider credential that differs from the configuration's installed certificate cannot be replaced.
+        /// </summary>
+        [Test]
+        public async Task ManagedServerRejectsProviderCertificateMismatchBeforeCreatingRequest()
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued);
+            ManagedApplication server = harness.AddManaged(
+                "managed-a", ManagedUriA, m_managedA, ApplicationType.Server);
+            server.Installed = true;
+            DeviceRegistrarManagedApplicationTarget target = harness.ConfigureManagedTarget(server);
+            harness.ManagedApplications
+                .Setup(provider => provider.GetTargetAsync(ManagedUriA, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<DeviceRegistrarManagedApplicationTarget>(
+                    target with { InstalledCertificate = ByteString.From(new byte[] { 1, 2, 3 }) }));
+
+            AggregateException? error = await Assert.ThrowsAsync<AggregateException>(async () =>
+                await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false));
+
+            Assert.That(((ServiceResultException)error!.InnerExceptions[0]).StatusCode,
+                Is.EqualTo(StatusCodes.BadCertificateInvalid));
+            Assert.That(server.CsrCalls, Is.Zero);
+            Assert.That(harness.ManagedApplicationProofs, Is.Empty);
+        }
+
+        /// <summary>
+        /// Endpoint data that cannot name an absolute advertised endpoint is rejected before application registration.
+        /// </summary>
+        [Test]
+        public async Task ManagedServerRejectsInvalidDiscoveryUrlsBeforeRegistration()
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued);
+            ManagedApplication server = harness.AddManaged(
+                "managed-a", ManagedUriA, m_managedA, ApplicationType.Server);
+            DeviceRegistrarManagedApplicationTarget target = harness.ConfigureManagedTarget(server);
+            harness.ManagedApplications
+                .Setup(provider => provider.GetTargetAsync(ManagedUriA, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<DeviceRegistrarManagedApplicationTarget>(
+                    target with { DiscoveryUrls = ["relative"] }));
+
+            AggregateException? error = await Assert.ThrowsAsync<AggregateException>(async () =>
+                await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false));
+
+            Assert.That(((ServiceResultException)error!.InnerExceptions[0]).StatusCode,
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(harness.RegisteredName(server), Is.Null);
+            Assert.That(harness.ManagedApplicationProofs, Is.Empty);
         }
 
         /// <summary>
@@ -1543,7 +1946,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Certificate bootstrap,
                 Certificate issued,
                 bool scopeCapability = true,
-                bool resolveFromServices = false)
+                bool resolveFromServices = false,
+                bool managedApplicationProviders = true)
             {
                 Bootstrap = ByteString.From(bootstrap.RawData.AsSpan());
                 Issued = ByteString.From(issued.RawData.AsSpan());
@@ -1590,7 +1994,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                         }
                         return proofLease.Object;
                     });
-                var database = new Mock<IApplicationsDatabase>(MockBehavior.Strict);
+                Mock<IApplicationsDatabase> database = Database;
                 database.Setup(value => value.FindApplications(It.IsAny<string>()))
                     .Returns<string>(uri =>
                     {
@@ -1634,6 +2038,15 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                         }
                         return default;
                     });
+                ManagedApplicationChannels
+                    .Setup(provider => provider.VerifyAsync(
+                        It.IsAny<ApplicationDescription>(),
+                        It.IsAny<DeviceRegistrarManagedApplicationTarget>(),
+                        It.IsAny<ByteString>(),
+                        It.IsAny<CancellationToken>()))
+                    .Callback<ApplicationDescription, DeviceRegistrarManagedApplicationTarget, ByteString,
+                        CancellationToken>((_, _, expected, _) => ManagedApplicationProofs.Add(expected))
+                    .Returns(new ValueTask());
                 var policy = new Mock<IDeviceRegistrarOnboardingPolicy>(MockBehavior.Strict);
                 policy.Setup(value => value.EvaluateAsync(
                     It.IsAny<OnboardingIdentitySelection>(), It.IsAny<CancellationToken>()))
@@ -1686,6 +2099,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 var validator = new OnboardingPushIdentityValidator(Identities.Object, Initial.Telemetry);
                 IDeviceRegistrarCertificateLifecycle certificates = scopeCapability ? Lifecycle :
                     new Mock<IDeviceRegistrarCertificateLifecycle>(MockBehavior.Strict).Object;
+                IDeviceRegistrarManagedApplicationProvider? applicationProvider =
+                    managedApplicationProviders ? ManagedApplications.Object : null;
+                IDeviceRegistrarManagedApplicationChannelVerifier? channelVerifier =
+                    managedApplicationProviders ? ManagedApplicationChannels.Object : null;
                 if (resolveFromServices)
                 {
                     var services = new ServiceCollection();
@@ -1700,6 +2117,14 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     services.AddSingleton(issuances);
                     services.AddSingleton<IDeviceRegistrarLifecycle>(Lifecycle);
                     services.AddSingleton(Authorization.Object);
+                    if (applicationProvider != null)
+                    {
+                        services.AddSingleton(applicationProvider);
+                    }
+                    if (channelVerifier != null)
+                    {
+                        services.AddSingleton(channelVerifier);
+                    }
                     services.AddSingleton(Initial.Telemetry);
                     services.AddSingleton<TimeProvider>(CleanupTime);
                     services.AddDeviceRegistrarPush();
@@ -1709,16 +2134,34 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 }
                 else
                 {
-                    Processor = new DeviceRegistrarPushProcessor(connections.Object, Enrollments.Object,
+                    Func<DeviceRegistrarPushProcessor> processorFactory =
+                        () => new DeviceRegistrarPushProcessor(connections.Object, Enrollments.Object,
                         validator, policy.Object, database.Object, Lifecycle, certificates,
-                        issuances, Lifecycle, Authorization.Object, Initial.Telemetry, CleanupTime);
+                        issuances, Lifecycle, Authorization.Object, Initial.Telemetry, CleanupTime,
+                        applicationProvider, channelVerifier);
+                    m_processorFactory = processorFactory;
+                    Processor = processorFactory();
                 }
             }
 
             /// <summary>
             /// Gets the concrete processor under test.
             /// </summary>
-            public DeviceRegistrarPushProcessor Processor { get; }
+            public DeviceRegistrarPushProcessor Processor { get; private set; }
+
+            /// <summary>
+            /// Recreates the processor while retaining the enrollment and issuance stores across the simulated restart.
+            /// </summary>
+            public void RestartProcessor()
+            {
+                if (m_processorFactory == null)
+                {
+                    throw new InvalidOperationException(
+                        "The service-owned processor cannot be restarted by this harness.");
+                }
+                Processor.Dispose();
+                Processor = m_processorFactory();
+            }
 
             /// <summary>
             /// Gets the offered DCA application description.
@@ -1930,6 +2373,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             public Mock<IDeviceRegistrarAuthorization> Authorization { get; } = new(MockBehavior.Strict);
 
             /// <summary>
+            /// Gets the registry database mock used to verify authorization ordering.
+            /// </summary>
+            public Mock<IApplicationsDatabase> Database { get; } = new(MockBehavior.Strict);
+
+            /// <summary>
             /// Gets managed application URIs the authorization policy rejects.
             /// </summary>
             public HashSet<string> DeniedUris { get; } = [];
@@ -1945,6 +2393,19 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             public List<ManagedApplication> Managed { get; } = [];
 
             /// <summary>
+            /// Provides authoritative managed-server endpoint metadata for configured test applications.
+            /// </summary>
+            public Mock<IDeviceRegistrarManagedApplicationProvider> ManagedApplications { get; } =
+                new(MockBehavior.Strict);
+
+            /// <summary>Records the installed certificate identities checked by the channel verifier.</summary>
+            public List<ByteString> ManagedApplicationProofs { get; } = [];
+
+            /// <summary>The mocked stack-backed managed-application channel verifier.</summary>
+            public Mock<IDeviceRegistrarManagedApplicationChannelVerifier> ManagedApplicationChannels { get; } =
+                new(MockBehavior.Strict);
+
+            /// <summary>
             /// Exposes one scripted ApplicationConfiguration and its retained enrollment and issuance.
             /// </summary>
             public ManagedApplication AddManaged(
@@ -1955,6 +2416,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             {
                 var application = new ManagedApplication(name, applicationUri, certificate, type);
                 Managed.Add(application);
+                DeviceRegistrarPushEnrollment? retained = null;
                 Enrollments.Setup(provider => provider.GetOrCreateAsync(
                     It.IsAny<OnboardingIdentitySelection>(), application.Id,
                     It.IsAny<Func<CancellationToken, ValueTask<ByteString>>>(), It.IsAny<CancellationToken>()))
@@ -1962,12 +2424,21 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                         Func<CancellationToken, ValueTask<ByteString>>, CancellationToken>(
                         async (_, _, create, ct) =>
                         {
+                            if (retained != null)
+                            {
+                                return retained;
+                            }
                             ByteString csr = await create(ct).ConfigureAwait(false);
                             Assert.That(csr, Is.EqualTo(application.Csr));
-                            return new DeviceRegistrarPushEnrollment(Identity, application.Id,
+                            retained = new DeviceRegistrarPushEnrollment(Identity, application.Id,
                                 application.RequestId, "DefaultApplicationGroup", "RsaSha256",
                                 application.CreateTrustList(), csr);
+                            return retained;
                         });
+                Enrollments.Setup(provider => provider.FindAsync(
+                    Product, application.Id, It.IsAny<CancellationToken>()))
+                    .Returns(() => new ValueTask<DeviceRegistrarPushEnrollment?>(
+                        MissingRetained ? null : retained));
                 m_issuances.Setup(store => store.GetOrCreateAsync(
                     application.Id, application.RequestId,
                     It.IsAny<Func<CancellationToken, ValueTask<CertificateRequestIssuance>>>(),
@@ -1979,6 +2450,31 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             }
 
             /// <summary>
+            /// Adds the operator-owned URLs, certificate and endpoint authentication for one managed server.
+            /// </summary>
+            public DeviceRegistrarManagedApplicationTarget ConfigureManagedTarget(ManagedApplication application)
+            {
+                string url = $"opc.tcp://{application.Name}:4840";
+                var endpoint = new EndpointDescription
+                {
+                    EndpointUrl = url,
+                    Server = new ApplicationDescription { ApplicationUri = application.ApplicationUri },
+                    SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                    SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+                };
+                var target = new DeviceRegistrarManagedApplicationTarget(
+                    [url],
+                    application.CurrentCertificate,
+                    new ConfiguredEndpoint(null, endpoint, EndpointConfiguration.Create()),
+                    new UserIdentity(),
+                    ["DA"]);
+                ManagedApplications.Setup(provider => provider.GetTargetAsync(
+                    application.ApplicationUri, It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<DeviceRegistrarManagedApplicationTarget>(target));
+                return target;
+            }
+
+            /// <summary>
             /// Gets the registered name submitted for a managed application, or null when it was not registered.
             /// </summary>
             public string? RegisteredName(ManagedApplication application)
@@ -1986,6 +2482,14 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 return m_managedRecords.TryGetValue(application.ApplicationUri, out ApplicationRecordDataType? record)
                     ? record.ApplicationNames[0].Text
                     : null;
+            }
+
+            /// <summary>
+            /// Gets the registered managed-application record.
+            /// </summary>
+            public ApplicationRecordDataType RegisteredRecord(ManagedApplication application)
+            {
+                return m_managedRecords[application.ApplicationUri];
             }
 
             /// <summary>
@@ -2403,6 +2907,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             /// <summary>Optional owning container for fluent-resolution deadline tests.</summary>
             private readonly ServiceProvider? m_services;
 
+            /// <summary>Creates a new processor over the same durable dependency instances.</summary>
+            private readonly Func<DeviceRegistrarPushProcessor>? m_processorFactory;
+
             /// <summary>Shared records registered for managed applications, keyed by ApplicationUri.</summary>
             private readonly Dictionary<string, ApplicationRecordDataType> m_managedRecords = [];
 
@@ -2460,6 +2967,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Id = new NodeId(name + ":application", 1);
                 RequestId = new NodeId(name + ":request", 1);
                 Certificate = ByteString.From(certificate.RawData.AsSpan());
+                CurrentCertificate = Certificate;
                 Csr = ByteString.From(DefaultCertificateFactory.Instance.CreateSigningRequest(certificate).AsSpan());
             }
 
@@ -2596,6 +3104,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             public ByteString Certificate { get; }
 
             /// <summary>
+            /// Gets or sets the certificate currently installed in this application.
+            /// </summary>
+            public ByteString CurrentCertificate { get; set; }
+
+            /// <summary>
             /// Gets the application-generated signing request.
             /// </summary>
             public ByteString Csr { get; }
@@ -2661,7 +3174,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     m_trustBytes = m_trustPending;
                     m_trustApplied = true;
                 }
-                Installed |= m_certificatePending;
+                if (m_certificatePending)
+                {
+                    CurrentCertificate = m_pendingCertificate;
+                    Installed = true;
+                }
                 Discard();
             }
 
@@ -2718,12 +3235,15 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                         Assert.That(group, Is.EqualTo(Group));
                     }
                     var reported = new List<NodeId>();
-                    for (int index = 0; Installed && index < ReportedTypeCount; index++)
+                    bool reportsCertificate = Installed ||
+                        Type is ApplicationType.Server or ApplicationType.ClientAndServer;
+                    for (int index = 0; reportsCertificate && index < ReportedTypeCount; index++)
                     {
                         reported.Add(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType);
                     }
                     ArrayOf<NodeId> types = reported.ToArrayOf();
-                    ArrayOf<ByteString> certificates = Installed ? [Certificate] : ArrayOf<ByteString>.Empty;
+                    ArrayOf<ByteString> certificates = reportsCertificate ? [CurrentCertificate] :
+                        ArrayOf<ByteString>.Empty;
                     return [Variant.From(types), Variant.From(certificates)];
                 }
                 if (method.MethodId == Ua.MethodIds.FileType_Open)
@@ -2775,6 +3295,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                         throw new ServiceResultException(StatusCodes.BadCertificateChainIncomplete);
                     }
                     m_certificatePending = true;
+                    Assert.That(method.InputArguments[2].TryGetValue(out m_pendingCertificate), Is.True);
                     if (OnUpdateCertificate != null)
                     {
                         await OnUpdateCertificate().ConfigureAwait(false);
@@ -2816,6 +3337,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             /// <summary>Whether an accepted certificate still needs ApplyChanges.</summary>
             private bool m_certificatePending;
+
+            /// <summary>The certificate staged for the next ApplyChanges call.</summary>
+            private ByteString m_pendingCertificate;
         }
 
         /// <summary>The first managed application's URI.</summary>

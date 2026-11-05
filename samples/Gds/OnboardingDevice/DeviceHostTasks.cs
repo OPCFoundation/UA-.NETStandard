@@ -116,10 +116,10 @@ namespace OnboardingDevice
         {
             cancellationToken.ThrowIfCancellationRequested();
             Console.WriteLine($"ONBOARDING_DEVICE_READY {m_options.EndpointUrl}");
-            Console.WriteLine($"DEVICE_NAMESPACE {OnboardingDeviceNodeManager.NamespaceUri}");
-            Console.WriteLine("DEVICE_ID Device; REQUEST_TICKETS Device/RequestTickets; " +
-                "REGISTRAR_ENDPOINTS Device/SetRegistrarEndpoints");
-            Console.WriteLine("Temporary Objects placement: normative Resources integration is still gated.");
+            Console.WriteLine($"DEVICE_NAMESPACE {ProvisionableDeviceNodeManagerFactory.NamespaceUri}");
+            Console.WriteLine("DEVICE_ID ProvisionableDevice; REQUEST_TICKETS ProvisionableDevice/RequestTickets; " +
+                "REGISTRAR_ENDPOINTS ProvisionableDevice/SetRegistrarEndpoints");
+            Console.WriteLine("DEVICE_PARENT Resources");
             return default;
         }
 

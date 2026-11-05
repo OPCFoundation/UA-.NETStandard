@@ -39,6 +39,7 @@ using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
+using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Onboarding;
 using Opc.Ua.Identity;
 using Opc.Ua.Security.Certificates;
@@ -214,10 +215,16 @@ namespace OnboardingDevice
                     services.GetRequiredService<ICertificateManager>(),
                     services.GetRequiredService<IProvisionableDeviceSecurityInstaller>(),
                     services.GetRequiredService<ITelemetryContext>())));
-            server.AddProvisionableDeviceRuntime(true, tickets.ToList().Select(static ticket => ticket.Id).ToArrayOf())
-                .AddNodeManagers(static (services, _) =>
-                    [new OnboardingDeviceNodeManagerFactory(
-                        services.GetRequiredService<IProvisionableDeviceRuntime>())]);
+            bool isSingleton = options.ManagedApplicationUris.Count == 0;
+            if (!isSingleton)
+            {
+                server.AddProvisionableDeviceApplications(services =>
+                    new SampleManagedClientApplicationsProvider(
+                        options,
+                        services.GetRequiredService<ITelemetryContext>()));
+            }
+            server.AddProvisionableDeviceRuntime(
+                isSingleton, tickets.ToList().Select(static ticket => ticket.Id).ToArrayOf());
             if (options.PhysicalReset)
             {
                 builder.Services.AddSingleton<IServerPreStartupTask>(static services =>

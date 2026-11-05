@@ -41,10 +41,14 @@
              Link="Onboarding\PullRegistrarPolicy.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <Compile Include="..\..\samples\Gds\OnboardingRegistrar\PushManagedApplicationTargetProvider.cs"
+             Link="Onboarding\PushManagedApplicationTargetProvider.cs" />
     <Compile Include="..\..\samples\Gds\OnboardingRegistrar\PushRegistrarCheckpointFiles.cs"
              Link="Onboarding\PushRegistrarCheckpointFiles.cs" />
     <Compile Include="..\..\samples\Gds\OnboardingRegistrar\PushEnrollmentCheckpointStore.cs"
              Link="Onboarding\PushEnrollmentCheckpointStore.cs" />
+    <Compile Include="..\..\samples\Gds\OnboardingRegistrar\PushRegistrarIssuanceStore.cs"
+             Link="Onboarding\PushRegistrarIssuanceStore.cs" />
     <Compile Include="..\..\samples\Gds\OnboardingDevice\DeviceSecurityCheckpointStore.cs"
              Link="Onboarding\DeviceSecurityCheckpointStore.cs" />
     <Compile Include="..\..\samples\Gds\OnboardingDevice\DeviceSampleOptions.cs"

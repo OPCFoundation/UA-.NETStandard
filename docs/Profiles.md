@@ -28,12 +28,22 @@ The SDK provides full or partial support for these core areas:
   and key credentials, with the [documented GDS gaps](GDS.md#remaining-optional--unsupported-part-12-items).
 - Part 14: [PubSub](PubSub.md), including UADP/JSON, broker and datagram
   transports, with platform-dependent DTLS profile limits.
-- Parts 16-20 and 23: state machines, aliases, roles, dictionary references,
-  file transfer and common reference types.
+- Parts 16-19 and 23: state machines, aliases, roles, dictionary references
+  and common reference types.
+- Part 20: [file transfer](FileSystemClient.md); the shared file handler
+  rejects combined Read + Write opens and can return `Bad_InvalidState` for a
+  conflicting write-only open.
 - Part 21: [ticket validation, registrar runtime and pull/push workflows](GDS.md#opc-10000-21-onboardingclient),
-  with retained device credentials and security reset. Multi-application push
-  configuration, Part 22 Resources placement and complete connected evidence
-  remain incomplete.
+  with retained device credentials, security reset and provider-backed managed
+  Server/ClientAndServer push. The default managed-application verifier supports
+  UA-TCP only. The device host exposes non-singleton application components
+  through `AddProvisionableDeviceApplications`, but that factory path has not
+  been validated. Per-entry remote `ConfigurationFile` update/confirm and
+  heterogeneous managed certificate types remain unimplemented. The device
+  factory adds a Part 22 `Resources` parent reference, but shared Base Network
+  integration and complete connected evidence remain pending. Local
+  `ConfigurationFile` transfer has separate Part 12/20 gaps, detailed in the
+  support matrix.
 - Parts 22, 25 and 26: generated Base Network, Object Serialization and
   LogObject declarations, without complete runtime services for those models.
 
@@ -169,11 +179,13 @@ canonical URI string before claiming a facet):
   `src/Opc.Ua.Server/StateMachines/`. The reference server's
   `BoilerStateMachineState` is an end-to-end sample. See
   [State Machines](StateMachines.md).
-- **File Access** (Part 20) — Server-side `FileSystemNodeManager` +
+- **File Access** (Part 20, partial) — Server-side `FileSystemNodeManager` +
   `IFileSystemProvider` in `src/Opc.Ua.Server/FileSystem/`. The
   reference server enables it via the `EnableFileSystemNodeManager`
   option. The matching System.IO-style client lives in
-  [`FileSystemClient`](FileSystemClient.md).
+  [`FileSystemClient`](FileSystemClient.md). The shared file handler rejects
+  combined Read + Write opens. A conflicting write-only open on a writable file
+  can return `Bad_InvalidState` where Part 20 requires `Bad_NotWritable`.
 - **Node Management** (Part 4 service set) —
   `INodeManagementAsyncNodeManager` opt-in plus a per-NodeManager
   `AllowNodeManagement` gate for `AddNodes` / `DeleteNodes` /
@@ -278,7 +290,7 @@ support gap.
 | [Plastics and rubber common types](PlasticsRubber.md), OPC 40083 | Full | Common controls, monitoring, maintenance, materials, diagnostics and production datasets; independently authored 1.03 interface implementation on the licensed 1.02 basis |
 | [Granulate drying](PlasticsRubber.md#granulate-drying-devices-opc-40082-6), OPC 40082-6 | Full | Device construction, selectable conformance units, provider-backed commands, observations, events and typed clients |
 | [Extrusion](Extrusion.md), OPC 40084-1/-2/-3/-4/-5/-7/-8/-9/-10/-11/-12 | Full | General types and concrete device/line runtimes, jobs, datasets, events and clients; equipment authority remains with explicit providers |
-| [Extrusion Filter](Extrusion.md#filter-profile-discrepancy), OPC 40084-6 | Partial | Filter model/runtime implemented; profile withheld because the published table incorrectly requires the Part 5 Melt Pump profile |
+| [Extrusion Filter](Extrusion.md#filter-profile-discrepancy), OPC 40084-6 | Partial | Filter model/runtime implemented; profile withheld pending clarification of the published requirement for the Part 5 Melt Pump conformance unit |
 
 Implemented draft extensions are separate from the published-specification
 matrix:
@@ -600,8 +612,12 @@ OPC UA Part 12 areas:
   certificate issuance, typed pull/push workflows, and a singleton device host
   with retained factory credentials and security reset. Providers own software
   approval and durable state. Registrar push provisions managed Client
-  applications whose default group supports the registrar's certificate type;
-  managed Server applications, heterogeneous certificate types,
+  applications and supports managed Server/ClientAndServer applications when
+  the host supplies authoritative discovery URLs, installed certificates,
+  endpoints, user identities and explicit client trust. The default managed-
+  application verifier supports UA-TCP only. The sample can be configured for
+  one managed Server or ClientAndServer application after DCA proof.
+  Heterogeneous certificate types, remote
   `ConfigurationFile` updates, standard Resources placement and complete
   connected evidence remain incomplete. See
   [the implemented scope](GDS.md#opc-10000-21-onboardingclient).
@@ -837,7 +853,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 10000-9: Alarms and Conditions](https://reference.opcfoundation.org/specs/OPC-10000-9) | 1.05.06 | Full | - |
 | [OPC 10000-10: Programs](https://reference.opcfoundation.org/specs/OPC-10000-10) | 1.05.00 | Full | - |
 | [OPC 10000-11: Historical Access](https://reference.opcfoundation.org/specs/OPC-10000-11) | 1.05.04 | Full | - |
-| [OPC 10000-12: Discovery and Global Services](https://reference.opcfoundation.org/specs/OPC-10000-12) | 1.05.07 | Partial | GDS remote-application proxy incomplete; AuthorizationServices configuration folder absent |
+| [OPC 10000-12: Discovery and Global Services](https://reference.opcfoundation.org/specs/OPC-10000-12) | 1.05.07 | Partial | `ConfigurationFile` Read + Write opens start empty, so the client cannot read the current content and rewind before writing. `ApplicationConfigurationFile` replaces the existing handle on each successful new `Open` instead of retaining multiple readers or rejecting incompatible opens with the `Bad_NotWritable` / `Bad_NotReadable` statuses required by Part 20 §4.2.2; the GDS remote-application proxy is incomplete; the AuthorizationServices configuration folder is absent |
 | [OPC 10000-13: Aggregates](https://reference.opcfoundation.org/specs/OPC-10000-13) | 1.05.07 | Full | - |
 | [OPC 10000-14: PubSub](https://reference.opcfoundation.org/specs/OPC-10000-14) | 1.05.06 | Partial | Curve25519/Curve448 DTLS profiles unavailable; other DTLS profiles depend on platform probes |
 | [OPC 10000-15: Safety](https://reference.opcfoundation.org/specs/OPC-10000-15) | 1.05.04 | No | - |
@@ -845,8 +861,8 @@ does not establish executable management, serialization or logging methods.
 | [OPC 10000-17: Alias Names](https://reference.opcfoundation.org/specs/OPC-10000-17) | 1.05.07 | Full | - |
 | [OPC 10000-18: Role-Based Security](https://reference.opcfoundation.org/specs/OPC-10000-18) | 1.05.06 | Full | - |
 | [OPC 10000-19: Dictionary Reference](https://reference.opcfoundation.org/specs/OPC-10000-19) | 1.05.03 | Full | - |
-| [OPC 10000-20: File Transfer](https://reference.opcfoundation.org/specs/OPC-10000-20) | 1.05.06 | Full | - |
-| [OPC 10000-21: Device Onboarding](https://reference.opcfoundation.org/specs/OPC-10000-21) | 1.05.04 | Partial | Ticket validation, registrar runtime and pull/push workflows implemented, including push to managed Client applications; managed Server applications, heterogeneous managed certificate types, `ConfigurationFile` updates, Part 22 Resources placement and complete connected evidence remain incomplete |
+| [OPC 10000-20: File Transfer](https://reference.opcfoundation.org/specs/OPC-10000-20) | 1.05.06 | Partial | The shared file handler rejects combined Read + Write opens; a conflicting write-only open on a writable file can return `Bad_InvalidState` instead of `Bad_NotWritable` |
+| [OPC 10000-21: Device Onboarding](https://reference.opcfoundation.org/specs/OPC-10000-21) | 1.05.04 | Partial | Ticket validation, registrar runtime and pull/push workflows implemented, including managed Client and provider-backed Server/ClientAndServer push; the default managed-application verifier supports UA-TCP only; the device host exposes non-singleton application components through `AddProvisionableDeviceApplications`, but that factory path has not been validated. The registrar sample can configure one managed Server/ClientAndServer application; the device sample can configure multiple managed Client applications. Heterogeneous managed certificate types and per-entry remote `ConfigurationFile` update/confirm remain unimplemented. Local `ConfigurationFile` transfer has separate Part 12/20 gaps; source adds a Part 22 `Resources` parent reference, but shared Base Network integration and complete connected evidence remain pending |
 | [OPC 10000-22: Base Network Model](https://reference.opcfoundation.org/specs/OPC-10000-22) | 1.05.04 | Partial | Generated network model types; no complete network-management runtime |
 | [OPC 10000-23: Common ReferenceTypes](https://reference.opcfoundation.org/specs/OPC-10000-23) | 1.05.02 | Full | - |
 | [OPC 10000-24: Scheduler](https://reference.opcfoundation.org/specs/OPC-10000-24) | 1.05.02 | No | - |
@@ -918,7 +934,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 40084-3: Extrusion - Extruder](https://reference.opcfoundation.org/specs/OPC-40084-3) | 2.00 | Full | - |
 | [OPC 40084-4: Extrusion - Haul-off](https://reference.opcfoundation.org/specs/OPC-40084-4) | 2.00 | Full | - |
 | [OPC 40084-5: Extrusion - Melt Pump](https://reference.opcfoundation.org/specs/OPC-40084-5) | 2.00 | Full | - |
-| [OPC 40084-6: Extrusion - Filter](https://reference.opcfoundation.org/specs/OPC-40084-6) | 2.00 | Partial | Filter profile withheld: published table incorrectly requires Part 5 Melt Pump profile |
+| [OPC 40084-6: Extrusion - Filter](https://reference.opcfoundation.org/specs/OPC-40084-6) | 2.00 | Partial | Filter profile withheld pending clarification of the published requirement for the Part 5 Melt Pump conformance unit |
 | [OPC 40084-7: Extrusion - Die](https://reference.opcfoundation.org/specs/OPC-40084-7) | 2.00 | Full | - |
 | [OPC 40084-8: Extrusion - Pelletizer](https://reference.opcfoundation.org/specs/OPC-40084-8) | 2.00 | Full | - |
 | [OPC 40084-9: Extrusion - Cutter](https://reference.opcfoundation.org/specs/OPC-40084-9) | 2.00 | Full | - |

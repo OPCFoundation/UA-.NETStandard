@@ -938,7 +938,7 @@ namespace Opc.Ua.Gds.Client
             }
 
             uint versionToUpdate = await ReadConfigurationFileVersionAsync(session, file, ct).ConfigureAwait(false);
-            byte mode = (byte)((int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting);
+            byte mode = (byte)(OpenFileMode.Read | OpenFileMode.Write);
             uint fileHandle = await file.OpenAsync(mode, ct).ConfigureAwait(false);
             bool closeAndUpdateInvoked = false;
             try

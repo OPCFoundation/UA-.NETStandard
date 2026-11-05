@@ -368,7 +368,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
-        /// Fluent registration supplies an injectable singleton but does not publish an independent Resources tree.
+        /// Fluent registration publishes one device manager whose generated resource is organized by Resources.
         /// </summary>
         [Test]
         public void DeviceRuntimeIsAvailableThroughFluentDependencyInjection()
@@ -378,14 +378,80 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             services.AddSingleton(Mock.Of<IOnboardingTicketValidator>());
             services.AddSingleton(Mock.Of<IProvisionableDeviceRegistrarStore>());
             Opc.Ua.Server.Hosting.IOpcUaServerBuilder builder = services.AddOpcUa().AddServer(_ => { });
-            int factories = services.Count(s => s.ServiceType == typeof(IAsyncNodeManagerFactory));
+            int factories = services.Count(
+                s => s.ServiceType == typeof(ProvisionableDeviceNodeManagerFactory));
             Assert.That(builder.AddProvisionableDeviceRuntime(true, []), Is.SameAs(builder));
             using ServiceProvider provider = services.BuildServiceProvider();
             IProvisionableDeviceRuntime runtime = provider.GetRequiredService<IProvisionableDeviceRuntime>();
             Assert.That(runtime, Is.TypeOf<ProvisionableDeviceRuntime>());
             Assert.That(runtime.IsSingleton, Is.True);
             Assert.That(provider.GetRequiredService<IProvisionableDeviceRuntime>(), Is.SameAs(runtime));
-            Assert.That(services.Count(s => s.ServiceType == typeof(IAsyncNodeManagerFactory)), Is.EqualTo(factories));
+            Assert.That(services.Count(
+                s => s.ServiceType == typeof(ProvisionableDeviceNodeManagerFactory)), Is.EqualTo(factories + 1));
+
+            var context = Context();
+            ProvisionableDeviceState device =
+                ProvisionableDeviceNodeManagerFactory.CreateProvisionableDevice(context, runtime);
+            Assert.That(device.BrowseName, Is.EqualTo(new QualifiedName("ProvisionableDevice", 0)));
+            ushort namespaceIndex = context.NamespaceUris.GetIndex(ProvisionableDeviceNodeManagerFactory.NamespaceUri);
+            Assert.That(device.NodeId, Is.EqualTo(new NodeId("ProvisionableDevice", namespaceIndex)));
+            Assert.That(device.IsSingleton!.Value, Is.True);
+            var references = new List<IReference>();
+            device.GetReferences(context, references);
+            Assert.That(references.Any(reference =>
+                reference.ReferenceTypeId == ReferenceTypeIds.Organizes &&
+                reference.IsInverse &&
+                reference.TargetId == ObjectIds.Resources), Is.True);
+        }
+
+        /// <summary>
+        /// The application-provider service collection extension resolves its selected provider as a singleton.
+        /// </summary>
+        [Test]
+        public void ProvisionableDeviceApplicationsProviderIsRegisteredOnceAsSingleton()
+        {
+            var services = new ServiceCollection();
+            var expected = new Mock<IProvisionableDeviceApplicationsProvider>(MockBehavior.Strict).Object;
+            int factoryCalls = 0;
+
+            IServiceCollection registered = services.AddProvisionableDeviceApplications(_ =>
+            {
+                factoryCalls++;
+                return expected;
+            });
+
+            Assert.That(registered, Is.SameAs(services));
+            using ServiceProvider provider = services.BuildServiceProvider();
+            Assert.That(provider.GetRequiredService<IProvisionableDeviceApplicationsProvider>(),
+                Is.SameAs(expected));
+            Assert.That(provider.GetRequiredService<IProvisionableDeviceApplicationsProvider>(),
+                Is.SameAs(expected));
+            Assert.That(factoryCalls, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Fluent and service-collection registration share one provider-selection rule without partial mutation.
+        /// </summary>
+        [Test]
+        public void FluentProvisionableDeviceApplicationsRejectsDuplicateProviderSelection()
+        {
+            var services = new ServiceCollection();
+            Opc.Ua.Server.Hosting.IOpcUaServerBuilder builder =
+                services.AddOpcUa().AddServer(_ => { });
+            var expected = new Mock<IProvisionableDeviceApplicationsProvider>(MockBehavior.Strict).Object;
+
+            Assert.That(builder.AddProvisionableDeviceApplications(_ => expected), Is.SameAs(builder));
+            ServiceDescriptor[] beforeDuplicate = [.. services];
+
+            Assert.Throws<InvalidOperationException>(() =>
+                builder.AddProvisionableDeviceApplications(_ => expected));
+            Assert.Throws<InvalidOperationException>(() =>
+                services.AddProvisionableDeviceApplications(_ => expected));
+
+            Assert.That(services, Is.EqualTo(beforeDuplicate));
+            using ServiceProvider provider = services.BuildServiceProvider();
+            Assert.That(provider.GetRequiredService<IProvisionableDeviceApplicationsProvider>(),
+                Is.SameAs(expected));
         }
 
         /// <summary>

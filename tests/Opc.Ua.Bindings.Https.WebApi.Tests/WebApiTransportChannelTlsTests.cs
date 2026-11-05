@@ -44,6 +44,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
+using Opc.Ua.Bindings;
 using Opc.Ua.Client.WebApi;
 using Opc.Ua.Security.Certificates;
 
@@ -71,6 +72,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         private Uri m_baseUri = null!;
         private ServiceMessageContext? m_messageContext;
         private X509Certificate2? m_serverCert;
+        private int m_requestCount;
 
         [SetUp]
         public async Task SetUpAsync()
@@ -93,6 +95,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                         .ConfigureServices(_ => { });
                     webHost.Configure(app => app.Run(ctx =>
                         {
+                            Interlocked.Increment(ref m_requestCount);
                             // The TLS regression tests assert at the
                             // channel-open stage; we never need to
                             // dispatch a real OPC UA request here.
@@ -221,6 +224,89 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             }
         }
 
+        /// <summary>
+        /// HTTPS records the TLS certificate independently from the selected application certificate.
+        /// </summary>
+        [Test]
+        public async Task HttpsChannelCapturesTlsCertificateForSignEndpointAsync()
+        {
+            Interlocked.Exchange(ref m_requestCount, 0);
+            using var channel = new HttpsTransportChannel(Utils.UriSchemeHttps, new TelemetryStub());
+            TransportChannelSettings settings = CreateHttpsEndpointSettings(
+                m_serverCert!.RawData, MessageSecurityMode.Sign);
+
+            await channel.OpenAsync(m_baseUri, settings, CancellationToken.None).ConfigureAwait(false);
+            try
+            {
+                await Assert.CatchAsync(async () => await channel.SendRequestAsync(
+                    new ReadRequest { RequestHeader = new RequestHeader() },
+                    CancellationToken.None).ConfigureAwait(false));
+            }
+            finally
+            {
+                await channel.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+
+            Assert.That(m_requestCount, Is.EqualTo(1));
+            Assert.That(channel.ServerChannelCertificate, Is.EqualTo(m_serverCert!.RawData));
+        }
+
+        /// <summary>
+        /// A secure HTTPS endpoint may use a TLS certificate distinct from its OPC UA application certificate.
+        /// </summary>
+        [Test]
+        public async Task HttpsChannelAllowsSeparateTlsAndApplicationCertificatesAsync()
+        {
+            Interlocked.Exchange(ref m_requestCount, 0);
+            using X509Certificate2 otherCertificate = CreateSelfSignedTlsCertificate("127.0.0.1");
+            using var channel = new HttpsTransportChannel(Utils.UriSchemeHttps, new TelemetryStub());
+            TransportChannelSettings settings = CreateHttpsEndpointSettings(
+                otherCertificate.RawData, MessageSecurityMode.Sign);
+
+            await channel.OpenAsync(m_baseUri, settings, CancellationToken.None).ConfigureAwait(false);
+            try
+            {
+                await Assert.CatchAsync(async () => await channel.SendRequestAsync(
+                    new ReadRequest { RequestHeader = new RequestHeader() },
+                    CancellationToken.None).ConfigureAwait(false));
+            }
+            finally
+            {
+                await channel.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+
+            Assert.That(m_requestCount, Is.EqualTo(1));
+            Assert.That(channel.ServerChannelCertificate, Is.EqualTo(m_serverCert!.RawData));
+        }
+
+        /// <summary>
+        /// SecurityPolicy None does not apply endpoint-certificate pinning.
+        /// </summary>
+        [Test]
+        public async Task HttpsChannelPreservesSecurityNoneWithDifferentEndpointCertificateAsync()
+        {
+            Interlocked.Exchange(ref m_requestCount, 0);
+            using X509Certificate2 otherCertificate = CreateSelfSignedTlsCertificate("127.0.0.1");
+            using var channel = new HttpsTransportChannel(Utils.UriSchemeHttps, new TelemetryStub());
+            TransportChannelSettings settings = CreateHttpsEndpointSettings(
+                otherCertificate.RawData, MessageSecurityMode.None);
+
+            await channel.OpenAsync(m_baseUri, settings, CancellationToken.None).ConfigureAwait(false);
+            try
+            {
+                await Assert.CatchAsync(async () => await channel.SendRequestAsync(
+                    new ReadRequest { RequestHeader = new RequestHeader() },
+                    CancellationToken.None).ConfigureAwait(false));
+            }
+            finally
+            {
+                await channel.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+
+            Assert.That(m_requestCount, Is.EqualTo(1));
+            Assert.That(channel.ServerChannelCertificate, Is.EqualTo(m_serverCert!.RawData));
+        }
+
         private TransportChannelSettings CreateSettings(ICertificateValidatorEx? certificateValidator)
         {
             return new TransportChannelSettings
@@ -235,6 +321,29 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 Factory = m_messageContext!.Factory,
                 NamespaceUris = new NamespaceTable(),
                 CertificateValidator = certificateValidator
+            };
+        }
+
+        private TransportChannelSettings CreateHttpsEndpointSettings(
+            byte[] expectedCertificate,
+            MessageSecurityMode securityMode)
+        {
+            bool secure = securityMode != MessageSecurityMode.None;
+            return new TransportChannelSettings
+            {
+                Description = new EndpointDescription
+                {
+                    EndpointUrl = m_baseUri.AbsoluteUri,
+                    SecurityMode = securityMode,
+                    SecurityPolicyUri = secure ? SecurityPolicies.Basic256Sha256 : SecurityPolicies.None,
+                    TransportProfileUri = Profiles.HttpsBinaryTransport,
+                    ServerCertificate = ByteString.From(expectedCertificate)
+                },
+                Configuration = EndpointConfiguration.Create(),
+                ServerCertificate = Certificate.FromRawData(expectedCertificate),
+                Factory = m_messageContext!.Factory,
+                NamespaceUris = new NamespaceTable(),
+                CertificateValidator = new PermissiveCertificateValidator()
             };
         }
 

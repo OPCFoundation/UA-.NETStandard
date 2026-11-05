@@ -173,7 +173,9 @@ device-identity validation, requests a CSR from that device, and obtains its
 certificate through the GDS request queue and CA. It applies the device TrustList
 before transferring the certificate over a new connection pinned to the same
 configuring peer. A third connection must prove the installed certificate before
-the registrar promotes the lifecycle binding.
+the registrar promotes the lifecycle binding. The sample can also provision one
+explicitly configured managed Server or ClientAndServer application after DCA
+proof; it does not accept other managed applications.
 
 Use an absolute, operator-controlled `--pkiRoot`. Prepare the registrar's channel,
 ticket-authority and device-identity trust as for pull mode. The registrar's client
@@ -205,12 +207,64 @@ dotnet run --project samples/Gds/OnboardingRegistrar -f net10.0 -- `
   --autoApprove true
 ```
 
-Replace the placeholders with addresses from the device's actual model. Addresses
-outside namespace zero must use `nsu=` namespace URIs, not transient namespace
-indexes. The sample selects `SignAndEncrypt` with `Basic256Sha256` and the standard
-RSA SHA256 application certificate type. Pull and push registrar modes cannot
-run together in one sample process. `--autoApprove true` has the same
-demonstration-only meaning as in pull mode.
+To authorize one managed application, replace the final
+`--autoApprove true` line in the push registrar command with:
+
+```powershell
+  --autoApprove true `
+  --managedApplicationUri "<managed application URI>" `
+  --managedApplicationEndpoint "<actual encrypted opc.tcp endpoint URL>" `
+  --managedApplicationSecurityPolicyUri "<endpoint security policy URI>" `
+  --managedApplicationServerCapabilities "<comma-separated capability identifiers>" `
+  --managedApplicationCertificatePath "D:\temp\managed-server.der"
+```
+
+This sample uses the endpoint URL as the discovery URL recorded in the GDS
+application entry. The provider contract also accepts distinct discovery and
+connection URLs; a custom provider can supply them separately. Discovery must
+return the selected connection endpoint with the configured application
+URI, `SignAndEncrypt` and security policy. The policy must be
+`Basic256Sha256`, `Aes128_Sha256_RsaOaep` or `Aes256_Sha256_RsaPss`; SHA-1
+policies are rejected. The certificate file must contain the
+currently installed public X.509 certificate in DER form and must not contain a
+private key. Set `ONBOARDING_MANAGED_APPLICATION_USER` and
+`ONBOARDING_MANAGED_APPLICATION_PASSWORD` for the host-selected application
+identity. Startup imports the managed password into a dedicated
+`InMemorySecretStore`; `UserNamePasswordIdentityProvider` resolves it for each
+attempt. The credential registry is separate from the public enrollment and
+issuance checkpoints and does not write passwords to them.
+The sample allowlists only that URI for the configured product
+instance.
+
+`--managedApplicationServerCapabilities` is required with managed application
+configuration. Supply the capability identifiers selected by the application
+owner, such as `DA` only when that application supports Data Access. Empty or
+blank identifiers reject configuration. Discovery does not supply this value;
+if capabilities are unknown, the owner must explicitly select the standard
+unknown-capability identifier rather than relying on a sample default.
+
+Before starting the registrar, place the currently installed managed-server
+certificate or its issuer and the GDS issuance CA in the registrar client's
+trusted peer store under `--pkiRoot`. The sample disables automatic certificate
+acceptance. On the initial attempt, the configured certificate must match the
+actual secure-channel peer and the application's `GetCertificates` result.
+After the push, a fresh channel must present the issued certificate. The
+certificate file is the initial operator pin and does not need to be updated
+after rotation. If the application reports a different certificate on retry,
+the registrar accepts it only when it exactly matches the retained issuance
+receipt for this device and application, then proves it on a fresh secure
+channel. It does not use discovery to select the replacement pin or create
+another issuance. Any other certificate state is rejected before the processor
+changes the application. The registrar client's trust store must still trust
+the actual issued certificate or its issuer. Discovery results do not establish
+trust.
+
+Replace the device NodeId placeholders with addresses from its actual model.
+Addresses outside namespace zero must use `nsu=` namespace URIs, not transient
+namespace indexes. The sample selects `SignAndEncrypt` with `Basic256Sha256` and
+the standard RSA SHA256 application certificate type. Pull and push registrar
+modes cannot run together in one sample process. `--autoApprove true` has the
+same demonstration-only meaning as in pull mode.
 
 Startup queues one attempt and prints `ONBOARDING_PUSH_QUEUED`; this marker does
 not indicate successful provisioning. Re-registration or restart can enqueue
@@ -238,7 +292,7 @@ result. The registrar does not execute firmware updates. Use the separate
 device host below to expose standard push and reset operations; the
 administration script does not exercise that host.
 
-## Host the connected singleton device
+## Host the connected device
 
 `OnboardingDevice` hosts the generated `ProvisionableDevice` methods and the
 standard `ServerConfiguration` certificate, TrustList and reset methods. It
@@ -246,11 +300,20 @@ uses the concrete certificate-store installer and the same device security
 state machine for registrar ownership, installation completion and recovery.
 The host is a net10.0 executable configured for Native AOT publication.
 
-This sample currently places its device object directly under `Objects`.
-Normative placement under Part 22 `Resources` remains blocked on the shared
-Base Network implementation; the sample neither creates replacement Resources
-infrastructure nor demonstrates full profile conformance. It exposes one
-singleton DCA/operational server, not a multiapplication device.
+The factory adds a Part 22 `Resources` parent reference to the device object.
+Shared Base Network integration and connected validation remain pending; this
+source state does not establish full profile conformance. The sample exposes
+one singleton DCA/operational server by default. Set
+`--managedApplicationUris` to a semicolon-separated list of one to 32 distinct
+absolute application URIs to publish separate client application components
+under a non-singleton device. Each client has its own certificate manager and
+private and trust stores beneath `managed-applications` in the selected PKI
+root. The sample does not start those clients or maintain their outbound
+sessions; their push callbacks therefore have no active channels to retire or
+revalidate. This mode publishes and manages multiple application configurations.
+Supply the same URI list on restart to publish the same components. Their
+certificate and trust stores remain under the URI-specific directories. The
+sample does not exercise recovery of live client sessions.
 
 Prepare an absolute, operator-controlled PKI root before startup. Install the
 factory RSA application certificate and its private key in `own`, and supply
@@ -286,6 +349,10 @@ dotnet run --project samples/Gds/OnboardingDevice -f net10.0 -- `
   --ticketFiles "D:\temp\device-ticket.json"
 ```
 
+To publish two managed client applications, add
+`--managedApplicationUris "urn:example:application:client-1;urn:example:application:client-2"`
+to the command.
+
 `--ticketFiles` accepts up to 32 semicolon-separated absolute paths. Each
 input must be an unchanged signed UTF-8 envelope, at most 1 MiB. Duplicate
 envelopes are rejected. Keep the original DER and signed inputs available on
@@ -294,14 +361,15 @@ Protect all input and state paths against modification by other applications.
 
 `ONBOARDING_DEVICE_READY` is printed only after startup recovery and model
 publication. The namespace URI is
-`urn:opcfoundation.org:UA:Samples:OnboardingDevice`; use
-`nsu=urn:opcfoundation.org:UA:Samples:OnboardingDevice;s=Device` and the
-corresponding `Device/IsSingleton` address for the registrar's device selectors.
-Browse the standard `ServerConfiguration` application certificate group and
-TrustList for the other push selectors. `Device/RequestTickets` returns the
-validated signed envelopes, and `Device/SetRegistrarEndpoints` persists
-authorized candidate changes. Candidate persistence does not start outbound
-pull orchestration unless the operator also selects a pull registrar on startup.
+`urn:opcfoundation.org:UA:Onboarding:Instances`; use
+`nsu=urn:opcfoundation.org:UA:Onboarding:Instances;s=ProvisionableDevice`
+and its `ProvisionableDevice/IsSingleton` child for the registrar's device
+selectors. Browse the standard `ServerConfiguration` application certificate
+group and TrustList for the other push selectors.
+`ProvisionableDevice/RequestTickets` returns the validated signed envelopes,
+and `ProvisionableDevice/SetRegistrarEndpoints` persists authorized candidate
+changes. Candidate persistence does not start outbound pull orchestration
+unless the operator also selects a pull registrar on startup.
 
 To initiate pull from this device host, first run without pull options and use
 the authorized `Device/SetRegistrarEndpoints` method to persist the registrar's

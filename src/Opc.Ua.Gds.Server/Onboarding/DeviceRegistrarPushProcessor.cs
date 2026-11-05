@@ -43,14 +43,16 @@ namespace Opc.Ua.Gds.Server.Onboarding
 {
     /// <summary>
     /// Pushes an approved DCA credential using generated clients and retained, request-correlated GDS issuance.
-    /// After the DCA credential is confirmed on a non-singleton device, the processor pushes a credential and
-    /// trust list to each Client-type managed application; every application is authorized and approved on its
-    /// own. This processor never installs software or grants a singleton authority over managed applications.
+    /// After the DCA credential is confirmed on a non-singleton device, the processor pushes credentials and trust
+    /// lists to authorized managed applications. Server applications require host-supplied endpoint metadata and
+    /// proof of their installed certificate on a separate secure channel. This processor never installs software
+    /// or grants a singleton authority over managed applications.
     /// </summary>
     public sealed class DeviceRegistrarPushProcessor : IDeviceRegistrarPushProcessor, IDisposable
     {
         /// <summary>
-        /// Borrows host-selected connection, enrollment, policy, and shared registrar persistence providers.
+        /// Borrows host-selected connection, enrollment, managed application, policy, and registrar providers.
+        /// Managed application providers are required when the device exposes Server or ClientAndServer entries.
         /// No provider is replaced with process-local storage or automatic trust.
         /// </summary>
         public DeviceRegistrarPushProcessor(
@@ -64,9 +66,12 @@ namespace Opc.Ua.Gds.Server.Onboarding
             ICertificateRequestIssuanceStore issuances,
             IDeviceRegistrarLifecycle lifecycle,
             IDeviceRegistrarAuthorization authorization,
-            ITelemetryContext telemetry)
+            ITelemetryContext telemetry,
+            IDeviceRegistrarManagedApplicationProvider? managedApplications = null,
+            IDeviceRegistrarManagedApplicationChannelVerifier? managedApplicationChannels = null)
             : this(connections, enrollments, identities, policy, applications, candidates, certificates,
-                issuances, lifecycle, authorization, telemetry, TimeProvider.System)
+                issuances, lifecycle, authorization, telemetry, TimeProvider.System, managedApplications,
+                managedApplicationChannels)
         {
         }
 
@@ -86,7 +91,9 @@ namespace Opc.Ua.Gds.Server.Onboarding
             IDeviceRegistrarLifecycle lifecycle,
             IDeviceRegistrarAuthorization authorization,
             ITelemetryContext telemetry,
-            TimeProvider timeProvider)
+            TimeProvider timeProvider,
+            IDeviceRegistrarManagedApplicationProvider? managedApplications = null,
+            IDeviceRegistrarManagedApplicationChannelVerifier? managedApplicationChannels = null)
         {
             m_connections = connections ?? throw new ArgumentNullException(nameof(connections));
             m_enrollments = enrollments ?? throw new ArgumentNullException(nameof(enrollments));
@@ -100,6 +107,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
             m_authorization = authorization ?? throw new ArgumentNullException(nameof(authorization));
             m_telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
             m_timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+            m_managedApplications = managedApplications;
+            m_managedApplicationChannels = managedApplicationChannels;
         }
 
         /// <inheritdoc/>
@@ -466,8 +475,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
         }
 
         /// <summary>
-        /// Registers, authorizes and approves one managed Client application, then installs its retained
-        /// GDS issuance through the application's own ApplicationConfiguration methods and TrustList.
+        /// Registers, authorizes and approves one managed application, then installs its retained GDS issuance
+        /// through the application's own ApplicationConfiguration methods and TrustList.
         /// The certificate and the TrustList are each replaced only when the application does not already
         /// report the retained value, and each replacement is read back before the push succeeds.
         /// </summary>
@@ -489,28 +498,118 @@ namespace Opc.Ua.Gds.Server.Onboarding
             {
                 return;
             }
-            if (record.ApplicationType != ApplicationType.Client)
+            bool isManagedServer =
+                record.ApplicationType is ApplicationType.Server or ApplicationType.ClientAndServer;
+            DeviceRegistrarManagedApplicationTarget managedTarget = null!;
+            ApplicationDescription? managedDescription = null;
+            ByteString managedInstalledCertificate = ByteString.Empty;
+            NodeId managedGroup = NodeId.Null;
+            NodeId managedTrustListId = NodeId.Null;
+            ServerConfigurationTypeClient? managedConfiguration = null;
+            Func<CancellationToken, ValueTask>? prepareAuthorizationRecord = null;
+            Func<CancellationToken, ValueTask>? beforeRegistration = null;
+            if (isManagedServer)
             {
-                // Part 21 exposes no DiscoveryUrls for a managed server, which a GDS server record requires.
-                throw new ServiceResultException(
-                    StatusCodes.BadNotSupported, "Registrar push provisions only Client managed applications.");
+                IDeviceRegistrarManagedApplicationProvider managedApplications = m_managedApplications ??
+                    throw new ServiceResultException(
+                        StatusCodes.BadNotSupported,
+                        "Managed Server provisioning requires an endpoint provider and secure-channel verifier.");
+                IDeviceRegistrarManagedApplicationChannelVerifier managedApplicationChannels =
+                    m_managedApplicationChannels ??
+                    throw new ServiceResultException(
+                        StatusCodes.BadNotSupported,
+                        "Managed Server provisioning requires an endpoint provider and secure-channel verifier.");
+                string applicationUri = record.ApplicationUri ??
+                    throw new ServiceResultException(StatusCodes.BadInvalidArgument);
+                prepareAuthorizationRecord = async metadataToken =>
+                {
+                    DeviceRegistrarManagedApplicationTarget target =
+                        await managedApplications.GetTargetAsync(applicationUri, metadataToken)
+                            .ConfigureAwait(false);
+                    managedTarget = SnapshotManagedApplicationTarget(target);
+                    record.DiscoveryUrls = managedTarget.DiscoveryUrls;
+                    record.ServerCapabilities = managedTarget.ServerCapabilities;
+                };
+                beforeRegistration = async verificationToken =>
+                {
+                    ApplicationDescription description =
+                        CreateManagedApplicationDescription(record, managedTarget);
+                    managedDescription = description;
+                    NodeId groups = await RequireChildAsync(
+                        session, node, BrowseNames.CertificateGroups, verificationToken).ConfigureAwait(false);
+                    managedGroup = await RequireChildAsync(
+                        session, groups, Ua.BrowseNames.DefaultApplicationGroup, verificationToken)
+                        .ConfigureAwait(false);
+                    managedTrustListId = await RequireChildAsync(
+                        session, managedGroup, Ua.BrowseNames.TrustList, verificationToken).ConfigureAwait(false);
+                    await RequireSupportedCertificateTypeAsync(
+                        session, managedGroup, connection.CertificateTypeId, verificationToken).ConfigureAwait(false);
+                    managedConfiguration = new ServerConfigurationTypeClient(session, node, m_telemetry);
+                    managedInstalledCertificate = await ReadInstalledCertificateAsync(
+                        managedConfiguration, managedGroup, connection.CertificateTypeId, verificationToken)
+                        .ConfigureAwait(false);
+                    ByteString expectedCertificate = await ResolveManagedApplicationProofCertificateAsync(
+                        identity,
+                        record,
+                        managedTarget,
+                        managedInstalledCertificate,
+                        connection.CertificateTypeId,
+                        verificationToken).ConfigureAwait(false);
+                    await managedApplicationChannels.VerifyAsync(
+                        description,
+                        managedTarget,
+                        expectedCertificate,
+                        verificationToken).ConfigureAwait(false);
+                    RequirePeer(dispatch, peer);
+                };
+            }
+            else if (record.ApplicationType != ApplicationType.Client)
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported);
             }
             RequirePeer(dispatch, peer);
             NodeId applicationId = await DeviceRegistrarRuntime.RegisterDeviceApplicationAsync(
-                m_applications, m_lifecycle, m_authorization, identity.ProductInstanceUri, record, string.Empty, ct)
-                .ConfigureAwait(false);
+                m_applications,
+                m_lifecycle,
+                m_authorization,
+                identity.ProductInstanceUri,
+                record,
+                string.Empty,
+                ct,
+                prepareAuthorizationRecord: prepareAuthorizationRecord,
+                beforeRegistration: beforeRegistration).ConfigureAwait(false);
             await RequireManagedApprovalAsync(identity, dcaApplicationId, applicationId, ct).ConfigureAwait(false);
             RequirePeer(dispatch, peer);
 
-            NodeId groups = await RequireChildAsync(session, node, BrowseNames.CertificateGroups, ct)
-                .ConfigureAwait(false);
-            NodeId group = await RequireChildAsync(session, groups, Ua.BrowseNames.DefaultApplicationGroup, ct)
-                .ConfigureAwait(false);
-            NodeId trustListId = await RequireChildAsync(session, group, Ua.BrowseNames.TrustList, ct)
-                .ConfigureAwait(false);
-            await RequireSupportedCertificateTypeAsync(session, group, connection.CertificateTypeId, ct)
-                .ConfigureAwait(false);
-            var configuration = new ServerConfigurationTypeClient(session, node, m_telemetry);
+            NodeId group;
+            NodeId trustListId;
+            ServerConfigurationTypeClient configuration;
+            if (isManagedServer)
+            {
+                group = managedGroup;
+                trustListId = managedTrustListId;
+                configuration = managedConfiguration!;
+            }
+            else
+            {
+                NodeId groups = await RequireChildAsync(session, node, BrowseNames.CertificateGroups, ct)
+                    .ConfigureAwait(false);
+                group = await RequireChildAsync(session, groups, Ua.BrowseNames.DefaultApplicationGroup, ct)
+                    .ConfigureAwait(false);
+                trustListId = await RequireChildAsync(session, group, Ua.BrowseNames.TrustList, ct)
+                    .ConfigureAwait(false);
+                await RequireSupportedCertificateTypeAsync(session, group, connection.CertificateTypeId, ct)
+                    .ConfigureAwait(false);
+                configuration = new ServerConfigurationTypeClient(session, node, m_telemetry);
+            }
+            if (isManagedServer &&
+                !await HoldsCertificateAsync(
+                    configuration, group, connection.CertificateTypeId, managedInstalledCertificate, ct)
+                    .ConfigureAwait(false))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadCertificateInvalid, "The managed application's certificate changed after proof.");
+            }
             ByteString createdSigningRequest = ByteString.Empty;
             int signingRequestCreated = 0;
             DeviceRegistrarPushEnrollment retained = await m_enrollments.GetOrCreateAsync(identity, applicationId,
@@ -605,6 +704,88 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 throw new ServiceResultException(
                     StatusCodes.BadInvalidState, "The managed application did not report the pushed TrustList.");
             }
+            if (isManagedServer)
+            {
+                ApplicationDescription application = managedDescription ??
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidState,
+                        "The managed application was not resolved before certificate issuance.");
+                await m_managedApplicationChannels!.VerifyAsync(
+                    application, managedTarget, issuance.Certificate, ct).ConfigureAwait(false);
+                RequirePeer(dispatch, peer);
+            }
+        }
+
+        /// <summary>
+        /// Combines the application's standard metadata with host-authoritative endpoint URLs and validates the
+        /// selected endpoint before it can be registered or used for certificate proof.
+        /// </summary>
+        private static ApplicationDescription CreateManagedApplicationDescription(
+            ApplicationRecordDataType record,
+            DeviceRegistrarManagedApplicationTarget target)
+        {
+            if (!Uri.TryCreate(record.ApplicationUri, UriKind.Absolute, out _) ||
+                target.InstalledCertificate.IsEmpty ||
+                target.ServerCapabilities.IsEmpty ||
+                target.DiscoveryUrls.IsEmpty ||
+                target.Endpoint == null ||
+                target.UserIdentity == null)
+            {
+                throw new ServiceResultException(StatusCodes.BadConfigurationError);
+            }
+            for (int index = 0; index < target.ServerCapabilities.Count; index++)
+            {
+                if (string.IsNullOrWhiteSpace(target.ServerCapabilities[index]))
+                {
+                    throw new ServiceResultException(StatusCodes.BadConfigurationError);
+                }
+            }
+            if (!Uri.TryCreate(target.Endpoint.Description.EndpointUrl, UriKind.Absolute, out _))
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument);
+            }
+            for (int index = 0; index < target.DiscoveryUrls.Count; index++)
+            {
+                string url = target.DiscoveryUrls[index];
+                if (!Uri.TryCreate(url, UriKind.Absolute, out _))
+                {
+                    throw new ServiceResultException(StatusCodes.BadInvalidArgument);
+                }
+            }
+            return new ApplicationDescription
+            {
+                ApplicationUri = record.ApplicationUri,
+                ApplicationName = record.ApplicationNames.Count > 0
+                    ? record.ApplicationNames[0]
+                    : new LocalizedText(record.ApplicationUri!),
+                ApplicationType = record.ApplicationType,
+                ProductUri = record.ProductUri,
+                DiscoveryUrls = target.DiscoveryUrls
+            };
+        }
+
+        /// <summary>
+        /// Copies provider-owned endpoint metadata before it crosses into the shared application database or
+        /// asynchronous channel verification.
+        /// </summary>
+        private static DeviceRegistrarManagedApplicationTarget SnapshotManagedApplicationTarget(
+            DeviceRegistrarManagedApplicationTarget target)
+        {
+            if (target.DiscoveryUrls.IsNull || target.DiscoveryUrls.IsEmpty ||
+                target.InstalledCertificate.IsEmpty ||
+                target.Endpoint == null ||
+                target.UserIdentity == null)
+            {
+                throw new ServiceResultException(StatusCodes.BadConfigurationError);
+            }
+            return target with
+            {
+                DiscoveryUrls = target.DiscoveryUrls.ToArray().ToArrayOf(),
+                ServerCapabilities = target.ServerCapabilities.Span.ToArray().ToArrayOf(),
+                InstalledCertificate = ByteString.From(target.InstalledCertificate.Span),
+                Endpoint = SessionDeviceRegistrarManagedApplicationChannelVerifier.SnapshotEndpoint(target.Endpoint),
+                UserIdentity = target.UserIdentity
+            };
         }
 
         /// <summary>
@@ -775,6 +956,102 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
             }
             return child;
+        }
+
+        /// <summary>
+        /// Reads the current managed certificate and permits a rotated certificate only when the exact
+        /// certificate is backed by this device's retained GDS issuance.
+        /// </summary>
+        private async ValueTask<ByteString> ResolveManagedApplicationProofCertificateAsync(
+            OnboardingIdentitySelection identity,
+            ApplicationRecordDataType record,
+            DeviceRegistrarManagedApplicationTarget target,
+            ByteString currentCertificate,
+            NodeId certificateType,
+            CancellationToken ct)
+        {
+            if (currentCertificate.IsEmpty)
+            {
+                throw new ServiceResultException(StatusCodes.BadCertificateInvalid);
+            }
+            if (currentCertificate == target.InstalledCertificate)
+            {
+                return currentCertificate;
+            }
+
+            ApplicationRecordDataType[]? registered = m_applications.FindApplications(record.ApplicationUri!);
+            if (registered is not { Length: 1 } ||
+                !string.Equals(
+                    registered[0].ApplicationUri, record.ApplicationUri, StringComparison.Ordinal) ||
+                (!record.ApplicationId.IsNull && record.ApplicationId != registered[0].ApplicationId))
+            {
+                throw new ServiceResultException(StatusCodes.BadCertificateInvalid);
+            }
+            NodeId applicationId = registered[0].ApplicationId;
+            DeviceRegistrarApplicationBinding? binding =
+                await m_certificates.FindApplicationAsync(applicationId, ct).ConfigureAwait(false);
+            if (binding == null || binding.IsDca ||
+                !string.Equals(binding.ProductInstanceUri, identity.ProductInstanceUri, StringComparison.Ordinal))
+            {
+                throw new ServiceResultException(StatusCodes.BadCertificateInvalid);
+            }
+
+            DeviceRegistrarPushEnrollment? retained = await m_enrollments.FindAsync(
+                identity.ProductInstanceUri, applicationId, ct).ConfigureAwait(false);
+            if (retained == null)
+            {
+                throw new ServiceResultException(StatusCodes.BadCertificateInvalid);
+            }
+            ValidateEnrollment(retained, identity, applicationId);
+            CertificateRequestIssuance issuance = await ReadIssuanceAsync(retained, ct).ConfigureAwait(false);
+            RequireSigningResult(retained, issuance, record.ApplicationUri!, certificateType);
+            if (currentCertificate != issuance.Certificate)
+            {
+                throw new ServiceResultException(StatusCodes.BadCertificateInvalid);
+            }
+
+            return issuance.Certificate;
+        }
+
+        /// <summary>
+        /// Reads the single configured leaf certificate for a certificate type from the managed application.
+        /// </summary>
+        private static async ValueTask<ByteString> ReadInstalledCertificateAsync(
+            ServerConfigurationTypeClient configuration,
+            NodeId group,
+            NodeId certificateType,
+            CancellationToken ct)
+        {
+            var (types, certificates) = await configuration.GetCertificatesAsync(group, ct)
+                .ConfigureAwait(false);
+            if (types.Count != certificates.Count)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadUnknownResponse,
+                    "GetCertificates returned CertificateTypeIds and Certificates of different lengths.");
+            }
+            ByteString certificate = ByteString.Empty;
+            for (int index = 0; index < certificates.Count; index++)
+            {
+                if (types[index] != certificateType)
+                {
+                    continue;
+                }
+                if (!certificate.IsEmpty && certificate != certificates[index])
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnknownResponse,
+                        "GetCertificates returned multiple certificates for the selected type.");
+                }
+                certificate = ByteString.From(certificates[index].Span);
+            }
+            if (certificate.IsEmpty)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadCertificateInvalid,
+                    "The managed application did not report its installed certificate.");
+            }
+            return certificate;
         }
 
         /// <summary>
@@ -1456,6 +1733,12 @@ namespace Opc.Ua.Gds.Server.Onboarding
 
         /// <summary>The host's independent per-application authorization policy.</summary>
         private readonly IDeviceRegistrarAuthorization m_authorization;
+
+        /// <summary>The host's authoritative managed-server endpoint metadata and connection identity.</summary>
+        private readonly IDeviceRegistrarManagedApplicationProvider? m_managedApplications;
+
+        /// <summary>The fresh-session verifier for an application's installed server certificate.</summary>
+        private readonly IDeviceRegistrarManagedApplicationChannelVerifier? m_managedApplicationChannels;
 
         /// <summary>The host's generated-client telemetry.</summary>
         private readonly ITelemetryContext m_telemetry;
