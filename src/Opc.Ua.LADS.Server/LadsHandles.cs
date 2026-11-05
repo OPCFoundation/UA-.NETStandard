@@ -64,6 +64,11 @@ namespace Opc.Ua.LADS.Server
         IAssetHandle? Asset { get; }
 
         /// <summary>
+        /// Gets the DI Lock node when configured, or NodeId.Null for a legacy unlocked device.
+        /// </summary>
+        NodeId LockNodeId { get; }
+
+        /// <summary>
         /// Gets whether a recovered interruption requires equipment-readiness confirmation before a new start.
         /// </summary>
         bool RequiresReadinessConfirmation { get; }

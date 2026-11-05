@@ -35,6 +35,13 @@ The client prints its asset identifier and health with the device state.
 subdirectory as well as LADS data; without it, AMB configuration uses the
 memory store and is not retained across process restarts.
 
+The device also selects DI `Locking()`. The client acquires that device lock
+before the incubation and releases it afterwards; another session can read
+values and browse, but cannot change the device, its AMB configuration or its
+result files while the lock is held. This is separate from the incubator door
+lock. The sample client requires this optional DI Lock and reports
+`BadNotSupported` when connecting to a server that omits it.
+
 After an interrupted run, the simulator's configured callback confirms readiness
 on the next start attempt. It can do so without inspecting external equipment
 because all controls are simulated. A physical-device application must supply

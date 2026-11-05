@@ -73,6 +73,7 @@ namespace Opc.Ua.Aot.Tests
                     {
                         ILadsDevice device = await provider.GetRequiredService<ILadsDeviceRegistry>()
                             .WaitForDeviceAsync(kDevice, cancellationToken).ConfigureAwait(false);
+                        await Assert.That(device.LockNodeId.IsNull).IsFalse();
                         asset = device.Asset ??
                             throw new InvalidOperationException("The configured LADS asset handle is missing.");
                         await Assert.That(asset.NodeId).IsEqualTo(device.NodeId);
@@ -246,6 +247,7 @@ namespace Opc.Ua.Aot.Tests
                 .ConfigureLads(context => context.AddDevice(kDevice, device => device
                     .Identification(id => id.ProductInstanceUri = "urn:tests:lads:native:device")
                     .AssetManagement(asset => asset.WithConfigurableAssetId("Native-1").WithDeviceHealth())
+                    .Locking()
                     .MaintenanceTask(kMaintenance)
                     .FunctionalUnit(kUnit, unit => unit
                         .AnalogControl("Flow", options =>

@@ -61,6 +61,7 @@ namespace LadsSample.Server
                     id.SoftwareRevision = "1.0.0";
                 })
                 .AssetManagement(asset => asset.WithConfigurableAssetId("Incubator-1").WithDeviceHealth())
+                .Locking()
                 .Location("Lab 1", "Site/Building A/Lab 1")
                 .MaintenanceTask("Calibration", task =>
                 {

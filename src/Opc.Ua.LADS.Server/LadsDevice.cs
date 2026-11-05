@@ -33,6 +33,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.AMB.Server.Assets;
+using Opc.Ua.Di.Server.Locking;
 using Opc.Ua.LADS.Server.StateMachines;
 using Opc.Ua.Machinery;
 using Opc.Ua.Machinery.Server.StateMachines;
@@ -211,6 +212,9 @@ namespace Opc.Ua.LADS.Server
 
         /// <inheritdoc/>
         public IAssetHandle? Asset { get; private set; }
+
+        /// <inheritdoc/>
+        public NodeId LockNodeId => Node.Lock?.NodeId ?? NodeId.Null;
 
         /// <inheritdoc/>
         public bool RequiresReadinessConfirmation => Volatile.Read(ref m_requiresReadinessConfirmation);
@@ -1408,6 +1412,35 @@ namespace Opc.Ua.LADS.Server
         }
 
         /// <summary>
+        /// Selects the existing DI activity service and materializes its standard Lock child.
+        /// </summary>
+        internal void ConfigureLocking(ILockActivityService service)
+        {
+            if (service == null)
+            {
+                throw new ArgumentNullException(nameof(service));
+            }
+            if (m_lockService != null)
+            {
+                throw new InvalidOperationException("DI locking is already configured for this LADS device.");
+            }
+            Node.AddLock(Runtime.Context);
+            m_lockService = service;
+        }
+
+        /// <summary>
+        /// Registers subtree request admission before the root is exposed through the node manager.
+        /// </summary>
+        internal async ValueTask RegisterLockingAsync(CancellationToken cancellationToken)
+        {
+            if (m_lockService != null)
+            {
+                m_lockRegistration = await Runtime.Manager.RegisterLockableElementAsync(
+                    Node, m_lockService, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
         /// Selects the existing asset registry and defers composition until the device root is registered.
         /// </summary>
         internal void ConfigureAssetManagement(
@@ -1621,6 +1654,14 @@ namespace Opc.Ua.LADS.Server
             try
             {
                 await UnregisterAssetManagementAsync().ConfigureAwait(false);
+            }
+            catch (Exception failure)
+            {
+                failures.Add(failure);
+            }
+            try
+            {
+                m_lockRegistration?.Dispose();
             }
             catch (Exception failure)
             {
@@ -1973,6 +2014,12 @@ namespace Opc.Ua.LADS.Server
 
         /// <summary>The injected registry selected only for opted-in asset-management features.</summary>
         private IAssetManagement? m_assetManagement;
+
+        /// <summary>The selected existing DI locking service; never owned by the device.</summary>
+        private ILockActivityService? m_lockService;
+
+        /// <summary>The device's UA request admission and session-close subscription.</summary>
+        private IDisposable? m_lockRegistration;
 
         /// <summary>The existing LADS object viewed through its owner's fluent builder.</summary>
         private INodeBuilder<BaseObjectState>? m_assetNode;

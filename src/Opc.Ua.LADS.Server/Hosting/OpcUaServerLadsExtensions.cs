@@ -116,6 +116,9 @@ namespace Microsoft.Extensions.DependencyInjection
             builder.Services.TryAddSingleton<ILadsFunctionProvider, InMemoryLadsFunctionProvider>();
             builder.Services.TryAddSingleton<ILadsProgramExecutor, InMemoryLadsProgramExecutor>();
             builder.Services.TryAddSingleton<ILadsStore, InMemoryLadsStore>();
+            builder.Services.TryAddSingleton<Opc.Ua.Di.Server.Locking.ILockActivityService>(services =>
+                new Opc.Ua.Di.Server.Locking.DefaultLockService(
+                    timeProvider: services.GetRequiredService<TimeProvider>()));
             builder.Services.TryAddSingleton<ILadsDeviceRegistry>(_ => new LadsDeviceRegistry());
             if (!assetManagement)
             {

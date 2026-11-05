@@ -132,6 +132,46 @@ namespace LadsSample.Client
         private static async Task RunIncubationAsync(LadsClient client, CancellationToken ct)
         {
             LadsDevice device = await client.GetFirstDeviceAsync(ct).ConfigureAwait(false);
+            Opc.Ua.Di.Client.DiLockClient deviceLock = await device.GetLockAsync(ct).ConfigureAwait(false);
+            int acquired = await deviceLock.InitLockAsync("Sample incubation", ct).ConfigureAwait(false);
+            if (acquired != 0)
+            {
+                throw new ServiceResultException(StatusCodes.BadLocked, $"DI InitLock returned {acquired}.");
+            }
+            Exception? runFailure = null;
+            try
+            {
+                await RunLockedIncubationAsync(device, ct).ConfigureAwait(false);
+            }
+            catch (Exception error)
+            {
+                runFailure = error;
+                throw;
+            }
+            finally
+            {
+                try
+                {
+                    int released = await deviceLock.ExitLockAsync(CancellationToken.None).ConfigureAwait(false);
+                    if (released != 0)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadInvalidState, $"DI ExitLock returned {released}.");
+                    }
+                }
+                catch (Exception cleanupFailure) when (runFailure != null)
+                {
+                    throw new AggregateException(runFailure, cleanupFailure);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Runs the sample while its UA session owns the device lock.
+        /// </summary>
+        private static async Task RunLockedIncubationAsync(LadsDevice device, CancellationToken ct)
+        {
+            LadsClient client = device.Client;
             LadsDeviceSnapshot snapshot = await device.ReadAsync(ct).ConfigureAwait(false);
             Console.WriteLine(
                 $"Device {snapshot.DisplayName}: {snapshot.Identification.Manufacturer} " +

@@ -76,6 +76,13 @@ and a missing optional member returns a null `Variant` instead of an error.
 
 ## Commands
 
+`LadsDevice.GetLockAsync` and `LadsClient.GetLockAsync(deviceId)` resolve an
+optional DI Lock and return the shared `DiLockClient` on the same borrowed
+session. Check the integer results of InitLock and ExitLock; another session
+receives `BadLocked` for protected writes and methods. A device without this
+optional functionality returns `BadNotSupported`. The DI device lock is
+separate from a cover function's equipment lock.
+
 `LadsFunctionalUnit` exposes the state machine methods of the functional unit:
 `StartAsync`, `StartProgramAsync`, `StopAsync`, `AbortAsync`, `ClearAsync`,
 `HoldAsync`, `UnholdAsync`, `SuspendAsync`, `UnsuspendAsync`, `ResetAsync` and

@@ -33,6 +33,7 @@ client that drives an incubation program end to end.
 - [Driving the device at run time](#driving-the-device-at-run-time)
 - [State machines](#state-machines)
 - [Optional running lifecycle](#optional-running-lifecycle)
+- [Optional DI locking](#optional-di-locking)
 - [Providers](#providers)
 - [Results and result files](#results-and-result-files)
 - [Stored data and restart](#stored-data-and-restart)
@@ -556,6 +557,66 @@ The callback receives the requested stable state, or `Completing` for orderly
 completion, and must return only after the hardware operation is acknowledged.
 The control function retains Complete until Reset, Stop or Abort.
 
+## Optional DI locking
+
+Select `Locking()` on a device to expose its standard DI `Lock` and apply session
+ownership to UA writes and method calls throughout that device's subtree:
+
+```csharp
+server.AddLads().ConfigureLads(context => context.AddDevice("Incubator", device => device
+    .Locking()
+    .FunctionalUnit("Chamber", unit => unit.AnalogControl("Temperature"))));
+```
+
+`AddLads` supplies the existing `DefaultLockService` as an injectable
+`ILockActivityService`. Register another implementation before `AddLads`, or pass
+one directly with `device.Locking(service)`. Direct composition uses the same
+overload; selecting the parameterless form without a registered activity service
+rejects configuration. Omit locking to retain legacy device behavior and omit
+the optional `Lock` child.
+
+The client uses the existing DI client on its borrowed LADS session:
+
+```csharp
+var deviceLock = await device.GetLockAsync(cancellationToken);
+int acquired = await deviceLock.InitLockAsync("Incubation", cancellationToken);
+if (acquired != 0)
+{
+    throw new ServiceResultException(StatusCodes.BadLocked);
+}
+try
+{
+    await chamber.StartAsync(cancellationToken);
+}
+finally
+{
+    int released = await deviceLock.ExitLockAsync(CancellationToken.None);
+    if (released != 0)
+    {
+        throw new ServiceResultException(StatusCodes.BadInvalidState);
+    }
+}
+```
+
+`GetLockAsync` returns `BadNotSupported` for a device without locking. Other
+sessions, even with the same application and user, receive `BadLocked` for
+mutations. This includes device and function commands, maintenance, dynamically
+added templates, AMB configuration writes and result-file methods. Ordinary
+value reads and browsing remain available.
+
+An admitted asynchronous request retains ownership until it finishes. The
+inactivity period then restarts; owner reads and browsing also renew it.
+Session closure releases ownership after admitted work drains. Administrative
+BreakLock requires `SecurityAdmin` or `ConfigureAdmin` unless the application
+sets different role permissions.
+
+Direct server handles remain trusted and do not pass through UA admission.
+Expiring or releasing a DI lock does not stop a physical program. File handles
+do not retain DI ownership between requests, and all FileType methods, including
+Open, Read and Close, require admission. See
+[DI lock service](DeviceIntegration.md#lock-service) for status codes, timeout
+units and registration ownership.
+
 ## Providers
 
 Three provider contracts connect the runtime to the hardware. Each is a
@@ -827,11 +888,13 @@ The server implements:
 - Configurable asset identification and selected AMB building blocks through
   the opted-in [asset-management configuration](#asset-management).
 
-The SDK does not yet enforce DI locking across LADS commands. DI Locking
-is optional in the published
-[BaseServer table](https://reference.opcfoundation.org/specs/OPC-30500-1/9.2.3.2);
-the catalogue's Partial rating records this missing functionality, not whether
-the latest changes have been tested. Validation results are reported separately.
+The optional [DI locking configuration](#optional-di-locking) enforces session
+ownership across UA mutations in the device subtree. DI Locking is optional in
+the published
+[BaseServer table](https://reference.opcfoundation.org/specs/OPC-30500-1/9.2.3.2).
+BaseServer configurable asset identification requires the opted-in AMB
+configuration, a stable ProductInstanceUri and a persistent AMB store.
+Validation results are reported separately from functionality support.
 
 Running operations require explicit configuration and an executor or hardware
 provider that supports them. Optional operations are not universally required
@@ -989,5 +1052,6 @@ encodings, and run hosted servers with the LADS client over a real session.
 | `LadsRunningOperationsTests` | Opt-in lifecycle, cooperative pauses, acting-state failures, cancellation and client method discovery |
 | `LadsStoredDataTests` | Restarted templates, results/files, maintenance and counters, deletion/retention, interrupted execution and storage errors |
 | `LadsReadinessTests` | Device-wide blocking after interruption, rejected/canceled/failed confirmation, acknowledgement storage errors, concurrent starts, historical-only records and client starts |
+| `LadsLockingTests` | Legacy opt-out, injected/direct DI locking, cross-session subtree admission, provider drain, owner browsing, session closure and conflicting-timeout rollback |
 | `LadsMaintenanceTaskTests` | The maintenance state machine, invalid transitions, the task methods, provider vetoes |
 | `LadsClientServerTests` | Client discovery, snapshots, function and program control, file download and composition with Machinery over a real session |

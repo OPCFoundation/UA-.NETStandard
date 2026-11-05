@@ -48,6 +48,14 @@ Machinery node manager.
 
 ## Providers
 
+`Locking()` opts a device into DI session ownership for UA writes and method
+calls throughout its subtree, including AMB configuration and result-file
+methods. Other sessions can still read values and browse. Use
+`Locking(ILockActivityService)` to supply the shared DI service directly, or
+register that interface before `AddLads`. Omitting the option preserves legacy
+behavior. Direct application handles remain trusted; releasing a DI lock does
+not stop an executing physical program.
+
 `ILadsDeviceProvider` and `ILadsFunctionProvider` can veto a transition or
 execute it against hardware. An `ILadsProgramExecutor` receives a
 `LadsProgramRun` that reports steps, applies setpoints and adds result variables

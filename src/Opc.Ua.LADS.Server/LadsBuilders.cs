@@ -32,6 +32,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.AMB.Server.Assets;
+using Opc.Ua.Di.Server.Locking;
 using Opc.Ua.Machinery.Server;
 using Opc.Ua.Machinery.Server.StateMachines;
 
@@ -164,6 +165,21 @@ namespace Opc.Ua.LADS.Server
         /// </summary>
         /// <param name="provider">The provider.</param>
         ILadsDeviceBuilder Provider(ILadsDeviceProvider provider);
+
+        /// <summary>
+        /// Adds DI locking using the injected activity-capable lock service.
+        /// Application handles remain trusted; UA writes and calls require session ownership while locked.
+        /// </summary>
+        /// <returns>The same builder.</returns>
+        ILadsDeviceBuilder Locking();
+
+        /// <summary>
+        /// Adds DI locking using an explicitly supplied activity-capable lock service.
+        /// The caller retains ownership of the service.
+        /// </summary>
+        /// <param name="service">The existing lock service.</param>
+        /// <returns>The same builder.</returns>
+        ILadsDeviceBuilder Locking(ILockActivityService service);
 
         /// <summary>
         /// Registers the device with the existing injected asset-management service when it is published.

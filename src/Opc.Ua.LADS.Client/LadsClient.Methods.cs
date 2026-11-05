@@ -31,11 +31,34 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Di.Client;
 
 namespace Opc.Ua.LADS.Client
 {
     public sealed partial class LadsClient
     {
+        /// <summary>
+        /// Resolves the optional DI Lock on the device and returns the shared DI client.
+        /// A device without locking returns BadNotSupported.
+        /// </summary>
+        /// <param name="deviceId">The device instance.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The DI lock client using this client's borrowed session.</returns>
+        public async ValueTask<DiLockClient> GetLockAsync(
+            NodeId deviceId, CancellationToken cancellationToken = default)
+        {
+            ThrowIfNull(deviceId, nameof(deviceId));
+            NodeId node = await ResolveAsync(
+                deviceId, cancellationToken,
+                new QualifiedName(Opc.Ua.Di.BrowseNames.Lock, NamespaceIndexOf(Opc.Ua.Di.Namespaces.OpcUaDi)))
+                .ConfigureAwait(false);
+            if (node.IsNull)
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported);
+            }
+            return new DiLockClient(Session, node, Telemetry);
+        }
+
         /// <summary>
         /// Writes a composed target, mode target or PID tuning member through its UA variable.
         /// Dynamic browse-name segments in the function-relative path must be URI-escaped.

@@ -320,6 +320,7 @@ namespace Opc.Ua.LADS.Server
                 attachedParent = deviceSet;
                 node.EventNotifier |= EventNotifiers.SubscribeToEvents;
                 registrationNodes = CaptureSubtree(node);
+                await device.RegisterLockingAsync(cancellationToken).ConfigureAwait(false);
                 await m_nodeOperations.AddAsync(Manager, node, cancellationToken).ConfigureAwait(false);
                 device.OrganizeOperationalGroups();
                 await Manager.RegisterRootNotifierAsync(node, cancellationToken).ConfigureAwait(false);

@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.AMB.Server.Assets;
+using Opc.Ua.Di.Server.Locking;
 using Opc.Ua.Machinery.Server;
 using Opc.Ua.Machinery.Server.StateMachines;
 using Opc.Ua.Server.Fluent;
@@ -145,6 +146,22 @@ namespace Opc.Ua.LADS.Server
         public ILadsDeviceBuilder Provider(ILadsDeviceProvider provider)
         {
             Device.SetProvider(provider);
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public ILadsDeviceBuilder Locking()
+        {
+            ILockActivityService service = m_buildContext.GetService<ILockActivityService>() ??
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError, "LADS locking requires ILockActivityService.");
+            return Locking(service);
+        }
+
+        /// <inheritdoc/>
+        public ILadsDeviceBuilder Locking(ILockActivityService service)
+        {
+            Device.ConfigureLocking(service);
             return this;
         }
 
