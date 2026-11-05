@@ -332,6 +332,9 @@ namespace Quickstarts.Servers
             }
         }
 
+        /// <summary>
+        /// Decodes a data-change queue while preserving a shared enqueue/dequeue batch.
+        /// </summary>
         public static StorableDataChangeQueue DecodeDataChangeQueue(BinaryDecoder decoder)
         {
             var q = new StorableDataChangeQueue
@@ -340,9 +343,15 @@ namespace Quickstarts.Servers
                 MonitoredItemId = decoder.ReadUInt32(null),
                 ItemsInQueue = decoder.ReadInt32(null),
                 QueueSize = decoder.ReadUInt32(null),
-                EnqueueBatch = DecodeDataChangeBatch(decoder),
-                DequeueBatch = DecodeDataChangeBatch(decoder)
+                EnqueueBatch = DecodeDataChangeBatch(decoder, out Uuid enqueueBatchId),
+                DequeueBatch = DecodeDataChangeBatch(decoder, out Uuid dequeueBatchId)
             };
+
+            // Both slots in an existing snapshot can identify the same live batch.
+            if (q.EnqueueBatch != null && q.DequeueBatch != null && enqueueBatchId == dequeueBatchId)
+            {
+                q.DequeueBatch = q.EnqueueBatch;
+            }
 
             int batchCount = decoder.ReadInt32(null);
             q.DataChangeBatches = new List<DataChangeBatch>(batchCount);
@@ -380,15 +389,27 @@ namespace Quickstarts.Servers
             }
         }
 
+        /// <summary>
+        /// Decodes a stored data-change batch.
+        /// </summary>
         internal static DataChangeBatch? DecodeDataChangeBatch(BinaryDecoder decoder)
         {
+            return DecodeDataChangeBatch(decoder, out _);
+        }
+
+        /// <summary>
+        /// Decodes a data-change batch and exposes its stored identity for queue reconstruction.
+        /// </summary>
+        private static DataChangeBatch? DecodeDataChangeBatch(BinaryDecoder decoder, out Uuid batchId)
+        {
+            batchId = default;
             bool hasValue = decoder.ReadBoolean(null);
             if (!hasValue)
             {
                 return null;
             }
 
-            _ = decoder.ReadGuid(null);
+            batchId = decoder.ReadGuid(null);
             uint batchSize = decoder.ReadUInt32(null);
             uint monItemId = decoder.ReadUInt32(null);
             bool isPersisted = decoder.ReadBoolean(null);

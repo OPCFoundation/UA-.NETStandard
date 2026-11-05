@@ -46,6 +46,65 @@ namespace Opc.Ua.Server.Tests
     public sealed class DurableBatchRestoreRegressionTests
     {
         /// <summary>
+        /// An empty restored data queue must still share its enqueue and dequeue batch.
+        /// A nonempty queue must not serve a duplicated batch after it is drained.
+        /// </summary>
+        [TestCase(0, 0)]
+        [TestCase(3, 0)]
+        [TestCase(3, 1)]
+        [TestCase(3, 3)]
+        [TestCase(1000, 0)]
+        [TestCase(1500, 0)]
+        [TestCase(1500, 1000)]
+        [TestCase(1500, 1500)]
+        public void RestoredDataQueuePreservesBatchIdentity(int count, int removed)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var persistor = new Mock<IBatchPersistor>();
+            using var queue = new DurableDataChangeMonitoredItemQueue(true, 101, persistor.Object, telemetry);
+            queue.ResetQueue(2000, true);
+            for (int i = 1; i <= count; i++)
+            {
+                queue.Enqueue(new DataValue(Variant.From(i)), null!);
+            }
+            for (int i = 0; i < removed; i++)
+            {
+                Assert.That(queue.Dequeue(out _, out _), Is.True);
+            }
+
+            IServiceMessageContext context = ServiceMessageContext.Create(telemetry);
+            StorableDataChangeQueue template;
+            using (var stream = new MemoryStream())
+            {
+                using (var encoder = new BinaryEncoder(stream, context, true))
+                {
+                    DurableMonitoredItemQueueFactory.EncodeDataChangeQueue(encoder, queue.ToStorableQueue());
+                }
+                stream.Position = 0;
+                using var decoder = new BinaryDecoder(stream, context, true);
+                template = DurableMonitoredItemQueueFactory.DecodeDataChangeQueue(decoder);
+            }
+
+            using var restored = new DurableDataChangeMonitoredItemQueue(template, persistor.Object);
+            Assert.That(restored.ItemsInQueue, Is.EqualTo(count - removed));
+            restored.Enqueue(new DataValue(Variant.From(count + 1)), null!);
+            Assert.That(restored.TryPeekOldestValue(out DataValue oldest), Is.True);
+            Assert.That(oldest.WrappedValue, Is.EqualTo(Variant.From(removed + 1)));
+            for (int i = removed + 1; i <= count + 1; i++)
+            {
+                Assert.That(restored.Dequeue(out DataValue value, out _), Is.True);
+                Assert.That(value.WrappedValue, Is.EqualTo(Variant.From(i)));
+            }
+            Assert.That(restored.Dequeue(out _, out _), Is.False);
+            Assert.That(restored.ItemsInQueue, Is.Zero);
+
+            restored.Enqueue(new DataValue(Variant.From(4242)), null!);
+            Assert.That(restored.Dequeue(out DataValue next, out _), Is.True);
+            Assert.That(next.WrappedValue, Is.EqualTo(Variant.From(4242)));
+            Assert.That(restored.ItemsInQueue, Is.Zero);
+        }
+
+        /// <summary>
         /// Verifies that a nonresident data-change batch requests restoration without losing its queued value.
         /// </summary>
         [TestCase(false)]
