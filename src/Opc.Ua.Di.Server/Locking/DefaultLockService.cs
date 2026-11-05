@@ -289,7 +289,7 @@ namespace Opc.Ua.Di.Server.Locking
                 }
                 active.TryGetValue(sessionId, out int count);
                 active[sessionId] = count + 1;
-                return new Activity(this, elementId, sessionId);
+                return new Activity(() => CompleteActivity(elementId, sessionId));
             }
         }
 
@@ -525,16 +525,16 @@ namespace Opc.Ua.Di.Server.Locking
         /// <summary>
         /// Completes one admitted owner request exactly once.
         /// </summary>
-        private sealed class Activity(DefaultLockService service, NodeId elementId, NodeId sessionId) : IDisposable
+        private sealed class Activity(Action complete) : IDisposable
         {
             /// <inheritdoc/>
             public void Dispose()
             {
-                Interlocked.Exchange(ref m_service, null)?.CompleteActivity(elementId, sessionId);
+                Interlocked.Exchange(ref m_complete, null)?.Invoke();
             }
 
-            /// <summary>The owner, cleared on the first completion.</summary>
-            private DefaultLockService? m_service = service;
+            /// <summary>The completion callback, cleared on first disposal; the service remains borrowed.</summary>
+            private Action? m_complete = complete;
         }
     }
 

@@ -83,12 +83,12 @@ namespace Opc.Ua.Di.Server
                     [
                         new RolePermissionType
                         {
-                            RoleId = Opc.Ua.Types.ObjectIds.WellKnownRole_SecurityAdmin,
+                            RoleId = global::Opc.Ua.ObjectIds.WellKnownRole_SecurityAdmin,
                             Permissions = (uint)(PermissionType.Browse | PermissionType.Call)
                         },
                         new RolePermissionType
                         {
-                            RoleId = Opc.Ua.Types.ObjectIds.WellKnownRole_ConfigureAdmin,
+                            RoleId = global::Opc.Ua.ObjectIds.WellKnownRole_ConfigureAdmin,
                             Permissions = (uint)(PermissionType.Browse | PermissionType.Call)
                         }
                     ];
@@ -253,7 +253,7 @@ namespace Opc.Ua.Di.Server
         private async ValueTask EnsureLockTimeoutAsync(TimeSpan duration, CancellationToken cancellationToken)
         {
             ServerCapabilitiesState capabilities = Server.DiagnosticsNodeManager
-                .FindPredefinedNode<ServerCapabilitiesState>(Opc.Ua.Types.ObjectIds.Server_ServerCapabilities) ??
+                .FindPredefinedNode<ServerCapabilitiesState>(global::Opc.Ua.ObjectIds.Server_ServerCapabilities) ??
                 throw new ServiceResultException(StatusCodes.BadConfigurationError);
             var name = new QualifiedName("MaxInactiveLockTime", Server.NamespaceUris.GetIndexOrAppend(DiNamespaceUri));
             NodeState? existing = FindPredefinedNode<NodeState>(NodeId.Create(
@@ -272,18 +272,19 @@ namespace Opc.Ua.Di.Server
                 property.Value = Variant.From(duration.TotalMilliseconds);
                 return;
             }
-            var timeout = new PropertyState<double>(capabilities)
+            var timeout = new PropertyState(capabilities)
             {
                 NodeId = new NodeId("DI.MaxInactiveLockTime", InstanceNamespaceIndex),
                 BrowseName = name,
-                DisplayName = name.Name,
+                DisplayName = new LocalizedText(name.Name),
                 ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasProperty,
                 TypeDefinitionId = Opc.Ua.Types.VariableTypeIds.PropertyType,
                 DataType = Opc.Ua.Types.DataTypeIds.Duration,
                 ValueRank = ValueRanks.Scalar,
                 AccessLevel = AccessLevels.CurrentRead,
                 UserAccessLevel = AccessLevels.CurrentRead,
-                Value = duration.TotalMilliseconds
+                Value = Variant.From(duration.TotalMilliseconds),
+                StatusCode = StatusCodes.Good
             };
             await AddPredefinedNodeAsync(SystemContext, timeout, cancellationToken).ConfigureAwait(false);
             capabilities.AddChild(timeout);

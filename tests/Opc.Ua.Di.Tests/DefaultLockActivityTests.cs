@@ -189,13 +189,11 @@ namespace Opc.Ua.Di.Tests
         {
             var clock = new Clock();
             using var service = new DefaultLockService(TimeSpan.FromSeconds(30), clock);
-            var node = new LockingServicesState(null)
-            {
-                Locked = new PropertyState<bool>(null),
-                LockingClient = new PropertyState<string>(null),
-                LockingUser = new PropertyState<string>(null),
-                RemainingLockTime = new PropertyState<double>(null)
-            };
+            var node = new LockingServicesState(null);
+            node.Locked = PropertyState<bool>.With<VariantBuilder>(node);
+            node.LockingClient = PropertyState<string>.With<VariantBuilder>(node);
+            node.LockingUser = PropertyState<string>.With<VariantBuilder>(node);
+            node.RemainingLockTime = PropertyState<double>.With<VariantBuilder>(node);
             node.BindToLockService(s_element, service);
             SessionSystemContext context = Context("owner");
             Assert.That(service.InitLock(context, s_element, "application"), Is.Zero);
