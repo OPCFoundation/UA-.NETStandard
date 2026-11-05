@@ -416,13 +416,6 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var releaseNotification = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            alarm.LatchedState!.Id!.StateChangedAsync += async (_, _, _, cancellationToken) =>
-            {
-                Assert.That(cancellationToken, Is.EqualTo(CancellationToken.None));
-                order.Add("latched");
-                notificationEntered.TrySetResult(true);
-                await releaseNotification.Task.ConfigureAwait(false);
-            };
             alarm.SilenceState!.Id!.StateChangedAsync += (_, _, _, _) =>
             {
                 order.Add("silence");
@@ -434,7 +427,6 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 return default;
             };
 
-            var cancellation = new CancellationTokenSource();
             Task<Task>? invocation = null;
             Task<Exception?>? updateObserver = null;
             ExceptionDispatchInfo? testFailure = null;
@@ -444,10 +436,24 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 invocation = Task.Factory.StartNew(
                     async () =>
                     {
-                        using (cancellation)
+                        using var cancellation = new CancellationTokenSource();
+                        NodeStateChangedAsyncHandler handler = async (_, _, _, cancellationToken) =>
+                        {
+                            Assert.That(cancellationToken, Is.EqualTo(CancellationToken.None));
+                            order.Add("latched");
+                            cancellation.Cancel();
+                            notificationEntered.TrySetResult(true);
+                            await releaseNotification.Task.ConfigureAwait(false);
+                        };
+                        alarm.LatchedState!.Id!.StateChangedAsync += handler;
+                        try
                         {
                             await alarm.SetActiveStateAsync(m_context, true, cancellation.Token)
                                 .ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            alarm.LatchedState.Id.StateChangedAsync -= handler;
                         }
                     },
                     CancellationToken.None,
@@ -461,7 +467,6 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 Task completed = await Task.WhenAny(notificationEntered.Task, Task.Delay(s_activeStateTimeout))
                     .ConfigureAwait(false);
                 Assert.That(completed, Is.SameAs(notificationEntered.Task));
-                cancellation.Cancel();
                 Assert.That(update.IsCompleted, Is.False);
             }
             catch (Exception failure)
@@ -490,10 +495,6 @@ namespace Opc.Ua.Core.Tests.Stack.State
                     {
                         cleanupFailures.Add(failure);
                     }
-                }
-                else
-                {
-                    cancellation.Dispose();
                 }
             }
 
@@ -526,20 +527,12 @@ namespace Opc.Ua.Core.Tests.Stack.State
             var releaseNotification = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var order = new List<string>();
-            alarm.ShelvingState.CurrentState!.Id!.StateChangedAsync += async (_, _, _, cancellationToken) =>
-            {
-                Assert.That(cancellationToken, Is.EqualTo(CancellationToken.None));
-                order.Add("shelving");
-                notificationEntered.TrySetResult(true);
-                await releaseNotification.Task.ConfigureAwait(false);
-            };
             alarm.ActiveState!.Id!.StateChangedAsync += (_, _, _, _) =>
             {
                 order.Add("active");
                 return default;
             };
 
-            var cancellation = new CancellationTokenSource();
             Task<Task>? invocation = null;
             Task<Exception?>? updateObserver = null;
             ExceptionDispatchInfo? testFailure = null;
@@ -549,10 +542,24 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 invocation = Task.Factory.StartNew(
                     async () =>
                     {
-                        using (cancellation)
+                        using var cancellation = new CancellationTokenSource();
+                        NodeStateChangedAsyncHandler handler = async (_, _, _, cancellationToken) =>
+                        {
+                            Assert.That(cancellationToken, Is.EqualTo(CancellationToken.None));
+                            order.Add("shelving");
+                            cancellation.Cancel();
+                            notificationEntered.TrySetResult(true);
+                            await releaseNotification.Task.ConfigureAwait(false);
+                        };
+                        alarm.ShelvingState.CurrentState!.Id!.StateChangedAsync += handler;
+                        try
                         {
                             await alarm.SetActiveStateAsync(m_context, false, cancellation.Token)
                                 .ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            alarm.ShelvingState.CurrentState.Id.StateChangedAsync -= handler;
                         }
                     },
                     CancellationToken.None,
@@ -566,7 +573,6 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 Task completed = await Task.WhenAny(notificationEntered.Task, Task.Delay(s_activeStateTimeout))
                     .ConfigureAwait(false);
                 Assert.That(completed, Is.SameAs(notificationEntered.Task));
-                cancellation.Cancel();
                 Assert.That(update.IsCompleted, Is.False);
             }
             catch (Exception failure)
@@ -595,10 +601,6 @@ namespace Opc.Ua.Core.Tests.Stack.State
                     {
                         cleanupFailures.Add(failure);
                     }
-                }
-                else
-                {
-                    cancellation.Dispose();
                 }
             }
 
