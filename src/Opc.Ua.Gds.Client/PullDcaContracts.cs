@@ -164,6 +164,14 @@ namespace Opc.Ua.Gds.Client
         ArrayOf<PullDcaProvisionedApplication> ManagedApplications);
 
     /// <summary>
+    /// Manager discovery and managed-application provisioning using an externally installed DCA certificate.
+    /// The external service owns initial authentication and installation; no ticket selection is synthesized.
+    /// </summary>
+    public sealed record PullDcaExternalAuthenticationResult(
+        ArrayOf<ManagerDescription> Managers,
+        ArrayOf<PullDcaProvisionedApplication> ManagedApplications);
+
+    /// <summary>
     /// Observable workflow stages, emitted before the corresponding operation.
     /// </summary>
     public enum PullDcaStage

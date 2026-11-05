@@ -56,6 +56,20 @@ namespace Opc.Ua.Gds.Server
         }
 
         /// <summary>
+        /// Binds renewed external approval to the original shared DCA record rather than a different application.
+        /// </summary>
+        internal void ValidateExternalDcaApplication(NodeId applicationId, ApplicationRecordDataType approved)
+        {
+            ApplicationRecordDataType application = m_database.GetApplication(applicationId) ??
+                throw new ServiceResultException(StatusCodes.BadNotFound);
+            if (application.ApplicationUri != approved.ApplicationUri ||
+                application.ApplicationType != approved.ApplicationType)
+            {
+                throw new ServiceResultException(StatusCodes.BadRequestNotAllowed);
+            }
+        }
+
+        /// <summary>
         /// Validates operator-recovered original CSR evidence and, when supplied, its unaccepted queue entry.
         /// An accepted entry has erased its CSR and cannot establish this recovery binding.
         /// </summary>

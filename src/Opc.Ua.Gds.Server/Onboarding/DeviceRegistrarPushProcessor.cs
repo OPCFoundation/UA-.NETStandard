@@ -68,10 +68,11 @@ namespace Opc.Ua.Gds.Server.Onboarding
             IDeviceRegistrarAuthorization authorization,
             ITelemetryContext telemetry,
             IDeviceRegistrarManagedApplicationProvider? managedApplications = null,
-            IDeviceRegistrarManagedApplicationChannelVerifier? managedApplicationChannels = null)
+            IDeviceRegistrarManagedApplicationChannelVerifier? managedApplicationChannels = null,
+            IDeviceRegistrarExternalAuthenticationProvider? externalAuthentication = null)
             : this(connections, enrollments, identities, policy, applications, candidates, certificates,
                 issuances, lifecycle, authorization, telemetry, TimeProvider.System, managedApplications,
-                managedApplicationChannels)
+                managedApplicationChannels, externalAuthentication)
         {
         }
 
@@ -93,7 +94,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
             ITelemetryContext telemetry,
             TimeProvider timeProvider,
             IDeviceRegistrarManagedApplicationProvider? managedApplications = null,
-            IDeviceRegistrarManagedApplicationChannelVerifier? managedApplicationChannels = null)
+            IDeviceRegistrarManagedApplicationChannelVerifier? managedApplicationChannels = null,
+            IDeviceRegistrarExternalAuthenticationProvider? externalAuthentication = null)
         {
             m_connections = connections ?? throw new ArgumentNullException(nameof(connections));
             m_enrollments = enrollments ?? throw new ArgumentNullException(nameof(enrollments));
@@ -109,6 +111,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             m_timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
             m_managedApplications = managedApplications;
             m_managedApplicationChannels = managedApplicationChannels;
+            m_externalAuthentication = externalAuthentication;
         }
 
         /// <inheritdoc/>
@@ -169,23 +172,51 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 ValidateConnection(snapshot, connection, dispatch.Session);
                 var device = new ProvisionableDeviceTypeClient(
                     dispatch.Session, connection.ProvisionableDeviceId, m_telemetry);
-                ArrayOf<string> tickets = await device.RequestTicketsAsync(cancellationToken).ConfigureAwait(false);
                 bool singleton = await ReadSingletonAsync(
                     dispatch.Session, connection.IsSingletonId, cancellationToken).ConfigureAwait(false);
 
                 ByteString peer = ReadPeer(dispatch.Session);
                 DeviceRegistrarPushEnrollment? retained = await FindRetainedAsync(snapshot.ApplicationUri!, peer,
                     cancellationToken).ConfigureAwait(false);
-                OnboardingIdentitySelection identity = retained?.Identity ??
-                    await m_identities.ValidatePeerAsync(
+                DeviceRegistrarExternalAuthenticationResult? external = null;
+                if (m_externalAuthentication != null &&
+                    (retained == null || retained.Identity.IsExternalAuthentication))
+                {
+                    external = await m_externalAuthentication.EvaluateAsync(
+                        retained?.Identity.SelectedIdentity ?? peer, cancellationToken).ConfigureAwait(false);
+                }
+                if (retained?.Identity.IsExternalAuthentication == true && external == null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadCertificateUntrusted);
+                }
+                OnboardingIdentitySelection identity;
+                if (retained != null)
+                {
+                    identity = retained.Identity;
+                    if (external != null && external.ProductInstanceUri != identity.ProductInstanceUri)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed);
+                    }
+                }
+                else if (external != null)
+                {
+                    identity = OnboardingIdentitySelection.FromExternalAuthentication(
+                        peer, external.ProductInstanceUri);
+                }
+                else
+                {
+                    ArrayOf<string> tickets =
+                        await device.RequestTicketsAsync(cancellationToken).ConfigureAwait(false);
+                    identity = await m_identities.ValidatePeerAsync(
                         dispatch.Session.TransportChannel, tickets, cancellationToken).ConfigureAwait(false);
+                }
                 if (retained == null && identity.SelectedIdentity != peer)
                 {
                     throw new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid);
                 }
                 acceptedIdentity = identity;
-                DeviceRegistrarOnboardingDecision decision = await m_policy.EvaluateAsync(
-                    identity, cancellationToken).ConfigureAwait(false);
+                DeviceRegistrarOnboardingDecision decision = external?.Decision ??
+                    await m_policy.EvaluateAsync(identity, cancellationToken).ConfigureAwait(false);
                 if (decision.Application == null ||
                     !string.Equals(decision.Application.ApplicationUri, snapshot.ApplicationUri,
                         StringComparison.Ordinal) ||
@@ -356,7 +387,10 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 }
                 var device = new ProvisionableDeviceTypeClient(
                     proof.Session, connection.ProvisionableDeviceId, m_telemetry);
-                await device.RequestTicketsAsync(cancellationToken).ConfigureAwait(false);
+                if (acceptedIdentity?.IsExternalAuthentication != true)
+                {
+                    await device.RequestTicketsAsync(cancellationToken).ConfigureAwait(false);
+                }
                 bool singleton = await ReadSingletonAsync(
                     proof.Session, connection.IsSingletonId, cancellationToken).ConfigureAwait(false);
                 OnboardingIdentitySelection identity = acceptedIdentity ??
@@ -1368,6 +1402,27 @@ namespace Opc.Ua.Gds.Server.Onboarding
             bool singleton,
             CancellationToken ct)
         {
+            if (identity.IsExternalAuthentication)
+            {
+                DeviceRegistrarExternalAuthenticationResult external =
+                    await (m_externalAuthentication ??
+                        throw new ServiceResultException(StatusCodes.BadConfigurationError))
+                        .EvaluateAsync(identity.SelectedIdentity, ct).ConfigureAwait(false) ??
+                    throw new ServiceResultException(StatusCodes.BadCertificateUntrusted);
+                ApplicationRecordDataType[]? approved =
+                    m_applications.FindApplications(external.Decision.Application.ApplicationUri!);
+                if (external.ProductInstanceUri != identity.ProductInstanceUri ||
+                    approved is not { Length: 1 } || approved[0].ApplicationId != applicationId)
+                {
+                    throw new ServiceResultException(StatusCodes.BadRequestNotAllowed);
+                }
+                DeviceRegistrarDevice current = await RequireDeviceAsync(
+                    identity.ProductInstanceUri, applicationId, ct).ConfigureAwait(false);
+                if (external.Decision.RequiresSoftwareUpdate && !current.SoftwareStatus)
+                {
+                    throw new ServiceResultException(StatusCodes.BadRequestNotAllowed);
+                }
+            }
             DeviceRegistrarIdentityCandidate? candidate = await m_candidates.FindCandidateByCertificateAsync(
                 identity.SelectedIdentity, ct).ConfigureAwait(false);
             if (candidate == null || candidate.ProductInstanceUri != identity.ProductInstanceUri ||
@@ -1655,6 +1710,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             if (enrollment == null || enrollment.Identity == null ||
                 enrollment.Identity.ProductInstanceUri != identity.ProductInstanceUri ||
                 enrollment.Identity.SelectedIdentity != identity.SelectedIdentity ||
+                enrollment.Identity.IsExternalAuthentication != identity.IsExternalAuthentication ||
                 enrollment.Identity.EncodedTicket != identity.EncodedTicket ||
                 enrollment.Identity.EncodedComposite != identity.EncodedComposite ||
                 enrollment.ApplicationId != applicationId || enrollment.RequestId.IsNull ||
@@ -1812,6 +1868,9 @@ namespace Opc.Ua.Gds.Server.Onboarding
 
         /// <summary>The fresh-session verifier for an application's installed server certificate.</summary>
         private readonly IDeviceRegistrarManagedApplicationChannelVerifier? m_managedApplicationChannels;
+
+        /// <summary>The optional external certificate trust and explicit device approval boundary.</summary>
+        private readonly IDeviceRegistrarExternalAuthenticationProvider? m_externalAuthentication;
 
         /// <summary>The host's generated-client telemetry.</summary>
         private readonly ITelemetryContext m_telemetry;

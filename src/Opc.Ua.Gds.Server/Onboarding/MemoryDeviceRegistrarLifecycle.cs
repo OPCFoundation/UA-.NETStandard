@@ -151,7 +151,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
 
         /// <summary>
         /// Adds an already-approved DCA certificate and its existing certificate-manager identifier.
-        /// Callers must complete ticket and identity validation before granting this privilege.
+        /// Callers must complete ticket/identity validation or the configured external certificate handoff first.
         /// Refreshing an identity preserves software status and managed-application relations.
         /// </summary>
         public ValueTask RegisterDeviceAsync(

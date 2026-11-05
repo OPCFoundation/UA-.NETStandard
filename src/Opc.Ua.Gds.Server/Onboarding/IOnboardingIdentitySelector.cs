@@ -63,7 +63,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
     }
 
     /// <summary>
-    /// Carries a selected certificate and its independently owned matching ticket.
+    /// Carries a selected certificate and independently owned ticket or external-authentication evidence.
     /// </summary>
     public sealed class OnboardingIdentitySelection
     {
@@ -87,12 +87,26 @@ namespace Opc.Ua.Gds.Server.Onboarding
             string productInstanceUri,
             string encodedTicket,
             string encodedComposite)
+            : this(selectedIdentity, matchingTicket, productInstanceUri, encodedTicket, encodedComposite, false)
+        {
+        }
+
+        /// <summary>
+        /// Creates independently owned evidence with explicit ticket or external-authentication provenance.
+        /// </summary>
+        private OnboardingIdentitySelection(
+            ByteString selectedIdentity,
+            BaseTicketType? matchingTicket,
+            string productInstanceUri,
+            string encodedTicket,
+            string encodedComposite,
+            bool externalAuthentication)
         {
             if (selectedIdentity.IsEmpty)
             {
                 throw new ArgumentException("A selected identity certificate is required.", nameof(selectedIdentity));
             }
-            if (matchingTicket == null)
+            if (matchingTicket == null && !externalAuthentication)
             {
                 throw new ArgumentNullException(nameof(matchingTicket));
             }
@@ -103,7 +117,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     "An absolute product instance URI is required.", nameof(productInstanceUri));
             }
             m_selectedIdentity = ByteString.From(selectedIdentity.Span);
-            m_matchingTicket = (BaseTicketType)matchingTicket.Clone();
+            m_matchingTicket = matchingTicket == null ? null : (BaseTicketType)matchingTicket.Clone();
+            IsExternalAuthentication = externalAuthentication;
             ProductInstanceUri = productInstanceUri;
             EncodedTicket = encodedTicket ?? throw new ArgumentNullException(nameof(encodedTicket));
             EncodedComposite = encodedComposite ?? throw new ArgumentNullException(nameof(encodedComposite));
@@ -116,8 +131,16 @@ namespace Opc.Ua.Gds.Server.Onboarding
 
         /// <summary>
         /// Gets an independent copy of the matching ticket.
+        /// External certificate evidence has no ticket and raises BadTicketRequired.
         /// </summary>
-        public BaseTicketType MatchingTicket => (BaseTicketType)m_matchingTicket.Clone();
+        public BaseTicketType MatchingTicket => m_matchingTicket == null
+            ? throw new ServiceResultException(StatusCodes.BadTicketRequired)
+            : (BaseTicketType)m_matchingTicket.Clone();
+
+        /// <summary>
+        /// Gets whether this evidence came from the external authentication provider rather than a ticket.
+        /// </summary>
+        public bool IsExternalAuthentication { get; }
 
         /// <summary>
         /// Gets the product URI matched in the certificate's subjectAltName extension.
@@ -135,6 +158,17 @@ namespace Opc.Ua.Gds.Server.Onboarding
         public string EncodedComposite { get; }
 
         /// <summary>
+        /// Retains external certificate evidence without manufacturing a ticket or a signed ticket envelope.
+        /// </summary>
+        public static OnboardingIdentitySelection FromExternalAuthentication(
+            ByteString selectedIdentity,
+            string productInstanceUri)
+        {
+            return new OnboardingIdentitySelection(
+                selectedIdentity, null, productInstanceUri, string.Empty, string.Empty, true);
+        }
+
+        /// <summary>
         /// The independently owned selected certificate bytes.
         /// </summary>
         private readonly ByteString m_selectedIdentity;
@@ -142,6 +176,6 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// <summary>
         /// The independently owned matching ticket.
         /// </summary>
-        private readonly BaseTicketType m_matchingTicket;
+        private readonly BaseTicketType? m_matchingTicket;
     }
 }

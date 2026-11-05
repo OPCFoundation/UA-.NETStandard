@@ -189,25 +189,51 @@ namespace Opc.Ua.Gds.Client
                 Report(progress, PullDcaStage.GettingManagers, identity.ApplicationId);
                 ArrayOf<ManagerDescription> managers = await connection.GetManagersAsync(ct).ConfigureAwait(false);
 
-                var applications = new List<PullDcaProvisionedApplication>();
-                for (int i = 0; i < request.ManagedApplications.Count; i++)
-                {
-                    PullDcaManagedApplication application = request.ManagedApplications[i];
-                    ct.ThrowIfCancellationRequested();
-                    Report(progress, PullDcaStage.RegisteringApplication);
-                    NodeId applicationId = await connection.RegisterAsync(application, ct).ConfigureAwait(false);
-                    if (applicationId.IsNull)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadUnexpectedError);
-                    }
-                    PullDcaCredentials credentials = await ProvisionAsync(
-                        registrar, connection, applicationId, application.CertificateProfile, progress, ct)
-                        .ConfigureAwait(false);
-                    applications.Add(new PullDcaProvisionedApplication(applicationId, credentials));
-                }
+                ArrayOf<PullDcaProvisionedApplication> applications = await ProvisionManagedApplicationsAsync(
+                    registrar, connection, request.ManagedApplications, progress, ct).ConfigureAwait(false);
                 ct.ThrowIfCancellationRequested();
                 Report(progress, PullDcaStage.Completed, identity.ApplicationId);
-                return new PullDcaResult(identity, dcaCredentials, managers, applications.ToArrayOf());
+                return new PullDcaResult(identity, dcaCredentials, managers, applications);
+            }
+            finally
+            {
+                Volatile.Write(ref m_running, 0);
+            }
+        }
+
+        /// <summary>
+        /// Uses the DCA certificate already installed by an external authentication service.
+        /// The host completes any required software update first, using the managers returned by GetManagers.
+        /// The registrar validates the actual channel, dedicated issuer trust and configured device approval.
+        /// This workflow never calls ProvideIdentities, creates a ticket or replaces the external DCA credential.
+        /// </summary>
+        public async ValueTask<PullDcaExternalAuthenticationResult> RunExternalAuthenticationAsync(
+            PullDcaRegistrar registrar,
+            ArrayOf<PullDcaManagedApplication> managedApplications,
+            IProgress<PullDcaProgress>? progress = null,
+            CancellationToken cancellationToken = default)
+        {
+            ValidateRegistrar(registrar);
+            managedApplications = SnapshotManagedApplications(managedApplications);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (Interlocked.CompareExchange(ref m_running, 1, 0) != 0)
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidState, "A pull workflow is already running.");
+            }
+            try
+            {
+                using var timeout = CreateDeadline(cancellationToken);
+                Report(progress, PullDcaStage.Connecting);
+                IPullDcaConnection connection = await m_connectionFactory(registrar, timeout.Token)
+                    .ConfigureAwait(false);
+                Report(progress, PullDcaStage.GettingManagers);
+                ArrayOf<ManagerDescription> managers = await connection.GetManagersAsync(timeout.Token)
+                    .ConfigureAwait(false);
+                ArrayOf<PullDcaProvisionedApplication> applications = await ProvisionManagedApplicationsAsync(
+                    registrar, connection, managedApplications, progress, timeout.Token).ConfigureAwait(false);
+                timeout.Token.ThrowIfCancellationRequested();
+                Report(progress, PullDcaStage.Completed);
+                return new PullDcaExternalAuthenticationResult(managers, applications);
             }
             finally
             {
@@ -253,6 +279,35 @@ namespace Opc.Ua.Gds.Client
             {
                 Volatile.Write(ref m_running, 0);
             }
+        }
+
+        /// <summary>
+        /// Reuses the same registration, request recovery and credential installation for either authentication path.
+        /// </summary>
+        private async ValueTask<ArrayOf<PullDcaProvisionedApplication>> ProvisionManagedApplicationsAsync(
+            PullDcaRegistrar registrar,
+            IPullDcaConnection connection,
+            ArrayOf<PullDcaManagedApplication> managedApplications,
+            IProgress<PullDcaProgress>? progress,
+            CancellationToken ct)
+        {
+            var applications = new List<PullDcaProvisionedApplication>();
+            for (int i = 0; i < managedApplications.Count; i++)
+            {
+                PullDcaManagedApplication application = managedApplications[i];
+                ct.ThrowIfCancellationRequested();
+                Report(progress, PullDcaStage.RegisteringApplication);
+                NodeId applicationId = await connection.RegisterAsync(application, ct).ConfigureAwait(false);
+                if (applicationId.IsNull)
+                {
+                    throw new ServiceResultException(StatusCodes.BadUnexpectedError);
+                }
+                PullDcaCredentials credentials = await ProvisionAsync(
+                    registrar, connection, applicationId, application.CertificateProfile, progress, ct)
+                    .ConfigureAwait(false);
+                applications.Add(new PullDcaProvisionedApplication(applicationId, credentials));
+            }
+            return applications.ToArrayOf();
         }
 
         private async ValueTask<PullDcaCredentials> ProvisionAsync(
@@ -500,17 +555,33 @@ namespace Opc.Ua.Gds.Client
                 throw new ArgumentException("At least one non-empty identity must be offered.", nameof(request));
             }
             ValidateProfile(request.DcaCertificateProfile);
-            var applications = new PullDcaManagedApplication[request.ManagedApplications.Count];
+            return request with
+            {
+                IdentityOffer = new PullDcaIdentityOffer(
+                    SnapshotBytes(request.IdentityOffer.Identities),
+                    SnapshotBytes(request.IdentityOffer.Issuers),
+                    request.IdentityOffer.Tickets.ToArray().ToArrayOf()),
+                ManagedApplications = SnapshotManagedApplications(request.ManagedApplications)
+            };
+        }
+
+        /// <summary>
+        /// Detaches and validates managed application requests for either authentication path.
+        /// </summary>
+        private static ArrayOf<PullDcaManagedApplication> SnapshotManagedApplications(
+            ArrayOf<PullDcaManagedApplication> managedApplications)
+        {
+            var applications = new PullDcaManagedApplication[managedApplications.Count];
             for (int i = 0; i < applications.Length; i++)
             {
-                PullDcaManagedApplication application = request.ManagedApplications[i];
+                PullDcaManagedApplication application = managedApplications[i];
                 if (application == null || application.Application == null ||
                     !Uri.TryCreate(application.Application.ApplicationUri, UriKind.Absolute, out _) ||
                     (application.ProtocolUri?.Length != 0 &&
                         !Uri.TryCreate(application.ProtocolUri, UriKind.Absolute, out _)))
                 {
                     throw new ArgumentException("Managed applications require valid application and protocol URIs.",
-                        nameof(request));
+                        nameof(managedApplications));
                 }
                 ValidateProfile(application.CertificateProfile);
                 ApplicationRecordDataType record = application.Application;
@@ -528,14 +599,7 @@ namespace Opc.Ua.Gds.Client
                     }
                 };
             }
-            return request with
-            {
-                IdentityOffer = new PullDcaIdentityOffer(
-                    SnapshotBytes(request.IdentityOffer.Identities),
-                    SnapshotBytes(request.IdentityOffer.Issuers),
-                    request.IdentityOffer.Tickets.ToArray().ToArrayOf()),
-                ManagedApplications = applications
-            };
+            return applications;
         }
 
         /// <summary>

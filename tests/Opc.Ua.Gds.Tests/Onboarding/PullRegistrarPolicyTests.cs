@@ -40,6 +40,31 @@ namespace Opc.Ua.Gds.Tests.Onboarding
     public sealed class PullRegistrarPolicyTests
     {
         /// <summary>
+        /// External issuer validation does not replace the sample's configured product and DCA approval.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ExternalCertificateRequiresConfiguredProductAndApplicationUris(bool approved)
+        {
+            var policy = new PullRegistrarPolicy(kProduct, kApplication);
+            ByteString certificate = ByteString.From(new byte[] { 1 });
+            if (approved)
+            {
+                DeviceRegistrarExternalAuthenticationResult result = await policy.EvaluateAsync(
+                    certificate, [kProduct, kApplication]).ConfigureAwait(false);
+                Assert.That(result.ProductInstanceUri, Is.EqualTo(kProduct));
+                Assert.That(result.Decision.Application.ApplicationUri, Is.EqualTo(kApplication));
+                Assert.That(result.Decision.RequiresSoftwareUpdate, Is.False);
+            }
+            else
+            {
+                ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await policy.EvaluateAsync(certificate, [kProduct, "urn:other:dca"]).ConfigureAwait(false));
+                Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            }
+        }
+
+        /// <summary>
         /// Each decision supplies a detached client-only DCA record for the configured device and URI.
         /// </summary>
         [Test]

@@ -148,7 +148,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             OnboardingIdentitySelection selection = await m_identities.SelectAsync(
                 [leaf], issuers, tickets.ToArray().ToArrayOf(), cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
-            if (selection == null || selection.SelectedIdentity != leaf)
+            if (selection == null || selection.SelectedIdentity != leaf || selection.IsExternalAuthentication)
             {
                 throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed);
             }

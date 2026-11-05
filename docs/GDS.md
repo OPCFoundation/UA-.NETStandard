@@ -1464,11 +1464,96 @@ See the runnable
 [`samples/Gds` onboarding demo](../samples/Gds/README.md) for a secure
 registrar/client round trip.
 
+### External authentication certificate handoff
+
+The registrar accepts a DCA certificate installed by an external authentication
+service under
+[Part 21 §7.4.1](https://reference.opcfoundation.org/specs/OPC-10000-21/v1.05.04/7.4.1).
+The service owns device authentication and key/certificate installation. The
+registrar validates the authenticated channel certificate against dedicated
+authentication-service CA trust, then applies the host's approval policy for
+the product instance and DCA application. Trusting an issuer alone does not
+approve every device issued by that authority.
+
+On an existing GDS builder, register an
+`IDeviceRegistrarExternalAuthenticationPolicy` implementation that selects the
+configured `ProductInstanceUri`, DCA `ApplicationRecordDataType` and software
+requirements:
+
+```csharp
+gds.AddDeviceRegistrarExternalAuthentication(
+    trustedStorePath: externalTrustedCaPath,
+    issuerStorePath: externalIssuerPath,
+    policyFactory: services => services.GetRequiredService<MyDeviceApprovalPolicy>());
+```
+
+`ExternalAuthenticationProvider` uses the shared `ICertificateManager` and its
+separate `ExternalAuthenticationAuthorities` trust list. Populate that list
+with authentication-service CA anchors, issuer certificates and current CRLs.
+Leaf pins cannot replace CA anchors in this list. Normal OPC UA channel trust
+must also admit the peer before the handoff can run; neither ticket authorities
+nor the application's peer list implicitly populate the external CA list.
+The provider rejects CA certificates used as device leaves, validates usage and
+revocation without error overrides, and requires both the approved product
+instance URI and DCA application URI in the leaf's URI subject alternative names.
+An unavailable validator or denied approval propagates an error.
+
+An approved inbound DCA enters the existing shared application database and
+candidate lifecycle. An existing application record must already belong to
+that product's DCA; approval cannot take over an unrelated application.
+`GetManagers` is available before software approval, while certificate issuance
+and managed-application registration retain the existing software gate.
+After admission, persisted lifecycle authorization governs the DCA, as with
+ticket-based admission. Hosts use the existing lifecycle operations to change
+software approval and application ownership.
+
+The typed client uses the already installed external DCA credential. First
+obtain the configured managers without requesting application certificates:
+
+```csharp
+PullDcaExternalAuthenticationResult discovery =
+    await workflow.RunExternalAuthenticationAsync(
+        registrar, [], cancellationToken: ct);
+```
+
+The host completes any required software update through the advertised manager.
+It can then call `RunExternalAuthenticationAsync` with its configured
+`ArrayOf<PullDcaManagedApplication>`. Registration, certificate requests,
+receipts, installation and signing recovery use the same Part 12 path as
+ticket-based pull. This entry point does not call `ProvideIdentities`, activate
+a different identity or replace the externally installed DCA certificate.
+
+Registrar push evaluates the actual peer through the same provider before
+requesting tickets. Accepted external evidence bypasses `RequestTickets` and
+retains its original certificate and product identity through enrollment and
+recovery. Before effects, push rechecks external approval, the original DCA
+application relation and software status. An explicit approval denial is not a
+request to try ticket authentication instead. The secret-store enrollment
+provider retains ticket checkpoints in version 1 and external-only checkpoints
+in version 2; version 2 has no ticket payload or signed envelope. Both are read
+by the current provider. Older providers cannot read external checkpoints, so
+do not downgrade a host with an unfinished external enrollment.
+
+Direct hosts can construct `ExternalAuthenticationProvider` with their
+certificate manager and policy. A separately supplied adapter can instead
+implement `IDeviceRegistrarExternalAuthenticationProvider` and register it with
+`AddDeviceRegistrarExternalAuthenticationProvider`. It must enforce equivalent
+issuer, URI and approval checks. The seam permits a future .NET FDO SDK adapter
+without requiring an SDK dependency in the registrar.
+
+[Part 21 §7.4.2](https://reference.opcfoundation.org/specs/OPC-10000-21/v1.05.04/7.4.2)
+describes an FDO Owner supplying the DCA credential through `fdo.csr`. FDO
+TO0/TO1/TO2, ownership vouchers, service-info negotiation and the installation
+of that credential remain external. This stack supplies the certificate
+handoff and subsequent OPC UA management, not an FDO implementation or evidence
+of interoperability with an FDO Owner.
+
 ### Part 21 requirements and implementation boundaries
 
 Part 21 support remains partial because the provisionable-device factory adds
 the Part 22 `Resources` reference without integrating the shared `Resources`
-manager, and the optional external-authentication handoff in §7.4 is not supplied.
+manager. The optional external-authentication handoff uses the provider boundary
+described above; FDO itself remains external.
 Registrar push uses the configured certificate type by default, and
 the host can select a different advertised type for each managed application.
 The following map uses
@@ -1487,7 +1572,7 @@ gap.
 | §6.4: source-dependent ticket authority trust | `OnboardingTicketValidator`, `OnboardingTicketTrustProvider` | `OnboardingTicketValidatorTests`, `OnboardingTicketTrustProviderTests`; online authority-revocation services are not supplied by these adapters |
 | §7.2 and Part 12 §§7.9.5, 7.9.8: request retry and certificate recovery | issuance receipts, client receipts, `IPullDcaSigningRecoveryProvider`, sample signing journal with one fresh retained key per request | issuance-store, receipt-store, pull-workflow and `OnboardingSigningJournalTests` fixtures; remote execution and connected response-loss evidence remain required |
 | §7.3: push provisioning, first registrar and installed trust | device security transition provider, standard push authorization and transaction completion, generated-client processor with separate trust/certificate apply connections, secret-store enrollment journal, retained singleton scope and connected registrar/device samples | processor fixtures cover managed Client, Server and ClientAndServer paths; Server paths require host-authoritative endpoint metadata and two fresh-channel certificate proofs. `ConnectedManagedApplicationRecoveryTests.InterruptedManagedRotationReopensFilesAndResumesOnlyRetainedCertificate` covers process-durable recovery through two live servers, and `ProvisionableDevicePushChannelTests.ConcretePushActivatesCertificateAndRecoversAcrossHostRestartAndFactoryReset` covers DCA restart/reset. These fixtures are authored; this map does not assert their execution results. |
-| §7.4: alternate authentication/FDO | OPC UA ticket/identity authentication is implemented; no external-authentication handoff is supplied | The optional handoff accepts an externally issued DCA certificate with `ProductInstanceUri` under configured authentication-service CA trust, then reuses registrar management. An external FDO Owner can supply this credential through `fdo.csr`; the FDO protocol itself belongs to that external service. No handoff or FDO interoperability evidence is supplied here |
+| §7.4: alternate authentication/FDO | Dedicated CA validation and configured product/DCA approval through `IDeviceRegistrarExternalAuthenticationProvider`; typed external pull and registrar push reuse shared registrar/Part 12 lifecycle | `ExternalAuthenticationProviderTests`, `ProvideIdentitiesRuntimeTests`, `PullDcaWorkflowTests`, `DeviceRegistrarPushProcessorTests` and enrollment recovery cases cover the handoff. `PullRegistrarIntegrationTests.ExternalHandoffOnLiveChannelRequiresDeviceApprovalBeforePart12Issuance` exercises the provider boundary on real channels with software approval gating. FDO protocols and credential installation remain external; no FDO interoperability result is asserted |
 | §§8.1-8.2: signed JSON tickets and String-subtype `EncodedTicket` | `OnboardingTicketWriter`, ticket validator, standard model and strict-UTF-8 compatibility wrappers | writer, validator, onboarding-client and stack-generation fixtures; vendor-specific unprotected metadata is not interpreted and cannot extend signing-certificate validity |
 | §§9.2.2-9.2.8: registrar methods and application ownership | registrar runtime, async bindings, shared GDS database and certificate authorization | `DeviceRegistrarRuntimeTests`, `ProvideIdentitiesRuntimeTests`, `ApplicationsNodeManagerOnboardingTests`; database/lifecycle publication is not a distributed transaction |
 | §§9.2.9-9.2.15: administration, managed authorities and restricted audit delivery | ticket administration bindings, managed authority file services, `DeviceRegistrarAuditReporter` | administration, authority-list and audit-reporter fixtures; connected authorized/unauthorized event delivery still needs remote execution |
@@ -1505,9 +1590,9 @@ period.
 [Section 7.4](https://reference.opcfoundation.org/specs/OPC-10000-21/v1.05.04/7.4)
 allows external authentication, including an FDO handoff, as an alternative
 to OPC UA ticket/identity authentication. It does not make an FDO stack a
-dependency of the ticket-based pull and push paths described here. Supporting
-all defined optional paths does require the registrar handoff; its absence is
-an implementation gap, independently of test execution.
+dependency of the ticket-based pull and push paths described here. The registrar
+handoff is implemented through the configured provider and does not fabricate
+a ticket when the external service has authenticated the device.
 
 The published model associates `EncodedTicket` with **Onboarding Ticket Reader**,
 `DeviceRegistrarType` with
@@ -1533,8 +1618,8 @@ so they do not supply a released parent profile whose mandatory dependencies
 can be expanded. This does not waive any requirements in Part 21 or the Part 12
 certificate-management services it uses. Pending test execution is a validation
 status, not proof of a missing behavior; the source gaps identified above remain
-the reason for the Partial rating. No FDO integration is established by the
-native pull/push components.
+the reason for the Partial rating. The external certificate handoff does not
+establish FDO protocol interoperability.
 
 ---
 

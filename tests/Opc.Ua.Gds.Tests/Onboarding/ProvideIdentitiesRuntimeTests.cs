@@ -44,6 +44,123 @@ namespace Opc.Ua.Gds.Tests.Onboarding
     [Category("Onboarding")]
     public sealed class ProvideIdentitiesRuntimeTests
     {
+        /// <summary>
+        /// The external certificate handoff enters the same candidate, software and Part 12 issuance gates.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ExternalHandoffUsesActualChannelAndSharedLifecycleWithoutTicketSelection(bool update)
+        {
+            var harness = new Harness(update);
+            var external = new Mock<IDeviceRegistrarExternalAuthenticationProvider>(MockBehavior.Strict);
+            external.Setup(value => value.EvaluateAsync(SelectedCertificate, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new DeviceRegistrarExternalAuthenticationResult(Device,
+                    new DeviceRegistrarOnboardingDecision(harness.Application, update, harness.Manager)));
+            var authorization = new DeviceRegistrarAuthorization(
+                harness.Lifecycle, Mock.Of<IDeviceRegistrarApplicationAuthorization>(),
+                harness.Lifecycle, harness.Database.Object, external.Object);
+            SessionSystemContext context = CreateContext(SelectedCertificate);
+
+            Assert.That(await authorization.RequireDcaAsync(context).ConfigureAwait(false), Is.EqualTo(Device));
+            DeviceRegistrarIdentityCandidate? candidate = await harness.Lifecycle
+                .FindCandidateByCertificateAsync(SelectedCertificate).ConfigureAwait(false);
+            Assert.That(candidate!.ApplicationId, Is.EqualTo(SharedId));
+            Assert.That(candidate.CertificateIssuanceAllowed, Is.EqualTo(!update));
+            Assert.That(await harness.Lifecycle.FindDeviceByCertificateAsync(SelectedCertificate)
+                .ConfigureAwait(false), Is.Null, "The external certificate is evidence, not a forged issuance.");
+            if (update)
+            {
+                ServiceResultException? denied = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await authorization.RequireDcaCertificateIssuanceAsync(context, SharedId).ConfigureAwait(false));
+                Assert.That(denied!.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
+                await harness.Lifecycle.UpdateSoftwareStatusAsync(Device, true, "approved").ConfigureAwait(false);
+            }
+            await authorization.RequireDcaCertificateIssuanceAsync(context, SharedId).ConfigureAwait(false);
+            ArrayOf<DeviceRegistrarApplicationBinding> applications =
+                await authorization.GetChannelApplicationsAsync(context).ConfigureAwait(false);
+            Assert.That(applications.Count, Is.EqualTo(1));
+            Assert.That(applications[0].ApplicationId, Is.EqualTo(SharedId));
+            harness.Selector.VerifyNoOtherCalls();
+            external.Verify(value => value.EvaluateAsync(
+                SelectedCertificate, It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
+        /// No unprotected, untrusted or explicitly rejected external peer can create registrar state.
+        /// </summary>
+        [TestCase("unprotected")]
+        [TestCase("untrusted")]
+        [TestCase("denied")]
+        public async Task ExternalHandoffRejectsBeforeRegistrationWhenEvidenceOrApprovalIsMissing(string failure)
+        {
+            var harness = new Harness();
+            var external = new Mock<IDeviceRegistrarExternalAuthenticationProvider>(MockBehavior.Strict);
+            if (failure == "denied")
+            {
+                external.Setup(value => value.EvaluateAsync(SelectedCertificate, It.IsAny<CancellationToken>()))
+                    .Throws(new ServiceResultException(StatusCodes.BadUserAccessDenied));
+            }
+            else if (failure == "untrusted")
+            {
+                external.Setup(value => value.EvaluateAsync(SelectedCertificate, It.IsAny<CancellationToken>()))
+                    .ReturnsAsync((DeviceRegistrarExternalAuthenticationResult?)null);
+            }
+            var authorization = new DeviceRegistrarAuthorization(
+                harness.Lifecycle, Mock.Of<IDeviceRegistrarApplicationAuthorization>(),
+                harness.Lifecycle, harness.Database.Object, external.Object);
+            SessionSystemContext context = CreateContext(SelectedCertificate,
+                failure == "unprotected" ? MessageSecurityMode.None : MessageSecurityMode.SignAndEncrypt);
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await authorization.RequireDcaAsync(context).ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(failure == "unprotected"
+                ? StatusCodes.BadSecurityModeInsufficient : StatusCodes.BadUserAccessDenied));
+            Assert.That(await harness.Lifecycle.FindCandidateByCertificateAsync(SelectedCertificate)
+                .ConfigureAwait(false), Is.Null);
+            harness.Database.Verify(value => value.RegisterApplication(It.IsAny<ApplicationRecordDataType>()),
+                Times.Never);
+            if (failure == "unprotected")
+            {
+                external.VerifyNoOtherCalls();
+            }
+        }
+
+        /// <summary>
+        /// An external approval cannot adopt an unowned or differently owned existing application record.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ExternalHandoffCannotTakeOverExistingSharedApplication(bool boundToAnotherDevice)
+        {
+            var harness = new Harness();
+            if (boundToAnotherDevice)
+            {
+                await harness.Lifecycle.RecordCandidateAsync(
+                    "urn:device:other-owner", SharedId, OtherCertificate, false).ConfigureAwait(false);
+            }
+            harness.Database.Setup(value => value.FindApplications(harness.Application.ApplicationUri))
+                .Returns([new ApplicationRecordDataType { ApplicationId = SharedId }]);
+            var external = new Mock<IDeviceRegistrarExternalAuthenticationProvider>(MockBehavior.Strict);
+            external.Setup(value => value.EvaluateAsync(SelectedCertificate, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new DeviceRegistrarExternalAuthenticationResult(Device,
+                    new DeviceRegistrarOnboardingDecision(harness.Application, false, null)));
+            var authorization = new DeviceRegistrarAuthorization(
+                harness.Lifecycle, Mock.Of<IDeviceRegistrarApplicationAuthorization>(),
+                harness.Lifecycle, harness.Database.Object, external.Object);
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await authorization.RequireDcaAsync(CreateContext(SelectedCertificate)).ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
+            Assert.That(await harness.Lifecycle.FindCandidateByCertificateAsync(SelectedCertificate)
+                .ConfigureAwait(false), Is.Null);
+            harness.Database.Verify(value => value.RegisterApplication(It.IsAny<ApplicationRecordDataType>()),
+                Times.Never);
+            harness.Database.Verify(value => value.UpdateApplication(It.IsAny<ApplicationRecordDataType>()),
+                Times.Never);
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public async Task SelectionReturnsSharedIdAndExplicitSoftwarePolicyWithoutGrantingCallerPrivilege(bool update)

@@ -185,6 +185,49 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
+        /// External certificate evidence uses the ordinary retained issuance and managed-application pipeline.
+        /// </summary>
+        [Test]
+        public async Task ExternalHandoffPushProvisionsWithoutInventingTickets()
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued, externalAuthentication: true);
+            harness.AddManaged("managed-a", ManagedUriA, m_managedA);
+
+            await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false);
+
+            DeviceRegistrarDevice? device = await harness.Lifecycle.FindDeviceAsync(Harness.Product)
+                .ConfigureAwait(false);
+            Assert.That(device!.DcaCertificate, Is.EqualTo(harness.Issued));
+            Assert.That(device.Applications.Count, Is.EqualTo(1));
+            Assert.That(harness.CsrCalls, Is.EqualTo(1));
+            Assert.That(harness.Identity.IsExternalAuthentication, Is.True);
+            Assert.That(harness.Identity.EncodedTicket, Is.Empty);
+            harness.Identities.VerifyNoOtherCalls();
+            harness.ExternalAuthentication.Verify(value => value.EvaluateAsync(
+                harness.Bootstrap, It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+        }
+
+        /// <summary>
+        /// Losing external approval before CSR creation cannot fall back to a ticket or mutate the device.
+        /// </summary>
+        [Test]
+        public async Task ExternalHandoffPushRechecksApprovalBeforeCsrEffects()
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued, externalAuthentication: true);
+            harness.BeforeCsr = () => harness.ExternalAuthentication
+                .Setup(value => value.EvaluateAsync(harness.Bootstrap, It.IsAny<CancellationToken>()))
+                .ReturnsAsync((DeviceRegistrarExternalAuthenticationResult?)null);
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUntrusted));
+            Assert.That(harness.CsrCalls, Is.Zero);
+            Assert.That(harness.ApplyCalls, Is.Zero);
+            harness.Identities.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
         /// A discovery certificate does not compensate for an incorrect authenticated peer after reconnect.
         /// </summary>
         [Test]
@@ -2251,7 +2294,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 bool scopeCapability = true,
                 bool resolveFromServices = false,
                 bool managedApplicationProviders = true,
-                bool certificateEnrollmentRouting = false)
+                bool certificateEnrollmentRouting = false,
+                bool externalAuthentication = false)
             {
                 if (certificateEnrollmentRouting)
                 {
@@ -2273,8 +2317,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 m_csr = ByteString.From(DefaultCertificateFactory.Instance.CreateSigningRequest(issued).AsSpan());
                 m_otherCsr = ByteString.From(
                     DefaultCertificateFactory.Instance.CreateSigningRequest(bootstrap).AsSpan());
-                Identity = new OnboardingIdentitySelection(
-                    Bootstrap, new DeviceIdentityTicketType(), Product, "signed-ticket", string.Empty);
+                Identity = externalAuthentication
+                    ? OnboardingIdentitySelection.FromExternalAuthentication(Bootstrap, Product)
+                    : new OnboardingIdentitySelection(
+                        Bootstrap, new DeviceIdentityTicketType(), Product, "signed-ticket", string.Empty);
                 Application = new ApplicationDescription
                 {
                     ApplicationUri = ApplicationUri,
@@ -2376,6 +2422,16 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                                 PurposeUri = "urn:software-update",
                                 EndpointUrls = ["opc.tcp://software-manager:4840"]
                             } : null)));
+                ExternalAuthentication.Setup(value => value.EvaluateAsync(
+                    Bootstrap, It.IsAny<CancellationToken>()))
+                    .Returns(() => new ValueTask<DeviceRegistrarExternalAuthenticationResult?>(
+                        new DeviceRegistrarExternalAuthenticationResult(Product,
+                            new DeviceRegistrarOnboardingDecision(Record(), RequiresSoftware,
+                                RequiresSoftware ? new ManagerDescription
+                                {
+                                    PurposeUri = "urn:software-update",
+                                    EndpointUrls = ["opc.tcp://software-manager:4840"]
+                                } : null))));
                 Identities.Setup(selector => selector.SelectAsync(
                     It.IsAny<ArrayOf<ByteString>>(), It.IsAny<ArrayOf<ByteString>>(),
                     It.IsAny<ArrayOf<string>>(), It.IsAny<CancellationToken>())).ReturnsAsync(Identity);
@@ -2429,6 +2485,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     services.AddSingleton(Enrollments.Object);
                     services.AddSingleton(Identities.Object);
                     services.AddSingleton(validator);
+                    if (externalAuthentication)
+                    {
+                        services.AddSingleton(ExternalAuthentication.Object);
+                    }
                     services.AddSingleton(policy.Object);
                     services.AddSingleton(database.Object);
                     services.AddSingleton<IDeviceRegistrarIdentityLifecycle>(Lifecycle);
@@ -2457,7 +2517,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                         () => new DeviceRegistrarPushProcessor(connections.Object, Enrollments.Object,
                         validator, policy.Object, database.Object, Lifecycle, certificates,
                         issuances, Lifecycle, Authorization.Object, Initial.Telemetry, CleanupTime,
-                        applicationProvider, channelVerifier);
+                        applicationProvider, channelVerifier,
+                        externalAuthentication ? ExternalAuthentication.Object : null);
                     m_processorFactory = processorFactory;
                     Processor = processorFactory();
                 }
@@ -2531,6 +2592,12 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             /// Gets the strict ticket selector.
             /// </summary>
             public Mock<IOnboardingIdentitySelector> Identities { get; } = new(MockBehavior.Strict);
+
+            /// <summary>
+            /// Gets the explicit external identity handoff boundary.
+            /// </summary>
+            public Mock<IDeviceRegistrarExternalAuthenticationProvider> ExternalAuthentication { get; } =
+                new(MockBehavior.Strict);
 
             /// <summary>
             /// Gets the host's strict durable request boundary.

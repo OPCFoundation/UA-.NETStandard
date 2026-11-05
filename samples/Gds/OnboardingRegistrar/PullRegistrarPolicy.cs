@@ -38,6 +38,7 @@ namespace OnboardingRegistrar
     /// </summary>
     internal sealed class PullRegistrarPolicy :
         IDeviceRegistrarOnboardingPolicy,
+        IDeviceRegistrarExternalAuthenticationPolicy,
         IDeviceRegistrarApplicationAuthorization,
         IDeviceRegistrarPushScheduler,
         IDeviceRegistrarManagerProvider
@@ -70,18 +71,23 @@ namespace OnboardingRegistrar
                 throw new ArgumentNullException(nameof(selection));
             }
             RequireDevice(selection.ProductInstanceUri, cancellationToken);
-            return new ValueTask<DeviceRegistrarOnboardingDecision>(new DeviceRegistrarOnboardingDecision(
-                new ApplicationRecordDataType
-                {
-                    ApplicationUri = m_applicationUri,
-                    ApplicationType = ApplicationType.Client,
-                    ApplicationNames = [new LocalizedText("OnboardingClient")],
-                    ProductUri = "uri:opcfoundation.org:UA-.NETStandard:OnboardingClient",
-                    DiscoveryUrls = [],
-                    ServerCapabilities = []
-                },
-                false,
-                null));
+            return new ValueTask<DeviceRegistrarOnboardingDecision>(CreateDecision());
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<DeviceRegistrarExternalAuthenticationResult> EvaluateAsync(
+            ByteString certificate,
+            ArrayOf<string> certificateUris,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (certificate.IsEmpty || !certificateUris.Contains(m_productInstanceUri) ||
+                !certificateUris.Contains(m_applicationUri))
+            {
+                throw new ServiceResultException(StatusCodes.BadUserAccessDenied);
+            }
+            return new ValueTask<DeviceRegistrarExternalAuthenticationResult>(
+                new DeviceRegistrarExternalAuthenticationResult(m_productInstanceUri, CreateDecision()));
         }
 
         /// <inheritdoc/>
@@ -112,6 +118,25 @@ namespace OnboardingRegistrar
         {
             RequireDevice(productInstanceUri, cancellationToken);
             return new ValueTask<ArrayOf<ManagerDescription>>(ArrayOf<ManagerDescription>.Empty);
+        }
+
+        /// <summary>
+        /// Creates the same operator-selected DCA metadata for ticket and external authentication.
+        /// </summary>
+        private DeviceRegistrarOnboardingDecision CreateDecision()
+        {
+            return new DeviceRegistrarOnboardingDecision(
+                new ApplicationRecordDataType
+                {
+                    ApplicationUri = m_applicationUri,
+                    ApplicationType = ApplicationType.Client,
+                    ApplicationNames = [new LocalizedText("OnboardingClient")],
+                    ProductUri = "uri:opcfoundation.org:UA-.NETStandard:OnboardingClient",
+                    DiscoveryUrls = [],
+                    ServerCapabilities = []
+                },
+                false,
+                null);
         }
 
         /// <summary>

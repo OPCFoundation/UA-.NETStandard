@@ -62,7 +62,8 @@ namespace Microsoft.Extensions.DependencyInjection
                 provider.GetRequiredService<ISecretStore>(), scope, certificateGroupId, certificateTypeId,
                 provider.GetRequiredService<IDeviceRegistrarIdentityLifecycle>(),
                 provider.GetRequiredService<IDeviceRegistrarCertificateLifecycle>(),
-                provider.GetRequiredService<ITelemetryContext>()));
+                provider.GetRequiredService<ITelemetryContext>(),
+                provider.GetService<IDeviceRegistrarExternalAuthenticationProvider>()));
             builder.Services.AddSingleton<IDeviceRegistrarPushEnrollmentProvider>(provider =>
                 provider.GetRequiredService<SecretStoreDeviceRegistrarPushEnrollmentProvider>());
             return builder;

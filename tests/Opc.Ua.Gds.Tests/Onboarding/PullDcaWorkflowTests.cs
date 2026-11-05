@@ -49,6 +49,53 @@ namespace Opc.Ua.Gds.Tests.Onboarding
     [Category("Onboarding")]
     public sealed class PullDcaWorkflowTests
     {
+        /// <summary>
+        /// An external DCA proceeds directly to managers and ordinary managed-application signing and installation.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ExternalHandoffSkipsTicketSelectionAndReusesManagedApplicationProvisioning(bool managed)
+        {
+            var fixture = new Fixture();
+            PullDcaManagedApplication application = CreateApplication();
+            PullDcaExternalAuthenticationResult result = await fixture.Create(includeSoftware: false)
+                .RunExternalAuthenticationAsync(kRegistrar, managed ? [application] : []).ConfigureAwait(false);
+
+            Assert.That(fixture.Calls.Take(2), Is.EqualTo(new[] { "connect", "managers" }));
+            Assert.That(fixture.Calls, Does.Not.Contain("provide"));
+            Assert.That(fixture.Calls, Does.Not.Contain("identity"));
+            Assert.That(fixture.Calls, Does.Not.Contain("software"));
+            Assert.That(fixture.Calls, Does.Not.Contain("reconnect"));
+            Assert.That(result.Managers, Is.EqualTo(fixture.Connection.Managers));
+            Assert.That(result.ManagedApplications.Count, Is.EqualTo(managed ? 1 : 0));
+            Assert.That(fixture.Host.InstalledIds, Is.EqualTo(managed ? new[] { kManagedId } : []));
+            if (managed)
+            {
+                Assert.That(result.ManagedApplications[0].ApplicationId, Is.EqualTo(kManagedId));
+                Assert.That(result.ManagedApplications[0].Credentials.Certificate, Is.EqualTo(kCertificate));
+                Assert.That(fixture.Connection.RegisteredApplication!.Application,
+                    Is.Not.SameAs(application.Application));
+            }
+        }
+
+        /// <summary>
+        /// A failed registrar admission cannot reach registration or installation.
+        /// </summary>
+        [Test]
+        public async Task ExternalHandoffPropagatesManagerAdmissionFailureBeforeAnyCertificateRequest()
+        {
+            var fixture = new Fixture();
+            fixture.FailingOperation = "managers";
+
+            InvalidOperationException? error = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await fixture.Create().RunExternalAuthenticationAsync(kRegistrar, [CreateApplication()])
+                    .ConfigureAwait(false));
+
+            Assert.That(error!.Message, Is.EqualTo("host failure"));
+            Assert.That(fixture.Host.InstalledIds, Is.Empty);
+            Assert.That(fixture.Calls, Is.EqualTo(new[] { "connect", "managers" }));
+        }
+
         [Test]
         public async Task PullManagementProvesIdentityCompletesGateAndProvisionsEveryApplicationInOrder()
         {

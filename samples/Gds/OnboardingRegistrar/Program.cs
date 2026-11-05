@@ -88,6 +88,11 @@ try
     }
     bool runPullRegistrar = GetBooleanOption(builder, "pullRegistrar");
     bool runPushRegistrar = GetBooleanOption(builder, "pushRegistrar");
+    bool runExternalAuthentication = GetBooleanOption(builder, "externalAuthentication");
+    if (runExternalAuthentication && !runPullRegistrar && !runPushRegistrar)
+    {
+        throw new ArgumentException("External authentication requires --pullRegistrar or --pushRegistrar.");
+    }
     if (runPullRegistrar && runPushRegistrar)
     {
         throw new ArgumentException("Select only one of --pullRegistrar and --pushRegistrar.");
@@ -229,6 +234,7 @@ static async Task ConfigureConnectedRegistrarAsync(
     if (!runPushRegistrar)
     {
         var policy = new PullRegistrarPolicy(product, application);
+        builder.Services.AddSingleton(policy);
         builder.Services.AddSingleton<IDeviceRegistrarOnboardingPolicy>(policy);
         builder.Services.AddSingleton<IDeviceRegistrarApplicationAuthorization>(policy);
         builder.Services.AddSingleton<IDeviceRegistrarPushScheduler>(policy);
@@ -272,6 +278,15 @@ static async Task ConfigureConnectedRegistrarAsync(
     else
     {
         gds.AddSecretStoreCertificateRequestIssuanceStore(new InMemorySecretStore(), "pull-registrar");
+    }
+    if (GetBooleanOption(builder, "externalAuthentication"))
+    {
+        gds.AddDeviceRegistrarExternalAuthentication(
+            Path.Combine(pkiRoot, "external-authentication", "trusted"),
+            Path.Combine(pkiRoot, "external-authentication", "issuers"),
+            services => runPushRegistrar
+                ? services.GetRequiredService<PushRegistrarSample>()
+                : services.GetRequiredService<PullRegistrarPolicy>());
     }
     gds.AddDeviceRegistrar(_ => { });
 }

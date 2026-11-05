@@ -26,6 +26,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.Gds.Server.Onboarding
@@ -59,6 +60,22 @@ namespace Opc.Ua.Gds.Server.Onboarding
             : this(lifecycle, applications)
         {
             m_identities = identities ?? throw new ArgumentNullException(nameof(identities));
+        }
+
+        /// <summary>
+        /// Adds the explicitly configured alternate-authentication handoff to the ordinary lifecycle.
+        /// The certificate manager must also trust the external issuer for channel establishment.
+        /// </summary>
+        public DeviceRegistrarAuthorization(
+            IDeviceRegistrarLifecycle lifecycle,
+            IDeviceRegistrarApplicationAuthorization applications,
+            IDeviceRegistrarIdentityLifecycle identities,
+            IApplicationsDatabase database,
+            IDeviceRegistrarExternalAuthenticationProvider? externalAuthentication)
+            : this(lifecycle, applications, identities)
+        {
+            m_database = database ?? throw new ArgumentNullException(nameof(database));
+            m_externalAuthentication = externalAuthentication;
         }
 
         /// <inheritdoc/>
@@ -353,6 +370,54 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 await certificates.ConfirmDcaCertificateAsync(channel.ClientChannelCertificate, cancellationToken)
                     .ConfigureAwait(false);
             }
+            if (m_externalAuthentication != null && m_identities != null &&
+                await m_identities.FindCandidateByCertificateAsync(
+                    channel.ClientChannelCertificate, cancellationToken).ConfigureAwait(false) == null &&
+                string.IsNullOrEmpty(await m_lifecycle.FindDeviceByCertificateAsync(
+                    channel.ClientChannelCertificate, cancellationToken).ConfigureAwait(false)))
+            {
+                DeviceRegistrarExternalAuthenticationResult? external =
+                    await m_externalAuthentication.EvaluateAsync(
+                        channel.ClientChannelCertificate, cancellationToken).ConfigureAwait(false);
+                if (external != null)
+                {
+                    if (m_database == null || m_lifecycle is not IDeviceRegistrarCertificateLifecycle lifecycle)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadConfigurationError);
+                    }
+                    ApplicationRecordDataType application = external.Decision.Application;
+                    ApplicationRecordDataType[]? existing =
+                        m_database.FindApplications(application.ApplicationUri!);
+                    if (existing is { Length: > 0 })
+                    {
+                        if (existing.Length != 1)
+                        {
+                            throw new ServiceResultException(StatusCodes.BadInvalidState);
+                        }
+                        DeviceRegistrarApplicationBinding? owner = await lifecycle.FindApplicationAsync(
+                            existing[0].ApplicationId, cancellationToken).ConfigureAwait(false);
+                        if (owner == null || !owner.IsDca ||
+                            owner.ProductInstanceUri != external.ProductInstanceUri)
+                        {
+                            throw new ServiceResultException(StatusCodes.BadRequestNotAllowed);
+                        }
+                    }
+                    await DeviceRegistrarRuntime.RegisterSharedApplicationAsync(
+                        m_database, application, async (id, ct) =>
+                        {
+                            DeviceRegistrarApplicationBinding? binding =
+                                await lifecycle.FindApplicationAsync(id, ct).ConfigureAwait(false);
+                            if (binding != null &&
+                                (!binding.IsDca || binding.ProductInstanceUri != external.ProductInstanceUri))
+                            {
+                                throw new ServiceResultException(StatusCodes.BadRequestNotAllowed);
+                            }
+                            await m_identities.RecordCandidateAsync(
+                                external.ProductInstanceUri, id, channel.ClientChannelCertificate,
+                                external.Decision.RequiresSoftwareUpdate, ct).ConfigureAwait(false);
+                        }, cancellationToken).ConfigureAwait(false);
+                }
+            }
             return channel;
         }
 
@@ -390,5 +455,11 @@ namespace Opc.Ua.Gds.Server.Onboarding
         private readonly IDeviceRegistrarLifecycle m_lifecycle;
         private readonly IDeviceRegistrarApplicationAuthorization m_applications;
         private readonly IDeviceRegistrarIdentityLifecycle? m_identities;
+
+        /// <summary>The shared application records used by the external certificate handoff.</summary>
+        private readonly IApplicationsDatabase? m_database;
+
+        /// <summary>The explicitly selected external issuer and device approval boundary.</summary>
+        private readonly IDeviceRegistrarExternalAuthenticationProvider? m_externalAuthentication;
     }
 }

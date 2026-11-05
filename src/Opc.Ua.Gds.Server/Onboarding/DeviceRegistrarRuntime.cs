@@ -99,7 +99,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             OnboardingIdentitySelection selection = await m_identitySelector.SelectAsync(
                 identities, issuers, tickets, cancellationToken).ConfigureAwait(false);
             ByteString selected = selection.SelectedIdentity;
-            if (!identities.Contains(selected))
+            if (!identities.Contains(selected) || selection.IsExternalAuthentication)
             {
                 throw new ServiceResultException(StatusCodes.BadCertificateInvalid);
             }
@@ -284,7 +284,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// Rejects conflicting ownership before changing existing shared metadata.
         /// New entries retain their identifier if recording the lifecycle relation fails.
         /// </summary>
-        private static async ValueTask<NodeId> RegisterSharedApplicationAsync(
+        internal static async ValueTask<NodeId> RegisterSharedApplicationAsync(
             IApplicationsDatabase applications,
             ApplicationRecordDataType application,
             Func<NodeId, CancellationToken, ValueTask> associate,

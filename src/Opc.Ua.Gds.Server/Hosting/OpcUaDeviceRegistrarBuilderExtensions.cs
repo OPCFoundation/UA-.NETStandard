@@ -455,7 +455,9 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton(sp => new DeviceRegistrarAuthorization(
                 sp.GetRequiredService<IDeviceRegistrarLifecycle>(),
                 sp.GetRequiredService<IDeviceRegistrarApplicationAuthorization>(),
-                sp.GetRequiredService<IDeviceRegistrarIdentityLifecycle>()));
+                sp.GetRequiredService<IDeviceRegistrarIdentityLifecycle>(),
+                sp.GetRequiredService<IApplicationsDatabase>(),
+                sp.GetService<IDeviceRegistrarExternalAuthenticationProvider>()));
             services.TryAddSingleton<IDeviceRegistrarAuthorization>(
                 sp => sp.GetRequiredService<DeviceRegistrarAuthorization>());
             services.TryAddSingleton<IDeviceRegistrarCertificateAuthorization>(sp =>
@@ -477,6 +479,82 @@ namespace Microsoft.Extensions.DependencyInjection
                     role.RoleId : ExpandedNodeId.Null
             });
             services.TryAddSingleton<IDeviceRegistrarRuntime>(sp => sp.GetRequiredService<DeviceRegistrarRuntime>());
+            return services;
+        }
+
+        /// <summary>
+        /// Enables the external certificate handoff with dedicated CA trust and an explicit device-approval policy.
+        /// FDO protocols and certificate installation remain outside the registrar.
+        /// </summary>
+        public static IGdsServerBuilder AddDeviceRegistrarExternalAuthentication(
+            this IGdsServerBuilder builder,
+            string trustedStorePath,
+            string? issuerStorePath,
+            Func<IServiceProvider, IDeviceRegistrarExternalAuthenticationPolicy> policyFactory)
+        {
+            builder.ThrowIfNull(nameof(builder));
+            builder.Services.AddDeviceRegistrarExternalAuthentication(
+                trustedStorePath, issuerStorePath, policyFactory);
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers the certificate-manager-backed handoff without supplying an accepting approval policy.
+        /// Configure the ExternalAuthenticationAuthorities CA trust list and normal channel trust separately.
+        /// </summary>
+        public static IServiceCollection AddDeviceRegistrarExternalAuthentication(
+            this IServiceCollection services,
+            string trustedStorePath,
+            string? issuerStorePath,
+            Func<IServiceProvider, IDeviceRegistrarExternalAuthenticationPolicy> policyFactory)
+        {
+            services.ThrowIfNull(nameof(services));
+            policyFactory.ThrowIfNull(nameof(policyFactory));
+            if (string.IsNullOrWhiteSpace(trustedStorePath) ||
+                (issuerStorePath != null && string.IsNullOrWhiteSpace(issuerStorePath)) ||
+                string.Equals(trustedStorePath, issuerStorePath, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ArgumentException("External CA and issuer stores require distinct nonempty paths.");
+            }
+            if (services.Any(static descriptor => !descriptor.IsKeyedService &&
+                descriptor.ServiceType == typeof(IDeviceRegistrarExternalAuthenticationProvider)))
+            {
+                throw new InvalidOperationException("Select only one external authentication provider.");
+            }
+            if (services.Any(static descriptor => !descriptor.IsKeyedService &&
+                descriptor.ServiceType == typeof(IDeviceRegistrarExternalAuthenticationPolicy)))
+            {
+                throw new InvalidOperationException("Select only one external authentication approval policy.");
+            }
+            services.AddSingleton(provider => policyFactory(provider) ??
+                throw new InvalidOperationException("The external authentication policy factory returned null."));
+            return services.AddDeviceRegistrarExternalAuthenticationProvider(provider =>
+            {
+                ICertificateManager certificates = provider.GetRequiredService<ICertificateManager>();
+                certificates.RegisterTrustList(
+                    ExternalAuthenticationProvider.AuthenticationAuthorities, trustedStorePath, issuerStorePath);
+                return new ExternalAuthenticationProvider(
+                    certificates, provider.GetRequiredService<IDeviceRegistrarExternalAuthenticationPolicy>());
+            });
+        }
+
+        /// <summary>
+        /// Selects one custom external handoff provider, including a future separately supplied FDO SDK adapter.
+        /// The provider must validate issuer trust, certificate usage, ProductInstanceUri and explicit host approval.
+        /// </summary>
+        public static IServiceCollection AddDeviceRegistrarExternalAuthenticationProvider(
+            this IServiceCollection services,
+            Func<IServiceProvider, IDeviceRegistrarExternalAuthenticationProvider> factory)
+        {
+            services.ThrowIfNull(nameof(services));
+            factory.ThrowIfNull(nameof(factory));
+            if (services.Any(static descriptor => !descriptor.IsKeyedService &&
+                descriptor.ServiceType == typeof(IDeviceRegistrarExternalAuthenticationProvider)))
+            {
+                throw new InvalidOperationException("Select only one external authentication provider.");
+            }
+            services.AddSingleton(provider => factory(provider) ??
+                throw new InvalidOperationException("The external authentication provider factory returned null."));
             return services;
         }
 

@@ -124,6 +124,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             services.AddSingleton<IDeviceRegistrarCertificateLifecycle>(m_lifecycle);
             services.AddSingleton<ITicketStore>(new MemoryTicketStore());
             services.AddSingleton(m_policy.Object);
+            m_externalAuthentication = new Mock<IDeviceRegistrarExternalAuthenticationProvider>(MockBehavior.Strict);
+            m_externalAuthentication.Setup(value => value.EvaluateAsync(
+                It.IsAny<ByteString>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((DeviceRegistrarExternalAuthenticationResult?)null);
+            services.AddDeviceRegistrarExternalAuthenticationProvider(_ => m_externalAuthentication.Object);
             services.AddSingleton<IDeviceRegistrarApplicationAuthorization>(policy);
             services.AddSingleton<IDeviceRegistrarPushScheduler>(policy);
             services.AddSingleton<IDeviceRegistrarManagerProvider>(policy);
@@ -335,6 +340,72 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             {
                 await CloseSessionAsync(session).ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// An external provider sees the actual channel key and enters the normal software/Part 12 gates.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ExternalHandoffOnLiveChannelRequiresDeviceApprovalBeforePart12Issuance(bool update)
+        {
+            var policy = new PullRegistrarPolicy(m_product, m_product);
+            DeviceRegistrarExternalAuthenticationResult external = await policy.EvaluateAsync(
+                m_identity, [m_product]).ConfigureAwait(false);
+            if (update)
+            {
+                external = external with
+                {
+                    Decision = external.Decision with
+                    {
+                        RequiresSoftwareUpdate = true,
+                        SoftwareUpdateManager = new ManagerDescription
+                        {
+                            PurposeUri = "urn:test:software-approval",
+                            EndpointUrls = ["opc.tcp://localhost/software-manager"]
+                        }
+                    }
+                };
+            }
+            m_externalAuthentication.Setup(value => value.EvaluateAsync(
+                m_identity, It.IsAny<CancellationToken>())).ReturnsAsync(external);
+
+            Assert.That(await Registrar(m_session).GetManagersAsync().ConfigureAwait(false), Is.Empty);
+            DeviceRegistrarIdentityCandidate? candidate = await m_lifecycle.FindCandidateByCertificateAsync(
+                m_identity).ConfigureAwait(false);
+            Assert.That(candidate, Is.Not.Null);
+            Assert.That(candidate!.CertificateIssuanceAllowed, Is.EqualTo(!update));
+            await AssertStatusAsync(StatusCodes.BadUserAccessDenied, async () =>
+                await Registrar(m_otherSession).GetManagersAsync().ConfigureAwait(false)).ConfigureAwait(false);
+            var profile = new PullDcaCertificateProfile(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup,
+                    m_session.NamespaceUris),
+                CoreObjectTypeIds.RsaSha256ApplicationCertificateType);
+            var credentials = new OnboardingDeviceCredentials(m_device.Config, m_telemetry);
+            ByteString csr = await credentials.CreateSigningRequestAsync(candidate.ApplicationId, profile)
+                .ConfigureAwait(false);
+            var directory = DirectoryClient(m_session);
+            if (update)
+            {
+                await AssertStatusAsync(StatusCodes.BadRequestNotAllowed, async () =>
+                    await directory.StartSigningRequestAsync(
+                        candidate.ApplicationId, profile.CertificateGroupId, profile.CertificateTypeId, csr)
+                        .ConfigureAwait(false)).ConfigureAwait(false);
+                await m_otherSession.CloseAsync().ConfigureAwait(false);
+                m_otherSession.Dispose();
+                m_otherSession = await ConnectAsync(
+                    m_other, new UserIdentity("software-admin", Encoding.UTF8.GetBytes(m_password)))
+                    .ConfigureAwait(false);
+                await Registrar(m_otherSession).UpdateSoftwareStatusAsync(m_product, true, "external-approved")
+                    .ConfigureAwait(false);
+            }
+            NodeId requestId = await directory.StartSigningRequestAsync(
+                candidate.ApplicationId, profile.CertificateGroupId, profile.CertificateTypeId, csr)
+                .ConfigureAwait(false);
+            Assert.That(requestId.IsNull, Is.False);
+            m_policy.VerifyNoOtherCalls();
+            m_externalAuthentication.Verify(value => value.EvaluateAsync(
+                m_identity, It.IsAny<CancellationToken>()), Times.Once);
         }
 
         /// <summary>
@@ -691,6 +762,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
         /// <summary>The explicit host admission and software-update decision.</summary>
         private Mock<IDeviceRegistrarOnboardingPolicy> m_policy = null!;
+
+        /// <summary>The optional handoff boundary, rejected unless a test explicitly approves a channel key.</summary>
+        private Mock<IDeviceRegistrarExternalAuthenticationProvider> m_externalAuthentication = null!;
 
         /// <summary>The owning dependency-injection container.</summary>
         private ServiceProvider m_provider = null!;

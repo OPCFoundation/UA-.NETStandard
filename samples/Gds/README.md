@@ -522,6 +522,54 @@ one. Without the signing journal described next, a consumed request
 therefore returns its error rather than accepting an assigned certificate
 of unknown origin.
 
+### Use an externally installed DCA certificate
+
+The registrar and client can use the Part 21 §7.4 certificate handoff without
+a device ticket. An external authentication service must first install the
+DCA certificate and its private key. The certificate must contain the configured
+product instance URI and DCA application URI as URI subject alternative names.
+For `OnboardingClient`, the application URI is
+`urn:localhost:OPCFoundation:OnboardingClient`; use that URI as the registrar's
+`--dcaApplicationUri` and configure `--productInstanceUri` for the device.
+
+Add `--externalAuthentication true` to the connected registrar command
+(`--pullRegistrar true` or `--pushRegistrar true`). Before startup, populate
+`<pkiRoot>\external-authentication\trusted` with the authentication-service CA
+and its CRLs, and `<pkiRoot>\external-authentication\issuers` with any issuer
+chain and issuer CRLs. The dedicated list does not replace normal OPC UA
+channel trust: configure peer trust on the registrar and device separately.
+The sample approves only the configured product instance and DCA application
+pair, even if the CA has issued certificates to other devices.
+
+Start the client with its externally provisioned PKI root:
+
+```powershell
+dotnet run --project samples/Gds/OnboardingClient -f net10.0 -- `
+  --endpoint "opc.tcp://registrar.example:4840" `
+  --pkiRoot "D:\temp\external-device-pki" `
+  --anonymous true `
+  --pull true `
+  --externalAuthentication true
+```
+
+This mode disables certificate auto-creation and requires the installed DCA
+private key. It calls `GetManagers` through `RunExternalAuthenticationAsync`,
+prints `PULL_DCA_EXTERNAL_AUTHENTICATED` and the manager count, and leaves the
+DCA certificate unchanged. It does not combine with ticket preparation,
+ticket inputs or signing-journal/resumption options. The client sample has no
+software-update engine or managed-application inputs; a host uses the returned
+managers to complete required software updates and supplies its applications
+to the typed workflow afterwards.
+
+Registrar push uses the same approval provider and retained external evidence
+without requesting tickets from an externally authenticated device. The
+`OnboardingDevice` sample remains the ticket-based factory-identity example;
+it does not run an external authentication service or install its DCA credential.
+FDO discovery, ownership vouchers, TO0/TO1/TO2 and `fdo.csr` exchange remain
+outside these samples. No FDO SDK dependency or FDO interoperability result is
+provided. See [the handoff contract](../../docs/GDS.md#external-authentication-certificate-handoff)
+for provider registration and recovery behavior.
+
 ### Recover a lost FinishRequest response
 
 The registrar can accept `FinishRequest` and issue the certificate while

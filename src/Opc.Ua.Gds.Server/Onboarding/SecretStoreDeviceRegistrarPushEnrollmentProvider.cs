@@ -53,8 +53,10 @@ namespace Opc.Ua.Gds.Server.Onboarding
             NodeId certificateTypeId,
             IDeviceRegistrarIdentityLifecycle candidates,
             IDeviceRegistrarCertificateLifecycle devices,
-            ITelemetryContext telemetry)
-            : this(secrets, scope, certificateGroupId, certificateTypeId, candidates, devices, telemetry)
+            ITelemetryContext telemetry,
+            IDeviceRegistrarExternalAuthenticationProvider? externalAuthentication = null)
+            : this(secrets, scope, certificateGroupId, certificateTypeId, candidates, devices, telemetry,
+                externalAuthentication)
         {
             Bind(manager);
         }
@@ -69,11 +71,13 @@ namespace Opc.Ua.Gds.Server.Onboarding
             NodeId certificateTypeId,
             IDeviceRegistrarIdentityLifecycle candidates,
             IDeviceRegistrarCertificateLifecycle devices,
-            ITelemetryContext telemetry)
+            ITelemetryContext telemetry,
+            IDeviceRegistrarExternalAuthenticationProvider? externalAuthentication = null)
         {
             m_secrets = secrets ?? throw new ArgumentNullException(nameof(secrets));
             m_candidates = candidates ?? throw new ArgumentNullException(nameof(candidates));
             m_devices = devices ?? throw new ArgumentNullException(nameof(devices));
+            m_externalAuthentication = externalAuthentication;
             if (string.IsNullOrWhiteSpace(scope))
             {
                 throw new ArgumentException("An exclusive durable enrollment scope is required.", nameof(scope));
@@ -229,8 +233,9 @@ namespace Opc.Ua.Gds.Server.Onboarding
             {
                 throw new ArgumentNullException(nameof(createSigningRequest));
             }
-            if (string.IsNullOrEmpty(identity.EncodedTicket) ||
-                identity.MatchingTicket is not (DeviceIdentityTicketType or CompositeIdentityTicketType))
+            if (!identity.IsExternalAuthentication &&
+                (string.IsNullOrEmpty(identity.EncodedTicket) ||
+                identity.MatchingTicket is not (DeviceIdentityTicketType or CompositeIdentityTicketType)))
             {
                 throw new ServiceResultException(
                     StatusCodes.BadSecurityChecksFailed,
@@ -336,13 +341,34 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// Requires current persisted software approval and that the application is either the original
         /// DCA application or a managed application recorded for the confirmed, non-singleton device.
         /// </summary>
-        private ValueTask RequireApprovalAsync(
+        private async ValueTask RequireApprovalAsync(
             OnboardingIdentitySelection identity,
             NodeId applicationId,
             CancellationToken ct)
         {
-            return ApplicationsNodeManager.RequirePushApprovalAsync(
-                identity, applicationId, m_candidates, m_devices, ct);
+            if (identity.IsExternalAuthentication)
+            {
+                DeviceRegistrarExternalAuthenticationResult external =
+                    await (m_externalAuthentication ??
+                        throw new ServiceResultException(StatusCodes.BadConfigurationError))
+                        .EvaluateAsync(identity.SelectedIdentity, ct).ConfigureAwait(false) ??
+                    throw new ServiceResultException(StatusCodes.BadCertificateUntrusted);
+                if (external.ProductInstanceUri != identity.ProductInstanceUri)
+                {
+                    throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed);
+                }
+                DeviceRegistrarDevice device = await m_devices.FindDeviceAsync(
+                    identity.ProductInstanceUri, ct).ConfigureAwait(false) ??
+                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied);
+                RequireManager().ValidateExternalDcaApplication(
+                    device.DcaApplicationId, external.Decision.Application);
+                if (external.Decision.RequiresSoftwareUpdate && !device.SoftwareStatus)
+                {
+                    throw new ServiceResultException(StatusCodes.BadRequestNotAllowed);
+                }
+            }
+            await ApplicationsNodeManager.RequirePushApprovalAsync(
+                identity, applicationId, m_candidates, m_devices, ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -351,6 +377,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
         private static void RequireIdentity(Checkpoint checkpoint, OnboardingIdentitySelection identity)
         {
             if (checkpoint.Identity.SelectedIdentity != identity.SelectedIdentity ||
+                checkpoint.Identity.IsExternalAuthentication != identity.IsExternalAuthentication ||
                 checkpoint.Identity.EncodedTicket != identity.EncodedTicket ||
                 checkpoint.Identity.EncodedComposite != identity.EncodedComposite)
             {
@@ -380,7 +407,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             using var stream = new MemoryStream();
             using (var encoder = new BinaryEncoder(stream, m_context, leaveOpen: true))
             {
-                encoder.WriteUInt32(null, 1);
+                encoder.WriteUInt32(null, checkpoint.Identity.IsExternalAuthentication ? 2u : 1u);
                 encoder.WriteString(null, m_scope);
                 encoder.WriteString(null, m_groupId.ToString());
                 encoder.WriteNodeId(null, checkpoint.CertificateTypeId);
@@ -390,9 +417,12 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 encoder.WriteByteString(null, checkpoint.Identity.SelectedIdentity);
                 encoder.WriteString(null, checkpoint.Identity.EncodedTicket);
                 encoder.WriteString(null, checkpoint.Identity.EncodedComposite);
-                BaseTicketType ticket = checkpoint.Identity.MatchingTicket;
-                encoder.WriteBoolean(null, ticket is CompositeIdentityTicketType);
-                encoder.WriteEncodeable(null, ticket);
+                if (!checkpoint.Identity.IsExternalAuthentication)
+                {
+                    BaseTicketType ticket = checkpoint.Identity.MatchingTicket;
+                    encoder.WriteBoolean(null, ticket is CompositeIdentityTicketType);
+                    encoder.WriteEncodeable(null, ticket);
+                }
                 encoder.WriteByteString(null, checkpoint.Csr);
                 encoder.WriteString(null, checkpoint.RequestId.IsNull ? string.Empty : EncodeId(checkpoint.RequestId));
                 if (checkpoint.Enrollment is { } enrollment)
@@ -420,7 +450,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
             }
             using var stream = new MemoryStream(bytes.ToArray(), writable: false);
             using var decoder = new BinaryDecoder(stream, m_context);
-            if (decoder.ReadUInt32(null) != 1 || decoder.ReadString(null) != m_scope ||
+            uint version = decoder.ReadUInt32(null);
+            if ((version != 1 && version != 2) || decoder.ReadString(null) != m_scope ||
                 decoder.ReadString(null) != m_groupId.ToString())
             {
                 throw new InvalidDataException("The push enrollment checkpoint belongs to another scope or profile.");
@@ -441,11 +472,23 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 throw new InvalidDataException("The push enrollment ticket is missing.");
             string compositeEnvelope = decoder.ReadString(null) ??
                 throw new InvalidDataException("The push enrollment composite envelope is missing.");
-            BaseTicketType ticket = decoder.ReadBoolean(null)
-                ? decoder.ReadEncodeable<CompositeIdentityTicketType>(null)
-                : decoder.ReadEncodeable<DeviceIdentityTicketType>(null);
-            var identity = new OnboardingIdentitySelection(
-                selected, ticket, product, ticketEnvelope, compositeEnvelope);
+            OnboardingIdentitySelection identity;
+            if (version == 2)
+            {
+                if (ticketEnvelope.Length != 0 || compositeEnvelope.Length != 0)
+                {
+                    throw new InvalidDataException("External authentication has no ticket envelope.");
+                }
+                identity = OnboardingIdentitySelection.FromExternalAuthentication(selected, product);
+            }
+            else
+            {
+                BaseTicketType ticket = decoder.ReadBoolean(null)
+                    ? decoder.ReadEncodeable<CompositeIdentityTicketType>(null)
+                    : decoder.ReadEncodeable<DeviceIdentityTicketType>(null);
+                identity = new OnboardingIdentitySelection(
+                    selected, ticket, product, ticketEnvelope, compositeEnvelope);
+            }
             ByteString csr = decoder.ReadByteString(null);
             string request = decoder.ReadString(null) ??
                 throw new InvalidDataException("The push enrollment request identity is missing.");
@@ -458,7 +501,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     identity, applicationId, requestId, decoder.ReadString(null)!, decoder.ReadString(null)!,
                     decoder.ReadEncodeable<TrustListDataType>(null), csr);
             }
-            if (product != productInstanceUri || string.IsNullOrEmpty(ticketEnvelope) ||
+            if (product != productInstanceUri || (version == 1 && string.IsNullOrEmpty(ticketEnvelope)) ||
                 stageCode > (byte)Stage.Completed ||
                 (stageCode >= (byte)Stage.CsrRetained && csr.IsEmpty) ||
                 (stageCode >= (byte)Stage.RequestRetained && requestId.IsNull) ||
@@ -592,6 +635,9 @@ namespace Opc.Ua.Gds.Server.Onboarding
 
         /// <summary>The shared DCA ownership and application scope.</summary>
         private readonly IDeviceRegistrarCertificateLifecycle m_devices;
+
+        /// <summary>The external issuer and approval boundary rechecked before request effects.</summary>
+        private readonly IDeviceRegistrarExternalAuthenticationProvider? m_externalAuthentication;
 
         /// <summary>The bounded OPC UA checkpoint codec context.</summary>
         private readonly IServiceMessageContext m_context;

@@ -73,6 +73,26 @@ try
         builder.Configuration["anonymous"],
         out bool anonymous) && anonymous;
     bool runPull = bool.TryParse(builder.Configuration["pull"], out bool pull) && pull;
+    string? externalAuthentication = builder.Configuration["externalAuthentication"];
+    if (externalAuthentication != null && !bool.TryParse(externalAuthentication, out _))
+    {
+        throw new ArgumentException("--externalAuthentication must be true or false.");
+    }
+    bool runExternalAuthentication = bool.TryParse(externalAuthentication, out bool external) && external;
+    if (runExternalAuthentication && (!runPull ||
+        builder.Configuration["signingJournal"] != null ||
+        builder.Configuration["resumeApplicationId"] != null ||
+        builder.Configuration["resumeRequestId"] != null ||
+        builder.Configuration["resumeSigningKeyCertificate"] != null ||
+        builder.Configuration["exportSigningKeyCertificate"] != null ||
+        builder.Configuration["deviceTicket"] != null ||
+        builder.Configuration["compositeTicket"] != null ||
+        (bool.TryParse(builder.Configuration["prepareTickets"], out bool prepare) && prepare)))
+    {
+        throw new ArgumentException(
+            "External authentication requires --pull and installed DCA credentials; " +
+            "omit ticket and recovery options.");
+    }
     string? signingJournal = builder.Configuration["signingJournal"];
     string? signingKeyStore = builder.Configuration["signingKeyStore"];
     bool discardSigningRequest =
@@ -169,6 +189,11 @@ try
     }
 
     using IHost host = builder.Build();
+    if (runExternalAuthentication)
+    {
+        host.Services.GetRequiredService<IOpcUaApplicationConfigurationProvider>()
+            .Application.DisableCertificateAutoCreation = true;
+    }
     if (bool.TryParse(builder.Configuration["prepareTickets"], out bool prepareTickets) && prepareTickets)
     {
         string registrarPkiRoot = builder.Configuration["registrarPkiRoot"] ??
@@ -213,6 +238,14 @@ try
                 Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup, session.NamespaceUris);
             var registrar = new PullDcaRegistrar(new Uri(endpoint), deviceRegistrar, directory);
             var profile = new PullDcaCertificateProfile(group, ObjectTypeIds.RsaSha256ApplicationCertificateType);
+            if (runExternalAuthentication)
+            {
+                PullDcaExternalAuthenticationResult externalResult =
+                    await host.Services.GetRequiredService<PullDcaWorkflow>()
+                        .RunExternalAuthenticationAsync(registrar, [], cancellationToken: ct).ConfigureAwait(false);
+                Console.WriteLine($"PULL_DCA_EXTERNAL_AUTHENTICATED {externalResult.Managers.Count}");
+                return 0;
+            }
             if (signingJournal != null)
             {
                 OnboardingDeviceCredentials credentials =

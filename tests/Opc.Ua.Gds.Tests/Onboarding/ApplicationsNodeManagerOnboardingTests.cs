@@ -626,17 +626,22 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         /// <summary>
         /// Push enrollment uses the same approval queue, issuer and immutable receipt after provider restart.
         /// </summary>
-        [TestCase(0, false)]
-        [TestCase(2, false)]
-        [TestCase(4, false)]
-        [TestCase(5, false)]
-        [TestCase(0, true)]
-        [TestCase(2, true)]
-        [TestCase(4, true)]
-        [TestCase(5, true)]
+        [TestCase(0, false, false)]
+        [TestCase(2, false, false)]
+        [TestCase(4, false, false)]
+        [TestCase(5, false, false)]
+        [TestCase(0, true, false)]
+        [TestCase(2, true, false)]
+        [TestCase(4, true, false)]
+        [TestCase(5, true, false)]
+        [TestCase(0, false, true)]
+        [TestCase(2, false, true)]
+        [TestCase(4, false, true)]
+        [TestCase(5, false, true)]
         public async Task PushEnrollmentRecoversInterruptedTransitionsWithoutIssuingAgain(
             int failedJournalWrite,
-            bool useOverride)
+            bool useOverride,
+            bool externalAuthentication)
         {
             string path = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
             try
@@ -687,16 +692,25 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     .ConfigureAwait(false);
                 database.NamespaceIndex = manager.ApplicationsNamespaceIndex;
                 NodeId applicationId = database.RegisterApplication(CreateTestApplicationRecord("PushEnrollment"));
-                var identity = new OnboardingIdentitySelection(
-                    certificate, new Opc.Ua.Onboarding.DeviceIdentityTicketType(),
-                    "urn:device:push-enrollment", "retained-ticket", string.Empty);
+                OnboardingIdentitySelection identity = externalAuthentication
+                    ? OnboardingIdentitySelection.FromExternalAuthentication(
+                        certificate, "urn:device:push-enrollment")
+                    : new OnboardingIdentitySelection(
+                        certificate, new Opc.Ua.Onboarding.DeviceIdentityTicketType(),
+                        "urn:device:push-enrollment", "retained-ticket", string.Empty);
+                var external = new Mock<IDeviceRegistrarExternalAuthenticationProvider>(MockBehavior.Strict);
+                external.Setup(value => value.EvaluateAsync(certificate, It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(new DeviceRegistrarExternalAuthenticationResult(identity.ProductInstanceUri,
+                        new DeviceRegistrarOnboardingDecision(
+                            CreateTestApplicationRecord("PushEnrollment"), false, null)));
                 await lifecycle.RecordCandidateAsync(
                     identity.ProductInstanceUri, applicationId, certificate, false).ConfigureAwait(false);
                 ByteString csr = ByteString.From(new byte[] { 1, 2, 3 });
                 DeviceRegistrarPushEnrollment? first = null;
                 using (var provider = new SecretStoreDeviceRegistrarPushEnrollmentProvider(
                     manager, journal.Object, "push", ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup,
-                    Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType, lifecycle, lifecycle, Telemetry))
+                    Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType, lifecycle, lifecycle, Telemetry,
+                    externalAuthentication ? external.Object : null))
                 {
                     if (failedJournalWrite != 0)
                     {
@@ -710,7 +724,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 }
                 using var restored = new SecretStoreDeviceRegistrarPushEnrollmentProvider(
                     manager, secrets, "push", ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup,
-                    Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType, lifecycle, lifecycle, Telemetry);
+                    Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType, lifecycle, lifecycle, Telemetry,
+                    externalAuthentication ? external.Object : null);
                 NodeId originalRequest = await restored.FindRequestAsync(identity.ProductInstanceUri, applicationId)
                     .ConfigureAwait(false);
                 int originalRequestCount = database.CertificateRequests.Count();
@@ -764,7 +779,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Assert.That(database.ReadRequest(applicationId, repeated.RequestId,
                     out _, out _, out _, out _, out _, out _, out _), Is.EqualTo(CertificateRequestState.Accepted));
                 Assert.That(found!.CertificateRequest, Is.EqualTo(csr));
-                Assert.That(found.Identity.EncodedTicket, Is.EqualTo("retained-ticket"));
+                Assert.That(found.Identity.IsExternalAuthentication, Is.EqualTo(externalAuthentication));
+                Assert.That(found.Identity.EncodedTicket,
+                    Is.EqualTo(externalAuthentication ? string.Empty : "retained-ticket"));
                 ServiceResultException? completed = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await restored.RecoverAsync(identity, applicationId, csr, repeated.RequestId)
                         .ConfigureAwait(false));
@@ -1075,6 +1092,63 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(calls, Is.Zero);
             Assert.That(await provider.FindAsync(identity.ProductInstanceUri, applicationId).ConfigureAwait(false),
                 Is.Null);
+            requests.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// External evidence must retain current approval for the original DCA before any journal or CSR effect.
+        /// </summary>
+        [TestCase("missingProvider")]
+        [TestCase("untrusted")]
+        [TestCase("product")]
+        [TestCase("application")]
+        public async Task ExternalPushEnrollmentRejectsMissingOrChangedApprovalBeforeEffects(string failure)
+        {
+            var database = new LinqApplicationsDatabase();
+            var requests = new Mock<ICertificateRequest>(MockBehavior.Strict);
+            using ApplicationsNodeManager manager = CreateManager(database, requests.Object);
+            ApplicationRecordDataType original = CreateTestApplicationRecord("ExternalPush");
+            NodeId applicationId = database.RegisterApplication(original);
+            var lifecycle = new MemoryDeviceRegistrarLifecycle();
+            ByteString selected = ByteString.From(new byte[] { 1 });
+            OnboardingIdentitySelection identity = OnboardingIdentitySelection.FromExternalAuthentication(
+                selected, "urn:device:external-push");
+            await lifecycle.RecordCandidateAsync(identity.ProductInstanceUri, applicationId, selected, false)
+                .ConfigureAwait(false);
+            var secrets = new Mock<ISecretStore>(MockBehavior.Strict);
+            secrets.SetupGet(value => value.StoreType).Returns(new InMemorySecretStore().StoreType);
+            var external = new Mock<IDeviceRegistrarExternalAuthenticationProvider>(MockBehavior.Strict);
+            ApplicationRecordDataType approved = CreateTestApplicationRecord(
+                failure == "application" ? "OtherExternalPush" : "ExternalPush");
+            external.Setup(value => value.EvaluateAsync(selected, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(failure == "untrusted" ? null : new DeviceRegistrarExternalAuthenticationResult(
+                    failure == "product" ? "urn:device:other-product" : identity.ProductInstanceUri,
+                    new DeviceRegistrarOnboardingDecision(approved, false, null)));
+            using var provider = new SecretStoreDeviceRegistrarPushEnrollmentProvider(
+                manager, secrets.Object, "external-approval",
+                ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup,
+                Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType, lifecycle, lifecycle, Telemetry,
+                failure == "missingProvider" ? null : external.Object);
+            int calls = 0;
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await provider.GetOrCreateAsync(identity, applicationId, _ =>
+                {
+                    calls++;
+                    return new ValueTask<ByteString>(selected);
+                }).ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(failure switch
+            {
+                "missingProvider" => StatusCodes.BadConfigurationError,
+                "untrusted" => StatusCodes.BadCertificateUntrusted,
+                "product" => StatusCodes.BadSecurityChecksFailed,
+                _ => StatusCodes.BadRequestNotAllowed
+            }));
+            Assert.That(calls, Is.Zero);
+            Assert.That(database.CertificateRequests, Is.Empty);
+            secrets.VerifyGet(value => value.StoreType, Times.Once);
+            secrets.VerifyNoOtherCalls();
             requests.VerifyNoOtherCalls();
         }
 

@@ -50,6 +50,7 @@ namespace OnboardingRegistrar
     /// </summary>
     internal sealed class PushRegistrarSample :
         IDeviceRegistrarOnboardingPolicy,
+        IDeviceRegistrarExternalAuthenticationPolicy,
         IDeviceRegistrarApplicationAuthorization,
         IDeviceRegistrarManagerProvider,
         IServerStartupTask
@@ -255,6 +256,26 @@ namespace OnboardingRegistrar
             RequireDevice(selection.ProductInstanceUri, cancellationToken);
             return new ValueTask<DeviceRegistrarOnboardingDecision>(new DeviceRegistrarOnboardingDecision(
                 CreateRecord(), m_softwareManager != null, CoreUtils.Clone(m_softwareManager)));
+        }
+
+        /// <summary>
+        /// Applies the configured device and application approval after external CA validation.
+        /// </summary>
+        public ValueTask<DeviceRegistrarExternalAuthenticationResult> EvaluateAsync(
+            ByteString certificate,
+            ArrayOf<string> certificateUris,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (certificate.IsEmpty || !certificateUris.Contains(m_product) ||
+                !certificateUris.Contains(m_application))
+            {
+                throw new ServiceResultException(StatusCodes.BadUserAccessDenied);
+            }
+            return new ValueTask<DeviceRegistrarExternalAuthenticationResult>(
+                new DeviceRegistrarExternalAuthenticationResult(m_product,
+                    new DeviceRegistrarOnboardingDecision(
+                        CreateRecord(), m_softwareManager != null, CoreUtils.Clone(m_softwareManager))));
         }
 
         /// <inheritdoc/>
