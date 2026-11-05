@@ -58,10 +58,7 @@ namespace Opc.Ua.LADS.Server
         /// The callback must not issue another start or dispose the device while its confirmation is pending.
         /// </summary>
         public Func<ILadsDevice, CancellationToken, ValueTask<bool>>? ConfirmInterruptedDeviceReadinessAsync
-        {
-            get;
-            set;
-        }
+        { get; set; }
 
         /// <summary>
         /// Gets or sets the standalone owner's application namespace.
