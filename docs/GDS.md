@@ -714,6 +714,8 @@ The standard enrollment provider implements
 to the existing GDS authority. A custom provider implementing only the original
 enrollment interface can serve the configured default; a nondefault selection
 is rejected before registration or CSR creation.
+Before saving a new enrollment journal or invoking the device's CSR callback,
+the standard provider also checks the selected type against its local authority.
 
 The enrollment journal retains the original selected type and certificate group.
 Recovery validates the original CSR and request against those retained values,

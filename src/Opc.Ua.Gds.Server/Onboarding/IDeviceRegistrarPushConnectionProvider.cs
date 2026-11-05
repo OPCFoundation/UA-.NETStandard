@@ -134,6 +134,22 @@ namespace Opc.Ua.Gds.Server.Onboarding
     }
 
     /// <summary>
+    /// Routes managed application enrollment through the selected certificate profile without changing DCA defaults.
+    /// </summary>
+    public interface IDeviceRegistrarPushCertificateEnrollmentProvider : IDeviceRegistrarPushEnrollmentProvider
+    {
+        /// <summary>
+        /// Retains the selected standard certificate type before creating a CSR and rejects a different type on retry.
+        /// </summary>
+        ValueTask<DeviceRegistrarPushEnrollment> GetOrCreateAsync(
+            OnboardingIdentitySelection identity,
+            NodeId applicationId,
+            NodeId certificateTypeId,
+            Func<CancellationToken, ValueTask<ByteString>> createSigningRequest,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
     /// Host-retained enrollment evidence; installation is proven independently by the actual channel certificate.
     /// </summary>
     public sealed record DeviceRegistrarPushEnrollment(

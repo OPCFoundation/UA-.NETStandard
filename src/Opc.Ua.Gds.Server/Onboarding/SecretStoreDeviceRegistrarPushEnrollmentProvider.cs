@@ -38,7 +38,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
     /// values durably before returning. Uncertain CSR and request creation require operator recovery.
     /// </summary>
     public sealed class SecretStoreDeviceRegistrarPushEnrollmentProvider :
-        IDeviceRegistrarPushEnrollmentProvider,
+        IDeviceRegistrarPushCertificateEnrollmentProvider,
         IDisposable
     {
         /// <summary>
@@ -180,7 +180,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
                         StatusCodes.BadInvalidState, "Recovery must retain the original uncertain transition.");
                 }
                 await RequireManager().ValidatePushSigningRecoveryAsync(
-                    applicationId, m_groupId, m_typeId, csr, requestId, cancellationToken).ConfigureAwait(false);
+                    applicationId, m_groupId, checkpoint.CertificateTypeId, csr, requestId, cancellationToken)
+                    .ConfigureAwait(false);
                 await RequireApprovalAsync(identity, applicationId, cancellationToken).ConfigureAwait(false);
                 checkpoint = checkpoint with
                 {
@@ -197,13 +198,29 @@ namespace Opc.Ua.Gds.Server.Onboarding
         }
 
         /// <inheritdoc/>
-        public async ValueTask<DeviceRegistrarPushEnrollment> GetOrCreateAsync(
+        public ValueTask<DeviceRegistrarPushEnrollment> GetOrCreateAsync(
             OnboardingIdentitySelection identity,
             NodeId applicationId,
             Func<CancellationToken, ValueTask<ByteString>> createSigningRequest,
             CancellationToken cancellationToken = default)
         {
+            return GetOrCreateAsync(identity, applicationId, m_typeId, createSigningRequest, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<DeviceRegistrarPushEnrollment> GetOrCreateAsync(
+            OnboardingIdentitySelection identity,
+            NodeId applicationId,
+            NodeId certificateTypeId,
+            Func<CancellationToken, ValueTask<ByteString>> createSigningRequest,
+            CancellationToken cancellationToken = default)
+        {
             ThrowIfDisposed();
+            if (certificateTypeId.IsNull || certificateTypeId.NamespaceIndex != 0)
+            {
+                throw new ArgumentException(
+                    "A standard concrete certificate type is required.", nameof(certificateTypeId));
+            }
             if (identity == null)
             {
                 throw new ArgumentNullException(nameof(identity));
@@ -229,7 +246,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 Checkpoint checkpoint;
                 if (existing == null)
                 {
-                    checkpoint = new(Stage.CreatingCsr, identity, default, NodeId.Null, null);
+                    manager.ValidatePushCertificateSelection(applicationId, m_groupId, certificateTypeId);
+                    checkpoint = new(Stage.CreatingCsr, identity, default, NodeId.Null, null, certificateTypeId);
                     await SaveAsync(identifier, checkpoint, applicationId, cancellationToken).ConfigureAwait(false);
                     ByteString csr = await createSigningRequest(cancellationToken).ConfigureAwait(false);
                     if (csr.IsEmpty)
@@ -243,6 +261,12 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 {
                     checkpoint = Decode(existing.Bytes, identity.ProductInstanceUri, applicationId);
                     RequireIdentity(checkpoint, identity);
+                    if (checkpoint.CertificateTypeId != certificateTypeId)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadSecurityChecksFailed,
+                            "The retained push certificate type cannot be replaced.");
+                    }
                 }
                 if (checkpoint.Stage is Stage.CreatingCsr or Stage.StartingRequest)
                 {
@@ -256,7 +280,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     await SaveAsync(identifier, checkpoint, applicationId, cancellationToken).ConfigureAwait(false);
                     await RequireApprovalAsync(identity, applicationId, cancellationToken).ConfigureAwait(false);
                     NodeId requestId = await manager.StartPushSigningRequestAsync(
-                        applicationId, m_groupId, m_typeId, checkpoint.Csr, cancellationToken).ConfigureAwait(false);
+                        applicationId, m_groupId, checkpoint.CertificateTypeId, checkpoint.Csr, cancellationToken)
+                        .ConfigureAwait(false);
                     checkpoint = checkpoint with { Stage = Stage.RequestRetained, RequestId = requestId };
                     await SaveAsync(identifier, checkpoint, applicationId, cancellationToken).ConfigureAwait(false);
                 }
@@ -265,7 +290,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     await RequireApprovalAsync(identity, applicationId, cancellationToken).ConfigureAwait(false);
                     DeviceRegistrarPushEnrollment enrollment = await manager.CompletePushSigningRequestAsync(
                         checkpoint.Identity, applicationId, checkpoint.RequestId,
-                        m_groupId, m_typeId, checkpoint.Csr, m_candidates, m_devices, cancellationToken)
+                        m_groupId, checkpoint.CertificateTypeId, checkpoint.Csr,
+                        m_candidates, m_devices, cancellationToken)
                         .ConfigureAwait(false);
                     await RequireApprovalAsync(identity, applicationId, cancellationToken).ConfigureAwait(false);
                     checkpoint = checkpoint with { Stage = Stage.Completed, Enrollment = enrollment };
@@ -357,7 +383,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 encoder.WriteUInt32(null, 1);
                 encoder.WriteString(null, m_scope);
                 encoder.WriteString(null, m_groupId.ToString());
-                encoder.WriteNodeId(null, m_typeId);
+                encoder.WriteNodeId(null, checkpoint.CertificateTypeId);
                 encoder.WriteString(null, EncodeId(applicationId));
                 encoder.WriteByte(null, (byte)checkpoint.Stage);
                 encoder.WriteString(null, checkpoint.Identity.ProductInstanceUri);
@@ -395,10 +421,16 @@ namespace Opc.Ua.Gds.Server.Onboarding
             using var stream = new MemoryStream(bytes.ToArray(), writable: false);
             using var decoder = new BinaryDecoder(stream, m_context);
             if (decoder.ReadUInt32(null) != 1 || decoder.ReadString(null) != m_scope ||
-                decoder.ReadString(null) != m_groupId.ToString() || decoder.ReadNodeId(null) != m_typeId ||
-                decoder.ReadString(null) != EncodeId(applicationId))
+                decoder.ReadString(null) != m_groupId.ToString())
             {
                 throw new InvalidDataException("The push enrollment checkpoint belongs to another scope or profile.");
+            }
+            NodeId certificateTypeId = decoder.ReadNodeId(null);
+            if (certificateTypeId.IsNull || certificateTypeId.NamespaceIndex != 0 ||
+                decoder.ReadString(null) != EncodeId(applicationId))
+            {
+                throw new InvalidDataException(
+                    "The push enrollment checkpoint belongs to another application or type.");
             }
             byte stageCode = decoder.ReadByte(null);
             var stage = (Stage)stageCode;
@@ -440,7 +472,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             {
                 throw new InvalidDataException("The push enrollment checkpoint is inconsistent.");
             }
-            return new Checkpoint(stage, identity, csr, requestId, enrollment);
+            return new Checkpoint(stage, identity, csr, requestId, enrollment, certificateTypeId);
         }
 
         /// <summary>
@@ -537,7 +569,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
             OnboardingIdentitySelection Identity,
             ByteString Csr,
             NodeId RequestId,
-            DeviceRegistrarPushEnrollment? Enrollment);
+            DeviceRegistrarPushEnrollment? Enrollment,
+            NodeId CertificateTypeId);
 
         /// <summary>The maximum complete binary journal value.</summary>
         private const int kMaximumCheckpointSize = 16 * 1024 * 1024;

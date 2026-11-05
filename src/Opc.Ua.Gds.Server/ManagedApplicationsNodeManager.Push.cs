@@ -91,7 +91,8 @@ namespace Opc.Ua.Gds.Server
                     registration.Authorization);
                 await CreatePushApplicationAsync(
                     new ManagedApplicationPushRegistration(registration.Target, authorization,
-                        registration.PendingKeyStore, registration.KeyGenerator, registration.ConfigurationFileProvider),
+                        registration.PendingKeyStore, registration.KeyGenerator,
+                        registration.ConfigurationFileProvider),
                     device,
                     externalReferences,
                     cancellationToken).ConfigureAwait(false);

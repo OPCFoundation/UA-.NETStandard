@@ -41,6 +41,21 @@ namespace Opc.Ua.Gds.Server
         internal NamespaceTable PushNamespaceUris => Server.NamespaceUris;
 
         /// <summary>
+        /// Validates the existing local authority and application before a device creates a signing key.
+        /// </summary>
+        internal void ValidatePushCertificateSelection(
+            NodeId applicationId,
+            ExpandedNodeId certificateGroupId,
+            NodeId certificateTypeId)
+        {
+            ResolvePushCertificateGroup(certificateGroupId, certificateTypeId);
+            if (m_database.GetApplication(applicationId) == null)
+            {
+                throw new ServiceResultException(StatusCodes.BadNotFound);
+            }
+        }
+
+        /// <summary>
         /// Validates operator-recovered original CSR evidence and, when supplied, its unaccepted queue entry.
         /// An accepted entry has erased its CSR and cannot establish this recovery binding.
         /// </summary>

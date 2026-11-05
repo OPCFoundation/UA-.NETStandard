@@ -526,19 +526,11 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 {
                     DeviceRegistrarManagedApplicationTarget target =
                         await managedApplications.GetTargetAsync(applicationUri, metadataToken)
-                            .ConfigureAwait(false);
+                            .ConfigureAwait(false) ?? throw new ServiceResultException(
+                                StatusCodes.BadConfigurationError, "The managed application target is missing.");
                     managedTarget = SnapshotManagedApplicationTarget(target);
-                    if (!managedTarget.CertificateTypeId.IsNull)
-                    {
-                        certificateTypeId = ExpandedNodeId.ToNodeId(
-                            managedTarget.CertificateTypeId, session.NamespaceUris);
-                        if (certificateTypeId.IsNull)
-                        {
-                            throw new ServiceResultException(
-                                StatusCodes.BadConfigurationError,
-                                "The managed application's certificate type is not a local node.");
-                        }
-                    }
+                    certificateTypeId = ResolveManagedCertificateType(
+                        managedTarget.CertificateTypeId, connection.CertificateTypeId, session.NamespaceUris);
                     record.DiscoveryUrls = managedTarget.DiscoveryUrls;
                     record.ServerCapabilities = managedTarget.ServerCapabilities;
                 };
@@ -579,6 +571,33 @@ namespace Opc.Ua.Gds.Server.Onboarding
             {
                 throw new ServiceResultException(StatusCodes.BadNotSupported);
             }
+            else
+            {
+                if (m_managedApplications != null)
+                {
+                    prepareAuthorizationRecord = async metadataToken =>
+                    {
+                        DeviceRegistrarManagedApplicationTarget target =
+                            await m_managedApplications.GetTargetAsync(record.ApplicationUri!, metadataToken)
+                                .ConfigureAwait(false) ?? throw new ServiceResultException(
+                                    StatusCodes.BadConfigurationError, "The managed application target is missing.");
+                        certificateTypeId = ResolveManagedCertificateType(
+                            target.CertificateTypeId, connection.CertificateTypeId, session.NamespaceUris);
+                    };
+                }
+                beforeRegistration = async verificationToken =>
+                {
+                    NodeId groups = await RequireChildAsync(
+                        session, node, BrowseNames.CertificateGroups, verificationToken).ConfigureAwait(false);
+                    managedGroup = await RequireChildAsync(
+                        session, groups, Ua.BrowseNames.DefaultApplicationGroup, verificationToken)
+                        .ConfigureAwait(false);
+                    managedTrustListId = await RequireChildAsync(
+                        session, managedGroup, Ua.BrowseNames.TrustList, verificationToken).ConfigureAwait(false);
+                    await RequireSupportedCertificateTypeAsync(
+                        session, managedGroup, certificateTypeId, verificationToken).ConfigureAwait(false);
+                };
+            }
             RequirePeer(dispatch, peer);
             NodeId applicationId = await DeviceRegistrarRuntime.RegisterDeviceApplicationAsync(
                 m_applications,
@@ -604,14 +623,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
             }
             else
             {
-                NodeId groups = await RequireChildAsync(session, node, BrowseNames.CertificateGroups, ct)
-                    .ConfigureAwait(false);
-                group = await RequireChildAsync(session, groups, Ua.BrowseNames.DefaultApplicationGroup, ct)
-                    .ConfigureAwait(false);
-                trustListId = await RequireChildAsync(session, group, Ua.BrowseNames.TrustList, ct)
-                    .ConfigureAwait(false);
-                await RequireSupportedCertificateTypeAsync(session, group, connection.CertificateTypeId, ct)
-                    .ConfigureAwait(false);
+                group = managedGroup;
+                trustListId = managedTrustListId;
                 configuration = new ServerConfigurationTypeClient(session, node, m_telemetry);
             }
             if (isManagedServer &&
@@ -624,27 +637,32 @@ namespace Opc.Ua.Gds.Server.Onboarding
             }
             ByteString createdSigningRequest = ByteString.Empty;
             int signingRequestCreated = 0;
-            DeviceRegistrarPushEnrollment retained = await m_enrollments.GetOrCreateAsync(identity, applicationId,
-                async factoryCt =>
+            async ValueTask<ByteString> CreateSigningRequestAsync(CancellationToken factoryCt)
+            {
+                if (Interlocked.Exchange(ref signingRequestCreated, 1) != 0)
                 {
-                    if (Interlocked.Exchange(ref signingRequestCreated, 1) != 0)
-                    {
-                        throw new ServiceResultException(
-                            StatusCodes.BadInvalidState, "CSR creation was already attempted.");
-                    }
-                    RequirePeer(dispatch, peer);
-                    await RequireManagedApprovalAsync(identity, dcaApplicationId, applicationId, factoryCt)
-                        .ConfigureAwait(false);
-                    ByteString csr = await configuration.CreateSigningRequestAsync(
-                        NodeId.Null, certificateTypeId, string.Empty,
-                        true, Nonce.CreateRandomNonceData(32).ToByteString(), factoryCt).ConfigureAwait(false);
-                    if (csr.IsEmpty)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadInvalidState);
-                    }
-                    createdSigningRequest = ByteString.From(csr.Span);
-                    return ByteString.From(createdSigningRequest.Span);
-                }, ct).ConfigureAwait(false);
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidState, "CSR creation was already attempted.");
+                }
+                RequirePeer(dispatch, peer);
+                await RequireManagedApprovalAsync(identity, dcaApplicationId, applicationId, factoryCt)
+                    .ConfigureAwait(false);
+                ByteString csr = await configuration.CreateSigningRequestAsync(
+                    NodeId.Null, certificateTypeId, string.Empty,
+                    true, Nonce.CreateRandomNonceData(32).ToByteString(), factoryCt).ConfigureAwait(false);
+                if (csr.IsEmpty)
+                {
+                    throw new ServiceResultException(StatusCodes.BadInvalidState);
+                }
+                createdSigningRequest = ByteString.From(csr.Span);
+                return ByteString.From(createdSigningRequest.Span);
+            }
+            DeviceRegistrarPushEnrollment retained = m_enrollments is
+                IDeviceRegistrarPushCertificateEnrollmentProvider routedEnrollments
+                ? await routedEnrollments.GetOrCreateAsync(
+                    identity, applicationId, certificateTypeId, CreateSigningRequestAsync, ct).ConfigureAwait(false)
+                : await m_enrollments.GetOrCreateAsync(
+                    identity, applicationId, CreateSigningRequestAsync, ct).ConfigureAwait(false);
             ValidateEnrollment(retained, identity, applicationId);
             if (!createdSigningRequest.IsEmpty && retained.CertificateRequest != createdSigningRequest)
             {
@@ -729,6 +747,35 @@ namespace Opc.Ua.Gds.Server.Onboarding
         }
 
         /// <summary>
+        /// Uses the explicit application profile when present, otherwise the configured registrar default.
+        /// </summary>
+        private NodeId ResolveManagedCertificateType(
+            ExpandedNodeId selected,
+            NodeId defaultType,
+            NamespaceTable namespaces)
+        {
+            if (selected.IsNull)
+            {
+                return defaultType;
+            }
+            NodeId type = ExpandedNodeId.ToNodeId(selected, namespaces);
+            if (selected.ServerIndex != 0 || type.IsNull ||
+                (selected.NamespaceIndex != 0 && string.IsNullOrEmpty(selected.NamespaceUri)))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError,
+                    "The managed application's certificate type is not a local node.");
+            }
+            if (type != defaultType && m_enrollments is not IDeviceRegistrarPushCertificateEnrollmentProvider)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported,
+                    "The enrollment provider cannot route the managed application's certificate type.");
+            }
+            return type;
+        }
+
+        /// <summary>
         /// Combines the application's standard metadata with host-authoritative endpoint URLs and validates the
         /// selected endpoint before it can be registered or used for certificate proof.
         /// </summary>
@@ -796,6 +843,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 DiscoveryUrls = target.DiscoveryUrls.ToArray().ToArrayOf(),
                 ServerCapabilities = target.ServerCapabilities.Span.ToArray().ToArrayOf(),
                 InstalledCertificate = ByteString.From(target.InstalledCertificate.Span),
+                HttpsServerCertificate = ByteString.From(target.HttpsServerCertificate.Span),
                 Endpoint = SessionDeviceRegistrarManagedApplicationChannelVerifier.SnapshotEndpoint(target.Endpoint),
                 UserIdentity = target.UserIdentity
             };

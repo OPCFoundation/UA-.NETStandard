@@ -1136,13 +1136,16 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         /// <summary>
         /// A host-selected per-application certificate type is used for CSR, receipt validation and installation.
         /// </summary>
-        [Test]
-        public async Task ManagedApplicationUsesItsSelectedCertificateType()
+        [TestCase(ApplicationType.Client)]
+        [TestCase(ApplicationType.Server)]
+        [TestCase(ApplicationType.ClientAndServer)]
+        public async Task ManagedApplicationUsesItsSelectedCertificateType(ApplicationType type)
         {
-            await using var harness = new Harness(m_bootstrap, m_issued);
-            ManagedApplication application = harness.AddManaged("managed-a", ManagedUriA, m_managedA);
+            await using var harness = new Harness(m_bootstrap, m_issued, certificateEnrollmentRouting: true);
+            ManagedApplication application = harness.AddManaged("managed-a", ManagedUriA, m_managedA, type);
             application.SelectedCertificateTypeId = Ua.ObjectTypeIds.RsaMinApplicationCertificateType;
             application.CertificateTypes = [application.SelectedCertificateTypeId];
+            application.CurrentCertificate = harness.Bootstrap;
             harness.ConfigureManagedTarget(application);
 
             await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false);
@@ -1153,16 +1156,70 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Is.EqualTo(Ua.ObjectTypeIds.RsaMinApplicationCertificateType));
             Assert.That(application.Installed, Is.True);
             Assert.That(application.HasPendingChanges, Is.False);
+            Assert.That(harness.EnrollmentCertificateTypes[application.Id],
+                Is.EqualTo(Ua.ObjectTypeIds.RsaMinApplicationCertificateType));
+            harness.Enrollments.Verify(provider => provider.GetOrCreateAsync(
+                It.IsAny<OnboardingIdentitySelection>(), Harness.ApplicationId,
+                It.IsAny<Func<CancellationToken, ValueTask<ByteString>>>(), It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
+        /// An absent override uses the registrar default, never the first advertised group type.
+        /// </summary>
+        [TestCase(ApplicationType.Client)]
+        [TestCase(ApplicationType.Server)]
+        [TestCase(ApplicationType.ClientAndServer)]
+        public async Task ManagedApplicationWithoutOverrideUsesConfiguredDefault(ApplicationType type)
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued, certificateEnrollmentRouting: true);
+            ManagedApplication application = harness.AddManaged("managed-a", ManagedUriA, m_managedA, type);
+            application.CertificateTypes =
+            [
+                Ua.ObjectTypeIds.RsaMinApplicationCertificateType,
+                Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType
+            ];
+            application.CurrentCertificate = harness.Bootstrap;
+            harness.ConfigureManagedTarget(application);
+
+            await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false);
+
+            Assert.That(application.RequestedCertificateTypeId,
+                Is.EqualTo(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType));
+            Assert.That(application.UpdatedCertificateTypeId,
+                Is.EqualTo(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType));
+            Assert.That(harness.EnrollmentCertificateTypes[application.Id],
+                Is.EqualTo(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType));
+            Assert.That(application.Installed, Is.True);
+        }
+
+        /// <summary>
+        /// A client without a metadata provider retains the configured default and legacy enrollment contract.
+        /// </summary>
+        [Test]
+        public async Task ManagedClientWithoutMetadataProviderUsesConfiguredDefault()
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued, managedApplicationProviders: false);
+            ManagedApplication application = harness.AddManaged("managed-a", ManagedUriA, m_managedA);
+
+            await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false);
+
+            Assert.That(application.RequestedCertificateTypeId,
+                Is.EqualTo(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType));
+            Assert.That(application.Installed, Is.True);
+            harness.ManagedApplications.Verify(
+                provider => provider.GetTargetAsync(ManagedUriA, It.IsAny<CancellationToken>()), Times.Never);
         }
 
         /// <summary>
         /// A selected type absent from the managed application's group is rejected before creating a CSR.
         /// </summary>
-        [Test]
-        public async Task ManagedApplicationRejectsUnsupportedSelectedCertificateTypeBeforeCsr()
+        [TestCase(ApplicationType.Client)]
+        [TestCase(ApplicationType.Server)]
+        [TestCase(ApplicationType.ClientAndServer)]
+        public async Task ManagedApplicationRejectsUnsupportedSelectedCertificateTypeBeforeCsr(ApplicationType type)
         {
-            await using var harness = new Harness(m_bootstrap, m_issued);
-            ManagedApplication application = harness.AddManaged("managed-a", ManagedUriA, m_managedA);
+            await using var harness = new Harness(m_bootstrap, m_issued, certificateEnrollmentRouting: true);
+            ManagedApplication application = harness.AddManaged("managed-a", ManagedUriA, m_managedA, type);
             application.SelectedCertificateTypeId = Ua.ObjectTypeIds.RsaMinApplicationCertificateType;
             application.CertificateTypes = [Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType];
             harness.ConfigureManagedTarget(application);
@@ -1175,16 +1232,20 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Is.EqualTo(StatusCodes.BadNotSupported));
             Assert.That(application.CsrCalls, Is.Zero);
             Assert.That(application.Installed, Is.False);
+            Assert.That(harness.RegisteredName(application), Is.Null);
+            Assert.That(application.HasPendingChanges, Is.False);
         }
 
         /// <summary>
         /// A recovered enrollment cannot use a retained receipt issued under the previous host-selected type.
         /// </summary>
-        [Test]
-        public async Task ManagedApplicationRejectsRecoveryWithChangedCertificateType()
+        [TestCase(ApplicationType.Client)]
+        [TestCase(ApplicationType.Server)]
+        [TestCase(ApplicationType.ClientAndServer)]
+        public async Task ManagedApplicationRejectsRecoveryWithChangedCertificateType(ApplicationType type)
         {
-            await using var harness = new Harness(m_bootstrap, m_issued);
-            ManagedApplication application = harness.AddManaged("managed-a", ManagedUriA, m_managedA);
+            await using var harness = new Harness(m_bootstrap, m_issued, certificateEnrollmentRouting: true);
+            ManagedApplication application = harness.AddManaged("managed-a", ManagedUriA, m_managedA, type);
             application.SelectedCertificateTypeId = Ua.ObjectTypeIds.RsaMinApplicationCertificateType;
             application.CertificateTypes =
             [
@@ -1202,6 +1263,177 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
             Assert.That(application.CsrCalls, Is.Zero);
             Assert.That(application.Installed, Is.False);
+        }
+
+        /// <summary>
+        /// A configured metadata provider's missing target or request failure cannot select the default profile.
+        /// </summary>
+        [TestCase(ApplicationType.Client, false)]
+        [TestCase(ApplicationType.Client, true)]
+        [TestCase(ApplicationType.Server, false)]
+        [TestCase(ApplicationType.Server, true)]
+        [TestCase(ApplicationType.ClientAndServer, false)]
+        [TestCase(ApplicationType.ClientAndServer, true)]
+        public async Task ManagedApplicationRejectsMissingOrFailedConfiguredTarget(
+            ApplicationType type,
+            bool providerThrows)
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued);
+            ManagedApplication application = harness.AddManaged("managed-a", ManagedUriA, m_managedA, type);
+            var failure = new ServiceResultException(StatusCodes.BadNotFound);
+            harness.ManagedApplications.Setup(provider => provider.GetTargetAsync(
+                ManagedUriA, It.IsAny<CancellationToken>()))
+                .Returns(() => providerThrows
+                    ? throw failure
+                    : new ValueTask<DeviceRegistrarManagedApplicationTarget>(
+                        (DeviceRegistrarManagedApplicationTarget)null!));
+
+            AggregateException? error = await Assert.ThrowsAsync<AggregateException>(async () =>
+                await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false));
+
+            Assert.That(error!.InnerExceptions, Has.Count.EqualTo(1));
+            Assert.That(((ServiceResultException)error.InnerExceptions[0]).StatusCode,
+                Is.EqualTo(providerThrows ? StatusCodes.BadNotFound : StatusCodes.BadConfigurationError));
+            if (providerThrows)
+            {
+                Assert.That(error.InnerExceptions[0], Is.SameAs(failure));
+            }
+            Assert.That(harness.RegisteredName(application), Is.Null);
+            Assert.That(application.CsrCalls, Is.Zero);
+            Assert.That(application.HasPendingChanges, Is.False);
+            Assert.That(application.Installed, Is.False);
+            harness.Enrollments.Verify(provider => provider.GetOrCreateAsync(
+                It.IsAny<OnboardingIdentitySelection>(), application.Id,
+                It.IsAny<Func<CancellationToken, ValueTask<ByteString>>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// A namespace-URI override resolves to the same standard certificate type used by the enrollment service.
+        /// </summary>
+        [TestCase(ApplicationType.Client)]
+        [TestCase(ApplicationType.Server)]
+        [TestCase(ApplicationType.ClientAndServer)]
+        public async Task ManagedApplicationResolvesNamespaceUriCertificateType(ApplicationType type)
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued, certificateEnrollmentRouting: true);
+            ManagedApplication application = harness.AddManaged("managed-a", ManagedUriA, m_managedA, type);
+            application.SelectedCertificateTypeId = Ua.ObjectTypeIds.RsaMinApplicationCertificateType;
+            application.CertificateTypes = [application.SelectedCertificateTypeId];
+            application.CurrentCertificate = harness.Bootstrap;
+            DeviceRegistrarManagedApplicationTarget target = harness.ConfigureManagedTarget(application) with
+            {
+                CertificateTypeId = new ExpandedNodeId(
+                    Ua.ObjectTypeIds.RsaMinApplicationCertificateType, Ua.Namespaces.OpcUa)
+            };
+            harness.ManagedApplications.Setup(provider => provider.GetTargetAsync(
+                ManagedUriA, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<DeviceRegistrarManagedApplicationTarget>(target));
+
+            await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false);
+
+            Assert.That(harness.EnrollmentCertificateTypes[application.Id],
+                Is.EqualTo(Ua.ObjectTypeIds.RsaMinApplicationCertificateType));
+            Assert.That(application.RequestedCertificateTypeId,
+                Is.EqualTo(Ua.ObjectTypeIds.RsaMinApplicationCertificateType));
+            Assert.That(application.UpdatedCertificateTypeId,
+                Is.EqualTo(Ua.ObjectTypeIds.RsaMinApplicationCertificateType));
+            Assert.That(application.Installed, Is.True);
+        }
+
+        /// <summary>
+        /// Remote, index-only and unknown-namespace overrides cannot be reinterpreted as a local certificate type.
+        /// </summary>
+        [TestCase(ApplicationType.Client, "remote")]
+        [TestCase(ApplicationType.Client, "index")]
+        [TestCase(ApplicationType.Client, "unknown")]
+        [TestCase(ApplicationType.Server, "remote")]
+        [TestCase(ApplicationType.Server, "index")]
+        [TestCase(ApplicationType.Server, "unknown")]
+        [TestCase(ApplicationType.ClientAndServer, "remote")]
+        [TestCase(ApplicationType.ClientAndServer, "index")]
+        [TestCase(ApplicationType.ClientAndServer, "unknown")]
+        public async Task ManagedApplicationRejectsNonlocalCertificateTypeBeforeRegistration(
+            ApplicationType type,
+            string address)
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued, certificateEnrollmentRouting: true);
+            ManagedApplication application = harness.AddManaged("managed-a", ManagedUriA, m_managedA, type);
+            DeviceRegistrarManagedApplicationTarget target = harness.ConfigureManagedTarget(application) with
+            {
+                CertificateTypeId = address switch
+                {
+                    "remote" => new ExpandedNodeId(
+                        Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType, Ua.Namespaces.OpcUa, 1),
+                    "index" => new ExpandedNodeId(
+                        Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType.WithNamespaceIndex(1)),
+                    _ => new ExpandedNodeId(
+                        Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType, "urn:unknown:certificate-types")
+                }
+            };
+            harness.ManagedApplications.Setup(provider => provider.GetTargetAsync(
+                ManagedUriA, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<DeviceRegistrarManagedApplicationTarget>(target));
+
+            AggregateException? error = await Assert.ThrowsAsync<AggregateException>(async () =>
+                await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false));
+
+            Assert.That(error!.InnerExceptions, Has.Count.EqualTo(1));
+            Assert.That(((ServiceResultException)error.InnerExceptions[0]).StatusCode,
+                Is.EqualTo(StatusCodes.BadConfigurationError));
+            Assert.That(harness.RegisteredName(application), Is.Null);
+            Assert.That(harness.EnrollmentCertificateTypes, Is.Empty);
+            Assert.That(application.CsrCalls, Is.Zero);
+            Assert.That(application.HasPendingChanges, Is.False);
+        }
+
+        /// <summary>
+        /// A legacy enrollment provider accepts the default but cannot start an unroutable nondefault request.
+        /// </summary>
+        [TestCase(ApplicationType.Client, false)]
+        [TestCase(ApplicationType.Client, true)]
+        [TestCase(ApplicationType.Server, false)]
+        [TestCase(ApplicationType.Server, true)]
+        [TestCase(ApplicationType.ClientAndServer, false)]
+        [TestCase(ApplicationType.ClientAndServer, true)]
+        public async Task LegacyEnrollmentProviderRejectsOnlyNondefaultCertificateSelection(
+            ApplicationType type,
+            bool nondefault)
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued);
+            ManagedApplication application = harness.AddManaged("managed-a", ManagedUriA, m_managedA, type);
+            application.SelectedCertificateTypeId = nondefault
+                ? Ua.ObjectTypeIds.RsaMinApplicationCertificateType
+                : Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType;
+            application.CertificateTypes = [application.SelectedCertificateTypeId];
+            application.CurrentCertificate = harness.Bootstrap;
+            harness.ConfigureManagedTarget(application);
+
+            if (nondefault)
+            {
+                AggregateException? error = await Assert.ThrowsAsync<AggregateException>(async () =>
+                    await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false));
+
+                Assert.That(error!.InnerExceptions, Has.Count.EqualTo(1));
+                Assert.That(((ServiceResultException)error.InnerExceptions[0]).StatusCode,
+                    Is.EqualTo(StatusCodes.BadNotSupported));
+                Assert.That(harness.RegisteredName(application), Is.Null);
+                Assert.That(application.CsrCalls, Is.Zero);
+                Assert.That(application.HasPendingChanges, Is.False);
+                harness.Enrollments.Verify(provider => provider.GetOrCreateAsync(
+                    It.IsAny<OnboardingIdentitySelection>(), application.Id,
+                    It.IsAny<Func<CancellationToken, ValueTask<ByteString>>>(),
+                    It.IsAny<CancellationToken>()), Times.Never);
+            }
+            else
+            {
+                await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false);
+
+                Assert.That(application.CsrCalls, Is.EqualTo(1));
+                Assert.That(application.RequestedCertificateTypeId,
+                    Is.EqualTo(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType));
+                Assert.That(application.Installed, Is.True);
+            }
         }
 
         /// <summary>
@@ -2018,8 +2250,24 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Certificate issued,
                 bool scopeCapability = true,
                 bool resolveFromServices = false,
-                bool managedApplicationProviders = true)
+                bool managedApplicationProviders = true,
+                bool certificateEnrollmentRouting = false)
             {
+                if (certificateEnrollmentRouting)
+                {
+                    Enrollments.As<IDeviceRegistrarPushCertificateEnrollmentProvider>()
+                        .Setup(provider => provider.GetOrCreateAsync(
+                            It.IsAny<OnboardingIdentitySelection>(), It.IsAny<NodeId>(), It.IsAny<NodeId>(),
+                            It.IsAny<Func<CancellationToken, ValueTask<ByteString>>>(),
+                            It.IsAny<CancellationToken>()))
+                        .Returns<OnboardingIdentitySelection, NodeId, NodeId,
+                            Func<CancellationToken, ValueTask<ByteString>>, CancellationToken>(
+                            (identity, applicationId, certificateType, create, ct) =>
+                            {
+                                EnrollmentCertificateTypes.Add(applicationId, certificateType);
+                                return Enrollments.Object.GetOrCreateAsync(identity, applicationId, create, ct);
+                            });
+                }
                 Bootstrap = ByteString.From(bootstrap.RawData.AsSpan());
                 Issued = ByteString.From(issued.RawData.AsSpan());
                 m_csr = ByteString.From(DefaultCertificateFactory.Instance.CreateSigningRequest(issued).AsSpan());
@@ -2290,6 +2538,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             public Mock<IDeviceRegistrarPushEnrollmentProvider> Enrollments { get; } = new(MockBehavior.Strict);
 
             /// <summary>
+            /// Gets the certificate types routed to the profile-aware enrollment provider.
+            /// </summary>
+            public Dictionary<NodeId, NodeId> EnrollmentCertificateTypes { get; } = [];
+
+            /// <summary>
             /// Gets actual generated method dispatches in order.
             /// </summary>
             public List<NodeId> CallMethods { get; } = [];
@@ -2487,6 +2740,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             {
                 var application = new ManagedApplication(name, applicationUri, certificate, type);
                 Managed.Add(application);
+                if (type == ApplicationType.Client)
+                {
+                    ConfigureManagedTarget(application);
+                }
                 DeviceRegistrarPushEnrollment? retained = null;
                 Enrollments.Setup(provider => provider.GetOrCreateAsync(
                     It.IsAny<OnboardingIdentitySelection>(), application.Id,
