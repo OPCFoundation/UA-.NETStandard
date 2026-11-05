@@ -832,9 +832,30 @@ namespace Opc.Ua.Scales.Tests
             foreach (MultiStateValueDiscreteState variable in variables)
             {
                 Assert.That(variable.OnWriteValueAsync, Is.Not.Null);
+                int dependentStateUpdates = 0;
+                NodeValueWriteEventHandlerAsync originalHandler = variable.OnWriteValueAsync!;
+                variable.OnWriteValueAsync = async (context, node, indexRange, value, cancellationToken) =>
+                {
+                    AttributeWriteResult writeResult = await originalHandler(
+                        context, node, indexRange, value, cancellationToken).ConfigureAwait(false);
+                    if (writeResult.AfterOrdinaryCacheCommit is { } afterCommit)
+                    {
+                        return writeResult with
+                        {
+                            AfterOrdinaryCacheCommit = () =>
+                            {
+                                dependentStateUpdates++;
+                                afterCommit();
+                            }
+                        };
+                    }
+
+                    return writeResult;
+                };
                 AssertGood(await WriteAsync(harness.Owner, variable, Variant.From(4u)).ConfigureAwait(false));
                 Assert.That(variable.Value.GetUInt32(), Is.EqualTo(4u));
                 Assert.That(variable.ValueAsText!.Value.Text, Is.EqualTo("four"));
+                Assert.That(dependentStateUpdates, Is.EqualTo(1));
             }
         }
 

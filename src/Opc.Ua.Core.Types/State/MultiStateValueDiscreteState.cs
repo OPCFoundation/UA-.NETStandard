@@ -88,6 +88,60 @@ namespace Opc.Ua
             return result;
         }
 
+        /// <inheritdoc/>
+        protected override async ValueTask<ServiceResult> WriteAttributeCoreAsync(
+            ISystemContext context,
+            uint attributeId,
+            NumericRange indexRange,
+            DataValue value,
+            CancellationToken cancellationToken = default)
+        {
+            if (attributeId != Attributes.Value)
+            {
+                return await base.WriteAttributeCoreAsync(
+                    context, attributeId, indexRange, value, cancellationToken).ConfigureAwait(false);
+            }
+
+            AttributeWriteResult writeResult = await WriteAttributeWithResultAsync(
+                context, attributeId, indexRange, value, cancellationToken).ConfigureAwait(false);
+            return writeResult.Result;
+        }
+
+        /// <inheritdoc/>
+        protected override AttributeWriteResult ValidateAsyncValueWrite(
+            ISystemContext context,
+            NumericRange indexRange,
+            Variant value)
+        {
+            LocalizedText matchedText = LocalizedText.Null;
+            bool matched = false;
+            if (indexRange.IsNull &&
+                value.TypeInfo.IsScalar &&
+                TryGetIntegerValue(value, out long number) &&
+                TryGetEnumValues(context, out ArrayOf<EnumValueType> enumValues))
+            {
+                foreach (EnumValueType entry in enumValues)
+                {
+                    if (entry.Value == number)
+                    {
+                        matchedText = entry.DisplayName;
+                        matched = true;
+                        break;
+                    }
+                }
+
+                if (!matched)
+                {
+                    return new AttributeWriteResult(StatusCodes.BadOutOfRange);
+                }
+            }
+
+            return new AttributeWriteResult(ServiceResult.Good)
+            {
+                AfterOrdinaryCacheCommit = matched ? () => UpdateValueAsText(matchedText) : null
+            };
+        }
+
         /// <summary>
         /// Validates a native cache write after the async core's access, metadata and type checks.
         /// Scales explicitly composes this policy only for audited stock types without application hooks.

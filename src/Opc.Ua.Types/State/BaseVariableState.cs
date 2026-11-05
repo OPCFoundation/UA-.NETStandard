@@ -2215,7 +2215,31 @@ namespace Opc.Ua
         /// <param name="value">The replacement value and its requested status code and source timestamp.</param>
         /// <param name="cancellationToken">The cancellation token passed to the asynchronous handler.</param>
         /// <returns>The validation, handler, or cache-commit result.</returns>
-        protected override ValueTask<ServiceResult> WriteAttributeCoreAsync(
+        protected override async ValueTask<ServiceResult> WriteAttributeCoreAsync(
+            ISystemContext context,
+            uint attributeId,
+            NumericRange indexRange,
+            DataValue value,
+            CancellationToken cancellationToken = default)
+        {
+            AttributeWriteResult result = await WriteAttributeWithResultAsync(
+                context, attributeId, indexRange, value, cancellationToken).ConfigureAwait(false);
+            return result.Result;
+        }
+
+        /// <summary>
+        /// Writes an attribute and preserves the asynchronous handler's cache-publication ownership.
+        /// </summary>
+        /// <remarks>
+        /// Derived variables must not update cached or derived values when the handler suppresses cache updates.
+        /// </remarks>
+        /// <param name="context">The context used for access and value validation.</param>
+        /// <param name="attributeId">The attribute to write.</param>
+        /// <param name="indexRange">The elements to replace, or a null range for the whole value.</param>
+        /// <param name="value">The value, status and source timestamp requested by the caller.</param>
+        /// <param name="cancellationToken">The cancellation token passed to the asynchronous handler.</param>
+        /// <returns>The operation result with the handler's cache-publication ownership preserved.</returns>
+        protected async ValueTask<AttributeWriteResult> WriteAttributeWithResultAsync(
             ISystemContext context,
             uint attributeId,
             NumericRange indexRange,
@@ -2227,16 +2251,36 @@ namespace Opc.Ua
             if (attributeId != Attributes.Value ||
                 (onWriteValueAsync == null && onSimpleWriteValueAsync == null))
             {
-                return base.WriteAttributeCoreAsync(context, attributeId, indexRange, value, cancellationToken);
+                ServiceResult result = await base.WriteAttributeCoreAsync(
+                    context, attributeId, indexRange, value, cancellationToken).ConfigureAwait(false);
+                return new AttributeWriteResult(result);
             }
 
-            return WriteValueAttributeAsyncCore(
+            return await WriteValueAttributeAsyncCore(
                 context,
                 indexRange,
                 value,
                 onWriteValueAsync,
                 onSimpleWriteValueAsync,
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Validates a Value write after standard access, metadata and type checks.
+        /// </summary>
+        /// <param name="context">The context used for the write.</param>
+        /// <param name="indexRange">The elements to replace, or a null range for the whole value.</param>
+        /// <param name="value">The value being written.</param>
+        /// <returns>
+        /// The validation result and an optional dependent-state update run after a successful cache
+        /// commit.
+        /// </returns>
+        protected virtual AttributeWriteResult ValidateAsyncValueWrite(
+            ISystemContext context,
+            NumericRange indexRange,
+            Variant value)
+        {
+            return new AttributeWriteResult(ServiceResult.Good);
         }
 
         /// <summary>
@@ -2249,7 +2293,7 @@ namespace Opc.Ua
         /// <param name="onSimpleWriteValueAsync">The simple write handler captured at entry.</param>
         /// <param name="cancellationToken">The token passed to the asynchronous handler.</param>
         /// <returns>The validation, handler, or cache-commit result.</returns>
-        private async ValueTask<ServiceResult> WriteValueAttributeAsyncCore(
+        private async ValueTask<AttributeWriteResult> WriteValueAttributeAsyncCore(
             ISystemContext context,
             NumericRange indexRange,
             DataValue value,
@@ -2259,9 +2303,9 @@ namespace Opc.Ua
         {
             if (value.ServerTimestamp != DateTimeUtc.MinValue)
             {
-                return ServiceResult.Create(
+                return new AttributeWriteResult(ServiceResult.Create(
                     StatusCodes.BadWriteNotSupported,
-                    "Cannot write to server timestamp");
+                    "Cannot write to server timestamp"));
             }
 
             try
@@ -2277,14 +2321,14 @@ namespace Opc.Ua
 
                 if ((accessLevel & AccessLevels.CurrentWrite) == 0)
                 {
-                    return StatusCodes.BadNotWritable;
+                    return new AttributeWriteResult(StatusCodes.BadNotWritable);
                 }
 
                 OnReadUserAccessLevel?.Invoke(context, this, ref userAccessLevel);
 
                 if ((userAccessLevel & AccessLevels.CurrentWrite) == 0)
                 {
-                    return StatusCodes.BadUserAccessDenied;
+                    return new AttributeWriteResult(StatusCodes.BadUserAccessDenied);
                 }
 
                 Variant valueToWrite = value.WrappedValue;
@@ -2298,15 +2342,23 @@ namespace Opc.Ua
 
                 if (statusOrTimestampResult != null)
                 {
-                    return statusOrTimestampResult;
+                    return new AttributeWriteResult(statusOrTimestampResult);
                 }
 
                 ServiceResult? typeResult = CheckValueType(context, valueToWrite);
 
                 if (typeResult != null)
                 {
-                    return typeResult;
+                    return new AttributeWriteResult(typeResult);
                 }
+
+                AttributeWriteResult valueValidationResult = ValidateAsyncValueWrite(
+                    context, indexRange, valueToWrite);
+                if (ServiceResult.IsBad(valueValidationResult.Result))
+                {
+                    return valueValidationResult;
+                }
+                Action? afterOrdinaryCacheCommit = valueValidationResult.AfterOrdinaryCacheCommit;
 
                 if (onWriteValueAsync != null)
                 {
@@ -2316,7 +2368,12 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsBad(writeResult.Result) || writeResult.SuppressCacheUpdate)
                     {
-                        return writeResult.Result;
+                        return writeResult;
+                    }
+
+                    if (writeResult.AfterOrdinaryCacheCommit == null)
+                    {
+                        writeResult = writeResult with { AfterOrdinaryCacheCommit = afterOrdinaryCacheCommit };
                     }
 
                     DateTimeUtc effectiveTimestamp = sourceTimestamp == DateTimeUtc.MinValue
@@ -2337,7 +2394,7 @@ namespace Opc.Ua
                                 StatusCode cacheResult = indexRange.UpdateRange(ref cachedValue, valueToWrite);
                                 if (StatusCode.IsBad(cacheResult))
                                 {
-                                    return new ServiceResult(cacheResult);
+                                    return new AttributeWriteResult(new ServiceResult(cacheResult));
                                 }
                                 valueToWrite = cachedValue;
                             }
@@ -2348,7 +2405,7 @@ namespace Opc.Ua
                         }
                         // Complete dependent state even if cancellation arrived after the cache commit.
                         writeResult.AfterOrdinaryCacheCommit?.Invoke();
-                        return writeResult.Result;
+                        return writeResult;
                     }
 
                     lock (m_attributeLock)
@@ -2375,7 +2432,8 @@ namespace Opc.Ua
                         ChangeMasks |= NodeStateChangeMasks.Value;
                     }
 
-                    return writeResult.Result;
+                    writeResult.AfterOrdinaryCacheCommit?.Invoke();
+                    return writeResult;
                 }
 
                 // simple async write path mirrors OnSimpleWriteValue:
@@ -2383,7 +2441,7 @@ namespace Opc.Ua
                 // (Part 4 5.11.4.4: Bad_WriteNotSupported).
                 if (!indexRange.IsNull)
                 {
-                    return StatusCodes.BadWriteNotSupported;
+                    return new AttributeWriteResult(StatusCodes.BadWriteNotSupported);
                 }
 
                 if (sourceTimestamp == DateTimeUtc.MinValue)
@@ -2402,7 +2460,12 @@ namespace Opc.Ua
 
                 if (ServiceResult.IsBad(simpleResult.Result) || simpleResult.SuppressCacheUpdate)
                 {
-                    return simpleResult.Result;
+                    return simpleResult;
+                }
+
+                if (simpleResult.AfterOrdinaryCacheCommit == null)
+                {
+                    simpleResult = simpleResult with { AfterOrdinaryCacheCommit = afterOrdinaryCacheCommit };
                 }
 
                 lock (m_attributeLock)
@@ -2413,14 +2476,15 @@ namespace Opc.Ua
                     ChangeMasks |= NodeStateChangeMasks.Value;
                 }
 
-                return simpleResult.Result;
+                simpleResult.AfterOrdinaryCacheCommit?.Invoke();
+                return simpleResult;
             }
             catch (Exception e)
             {
-                return ServiceResult.Create(
+                return new AttributeWriteResult(ServiceResult.Create(
                     e,
                     StatusCodes.BadUnexpectedError,
-                    "Failed to write value attribute.");
+                    "Failed to write value attribute."));
             }
         }
 

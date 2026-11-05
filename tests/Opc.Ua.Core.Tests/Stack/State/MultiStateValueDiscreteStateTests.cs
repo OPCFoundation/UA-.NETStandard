@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
@@ -143,6 +144,129 @@ namespace Opc.Ua.Core.Tests.Stack.State
             ServiceResult result = WriteValue(node, Variant.From((uint)4));
 
             Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadNotWritable));
+        }
+
+        /// <summary>
+        /// Updates dependent enum text after an asynchronous handler commits an ordinary cache write.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AsyncEnumWriteUpdatesValueAsTextAfterOrdinaryCommit(bool fullHandler)
+        {
+            MultiStateValueDiscreteState node = CreateNode(s_states);
+            var accepted = new AttributeWriteResult(ServiceResult.Good);
+            if (fullHandler)
+            {
+                node.OnWriteValueAsync = (_, _, _, _, _) => new ValueTask<AttributeWriteResult>(accepted);
+            }
+            else
+            {
+                node.OnSimpleWriteValueAsync = (_, _, _, _) => new ValueTask<AttributeWriteResult>(accepted);
+            }
+
+            ServiceResult result = await node.WriteAttributeAsync(
+                m_context, Attributes.Value, NumericRange.Null, new DataValue(Variant.From(4u)))
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                Assert.That(node.WrappedValue, Is.EqualTo(Variant.From(4u)));
+                Assert.That(node.ValueAsText!.Value.Text, Is.EqualTo("four"));
+            });
+        }
+
+        /// <summary>
+        /// Does not update the enum cache or dependent text when an asynchronous handler owns publication.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AsyncEnumSuppressedWriteLeavesPublisherCacheUntouched(bool fullHandler)
+        {
+            MultiStateValueDiscreteState node = CreateNode(s_states);
+            var timestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 1);
+            node.StatusCode = StatusCodes.Uncertain;
+            node.Timestamp = timestamp;
+            NodeStateChangeMasks previousMasks = node.ChangeMasks;
+            var suppressed = new AttributeWriteResult(ServiceResult.Good) { SuppressCacheUpdate = true };
+            if (fullHandler)
+            {
+                node.OnWriteValueAsync = (_, _, _, _, _) => new ValueTask<AttributeWriteResult>(suppressed);
+            }
+            else
+            {
+                node.OnSimpleWriteValueAsync = (_, _, _, _) => new ValueTask<AttributeWriteResult>(suppressed);
+            }
+
+            ServiceResult result = await node.WriteAttributeAsync(
+                m_context, Attributes.Value, NumericRange.Null, new DataValue(Variant.From(4u)))
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                Assert.That(node.WrappedValue, Is.EqualTo(Variant.From(0u)));
+                Assert.That(node.ValueAsText!.Value.Text, Is.EqualTo("initial"));
+                Assert.That(node.StatusCode, Is.EqualTo(StatusCodes.Uncertain));
+                Assert.That(node.Timestamp, Is.EqualTo(timestamp));
+                Assert.That(node.ChangeMasks, Is.EqualTo(previousMasks));
+            });
+        }
+
+        /// <summary>
+        /// Preserves a handler-owned value and text publication without applying the requested write again.
+        /// </summary>
+        [Test]
+        public async Task AsyncEnumSuppressedWritePreservesHandlerOwnedPublication()
+        {
+            MultiStateValueDiscreteState node = CreateNode(s_states);
+            node.OnWriteValueAsync = (_, _, _, _, _) =>
+            {
+                node.Value = Variant.From(8u);
+                node.ValueAsText!.Value = LocalizedText.From("eight");
+                return new ValueTask<AttributeWriteResult>(
+                    new AttributeWriteResult(ServiceResult.Good) { SuppressCacheUpdate = true });
+            };
+
+            ServiceResult result = await node.WriteAttributeAsync(
+                m_context, Attributes.Value, NumericRange.Null, new DataValue(Variant.From(4u)))
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                Assert.That(node.WrappedValue, Is.EqualTo(Variant.From(8u)));
+                Assert.That(node.ValueAsText!.Value.Text, Is.EqualTo("eight"));
+            });
+        }
+
+        /// <summary>
+        /// Dispatches non-Value attributes without invoking the asynchronous Value handler.
+        /// </summary>
+        [Test]
+        public async Task AsyncNonValueWriteDoesNotInvokeValueHandler()
+        {
+            MultiStateValueDiscreteState node = CreateNode(s_states);
+            int calls = 0;
+            node.WriteMask = AttributeWriteMask.DisplayName;
+            node.OnWriteValueAsync = (_, _, _, _, _) =>
+            {
+                calls++;
+                return new ValueTask<AttributeWriteResult>(new AttributeWriteResult(ServiceResult.Good));
+            };
+
+            ServiceResult result = await node.WriteAttributeAsync(
+                m_context,
+                Attributes.DisplayName,
+                NumericRange.Null,
+                new DataValue(Variant.From(LocalizedText.From("updated")))).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                Assert.That(node.DisplayName.Text, Is.EqualTo("updated"));
+                Assert.That(calls, Is.Zero);
+            });
         }
 
         private MultiStateValueDiscreteState CreateNode((long Value, string Name)[] states)
