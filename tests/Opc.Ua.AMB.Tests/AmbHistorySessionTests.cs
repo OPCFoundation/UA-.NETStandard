@@ -2111,6 +2111,7 @@ namespace Opc.Ua.AMB.Tests
                         NodeId = health.NodeId,
                         StartTime = DateTimeUtc.MinValue,
                         EndTime = DateTimeUtc.MaxValue,
+                        IsForward = true,
                         MaxValues = 10,
                         PageLimit = 10
                     },
