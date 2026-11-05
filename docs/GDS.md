@@ -1469,7 +1469,9 @@ registrar/client round trip.
 The registrar accepts a DCA certificate installed by an external authentication
 service under
 [Part 21 §7.4.1](https://reference.opcfoundation.org/specs/OPC-10000-21/v1.05.04/7.4.1).
-The service owns device authentication and key/certificate installation. The
+The service owns device authentication and key/certificate installation, and
+must arrange credential trust with the deployment's Registrar,
+SoftwareUpdateManager and CertificateManager. The
 registrar validates the authenticated channel certificate against dedicated
 authentication-service CA trust, then applies the host's approval policy for
 the product instance and DCA application. Trusting an issuer alone does not
@@ -1496,7 +1498,8 @@ nor the application's peer list implicitly populate the external CA list.
 The provider rejects CA certificates used as device leaves, validates usage and
 revocation without error overrides, and requires both the approved product
 instance URI and DCA application URI in the leaf's URI subject alternative names.
-An unavailable validator or denied approval propagates an error.
+An unavailable validator or denied approval propagates an error. Revocation and
+validity failures also reject the handoff instead of selecting ticket fallback.
 
 An approved inbound DCA enters the existing shared application database and
 candidate lifecycle. An existing application record must already belong to

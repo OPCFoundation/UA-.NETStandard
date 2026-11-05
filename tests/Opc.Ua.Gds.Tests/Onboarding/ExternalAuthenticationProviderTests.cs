@@ -120,6 +120,43 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
+        /// Revocation and validity failures are errors, not an unknown issuer that permits ticket fallback.
+        /// </summary>
+        [TestCase("revoked", false)]
+        [TestCase("unknown", false)]
+        [TestCase("expired", false)]
+        [TestCase("revoked", true)]
+        [TestCase("unknown", true)]
+        [TestCase("expired", true)]
+        public async Task CertificateRejectionCannotFallBackToTicketAuthentication(string failure, bool detailed)
+        {
+            using Certificate authority = CertificateBuilder.Create("CN=External Authority")
+                .SetCAConstraint(-1).SetRSAKeySize(2048).CreateForRSA();
+            using Certificate identity = Identity();
+            StatusCode status = failure switch
+            {
+                "revoked" => StatusCodes.BadCertificateRevoked,
+                "unknown" => StatusCodes.BadCertificateRevocationUnknown,
+                _ => StatusCodes.BadCertificateTimeInvalid
+            };
+            var manager = Manager(authority, valid: false);
+            manager.Setup(value => value.ValidateAsync(
+                It.IsAny<CertificateCollection>(), ExternalAuthenticationProvider.AuthenticationAuthorities,
+                It.IsAny<ValidationOptions>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CertificateValidationResult(false,
+                    detailed ? StatusCodes.BadCertificateUntrusted : status,
+                    detailed ? [new ServiceResult(status)] : [], false));
+            var policy = new Mock<IDeviceRegistrarExternalAuthenticationPolicy>(MockBehavior.Strict);
+            var provider = new ExternalAuthenticationProvider(manager.Object, policy.Object);
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await provider.EvaluateAsync(ByteString.From(identity.RawData.AsSpan())).ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(status));
+            policy.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
         /// Empty trust and leaf pinning cannot replace the configured authentication-service issuer boundary.
         /// </summary>
         [TestCase(false)]

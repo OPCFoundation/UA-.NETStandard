@@ -157,6 +157,19 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 }, cancellationToken).ConfigureAwait(false);
             if (!validation.IsValid)
             {
+                foreach (ServiceResult error in validation.Errors)
+                {
+                    if (error.StatusCode != StatusCodes.BadCertificateUntrusted &&
+                        error.StatusCode != StatusCodes.BadCertificateChainIncomplete)
+                    {
+                        throw new ServiceResultException(error);
+                    }
+                }
+                if (validation.StatusCode != StatusCodes.BadCertificateUntrusted &&
+                    validation.StatusCode != StatusCodes.BadCertificateChainIncomplete)
+                {
+                    validation.ThrowIfInvalid();
+                }
                 return null;
             }
             X509SubjectAltNameExtension? names = certificate.FindExtension<X509SubjectAltNameExtension>();
