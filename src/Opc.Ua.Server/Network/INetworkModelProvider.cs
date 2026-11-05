@@ -306,10 +306,35 @@ namespace Opc.Ua.Server.Network
         ChassisIdSubtype ChassisIdSubtype, string ChassisId, string SystemName, string SystemDescription)
     {
         /// <summary>
+        /// Locally supported LLDP system capabilities, when reported by the provider.
+        /// </summary>
+        public uint? SystemCapabilitiesSupported { get; init; }
+
+        /// <summary>
+        /// Locally enabled LLDP system capabilities, when reported by the provider.
+        /// </summary>
+        public uint? SystemCapabilitiesEnabled { get; init; }
+
+        /// <summary>
+        /// LLDP remote-system counters and last-change time, when reported by the provider.
+        /// </summary>
+        public NetworkLldpRemoteStatisticsSnapshot? RemoteStatistics { get; init; }
+
+        /// <summary>
         /// LLDP ports and their current neighbors.
         /// </summary>
         public ArrayOf<NetworkLldpPortSnapshot> Ports { get; init; }
     }
+
+    /// <summary>
+    /// LLDP remote-system statistics, with LastChangeTime measured in system uptime hundredths of a second.
+    /// </summary>
+    public sealed record NetworkLldpRemoteStatisticsSnapshot(
+        uint LastChangeTime,
+        uint RemoteInserts,
+        uint RemoteDeletes,
+        uint RemoteDrops,
+        uint RemoteAgeouts);
 
     /// <summary>
     /// LLDP port identity and neighbors. IfName links the port to an IETF interface by name.
@@ -321,6 +346,11 @@ namespace Opc.Ua.Server.Network
         /// Optional port description.
         /// </summary>
         public string? Description { get; init; }
+
+        /// <summary>
+        /// Management addresses and transmit settings advertised for this local port.
+        /// </summary>
+        public ArrayOf<LldpManagementAddressTxPortType> ManagementAddressTxPort { get; init; }
 
         /// <summary>
         /// Current neighbors; removal from the acquisition removes their address-space nodes.
@@ -344,5 +374,40 @@ namespace Opc.Ua.Server.Network
         /// Optional neighbor system description.
         /// </summary>
         public string? SystemDescription { get; init; }
+
+        /// <summary>
+        /// Optional description of the remote port.
+        /// </summary>
+        public string? PortDescription { get; init; }
+
+        /// <summary>
+        /// Optional capabilities supported by the remote system.
+        /// </summary>
+        public uint? SystemCapabilitiesSupported { get; init; }
+
+        /// <summary>
+        /// Optional capabilities enabled by the remote system.
+        /// </summary>
+        public uint? SystemCapabilitiesEnabled { get; init; }
+
+        /// <summary>
+        /// Whether the remote system's data has changed, when reported by the LLDP source.
+        /// </summary>
+        public bool? RemoteChanges { get; init; }
+
+        /// <summary>
+        /// Whether the LLDP source reports too many neighbors for this remote system.
+        /// </summary>
+        public bool? RemoteTooManyNeighbors { get; init; }
+
+        /// <summary>
+        /// Optional management addresses advertised by the remote system.
+        /// </summary>
+        public ArrayOf<LldpManagementAddressType> ManagementAddress { get; init; }
+
+        /// <summary>
+        /// Optional unrecognized TLVs received from the remote system.
+        /// </summary>
+        public ArrayOf<LldpTlvType> RemoteUnknownTlv { get; init; }
     }
 }

@@ -3247,6 +3247,220 @@ namespace Opc.Ua.Server.Tests.Network
         }
 
         /// <summary>
+        /// Publishes and removes every optional LLDP data family through the provider and typed client path.
+        /// </summary>
+        [Test]
+        [CancelAfter(60_000)]
+        public async Task LldpOptionalCapabilitiesArePublishedAndRemovedAsync(
+            CancellationToken cancellationToken)
+        {
+            NetworkModelSnapshot initial = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            NetworkLldpSnapshot lldp = initial.Lldp
+                ?? throw new InvalidOperationException("The test acquisition requires LLDP.");
+            NetworkLldpPortSnapshot port = lldp.Ports[0] with
+            {
+                Description = "local port",
+                ManagementAddressTxPort =
+                [
+                    new LldpManagementAddressTxPortType
+                    {
+                        AddressSubtype = 1,
+                        ManAddress = "192.0.2.1",
+                        TxEnable = true,
+                        AddrLen = 4,
+                        IfSubtype = ManAddrIfSubtype.PortRef,
+                        IfId = 7
+                    }
+                ],
+                Neighbors =
+                [
+                    new NetworkLldpNeighborSnapshot(
+                        "remote", 1, 2, ChassisIdSubtype.MacAddress, "02:00:00:00:00:02",
+                        PortIdSubtype.InterfaceName, "port1")
+                    {
+                        PortDescription = "remote port",
+                        SystemName = "remote system",
+                        SystemDescription = "remote description",
+                        SystemCapabilitiesSupported = 0x4,
+                        SystemCapabilitiesEnabled = 0x4,
+                        RemoteChanges = true,
+                        RemoteTooManyNeighbors = false,
+                        ManagementAddress =
+                        [
+                            new LldpManagementAddressType
+                            {
+                                AddressSubtype = 1,
+                                Address = "192.0.2.2",
+                                IfSubtype = ManAddrIfSubtype.SystemPortNumber,
+                                IfId = 8
+                            }
+                        ],
+                        RemoteUnknownTlv =
+                        [
+                            new LldpTlvType
+                            {
+                                TlvType = 127,
+                                TlvInfo = ByteString.From(new byte[] { 1, 2, 3 })
+                            }
+                        ]
+                    }
+                ]
+            };
+            NetworkLldpSnapshot configured = lldp with
+            {
+                SystemCapabilitiesSupported = 0x4,
+                SystemCapabilitiesEnabled = 0x4,
+                RemoteStatistics = new NetworkLldpRemoteStatisticsSnapshot(1234, 5, 6, 7, 8),
+                Ports = [port]
+            };
+            DateTime configuredTimestamp = initial.Timestamp.AddSeconds(1);
+            m_provider.Publish(initial with { Timestamp = configuredTimestamp, Lldp = configured });
+
+            NodeId lldpPort = (await m_client.DiscoverLldpPortsAsync(cancellationToken).ConfigureAwait(false))[0];
+            await WaitForAsync(async () =>
+            {
+                ArrayOf<NetworkParameterValue> values = await m_client.ReadParametersAsync(
+                    lldpPort, cancellationToken).ConfigureAwait(false);
+                return Parameter(values, BrowseNames.ManagementAddressTxPort).DataValue.SourceTimestamp ==
+                    (DateTimeUtc)configuredTimestamp;
+            }, cancellationToken).ConfigureAwait(false);
+
+            ArrayOf<NetworkParameterValue> localValues = await m_client.ReadParametersAsync(
+                ObjectIds.LLDP_LocalSystemData, cancellationToken).ConfigureAwait(false);
+            foreach (string name in new[]
+            {
+                BrowseNames.SystemCapabilitiesSupported,
+                BrowseNames.SystemCapabilitiesEnabled
+            })
+            {
+                NetworkParameterValue value = Parameter(localValues, name);
+                Assert.That(value.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(value.DataValue.WrappedValue.TryGetValue(out uint capabilities), Is.True);
+                Assert.That(capabilities, Is.EqualTo(0x4u));
+            }
+
+            ArrayOf<ReferenceDescription> lldpObjects = await m_client.BrowseObjectsAsync(
+                ObjectIds.LLDP, cancellationToken).ConfigureAwait(false);
+            NodeId statisticsNode = ExpandedNodeId.ToNodeId(
+                lldpObjects.ToList().Single(value =>
+                    value.BrowseName == new QualifiedName(BrowseNames.RemoteStatistics, 0)).NodeId,
+                m_session.NamespaceUris);
+            ArrayOf<NetworkParameterValue> statistics = await m_client.ReadParametersAsync(
+                statisticsNode, cancellationToken).ConfigureAwait(false);
+            Assert.That(Parameter(statistics, BrowseNames.LastChangeTime).DataValue.WrappedValue,
+                Is.EqualTo(new Variant(1234u)));
+            Assert.That(Parameter(statistics, BrowseNames.RemoteInserts).DataValue.WrappedValue,
+                Is.EqualTo(new Variant(5u)));
+            Assert.That(Parameter(statistics, BrowseNames.RemoteDeletes).DataValue.WrappedValue,
+                Is.EqualTo(new Variant(6u)));
+            Assert.That(Parameter(statistics, BrowseNames.RemoteDrops).DataValue.WrappedValue,
+                Is.EqualTo(new Variant(7u)));
+            Assert.That(Parameter(statistics, BrowseNames.RemoteAgeouts).DataValue.WrappedValue,
+                Is.EqualTo(new Variant(8u)));
+
+            ArrayOf<NetworkParameterValue> portValues = await m_client.ReadParametersAsync(
+                lldpPort, cancellationToken).ConfigureAwait(false);
+            Assert.That(Parameter(portValues, BrowseNames.PortDescription).DataValue.WrappedValue,
+                Is.EqualTo(new Variant("local port")));
+            NetworkParameterValue txAddresses = Parameter(portValues, BrowseNames.ManagementAddressTxPort);
+            Assert.That(txAddresses.DataValue.WrappedValue.TryGetStructure(
+                out ArrayOf<LldpManagementAddressTxPortType> txAddressValues), Is.True);
+            Assert.That(txAddressValues[0].ManAddress, Is.EqualTo("192.0.2.1"));
+            Assert.That(txAddressValues[0].TxEnable, Is.True);
+
+            NodeId neighbor = (await m_client.DiscoverNeighborsAsync(lldpPort, cancellationToken)
+                .ConfigureAwait(false))[0];
+            ArrayOf<NetworkParameterValue> remoteValues = await m_client.ReadParametersAsync(
+                neighbor, cancellationToken).ConfigureAwait(false);
+            Assert.That(Parameter(remoteValues, BrowseNames.PortDescription).DataValue.WrappedValue,
+                Is.EqualTo(new Variant("remote port")));
+            Assert.That(Parameter(remoteValues, BrowseNames.SystemCapabilitiesSupported).DataValue.WrappedValue,
+                Is.EqualTo(new Variant(0x4u)));
+            Assert.That(Parameter(remoteValues, BrowseNames.SystemCapabilitiesEnabled).DataValue.WrappedValue,
+                Is.EqualTo(new Variant(0x4u)));
+            Assert.That(Parameter(remoteValues, BrowseNames.RemoteChanges).DataValue.WrappedValue,
+                Is.EqualTo(new Variant(true)));
+            Assert.That(Parameter(remoteValues, BrowseNames.RemoteTooManyNeighbors).DataValue.WrappedValue,
+                Is.EqualTo(new Variant(false)));
+            NetworkParameterValue managementAddresses = Parameter(remoteValues, BrowseNames.ManagementAddress);
+            Assert.That(managementAddresses.DataValue.WrappedValue.TryGetStructure(
+                out ArrayOf<LldpManagementAddressType> managementAddressValues), Is.True);
+            Assert.That(managementAddressValues[0].Address, Is.EqualTo("192.0.2.2"));
+            NetworkParameterValue unknownTlvs = Parameter(remoteValues, BrowseNames.RemoteUnknownTlv);
+            Assert.That(unknownTlvs.DataValue.WrappedValue.TryGetStructure(
+                out ArrayOf<LldpTlvType> unknownTlvValues), Is.True);
+            Assert.That(unknownTlvValues[0].TlvType, Is.EqualTo(127u));
+            Assert.That(unknownTlvValues[0].TlvInfo.ToArray(), Is.EqualTo(new byte[] { 1, 2, 3 }));
+
+            NetworkLldpNeighborSnapshot clearedNeighbor = port.Neighbors[0] with
+            {
+                PortDescription = null,
+                SystemName = null,
+                SystemDescription = null,
+                SystemCapabilitiesSupported = null,
+                SystemCapabilitiesEnabled = null,
+                RemoteChanges = null,
+                RemoteTooManyNeighbors = null,
+                ManagementAddress = [],
+                RemoteUnknownTlv = []
+            };
+            NetworkLldpSnapshot clearedLldp = lldp with
+            {
+                SystemCapabilitiesSupported = null,
+                SystemCapabilitiesEnabled = null,
+                RemoteStatistics = null,
+                Ports =
+                [
+                    port with
+                    {
+                        Description = null,
+                        ManagementAddressTxPort = [],
+                        Neighbors = [clearedNeighbor]
+                    }
+                ]
+            };
+            DateTime clearedTimestamp = configuredTimestamp.AddSeconds(1);
+            NetworkModelSnapshot configuredSnapshot =
+                await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            m_provider.Publish(configuredSnapshot with { Timestamp = clearedTimestamp, Lldp = clearedLldp });
+            await WaitForAsync(async () =>
+            {
+                ArrayOf<ReferenceDescription> children = await m_client.BrowseObjectsAsync(
+                    ObjectIds.LLDP, cancellationToken).ConfigureAwait(false);
+                return children.ToList().All(value =>
+                    value.BrowseName != new QualifiedName(BrowseNames.RemoteStatistics, 0));
+            }, cancellationToken).ConfigureAwait(false);
+            ArrayOf<NetworkParameterValue> clearedLocal = await m_client.ReadParametersAsync(
+                ObjectIds.LLDP_LocalSystemData, cancellationToken).ConfigureAwait(false);
+            Assert.That(clearedLocal.ToList().Any(value =>
+                value.BrowseName == new QualifiedName(BrowseNames.SystemCapabilitiesSupported, 0)), Is.False);
+            Assert.That(clearedLocal.ToList().Any(value =>
+                value.BrowseName == new QualifiedName(BrowseNames.SystemCapabilitiesEnabled, 0)), Is.False);
+            ArrayOf<NetworkParameterValue> clearedPortValues = await m_client.ReadParametersAsync(
+                lldpPort, cancellationToken).ConfigureAwait(false);
+            Assert.That(clearedPortValues.ToList().Any(value =>
+                value.BrowseName == new QualifiedName(BrowseNames.ManagementAddressTxPort, 0)), Is.False);
+            Assert.That(clearedPortValues.ToList().Any(value =>
+                value.BrowseName == new QualifiedName(BrowseNames.PortDescription, 0)), Is.False);
+            ArrayOf<NetworkParameterValue> clearedRemote = await m_client.ReadParametersAsync(
+                neighbor, cancellationToken).ConfigureAwait(false);
+            Assert.That(clearedRemote.ToList().Any(value =>
+                value.BrowseName == new QualifiedName(BrowseNames.PortDescription, 0)), Is.False);
+            Assert.That(clearedRemote.ToList().Any(value =>
+                value.BrowseName == new QualifiedName(BrowseNames.SystemCapabilitiesSupported, 0)), Is.False);
+            Assert.That(clearedRemote.ToList().Any(value =>
+                value.BrowseName == new QualifiedName(BrowseNames.SystemCapabilitiesEnabled, 0)), Is.False);
+            Assert.That(clearedRemote.ToList().Any(value =>
+                value.BrowseName == new QualifiedName(BrowseNames.RemoteChanges, 0)), Is.False);
+            Assert.That(clearedRemote.ToList().Any(value =>
+                value.BrowseName == new QualifiedName(BrowseNames.RemoteTooManyNeighbors, 0)), Is.False);
+            Assert.That(clearedRemote.ToList().Any(value =>
+                value.BrowseName == new QualifiedName(BrowseNames.ManagementAddress, 0)), Is.False);
+            Assert.That(clearedRemote.ToList().Any(value =>
+                value.BrowseName == new QualifiedName(BrowseNames.RemoteUnknownTlv, 0)), Is.False);
+        }
+
+        /// <summary>
         /// Keeps port and neighbor identity components distinct when they contain path separators.
         /// </summary>
         [Test]

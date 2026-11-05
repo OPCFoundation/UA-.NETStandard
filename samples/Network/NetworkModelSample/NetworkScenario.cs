@@ -84,11 +84,29 @@ namespace Opc.Ua.Samples.Network
                     ChassisIdSubtype.MacAddress, "02:00:00:00:00:01",
                     "Simulated endpoint", "Part 22 reference provider; no hardware control")
                 {
+                    SystemCapabilitiesSupported = 0x80,
+                    SystemCapabilitiesEnabled = 0x80,
+                    RemoteStatistics = new NetworkLldpRemoteStatisticsSnapshot(1250, 3, 1, 0, 1),
                     Ports =
                     [
                         new NetworkLldpPortSnapshot(
                             "port0", "eth0", ByteString.From(new byte[] { 1, 128, 194, 0, 0, 14 }.AsSpan()),
                             PortIdSubtype.InterfaceName, "eth0")
+                        {
+                            Description = "Simulated local port",
+                            ManagementAddressTxPort =
+                            [
+                                new LldpManagementAddressTxPortType
+                                {
+                                    AddressSubtype = 1,
+                                    ManAddress = "192.0.2.1",
+                                    TxEnable = true,
+                                    AddrLen = 4,
+                                    IfSubtype = ManAddrIfSubtype.SystemPortNumber,
+                                    IfId = 1
+                                }
+                            ]
+                        }
                     ]
                 })
                 .Build(Epoch, StatusCodes.Good);
@@ -139,7 +157,31 @@ namespace Opc.Ua.Samples.Network
                             "switch", (uint)step, 1, ChassisIdSubtype.MacAddress,
                             "02:00:00:00:00:02", PortIdSubtype.InterfaceName, "port1")
                         {
-                            SystemName = "Simulated switch"
+                            PortDescription = "Simulated switch port",
+                            SystemName = "Simulated switch",
+                            SystemDescription = "Part 22 optional LLDP observations",
+                            SystemCapabilitiesSupported = 0x4,
+                            SystemCapabilitiesEnabled = 0x4,
+                            RemoteChanges = false,
+                            RemoteTooManyNeighbors = false,
+                            ManagementAddress =
+                            [
+                                new LldpManagementAddressType
+                                {
+                                    AddressSubtype = 1,
+                                    Address = "192.0.2.2",
+                                    IfSubtype = ManAddrIfSubtype.SystemPortNumber,
+                                    IfId = 2
+                                }
+                            ],
+                            RemoteUnknownTlv =
+                            [
+                                new LldpTlvType
+                                {
+                                    TlvType = 127,
+                                    TlvInfo = ByteString.From(new byte[] { 1, 2, 3 }.AsSpan())
+                                }
+                            ]
                         }
                     ]
                     : []

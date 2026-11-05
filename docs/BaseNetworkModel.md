@@ -131,10 +131,17 @@ must carry a bad status, rather than `Good` values copied from a healthy default
 Snapshot construction requires explicit quality, acquisition time, interface
 states and speed, and stream state and identity; omitted fields cannot silently
 become an operational interface or stream.
-Omit unsupported optional capabilities. The model distinguishes IETF interface
-speed in bit/s from IEEE Ethernet-port speed in Mbit/s. Stream identifiers have
-eight bytes, MAC-address arrays have six bytes, and traffic intervals have a
-nonzero denominator.
+The provider contract covers every optional capability in the supported Part 22
+interface, mapping, TSN and LLDP models. Supply each value the acquisition
+supports; the server publishes it through the standard node or generated
+structure, and the typed client can read it through the standard proxies. Omit
+unsupported or unavailable optional values. This includes interface physical
+addresses and lower-layer relationships, mapping methods, TSN observations and
+per-interface offsets, and LLDP statistics, local capabilities, port
+management-address transmit settings and remote-system observations. The model
+distinguishes IETF interface speed in bit/s from IEEE Ethernet-port speed in
+Mbit/s. Stream identifiers have eight bytes, MAC-address arrays have six bytes,
+and traffic intervals have a nonzero denominator.
 
 The server validates each provider acquisition before publishing it. It rejects
 an initial acquisition or newer revision whose timestamp kind is not UTC with
@@ -268,6 +275,8 @@ interface. Both resolve to the physical interface's mapping table. It exercises
 an unauthorized edit, a permitted edit and an invalid edit, then observes
 stream configuration, operation, bandwidth failure and recovery through a
 subscription while an LLDP neighbor appears and disappears.
+The acquisition also supplies LLDP statistics, local capabilities, management
+addresses and an unknown TLV.
 
 Its authorization switch is controlled by the local scenario, and its
 certificate configuration automatically accepts certificates for the local
@@ -295,7 +304,7 @@ not invent corresponding profile URIs or establish product certification.
 | BNM AutoNeg; BNM VLAN Capabilities; BNM IETF Interface Vlan Info | Optional negotiation, VLAN capability and VLAN identity interfaces |
 | BNM TSN Base Info; BNM TSN Config | Talker/listener identity, state, traffic, status, MAC/VLAN and interface configuration |
 | BNM Priority Mapping; BNM Priority Mapping2 | Mapping references, lower-layer inheritance, entries and authorized table methods |
-| BNM IEEE LLDP Info | Local system, ports and dynamically acquired remote systems |
+| BNM IEEE LLDP Info | Local system, ports, remote statistics and neighbors, including optional capabilities, descriptions, management addresses and unknown TLVs |
 
 Provider invariants are exercised in
 `ReferenceNetworkModelProviderTests`, client service behavior in

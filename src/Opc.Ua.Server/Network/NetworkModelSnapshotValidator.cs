@@ -176,6 +176,62 @@ namespace Opc.Ua.Server.Network
         }
 
         /// <summary>
+        /// Validates local management-address structures supplied for LLDP transmission.
+        /// </summary>
+        /// <param name="addresses">The local port management addresses.</param>
+        /// <returns>True when each address has its mandatory string and a defined interface subtype.</returns>
+        internal static bool AreValidLldpManagementAddressTxPorts(
+            ArrayOf<LldpManagementAddressTxPortType> addresses)
+        {
+            foreach (LldpManagementAddressTxPortType address in addresses)
+            {
+                if (address is null ||
+                    address.ManAddress is null ||
+                    !IsDefinedEnum(address.IfSubtype))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Validates remote management-address structures received through LLDP.
+        /// </summary>
+        /// <param name="addresses">The remote system management addresses.</param>
+        /// <returns>True when each address has its mandatory string and a defined interface subtype.</returns>
+        internal static bool AreValidLldpManagementAddresses(ArrayOf<LldpManagementAddressType> addresses)
+        {
+            foreach (LldpManagementAddressType address in addresses)
+            {
+                if (address is null ||
+                    address.Address is null ||
+                    !IsDefinedEnum(address.IfSubtype))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Validates unrecognized LLDP TLV structures.
+        /// </summary>
+        /// <param name="tlvs">The unrecognized TLVs.</param>
+        /// <returns>True when every structure is present.</returns>
+        internal static bool AreValidLldpTlvs(ArrayOf<LldpTlvType> tlvs)
+        {
+            foreach (LldpTlvType tlv in tlvs)
+            {
+                if (tlv is null)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
         /// Determines whether an enum value is defined by its generated OPC UA enumeration.
         /// </summary>
         /// <typeparam name="TEnum">The generated enumeration type.</typeparam>

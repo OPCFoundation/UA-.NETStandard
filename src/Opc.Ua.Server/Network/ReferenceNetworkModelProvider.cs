@@ -378,6 +378,13 @@ namespace Opc.Ua.Server.Network
                     {
                         throw new ArgumentException("LLDP port identifier subtype must be defined.", nameof(snapshot));
                     }
+                    if (!NetworkModelSnapshotValidator.AreValidLldpManagementAddressTxPorts(
+                        port.ManagementAddressTxPort))
+                    {
+                        throw new ArgumentException(
+                            "LLDP transmit management addresses must contain their mandatory fields and defined " +
+                            "interface subtypes.", nameof(snapshot));
+                    }
                     var neighborIds = new HashSet<string>(StringComparer.Ordinal);
                     foreach (NetworkLldpNeighborSnapshot neighbor in port.Neighbors)
                     {
@@ -389,6 +396,14 @@ namespace Opc.Ua.Server.Network
                         {
                             throw new ArgumentException(
                                 "LLDP neighbor identities must be non-empty and unique per port.",
+                                nameof(snapshot));
+                        }
+                        if (!NetworkModelSnapshotValidator.AreValidLldpManagementAddresses(
+                                neighbor.ManagementAddress) ||
+                            !NetworkModelSnapshotValidator.AreValidLldpTlvs(neighbor.RemoteUnknownTlv))
+                        {
+                            throw new ArgumentException(
+                                "LLDP remote management addresses and unknown TLVs must be valid.",
                                 nameof(snapshot));
                         }
                         if (!NetworkModelSnapshotValidator.IsDefinedEnum(neighbor.ChassisIdSubtype) ||
@@ -496,15 +511,74 @@ namespace Opc.Ua.Server.Network
                 NetworkLldpNeighborSnapshot[] neighbors = ports[portIndex].Neighbors.Span.ToArray();
                 for (int neighborIndex = 0; neighborIndex < neighbors.Length; neighborIndex++)
                 {
-                    neighbors[neighborIndex] = neighbors[neighborIndex] with { };
+                    neighbors[neighborIndex] = Copy(neighbors[neighborIndex]);
                 }
                 ports[portIndex] = ports[portIndex] with
                 {
                     DestinationMacAddress = ByteString.From(ports[portIndex].DestinationMacAddress.ToArray()),
+                    ManagementAddressTxPort = CopyManagementAddressTxPorts(
+                        ports[portIndex].ManagementAddressTxPort),
                     Neighbors = ArrayOf.Wrapped(neighbors)
                 };
             }
             return lldp with { Ports = ArrayOf.Wrapped(ports) };
+        }
+
+        /// <summary>
+        /// Copies mutable encoded management-address structures.
+        /// </summary>
+        private static ArrayOf<LldpManagementAddressTxPortType> CopyManagementAddressTxPorts(
+            ArrayOf<LldpManagementAddressTxPortType> values)
+        {
+            LldpManagementAddressTxPortType[] copies = values.Span.ToArray();
+            for (int index = 0; index < copies.Length; index++)
+            {
+                LldpManagementAddressTxPortType value = copies[index];
+                copies[index] = new LldpManagementAddressTxPortType
+                {
+                    AddressSubtype = value.AddressSubtype,
+                    ManAddress = value.ManAddress,
+                    TxEnable = value.TxEnable,
+                    AddrLen = value.AddrLen,
+                    IfSubtype = value.IfSubtype,
+                    IfId = value.IfId
+                };
+            }
+            return ArrayOf.Wrapped(copies);
+        }
+
+        /// <summary>
+        /// Copies mutable encoded management addresses and TLV payload storage.
+        /// </summary>
+        private static NetworkLldpNeighborSnapshot Copy(NetworkLldpNeighborSnapshot neighbor)
+        {
+            LldpManagementAddressType[] addresses = neighbor.ManagementAddress.Span.ToArray();
+            for (int index = 0; index < addresses.Length; index++)
+            {
+                LldpManagementAddressType value = addresses[index];
+                addresses[index] = new LldpManagementAddressType
+                {
+                    AddressSubtype = value.AddressSubtype,
+                    Address = value.Address,
+                    IfSubtype = value.IfSubtype,
+                    IfId = value.IfId
+                };
+            }
+            LldpTlvType[] tlvs = neighbor.RemoteUnknownTlv.Span.ToArray();
+            for (int index = 0; index < tlvs.Length; index++)
+            {
+                LldpTlvType value = tlvs[index];
+                tlvs[index] = new LldpTlvType
+                {
+                    TlvType = value.TlvType,
+                    TlvInfo = ByteString.From(value.TlvInfo.ToArray().AsSpan())
+                };
+            }
+            return neighbor with
+            {
+                ManagementAddress = ArrayOf.Wrapped(addresses),
+                RemoteUnknownTlv = ArrayOf.Wrapped(tlvs)
+            };
         }
 
         /// <summary>

@@ -33,7 +33,8 @@ The SDK provides full or partial support for these core areas:
 - Part 21: registrar ticket administration; the complete device-facing
   onboarding state machine is outside the implemented scope.
 - Part 22: [Base Network Model](BaseNetworkModel.md) runtime, typed clients and
-  an in-memory simulator; applications supply production network providers.
+  an in-memory simulator, including defined optional capabilities when supplied
+  by the provider; applications supply production network providers.
 - Parts 25 and 26: generated Object Serialization and
   LogObject declarations, without complete runtime services for those models.
 
@@ -187,9 +188,10 @@ canonical URI string before claiming a facet):
   [Alias Names](AliasNames.md).
 - **Base Network Model** (Part 22) — `AddNetworkModel` binds application-owned
   providers to standard Resources entry points, interfaces, priority mappings,
-  TSN streams and LLDP. The reference provider simulates state; it does not
-  configure host interfaces or reserve TSN bandwidth. No profile URI is
-  synthesized from the specification's conformance-unit names. See
+  TSN streams and LLDP, including defined optional capabilities when supplied.
+  The reference provider simulates state; it does not configure host interfaces
+  or reserve TSN bandwidth. No profile URI is synthesized from the
+  specification's conformance-unit names. See
   [Base Network Model](BaseNetworkModel.md).
 - **WoT Connectivity** (OPC 10100-1) — `Opc.Ua.WotCon` /
   `Opc.Ua.WotCon.Server` / `Opc.Ua.WotCon.Client` library trio for
@@ -262,7 +264,7 @@ support gap.
 
 | Model or family | Support | Implemented behavior and limits |
 | --- | --- | --- |
-| [Base Network Model](BaseNetworkModel.md), OPC 10000-22 | Full | Provider-backed Resources model, typed clients and simulator; applications supply production network providers |
+| [Base Network Model](BaseNetworkModel.md), OPC 10000-22 | Full | Provider-backed Resources model, typed clients and simulator, with defined optional interface, mapping, TSN and LLDP capabilities when supplied; applications supply production network providers |
 | [Device Integration](DeviceIntegration.md), OPC 10000-100 | Partial | Device composition, locking and software updates; offline/online representations, some loading modes and `UpdateStatus` remain incomplete |
 | [Asset Management Basics](AMB.md), OPC 10000-110 | Partial | Identity, health, maintenance, documentation, locations and dictionary classification; asset-health and past-maintenance event history remain unimplemented |
 | [Industrial Automation](Robotics.md), OPC 10000-200 | Partial | Shared generated model and the behavior used by Machinery/Robotics; not every standalone IA facet |
@@ -825,13 +827,14 @@ not a promise that every optional facet is enabled, and not an application's
 `ServerProfileArray`. For concepts and guidance documents, the rating refers
 to their application in the SDK rather than a separately executable protocol.
 The [catalogue](#companion-and-extension-models) and linked guides identify
-implementation evidence and provider boundaries. The partial-support column
-records the specific gap rather than repeating ordinary provider requirements.
+implementation evidence and provider boundaries. The final column records
+specific gaps for Partial entries and implementation boundaries where they
+clarify Full support; it does not repeat ordinary provider requirements.
 The model-only core entries refer to declarations in the shipped
 [core NodeSet](../src/Opc.Ua.Core/Schema/Opc.Ua.NodeSet.xml); their presence
 does not establish executable management, serialization or logging methods.
 
-| Specification | Latest version | Support | Why support is partial |
+| Specification | Latest version | Support | Implementation detail or partial gap |
 | --- | --- | --- | --- |
 | [OPC 10000-1: Overview and Concepts](https://reference.opcfoundation.org/specs/OPC-10000-1) | 1.05.06 | Full | - |
 | [OPC 10000-2: Security Model](https://reference.opcfoundation.org/specs/OPC-10000-2) | 1.05.06 | Full | - |
@@ -854,7 +857,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 10000-19: Dictionary Reference](https://reference.opcfoundation.org/specs/OPC-10000-19) | 1.05.03 | Full | - |
 | [OPC 10000-20: File Transfer](https://reference.opcfoundation.org/specs/OPC-10000-20) | 1.05.06 | Full | - |
 | [OPC 10000-21: Device Onboarding](https://reference.opcfoundation.org/specs/OPC-10000-21) | 1.05.04 | Partial | Registrar tickets only; complete device-facing onboarding state machine missing |
-| [OPC 10000-22: Base Network Model](https://reference.opcfoundation.org/specs/OPC-10000-22) | 1.05.04 | Full | - |
+| [OPC 10000-22: Base Network Model](https://reference.opcfoundation.org/specs/OPC-10000-22) | 1.05.04 | Full | Defined optional interface, mapping, TSN and LLDP capabilities are provider-backed; production adapters remain application-supplied |
 | [OPC 10000-23: Common ReferenceTypes](https://reference.opcfoundation.org/specs/OPC-10000-23) | 1.05.02 | Full | - |
 | [OPC 10000-24: Scheduler](https://reference.opcfoundation.org/specs/OPC-10000-24) | 1.05.02 | No | - |
 | [OPC 10000-25: Object Serialization](https://reference.opcfoundation.org/specs/OPC-10000-25) | 1.05.06 | Partial | Generated serialization declarations; no complete ConfigureSerialization runtime |

@@ -223,6 +223,20 @@ namespace Opc.Ua.Server.Network
                             .ConfigureAwait(false);
                     }
                 }
+                LldpLocalSystemState? localSystem = Server.DiagnosticsNodeManager
+                    .FindPredefinedNode<LldpLocalSystemState>(ObjectIds.LLDP_LocalSystemData);
+                if (localSystem?.SystemCapabilitiesSupported is { } supported)
+                {
+                    PublishValue(supported, supported.Value, failure, supported.Timestamp);
+                    await supported.ClearChangeMasksAsync(SystemContext, false, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                if (localSystem?.SystemCapabilitiesEnabled is { } enabled)
+                {
+                    PublishValue(enabled, enabled.Value, failure, enabled.Timestamp);
+                    await enabled.ClearChangeMasksAsync(SystemContext, false, cancellationToken)
+                        .ConfigureAwait(false);
+                }
             }
             finally
             {
@@ -386,6 +400,28 @@ namespace Opc.Ua.Server.Network
 
             if (snapshot.Lldp is { } lldp)
             {
+                if (lldp.RemoteStatistics is { } statistics)
+                {
+                    BaseObjectState statisticsNode = CreateObject(
+                        "lldp-statistics",
+                        "remote",
+                        BrowseNames.RemoteStatistics,
+                        ObjectTypeIds.LldpRemoteStatisticsType,
+                        ReferenceTypeIds.HasComponent,
+                        standardName: true);
+                    AddVariable(statisticsNode, BrowseNames.LastChangeTime, DataTypeIds.UInt32,
+                        statistics.LastChangeTime, snapshot);
+                    AddVariable(statisticsNode, BrowseNames.RemoteInserts, DataTypeIds.UInt32,
+                        statistics.RemoteInserts, snapshot);
+                    AddVariable(statisticsNode, BrowseNames.RemoteDeletes, DataTypeIds.UInt32,
+                        statistics.RemoteDeletes, snapshot);
+                    AddVariable(statisticsNode, BrowseNames.RemoteDrops, DataTypeIds.UInt32,
+                        statistics.RemoteDrops, snapshot);
+                    AddVariable(statisticsNode, BrowseNames.RemoteAgeouts, DataTypeIds.UInt32,
+                        statistics.RemoteAgeouts, snapshot);
+                    entities.Add(EntityKey("lldp-statistics", "remote"),
+                        new EntityDefinition(ObjectIds.LLDP, statisticsNode));
+                }
                 AddLldpEntities(entities, lldp, snapshot);
             }
 
@@ -761,6 +797,19 @@ namespace Opc.Ua.Server.Network
                     AddVariable(portNode, "PortDescription", DataTypeIds.String, description, snapshot,
                         property: true);
                 }
+                if (port.ManagementAddressTxPort.Count > 0)
+                {
+                    if (!NetworkModelSnapshotValidator.AreValidLldpManagementAddressTxPorts(
+                        port.ManagementAddressTxPort))
+                    {
+                        throw new ServiceResultException(StatusCodes.BadOutOfRange,
+                            "LLDP transmit management addresses must contain mandatory fields and defined subtypes.");
+                    }
+                    AddVariable(portNode, BrowseNames.ManagementAddressTxPort,
+                        DataTypeIds.LldpManagementAddressTxPortType,
+                        Variant.FromStructure(port.ManagementAddressTxPort), snapshot,
+                        property: true, valueRank: ValueRanks.OneDimension);
+                }
 
                 BaseObjectState? remoteSystems = null;
                 if (port.Neighbors.Count > 0)
@@ -800,6 +849,10 @@ namespace Opc.Ua.Server.Network
                     AddVariable(remote, "PortIdSubtype", DataTypeIds.PortIdSubtype,
                         Variant.From(neighbor.PortIdSubtype), snapshot);
                     AddVariable(remote, "PortId", DataTypeIds.String, neighbor.PortId, snapshot);
+                    if (neighbor.PortDescription is { } portDescription)
+                    {
+                        AddVariable(remote, "PortDescription", DataTypeIds.String, portDescription, snapshot);
+                    }
                     if (neighbor.SystemName is { } systemName)
                     {
                         AddVariable(remote, "SystemName", DataTypeIds.String, systemName, snapshot);
@@ -807,6 +860,49 @@ namespace Opc.Ua.Server.Network
                     if (neighbor.SystemDescription is { } systemDescription)
                     {
                         AddVariable(remote, "SystemDescription", DataTypeIds.String, systemDescription, snapshot);
+                    }
+                    if (neighbor.SystemCapabilitiesSupported is { } supported)
+                    {
+                        AddVariable(remote, BrowseNames.SystemCapabilitiesSupported,
+                            DataTypeIds.LldpSystemCapabilitiesMap, Variant.From(supported), snapshot);
+                    }
+                    if (neighbor.SystemCapabilitiesEnabled is { } enabled)
+                    {
+                        AddVariable(remote, BrowseNames.SystemCapabilitiesEnabled,
+                            DataTypeIds.LldpSystemCapabilitiesMap, Variant.From(enabled), snapshot);
+                    }
+                    if (neighbor.RemoteChanges is { } remoteChanges)
+                    {
+                        AddVariable(remote, BrowseNames.RemoteChanges, DataTypeIds.Boolean, remoteChanges, snapshot);
+                    }
+                    if (neighbor.RemoteTooManyNeighbors is { } remoteTooManyNeighbors)
+                    {
+                        AddVariable(remote, BrowseNames.RemoteTooManyNeighbors, DataTypeIds.Boolean,
+                            remoteTooManyNeighbors, snapshot);
+                    }
+                    if (neighbor.ManagementAddress.Count > 0)
+                    {
+                        if (!NetworkModelSnapshotValidator.AreValidLldpManagementAddresses(neighbor.ManagementAddress))
+                        {
+                            throw new ServiceResultException(StatusCodes.BadOutOfRange,
+                                "LLDP remote management addresses must contain mandatory fields and defined subtypes.");
+                        }
+                        AddVariable(remote, BrowseNames.ManagementAddress,
+                            DataTypeIds.LldpManagementAddressType,
+                            Variant.FromStructure(neighbor.ManagementAddress), snapshot,
+                            valueRank: ValueRanks.OneDimension);
+                    }
+                    if (neighbor.RemoteUnknownTlv.Count > 0)
+                    {
+                        if (!NetworkModelSnapshotValidator.AreValidLldpTlvs(neighbor.RemoteUnknownTlv))
+                        {
+                            throw new ServiceResultException(StatusCodes.BadOutOfRange,
+                                "LLDP unknown TLV structures must be present.");
+                        }
+                        AddVariable(remote, BrowseNames.RemoteUnknownTlv,
+                            DataTypeIds.LldpTlvType,
+                            Variant.FromStructure(neighbor.RemoteUnknownTlv), snapshot,
+                            valueRank: ValueRanks.OneDimension);
                     }
 
                     entities.Add(EntityKey("lldp-neighbor", identity),
@@ -836,6 +932,85 @@ namespace Opc.Ua.Server.Network
                     local is null ? StatusCodes.BadNotSupported : snapshot.StatusCode, snapshot.Timestamp);
                 await variable.ClearChangeMasksAsync(SystemContext, false, cancellationToken).ConfigureAwait(false);
             }
+            await SynchronizeLldpLocalCapabilitiesAsync(local, snapshot, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Reconciles optional local LLDP capability properties on the diagnostics-owned object.
+        /// </summary>
+        private async ValueTask SynchronizeLldpLocalCapabilitiesAsync(
+            NetworkLldpSnapshot? lldp,
+            NetworkModelSnapshot snapshot,
+            CancellationToken cancellationToken)
+        {
+            LldpLocalSystemState localSystem = Server.DiagnosticsNodeManager
+                .FindPredefinedNode<LldpLocalSystemState>(ObjectIds.LLDP_LocalSystemData) ??
+                throw new ServiceResultException(StatusCodes.BadConfigurationError,
+                    "The standard LLDP local-system object is missing.");
+
+            await ApplyLldpLocalCapabilityAsync(localSystem, BrowseNames.SystemCapabilitiesSupported,
+                lldp?.SystemCapabilitiesSupported, supported: true, snapshot, cancellationToken)
+                .ConfigureAwait(false);
+            await ApplyLldpLocalCapabilityAsync(localSystem, BrowseNames.SystemCapabilitiesEnabled,
+                lldp?.SystemCapabilitiesEnabled, supported: false, snapshot, cancellationToken)
+                .ConfigureAwait(false);
+            await localSystem.ClearChangeMasksAsync(SystemContext, true, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Adds, updates or removes one generated optional LLDP capability property.
+        /// </summary>
+        private async ValueTask ApplyLldpLocalCapabilityAsync(
+            LldpLocalSystemState localSystem,
+            string browseName,
+            uint? value,
+            bool supported,
+            NetworkModelSnapshot snapshot,
+            CancellationToken cancellationToken)
+        {
+            PropertyState<uint>? variable = supported
+                ? localSystem.SystemCapabilitiesSupported
+                : localSystem.SystemCapabilitiesEnabled;
+            if (value is null)
+            {
+                if (variable is not null)
+                {
+                    await DeleteNodeAsync(SystemContext, variable.NodeId, cancellationToken).ConfigureAwait(false);
+                    if (supported)
+                    {
+                        localSystem.SystemCapabilitiesSupported = null;
+                    }
+                    else
+                    {
+                        localSystem.SystemCapabilitiesEnabled = null;
+                    }
+                }
+                return;
+            }
+
+            if (variable is null)
+            {
+                NodeId childNodeId = ChildNodeIdFor(localSystem.NodeId, browseName);
+                if (supported)
+                {
+                    localSystem.AddSystemCapabilitiesSupported(SystemContext, childNodeId);
+                    variable = localSystem.SystemCapabilitiesSupported;
+                }
+                else
+                {
+                    localSystem.AddSystemCapabilitiesEnabled(SystemContext, childNodeId);
+                    variable = localSystem.SystemCapabilitiesEnabled;
+                }
+                if (variable is null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadConfigurationError,
+                        $"The standard LLDP {browseName} property could not be created.");
+                }
+                await AddPredefinedNodeAsync(variable, cancellationToken).ConfigureAwait(false);
+            }
+
+            PublishValue(variable, Variant.From(value.Value), snapshot.StatusCode, snapshot.Timestamp);
+            await variable.ClearChangeMasksAsync(SystemContext, false, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1078,12 +1253,15 @@ namespace Opc.Ua.Server.Network
             string identity,
             string browseName,
             NodeId typeDefinitionId,
-            NodeId referenceTypeId)
+            NodeId referenceTypeId,
+            bool standardName = false)
         {
             BaseObjectState node = typeDefinitionId == ObjectTypeIds.IetfBaseNetworkInterfaceType
                 ? new IetfBaseNetworkInterfaceState(null)
                 : typeDefinitionId == ObjectTypeIds.PriorityMappingTableType
                     ? new PriorityMappingTableState(null)
+                    : typeDefinitionId == ObjectTypeIds.LldpRemoteStatisticsType
+                        ? new LldpRemoteStatisticsState(null)
                     : typeDefinitionId == ObjectTypeIds.LldpLocalSystemType
                         ? new LldpLocalSystemState(null)
                         : typeDefinitionId == ObjectTypeIds.LldpPortInformationType
@@ -1092,7 +1270,7 @@ namespace Opc.Ua.Server.Network
                                 ? new LldpRemoteSystemState(null)
                                 : new BaseObjectState(null);
             node.NodeId = NodeIdFor(kind, identity);
-            node.BrowseName = new QualifiedName(browseName, NamespaceIndex);
+            node.BrowseName = new QualifiedName(browseName, standardName ? (ushort)0 : NamespaceIndex);
             node.DisplayName = new LocalizedText(browseName);
             node.TypeDefinitionId = typeDefinitionId;
             node.ReferenceTypeId = referenceTypeId;

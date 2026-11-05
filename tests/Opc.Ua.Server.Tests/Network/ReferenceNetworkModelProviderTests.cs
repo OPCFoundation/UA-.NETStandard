@@ -636,6 +636,86 @@ namespace Opc.Ua.Server.Tests.Network
         }
 
         /// <summary>
+        /// Detaches mutable management-address and unknown-TLV structures on LLDP input and output.
+        /// </summary>
+        [Test]
+        public async Task LldpOptionalStructuresAreCopiedAcrossAcquisitionsAsync()
+        {
+            byte[] tlvInfo = [1, 2, 3];
+            var transmitAddress = new LldpManagementAddressTxPortType
+            {
+                AddressSubtype = 1,
+                ManAddress = "192.0.2.1",
+                TxEnable = true,
+                AddrLen = 4,
+                IfSubtype = ManAddrIfSubtype.PortRef,
+                IfId = 7
+            };
+            var managementAddress = new LldpManagementAddressType
+            {
+                AddressSubtype = 1,
+                Address = "192.0.2.2",
+                IfSubtype = ManAddrIfSubtype.SystemPortNumber,
+                IfId = 8
+            };
+            var unknownTlv = new LldpTlvType
+            {
+                TlvType = 127,
+                TlvInfo = ByteString.From(tlvInfo)
+            };
+            NetworkModelSnapshot initial = EmptySnapshot() with
+            {
+                Lldp = new NetworkLldpSnapshot(
+                    ChassisIdSubtype.MacAddress, "00:00:00:00:00:01", "local", "description")
+                {
+                    Ports =
+                    [
+                        new NetworkLldpPortSnapshot(
+                            "port", "eth0", ByteString.From(new byte[] { 1, 128, 194, 0, 0, 14 }),
+                            PortIdSubtype.InterfaceName, "eth0")
+                        {
+                            ManagementAddressTxPort = [transmitAddress],
+                            Neighbors =
+                            [
+                                new NetworkLldpNeighborSnapshot(
+                                    "neighbor", 1, 1, ChassisIdSubtype.MacAddress, "00:00:00:00:00:02",
+                                    PortIdSubtype.InterfaceName, "eth1")
+                                {
+                                    ManagementAddress = [managementAddress],
+                                    RemoteUnknownTlv = [unknownTlv]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            };
+            var provider = new ReferenceNetworkModelProvider(initial);
+            NetworkLldpNeighborSnapshot first = (await provider.ReadAsync().ConfigureAwait(false))
+                .Lldp!.Ports[0].Neighbors[0];
+            transmitAddress.ManAddress = "mutated";
+            managementAddress.Address = "mutated";
+            tlvInfo[0] = 99;
+
+            NetworkLldpPortSnapshot firstPort = (await provider.ReadAsync().ConfigureAwait(false)).Lldp!.Ports[0];
+            Assert.That(firstPort.ManagementAddressTxPort[0].ManAddress, Is.EqualTo("192.0.2.1"));
+            Assert.That(first.ManagementAddress[0].Address, Is.EqualTo("192.0.2.2"));
+            Assert.That(first.RemoteUnknownTlv[0].TlvInfo[0], Is.EqualTo((byte)1));
+
+            firstPort.ManagementAddressTxPort[0].ManAddress = "mutated output";
+            first.ManagementAddress[0].Address = "mutated output";
+            first.RemoteUnknownTlv[0].TlvInfo = ByteString.Empty;
+            NetworkLldpPortSnapshot secondPort = (await provider.ReadAsync().ConfigureAwait(false)).Lldp!.Ports[0];
+            NetworkLldpNeighborSnapshot second = (await provider.ReadAsync().ConfigureAwait(false))
+                .Lldp!.Ports[0].Neighbors[0];
+            Assert.That(secondPort.ManagementAddressTxPort[0].ManAddress, Is.EqualTo("192.0.2.1"));
+            Assert.That(second.ManagementAddress[0].Address, Is.EqualTo("192.0.2.2"));
+            Assert.That(second.RemoteUnknownTlv[0].TlvInfo.ToArray(), Is.EqualTo(new byte[] { 1, 2, 3 }));
+            Assert.That(secondPort.ManagementAddressTxPort[0],
+                Is.Not.SameAs(firstPort.ManagementAddressTxPort[0]));
+            Assert.That(second.ManagementAddress[0], Is.Not.SameAs(first.ManagementAddress[0]));
+        }
+
+        /// <summary>
         /// Rejects malformed LLDP identities without replacing the accepted acquisition.
         /// </summary>
         [TestCase("missing destination")]
@@ -644,8 +724,13 @@ namespace Opc.Ua.Server.Tests.Network
         [TestCase("missing port identity")]
         [TestCase("local chassis subtype")]
         [TestCase("local port subtype")]
+        [TestCase("missing local management address")]
+        [TestCase("local management subtype")]
         [TestCase("remote chassis subtype")]
         [TestCase("remote port subtype")]
+        [TestCase("missing remote management address")]
+        [TestCase("remote management subtype")]
+        [TestCase("null remote TLV")]
         public async Task MalformedLldpAcquisitionDoesNotReplaceCurrentSnapshotAsync(string invalidField)
         {
             var neighbor = new NetworkLldpNeighborSnapshot(
@@ -654,6 +739,22 @@ namespace Opc.Ua.Server.Tests.Network
             var port = new NetworkLldpPortSnapshot(
                 "local", "eth0", ByteString.From(new byte[] { 1, 128, 194, 0, 0, 14 }.AsSpan()),
                 PortIdSubtype.InterfaceName, "eth0");
+            if (invalidField is "missing local management address" or "local management subtype")
+            {
+                port = port with
+                {
+                    ManagementAddressTxPort =
+                    [
+                        new LldpManagementAddressTxPortType
+                        {
+                            ManAddress = invalidField == "missing local management address" ? null : "192.0.2.1",
+                            IfSubtype = invalidField == "local management subtype"
+                                ? (ManAddrIfSubtype)int.MaxValue
+                                : ManAddrIfSubtype.SystemPortNumber
+                        }
+                    ]
+                };
+            }
             port = invalidField switch
             {
                 "missing destination" => port with { DestinationMacAddress = default },
@@ -667,6 +768,25 @@ namespace Opc.Ua.Server.Tests.Network
             {
                 "remote chassis subtype" => neighbor with { ChassisIdSubtype = (ChassisIdSubtype)int.MaxValue },
                 "remote port subtype" => neighbor with { PortIdSubtype = (PortIdSubtype)int.MaxValue },
+                "missing remote management address" => neighbor with
+                {
+                    ManagementAddress =
+                    [
+                        new LldpManagementAddressType { Address = null }
+                    ]
+                },
+                "remote management subtype" => neighbor with
+                {
+                    ManagementAddress =
+                    [
+                        new LldpManagementAddressType
+                        {
+                            Address = "192.0.2.2",
+                            IfSubtype = (ManAddrIfSubtype)int.MaxValue
+                        }
+                    ]
+                },
+                "null remote TLV" => neighbor with { RemoteUnknownTlv = [null!] },
                 _ => neighbor
             };
             var lldp = new NetworkLldpSnapshot(
