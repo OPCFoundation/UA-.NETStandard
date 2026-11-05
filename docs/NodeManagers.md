@@ -1242,6 +1242,12 @@ The built-in prepared unit gives its abort and immediate manager-disposal attemp
 one owner. Concurrent disposal calls await that attempt and observe its outcome.
 Later calls do not replay those callbacks, even if address-space teardown failed.
 
+Concurrent disposal of a candidate-owned historian builder also shares its active
+capture drain and the original failure. Existing capture handlers are detached
+before that drain. New capture registrations have a later disposal attempt of
+their own. A drain timeout is reported to waiting callers while the consumer
+retains an in-flight provider until it returns.
+
 The internal publication invocation excludes further preparation when disposal
 starts and retains shutdown admission until every admitted transaction has had
 its cleanup attempt. Callers already waiting for that attempt receive the same
