@@ -257,18 +257,22 @@ Use fully qualified fixture or method names to select a narrower regression.
 The `Server` and `NodeManagerLifecycle` categories include both component and
 hosted lifecycle tests.
 
-`NodeManagerLifecycleTests` creates its fixture PKI below NUnit's work directory.
-For `net48` on Windows, select a short work directory when the checkout path
-and certificate filename would exceed the legacy path limit:
+`NodeManagerLifecycleTests` creates a unique fixture PKI below the process
+temporary directory and deletes it during fixture teardown. For `net48` on
+Windows, use a short temporary root so certificate filenames remain within
+the legacy path limit:
 
 ```powershell
-$work = Join-Path $env:TEMP 'ua-lifecycle'
-[System.IO.Directory]::CreateDirectory($work) | Out-Null
+$env:TEMP = 'D:\temp'
+$env:TMP = $env:TEMP
 dotnet test tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj -f net48 `
     -p:CustomTestTarget=net48 `
-    --filter 'FullyQualifiedName~Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests' `
-    -- "NUnit.WorkDirectory=$work"
+    --filter 'FullyQualifiedName~Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests'
 ```
+
+Keep NUnit's default work directory when running the full solution; other
+fixtures load copied test assets relative to that directory. The lifecycle
+PKI root does not depend on it.
 
 `NodeManagerLifecycleChangeSetCleanupTests` binds the lifecycle's server
 dependencies at construction and captures its actual writer through the
