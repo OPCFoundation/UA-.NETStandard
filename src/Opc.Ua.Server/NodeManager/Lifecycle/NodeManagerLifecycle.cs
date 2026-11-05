@@ -737,11 +737,11 @@ namespace Opc.Ua.Server
             lock (m_registrationLock)
             {
                 return m_registrations.Values.Any(state =>
-                        AreSameNodeManager(
+                        NodeManagerGenerationRegistry.HasSameIdentity(
                             state.Registration.NodeManager,
                             nodeManager)) ||
                     m_reclaimer.Snapshot().Any(retired =>
-                        AreSameNodeManager(
+                        NodeManagerGenerationRegistry.HasSameIdentity(
                             retired.NodeManager,
                             nodeManager));
             }
@@ -1027,23 +1027,6 @@ namespace Opc.Ua.Server
             }
             return new ValueTask<(INodeManagerMonitoredItemSource, IReadOnlyList<IMonitoredItem>)>(
                 (nodeManagerLifecycle, items));
-        }
-
-        private static bool AreSameNodeManager(
-            IAsyncNodeManager first,
-            IAsyncNodeManager second)
-        {
-            if (ReferenceEquals(first, second))
-            {
-                return true;
-            }
-            INodeManager? firstSyncNodeManager = first.SyncNodeManager;
-            INodeManager? secondSyncNodeManager = second.SyncNodeManager;
-            return firstSyncNodeManager is not null &&
-                secondSyncNodeManager is not null &&
-                ReferenceEquals(
-                    firstSyncNodeManager,
-                    secondSyncNodeManager);
         }
 
         private static ValueTask ResolveUnresolvedSourcesAsync(

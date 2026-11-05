@@ -30,6 +30,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -294,6 +295,216 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Resource aliases resolve the same generation without replacing its owning facade.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void SharedSynchronousFacadesResolveOneGeneration(bool standardAdapter)
+        {
+            INodeManager resource = Mock.Of<INodeManager>();
+            IAsyncNodeManager owner = CreateResourceFacade(resource, standardAdapter);
+            IAsyncNodeManager alias = CreateResourceFacade(resource, false);
+
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(owner);
+
+            Assert.That(NodeManagerGenerationRegistry.GetOrCreate(alias), Is.SameAs(generation));
+            Assert.That(
+                NodeManagerGenerationRegistry.TryGet(
+                    resource.ToAsyncNodeManager(), out NodeManagerGeneration? found),
+                Is.True);
+            Assert.That(found, Is.SameAs(generation));
+            Assert.That(generation.NodeManager, Is.SameAs(owner));
+            Assert.That(generation.Slot.Current, Is.SameAs(generation));
+        }
+
+        /// <summary>
+        /// An alias cannot register a resource whose generation is already retiring.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void RetiredResourceCannotBeRegisteredThroughAnotherFacade(bool standardAdapter)
+        {
+            INodeManager resource = Mock.Of<INodeManager>();
+            IAsyncNodeManager owner = CreateResourceFacade(resource, standardAdapter);
+            IAsyncNodeManager alias = CreateResourceFacade(resource, false);
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(owner);
+            generation.Gate.Retire();
+
+            Assert.That(
+                () => NodeManagerGenerationRegistry.CreateAddition(alias),
+                Throws.InvalidOperationException);
+            Assert.That(generation.Gate.State, Is.EqualTo(NodeManagerGenerationState.Retiring));
+        }
+
+        /// <summary>
+        /// A prepared resource retains one generation across different accepted facade types.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void PreparedResourceAliasesShareOneGeneration(bool standardAdapter)
+        {
+            INodeManager resource = Mock.Of<INodeManager>();
+            IAsyncNodeManager owner = CreateResourceFacade(resource, standardAdapter);
+            IAsyncNodeManager alias = CreateResourceFacade(resource, false);
+
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.CreateAddition(owner);
+            NodeManagerGeneration aliased = NodeManagerGenerationRegistry.CreateAddition(alias);
+            var prepared = new PreparedNodeManager(alias, [], generation);
+
+            Assert.That(aliased, Is.SameAs(generation));
+            Assert.That(prepared.Generation, Is.SameAs(generation));
+            Assert.That(generation.NodeManager, Is.SameAs(owner));
+            Assert.That(generation.Gate.State, Is.EqualTo(NodeManagerGenerationState.Prepared));
+        }
+
+        /// <summary>
+        /// An alias of a live resource cannot assign that resource to another slot.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void LiveResourceCannotReplaceAnUnrelatedGenerationThroughAnotherFacade(bool standardAdapter)
+        {
+            INodeManager resource = Mock.Of<INodeManager>();
+            IAsyncNodeManager owner = CreateResourceFacade(resource, standardAdapter);
+            IAsyncNodeManager alias = CreateResourceFacade(resource, false);
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(owner);
+            NodeManagerGeneration unrelated = NodeManagerGenerationRegistry.GetOrCreate(
+                CreateResourceFacade(Mock.Of<INodeManager>(), false));
+
+            Assert.That(
+                () => NodeManagerGenerationRegistry.CreateReplacement(unrelated, alias),
+                Throws.InvalidOperationException);
+            Assert.That(generation.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+            Assert.That(generation.Slot.Current, Is.SameAs(generation));
+            Assert.That(unrelated.Slot.Current, Is.SameAs(unrelated));
+        }
+
+        /// <summary>
+        /// A synchronous round trip still identifies the native asynchronous owner.
+        /// </summary>
+        [Test]
+        public void RoundTripAdaptersRetainNativeGenerationIdentity()
+        {
+            var manager = new Mock<IAsyncNodeManager>();
+            manager.SetupGet(value => value.SyncNodeManager).Returns(new SyncNodeManagerAdapter(manager.Object));
+            IAsyncNodeManager alias = new AsyncNodeManagerAdapter(new SyncNodeManagerAdapter(manager.Object));
+
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(manager.Object);
+
+            Assert.That(NodeManagerGenerationRegistry.GetOrCreate(alias), Is.SameAs(generation));
+            Assert.That(NodeManagerGenerationRegistry.GetIdentity(alias), Is.SameAs(manager.Object));
+            Assert.That(generation.NodeManager, Is.SameAs(manager.Object));
+        }
+
+        /// <summary>
+        /// Different synchronous resources never share a generation or slot.
+        /// </summary>
+        [Test]
+        public void UnrelatedResourcesHaveDifferentGenerationIdentities()
+        {
+            NodeManagerGeneration first = NodeManagerGenerationRegistry.GetOrCreate(
+                CreateResourceFacade(Mock.Of<INodeManager>(), false));
+            NodeManagerGeneration second = NodeManagerGenerationRegistry.GetOrCreate(
+                CreateResourceFacade(Mock.Of<INodeManager>(), false));
+
+            Assert.That(first, Is.Not.SameAs(second));
+            Assert.That(first.Slot, Is.Not.SameAs(second.Slot));
+        }
+
+        /// <summary>
+        /// Registry and facade caches do not retain a resource after its last owner is released.
+        /// </summary>
+        [Test]
+        public void ResourceIdentityCachesDoNotRetainUnownedFacades()
+        {
+            (
+                WeakReference<IAsyncNodeManager> facade,
+                WeakReference<INodeManager> resource,
+                WeakReference<NodeManagerGeneration> generation) = CreateCollectibleResourceIdentity();
+
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+
+            Assert.That(facade.TryGetTarget(out _), Is.False);
+            Assert.That(resource.TryGetTarget(out _), Is.False);
+            Assert.That(generation.TryGetTarget(out _), Is.False);
+        }
+
+        /// <summary>
+        /// One blocked facade getter does not prevent an unrelated resource from resolving its identity.
+        /// </summary>
+        [Test]
+        public async Task IdentityResolutionDoesNotSerializeUnrelatedResourceGettersAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var release = new ManualResetEventSlim();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var blocked = new Mock<IAsyncNodeManager>();
+            blocked.SetupGet(value => value.SyncNodeManager).Returns(() =>
+            {
+                entered.TrySetResult(true);
+                release.Wait(timeout.Token);
+                return new SyncNodeManagerAdapter(blocked.Object);
+            });
+            Task<IAsyncNodeManager> first = Task.Factory.StartNew(
+                () => NodeManagerGenerationRegistry.GetIdentity(blocked.Object),
+                timeout.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+            try
+            {
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                IAsyncNodeManager unrelated = CreateResourceFacade(Mock.Of<INodeManager>(), false);
+                Task<IAsyncNodeManager> second = Task.Factory.StartNew(
+                    () => NodeManagerGenerationRegistry.GetIdentity(unrelated),
+                    timeout.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+                try
+                {
+                    IAsyncNodeManager resolved = await second.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    Assert.That(resolved.SyncNodeManager, Is.SameAs(unrelated.SyncNodeManager));
+                }
+                finally
+                {
+                    release.Set();
+                    await second.ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                release.Set();
+                await first.ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Ends the resource owner's stack frame before checking weak identity cache ownership.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static (
+            WeakReference<IAsyncNodeManager> Facade,
+            WeakReference<INodeManager> Resource,
+            WeakReference<NodeManagerGeneration> Generation) CreateCollectibleResourceIdentity()
+        {
+            INodeManager resource = Mock.Of<INodeManager>();
+            IAsyncNodeManager facade = CreateResourceFacade(resource, false);
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(facade);
+            return (new(facade), new(resource), new(generation));
+        }
+
+        /// <summary>
+        /// Creates a standard adapter or a custom facade for the same synchronous resource.
+        /// </summary>
+        private static IAsyncNodeManager CreateResourceFacade(INodeManager resource, bool standardAdapter)
+        {
+            if (standardAdapter)
+            {
+                return new AsyncNodeManagerAdapter(resource);
+            }
+            var facade = new Mock<IAsyncNodeManager>();
+            facade.SetupGet(value => value.SyncNodeManager).Returns(resource);
+            return facade.Object;
+        }
+
+        /// <summary>
         /// Creates an isolated generation in the requested initial state.
         /// </summary>
         private static NodeManagerGeneration CreateGeneration(
@@ -312,6 +523,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         private static Mock<IAsyncNodeManager> CreateNodeManager()
         {
             var manager = new Mock<IAsyncNodeManager>(MockBehavior.Strict);
+            manager.SetupGet(value => value.SyncNodeManager).Returns(new SyncNodeManagerAdapter(manager.Object));
             return manager;
         }
     }

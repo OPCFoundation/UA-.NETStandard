@@ -181,8 +181,7 @@ namespace Opc.Ua.Server
             NodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
             ExternalReferences = externalReferences ?? throw new ArgumentNullException(nameof(externalReferences));
             Generation = generation ?? throw new ArgumentNullException(nameof(generation));
-            if (!ReferenceEquals(NodeManagerGenerationRegistry.GetIdentity(nodeManager),
-                NodeManagerGenerationRegistry.GetIdentity(generation.NodeManager)))
+            if (!NodeManagerGenerationRegistry.HasSameIdentity(nodeManager, generation.NodeManager))
             {
                 throw new ArgumentException("The generation belongs to another NodeManager.", nameof(generation));
             }
