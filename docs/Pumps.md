@@ -518,7 +518,7 @@ method permissions for the intended roles.
 
 `WithRetainedIdentificationAsync` restores `AssetId`, `ComponentName` and
 `Location` from the shared AMB `IAssetConfigurationStore`, then enables client
-writes with explicit role permissions. The pump needs a stable, owner-unique
+writes for roles granted `Write`. The pump needs a stable, owner-unique
 `ProductInstanceUri`; changing its namespace index does not change the stored
 key. `ComponentName` retains its `LocalizedText` locale and text.
 
@@ -964,7 +964,7 @@ instance identification edge; `HasAddIn` is a subtype of the declared
 `HasComponent` reference and satisfies Machinery's identification relationship.
 The writable `AssetId`, `ComponentName` and `Location` members are enabled by
 `WithRetainedIdentificationAsync` after the application supplies a persistent
-store and explicit role permissions.
+store and role permissions that grant `Write` to at least one role.
 
 Table 154 includes Aggregate Subscription among the Pump Base requirements.
 Shared-server tests in `AsyncCustomNodeManagerTests`, including

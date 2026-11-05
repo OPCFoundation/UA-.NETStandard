@@ -87,6 +87,11 @@ namespace Opc.Ua.Pumps.Server
                     throw new ArgumentException("Every identity permission must identify a role.", nameof(permissions));
                 }
             }
+            if (!HasWritePermission(permissions))
+            {
+                throw new ArgumentException(
+                    "At least one identity role must have Write permission.", nameof(permissions));
+            }
             ValidateOwner(runtime, pump);
             IPumpGroupBuilder identification = pump.Identification;
             if (identification.Child(Opc.Ua.Di.BrowseNames.ProductInstanceUri) is not BaseVariableState identity ||
@@ -208,6 +213,21 @@ namespace Opc.Ua.Pumps.Server
             {
                 throw new ArgumentException("The pump must belong to this address-space owner.", nameof(pump));
             }
+        }
+
+        /// <summary>
+        /// Requires at least one configured role to be able to write retained identity.
+        /// </summary>
+        private static bool HasWritePermission(ArrayOf<RolePermissionType> permissions)
+        {
+            for (int i = 0; i < permissions.Count; i++)
+            {
+                if ((permissions[i].Permissions & (uint)PermissionType.Write) != 0)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>

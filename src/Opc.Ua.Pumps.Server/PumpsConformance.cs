@@ -383,10 +383,27 @@ namespace Opc.Ua.Pumps.Server
                 IsRegistered(variable) &&
                 (variable.AccessLevel & AccessLevels.CurrentWrite) != 0 &&
                 (variable.UserAccessLevel & AccessLevels.CurrentWrite) != 0 &&
+                HasWritePermission(variable.RolePermissions) &&
                 (variable.OnSimpleWriteValueAsync is not null ||
                     variable.OnSimpleWriteValue is not null ||
                     variable.OnWriteValueAsync is not null ||
                     variable.OnWriteValue is not null);
+        }
+
+        /// <summary>
+        /// Requires an explicit non-null role with Write permission on the identity member.
+        /// </summary>
+        private static bool HasWritePermission(ArrayOf<RolePermissionType> permissions)
+        {
+            for (int i = 0; i < permissions.Count; i++)
+            {
+                if (!permissions[i].RoleId.IsNull &&
+                    (permissions[i].Permissions & (uint)PermissionType.Write) != 0)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>

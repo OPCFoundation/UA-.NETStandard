@@ -265,6 +265,11 @@ namespace Opc.Ua.Pumps.Tests
 
             var conformance = new PumpsConformance(m_fixture.Manager.Runtime);
             Assert.That(Advertises(conformance.ServerProfiles, PumpBaseServerProfile), Is.False);
+            System.ArgumentException? readOnlyPermissionsError =
+                await Assert.ThrowsAsync<System.ArgumentException>(
+                    async () => await m_fixture.Manager.Runtime.WithRetainedIdentificationAsync(
+                        pump, PersistentStore(), ReadOnlyIdentityPermissions));
+            Assert.That(readOnlyPermissionsError!.ParamName, Is.EqualTo("permissions"));
             await m_fixture.Manager.Runtime.WithRetainedIdentificationAsync(
                 pump, PersistentStore(), WritableIdentityPermissions);
             Assert.That(Advertises(conformance.ServerProfiles, PumpBaseServerProfile), Is.True);
@@ -311,6 +316,11 @@ namespace Opc.Ua.Pumps.Tests
             location.OnSimpleWriteValueAsync = null;
             Assert.That(Advertises(conformance.ServerProfiles, PumpBaseServerProfile), Is.False);
             location.OnSimpleWriteValueAsync = originalWriteHandler;
+
+            ArrayOf<RolePermissionType> originalRolePermissions = location.RolePermissions;
+            location.RolePermissions = ReadOnlyIdentityPermissions;
+            Assert.That(Advertises(conformance.ServerProfiles, PumpBaseServerProfile), Is.False);
+            location.RolePermissions = originalRolePermissions;
 
             location.UserAccessLevel &= unchecked((byte)~AccessLevels.CurrentWrite);
             Assert.That(Advertises(conformance.ServerProfiles, PumpBaseServerProfile), Is.False);
@@ -421,6 +431,18 @@ namespace Opc.Ua.Pumps.Tests
             {
                 RoleId = ObjectIds.WellKnownRole_ConfigureAdmin,
                 Permissions = (uint)(PermissionType.Browse | PermissionType.Read | PermissionType.Write)
+            }
+        ];
+
+        /// <summary>
+        /// Grants identity reads but no role permission to write.
+        /// </summary>
+        private static ArrayOf<RolePermissionType> ReadOnlyIdentityPermissions =>
+        [
+            new RolePermissionType
+            {
+                RoleId = ObjectIds.WellKnownRole_ConfigureAdmin,
+                Permissions = (uint)(PermissionType.Browse | PermissionType.Read)
             }
         ];
 
