@@ -62,7 +62,9 @@ namespace Opc.Ua.Types.Tests.State
     [Parallelizable]
     public class BaseVariableStateAsyncHooksTests
     {
+        private static readonly int[] s_twoElementArray = [1, 2];
         private static readonly int[] s_initialArray = [1, 2, 3, 4];
+        private static readonly int[] s_threeElementArray = [1, 2, 3];
         private static readonly int[] s_slice = [20, 30];
         private static readonly int[] s_mergedArray = [1, 20, 30, 4];
         private ITelemetryContext m_telemetry;
@@ -90,7 +92,7 @@ namespace Opc.Ua.Types.Tests.State
             return new NodeWriteOperationExecutor(
                 operation => admission.CurrentCount == 0
                     ? ServiceResult.Create(
-                        StatusCodes.BadInvalidState,
+                        StatusCodes.BadNotSupported,
                         "A Value write is awaiting an asynchronous core operation.")
                     : operation(),
                 async (operation, cancellationToken) =>
@@ -484,7 +486,7 @@ namespace Opc.Ua.Types.Tests.State
                 UserAccessLevel = AccessLevels.CurrentReadOrWrite |
                     AccessLevels.StatusWrite |
                     AccessLevels.TimestampWrite,
-                Value = Variant.From(new[] { 1, 2 }),
+                Value = Variant.From(s_twoElementArray),
                 CopyPolicy = VariableCopyPolicy.CopyOnWrite
             };
             int synchronousExecutions = 0;
@@ -495,10 +497,10 @@ namespace Opc.Ua.Types.Tests.State
                     synchronousExecutions++;
                     return operation();
                 },
-                async (operation, cancellationToken) =>
+                (operation, cancellationToken) =>
                 {
                     asynchronousExecutions++;
-                    return await operation(cancellationToken).ConfigureAwait(false);
+                    return operation(cancellationToken);
                 }));
             Variant observedValue = Variant.Null;
             int handlerCalls = 0;
@@ -570,7 +572,7 @@ namespace Opc.Ua.Types.Tests.State
                     Attributes.Value,
                     NumericRange.Null,
                     new DataValue(new Variant(3.0)));
-                Assert.That(rejected.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
                 Assert.That(variable.Value.GetDouble(), Is.EqualTo(1.0));
 
                 coreRelease.TrySetResult(true);
@@ -614,7 +616,7 @@ namespace Opc.Ua.Types.Tests.State
                     Attributes.Value,
                     NumericRange.Null,
                     new DataValue(new Variant(3.0)));
-                Assert.That(rejected.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
                 Assert.That(variable.Value.GetDouble(), Is.EqualTo(1.0));
                 coreRelease.TrySetResult(true);
                 Assert.That(ServiceResult.IsGood(await pending.WaitAsync(TimeSpan.FromSeconds(5))), Is.True);
@@ -641,10 +643,10 @@ namespace Opc.Ua.Types.Tests.State
             int asyncAdmissions = 0;
             variable.BindWriteOperationExecutor(new NodeWriteOperationExecutor(
                 operation => operation(),
-                async (operation, cancellationToken) =>
+                (operation, cancellationToken) =>
                 {
                     asyncAdmissions++;
-                    return await operation(cancellationToken).ConfigureAwait(false);
+                    return operation(cancellationToken);
                 }));
 
             ServiceResult result = await variable.WriteAttributeAsync(
@@ -835,16 +837,16 @@ namespace Opc.Ua.Types.Tests.State
             if (updatedDependentState)
             {
                 Assert.That(observedValue, Is.EqualTo(2.0));
-                Assert.That(reentrantStatus, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                Assert.That(reentrantStatus, Is.EqualTo(StatusCodes.BadNotSupported));
             }
-            uint expected = scenario switch
+            StatusCode expected = scenario switch
             {
                 "reject" => StatusCodes.BadOutOfRange,
                 "range" => StatusCodes.BadIndexRangeNoData,
                 "throw" => StatusCodes.BadUnexpectedError,
                 _ => StatusCodes.Good
             };
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)expected));
+            Assert.That(result.StatusCode, Is.EqualTo(expected));
             Assert.That(ServiceResult.IsGood(variable.WriteAttribute(
                 context, Attributes.Value, NumericRange.Null, new DataValue(Variant.From(5.0)))), Is.True);
             Assert.That(variable.Value.GetDouble(), Is.EqualTo(5.0));
@@ -860,7 +862,7 @@ namespace Opc.Ua.Types.Tests.State
             BaseDataVariableState variable = CreateReadableVariable();
             variable.DataType = DataTypeIds.Int32;
             variable.ValueRank = ValueRanks.OneDimension;
-            variable.Value = Variant.From(new[] { 1, 2, 3 });
+            variable.Value = Variant.From(s_threeElementArray);
             variable.StatusCode = StatusCodes.Good;
             variable.Timestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 9);
             variable.BindWriteOperationExecutor(CreateInlineWriteExecutor());
@@ -876,7 +878,7 @@ namespace Opc.Ua.Types.Tests.State
                 context,
                 Attributes.Value,
                 NumericRange.Parse("4:5"),
-                new DataValue(Variant.From(new[] { 20, 30 }))).ConfigureAwait(false);
+                new DataValue(Variant.From(s_slice))).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(calls, Is.EqualTo(1));
@@ -1182,7 +1184,7 @@ namespace Opc.Ua.Types.Tests.State
             variable.ValueRank = ValueRanks.OneDimension;
             variable.AccessLevel |= AccessLevels.StatusWrite | AccessLevels.TimestampWrite;
             variable.UserAccessLevel |= AccessLevels.StatusWrite | AccessLevels.TimestampWrite;
-            variable.Value = Variant.From(new[] { 1, 2, 3, 4 });
+            variable.Value = Variant.From(s_initialArray);
             variable.StatusCode = StatusCodes.Uncertain;
             var timestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 6);
             variable.Timestamp = timestamp;
@@ -1324,12 +1326,12 @@ namespace Opc.Ua.Types.Tests.State
                 ref Variant _, ref StatusCode _, ref DateTimeUtc _) =>
             {
                 synchronousCalls++;
-                return StatusCodes.BadInvalidState;
+                return StatusCodes.BadNotSupported;
             };
             variable.OnSimpleWriteValue = (_, _, ref _) =>
             {
                 synchronousCalls++;
-                return StatusCodes.BadInvalidState;
+                return StatusCodes.BadNotSupported;
             };
             if (simple)
             {

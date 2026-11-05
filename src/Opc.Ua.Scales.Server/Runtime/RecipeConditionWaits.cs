@@ -324,7 +324,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                                 EvaluateConditionWaitsCore();
                             }
                         }
-                        return ValueTask.FromResult(true);
+                        return new ValueTask<bool>(true);
                     },
                     cancellationToken).ConfigureAwait(false);
                 if (evaluated)
@@ -351,7 +351,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                                 operation();
                             }
                         }
-                        return ValueTask.FromResult(true);
+                        return new ValueTask<bool>(true);
                     },
                     cancellationToken).ConfigureAwait(false);
                 RaisePending();

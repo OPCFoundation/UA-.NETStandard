@@ -1227,8 +1227,11 @@ namespace Opc.Ua.Scales.Server.Runtime
         private readonly NodeId m_allowedProductType;
         private readonly Func<ArrayOf<EUInformation>> m_allowedUnits;
 
-        /// <summary>Initializes explicitly configured runtime members before registering a new product.</summary>
+        /// <summary>
+        /// Initializes explicitly configured runtime members before registering a new product.
+        /// </summary>
         private readonly Action<ProductState>? m_initializeProduct;
+
         /// <summary>
         /// The owning scale's writer gate.
         /// </summary>

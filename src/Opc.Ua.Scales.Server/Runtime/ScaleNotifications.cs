@@ -162,7 +162,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                         message,
                         EventSeverity.Medium,
                         []);
-                    return ValueTask.FromResult(true);
+                    return new ValueTask<bool>(true);
                 },
                 cancellationToken).ConfigureAwait(false);
         }
