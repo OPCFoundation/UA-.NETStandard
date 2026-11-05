@@ -116,13 +116,15 @@ namespace Opc.Ua.Scales.Server.Runtime
             ProductionPresetState preset,
             NodeId allowedProductType,
             Func<ArrayOf<EUInformation>> allowedUnits,
-            Action<ProductState>? initializeProduct = null)
+            Action<ProductState>? initializeProduct = null,
+            ScaleWriteGate? writeGate = null)
         {
             m_services = services;
             Preset = preset;
             m_allowedProductType = allowedProductType;
             m_allowedUnits = allowedUnits;
             m_initializeProduct = initializeProduct;
+            m_writeGate = writeGate;
 
             var products = new List<ProductState>();
             if (preset.Products != null)
@@ -243,6 +245,22 @@ namespace Opc.Ua.Scales.Server.Runtime
         }
 
         /// <summary>
+        /// Retains the current selection for a recipe start, including an absent or multiple-product selection.
+        /// </summary>
+        internal ActiveProductReservation ReserveRecipeSelection()
+        {
+            lock (m_lock)
+            {
+                m_reservations++;
+                ProductState? product = m_current.Count == 1 &&
+                    m_products.TryGetValue(m_current[0], out ProductState? current)
+                    ? current
+                    : null;
+                return new ActiveProductReservation(this, product);
+            }
+        }
+
+        /// <summary>
         /// Finds a product by id.
         /// </summary>
         /// <param name="productId">The product id.</param>
@@ -272,14 +290,15 @@ namespace Opc.Ua.Scales.Server.Runtime
             LocalizedText productName,
             Action<ProductState>? configure = null)
         {
-            ProductState product = AddProductCore(
-                m_services.Context,
-                productId,
-                productName,
-                m_allowedProductType,
-                configure,
-                lockForCaller: false,
-                out ServiceResult result);
+            ServiceResult result = ServiceResult.Good;
+            ProductState product = ExecuteSynchronouslyOrThrow(() => AddProductCore(
+                    m_services.Context,
+                    productId,
+                    productName,
+                    m_allowedProductType,
+                    configure,
+                    lockForCaller: false,
+                    out result));
             return ServiceResult.IsBad(result) ? throw new ServiceResultException(result) : product;
         }
 
@@ -289,7 +308,7 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <param name="productId">The product id.</param>
         public ServiceResult Select(string productId)
         {
-            return SelectCore(m_services.Context, productId, checkLock: false);
+            return RunSynchronous(() => SelectCore(m_services.Context, productId, checkLock: false));
         }
 
         /// <summary>
@@ -298,7 +317,7 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <param name="productId">The product id.</param>
         public ServiceResult Deselect(string productId)
         {
-            return DeselectCore(m_services.Context, productId, checkLock: false);
+            return RunSynchronous(() => DeselectCore(m_services.Context, productId, checkLock: false));
         }
 
         /// <summary>
@@ -307,7 +326,7 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <param name="productId">The product id to switch to.</param>
         public ServiceResult Switch(string productId)
         {
-            return SwitchCore(m_services.Context, productId, checkLock: false);
+            return RunSynchronous(() => SwitchCore(m_services.Context, productId, checkLock: false));
         }
 
         /// <summary>
@@ -315,11 +334,13 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// </summary>
         /// <param name="productId">The product id.</param>
         /// <param name="cancellationToken">Cancels the removal.</param>
-        public ValueTask<ServiceResult> RemoveAsync(
+        public async ValueTask<ServiceResult> RemoveAsync(
             string productId,
             CancellationToken cancellationToken = default)
         {
-            return RemoveCoreAsync(m_services.Context, productId, checkLock: false, cancellationToken);
+            return await ExecuteAsynchronouslyAsync(
+                ct => RemoveCoreAsync(m_services.Context, productId, checkLock: false, ct),
+                cancellationToken).ConfigureAwait(false);
         }
 
         private void BindMethods()
@@ -333,32 +354,44 @@ namespace Opc.Ua.Scales.Server.Runtime
                     productType,
                     ref productNodeId) =>
                 {
-                    ProductState product = AddProductCore(
-                        context,
-                        productId,
-                        new LocalizedText(productName),
-                        productType,
-                        configure: null,
-                        lockForCaller: true,
-                        out ServiceResult result);
+                    NodeId createdProductId = default;
+                    ServiceResult result = RunSynchronous(() =>
+                    {
+                        ProductState product = AddProductCore(
+                            context,
+                            productId,
+                            new LocalizedText(productName),
+                            productType,
+                            configure: null,
+                            lockForCaller: true,
+                            out ServiceResult result);
+                        if (ServiceResult.IsGood(result))
+                        {
+                            createdProductId = product.NodeId;
+                        }
+                        return result;
+                    });
                     if (ServiceResult.IsGood(result))
                     {
-                        productNodeId = product.NodeId;
+                        productNodeId = createdProductId;
                     }
                     return result;
                 };
             Preset.RemoveProduct?.OnCallAsync = async (context, method, objectId, productId, ct) =>
-                    new RemoveProductMethodStateResult
-                    {
-                        ServiceResult = await RemoveCoreAsync(context, productId, checkLock: true, ct)
-                            .ConfigureAwait(false)
-                    };
+            {
+                return new RemoveProductMethodStateResult
+                {
+                    ServiceResult = await ExecuteAsynchronouslyAsync(
+                        token => RemoveCoreAsync(context, productId, checkLock: true, token),
+                        ct).ConfigureAwait(false)
+                };
+            };
             Preset.SelectProduct?.OnCall = (context, method, objectId, productId) =>
-                    SelectCore(context, productId, checkLock: true);
+                RunSynchronous(() => SelectCore(context, productId, checkLock: true));
             Preset.DeselectProduct?.OnCall = (context, method, objectId, productId) =>
-                    DeselectCore(context, productId, checkLock: true);
+                RunSynchronous(() => DeselectCore(context, productId, checkLock: true));
             Preset.SwitchProduct?.OnCall = (context, method, objectId, productId) =>
-                    SwitchCore(context, productId, checkLock: true);
+                RunSynchronous(() => SwitchCore(context, productId, checkLock: true));
         }
 
         private ProductState AddProductCore(
@@ -788,7 +821,7 @@ namespace Opc.Ua.Scales.Server.Runtime
         private void BindProduct(ProductState product)
         {
             m_initializeProduct?.Invoke(product);
-            m_services.BindProductWriteGuards(product);
+            m_services.BindProductWriteGuards(product, m_writeGate);
             if (product.Lock != null && m_registered && m_services.LockService is { } lockService)
             {
                 product.Lock.BindToLockService(product.NodeId, lockService);
@@ -819,34 +852,46 @@ namespace Opc.Ua.Scales.Server.Runtime
                     engineeringUnits,
                     ref zoneNodeId) =>
                 {
-                    ServiceResult access = ScaleValues.CheckLock(m_services, context, product.NodeId);
-                    if (ServiceResult.IsBad(access))
+                    NodeId createdZoneId = default;
+                    ServiceResult result = RunSynchronous(() =>
                     {
-                        return access;
-                    }
-                    if (zoneName.IsNullOrEmpty)
+                        ServiceResult access = ScaleValues.CheckLock(m_services, context, product.NodeId);
+                        if (ServiceResult.IsBad(access))
+                        {
+                            return access;
+                        }
+                        if (zoneName.IsNullOrEmpty)
+                        {
+                            return ServiceResult.Create(
+                                StatusCodes.BadInvalidArgument,
+                                "A zone name is required.");
+                        }
+                        if (!(lowerLimit < upperLimit))
+                        {
+                            return ServiceResult.Create(
+                                StatusCodes.BadInvalidArgument,
+                                "The lower limit of a zone has to be below its upper limit.");
+                        }
+                        ServiceResult unit = ScaleValues.CheckUnit(
+                            engineeringUnits,
+                            m_allowedUnits(),
+                            m_services.Options.RequireSiUnits);
+                        if (ServiceResult.IsBad(unit))
+                        {
+                            return unit;
+                        }
+                        ZoneState zone = AddZone(product, zoneName, lowerLimit, upperLimit, engineeringUnits);
+                        createdZoneId = zone.NodeId;
+                        return ServiceResult.Good;
+                    });
+                    if (ServiceResult.IsGood(result))
                     {
-                        return ServiceResult.Create(StatusCodes.BadInvalidArgument, "A zone name is required.");
+                        zoneNodeId = createdZoneId;
                     }
-                    if (!(lowerLimit < upperLimit))
-                    {
-                        return ServiceResult.Create(
-                            StatusCodes.BadInvalidArgument,
-                            "The lower limit of a zone has to be below its upper limit.");
-                    }
-                    ServiceResult unit = ScaleValues.CheckUnit(
-                        engineeringUnits,
-                        m_allowedUnits(),
-                        m_services.Options.RequireSiUnits);
-                    if (ServiceResult.IsBad(unit))
-                    {
-                        return unit;
-                    }
-                    ZoneState zone = AddZone(product, zoneName, lowerLimit, upperLimit, engineeringUnits);
-                    zoneNodeId = zone.NodeId;
-                    return ServiceResult.Good;
+                    return result;
                 };
             product.RemoveZone?.OnCallAsync = async (context, method, objectId, zoneNodeId, ct) =>
+                await ExecuteAsynchronouslyAsync(async token =>
                 {
                     ServiceResult access = ScaleValues.CheckLock(m_services, context, product.NodeId);
                     if (ServiceResult.IsBad(access))
@@ -870,13 +915,13 @@ namespace Opc.Ua.Scales.Server.Runtime
                                 zoneNodeId)
                         };
                     }
-                    await m_services.Delete(zone.NodeId, ct).ConfigureAwait(false);
+                    await m_services.Delete(zone.NodeId, token).ConfigureAwait(false);
                     lock (m_lock)
                     {
                         product.RemoveChild(zone);
                     }
                     return new RemoveZoneMethodStateResult { ServiceResult = ServiceResult.Good };
-                };
+                }, ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -898,33 +943,37 @@ namespace Opc.Ua.Scales.Server.Runtime
             {
                 throw new ArgumentNullException(nameof(product));
             }
-            ISystemContext context = m_services.Context;
-            ZoneState zone = context.CreateInstanceOfZoneType(
-                product,
-                m_services.InstanceName(zoneName.Text ?? "Zone"));
-            zone.ReferenceTypeId = Ua.ReferenceTypeIds.HasComponent;
-            zone.DisplayName = zoneName;
-            ScaleValues.Set(context, zone.Name, zoneName);
-            ScaleValues.Set(context, zone.LowerLimit, Variant.From(lowerLimit));
-            ScaleValues.Set(context, zone.UpperLimit, Variant.From(upperLimit));
-            ScaleValues.SetUnits(context, zone.LowerLimit, engineeringUnits);
-            ScaleValues.SetUnits(context, zone.UpperLimit, engineeringUnits);
-            lock (m_lock)
+            return ExecuteSynchronouslyOrThrow(() =>
             {
-                product.AddChild(zone);
-            }
+                ISystemContext context = m_services.Context;
+                ZoneState zone = context.CreateInstanceOfZoneType(
+                    product,
+                    m_services.InstanceName(zoneName.Text ?? "Zone"));
+                zone.ReferenceTypeId = Ua.ReferenceTypeIds.HasComponent;
+                zone.DisplayName = zoneName;
+                ScaleValues.Set(context, zone.Name, zoneName);
+                ScaleValues.Set(context, zone.LowerLimit, Variant.From(lowerLimit));
+                ScaleValues.Set(context, zone.UpperLimit, Variant.From(upperLimit));
+                ScaleValues.SetUnits(context, zone.LowerLimit, engineeringUnits);
+                ScaleValues.SetUnits(context, zone.UpperLimit, engineeringUnits);
+                lock (m_lock)
+                {
+                    product.AddChild(zone);
+                }
 
-            // Registered outside the lock, as products are.
-            if (m_registered)
-            {
-                m_services.Register(zone);
-            }
-            return zone;
+                // Registered outside the lock, as products are.
+                if (m_registered)
+                {
+                    m_services.Register(zone);
+                }
+                return zone;
+            });
         }
 
         private void BindPieceCounting(PieceCountingProductState product)
         {
             product.SetTargetItemCount?.OnCall = (context, method, objectId, targetItemCount) =>
+                RunSynchronous(() =>
                 {
                     ServiceResult access = ScaleValues.CheckLock(m_services, context, product.NodeId);
                     if (ServiceResult.IsBad(access))
@@ -945,8 +994,9 @@ namespace Opc.Ua.Scales.Server.Runtime
                         m_services.Register(targetItems);
                     }
                     return ServiceResult.Good;
-                };
+                });
             product.SetTargetPieceCount?.OnCall = (context, method, objectId, target, plus, minus) =>
+                RunSynchronous(() =>
                 {
                     ServiceResult access = ScaleValues.CheckLock(m_services, context, product.NodeId);
                     if (ServiceResult.IsBad(access))
@@ -973,7 +1023,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                         m_services.Register(targetPieces);
                     }
                     return ServiceResult.Good;
-                };
+                });
         }
 
         private void BindVehicle(VehicleProductState product)
@@ -983,29 +1033,30 @@ namespace Opc.Ua.Scales.Server.Runtime
                 return;
             }
             product.GetVehicleInformation.OnCall = (context, method, objectId, vehicleId) =>
-            {
-                ServiceResult access = ScaleValues.CheckLock(m_services, context, product.NodeId);
-                if (ServiceResult.IsBad(access))
+                RunSynchronous(() =>
                 {
-                    return access;
-                }
-                if (VehicleInformationProvider == null)
-                {
-                    return ServiceResult.Create(
-                        StatusCodes.BadNotSupported,
-                        "No vehicle data store is connected to this server.");
-                }
-                VehicleInformation? info = VehicleInformationProvider(vehicleId);
-                if (info == null)
-                {
-                    return ServiceResult.Create(
-                        StatusCodes.BadNotFound,
-                        "No vehicle with id '{0}' is known.",
-                        vehicleId);
-                }
-                ApplyVehicleInformation(product, vehicleId, info);
-                return ServiceResult.Good;
-            };
+                    ServiceResult access = ScaleValues.CheckLock(m_services, context, product.NodeId);
+                    if (ServiceResult.IsBad(access))
+                    {
+                        return access;
+                    }
+                    if (VehicleInformationProvider == null)
+                    {
+                        return ServiceResult.Create(
+                            StatusCodes.BadNotSupported,
+                            "No vehicle data store is connected to this server.");
+                    }
+                    VehicleInformation? info = VehicleInformationProvider(vehicleId);
+                    if (info == null)
+                    {
+                        return ServiceResult.Create(
+                            StatusCodes.BadNotFound,
+                            "No vehicle with id '{0}' is known.",
+                            vehicleId);
+                    }
+                    ApplyVehicleInformation(product, vehicleId, info);
+                    return ServiceResult.Good;
+                });
         }
 
         internal void ApplyVehicleInformation(VehicleProductState product, string vehicleId, VehicleInformation info)
@@ -1118,12 +1169,70 @@ namespace Opc.Ua.Scales.Server.Runtime
                 productId ?? string.Empty);
         }
 
+        /// <summary>
+        /// Runs a synchronous method route only when scale writes are not awaiting notifications.
+        /// </summary>
+        /// <param name="action">The route implementation.</param>
+        /// <returns>The route result or BadInvalidState when an asynchronous writer owns the scale.</returns>
+        private ServiceResult RunSynchronous(Func<ServiceResult> action)
+        {
+            if (m_writeGate == null)
+            {
+                return action();
+            }
+            return m_writeGate.TryExecuteSynchronously(action, out ServiceResult result)
+                ? result
+                : WriteInProgress();
+        }
+
+        /// <summary>
+        /// Runs synchronous preset work and throws when asynchronous scale work owns the writer.
+        /// </summary>
+        /// <typeparam name="T">The result type.</typeparam>
+        /// <param name="action">The complete operation.</param>
+        /// <returns>The operation result.</returns>
+        private T ExecuteSynchronouslyOrThrow<T>(Func<T> action)
+        {
+            return m_writeGate == null ? action() : m_writeGate.ExecuteSynchronously(action);
+        }
+
+        /// <summary>
+        /// Runs asynchronous preset work while owning the scale writer.
+        /// </summary>
+        /// <typeparam name="T">The result type.</typeparam>
+        /// <param name="action">The complete operation.</param>
+        /// <param name="cancellationToken">Cancels while waiting to enter.</param>
+        /// <returns>The operation result.</returns>
+        private ValueTask<T> ExecuteAsynchronouslyAsync<T>(
+            Func<CancellationToken, ValueTask<T>> action,
+            CancellationToken cancellationToken)
+        {
+            return m_writeGate == null
+                ? action(cancellationToken)
+                : m_writeGate.ExecuteAsynchronouslyAsync(action, cancellationToken);
+        }
+
+        /// <summary>
+        /// Creates the explicit command result used when asynchronous notification owns the scale.
+        /// </summary>
+        /// <returns>The BadInvalidState result.</returns>
+        private static ServiceResult WriteInProgress()
+        {
+            return ServiceResult.Create(
+                StatusCodes.BadInvalidState,
+                "A scale write is awaiting an asynchronous state notification.");
+        }
+
         private readonly ScaleRuntimeServices m_services;
         private readonly NodeId m_allowedProductType;
         private readonly Func<ArrayOf<EUInformation>> m_allowedUnits;
 
         /// <summary>Initializes explicitly configured runtime members before registering a new product.</summary>
         private readonly Action<ProductState>? m_initializeProduct;
+        /// <summary>
+        /// The owning scale's writer gate.
+        /// </summary>
+        private readonly ScaleWriteGate? m_writeGate;
         private readonly Dictionary<string, ProductState> m_products = new(StringComparer.Ordinal);
         private readonly HashSet<string> m_removing = new(StringComparer.Ordinal);
         private readonly HashSet<string> m_adding = new(StringComparer.Ordinal);
@@ -1136,7 +1245,7 @@ namespace Opc.Ua.Scales.Server.Runtime
         private int m_reservations;
 
         /// <summary>
-        /// Pins the product in processing for one equipment report commit; disposing releases it once.
+        /// Retains a product selection for an equipment report or recipe start; disposing releases it once.
         /// </summary>
         internal sealed class ActiveProductReservation : IDisposable
         {

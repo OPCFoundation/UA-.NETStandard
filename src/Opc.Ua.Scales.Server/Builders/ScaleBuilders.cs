@@ -256,7 +256,7 @@ namespace Opc.Ua.Scales.Server.Builders
     /// <summary>
     /// The default <see cref="IScaleBuilder"/>.
     /// </summary>
-    internal sealed class ScaleBuilder : IScaleBuilder
+    internal sealed class ScaleBuilder : IScaleRuntimeBuilder
     {
         public ScaleBuilder(ScaleRuntimeServices services, ScaleDeviceState scale, ScaleKind kind)
         {

@@ -62,7 +62,7 @@ namespace Opc.Ua.Scales.Server.Runtime
             Options = options;
             Register = node =>
             {
-                BindProductWriteGuards(node);
+                BindProductWriteGuards(node, null);
                 register(node);
             };
             Delete = delete;
@@ -296,11 +296,11 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <summary>
         /// Protects product values before publishing an initial or dynamically created subtree.
         /// </summary>
-        internal void BindProductWriteGuards(NodeState node)
+        internal void BindProductWriteGuards(NodeState node, ScaleWriteGate? writeGate)
         {
             lock (m_resourceGate)
             {
-                ScaleProductWriteGuard.Bind(this, node);
+                ScaleProductWriteGuard.Bind(this, node, writeGate);
             }
         }
 
@@ -355,6 +355,22 @@ namespace Opc.Ua.Scales.Server.Runtime
         }
 
         /// <summary>
+        /// Stamps a written value and awaits notification of the live variable.
+        /// </summary>
+        /// <param name="context">The context for the node.</param>
+        /// <param name="variable">The variable to notify.</param>
+        public static async ValueTask TouchAsync(ISystemContext context, BaseVariableState? variable)
+        {
+            if (variable == null)
+            {
+                return;
+            }
+            variable.StatusCode = StatusCodes.Good;
+            variable.Timestamp = DateTimeUtc.Now;
+            await variable.ClearChangeMasksAsync(context, includeChildren: false).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Writes a value and reports it.
         /// </summary>
         public static void Set(ISystemContext context, BaseVariableState? variable, Variant value)
@@ -365,6 +381,39 @@ namespace Opc.Ua.Scales.Server.Runtime
             }
             variable.WrappedValue = value;
             Touch(context, variable);
+        }
+
+        /// <summary>
+        /// Writes a value and awaits notification of the live variable.
+        /// </summary>
+        /// <param name="context">The context for the node.</param>
+        /// <param name="variable">The variable to update.</param>
+        /// <param name="value">The value to publish.</param>
+        public static async ValueTask SetAsync(ISystemContext context, BaseVariableState? variable, Variant value)
+        {
+            if (variable == null)
+            {
+                return;
+            }
+            variable.WrappedValue = value;
+            await TouchAsync(context, variable).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Writes a typed property and awaits notification of the live property.
+        /// </summary>
+        /// <typeparam name="T">The property's value type.</typeparam>
+        /// <param name="context">The context for the node.</param>
+        /// <param name="property">The property to update.</param>
+        /// <param name="value">The value to publish.</param>
+        public static async ValueTask SetAsync<T>(ISystemContext context, PropertyState<T>? property, T value)
+        {
+            if (property == null)
+            {
+                return;
+            }
+            property.Value = value;
+            await TouchAsync(context, property).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -396,6 +445,29 @@ namespace Opc.Ua.Scales.Server.Runtime
             {
                 property.WrappedValue = Variant.From(new ExtensionObject(units));
                 Touch(context, property);
+            }
+        }
+
+        /// <summary>
+        /// Writes the <c>EngineeringUnits</c> property and awaits its notification.
+        /// </summary>
+        /// <param name="context">The context for the node.</param>
+        /// <param name="variable">The analog variable.</param>
+        /// <param name="units">The engineering units.</param>
+        public static async ValueTask SetUnitsAsync(
+            ISystemContext context,
+            BaseVariableState? variable,
+            EUInformation? units)
+        {
+            if (variable == null || units == null)
+            {
+                return;
+            }
+            if (variable.FindChild(context, new QualifiedName(Ua.BrowseNames.EngineeringUnits))
+                is BaseVariableState property)
+            {
+                property.WrappedValue = Variant.From(new ExtensionObject(units));
+                await TouchAsync(context, property).ConfigureAwait(false);
             }
         }
 

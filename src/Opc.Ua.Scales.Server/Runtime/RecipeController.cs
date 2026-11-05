@@ -206,6 +206,30 @@ namespace Opc.Ua.Scales.Server.Runtime
         public event EventHandler<RecipeState>? RecipeCompleted;
 
         /// <summary>
+        /// Sets the application-owned check used before starting recipes when
+        /// this scale has no PackML state machine.
+        /// </summary>
+        /// <param name="isEnabledAndReleased">Returns whether the scale is enabled and released for processing.</param>
+        /// <remarks>
+        /// The callback may coordinate with other threads reading the scale or recipe controller.
+        /// StartRecipe rejects the start if the callback is replaced before the start commits. Without this check,
+        /// a scale without PackML retains its existing start behavior.
+        /// </remarks>
+        public void SetApplicationReleaseCheck(Func<bool> isEnabledAndReleased)
+        {
+            isEnabledAndReleased.ThrowIfNull(nameof(isEnabledAndReleased));
+            lock (m_lock)
+            {
+                if (m_disposed)
+                {
+                    throw new ObjectDisposedException(nameof(RecipeController));
+                }
+                m_applicationReleaseCheckRevision = checked(m_applicationReleaseCheckRevision + 1);
+                m_applicationReleaseCheck = isEnabledAndReleased;
+            }
+        }
+
+        /// <summary>
         /// Gets or sets the parser for recipes uploaded through their
         /// <c>RecipeFile</c> (the "Scales FileRecipeManagement" conformance
         /// unit). OPC 40200 leaves the file format to the vendor, so the
@@ -604,13 +628,121 @@ namespace Opc.Ua.Scales.Server.Runtime
             method.OnCallMethod2 = (context, called, objectId, inputs, outputs) =>
             {
                 NodeId recipeNodeId = inputs.Count > 0 && inputs[0].TryGetValue(out NodeId id) ? id : NodeId.Null;
-                ServiceResult result = RunRemote(context, command, recipeNodeId, action);
+                ServiceResult result = command == ScaleCommand.StartRecipe
+                    ? RunRemoteStart(context, recipeNodeId)
+                    : RunRemote(context, command, recipeNodeId, action);
 
                 // Handlers run after the scale's and the controller's lock are
                 // released, so they may call back into the controller.
                 RaisePending();
                 return result;
             };
+        }
+
+        private ServiceResult RunRemoteStart(ISystemContext context, NodeId recipeNodeId)
+        {
+            RecipeProductState? reportProduct = null;
+            ScaleProductionPreset.ActiveProductReservation? productReservation = null;
+            Func<bool>? applicationReleaseCheck = null;
+            long applicationReleaseCheckRevision = 0;
+            try
+            {
+                return m_owner.ExecuteRecipeStart(
+                    authorizeRecipe: () =>
+                    {
+                        lock (m_lock)
+                        {
+                            ServiceResult validation = ValidateStartRequest(recipeNodeId);
+                            if (ServiceResult.IsBad(validation))
+                            {
+                                return validation;
+                            }
+
+                            if (m_owner.ProductionPreset is { } preset)
+                            {
+                                productReservation = preset.ReserveRecipeSelection();
+                                reportProduct = productReservation.Product as RecipeProductState;
+                            }
+                            if (reportProduct != null)
+                            {
+                                ServiceResult access = ScaleValues.CheckLock(
+                                    m_owner.Services,
+                                    context,
+                                    reportProduct.NodeId);
+                                if (ServiceResult.IsBad(access))
+                                {
+                                    return access;
+                                }
+                            }
+
+                            if (m_owner.PackML == null)
+                            {
+                                applicationReleaseCheck = m_applicationReleaseCheck;
+                                applicationReleaseCheckRevision = m_applicationReleaseCheckRevision;
+                            }
+                            return ServiceResult.Good;
+                        }
+                    },
+                    checkRelease: () =>
+                    {
+                        if (applicationReleaseCheck is not null && !applicationReleaseCheck())
+                        {
+                            return ApplicationReleaseFailure();
+                        }
+                        return ServiceResult.Good;
+                    },
+                    startRecipe: () =>
+                    {
+                        lock (m_lock)
+                        {
+                            ServiceResult validation = ValidateStartRequest(recipeNodeId);
+                            if (ServiceResult.IsBad(validation))
+                            {
+                                return validation;
+                            }
+
+                            if (!ReferenceEquals(reportProduct, GetReportProduct()))
+                            {
+                                return ServiceResult.Create(
+                                    StatusCodes.BadInvalidState,
+                                    "The recipe report product changed while the start precondition was evaluated.");
+                            }
+                            if (reportProduct != null)
+                            {
+                                ServiceResult access = ScaleValues.CheckLock(
+                                    m_owner.Services,
+                                    context,
+                                    reportProduct.NodeId);
+                                if (ServiceResult.IsBad(access))
+                                {
+                                    return access;
+                                }
+                            }
+                            RecipeProductState? previousProduct = m_reportProduct;
+                            bool previouslyCaptured = m_reportProductCaptured;
+                            m_reportProduct = reportProduct;
+                            m_reportProductCaptured = true;
+                            try
+                            {
+                                return StartValidated(
+                                    recipeNodeId,
+                                    reportProduct,
+                                    reportProductCaptured: true,
+                                    applicationReleaseCheckRevision: applicationReleaseCheckRevision,
+                                    validateReleaseCheck: m_owner.PackML == null);
+                            }
+                            finally
+                            {
+                                m_reportProduct = previousProduct;
+                                m_reportProductCaptured = previouslyCaptured;
+                            }
+                        }
+                    });
+            }
+            finally
+            {
+                productReservation?.Dispose();
+            }
         }
 
         /// <summary>
@@ -665,6 +797,41 @@ namespace Opc.Ua.Scales.Server.Runtime
 
         private ServiceResult StartCore(NodeId recipeNodeId)
         {
+            Func<bool>? applicationReleaseCheck = null;
+            long applicationReleaseCheckRevision = 0;
+            if (m_owner.PackML == null)
+            {
+                lock (m_lock)
+                {
+                    ServiceResult validation = ValidateStartRequest(recipeNodeId);
+                    if (ServiceResult.IsBad(validation))
+                    {
+                        return validation;
+                    }
+                    applicationReleaseCheck = m_applicationReleaseCheck;
+                    applicationReleaseCheckRevision = m_applicationReleaseCheckRevision;
+                }
+            }
+            if (applicationReleaseCheck is not null && !applicationReleaseCheck())
+            {
+                return ApplicationReleaseFailure();
+            }
+
+            return StartValidated(
+                recipeNodeId,
+                reportProduct: null,
+                reportProductCaptured: false,
+                applicationReleaseCheckRevision: applicationReleaseCheckRevision,
+                validateReleaseCheck: m_owner.PackML == null);
+        }
+
+        private ServiceResult StartValidated(
+            NodeId recipeNodeId,
+            RecipeProductState? reportProduct,
+            bool reportProductCaptured,
+            long applicationReleaseCheckRevision,
+            bool validateReleaseCheck = false)
+        {
             lock (m_lock)
             {
                 if (m_disposed)
@@ -680,8 +847,11 @@ namespace Opc.Ua.Scales.Server.Runtime
                 {
                     return ServiceResult.Create(StatusCodes.BadNodeIdUnknown, "'{0}' is not a recipe of this scale.", recipeNodeId);
                 }
-                // §7.29.4: the scale has to be released for processing. With a
-                // PackML state machine that is the Idle or Execute state.
+                if (validateReleaseCheck && m_applicationReleaseCheckRevision != applicationReleaseCheckRevision)
+                {
+                    return ApplicationReleaseCheckChanged();
+                }
+                // §7.29.4: with PackML, Idle or Execute represents enabled/released for processing.
                 if (m_owner.PackML is { } packMl &&
                     packMl.CurrentState is not (PackMLStateNumbers.Idle or PackMLStateNumbers.Execute))
                 {
@@ -695,8 +865,8 @@ namespace Opc.Ua.Scales.Server.Runtime
                 {
                     return ServiceResult.Create(StatusCodes.BadInvalidState, "The recipe has no start element.");
                 }
-                m_conditionReportProduct = m_reportProductCaptured
-                    ? m_reportProduct
+                m_conditionReportProduct = reportProductCaptured
+                    ? reportProduct
                     : m_owner.ProductionPreset?.ActiveProduct as RecipeProductState;
                 ActiveRecipe = recipe;
                 State = RecipeRunState.Running;
@@ -709,6 +879,40 @@ namespace Opc.Ua.Scales.Server.Runtime
                 }
                 return ServiceResult.Good;
             }
+        }
+
+        private static ServiceResult ApplicationReleaseFailure()
+        {
+            return ServiceResult.Create(
+                StatusCodes.BadInvalidState,
+                "The application reports that the scale is not enabled and released for processing.");
+        }
+
+        private static ServiceResult ApplicationReleaseCheckChanged()
+        {
+            return ServiceResult.Create(
+                StatusCodes.BadInvalidState,
+                "The application release check changed while StartRecipe was being evaluated.");
+        }
+
+        private ServiceResult ValidateStartRequest(NodeId recipeNodeId)
+        {
+            if (m_disposed)
+            {
+                return ServiceResult.Create(StatusCodes.BadInvalidState, "The recipe controller has been disposed.");
+            }
+            if (State != RecipeRunState.Idle)
+            {
+                return ServiceResult.Create(StatusCodes.BadInvalidState, "A recipe is already being processed.");
+            }
+            if (!m_recipes.Values.Any(r => r.NodeId == recipeNodeId))
+            {
+                return ServiceResult.Create(
+                    StatusCodes.BadNodeIdUnknown,
+                    "'{0}' is not a recipe of this scale.",
+                    recipeNodeId);
+            }
+            return ServiceResult.Good;
         }
 
         /// <summary>
@@ -1073,6 +1277,14 @@ namespace Opc.Ua.Scales.Server.Runtime
 
         /// <summary>The product authorized for the current remote command's report writes.</summary>
         private RecipeProductState? m_reportProduct;
+
+        /// <summary>The optional application-owned enabled/released check for scales without PackML.</summary>
+        private Func<bool>? m_applicationReleaseCheck;
+
+        /// <summary>
+        /// Revision of the application release-check configuration, including reinstallation of an earlier delegate.
+        /// </summary>
+        private long m_applicationReleaseCheckRevision;
 
         /// <summary>The product that owns the current automatically evaluated recipe run.</summary>
         private RecipeProductState? m_conditionReportProduct;

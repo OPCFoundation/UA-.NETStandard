@@ -33,7 +33,10 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Moq;
 using NUnit.Framework;
+using Opc.Ua.PackML;
+using Opc.Ua.Scales.Server.Builders;
 using Opc.Ua.Scales.Server.Runtime;
 using Opc.Ua.Tests;
 
@@ -92,6 +95,78 @@ namespace Opc.Ua.Scales.Tests
             }
         }
 
+        /// <summary>
+        /// Rejects optional runtime configuration on a builder without that capability.
+        /// </summary>
+        [Test]
+        public void LegacyBuilderRejectsOptionalRuntimeConfiguration()
+        {
+            IScaleBuilder builder = Mock.Of<IScaleBuilder>();
+
+            Assert.That(() => builder.WithItemProcessing(), Throws.TypeOf<NotSupportedException>());
+            Assert.That(() => builder.WithCompletedFills(), Throws.TypeOf<NotSupportedException>());
+            Assert.That(() => builder.ConfigureRecipes(_ => { }), Throws.TypeOf<NotSupportedException>());
+            Assert.That(() => builder.WithRecipeReleaseCheck(() => true), Throws.TypeOf<NotSupportedException>());
+        }
+
+        /// <summary>
+        /// Forwards optional configuration to the builder's runtime capability.
+        /// </summary>
+        [Test]
+        public void OptionalRuntimeBuilderExtensionsForwardConfiguration()
+        {
+            var runtime = new Mock<IScaleRuntimeBuilder>(MockBehavior.Strict);
+            IScaleBuilder builder = runtime.Object;
+            Action<RecipeController> configure = _ => { };
+            runtime.Setup(value => value.WithItemProcessing(null)).Returns(builder);
+            runtime.Setup(value => value.WithCompletedFills()).Returns(builder);
+            runtime.Setup(value => value.ConfigureRecipes(configure)).Returns(builder);
+
+            Assert.That(builder.WithItemProcessing(), Is.SameAs(builder));
+            Assert.That(builder.WithCompletedFills(), Is.SameAs(builder));
+            Assert.That(builder.ConfigureRecipes(configure), Is.SameAs(builder));
+            runtime.VerifyAll();
+        }
+
+        /// <summary>
+        /// Rejects null builders and callbacks with the corresponding parameter names.
+        /// </summary>
+        [Test]
+        public void RuntimeBuilderExtensionsRejectNullArguments()
+        {
+            IScaleBuilder builder = Mock.Of<IScaleBuilder>();
+            IScaleBuilder missingBuilder = null!;
+
+            Assert.That(Assert.Throws<ArgumentNullException>(
+                () => missingBuilder.WithItemProcessing())!.ParamName, Is.EqualTo("builder"));
+            Assert.That(Assert.Throws<ArgumentNullException>(
+                () => missingBuilder.WithCompletedFills())!.ParamName, Is.EqualTo("builder"));
+            Assert.That(Assert.Throws<ArgumentNullException>(
+                () => missingBuilder.ConfigureRecipes(_ => { }))!.ParamName, Is.EqualTo("builder"));
+            Assert.That(Assert.Throws<ArgumentNullException>(
+                () => missingBuilder.WithRecipeReleaseCheck(() => true))!.ParamName, Is.EqualTo("builder"));
+            Assert.That(Assert.Throws<ArgumentNullException>(
+                () => builder.ConfigureRecipes(null!))!.ParamName, Is.EqualTo("configure"));
+            Assert.That(Assert.Throws<ArgumentNullException>(
+                () => builder.WithRecipeReleaseCheck(null!))!.ParamName, Is.EqualTo("isEnabledAndReleased"));
+        }
+
+        /// <summary>
+        /// Preserves the configured release check when a null replacement is rejected.
+        /// </summary>
+        [Test]
+        public void ApplicationReleaseCheckRejectsNullCallbackWithoutReplacingConfiguredCheck()
+        {
+            m_controller.SetApplicationReleaseCheck(() => false);
+
+            ArgumentNullException? error = Assert.Throws<ArgumentNullException>(
+                () => m_controller.SetApplicationReleaseCheck(null!));
+
+            Assert.That(error!.ParamName, Is.EqualTo("isEnabledAndReleased"));
+            Assert.That(m_controller.Start(m_recipe.NodeId).StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+        }
+
         [Test]
         public void DisabledConditionWaitsRetainManualExecution()
         {
@@ -104,6 +179,179 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(m_controller.CurrentElements.ToArray(), Does.Contain(element));
             AssertGood(m_controller.CompleteElement(element));
             Assert.That(m_controller.State, Is.EqualTo(RecipeRunState.Idle));
+        }
+
+        /// <summary>
+        /// Leaves the recipe idle when the application rejects its release check.
+        /// </summary>
+        [Test]
+        public void ApplicationReleaseCheckRejectsStartWhenNotReleased()
+        {
+            AnalogConditionSleepState element = Analog(0, 10.0);
+            int calls = 0;
+            m_controller.SetApplicationReleaseCheck(() =>
+            {
+                calls++;
+                return false;
+            });
+
+            ServiceResult result = m_controller.Start(m_recipe.NodeId);
+
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(m_controller.State, Is.EqualTo(RecipeRunState.Idle));
+            Assert.That(m_controller.CurrentElements.ToArray(), Does.Not.Contain(element));
+        }
+
+        /// <summary>
+        /// Starts the recipe when the application permits processing.
+        /// </summary>
+        [Test]
+        public void ApplicationReleaseCheckAllowsStartWhenReleased()
+        {
+            AnalogConditionSleepState element = Analog(0, 10.0);
+            int calls = 0;
+            m_controller.SetApplicationReleaseCheck(() =>
+            {
+                calls++;
+                return true;
+            });
+
+            AssertGood(m_controller.Start(m_recipe.NodeId));
+
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(m_controller.State, Is.EqualTo(RecipeRunState.Running));
+            Assert.That(m_controller.CurrentElements.ToArray(), Does.Contain(element));
+        }
+
+        /// <summary>
+        /// Rejects a local start after callback replacement, including restoration of the original delegate.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task LocalStartRejectsReleaseCheckReplacedBeforeCommitAsync(bool restoreOriginal)
+        {
+            AnalogConditionSleepState element = Analog(0, 10.0);
+            using var callbackEntered = new ManualResetEventSlim(false);
+            using var releaseCallback = new ManualResetEventSlim(false);
+            bool callbackAllowed = false;
+            Func<bool> originalCheck = () =>
+            {
+                callbackEntered.Set();
+                callbackAllowed = releaseCallback.Wait(TimeSpan.FromSeconds(20));
+                return callbackAllowed;
+            };
+            m_controller.SetApplicationReleaseCheck(originalCheck);
+
+            Task<ServiceResult> start = Task.Run(() => m_controller.Start(m_recipe.NodeId));
+            bool entered = callbackEntered.Wait(TimeSpan.FromSeconds(5));
+            Task? replaceCheck = entered
+                ? Task.Run(() =>
+                {
+                    m_controller.SetApplicationReleaseCheck(() => false);
+                    if (restoreOriginal)
+                    {
+                        m_controller.SetApplicationReleaseCheck(originalCheck);
+                    }
+                })
+                : null;
+            bool replaced = false;
+            try
+            {
+                if (replaceCheck is not null)
+                {
+                    await replaceCheck.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    replaced = true;
+                }
+            }
+            catch (TimeoutException)
+            {
+            }
+            finally
+            {
+                releaseCallback.Set();
+            }
+            if (replaceCheck is not null)
+            {
+                await replaceCheck.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            }
+
+            ServiceResult result = await start.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+
+            Assert.That(entered, Is.True);
+            Assert.That(replaced, Is.True);
+            Assert.That(callbackAllowed, Is.True);
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            Assert.That(m_controller.State, Is.EqualTo(RecipeRunState.Idle));
+            Assert.That(m_controller.CurrentElements.ToArray(), Does.Not.Contain(element));
+        }
+
+        /// <summary>
+        /// Applies the application release check supplied through the fluent builder.
+        /// </summary>
+        [Test]
+        public async Task FluentRecipeReleaseCheckRejectsStartWhenNotReleased()
+        {
+            int calls = 0;
+            ScaleHandle scale = await m_fixture.Manager.CreateScaleAsync(
+                m_fixture.Name("FluentReleaseScale"),
+                ScaleKind.Recipe,
+                builder => builder
+                    .WithIdentification(ScalesNodeManagerTests.Identity("FluentReleaseScale"))
+                    .WithWeighingRange(new WeighingRangeDefinition(0, 100, 0.001, 0.001))
+                    .WithRecipeReleaseCheck(() =>
+                    {
+                        calls++;
+                        return false;
+                    }));
+            RecipeController recipes = scale.Recipes!;
+            RecipeState recipe = recipes.AddRecipe("Fluent", new LocalizedText("Fluent"));
+            recipes.AddRecipeElement(
+                recipe,
+                new NodeId(ObjectTypes.TimerType, m_fixture.Manager.NamespaceIndices.Scales),
+                "Wait",
+                recipe.NodeId);
+
+            ServiceResult result = recipes.Start(recipe.NodeId);
+
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(recipes.State, Is.EqualTo(RecipeRunState.Idle));
+        }
+
+        /// <summary>
+        /// Uses PackML state rather than the application callback when PackML is configured.
+        /// </summary>
+        [Test]
+        public async Task PackMLStartUsesPackMLStateInsteadOfApplicationReleaseCheck()
+        {
+            int calls = 0;
+            ScaleHandle scale = await m_fixture.Manager.CreateScaleAsync(
+                m_fixture.Name("PackMLReleaseScale"),
+                ScaleKind.Recipe,
+                builder => builder
+                    .WithIdentification(ScalesNodeManagerTests.Identity("PackMLReleaseScale"))
+                    .WithWeighingRange(new WeighingRangeDefinition(0, 100, 0.001, 0.001))
+                    .WithPackMLState()
+                    .WithRecipeReleaseCheck(() =>
+                    {
+                        calls++;
+                        return false;
+                    }));
+            RecipeController recipes = scale.Recipes!;
+            RecipeState recipe = recipes.AddRecipe("PackML", new LocalizedText("PackML"));
+            recipes.AddRecipeElement(
+                recipe,
+                new NodeId(ObjectTypes.TimerType, m_fixture.Manager.NamespaceIndices.Scales),
+                "Wait",
+                recipe.NodeId);
+
+            AssertGood(recipes.Start(recipe.NodeId));
+
+            Assert.That(calls, Is.Zero);
+            Assert.That(scale.PackML!.CurrentState, Is.EqualTo(PackMLStateNumbers.Idle));
+            Assert.That(recipes.State, Is.EqualTo(RecipeRunState.Running));
+            AssertGood(recipes.Abort(recipe.NodeId));
         }
 
         [TestCase(0, 10.0, true)]
@@ -1013,7 +1261,11 @@ namespace Opc.Ua.Scales.Tests
                 Task winner = await Task.WhenAny(disposed, Task.Delay(TimeSpan.FromSeconds(10)))
                     .ConfigureAwait(false);
                 Assert.That(winner, Is.SameAs(disposed));
-                Assert.That(fired.IsCompleted, Is.True, "the timer callback has returned");
+                await disposed.ConfigureAwait(false);
+                winner = await Task.WhenAny(fired, Task.Delay(TimeSpan.FromSeconds(10)))
+                    .ConfigureAwait(false);
+                Assert.That(winner, Is.SameAs(fired), "the timer callback has returned");
+                await fired.ConfigureAwait(false);
             }
             finally
             {

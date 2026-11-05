@@ -39,13 +39,20 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <summary>
         /// Captures the existing callbacks and watches for subsequently materialised children.
         /// </summary>
-        private ScaleProductWriteGuard(ScaleRuntimeServices services, ProductState product, NodeState node)
+        private ScaleProductWriteGuard(
+            ScaleRuntimeServices services,
+            ProductState? product,
+            ScaleDeviceState? scaleRoot,
+            NodeState node,
+            ScaleWriteGate? writeGate)
         {
             m_services = services;
             m_product = product;
+            m_scaleRoot = scaleRoot;
+            m_writeGate = writeGate;
             m_stateChanged = node.OnStateChanged;
             node.OnStateChanged = OnStateChanged;
-            if (node is BaseVariableState variable)
+            if (product != null && node is BaseVariableState variable)
             {
                 m_readUserAccessLevel = variable.OnReadUserAccessLevel;
                 variable.OnReadUserAccessLevel = ReadUserAccessLevel;
@@ -55,18 +62,23 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <summary>
         /// Binds every product descendant in a subtree, including a separately registered optional member.
         /// </summary>
-        internal static void Bind(ScaleRuntimeServices services, NodeState node)
+        internal static void Bind(ScaleRuntimeServices services, NodeState node, ScaleWriteGate? writeGate)
         {
             ProductState? product = null;
+            ScaleDeviceState? scaleRoot = null;
             for (NodeState? ancestor = node; ancestor is BaseInstanceState instance; ancestor = instance.Parent)
             {
                 if (instance is ProductState owner)
                 {
                     product = owner;
+                }
+                if (instance is ScaleDeviceState scale)
+                {
+                    scaleRoot = scale;
                     break;
                 }
             }
-            Bind(services, node, product);
+            Bind(services, node, product, scaleRoot, writeGate);
         }
 
         /// <summary>
@@ -91,7 +103,7 @@ namespace Opc.Ua.Scales.Server.Runtime
         {
             if ((changeMasks & NodeStateChangeMasks.Children) != 0)
             {
-                m_services.BindProductWriteGuards(node);
+                m_services.BindProductWriteGuards(node, m_writeGate);
             }
             m_stateChanged?.Invoke(context, node, changeMasks);
         }
@@ -99,29 +111,88 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <summary>
         /// Walks a subtree while retaining its nearest product owner.
         /// </summary>
-        private static void Bind(ScaleRuntimeServices services, NodeState node, ProductState? product)
+        private static void Bind(
+            ScaleRuntimeServices services,
+            NodeState node,
+            ProductState? product,
+            ScaleDeviceState? scaleRoot,
+            ScaleWriteGate? writeGate)
         {
             product = node as ProductState ?? product;
-            if (product != null &&
+            scaleRoot = node as ScaleDeviceState ?? scaleRoot;
+            writeGate ??= FindWriteGate(services, node, product, scaleRoot);
+            if (writeGate != null)
+            {
+                node.BindWriteOperationExecutor(writeGate.NodeWriteExecutor);
+            }
+            if ((product != null || writeGate != null) &&
                 (node.OnStateChanged?.Target is not ScaleProductWriteGuard guard ||
                     guard.m_services != services ||
-                    guard.m_product != product))
+                    guard.m_product != product ||
+                    guard.m_scaleRoot != scaleRoot ||
+                    guard.m_writeGate != writeGate))
             {
-                _ = new ScaleProductWriteGuard(services, product, node);
+                _ = new ScaleProductWriteGuard(services, product, scaleRoot, node, writeGate);
             }
             var children = new List<BaseInstanceState>();
             node.GetChildren(services.Context, children);
             foreach (BaseInstanceState child in children)
             {
-                Bind(services, child, product);
+                if (child is ScaleDeviceState childScale &&
+                    scaleRoot != null &&
+                    !ReferenceEquals(childScale, scaleRoot))
+                {
+                    continue;
+                }
+                Bind(services, child, product, scaleRoot, writeGate);
             }
+        }
+
+        /// <summary>
+        /// Retains an existing product gate when a manager registers an already bound subtree.
+        /// </summary>
+        private static ScaleWriteGate? FindWriteGate(
+            ScaleRuntimeServices services,
+            NodeState node,
+            ProductState? product,
+            ScaleDeviceState? scaleRoot)
+        {
+            if (product == null && scaleRoot == null)
+            {
+                return null;
+            }
+
+            for (NodeState? ancestor = node;
+                ancestor is BaseInstanceState instance;
+                ancestor = instance.Parent)
+            {
+                if (instance.OnStateChanged?.Target is ScaleProductWriteGuard guard &&
+                    guard.m_services == services &&
+                    guard.m_product == product &&
+                    guard.m_scaleRoot == scaleRoot &&
+                    guard.m_writeGate is { } existingGate)
+                {
+                    return existingGate;
+                }
+            }
+            return null;
         }
 
         /// <summary>The runtime supplying the DI lock service.</summary>
         private readonly ScaleRuntimeServices m_services;
 
         /// <summary>The product whose lock restricts these values.</summary>
-        private readonly ProductState m_product;
+        private readonly ProductState? m_product;
+
+        /// <summary>
+        /// The scale that owns this subtree, when present.
+        /// </summary>
+        private readonly ScaleDeviceState? m_scaleRoot;
+
+        /// <summary>
+        /// The executor for the owning scale.
+        /// </summary>
+        private readonly ScaleWriteGate? m_writeGate;
 
         /// <summary>The existing access-level policy, which must never be broadened.</summary>
         private readonly NodeAttributeEventHandler<byte>? m_readUserAccessLevel;

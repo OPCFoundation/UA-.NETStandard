@@ -620,7 +620,7 @@ namespace Opc.Ua.Scales.Server
                 parent.AddChild(node);
                 try
                 {
-                    Services.BindProductWriteGuards(node);
+                    Services.BindProductWriteGuards(node, null);
                     // A scale reports scale events and alarms, so it has to be a
                     // notifier before a client can subscribe to it.
                     node.EventNotifier |= EventNotifiers.SubscribeToEvents;

@@ -39,8 +39,8 @@ namespace Opc.Ua.Types.Tests.State
     /// Tests for the asynchronous Value-attribute hooks on
     /// <see cref="BaseVariableState"/> — the four <c>On*ValueAsync</c>
     /// slots and the <see cref="BaseVariableState.ReadAttributeAsync"/>
-    /// / <see cref="BaseVariableState.WriteAttributeAsync"/> overrides
-    /// that route through them.
+    /// / <see cref="BaseVariableState.WriteAttributeAsync"/> entrypoint
+    /// that routes through them.
     /// </summary>
     /// <remarks>
     /// Coverage focuses on the contracts that distinguish the async
@@ -51,8 +51,8 @@ namespace Opc.Ua.Types.Tests.State
     ///   <item>Exceptions from the handler propagate to the caller.</item>
     ///   <item>The cached value / status / timestamp are updated on
     ///         successful writes (mirroring the sync flow).</item>
-    ///   <item>When no async slot is set, the override defers to the
-    ///         synchronous flow under the existing <c>lock(this)</c>.</item>
+    ///   <item>When no async slot is set, the core uses the synchronous
+    ///         write flow under the existing attribute lock.</item>
     /// </list>
     /// </remarks>
     [TestFixture]
@@ -81,6 +81,62 @@ namespace Opc.Ua.Types.Tests.State
             (m_messageContext as IDisposable)?.Dispose();
         }
 
+        /// <summary>
+        /// Creates an executor that rejects synchronous writes during an asynchronous operation.
+        /// </summary>
+        private static NodeWriteOperationExecutor CreateSerializedWriteExecutor()
+        {
+            var admission = new SemaphoreSlim(1, 1);
+            return new NodeWriteOperationExecutor(
+                operation => admission.CurrentCount == 0
+                    ? ServiceResult.Create(
+                        StatusCodes.BadInvalidState,
+                        "A Value write is awaiting an asynchronous core operation.")
+                    : operation(),
+                async (operation, cancellationToken) =>
+                {
+                    await admission.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    try
+                    {
+                        return await operation(cancellationToken).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        admission.Release();
+                    }
+                },
+                operation => new ValueTask<ServiceResult>(operation()));
+        }
+
+        /// <summary>
+        /// Creates an executor that invokes every operation without adding admission behavior.
+        /// </summary>
+        private static NodeWriteOperationExecutor CreateInlineWriteExecutor()
+        {
+            return new NodeWriteOperationExecutor(
+                operation => operation(),
+                (operation, cancellationToken) => operation(cancellationToken),
+                operation => new ValueTask<ServiceResult>(operation()));
+        }
+
+        /// <summary>
+        /// Creates a writable scalar whose asynchronous core can be controlled by a test.
+        /// </summary>
+        private static CoreOverrideVariableState CreateCoreOverrideVariable()
+        {
+            return new CoreOverrideVariableState
+            {
+                NodeId = new NodeId("CoreOverride", 0),
+                BrowseName = new QualifiedName("CoreOverride", 0),
+                DisplayName = new LocalizedText("CoreOverride"),
+                DataType = DataTypeIds.Double,
+                ValueRank = ValueRanks.Scalar,
+                AccessLevel = AccessLevels.CurrentReadOrWrite,
+                UserAccessLevel = AccessLevels.CurrentReadOrWrite,
+                Value = new Variant(1.0)
+            };
+        }
+
         private SystemContext CreateSystemContext()
         {
             return new SystemContext(m_telemetry)
@@ -88,6 +144,113 @@ namespace Opc.Ua.Types.Tests.State
                 NamespaceUris = m_messageContext.NamespaceUris,
                 TypeTable = new TypeTable(m_messageContext.NamespaceUris)
             };
+        }
+
+        /// <summary>
+        /// A variable state that overrides the protected asynchronous Value-write core.
+        /// </summary>
+        private sealed class CoreOverrideVariableState : BaseDataVariableState
+        {
+            /// <summary>
+            /// Creates a test variable without a parent.
+            /// </summary>
+            internal CoreOverrideVariableState()
+                : base(null)
+            {
+            }
+
+            /// <summary>
+            /// Gets or sets the signal raised when the core starts.
+            /// </summary>
+            internal TaskCompletionSource<bool>? CoreEntered { get; set; }
+
+            /// <summary>
+            /// Gets or sets an optional pause before the native base core.
+            /// </summary>
+            internal TaskCompletionSource<bool>? CoreRelease { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether this core skips the native base implementation.
+            /// </summary>
+            internal bool SkipBaseCore { get; set; }
+
+            /// <summary>
+            /// Gets the attribute id last passed to the core.
+            /// </summary>
+            internal uint LastAttributeId { get; private set; }
+
+            /// <summary>
+            /// Gets or sets whether the first core call invokes a nested public write.
+            /// </summary>
+            internal bool ReenterPublicWrite { get; set; }
+
+            /// <summary>
+            /// Gets or sets the cancellation token used by a nested public write.
+            /// </summary>
+            internal CancellationToken NestedWriteToken { get; set; }
+
+            /// <summary>
+            /// Gets or sets the signal raised before the nested write awaits admission.
+            /// </summary>
+            internal TaskCompletionSource<bool>? NestedWriteEntered { get; set; }
+
+            /// <summary>
+            /// Gets whether the nested public write observed cancellation.
+            /// </summary>
+            internal bool NestedWriteCancelled { get; private set; }
+
+            /// <summary>
+            /// Runs the test-controlled core and optionally delegates to the native implementation.
+            /// </summary>
+            protected override async ValueTask<ServiceResult> WriteAttributeCoreAsync(
+                ISystemContext context,
+                uint attributeId,
+                NumericRange indexRange,
+                DataValue value,
+                CancellationToken cancellationToken = default)
+            {
+                LastAttributeId = attributeId;
+                CoreEntered?.TrySetResult(true);
+                if (ReenterPublicWrite && Interlocked.Increment(ref m_coreCalls) == 1)
+                {
+                    ValueTask<ServiceResult> nested = WriteAttributeAsync(
+                        context,
+                        attributeId,
+                        indexRange,
+                        new DataValue(new Variant(3.0)),
+                        NestedWriteToken);
+                    NestedWriteEntered?.TrySetResult(true);
+                    try
+                    {
+                        _ = await nested.ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        NestedWriteCancelled = true;
+                    }
+                }
+
+                if (CoreRelease is { } release)
+                {
+                    await release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                }
+
+                if (SkipBaseCore)
+                {
+                    return ServiceResult.Good;
+                }
+                return await base.WriteAttributeCoreAsync(
+                    context,
+                    attributeId,
+                    indexRange,
+                    value,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            /// <summary>
+            /// The number of entered asynchronous core calls.
+            /// </summary>
+            private int m_coreCalls;
         }
 
         private static BaseDataVariableState CreateReadableVariable()
@@ -303,6 +466,316 @@ namespace Opc.Ua.Types.Tests.State
                 "BaseVariableState should mirror the value into its cache after a successful async write.");
         }
 
+        /// <summary>
+        /// Verifies the bound executor spans async dispatch and preserves copy and metadata semantics.
+        /// </summary>
+        [Test]
+        public async Task BoundWriteExecutorPreservesCopyAndTimestampSemanticsAsync()
+        {
+            SystemContext ctx = CreateSystemContext();
+            var variable = new BaseDataVariableState(null)
+            {
+                NodeId = new NodeId("Array", 0),
+                BrowseName = new QualifiedName("Array", 0),
+                DisplayName = new LocalizedText("Array"),
+                DataType = DataTypeIds.Int32,
+                ValueRank = ValueRanks.OneDimension,
+                AccessLevel = AccessLevels.CurrentReadOrWrite |
+                    AccessLevels.StatusWrite |
+                    AccessLevels.TimestampWrite,
+                UserAccessLevel = AccessLevels.CurrentReadOrWrite |
+                    AccessLevels.StatusWrite |
+                    AccessLevels.TimestampWrite,
+                Value = Variant.From(new[] { 1, 2 }),
+                CopyPolicy = VariableCopyPolicy.CopyOnWrite
+            };
+            int synchronousExecutions = 0;
+            int asynchronousExecutions = 0;
+            variable.BindWriteOperationExecutor(new NodeWriteOperationExecutor(
+                operation =>
+                {
+                    synchronousExecutions++;
+                    return operation();
+                },
+                async (operation, cancellationToken) =>
+                {
+                    asynchronousExecutions++;
+                    return await operation(cancellationToken).ConfigureAwait(false);
+                },
+                operation => new ValueTask<ServiceResult>(operation())));
+            Variant observedValue = Variant.Null;
+            int handlerCalls = 0;
+            variable.OnSimpleWriteValueAsync = (_, _, value, _) =>
+            {
+                handlerCalls++;
+                observedValue = value;
+                return new ValueTask<AttributeWriteResult>(
+                    new AttributeWriteResult(ServiceResult.Good));
+            };
+
+            int[] input = [5, 6];
+            var sourceTimestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 1);
+            ServiceResult result = await variable.WriteAttributeAsync(
+                ctx,
+                Attributes.Value,
+                NumericRange.Null,
+                new DataValue(
+                    Variant.From(input),
+                    StatusCodes.Uncertain,
+                    sourceTimestamp)).ConfigureAwait(false);
+
+            input[0] = 99;
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(synchronousExecutions, Is.Zero);
+            Assert.That(asynchronousExecutions, Is.EqualTo(1));
+            Assert.That(handlerCalls, Is.EqualTo(1));
+            Assert.That(observedValue.TryGetValue(out ArrayOf<int> passedValue), Is.True);
+            Assert.That(passedValue[0], Is.EqualTo(5));
+            Assert.That(passedValue[1], Is.EqualTo(6));
+            Assert.That(variable.Value.TryGetValue(out ArrayOf<int> cachedValue), Is.True);
+            Assert.That(cachedValue[0], Is.EqualTo(5));
+            Assert.That(cachedValue[1], Is.EqualTo(6));
+            Assert.That(variable.StatusCode, Is.EqualTo(StatusCodes.Uncertain));
+            Assert.That(variable.Timestamp, Is.EqualTo(sourceTimestamp));
+        }
+
+        /// <summary>
+        /// Verifies the non-virtual public entry keeps an asynchronous core override admitted through cache commit.
+        /// </summary>
+        [Test]
+        public async Task WriteAttributeAsyncIsNonVirtualAndGuardsCoreOverrideThroughCacheCommitAsync()
+        {
+            Assert.That(
+                typeof(NodeState).GetMethod(nameof(NodeState.WriteAttributeAsync))!.IsVirtual,
+                Is.False);
+            SystemContext context = CreateSystemContext();
+            var variable = CreateCoreOverrideVariable();
+            variable.BindWriteOperationExecutor(CreateSerializedWriteExecutor());
+            var coreEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var coreRelease = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            variable.CoreEntered = coreEntered;
+            variable.CoreRelease = coreRelease;
+
+            Task<ServiceResult> pending = variable.WriteAttributeAsync(
+                context,
+                Attributes.Value,
+                NumericRange.Null,
+                new DataValue(new Variant(2.0))).AsTask();
+
+            try
+            {
+                Assert.That(await coreEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)), Is.True);
+                ServiceResult rejected = variable.WriteAttribute(
+                    context,
+                    Attributes.Value,
+                    NumericRange.Null,
+                    new DataValue(new Variant(3.0)));
+                Assert.That(rejected.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                Assert.That(variable.Value.GetDouble(), Is.EqualTo(1.0));
+
+                coreRelease.TrySetResult(true);
+                Assert.That(ServiceResult.IsGood(await pending.WaitAsync(TimeSpan.FromSeconds(5))), Is.True);
+            }
+            finally
+            {
+                coreRelease.TrySetResult(true);
+                _ = await pending.WaitAsync(TimeSpan.FromSeconds(5));
+            }
+
+            Assert.That(variable.Value.GetDouble(), Is.EqualTo(2.0));
+        }
+
+        /// <summary>
+        /// Verifies a core override without a base call is still admitted as one asynchronous write.
+        /// </summary>
+        [Test]
+        public async Task WriteAttributeAsyncGuardsCoreOverrideWithoutBaseCallAsync()
+        {
+            SystemContext context = CreateSystemContext();
+            var variable = CreateCoreOverrideVariable();
+            variable.SkipBaseCore = true;
+            variable.BindWriteOperationExecutor(CreateSerializedWriteExecutor());
+            var coreEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var coreRelease = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            variable.CoreEntered = coreEntered;
+            variable.CoreRelease = coreRelease;
+
+            Task<ServiceResult> pending = variable.WriteAttributeAsync(
+                context,
+                Attributes.Value,
+                NumericRange.Null,
+                new DataValue(new Variant(2.0))).AsTask();
+
+            try
+            {
+                Assert.That(await coreEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)), Is.True);
+                ServiceResult rejected = variable.WriteAttribute(
+                    context,
+                    Attributes.Value,
+                    NumericRange.Null,
+                    new DataValue(new Variant(3.0)));
+                Assert.That(rejected.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                Assert.That(variable.Value.GetDouble(), Is.EqualTo(1.0));
+                coreRelease.TrySetResult(true);
+                Assert.That(ServiceResult.IsGood(await pending.WaitAsync(TimeSpan.FromSeconds(5))), Is.True);
+            }
+            finally
+            {
+                coreRelease.TrySetResult(true);
+                _ = await pending.WaitAsync(TimeSpan.FromSeconds(5));
+            }
+
+            Assert.That(variable.Value.GetDouble(), Is.EqualTo(1.0));
+        }
+
+        /// <summary>
+        /// Verifies non-Value async writes dispatch to the protected core without Value-write admission.
+        /// </summary>
+        [Test]
+        public async Task WriteAttributeAsyncDispatchesNonValueAttributesToCoreAsync()
+        {
+            SystemContext context = CreateSystemContext();
+            var variable = CreateCoreOverrideVariable();
+            variable.WriteMask = AttributeWriteMask.DisplayName;
+            variable.UserWriteMask = AttributeWriteMask.DisplayName;
+            int asyncAdmissions = 0;
+            variable.BindWriteOperationExecutor(new NodeWriteOperationExecutor(
+                operation => operation(),
+                async (operation, cancellationToken) =>
+                {
+                    asyncAdmissions++;
+                    return await operation(cancellationToken).ConfigureAwait(false);
+                },
+                operation => new ValueTask<ServiceResult>(operation())));
+
+            ServiceResult result = await variable.WriteAttributeAsync(
+                context,
+                Attributes.DisplayName,
+                NumericRange.Null,
+                new DataValue(new Variant(new LocalizedText("Updated")))).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(variable.LastAttributeId, Is.EqualTo(Attributes.DisplayName));
+            Assert.That(asyncAdmissions, Is.Zero);
+            Assert.That(variable.DisplayName.Text, Is.EqualTo("Updated"));
+        }
+
+        /// <summary>
+        /// Verifies a cancelled same-node reentrant call releases its wait without releasing outer admission early.
+        /// </summary>
+        [Test]
+        public async Task CoreOverrideSameNodePublicWriteCancellationReleasesAdmissionAsync()
+        {
+            SystemContext context = CreateSystemContext();
+            var variable = CreateCoreOverrideVariable();
+            variable.BindWriteOperationExecutor(CreateSerializedWriteExecutor());
+            using var nestedCancellation = new CancellationTokenSource();
+            variable.NestedWriteToken = nestedCancellation.Token;
+            variable.ReenterPublicWrite = true;
+            var nestedWriteEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            variable.NestedWriteEntered = nestedWriteEntered;
+
+            Task<ServiceResult> outer = variable.WriteAttributeAsync(
+                context,
+                Attributes.Value,
+                NumericRange.Null,
+                new DataValue(new Variant(2.0))).AsTask();
+
+            try
+            {
+                Assert.That(
+                    await nestedWriteEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)),
+                    Is.True);
+                Assert.That(outer.IsCompleted, Is.False);
+                nestedCancellation.Cancel();
+                Assert.That(ServiceResult.IsGood(await outer.WaitAsync(TimeSpan.FromSeconds(5))), Is.True);
+                Assert.That(variable.NestedWriteCancelled, Is.True);
+
+                ServiceResult followup = await variable.WriteAttributeAsync(
+                    context,
+                    Attributes.Value,
+                    NumericRange.Null,
+                    new DataValue(new Variant(4.0))).ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(followup), Is.True);
+                Assert.That(variable.Value.GetDouble(), Is.EqualTo(4.0));
+            }
+            finally
+            {
+                nestedCancellation.Cancel();
+                _ = await outer.WaitAsync(TimeSpan.FromSeconds(5));
+            }
+        }
+
+        /// <summary>
+        /// Verifies a bound native indexed write retains its merged value and requested metadata.
+        /// </summary>
+        [Test]
+        public async Task BoundWriteAttributeAsyncMergesIndexAndMetadataAsync()
+        {
+            SystemContext context = CreateSystemContext();
+            var variable = new BaseDataVariableState(null)
+            {
+                NodeId = new NodeId("BoundArray", 0),
+                BrowseName = new QualifiedName("BoundArray", 0),
+                DisplayName = new LocalizedText("BoundArray"),
+                DataType = DataTypeIds.Int32,
+                ValueRank = ValueRanks.OneDimension,
+                AccessLevel = AccessLevels.CurrentReadOrWrite |
+                    AccessLevels.StatusWrite |
+                    AccessLevels.TimestampWrite,
+                UserAccessLevel = AccessLevels.CurrentReadOrWrite |
+                    AccessLevels.StatusWrite |
+                    AccessLevels.TimestampWrite,
+                Value = Variant.From(s_initialArray)
+            };
+            variable.BindWriteOperationExecutor(CreateInlineWriteExecutor());
+            variable.OnWriteValueAsync = (_, _, _, _, _) =>
+                new ValueTask<AttributeWriteResult>(new AttributeWriteResult(ServiceResult.Good));
+            var sourceTimestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 2);
+
+            ServiceResult result = await variable.WriteAttributeAsync(
+                context,
+                Attributes.Value,
+                NumericRange.Parse("1:2"),
+                new DataValue(Variant.From(s_slice), StatusCodes.Uncertain, sourceTimestamp));
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(variable.Value.GetInt32Array(), Is.EqualTo(s_mergedArray.ToArrayOf()));
+            Assert.That(variable.StatusCode, Is.EqualTo(StatusCodes.Uncertain));
+            Assert.That(variable.Timestamp, Is.EqualTo(sourceTimestamp));
+        }
+
+        /// <summary>
+        /// Verifies a bound native handler can suppress cache and metadata changes.
+        /// </summary>
+        [Test]
+        public async Task BoundWriteAttributeAsyncHonorsSuppressCacheUpdateAsync()
+        {
+            SystemContext context = CreateSystemContext();
+            var originalTimestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 3);
+            var variable = CreateReadableVariable();
+            variable.Value = new Variant(1.0);
+            variable.StatusCode = StatusCodes.Uncertain;
+            variable.Timestamp = originalTimestamp;
+            variable.BindWriteOperationExecutor(CreateInlineWriteExecutor());
+            variable.OnWriteValueAsync = (_, _, _, _, _) =>
+                new ValueTask<AttributeWriteResult>(
+                    new AttributeWriteResult(ServiceResult.Good) { SuppressCacheUpdate = true });
+
+            ServiceResult result = await variable.WriteAttributeAsync(
+                context,
+                Attributes.Value,
+                NumericRange.Null,
+                new DataValue(new Variant(2.0), StatusCodes.Good));
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(variable.Value.GetDouble(), Is.EqualTo(1.0));
+            Assert.That(variable.StatusCode, Is.EqualTo(StatusCodes.Uncertain));
+            Assert.That(variable.Timestamp, Is.EqualTo(originalTimestamp));
+        }
+
         [Test]
         public async Task WriteAttributeAsyncSkipsCacheOnHandlerFailure()
         {
@@ -337,10 +810,15 @@ namespace Opc.Ua.Types.Tests.State
                 DisplayName = new LocalizedText("Arr"),
                 DataType = DataTypeIds.Int32,
                 ValueRank = ValueRanks.OneDimension,
-                AccessLevel = AccessLevels.CurrentReadOrWrite,
-                UserAccessLevel = AccessLevels.CurrentReadOrWrite,
+                AccessLevel = AccessLevels.CurrentReadOrWrite |
+                    AccessLevels.StatusWrite |
+                    AccessLevels.TimestampWrite,
+                UserAccessLevel = AccessLevels.CurrentReadOrWrite |
+                    AccessLevels.StatusWrite |
+                    AccessLevels.TimestampWrite,
                 Value = Variant.From(s_initialArray)
             };
+            v.BindWriteOperationExecutor(CreateInlineWriteExecutor());
             NumericRange observedRange = NumericRange.Null;
 
             v.OnWriteValueAsync = (c, n, range, value, ct) =>
@@ -350,9 +828,11 @@ namespace Opc.Ua.Types.Tests.State
                     new AttributeWriteResult(ServiceResult.Good));
             };
 
+            var sourceTimestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 4);
             var dv = new DataValue(
                 Variant.From(s_slice),
-                StatusCodes.Good);
+                StatusCodes.Uncertain,
+                sourceTimestamp);
 
             ServiceResult result = await v.WriteAttributeAsync(
                 ctx, Attributes.Value, NumericRange.Parse("1:2"), dv).ConfigureAwait(false);
@@ -361,6 +841,8 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(observedRange.IsNull, Is.False);
             Assert.That(v.Value.GetInt32Array(), Is.EqualTo(s_mergedArray.ToArrayOf()),
                 "An index-range write must only replace the addressed elements of the cached value.");
+            Assert.That(v.StatusCode, Is.EqualTo(StatusCodes.Uncertain));
+            Assert.That(v.Timestamp, Is.EqualTo(sourceTimestamp));
         }
 
         /// <summary>

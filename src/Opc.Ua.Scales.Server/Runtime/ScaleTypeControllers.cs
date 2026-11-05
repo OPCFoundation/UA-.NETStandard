@@ -110,14 +110,17 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <param name="quantity">The delivered weight.</param>
         public void Totalize(double quantity)
         {
-            lock (m_totalsLock)
+            m_owner.Locked(() =>
             {
-                foreach (TotalizerState totalizer in m_totalizers)
+                lock (m_totalsLock)
                 {
-                    m_totals[totalizer] += quantity;
-                    PublishTotal(totalizer);
+                    foreach (TotalizerState totalizer in m_totalizers)
+                    {
+                        m_totals[totalizer] += quantity;
+                        PublishTotal(totalizer);
+                    }
                 }
-            }
+            });
         }
 
         /// <summary>
@@ -138,14 +141,17 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <param name="totalizer">The totalizer.</param>
         public void ResetTotalizer(TotalizerState totalizer)
         {
-            lock (m_totalsLock)
+            m_owner.Locked(() =>
             {
-                if (m_totals.ContainsKey(totalizer))
+                lock (m_totalsLock)
                 {
-                    m_totals[totalizer] = 0;
-                    PublishTotal(totalizer);
+                    if (m_totals.ContainsKey(totalizer))
+                    {
+                        m_totals[totalizer] = 0;
+                        PublishTotal(totalizer);
+                    }
                 }
-            }
+            });
         }
 
         private void PublishTotal(TotalizerState totalizer)

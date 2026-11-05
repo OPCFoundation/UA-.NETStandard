@@ -27,6 +27,11 @@ Server hosting for the source-generated **OPC 40200 Weighing Technology
   price-labeler acquisitions with dimensions, zones, source metadata and an
   injectable price policy. `WithCompletedFills` counts completed totalizing-hopper
   downpours against the selected product. Neither path operates physical equipment.
+- Acquisition publication awaits live-node notifications. Runtime calls and OPC UA
+  Value writes retain admission through their complete operations; synchronous
+  writes overlapping awaited publication reject with `BadInvalidState`.
+  Direct node-property assignments require application serialization, and notification
+  sinks must not await another write or acquisition on the same scale.
 - `ConfigureRecipes` enables local, registered analog/edge observations explicitly.
   Timeout leaves the step awaiting operator intervention; manual recipe execution
   remains the default.

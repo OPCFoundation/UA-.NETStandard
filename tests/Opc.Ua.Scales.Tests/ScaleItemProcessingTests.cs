@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -677,6 +678,639 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(Count(second.Statistic!), Is.EqualTo(1UL));
         }
 
+        /// <summary>
+        /// Holds an asynchronous live-node notification and verifies that synchronous writers reject without mutation.
+        /// </summary>
+        [Test]
+        public async Task CatchweigherNotificationRejectsOverlappingSynchronousWritersAsync()
+        {
+            ScaleHandle scale = await CreateAsync(ScaleKind.Catchweigher);
+            var product = (CatchweigherProductState)scale.ProductionPreset!.ActiveProduct!;
+            ZoneState zone = scale.ProductionPreset.AddZone(
+                product, new LocalizedText("Observed"), 0, 2, ScaleUnits.Kilogram);
+            scale.PublishLoad(1);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var setterOrder = new List<string>();
+            BaseVariableState gross = product.LastItem!.MeasuredWeight!.Gross!;
+            BaseVariableState itemId = product.LastItem.ItemId!;
+            Observe(gross, "last-gross", pause: true);
+            Observe(itemId, "last-itemId");
+            Observe(scale.Scale.RegisteredWeight!.Gross!, "registered-gross");
+            Observe(scale.ProductionOutput!.Statistic.TotalPackages!.ItemCount!, "production-count");
+            Observe(product.Statistic!.TotalPackages!.ItemCount!, "product-count");
+            if (zone.ZoneStatistic is { } zoneStatistic)
+            {
+                Observe(zoneStatistic.ItemCount!, "zone-count");
+            }
+            BaseVariableState? zoneCount = zone.ZoneStatistic?.ItemCount;
+            scale.WeightRegistered += (_, _) => setterOrder.Add("registered-event");
+
+            void Observe(BaseVariableState variable, string name, bool pause = false)
+            {
+                variable.OnStateChangedAsync = async (_, _, _, _) =>
+                {
+                    setterOrder.Add(name);
+                    if (pause)
+                    {
+                        entered.TrySetResult(true);
+                        await release.Task.ConfigureAwait(false);
+                    }
+                };
+            }
+
+            try
+            {
+                Task<ServiceResult> pending = scale.Catchweigher!.ReportAsync(Item(1)).AsTask();
+                Assert.That(await entered.Task.WaitAsync(TimeSpan.FromSeconds(15)), Is.True);
+                Assert.That(pending.IsCompleted, Is.False);
+                Assert.That(gross.WrappedValue.TryGetValue(out double published), Is.True);
+                Assert.That(published, Is.EqualTo(1));
+                Assert.That(product.LastItem!.ItemId!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNoData));
+                if (zoneCount != null)
+                {
+                    ServiceResult rejectedZoneValueWrite = zoneCount.WriteAttribute(
+                        m_fixture.Context,
+                        Attributes.Value,
+                        NumericRange.Null,
+                        new DataValue(Variant.From(9UL)));
+                    Assert.That(
+                        rejectedZoneValueWrite.StatusCode,
+                        Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                    Assert.That(Count(zone.ZoneStatistic!), Is.Zero);
+                }
+                ServiceResult rejectedValueWrite = gross.WriteAttribute(
+                    m_fixture.Context,
+                    Attributes.Value,
+                    NumericRange.Null,
+                    new DataValue(Variant.From(2.0)));
+                Assert.That(
+                    rejectedValueWrite.StatusCode,
+                    Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                Assert.That(gross.WrappedValue.TryGetValue(out published), Is.True);
+                Assert.That(published, Is.EqualTo(1));
+                AssertBadInvalidState(() => scale.PublishLoad(2));
+                MethodState setZero = scale.Scale.SetZero!;
+                ServiceResult commandResult = setZero.OnCallMethod2!(
+                    m_fixture.Context, setZero, scale.Scale.NodeId, [], []);
+                Assert.That(commandResult.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                Assert.That(scale.CurrentReading.Net, Is.EqualTo(1));
+                Assert.That(scale.ProductionPreset!.Switch("B").StatusCode,
+                    Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                Assert.That(Count(scale.ProductionOutput!.Statistic), Is.Zero);
+                AssertBadInvalidState(() => scale.ProductionOutput!.Record(9));
+                AssertBadInvalidState(() => scale.ProductionOutput!.Reset());
+                Assert.That(Count(scale.ProductionOutput!.Statistic), Is.Zero);
+                release.TrySetResult(true);
+                AssertGood(await pending.WaitAsync(TimeSpan.FromSeconds(15)));
+                var expectedOrder = new List<string>
+                {
+                    "last-gross",
+                    "last-itemId",
+                    "registered-gross",
+                    "production-count",
+                    "product-count"
+                };
+                if (zone.ZoneStatistic != null)
+                {
+                    expectedOrder.Add("zone-count");
+                }
+                expectedOrder.Add("registered-event");
+                Assert.That(setterOrder, Is.EqualTo(expectedOrder));
+                Assert.That(product.LastItem!.ItemId!.Value, Is.EqualTo("item-1"));
+                Assert.That(Count(scale.ProductionOutput!.Statistic), Is.EqualTo(1UL));
+                Assert.That((await scale.Catchweigher!.ReportAsync(Item(1))).StatusCode,
+                    Is.EqualTo((StatusCode)StatusCodes.BadEntryExists));
+                scale.PublishLoad(2);
+                Assert.That(scale.CurrentReading.Net, Is.EqualTo(2));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+
+            static void AssertBadInvalidState(Action write)
+            {
+                ServiceResultException exception = Assert.Throws<ServiceResultException>(write)!;
+                Assert.That(exception.Result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            }
+        }
+
+        /// <summary>
+        /// Verifies async reports serialize, cancellation while waiting admits no reservation,
+        /// and release permits switching.
+        /// </summary>
+        [Test]
+        public async Task CatchweigherReportsSerializeAndWaitingCancellationReleasesAdmissionAsync()
+        {
+            ScaleHandle scale = await CreateAsync(ScaleKind.Catchweigher);
+            var product = (CatchweigherProductState)scale.ProductionPreset!.ActiveProduct!;
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            product.LastItem!.MeasuredWeight!.Gross!.OnStateChangedAsync = async (_, _, _, _) =>
+            {
+                if (entered.TrySetResult(true))
+                {
+                    await release.Task.ConfigureAwait(false);
+                }
+            };
+
+            try
+            {
+                Task<ServiceResult> first = scale.Catchweigher!.ReportAsync(Item(1)).AsTask();
+                Assert.That(await entered.Task.WaitAsync(TimeSpan.FromSeconds(15)), Is.True);
+                Task<ServiceResult> second = scale.Catchweigher!.ReportAsync(Item(2)).AsTask();
+                using var cancellation = new CancellationTokenSource();
+                Task<ServiceResult> cancelled = scale.Catchweigher!.ReportAsync(
+                    Item(3), cancellation.Token).AsTask();
+                Assert.That(second.IsCompleted, Is.False);
+                Assert.That(cancelled.IsCompleted, Is.False);
+                Assert.That(
+                    product.LastItem!.MeasuredWeight!.Gross!.WrappedValue.TryGetValue(out double firstWeight),
+                    Is.True);
+                Assert.That(firstWeight, Is.EqualTo(1));
+                cancellation.Cancel();
+                await Assert.ThatAsync(
+                    async () => await cancelled.WaitAsync(TimeSpan.FromSeconds(15)),
+                    Throws.InstanceOf<OperationCanceledException>());
+                Assert.That(Count(scale.ProductionOutput!.Statistic), Is.Zero);
+                release.TrySetResult(true);
+                AssertGood(await first.WaitAsync(TimeSpan.FromSeconds(15)));
+                AssertGood(await second.WaitAsync(TimeSpan.FromSeconds(15)));
+                Assert.That(Count(scale.ProductionOutput!.Statistic), Is.EqualTo(2UL));
+                AssertGood(scale.ProductionPreset!.Switch("B"));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+        }
+
+        /// <summary>
+        /// Verifies failed notification leaves the sequence available for retry without registering the partial item.
+        /// </summary>
+        [Test]
+        public async Task CatchweigherNotificationFailureLeavesSequenceRetryableAsync()
+        {
+            ScaleHandle scale = await CreateAsync(ScaleKind.Catchweigher);
+            var product = (CatchweigherProductState)scale.ProductionPreset!.ActiveProduct!;
+            int calls = 0;
+            product.LastItem!.MeasuredWeight!.Gross!.OnStateChangedAsync = (_, _, _, _) =>
+                Interlocked.Increment(ref calls) == 1
+                    ? new ValueTask(Task.FromException(new InvalidOperationException("notification failed")))
+                    : default;
+            int registered = 0;
+            scale.WeightRegistered += (_, _) => registered++;
+
+            InvalidOperationException? failure = await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await scale.Catchweigher!.ReportAsync(Item(1)));
+            Assert.That(failure!.Message, Is.EqualTo("notification failed"));
+            Assert.That(
+                product.LastItem!.MeasuredWeight!.Gross!.WrappedValue.TryGetValue(out double partialWeight),
+                Is.True);
+            Assert.That(partialWeight, Is.EqualTo(1));
+            Assert.That(Count(scale.ProductionOutput!.Statistic), Is.Zero);
+            Assert.That(scale.RegisteredReading, Is.Null);
+            Assert.That(registered, Is.Zero);
+
+            AssertGood(await scale.Catchweigher!.ReportAsync(Item(1)));
+            Assert.That(Count(scale.ProductionOutput!.Statistic), Is.EqualTo(1UL));
+            Assert.That(registered, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Verifies completed-fill publication retains TipCounter-first ordering and rejects
+        /// a concurrent synchronous write.
+        /// </summary>
+        [Test]
+        public async Task HopperNotificationRejectsOverlapAfterTipCounterSetterAsync()
+        {
+            ScaleHandle scale = await CreateAsync(ScaleKind.TotalizingHopper);
+            var product = (TotalizingHopperProductState)scale.ProductionPreset!.ActiveProduct!;
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            product.TipCounter!.OnStateChangedAsync = async (_, _, _, _) =>
+            {
+                entered.TrySetResult(true);
+                await release.Task.ConfigureAwait(false);
+            };
+
+            try
+            {
+                Task<ServiceResult> pending = scale.TotalizingHopper!.ReportCompletedFillAsync(Item(1)).AsTask();
+                Assert.That(await entered.Task.WaitAsync(TimeSpan.FromSeconds(15)), Is.True);
+                Assert.That(pending.IsCompleted, Is.False);
+                Assert.That(ScaleItemPublisher.TryUnsigned(product.TipCounter.WrappedValue, out ulong tips), Is.True);
+                Assert.That(tips, Is.EqualTo(1UL));
+                Assert.That(scale.RegisteredReading, Is.Null);
+                Assert.That(Count(scale.ProductionOutput!.Statistic), Is.Zero);
+                ServiceResultException overlap = Assert.Throws<ServiceResultException>(
+                    () => scale.PublishLoad(2))!;
+                Assert.That(overlap.Result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                release.TrySetResult(true);
+                AssertGood(await pending.WaitAsync(TimeSpan.FromSeconds(15)));
+                Assert.That(scale.RegisteredReading!.Net, Is.EqualTo(1));
+                Assert.That(Count(scale.ProductionOutput!.Statistic), Is.EqualTo(1UL));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+        }
+
+        /// <summary>
+        /// Verifies synchronous Value writes are admitted concurrently while an earlier handler is pending.
+        /// </summary>
+        [Test]
+        public async Task ProductValueWritesPreserveConcurrentSynchronousAdmissionAsync()
+        {
+            ScaleHandle scale = await CreateAsync(ScaleKind.Catchweigher);
+            BaseVariableState variable = ((CatchweigherProductState)scale.ProductionPreset!.ActiveProduct!)
+                .LastItem!.MeasuredWeight!.Gross!;
+            using var bothHandlersEntered = new ManualResetEventSlim(false);
+            using var release = new ManualResetEventSlim(false);
+            int handlerCount = 0;
+            variable.OnWriteValue = (
+                ISystemContext _,
+                NodeState _,
+                NumericRange _,
+                QualifiedName _,
+                ref Variant _,
+                ref StatusCode _,
+                ref DateTimeUtc _) =>
+            {
+                if (Interlocked.Increment(ref handlerCount) == 2)
+                {
+                    bothHandlersEntered.Set();
+                }
+                return release.Wait(TimeSpan.FromSeconds(15))
+                    ? ServiceResult.Good
+                    : ServiceResult.Create(StatusCodes.BadTimeout);
+            };
+
+            DataValue firstValue = new(Variant.From(2.0));
+            DataValue secondValue = new(Variant.From(3.0));
+            Task<ServiceResult> first = Task.Factory.StartNew(
+                () => variable.WriteAttribute(
+                    m_fixture.Context, Attributes.Value, NumericRange.Null, firstValue),
+                CancellationToken.None,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Default);
+            Task<ServiceResult> second = Task.Factory.StartNew(
+                () => variable.WriteAttribute(
+                    m_fixture.Context, Attributes.Value, NumericRange.Null, secondValue),
+                CancellationToken.None,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Default);
+
+            try
+            {
+                Assert.That(bothHandlersEntered.Wait(TimeSpan.FromSeconds(15)), Is.True);
+            }
+            finally
+            {
+                release.Set();
+            }
+
+            AssertGood(await first.WaitAsync(TimeSpan.FromSeconds(15)));
+            AssertGood(await second.WaitAsync(TimeSpan.FromSeconds(15)));
+            Assert.That(handlerCount, Is.EqualTo(2));
+        }
+
+        /// <summary>
+        /// Verifies asynchronous product Value writes wait for acquisition publication and own cache commit.
+        /// </summary>
+        [Test]
+        public async Task ProductValueWriteAsyncWaitsForAcquisitionAndRejectsSyncOverlapAsync()
+        {
+            ScaleHandle scale = await CreateAsync(ScaleKind.Catchweigher);
+            var product = (CatchweigherProductState)scale.ProductionPreset!.ActiveProduct!;
+            BaseVariableState gross = product.LastItem!.MeasuredWeight!.Gross!;
+            var acquisitionEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var acquisitionRelease = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var writeEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var writeRelease = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int writeHandlerCalls = 0;
+            int synchronousHandlerCalls = 0;
+            gross.OnStateChangedAsync = async (_, _, _, _) =>
+            {
+                if (acquisitionEntered.TrySetResult(true))
+                {
+                    await acquisitionRelease.Task.ConfigureAwait(false);
+                }
+            };
+            gross.OnWriteValueAsync = async (_, _, _, _, cancellationToken) =>
+            {
+                Interlocked.Increment(ref writeHandlerCalls);
+                writeEntered.TrySetResult(true);
+                await writeRelease.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                return new AttributeWriteResult(ServiceResult.Good);
+            };
+            gross.OnWriteValue = (
+                ISystemContext _,
+                NodeState _,
+                NumericRange _,
+                QualifiedName _,
+                ref Variant _,
+                ref StatusCode _,
+                ref DateTimeUtc _) =>
+            {
+                Interlocked.Increment(ref synchronousHandlerCalls);
+                return ServiceResult.Good;
+            };
+
+            Task<ServiceResult> acquisition = scale.Catchweigher!.ReportAsync(Item(1)).AsTask();
+            Task<ServiceResult>? valueWrite = null;
+            try
+            {
+                Assert.That(await acquisitionEntered.Task.WaitAsync(TimeSpan.FromSeconds(15)), Is.True);
+                Assert.That(gross.WrappedValue.TryGetValue(out double duringAcquisition), Is.True);
+                Assert.That(duringAcquisition, Is.EqualTo(1));
+                BaseVariableState currentGross = scale.Scale.CurrentWeight!.Gross!;
+                BaseVariableState registeredGross = scale.Scale.RegisteredWeight!.Gross!;
+                Variant currentGrossBefore = currentGross.WrappedValue;
+                Variant registeredGrossBefore = registeredGross.WrappedValue;
+                ServiceResult rejectedCurrentWeightWrite = currentGross.WriteAttribute(
+                    m_fixture.Context,
+                    Attributes.Value,
+                    NumericRange.Null,
+                    new DataValue(Variant.From(20.0)));
+                ServiceResult rejectedRegisteredWeightWrite = registeredGross.WriteAttribute(
+                    m_fixture.Context,
+                    Attributes.Value,
+                    NumericRange.Null,
+                    new DataValue(Variant.From(21.0)));
+                Assert.That(
+                    rejectedCurrentWeightWrite.StatusCode,
+                    Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                Assert.That(
+                    rejectedRegisteredWeightWrite.StatusCode,
+                    Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                Assert.That(currentGross.WrappedValue, Is.EqualTo(currentGrossBefore));
+                Assert.That(registeredGross.WrappedValue, Is.EqualTo(registeredGrossBefore));
+                ServiceResult syncRejected = gross.WriteAttribute(
+                    m_fixture.Context,
+                    Attributes.Value,
+                    NumericRange.Null,
+                    new DataValue(Variant.From(2.0)));
+                Assert.That(syncRejected.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                Assert.That(gross.WrappedValue.TryGetValue(out duringAcquisition), Is.True);
+                Assert.That(duringAcquisition, Is.EqualTo(1));
+
+                using var cancellation = new CancellationTokenSource();
+                Task<ServiceResult> cancelledWrite = gross.WriteAttributeAsync(
+                    m_fixture.Context,
+                    Attributes.Value,
+                    NumericRange.Null,
+                    new DataValue(Variant.From(2.5)),
+                    cancellation.Token).AsTask();
+                cancellation.Cancel();
+                await Assert.ThatAsync(
+                    async () => await cancelledWrite.WaitAsync(TimeSpan.FromSeconds(15)),
+                    Throws.InstanceOf<OperationCanceledException>());
+                Assert.That(writeHandlerCalls, Is.Zero);
+                Assert.That(gross.WrappedValue.TryGetValue(out duringAcquisition), Is.True);
+                Assert.That(duringAcquisition, Is.EqualTo(1));
+
+                valueWrite = gross.WriteAttributeAsync(
+                    m_fixture.Context,
+                    Attributes.Value,
+                    NumericRange.Null,
+                    new DataValue(Variant.From(3.0))).AsTask();
+                Assert.That(valueWrite.IsCompleted, Is.False);
+                Assert.That(writeHandlerCalls, Is.Zero);
+                acquisitionRelease.TrySetResult(true);
+                AssertGood(await acquisition.WaitAsync(TimeSpan.FromSeconds(15)));
+                Assert.That(await writeEntered.Task.WaitAsync(TimeSpan.FromSeconds(15)), Is.True);
+                Assert.That(valueWrite.IsCompleted, Is.False);
+                DataValue beforeWrite = new();
+                _ = gross.ReadAttribute(
+                    m_fixture.Context,
+                    Attributes.Value,
+                    NumericRange.Null,
+                    QualifiedName.Null,
+                    ref beforeWrite);
+                DataValue duringWrite = new();
+                ServiceResult readResult = gross.ReadAttribute(
+                    m_fixture.Context,
+                    Attributes.Value,
+                    NumericRange.Null,
+                    QualifiedName.Null,
+                    ref duringWrite);
+                Assert.That(readResult.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+                Assert.That(duringWrite.WrappedValue, Is.EqualTo(beforeWrite.WrappedValue));
+                Assert.That(duringWrite.StatusCode, Is.EqualTo(beforeWrite.StatusCode));
+                Assert.That(duringWrite.SourceTimestamp, Is.EqualTo(beforeWrite.SourceTimestamp));
+                Assert.That(duringWrite.WrappedValue.TryGetValue(out duringAcquisition), Is.True);
+                Assert.That(duringAcquisition, Is.EqualTo(1));
+
+                ServiceResult asyncOverlapRejected = gross.WriteAttribute(
+                    m_fixture.Context,
+                    Attributes.Value,
+                    NumericRange.Null,
+                    new DataValue(Variant.From(4.0)));
+                Assert.That(
+                    asyncOverlapRejected.StatusCode,
+                    Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                Assert.That(synchronousHandlerCalls, Is.Zero);
+                Assert.That(gross.WrappedValue.TryGetValue(out duringAcquisition), Is.True);
+                Assert.That(duringAcquisition, Is.EqualTo(1));
+                writeRelease.TrySetResult(true);
+                AssertGood(await valueWrite!.WaitAsync(TimeSpan.FromSeconds(15)));
+                Assert.That(gross.WrappedValue.TryGetValue(out double committed), Is.True);
+                Assert.That(committed, Is.EqualTo(3));
+                Assert.That(writeHandlerCalls, Is.EqualTo(1));
+                Assert.That(synchronousHandlerCalls, Is.Zero);
+            }
+            finally
+            {
+                acquisitionRelease.TrySetResult(true);
+                writeRelease.TrySetResult(true);
+                if (valueWrite is not null)
+                {
+                    await valueWrite.WaitAsync(TimeSpan.FromSeconds(15));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Verifies synchronous callbacks remain reentrant after async fallback admission.
+        /// </summary>
+        [Test]
+        public async Task ValueWriteAsyncFallbackAllowsReentrantSynchronousWritersAsync()
+        {
+            ScaleHandle scale = await CreateAsync(ScaleKind.Catchweigher);
+            BaseVariableState gross = scale.ProductionPreset!.ActiveProduct!
+                .LastItem!.MeasuredWeight!.Gross!;
+            var acquisitionEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var acquisitionRelease = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            gross.OnStateChangedAsync = async (_, _, _, _) =>
+            {
+                if (acquisitionEntered.TrySetResult(true))
+                {
+                    await acquisitionRelease.Task.ConfigureAwait(false);
+                }
+            };
+
+            int writeHandlerCalls = 0;
+            gross.OnWriteValue = (
+                ISystemContext _,
+                NodeState _,
+                NumericRange _,
+                QualifiedName _,
+                ref Variant _,
+                ref StatusCode _,
+                ref DateTimeUtc _) =>
+            {
+                if (Interlocked.Increment(ref writeHandlerCalls) == 1)
+                {
+                    scale.PublishLoad(5);
+                    ServiceResult nestedWrite = gross.WriteAttribute(
+                        m_fixture.Context,
+                        Attributes.Value,
+                        NumericRange.Null,
+                        new DataValue(Variant.From(3.0)));
+                    AssertGood(nestedWrite);
+                }
+                return ServiceResult.Good;
+            };
+
+            Task<ServiceResult> acquisition = scale.Catchweigher!.ReportAsync(Item(1)).AsTask();
+            Task<ServiceResult>? valueWrite = null;
+            try
+            {
+                Assert.That(await acquisitionEntered.Task.WaitAsync(TimeSpan.FromSeconds(15)), Is.True);
+                valueWrite = gross.WriteAttributeAsync(
+                    m_fixture.Context,
+                    Attributes.Value,
+                    NumericRange.Null,
+                    new DataValue(Variant.From(2.0))).AsTask();
+                Assert.That(valueWrite.IsCompleted, Is.False);
+                Assert.That(writeHandlerCalls, Is.Zero);
+
+                acquisitionRelease.TrySetResult(true);
+                AssertGood(await acquisition.WaitAsync(TimeSpan.FromSeconds(15)));
+                AssertGood(await valueWrite.WaitAsync(TimeSpan.FromSeconds(15)));
+            }
+            finally
+            {
+                acquisitionRelease.TrySetResult(true);
+                if (valueWrite != null)
+                {
+                    _ = await valueWrite.WaitAsync(TimeSpan.FromSeconds(15));
+                }
+                _ = await acquisition.WaitAsync(TimeSpan.FromSeconds(15));
+            }
+
+            Assert.That(writeHandlerCalls, Is.EqualTo(2));
+            Assert.That(scale.CurrentReading.Net, Is.EqualTo(5));
+        }
+
+        /// <summary>
+        /// Verifies independent synchronous writers remain rejected after fallback and while the async core continues.
+        /// </summary>
+        [Test]
+        public async Task SynchronousFallbackRejectsIndependentWritersBeforeCoreResumesAsync()
+        {
+            ScaleHandle scale = await CreateAsync(ScaleKind.Catchweigher);
+            var variable = new AsyncFallbackVariableState
+            {
+                NodeId = new NodeId("AsyncFallback", 0),
+                BrowseName = new QualifiedName("AsyncFallback", 0),
+                DisplayName = new LocalizedText("AsyncFallback"),
+                DataType = DataTypeIds.Double,
+                ValueRank = ValueRanks.Scalar,
+                AccessLevel = AccessLevels.CurrentReadOrWrite,
+                UserAccessLevel = AccessLevels.CurrentReadOrWrite,
+                Value = new Variant(1.0)
+            };
+            variable.BindWriteOperationExecutor(scale.WriteOperations.NodeWriteExecutor);
+            var coreResumed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var coreRelease = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            variable.CoreResumed = coreResumed;
+            variable.CoreRelease = coreRelease;
+
+            using var workerStarted = new ManualResetEventSlim();
+            using var attemptCompleted = new ManualResetEventSlim();
+            using var independentEntered = new ManualResetEventSlim();
+            using var independentRelease = new ManualResetEventSlim();
+            bool independentWriterStarted = false;
+            bool independentAdmitted = false;
+            var independentWriter = new Thread(() =>
+            {
+                workerStarted.Set();
+                independentAdmitted = scale.WriteOperations.TryExecuteSynchronously(
+                    () =>
+                    {
+                        independentEntered.Set();
+                        independentRelease.Wait();
+                        return true;
+                    },
+                    out bool operationResult);
+                independentAdmitted &= operationResult;
+                attemptCompleted.Set();
+            });
+
+            variable.OnWriteValue = (
+                ISystemContext _,
+                NodeState _,
+                NumericRange _,
+                QualifiedName _,
+                ref Variant _,
+                ref StatusCode _,
+                ref DateTimeUtc _) =>
+            {
+                independentWriter.Start();
+                independentWriterStarted = true;
+                Assert.That(workerStarted.Wait(TimeSpan.FromSeconds(5)), Is.True);
+                int signaled = WaitHandle.WaitAny(
+                    [attemptCompleted.WaitHandle, independentEntered.WaitHandle],
+                    TimeSpan.FromSeconds(5));
+                Assert.That(signaled, Is.Not.EqualTo(WaitHandle.WaitTimeout));
+                return ServiceResult.Good;
+            };
+
+            Task<ServiceResult>? pending = null;
+            try
+            {
+                pending = variable.WriteAttributeAsync(
+                    m_fixture.Context,
+                    Attributes.Value,
+                    NumericRange.Null,
+                    new DataValue(new Variant(2.0))).AsTask();
+                Assert.That(independentEntered.IsSet, Is.True);
+                Assert.That(coreResumed.Task.IsCompleted, Is.False);
+                Assert.That(
+                    scale.WriteOperations.TryExecuteSynchronously(() => true, out _),
+                    Is.False);
+
+                independentRelease.Set();
+                Assert.That(await coreResumed.Task.WaitAsync(TimeSpan.FromSeconds(5)), Is.True);
+                Assert.That(coreRelease.Task.IsCompleted, Is.False);
+                Assert.That(
+                    scale.WriteOperations.TryExecuteSynchronously(() => true, out _),
+                    Is.False);
+                coreRelease.TrySetResult(true);
+                AssertGood(await pending.WaitAsync(TimeSpan.FromSeconds(5)));
+                Assert.That(independentWriter.Join(TimeSpan.FromSeconds(5)), Is.True);
+                Assert.That(independentAdmitted, Is.True);
+                Assert.That(attemptCompleted.IsSet, Is.True);
+            }
+            finally
+            {
+                coreRelease.TrySetResult(true);
+                independentRelease.Set();
+                if (pending != null)
+                {
+                    _ = await pending.WaitAsync(TimeSpan.FromSeconds(5));
+                }
+                if (independentWriterStarted)
+                {
+                    Assert.That(independentWriter.Join(TimeSpan.FromSeconds(5)), Is.True);
+                }
+            }
+        }
+
         [Test]
         public async Task KindFacetsRequireTheirConfiguredRuntimeAsync()
         {
@@ -779,6 +1413,54 @@ namespace Opc.Ua.Scales.Tests
                 Started = true;
                 Request = request;
                 return new ValueTask<ScaleItemPrice?>(Result.Task.WaitAsync(cancellationToken));
+            }
+        }
+
+        /// <summary>
+        /// Pauses after the native synchronous fallback while the public async write retains admission.
+        /// </summary>
+        private sealed class AsyncFallbackVariableState : BaseDataVariableState
+        {
+            /// <summary>
+            /// Creates a test variable without a parent.
+            /// </summary>
+            internal AsyncFallbackVariableState()
+                : base(null)
+            {
+            }
+
+            /// <summary>
+            /// Gets or sets the signal raised after the native fallback returns.
+            /// </summary>
+            internal TaskCompletionSource<bool>? CoreResumed { get; set; }
+
+            /// <summary>
+            /// Gets or sets the signal that releases the asynchronous core.
+            /// </summary>
+            internal TaskCompletionSource<bool>? CoreRelease { get; set; }
+
+            /// <summary>
+            /// Runs the native write core and pauses before returning to the public entry.
+            /// </summary>
+            protected override async ValueTask<ServiceResult> WriteAttributeCoreAsync(
+                ISystemContext context,
+                uint attributeId,
+                NumericRange indexRange,
+                DataValue value,
+                CancellationToken cancellationToken = default)
+            {
+                ServiceResult result = await base.WriteAttributeCoreAsync(
+                    context,
+                    attributeId,
+                    indexRange,
+                    value,
+                    cancellationToken).ConfigureAwait(false);
+                CoreResumed?.TrySetResult(true);
+                if (CoreRelease is { } release)
+                {
+                    await release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                }
+                return result;
             }
         }
 

@@ -48,6 +48,7 @@ Integration and OPC 30050 PackML.
 - [Conformance matrix](#conformance-matrix)
   - [Facets](#facets)
   - [Cross-cutting conformance units and behaviour](#cross-cutting-conformance-units-and-behaviour)
+  - [Clause map](#clause-map)
 - [Samples](#samples)
 - [Testing](#testing)
 - [Troubleshooting](#troubleshooting)
@@ -396,6 +397,13 @@ completion.
 
 ### `IScaleBuilder`
 
+The item, completed-fill and recipe-configuration extension methods require
+the optional `IScaleRuntimeBuilder` capability, implemented by the stock
+builder. Existing implementations of `IScaleBuilder` do not need additional
+members; requesting these capabilities from a builder that does not implement
+them throws `NotSupportedException`. `WithRecipeReleaseCheck` composes
+`ConfigureRecipes` rather than adding another required interface member.
+
 | Call | Materialises |
 | --- | --- |
 | `WithIdentification(identification)` | The mandatory Machinery `Identification` add-in, mirrored onto the DI nameplate. Manufacturer, SerialNumber and ProductInstanceUri are required |
@@ -416,6 +424,7 @@ completion.
 | `WithItemProcessing(calculator)` | Registered catchweigher or price-labeler item reports, product/output statistics and typed `LastItem`; an optional injected `IScalePriceCalculator` calculates labeler prices |
 | `WithCompletedFills()` | Completed-fill reports and the selected totalizing-hopper product's `TipCounter` |
 | `ConfigureRecipes(configure)` | Post-construction recipe runtime configuration, shared by standalone, DI and composed hosting |
+| `WithRecipeReleaseCheck(check)` | Application-owned enabled/released precondition for recipe scales without PackML |
 | `WithRecipeFiles()` | A `RecipeFile` on every recipe of a recipe scale (*FileRecipeManagement*) |
 | `AddTotalizer(name)` | A `<Totalizer>` on a continuous or loss-in-weight scale |
 | `AddFeederModule(name, configure)` / `AddPrinterModule(name, configure)` | Sub-devices below `SubDevices` |
@@ -489,8 +498,14 @@ and synchronous: no I/O, no waiting and no calls into other locks.
 - **Equipment reports** (`PublishLoad`, `PublishHopper`, `SetActivity`,
   `CompleteCalibration`, `PublishFeeder`, …) take the lock but skip the
   interceptor: the equipment reports what happened, it does not ask.
-- **Node writes** need no node-manager lock. A `NodeState` guards its own
-  attributes, and the scale's lock keeps related values consistent.
+- **Native OPC UA Value-write paths** retain runtime admission through
+  validation, callback dispatch and the correlated value/status/timestamp cache
+  commit. A synchronous write that overlaps awaited acquisition publication
+  returns `BadInvalidState` without invoking its callback or changing the value.
+  An asynchronous write waits for admission and can be cancelled while waiting.
+  Custom implementations use the protected async core hook described below.
+- **Direct node-property assignments** do not join runtime admission; the
+  application must serialize them, including writes inside its own callbacks.
 
 **Weighing arithmetic (§9.3):**
 
@@ -569,11 +584,11 @@ with a single product in processing. They add the product statistics and
 observation members before publication; products created later through
 `AddProduct` receive the same members and write guards.
 
-A report commits atomically against the product in processing. While a commit
-is running, `Select`, `Deselect` and `SwitchProduct` calls that would change the
-product in processing return `BadInvalidState` and change nothing; retry them
-after the commit. A report for a product that has left processing returns
-`BadInvalidState` and publishes nothing.
+A report reserves the product in processing through publication. While that
+reservation is held, `Select`, `Deselect` and `SwitchProduct` calls that would
+change the product in processing return `BadInvalidState` and change nothing;
+retry them after publication finishes. A report for a product that has left
+processing returns `BadInvalidState` and publishes nothing.
 
 An equipment report contains a nonzero, increasing acquisition `Sequence`, the
 selected `ProductId`, an `ItemId` and a registered `ScaleReading`:
@@ -612,6 +627,67 @@ At a shared boundary the zone whose lower limit equals the weight takes
 precedence (§7.12.4). Classification reports the configured zone; it does not
 command a physical sorter.
 
+Publication awaits each live-node notification before the next setter.
+A catchweigher publishes the product item, registered weight, output statistics,
+product statistics and zone counter in that order. A completed hopper fill
+publishes `TipCounter` before the registered weight and statistics. The sequence
+is committed only after those notifications return, and `WeightRegistered` runs
+after the product reservation is released.
+
+A notification exception stops publication at that point. Already-written
+values remain, the sequence is not committed and `WeightRegistered` does not
+run; this is not a rollback of the acquisition. Cancellation is checked before
+publication begins and does not interrupt the individual notifications once
+publication has started.
+
+Runtime entrypoints and native OPC UA Value-write paths share admission with the
+awaited publisher. A synchronous runtime call that returns `ServiceResult` rejects with
+`BadInvalidState`; a void equipment/reporting call throws
+`ServiceResultException` with that status. Neither executes its write when
+rejected. Ordinary synchronous operations retain their existing synchronization
+when no asynchronous operation is active.
+
+When an asynchronous write uses the native synchronous fallback, synchronous
+callbacks and overlapping synchronous writers retain their ordinary behavior
+while that fallback body runs. Before returning from the protected base hook,
+the runtime stops admitting synchronous writers and asynchronously waits for
+those already admitted to finish. A custom core therefore cannot resume awaited
+work while an overlapping synchronous writer is still active. This does not use
+thread or context identity to distinguish callback reentry from other writers.
+
+Admission remains held through each awaited notification. A notification sink
+must not await another asynchronous write or acquisition on the same scale:
+that operation needs the admission held by the notification's caller.
+
+Direct assignments to mutable node properties, including `Value`,
+`WrappedValue`, `StatusCode` and `Timestamp`, require application serialization.
+The runtime cannot infer whether such an assignment belongs to an acquisition
+or to an independent application operation. Assigning properties directly does
+not join admission.
+
+The native `NodeState.WriteAttribute` and `NodeState.WriteAttributeAsync`
+paths execute the complete Value write through an internal operation executor.
+The synchronous path preserves protected `WriteValueAttribute` overrides.
+
+Custom asynchronous writes use the protected virtual `WriteAttributeCoreAsync`
+hook. The native public entrypoint takes admission before invoking that hook,
+so validation, custom behavior and the cache commit remain in the admitted
+operation. Move the body of an existing public `WriteAttributeAsync` override
+to the core hook, keep its parameters, and call
+`base.WriteAttributeCoreAsync(...)` wherever the old override called
+`base.WriteAttributeAsync(...)`.
+
+The public method is non-virtual so custom implementations cannot bypass
+admission. This breaks existing public overrides: migrate them to the protected
+core hook before recompiling. See the
+[migration example](MigrationGuide.md#migrating-custom-node-write-overrides).
+
+A core override must not call the public `WriteAttributeAsync` on the same
+node. That call waits behind the admission already held by its caller; it does
+not identify itself as part of the outer operation. Cancellation can unwind
+the wait and release admission, but is not a substitute for calling the
+protected base hook.
+
 For a price labeler, equipment-supplied `ScaleItemPrice` takes precedence over
 calculation. Alternatively pass an `IScalePriceCalculator` to
 `WithItemProcessing`; resolve an application implementation through
@@ -628,8 +704,23 @@ For a totalizing hopper, send the same report to
 downpours, not starts, interrupted fills or retries. `TipCounter` is a `UInt64`
 counter under the model's `UInteger` declaration and rejects overflow. Its
 ordinary authorized Value write controls reset ownership; resetting that counter
-does not reset duplicate detection. `VolumeTargetValue` remains a configured
-target, and the runtime does not infer a volume from mass.
+does not reset duplicate detection.
+
+`VolumeTargetValue` is optional in
+[§7.43.2, Table 112](https://reference.opcfoundation.org/specs/OPC-40200/v2.00/7.43.2).
+[§7.43.3](https://reference.opcfoundation.org/specs/OPC-40200/v2.00/7.43.3)
+calls it `TargetValue` and describes the preset volume to be processed; the
+implementation uses the table's browse name. Its
+[`TargetItemType` definition (§9.1)](https://reference.opcfoundation.org/specs/OPC-40200/v2.00/9.1)
+defines target metadata, tolerances and allowed units, not a control algorithm.
+Neither those clauses nor the
+[totalizing-hopper facet (§12.2.2.17)](https://reference.opcfoundation.org/specs/OPC-40200/v2.00/12.2.2.17)
+requires stopping automatically at the target or deriving volume from mass.
+The application configures the target and owns volume measurement or conversion
+and equipment control; the runtime accepts completed-fill reports and updates
+`TipCounter`. The separate
+[`DeselectProduct` behavior (§7.7.6)](https://reference.opcfoundation.org/specs/OPC-40200/v2.00/7.7.6)
+changes which product is in processing; it does not define a volume-target stop.
 
 The acquisition sequence belongs to the scale runtime, independently of products
 and statistics periods. Repeated or older sequences are rejected even after a
@@ -660,6 +751,40 @@ element's predecessor is the recipe node itself.
   lock is released, and for a method call after the call's processing. A
   handler may therefore call back into the controller, for example complete
   an element that takes no time straight from its `ElementStarted` handler.
+
+**Enabled/released precondition.** OPC 40200 §7.29.4 requires the scale to be
+enabled/released before `StartRecipe`. When PackML is configured, the runtime
+accepts the Idle and Execute states and does not invoke an application check.
+A recipe scale without PackML can use `WithRecipeReleaseCheck` when building
+the scale, or `SetApplicationReleaseCheck` on its controller, to supply an
+application-owned state check:
+
+```csharp
+builder.WithRecipeReleaseCheck(() => equipment.IsEnabled && equipment.IsReleased);
+```
+
+For dependency injection, resolve the application service in the Scales setup
+callback and pass its check to the builder. The callback may coordinate with
+other threads reading the scale or recipe controller. Returning `false` rejects the start with
+`BadInvalidState`. Before committing a start, the runtime verifies that the
+check configuration has not changed; replacing it rejects the start with
+`BadInvalidState`, even if the original delegate is subsequently restored.
+The Boolean result is a point-in-time observation. Equipment state can change
+after the check returns and before the start commits; the configuration revision
+detects changes to the callback, not changes to the equipment state it reads.
+The runtime does not reserve the application's enabled/released state. Any
+equipment coordination needed to keep that state valid through the start remains
+application-owned. §7.29.4 states the precondition but does not specify an atomic
+state-observation protocol.
+If neither PackML nor an
+application check is configured, the runtime preserves its existing behavior
+and does not verify that precondition.
+
+For a remote start, the current product selection remains unchanged until
+the request completes, including when no product or multiple products are
+selected. Selection changes during the check return `BadInvalidState`;
+after a successful, rejected or throwing check, subsequent selection changes
+are permitted again. The start command passes the interceptor once.
 
 **Recipe files.** `WithRecipeFiles()` gives every recipe a `RecipeFile`. The
 file format is vendor-specific; the specification does not define one.
@@ -812,8 +937,8 @@ published but never-written value comes back as NaN gross, net and tare.
 | --- | --- |
 | Products | `ReadProductsAsync`, `ReadCurrentProductsAsync`, `AddProductAsync`, `RemoveProductAsync`, `SelectProductAsync`, `DeselectProductAsync`, `SwitchProductAsync` |
 | PackML | `ReadPackMLStateAsync` (the innermost active state number), `ExecutePackMLCommandAsync(owner, PackMLCommand)` |
-| Type methods | `SetReferencePieceWeightAsync`, `SetNumberOfReferencePiecesAsync`, `StartReferenceAsync`, `SetDraftShieldsAsync`, `WeighVehicleAsync`, `SetFeederSpeedAsync`, and `InvokeAsync(target, method)` for any method without arguments |
-| Recipes | `AddRecipeAsync`, `AddRecipeElementAsync`, `ProcessRecipeAsync(scale, method, recipe)` |
+| Type methods | `AddZoneAsync`, `RemoveZoneAsync`, `SetReferencePieceWeightAsync`, `SetNumberOfReferencePiecesAsync`, `StartReferenceAsync`, `SetDraftShieldsAsync`, `WeighVehicleAsync`, `SetFeederSpeedAsync`, and `InvokeAsync(target, method)` for any method without arguments |
+| Recipes | `AddRecipeAsync`, `RemoveRecipeAsync`, `AddRecipeElementAsync`, `RemoveRecipeElementAsync`, `ProcessRecipeAsync(scale, method, recipe)` |
 
 `ReadLastItemAsync(product)` reads the registered item, dimensions, engineering
 units, zone, price and currency. `ReadTipCounterAsync(product)` retains the
@@ -869,17 +994,16 @@ await foreach (ScaleField<ArrayOf<RecipeReportElementType>> report in
 
 ## Conformance matrix
 
-Status key: ✅ implemented and tested over a real session ·
-🧪 implemented, tested in-process only · 🔧 implemented, not covered by a
-test · ❌ not shipped.
+Status key describes validated coverage: ✅ implemented and tested over a real
+session · 🧪 implemented and tested in process · 🔧 implemented without validated
+test coverage · ❌ not shipped.
 
 The tables identify implementation paths and their tests, not certification.
-Analog and edge condition waits have deterministic in-process tests. Real
-host/client tests have been added for an unsatisfied wait and client-visible
-progression after a source update; they have not been run. The
-[published-specification matrix](Profiles.md#published-specification-support-matrix)
-therefore retains Partial support for OPC 40200 until that integration coverage
-is validated.
+Test names identify the cases associated with each behavior; names alone do not
+establish that the cases have passed. OPC 40200
+support remains Partial because a recipe scale without PackML cannot verify
+the enabled/released precondition unless the application supplies a release
+check.
 
 OPC 40200 defines server facets only; there are no client facets or client
 conformance units (§12). The server advertises the facets and CUs of what
@@ -925,9 +1049,13 @@ are left out (`ScaleFacetsBringTheMachineIdentificationTheyIncludeAsync`,
 | Machinery Machine Identification, Find Machines | ✅ | `IdentificationWithoutMandatoryFieldsIsRejectedAsync`; `ClientDiscoversEveryScaleOnceWithItsKindAsync` |
 | Machinery building blocks, MachineryItemState, OperationMode | 🧪 | `StateSettersPublishTheMachineryStatesAndProcessStateAsync` |
 | *RecipeManagment*, *DynamicRecipeManagement*, *FileRecipeManagement* | ✅ | as RecipeScale above |
-| Opt-in analog and edge recipe condition waits | 🧪 | In-process: `AnalogOperatorsObserveEqualityAndAdjacentBoundaries`; `BooleanEdgesRequireTransitionAfterActivation`; `TimeoutLatchesInterventionInsteadOfAutomaticSuccess`; `DisabledConditionWaitsRetainManualExecution`. Real-session tests `ClientRecipeWaitsForAnalogSourceBeforeProgressingAsync` and `ClientRecipeWaitsForBooleanEdgeBeforeProgressingAsync` are added but unrun |
+| §7.29.4 enabled/released precondition | 🔧 | `ApplicationReleaseCheckRejectsStartWhenNotReleased`; `ApplicationReleaseCheckAllowsStartWhenReleased`; `LocalStartRejectsReleaseCheckReplacedBeforeCommitAsync`; `FluentRecipeReleaseCheckRejectsStartWhenNotReleased`; `PackMLStartUsesPackMLStateInsteadOfApplicationReleaseCheck`; `ClientStartsRecipeWithoutConfiguredReleaseCheckAsync`; `ClientReleaseCheckRunsOutsideBothLocksAndRejectsReplacementAsync` |
+| StartRecipe callback coordination and replacement | 🔧 | `ClientReleaseCheckRunsOutsideBothLocksAndRejectsReplacementAsync` contains assertions for both `ScaleHandle.CurrentReading` and `RecipeController.CurrentElements`, then replaces the callback before allowing it to return |
+| StartRecipe product-selection snapshot and release-check failures | 🔧 | `ClientRecipeStartRetainsSelectionAndReleasesReservationAsync` contains cases for absent and multiple-product selections, concurrent selection changes, allowing/rejecting/throwing checks, reservation release and one interceptor invocation |
+| Opt-in analog and edge recipe condition waits | ✅ / 🧪 | Real-session tests: `ClientRecipeWaitsForAnalogSourceBeforeProgressingAsync`; `ClientRecipeWaitsForBooleanEdgeBeforeProgressingAsync`. In-process tests: `AnalogOperatorsObserveEqualityAndAdjacentBoundaries`; `BooleanEdgesRequireTransitionAfterActivation`; `TimeoutLatchesInterventionInsteadOfAutomaticSuccess`; `DisabledConditionWaitsRetainManualExecution` |
 | Method veto through `CommandInterceptor` | 🧪 | `CommandInterceptorCanVetoACommandAsync`; `PieceCountingLocalCallsMatchTheMethodsAsync` |
 | Runtime members thread-safe against method calls | 🧪 | `EquipmentReportsAreAtomicAgainstTheScaleLockAsync`; `CalibrationReportsAreAtomicAgainstTheScaleLockAsync` |
+| Awaited acquisition publication and runtime/OPC UA Value-write admission | 🔧 | `CatchweigherNotificationRejectsOverlappingSynchronousWritersAsync`; `CatchweigherReportsSerializeAndWaitingCancellationReleasesAdmissionAsync`; `CatchweigherNotificationFailureLeavesSequenceRetryableAsync`; `HopperNotificationRejectsOverlapAfterTipCounterSetterAsync`; `ProductValueWritesPreserveConcurrentSynchronousAdmissionAsync`; `ProductValueWriteAsyncWaitsForAcquisitionAndRejectsSyncOverlapAsync`; `BoundWriteExecutorPreservesCopyAndTimestampSemanticsAsync`; `WriteAttributeAsyncIsNonVirtualAndGuardsCoreOverrideThroughCacheCommitAsync`; `WriteAttributeAsyncGuardsCoreOverrideWithoutBaseCallAsync`; `CoreOverrideSameNodePublicWriteCancellationReleasesAdmissionAsync`. These successor cases are unrun; direct property assignments require application serialization. |
 | Local operator calls for piece counting and vehicle weighing | 🧪 | `PieceCountingLocalCallsMatchTheMethodsAsync`; `VehicleLocalCallsMatchTheMethodsAsync` |
 | Recipe events raised outside the lock | 🧪 | `HandlersMayCompleteElementsSynchronouslyAsync`; `LongChainOfSatisfiedConditionsCompletesWithoutRecursion` |
 | Recipe subscriber failures and controller shutdown | 🧪 | `TimerDrivenSubscriberFailuresAreLoggedAfterEveryNotification`; `SynchronousCallersStillObserveSubscriberFailures`; `DisposeStopsDeliveryWithoutWaitingForARunningCallbackAsync`; `DisposeAsyncWaitsForARunningCallbackAsync`; `DisposeAsyncFromACallbackCompletesAfterTheCallbackReturnsAsync`; `DisposeAsyncAfterDisposeWaitsForTheRunningCallbackAsync`; `DisposeAsyncAfterDisposeWaitsForTheTimerAsync`; `DisposeAsyncAfterDisposeWaitsForARunningTimerCallbackAsync`; `TimerDisposalFailureIsLoggedAndPropagatedAsync` |
@@ -936,6 +1064,57 @@ are left out (`ScaleFacetsBringTheMachineIdentificationTheyIncludeAsync`,
 | Timer failure with an admitted subscriber | 🧪 | `FailingTimerStillDrainsAdmittedSubscriberBeforeFaultingAsync` |
 | Rejecting a second DI owner | 🧪 | `ServerHostingRefusesASecondDiOwner` |
 | Client hosting `AddScalesClient` | 🧪 | `ClientHostingRegistersTheFactory` |
+
+### Clause map
+
+This map uses the published
+[OPC 40200 v2.00 clauses](https://reference.opcfoundation.org/specs/OPC-40200/v2.00)
+for the catchweigher, automatic weight-price labeler, totalizing hopper and
+recipe work in scope.
+The preceding tables remain the complete inventory of published Scales facets
+and cross-cutting conformance units. The server advertises a kind facet only
+when its required runtime members have been materialized; optional members
+omitted from an instance remain unavailable.
+
+The implementation descriptions below state the behavior provided by the code.
+The test references identify associated cases, not execution results; validated
+coverage is recorded separately in the status tables above.
+
+| OPC 40200 clause | Requirement and implementation | Associated tests |
+| --- | --- | --- |
+| §12.1 Table 162 | The server advertises the Base Scale and configured kind facets from the built address space. `ScalesProfiles` preserves the published facet URIs; client helpers do not add separate client conformance units. | `ServerAdvertisesTheFacetsOfWhatItBuiltAsync`; `ScaleFacetsBringTheMachineIdentificationTheyIncludeAsync` |
+| §12.2.2.2 and kind-facet tables | Facet inclusion and required units are reported from the built model. Catchweigher and price-labeler facets require `WithItemProcessing`; Totalizing Hopper Scale requires `WithCompletedFills`. | `ServerAdvertisesTheFacetsOfWhatItBuiltAsync`; `KindFacetsRequireTheirConfiguredRuntimeAsync` |
+| §7.11, `CatchweigherType` | The catchweigher is a `ScaleDeviceType` subtype, defines no additional method or property, and requires catchweigher products in its inherited `Products` folder. The configured runtime publishes item-processing behavior for the supported catchweigher product. | `KindFacetsRequireTheirConfiguredRuntimeAsync`; `CatchweigherClassifiesBoundariesAndPreservesRegisteredItemAsync` |
+| §§7.12.2–7.12.3, `CatchweigherProductType` | The product model includes optional zones, `LastItem`, preset dimensions and target throughput. Registered reports carry measured weight and available dimensions and associate the selected zone; the runtime does not infer a measurement from a preset. | `CatchweigherClassifiesBoundariesAndPreservesRegisteredItemAsync`; `OmittedMeasurementsClearLastItemWithoutChangingPresetsAsync`; `ClientReadsRegisteredItemsPricesAndCompletedFillsWithSourceMetadataAsync` |
+| §7.12.4, `AddZone` | The method creates a zone with one engineering unit for both limits. Adjacent ranges assign a shared boundary to the zone whose lower limit matches it. The typed client exposes `AddZoneAsync`; this does not command a sorter. | `CatchweigherClassifiesBoundariesAndPreservesRegisteredItemAsync`; `ClientAddsAndRemovesCatchweigherZonesAsync` |
+| §7.12.5, `RemoveZone` | The method removes a zone by node id, and the typed client exposes `RemoveZoneAsync`. | `ClientAddsAndRemovesCatchweigherZonesAsync` |
+| §7.13, `WeighingItemType` | `MeasuredWeight` is required; item id, dimensions, volume and zone name are optional. The publisher preserves supplied values, source quality and timestamps. The caller supplies `ItemId`; this implementation does not retain historical identifiers or reject reuse, so uniqueness across items remains the assigning system's responsibility. | `CatchweigherClassifiesBoundariesAndPreservesRegisteredItemAsync`; `ClientReadsRegisteredItemsPricesAndCompletedFillsWithSourceMetadataAsync` |
+| §7.14, `AutomaticWeightPriceLabelerType` | The labeler inherits from `CatchweigherType`, and its product instance is a price-labeler product or subtype. Price computation is supplied by the equipment or injected `IScalePriceCalculator`; physical label printing is outside this implementation. | `PricesUseEquipmentOrExplicitRoundingAndPublishMandatoryCurrencyAsync`; `KindFacetsRequireTheirConfiguredRuntimeAsync` |
+| §7.15, `AutomaticWeightPriceLabelerProductType` | The product adds an optional unit price with a mandatory currency unit when present. The configured calculator applies the documented rounding rule to net mass and unit price; conflicting currencies reject the report. | `PricesUseEquipmentOrExplicitRoundingAndPublishMandatoryCurrencyAsync`; `ClientReadsRegisteredItemsPricesAndCompletedFillsWithSourceMetadataAsync` |
+| §7.16, `PriceItemType` | A price item extends the weighing item with an optional item price and its required currency unit. The client reads price fields without collapsing missing values or source quality. | `PricesUseEquipmentOrExplicitRoundingAndPublishMandatoryCurrencyAsync`; `ClientReadsRegisteredItemsPricesAndCompletedFillsWithSourceMetadataAsync` |
+| §7.29, `RecipeScaleType` | The recipe scale exposes optional recipe management, supported targets and thresholds, and start, stop, continue, skip and abort methods. The runtime processes the selected recipe graph; the typed client invokes each processing method. | `RecipesAreManagedAndProcessedAlongTheirGraphAsync`; `ClientBuildsAndProcessesARecipeAsync` |
+| §7.29.4, `StartRecipe` precondition | With PackML, the runtime accepts Idle or Execute and bypasses the application check. Without PackML, `WithRecipeReleaseCheck` or `SetApplicationReleaseCheck` can supply a point-in-time check; a false result rejects the start. Callback configuration changes reject the pending start, but equipment-state changes are not tracked or reserved. If no check is configured, enabled/released state is not verified. | `ApplicationReleaseCheckRejectsStartWhenNotReleased`; `ApplicationReleaseCheckAllowsStartWhenReleased`; `FluentRecipeReleaseCheckRejectsStartWhenNotReleased`; `PackMLStartUsesPackMLStateInsteadOfApplicationReleaseCheck`; `DisabledConditionWaitsRetainManualExecution`; `ClientStartsRecipeWithoutConfiguredReleaseCheckAsync` |
+| §7.30, `RecipeProductType` | The recipe product exposes its recipe node id and report; file-report support is optional. The client decodes report entries with source metadata, and the file tests cover recipe file upload and reporting. | `RecipeReadsDecodeTypedReportsAndKeepTheirSourceMetadataAsync`; `RecipeFilesAreUploadedParsedAndReportedAsync`; `ClientBuildsAndProcessesARecipeAsync` |
+| §7.31, `RecipeType` | Recipes carry their id and name and may manage graph elements through `AddRecipeElement` and `RemoveRecipeElement`. The client exposes both operations. File-loaded recipes reject graph edits so the address space cannot diverge from the uploaded file. | `RecipesAreManagedAndProcessedAlongTheirGraphAsync`; `RecipeProcessingGuardsAsync`; `RecipeFilesAreUploadedParsedAndReportedAsync`; `ClientRemovesRecipeElementsAndRecipesAsync` |
+| §7.32, `RecipeManagementType` | The recipe folder supports adding and removing recipes. The typed client exposes both operations; removal of an active recipe is rejected by the server. | `RecipesAreManagedAndProcessedAlongTheirGraphAsync`; `RecipeProcessingGuardsAsync`; `ClientRemovesRecipeElementsAndRecipesAsync` |
+| §7.33, `RecipeElementType` | Recipe elements are the abstract base for recipe steps and support both recipe-management and dynamic-recipe-management conformance. The runtime progresses the recipe graph through element links. | `RecipesAreManagedAndProcessedAlongTheirGraphAsync`; `HandlersMayCompleteElementsSynchronouslyAsync` |
+| §7.34, `ActivationType` | The model exposes the target value and aggregate identifier, with an optional target node id. Applying the target to equipment remains an application responsibility; this runtime does not perform that physical operation. | `RecipesAreManagedAndProcessedAlongTheirGraphAsync` |
+| §7.35, `ConditionSleepType` | A condition wait identifies a supported threshold, target value and optional node id and timeout. When a timeout expires, the recipe requires operator intervention rather than reporting success. | `TimeoutLatchesInterventionInsteadOfAutomaticSuccess`; `DisabledConditionWaitsRetainManualExecution`; `ClientRecipeWaitsForAnalogSourceBeforeProgressingAsync`; `ClientRecipeWaitsForBooleanEdgeBeforeProgressingAsync` |
+| §7.36, `AnalogConditionSleepType` | The analog condition supports equality and relational operators. Registered local-source observations are compared to the target using the selected operator; waits remain disabled unless configured. | `AnalogOperatorsObserveEqualityAndAdjacentBoundaries`; `DisabledConditionWaitsRetainManualExecution`; `ClientRecipeWaitsForAnalogSourceBeforeProgressingAsync` |
+| §7.37, `EdgeTriggeredSleepType` | The Boolean condition supports rising and falling transitions. An already-true or already-false level does not satisfy an edge wait; a transition after activation does. | `BooleanEdgesRequireTransitionAfterActivation`; `ClientRecipeWaitsForBooleanEdgeBeforeProgressingAsync` |
+| §7.42, `TotalizingHopperScaleType` | The hopper scale is a `ScaleDeviceType` subtype with totalizing-hopper products in its inherited `Products` folder. Its facet is advertised only when completed-fill runtime support is configured. | `KindFacetsRequireTheirConfiguredRuntimeAsync`; `CompletedHopperFillsRespectDuplicatesResetsProductsAndOverflowAsync` |
+| §7.43, `TotalizingHopperProductType` | `TipCounter` is a mandatory `UInteger`; `VolumeTargetValue` is optional and remains an application-configured volume preset. This clause and `TargetItemType` (§9.1) do not require an automatic target stop or mass-to-volume derivation. Completed-fill reports increment the selected product's counter; duplicate acquisitions and overflow are rejected. The client preserves the counter's unsigned range. | `CompletedHopperFillsRespectDuplicatesResetsProductsAndOverflowAsync`; `ClientReadsRegisteredItemsPricesAndCompletedFillsWithSourceMetadataAsync`; `TipCounterPreservesConcreteUnsignedRepresentationsAndQualityAsync` |
+
+The OPC 40200 profile defines server facets, not client facets. Client methods
+are convenience APIs over those address-space nodes; they do not add another
+conformance unit. Physical sorter, label printer and hopper actuation remain
+outside this implementation scope. Their absence does not change the model
+support represented above.
+
+The Scales samples exercise these paths without claiming physical equipment
+control: `PackingLine.cs` configures the catchweigher, price labeler, totalizing
+hopper and both manual and condition-wait recipe scales; `ScaleSimulation.cs`
+submits example reports; `ScalesClient/Program.cs` reads item and hopper results.
 
 ## Samples
 
@@ -966,7 +1145,7 @@ dotnet test tests/Opc.Ua.Scales.Tests
 | `ScalesNodeManagerTests` | Every kind, the methods, PackML, presets, zones, facets, in-process |
 | `ScaleTypeControllerTests` | The type controllers, modules, recipes, recipe files and systems |
 | `ScalesCompositionTests` | Every scale kind on the stock Machinery owner, provider ordering, instance ownership, cancellation, and standalone/composed file-resource disposal |
-| `ScalesClientServerE2eTests` | Standalone and shared Machinery/Pumps/Scales hosts over real sessions, including AMB aliases, file methods, PackML, weight subscriptions, nested events, and analog/edge recipe condition waits (new wait tests are unrun) |
+| `ScalesClientServerE2eTests` | Standalone and shared Machinery/Pumps/Scales hosts over real sessions, including AMB aliases, file methods, PackML, weight subscriptions, nested events, catchweigher zone methods, recipe removal methods, release-check lock/replacement behavior, no-check recipe starts, and analog/edge recipe condition waits |
 
 The end-to-end fixture is the one that matters for anything a client sees.
 Two defects this work found passed every in-process assertion:

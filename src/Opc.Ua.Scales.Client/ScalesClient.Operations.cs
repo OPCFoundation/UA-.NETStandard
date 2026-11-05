@@ -176,6 +176,57 @@ namespace Opc.Ua.Scales.Client
             return outputs.Count > 0 && outputs[0].TryGetValue(out NodeId id) ? id : NodeId.Null;
         }
 
+        /// <summary>
+        /// Adds a zone to a catchweigher product.
+        /// </summary>
+        /// <param name="product">The catchweigher product node.</param>
+        /// <param name="zoneName">The user-readable zone name.</param>
+        /// <param name="lowerLimit">The lower weight limit.</param>
+        /// <param name="upperLimit">The upper weight limit.</param>
+        /// <param name="engineeringUnits">The unit shared by both limits.</param>
+        /// <param name="cancellationToken">Cancels the operation.</param>
+        /// <returns>The NodeId of the created zone.</returns>
+        public async ValueTask<NodeId> AddZoneAsync(
+            NodeId product,
+            LocalizedText zoneName,
+            double lowerLimit,
+            double upperLimit,
+            EUInformation engineeringUnits,
+            CancellationToken cancellationToken = default)
+        {
+            if (zoneName.IsNull)
+            {
+                throw new ArgumentException("The localized zone name must not be null.", nameof(zoneName));
+            }
+            engineeringUnits.ThrowIfNull(nameof(engineeringUnits));
+
+            var proxy = new CatchweigherProductTypeClient(Session, product, Telemetry);
+            NodeId zoneNodeId = await proxy.AddZoneAsync(
+                zoneName, lowerLimit, upperLimit, engineeringUnits, cancellationToken).ConfigureAwait(false);
+            if (zoneNodeId.IsNull)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadUnexpectedError,
+                    "AddZone returned a null ZoneNodeId.");
+            }
+            return zoneNodeId;
+        }
+
+        /// <summary>
+        /// Removes a zone from a catchweigher product.
+        /// </summary>
+        /// <param name="product">The catchweigher product node.</param>
+        /// <param name="zoneNodeId">The NodeId of the zone to remove.</param>
+        /// <param name="cancellationToken">Cancels the operation.</param>
+        public async ValueTask RemoveZoneAsync(
+            NodeId product,
+            NodeId zoneNodeId,
+            CancellationToken cancellationToken = default)
+        {
+            var proxy = new CatchweigherProductTypeClient(Session, product, Telemetry);
+            await proxy.RemoveZoneAsync(zoneNodeId, cancellationToken).ConfigureAwait(false);
+        }
+
         private async ValueTask CallPresetAsync(NodeId owner, string method, string productId, CancellationToken ct)
         {
             NodeId preset = await ResolveChildAsync(owner, ScalesName(BrowseNames.ProductionPreset), ct).ConfigureAwait(false);
@@ -467,6 +518,39 @@ namespace Opc.Ua.Scales.Client
                 Variant.From(elementName),
                 Variant.From(previousElements.ToArray().ToArrayOf())).ConfigureAwait(false);
             return outputs.Count > 0 && outputs[0].TryGetValue(out NodeId id) ? id : NodeId.Null;
+        }
+
+        /// <summary>
+        /// Removes a recipe from a recipe scale.
+        /// </summary>
+        /// <param name="scale">The recipe scale.</param>
+        /// <param name="recipeId">The unique recipe id.</param>
+        /// <param name="cancellationToken">Cancels the operation.</param>
+        public async ValueTask RemoveRecipeAsync(
+            NodeId scale,
+            string recipeId,
+            CancellationToken cancellationToken = default)
+        {
+            recipeId.ThrowIfNull(nameof(recipeId));
+            NodeId recipes = await ResolveChildAsync(scale, ScalesName(BrowseNames.Recipes), cancellationToken)
+                .ConfigureAwait(false);
+            var proxy = new RecipeManagementTypeClient(Session, recipes, Telemetry);
+            await proxy.RemoveRecipeAsync(recipeId, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Removes a recipe element and its related references.
+        /// </summary>
+        /// <param name="recipe">The recipe.</param>
+        /// <param name="recipeElement">The recipe element node to remove.</param>
+        /// <param name="cancellationToken">Cancels the operation.</param>
+        public async ValueTask RemoveRecipeElementAsync(
+            NodeId recipe,
+            NodeId recipeElement,
+            CancellationToken cancellationToken = default)
+        {
+            var proxy = new RecipeTypeClient(Session, recipe, Telemetry);
+            await proxy.RemoveRecipeElementAsync(recipeElement, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>

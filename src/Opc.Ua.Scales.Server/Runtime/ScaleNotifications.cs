@@ -60,11 +60,13 @@ namespace Opc.Ua.Scales.Server.Runtime
         internal ScaleNotifications(
             ISystemContext context,
             BaseObjectState source,
-            Action<NodeState>? register)
+            Action<NodeState>? register,
+            ScaleWriteGate? writeGate = null)
         {
             m_context = context;
             m_source = source;
             m_register = register;
+            m_writeGate = writeGate;
         }
 
         /// <summary>
@@ -88,14 +90,14 @@ namespace Opc.Ua.Scales.Server.Runtime
             EventSeverity severity = EventSeverity.Medium,
             params string[] auxParameters)
         {
-            RaiseEventCore(
+            ExecuteSynchronous(() => RaiseEventCore(
                 (uint)notificationId,
                 ScalesModel.CategoryOf(notificationId),
                 ScalesModel.TextOf(notificationId),
                 vendorNotificationId: null,
                 message,
                 severity,
-                auxParameters);
+                auxParameters));
         }
 
         /// <summary>
@@ -125,14 +127,14 @@ namespace Opc.Ua.Scales.Server.Runtime
                     notificationId,
                     "Vendor-specific notification ids shall be greater than 5000 (OPC 40200 §8.1.2).");
             }
-            RaiseEventCore(
+            ExecuteSynchronous(() => RaiseEventCore(
                 notificationId,
                 category,
                 name ?? notificationId.ToString(CultureInfo.InvariantCulture),
                 vendorNotificationId: name,
                 message,
                 severity,
-                []);
+                []));
         }
 
         /// <summary>
@@ -153,46 +155,49 @@ namespace Opc.Ua.Scales.Server.Runtime
             LocalizedText message,
             EventSeverity severity = EventSeverity.High)
         {
-            lock (m_lock)
+            return ExecuteSynchronous(() =>
             {
-                if (!m_alarms.TryGetValue(notificationId, out ScaleAlarmState? alarm))
+                lock (m_lock)
                 {
-                    if (!active)
+                    if (!m_alarms.TryGetValue(notificationId, out ScaleAlarmState? alarm))
                     {
-                        // An alarm that never activated has nothing to clear.
+                        if (!active)
+                        {
+                            // An alarm that never activated has nothing to clear.
+                            return false;
+                        }
+                        alarm = CreateAlarm(notificationId);
+                        m_alarms[notificationId] = alarm;
+                    }
+
+                    bool wasActive = alarm.ActiveState?.Id?.Value == true;
+                    if (wasActive == active)
+                    {
                         return false;
                     }
-                    alarm = CreateAlarm(notificationId);
-                    m_alarms[notificationId] = alarm;
-                }
 
-                bool wasActive = alarm.ActiveState?.Id?.Value == true;
-                if (wasActive == active)
-                {
-                    return false;
-                }
+                    alarm.SetActiveState(m_context, active);
+                    if (active)
+                    {
+                        alarm.SetAcknowledgedState(m_context, false);
+                    }
+                    alarm.Retain!.Value = active || alarm.AckedState?.Id?.Value != true;
+                    alarm.SetSeverity(m_context, active ? severity : EventSeverity.Low);
+                    alarm.Message!.Value = message;
+                    alarm.Time!.Value = DateTimeUtc.Now;
+                    alarm.ReceiveTime!.Value = alarm.Time.Value;
+                    alarm.EventId!.Value = Uuid.NewUuid().ToByteString();
+                    alarm.ClearChangeMasks(m_context, true);
 
-                alarm.SetActiveState(m_context, active);
-                if (active)
-                {
-                    alarm.SetAcknowledgedState(m_context, false);
+                    if (alarm.EnabledState?.Id?.Value == true)
+                    {
+                        var snapshot = new InstanceStateSnapshot();
+                        snapshot.Initialize(m_context, alarm);
+                        alarm.ReportEvent(m_context, snapshot);
+                    }
+                    return true;
                 }
-                alarm.Retain!.Value = active || alarm.AckedState?.Id?.Value != true;
-                alarm.SetSeverity(m_context, active ? severity : EventSeverity.Low);
-                alarm.Message!.Value = message;
-                alarm.Time!.Value = DateTimeUtc.Now;
-                alarm.ReceiveTime!.Value = alarm.Time.Value;
-                alarm.EventId!.Value = Uuid.NewUuid().ToByteString();
-                alarm.ClearChangeMasks(m_context, true);
-
-                if (alarm.EnabledState?.Id?.Value == true)
-                {
-                    var snapshot = new InstanceStateSnapshot();
-                    snapshot.Initialize(m_context, alarm);
-                    alarm.ReportEvent(m_context, snapshot);
-                }
-                return true;
-            }
+            });
         }
 
         /// <summary>
@@ -319,15 +324,33 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <returns>The condition.</returns>
         public ScaleAlarmState EnsureAlarm(ScaleNotificationId notificationId)
         {
-            lock (m_lock)
+            return ExecuteSynchronous(() =>
             {
-                if (!m_alarms.TryGetValue(notificationId, out ScaleAlarmState? alarm))
+                lock (m_lock)
                 {
-                    alarm = CreateAlarm(notificationId);
-                    m_alarms[notificationId] = alarm;
+                    if (!m_alarms.TryGetValue(notificationId, out ScaleAlarmState? alarm))
+                    {
+                        alarm = CreateAlarm(notificationId);
+                        m_alarms[notificationId] = alarm;
+                    }
+                    return alarm;
                 }
-                return alarm;
+            });
+        }
+
+        private void ExecuteSynchronous(Action operation)
+        {
+            if (m_writeGate == null)
+            {
+                operation();
+                return;
             }
+            m_writeGate.ExecuteSynchronously(operation);
+        }
+
+        private T ExecuteSynchronous<T>(Func<T> operation)
+        {
+            return m_writeGate == null ? operation() : m_writeGate.ExecuteSynchronously(operation);
         }
 
         private static void Describe(
@@ -435,6 +458,7 @@ namespace Opc.Ua.Scales.Server.Runtime
         private readonly ISystemContext m_context;
         private readonly BaseObjectState m_source;
         private readonly Action<NodeState>? m_register;
+        private readonly ScaleWriteGate? m_writeGate;
         private readonly Dictionary<ScaleNotificationId, ScaleAlarmState> m_alarms = [];
         private readonly Lock m_lock = new();
     }

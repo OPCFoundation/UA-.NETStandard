@@ -2201,21 +2201,15 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Asynchronous override of
-        /// <see cref="NodeState.WriteAttributeAsync(ISystemContext, uint, NumericRange, DataValue, CancellationToken)"/>.
-        /// Dispatches to <see cref="OnWriteValueAsync"/> or
-        /// <see cref="OnSimpleWriteValueAsync"/> when set; otherwise falls
-        /// through to the synchronous write flow under <c>lock(this)</c>.
+        /// Dispatches a Value write to the configured native asynchronous handler.
         /// </summary>
-        /// <param name="context">The system context used to validate access and the value's data type.</param>
+        /// <param name="context">The system context used to validate access and value type.</param>
         /// <param name="attributeId">The attribute to write.</param>
         /// <param name="indexRange">The elements to replace, or a null range to replace the whole value.</param>
         /// <param name="value">The replacement value and its requested status code and source timestamp.</param>
         /// <param name="cancellationToken">The cancellation token passed to the asynchronous handler.</param>
-        /// <returns>
-        /// The validation failure or handler result, independent of whether an accepted indexed write can be cached.
-        /// </returns>
-        public override async ValueTask<ServiceResult> WriteAttributeAsync(
+        /// <returns>The validation, handler, or cache-commit result.</returns>
+        protected override ValueTask<ServiceResult> WriteAttributeCoreAsync(
             ISystemContext context,
             uint attributeId,
             NumericRange indexRange,
@@ -2224,14 +2218,39 @@ namespace Opc.Ua
         {
             NodeValueWriteEventHandlerAsync? onWriteValueAsync = OnWriteValueAsync;
             NodeValueSimpleWriteEventHandlerAsync? onSimpleWriteValueAsync = OnSimpleWriteValueAsync;
-
             if (attributeId != Attributes.Value ||
                 (onWriteValueAsync == null && onSimpleWriteValueAsync == null))
             {
-                return await base.WriteAttributeAsync(
-                    context, attributeId, indexRange, value, cancellationToken)
-                    .ConfigureAwait(false);
+                return base.WriteAttributeCoreAsync(context, attributeId, indexRange, value, cancellationToken);
             }
+
+            return WriteValueAttributeAsyncCore(
+                context,
+                indexRange,
+                value,
+                cancellationToken,
+                onWriteValueAsync,
+                onSimpleWriteValueAsync);
+        }
+
+        /// <summary>
+        /// Runs asynchronous Value validation, callback dispatch, and cache commit as one operation.
+        /// </summary>
+        /// <param name="context">The system context used to validate access and value type.</param>
+        /// <param name="indexRange">The elements to replace, or a null range to replace the whole value.</param>
+        /// <param name="value">The replacement value and requested status and source timestamp.</param>
+        /// <param name="cancellationToken">The token passed to the asynchronous handler.</param>
+        /// <param name="onWriteValueAsync">The full write handler captured at entry.</param>
+        /// <param name="onSimpleWriteValueAsync">The simple write handler captured at entry.</param>
+        /// <returns>The validation, handler, or cache-commit result.</returns>
+        private async ValueTask<ServiceResult> WriteValueAttributeAsyncCore(
+            ISystemContext context,
+            NumericRange indexRange,
+            DataValue value,
+            CancellationToken cancellationToken,
+            NodeValueWriteEventHandlerAsync? onWriteValueAsync,
+            NodeValueSimpleWriteEventHandlerAsync? onSimpleWriteValueAsync)
+        {
             if (value.ServerTimestamp != DateTimeUtc.MinValue)
             {
                 return ServiceResult.Create(

@@ -269,56 +269,87 @@ namespace Opc.Ua.Scales.Server.Runtime
                 price = price with { Currency = ScaleItemPublisher.CopyCurrency(price.Currency) };
             }
             cancellationToken.ThrowIfCancellationRequested();
-            using ScaleProductionPreset.ActiveProductReservation reservation = preset.ReserveActiveProduct();
-            ServiceResult result = m_owner.Locked(() =>
-            {
-                ProductState? current = reservation.Product;
-                cancellationToken.ThrowIfCancellationRequested();
-                if (!ReferenceEquals(current, product) ||
-                    !string.Equals(current?.ProductId?.Value, report.ProductId, StringComparison.Ordinal))
+            ServiceResult result = await m_owner.ExecuteWriteOperationAsync(
+                async ct =>
                 {
-                    return ServiceResult.Create(StatusCodes.BadInvalidState, "The product changed during acquisition.");
-                }
-                if (normalized.Sequence <= m_lastSequence)
-                {
-                    return ServiceResult.Create(StatusCodes.BadEntryExists, "The acquisition was already superseded.");
-                }
-                if (product is AutomaticWeightPriceLabelerProductState labeler &&
-                    ((labeler.UnitPrice is { } currentPrice ? currentPrice.WrappedValue : Variant.Null) != unitPrice ||
-                    !ScaleItemPublisher.SameOptionalCurrency(
-                        currency, ScaleItemPublisher.CurrencyOf(m_owner.Services.Context, labeler.UnitPrice))))
-                {
-                    return ServiceResult.Create(StatusCodes.BadInvalidState, "The unit price changed during calculation.");
-                }
-                ServiceResult zones = Classify(product, normalized.Weight.Net, out ZoneState? zone);
-                if (ServiceResult.IsBad(zones))
-                {
-                    return zones;
-                }
-                string? zoneName = zone?.Name?.Value.Text;
-                ScaleItemPublisher.Publish(m_owner.Services.Context, product.LastItem, normalized, zoneName, price);
-                m_owner.RecordAcquisition(normalized, zoneName, price);
-                if (product.Statistic != null)
-                {
-                    if (!m_statistics.TryGetValue(product.Statistic, out ScaleStatistics? statistics))
+                    ct.ThrowIfCancellationRequested();
+                    using ScaleProductionPreset.ActiveProductReservation reservation =
+                        preset.ReserveActiveProduct();
+                    ZoneState? zone = null;
+                    string? zoneName = null;
+                    ServiceResult validation = m_owner.LockedForAcquisition(() =>
                     {
-                        statistics = new ScaleStatistics(m_owner.Services.Context, product.Statistic);
-                        m_statistics.Add(product.Statistic, statistics);
-                    }
-                    statistics.RecordItem(normalized, zoneName, price);
-                }
-                if (zone?.ZoneStatistic is { } counter)
-                {
-                    if (product.Statistic != null &&
-                        m_statistics.TryGetValue(product.Statistic, out ScaleStatistics? statistics))
+                        ProductState? current = reservation.Product;
+                        ct.ThrowIfCancellationRequested();
+                        if (!ReferenceEquals(current, product) ||
+                            !string.Equals(current?.ProductId?.Value, report.ProductId, StringComparison.Ordinal))
+                        {
+                            return ServiceResult.Create(
+                                StatusCodes.BadInvalidState,
+                                "The product changed during acquisition.");
+                        }
+                        if (normalized.Sequence <= m_lastSequence)
+                        {
+                            return ServiceResult.Create(
+                                StatusCodes.BadEntryExists,
+                                "The acquisition was already superseded.");
+                        }
+                        if (product is AutomaticWeightPriceLabelerProductState labeler &&
+                            ((labeler.UnitPrice is { } currentPrice ? currentPrice.WrappedValue : Variant.Null) !=
+                                unitPrice ||
+                            !ScaleItemPublisher.SameOptionalCurrency(
+                                currency,
+                                ScaleItemPublisher.CurrencyOf(
+                                    m_owner.Services.Context,
+                                    labeler.UnitPrice))))
+                        {
+                            return ServiceResult.Create(
+                                StatusCodes.BadInvalidState,
+                                "The unit price changed during calculation.");
+                        }
+                        ServiceResult zones = Classify(product, normalized.Weight.Net, out zone);
+                        if (ServiceResult.IsBad(zones))
+                        {
+                            return zones;
+                        }
+                        zoneName = zone?.Name?.Value.Text;
+                        return ServiceResult.Good;
+                    });
+
+                    if (ServiceResult.IsGood(validation))
                     {
-                        statistics.RecordCounter(counter, normalized.Weight.Net);
+                        await ScaleItemPublisher.PublishAsync(
+                            m_owner.Services.Context,
+                            product.LastItem,
+                            normalized,
+                            zoneName,
+                            price).ConfigureAwait(false);
+                        await m_owner.RecordAcquisitionAsync(normalized, zoneName, price).ConfigureAwait(false);
+                        if (product.Statistic != null)
+                        {
+                            if (!m_statistics.TryGetValue(product.Statistic, out ScaleStatistics? statistics))
+                            {
+                                statistics = new ScaleStatistics(
+                                    m_owner.Services.Context,
+                                    product.Statistic,
+                                    m_owner.WriteOperations,
+                                    initialize: false);
+                                m_statistics.Add(product.Statistic, statistics);
+                                await statistics.InitializeAsync().ConfigureAwait(false);
+                            }
+                            await statistics.RecordItemAsync(normalized, zoneName, price).ConfigureAwait(false);
+                            if (zone?.ZoneStatistic is { } counter)
+                            {
+                                await statistics.RecordCounterAsync(counter, normalized.Weight.Net)
+                                    .ConfigureAwait(false);
+                            }
+                        }
+                        m_lastSequence = normalized.Sequence;
                     }
-                }
-                m_lastSequence = normalized.Sequence;
-                return ServiceResult.Good;
-            });
-            reservation.Dispose();
+                    return validation;
+                },
+                cancellationToken).ConfigureAwait(false);
+
             if (ServiceResult.IsGood(result))
             {
                 m_owner.NotifyAcquisition(normalized.Weight);
@@ -405,7 +436,7 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// </summary>
         /// <param name="report">The completed fill, including its selected product and source weight.</param>
         /// <param name="cancellationToken">Cancels before publication.</param>
-        public ValueTask<ServiceResult> ReportCompletedFillAsync(
+        public async ValueTask<ServiceResult> ReportCompletedFillAsync(
             ScaleItemReport report,
             CancellationToken cancellationToken = default)
         {
@@ -413,17 +444,10 @@ namespace Opc.Ua.Scales.Server.Runtime
             {
                 throw new ArgumentNullException(nameof(report));
             }
-            return new ValueTask<ServiceResult>(ReportCompletedFill(report, cancellationToken));
-        }
-
-        /// <summary>
-        /// Validates and commits one completed fill, then notifies acquisition observers outside
-        /// the product reservation.
-        /// </summary>
-        private ServiceResult ReportCompletedFill(ScaleItemReport report, CancellationToken cancellationToken)
-        {
+            using var pending = CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken, m_owner.Services.StoppingToken);
+            cancellationToken = pending.Token;
             cancellationToken.ThrowIfCancellationRequested();
-            m_owner.Services.StoppingToken.ThrowIfCancellationRequested();
             ServiceResult validation = ScaleItemPublisher.Normalize(report, m_owner.Unit, out ScaleItemReport normalized);
             if (ServiceResult.IsBad(validation))
             {
@@ -440,41 +464,71 @@ namespace Opc.Ua.Scales.Server.Runtime
                 return ServiceResult.Create(
                     StatusCodes.BadInvalidState, "No production preset is configured.");
             }
-            using ScaleProductionPreset.ActiveProductReservation reservation = preset.ReserveActiveProduct();
-            ServiceResult result = m_owner.Locked(() =>
-            {
-                ProductState? current = reservation.Product;
-                m_owner.Services.StoppingToken.ThrowIfCancellationRequested();
-                cancellationToken.ThrowIfCancellationRequested();
-                if (current is not TotalizingHopperProductState product ||
-                    !string.Equals(product.ProductId?.Value, report.ProductId, StringComparison.Ordinal))
+
+            ServiceResult result = await m_owner.ExecuteWriteOperationAsync(
+                async ct =>
                 {
-                    return ServiceResult.Create(StatusCodes.BadInvalidState, "The fill product is not in processing.");
-                }
-                if (report.Sequence <= m_lastSequence)
-                {
-                    return ServiceResult.Create(StatusCodes.BadEntryExists, "The fill was already superseded.");
-                }
-                if (!ScaleItemPublisher.TryUnsigned(product.TipCounter!.WrappedValue, out ulong tips) ||
-                    tips == ulong.MaxValue)
-                {
-                    return ServiceResult.Create(StatusCodes.BadOutOfRange, "The fill counter cannot be incremented.");
-                }
-                ScaleValues.Set(m_owner.Services.Context, product.TipCounter, Variant.From(tips + 1));
-                m_owner.RecordAcquisition(normalized);
-                if (product.Statistic != null)
-                {
-                    if (!m_statistics.TryGetValue(product.Statistic, out ScaleStatistics? statistics))
+                    ct.ThrowIfCancellationRequested();
+                    using ScaleProductionPreset.ActiveProductReservation reservation =
+                        preset.ReserveActiveProduct();
+                    TotalizingHopperProductState? product = null;
+                    ulong nextTips = 0;
+                    ServiceResult validation = m_owner.LockedForAcquisition(() =>
                     {
-                        statistics = new ScaleStatistics(m_owner.Services.Context, product.Statistic);
-                        m_statistics.Add(product.Statistic, statistics);
+                        ProductState? current = reservation.Product;
+                        ct.ThrowIfCancellationRequested();
+                        if (current is not TotalizingHopperProductState currentProduct ||
+                            !string.Equals(currentProduct.ProductId?.Value, report.ProductId, StringComparison.Ordinal))
+                        {
+                            return ServiceResult.Create(
+                                StatusCodes.BadInvalidState,
+                                "The fill product is not in processing.");
+                        }
+                        if (report.Sequence <= m_lastSequence)
+                        {
+                            return ServiceResult.Create(
+                                StatusCodes.BadEntryExists,
+                                "The fill was already superseded.");
+                        }
+                        if (!ScaleItemPublisher.TryUnsigned(currentProduct.TipCounter!.WrappedValue, out ulong tips) ||
+                            tips == ulong.MaxValue)
+                        {
+                            return ServiceResult.Create(
+                                StatusCodes.BadOutOfRange,
+                                "The fill counter cannot be incremented.");
+                        }
+                        product = currentProduct;
+                        nextTips = tips + 1;
+                        return ServiceResult.Good;
+                    });
+
+                    if (ServiceResult.IsGood(validation))
+                    {
+                        await ScaleValues.SetAsync(
+                            m_owner.Services.Context,
+                            product!.TipCounter,
+                            Variant.From(nextTips)).ConfigureAwait(false);
+                        await m_owner.RecordAcquisitionAsync(normalized, null, null).ConfigureAwait(false);
+                        if (product.Statistic != null)
+                        {
+                            if (!m_statistics.TryGetValue(product.Statistic, out ScaleStatistics? statistics))
+                            {
+                                statistics = new ScaleStatistics(
+                                    m_owner.Services.Context,
+                                    product.Statistic,
+                                    m_owner.WriteOperations,
+                                    initialize: false);
+                                m_statistics.Add(product.Statistic, statistics);
+                                await statistics.InitializeAsync().ConfigureAwait(false);
+                            }
+                            await statistics.RecordItemAsync(normalized, null, null).ConfigureAwait(false);
+                        }
+                        m_lastSequence = report.Sequence;
                     }
-                    statistics.RecordItem(normalized, null, null);
-                }
-                m_lastSequence = report.Sequence;
-                return ServiceResult.Good;
-            });
-            reservation.Dispose();
+                    return validation;
+                },
+                cancellationToken).ConfigureAwait(false);
+
             if (ServiceResult.IsGood(result))
             {
                 m_owner.NotifyAcquisition(normalized.Weight);
@@ -659,6 +713,62 @@ namespace Opc.Ua.Scales.Server.Runtime
         }
 
         /// <summary>
+        /// Publishes one observation, awaiting each live node notification before the next setter.
+        /// </summary>
+        /// <param name="context">The context for the item nodes.</param>
+        /// <param name="item">The item to update.</param>
+        /// <param name="report">The normalized report.</param>
+        /// <param name="zoneName">The classified zone name.</param>
+        /// <param name="price">The calculated or equipment-supplied price.</param>
+        internal static async ValueTask PublishAsync(
+            ISystemContext context,
+            WeighingItemState? item,
+            ScaleItemReport report,
+            string? zoneName,
+            ScaleItemPrice? price)
+        {
+            if (item == null)
+            {
+                return;
+            }
+            await PublishWeightAsync(context, item.MeasuredWeight, report.Weight).ConfigureAwait(false);
+            await SetSourceAsync(
+                context, item.ItemId, Variant.From(report.ItemId), report.Weight.Timestamp, StatusCodes.Good)
+                .ConfigureAwait(false);
+            await SetSourceAsync(
+                context,
+                item.ZoneName,
+                zoneName == null ? Variant.Null : Variant.From(zoneName),
+                report.Weight.Timestamp,
+                zoneName == null ? StatusCodes.BadNoData : StatusCodes.Good).ConfigureAwait(false);
+            await PublishMeasurementAsync(context, item.MeasuredHeight, report.Height).ConfigureAwait(false);
+            await PublishMeasurementAsync(context, item.MeasuredLength, report.Length).ConfigureAwait(false);
+            await PublishMeasurementAsync(context, item.MeasuredWidth, report.Width).ConfigureAwait(false);
+            await PublishMeasurementAsync(context, item.MeasuredVolume, report.Volume).ConfigureAwait(false);
+            if (item is PriceItemState priced)
+            {
+                await SetSourceAsync(
+                    context,
+                    priced.ItemPrice,
+                    price == null ? Variant.Null : Variant.From((double)price.Amount),
+                    report.Weight.Timestamp,
+                    price == null ? StatusCodes.BadNoData : StatusCodes.Good).ConfigureAwait(false);
+                if (priced.ItemPrice?.FindChild(context, new QualifiedName(
+                    BrowseNames.CurrencyUnit, item.BrowseName.NamespaceIndex)) is BaseVariableState currency)
+                {
+                    await SetSourceAsync(
+                        context,
+                        currency,
+                        price == null
+                            ? Variant.Null
+                            : Variant.From(new ExtensionObject(CopyCurrency(price.Currency))),
+                        report.Weight.Timestamp,
+                        price == null ? StatusCodes.BadNoData : StatusCodes.Good).ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
         /// Writes the registered structure without recomputing an equipment acquisition.
         /// </summary>
         internal static void PublishWeight(ISystemContext context, WeightItemState? item, ScaleReading weight)
@@ -690,6 +800,72 @@ namespace Opc.Ua.Scales.Server.Runtime
             item.Timestamp = (DateTimeUtc)weight.Timestamp;
             item.StatusCode = weight.StatusCode;
             item.ClearChangeMasks(context, includeChildren: true);
+        }
+
+        /// <summary>
+        /// Writes the registered structure and awaits its child notifications in setter order.
+        /// </summary>
+        /// <param name="context">The context for the weight nodes.</param>
+        /// <param name="item">The structure to publish.</param>
+        /// <param name="weight">The registered weight and source metadata.</param>
+        internal static async ValueTask PublishWeightAsync(
+            ISystemContext context,
+            WeightItemState? item,
+            ScaleReading weight)
+        {
+            if (item == null)
+            {
+                return;
+            }
+            item.Value = new WeightType { Gross = weight.Gross, Net = weight.Net, Tare = weight.Tare };
+            await SetSourceAsync(
+                context, item.Overload, Variant.From(weight.Overload), weight.Timestamp, weight.StatusCode)
+                .ConfigureAwait(false);
+            await SetSourceAsync(
+                context, item.Underload, Variant.From(weight.Underload), weight.Timestamp, weight.StatusCode)
+                .ConfigureAwait(false);
+            await SetSourceAsync(
+                context, item.TareMode, Variant.From((int)weight.TareMode), weight.Timestamp, weight.StatusCode)
+                .ConfigureAwait(false);
+            await SetSourceAsync(
+                context,
+                item.WeightId,
+                Variant.From(weight.WeightId ?? string.Empty),
+                weight.Timestamp,
+                weight.StatusCode).ConfigureAwait(false);
+            await SetSourceAsync(
+                context, item.Gross, Variant.From(weight.Gross), weight.Timestamp, weight.StatusCode)
+                .ConfigureAwait(false);
+            await SetSourceAsync(
+                context, item.Net, Variant.From(weight.Net), weight.Timestamp, weight.StatusCode)
+                .ConfigureAwait(false);
+            await SetSourceAsync(
+                context, item.Tare, Variant.From(weight.Tare), weight.Timestamp, weight.StatusCode)
+                .ConfigureAwait(false);
+            await SetSourceAsync(
+                context,
+                item.WeightStable,
+                weight.Stable.HasValue ? Variant.From(weight.Stable.Value) : Variant.Null,
+                weight.Timestamp,
+                weight.Stable.HasValue ? weight.StatusCode : StatusCodes.BadNoData).ConfigureAwait(false);
+            await SetSourceAsync(
+                context,
+                item.InsideZero,
+                weight.InsideZero.HasValue ? Variant.From(weight.InsideZero.Value) : Variant.Null,
+                weight.Timestamp,
+                weight.InsideZero.HasValue ? weight.StatusCode : StatusCodes.BadNoData).ConfigureAwait(false);
+            await SetSourceAsync(
+                context,
+                item.CurrentRangeId,
+                weight.CurrentRangeId.HasValue ? Variant.From(weight.CurrentRangeId.Value) : Variant.Null,
+                weight.Timestamp,
+                weight.CurrentRangeId.HasValue ? weight.StatusCode : StatusCodes.BadNoData).ConfigureAwait(false);
+            await ScaleValues.SetUnitsAsync(
+                context, item, weight.EngineeringUnits == null ? null : CopyUnit(weight.EngineeringUnits))
+                .ConfigureAwait(false);
+            item.Timestamp = (DateTimeUtc)weight.Timestamp;
+            item.StatusCode = weight.StatusCode;
+            await item.ClearChangeMasksAsync(context, includeChildren: true).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -815,6 +991,29 @@ namespace Opc.Ua.Scales.Server.Runtime
         }
 
         /// <summary>
+        /// Publishes a dimension and awaits each live node notification in setter order.
+        /// </summary>
+        /// <param name="context">The context for the measurement node.</param>
+        /// <param name="variable">The dimension node.</param>
+        /// <param name="measurement">The measured value, or null when absent.</param>
+        private static async ValueTask PublishMeasurementAsync(
+            ISystemContext context,
+            BaseVariableState? variable,
+            ScaleItemMeasurement? measurement)
+        {
+            if (measurement != null)
+            {
+                await ScaleValues.SetUnitsAsync(context, variable, CopyUnit(measurement.Unit)).ConfigureAwait(false);
+            }
+            await SetSourceAsync(
+                context,
+                variable,
+                measurement == null ? Variant.Null : Variant.From(measurement.Value),
+                measurement?.Timestamp ?? DateTime.UtcNow,
+                measurement?.StatusCode ?? StatusCodes.BadNoData).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Copies observation metadata before crossing an asynchronous provider boundary.
         /// </summary>
         private static ScaleItemMeasurement? CopyMeasurement(ScaleItemMeasurement? measurement)
@@ -848,6 +1047,30 @@ namespace Opc.Ua.Scales.Server.Runtime
                 variable.Timestamp = (DateTimeUtc)timestamp;
                 variable.StatusCode = status;
                 variable.ClearChangeMasks(context, includeChildren: false);
+            }
+        }
+
+        /// <summary>
+        /// Writes source metadata and awaits notification of the live variable.
+        /// </summary>
+        /// <param name="context">The context for the variable.</param>
+        /// <param name="variable">The source variable.</param>
+        /// <param name="value">The value to publish.</param>
+        /// <param name="timestamp">The source timestamp.</param>
+        /// <param name="status">The source quality.</param>
+        private static async ValueTask SetSourceAsync(
+            ISystemContext context,
+            BaseVariableState? variable,
+            Variant value,
+            DateTime timestamp,
+            StatusCode status)
+        {
+            if (variable != null)
+            {
+                variable.WrappedValue = value;
+                variable.Timestamp = (DateTimeUtc)timestamp;
+                variable.StatusCode = status;
+                await variable.ClearChangeMasksAsync(context, includeChildren: false).ConfigureAwait(false);
             }
         }
 

@@ -413,6 +413,70 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(StatusCode.IsBad(missing.StatusCode), Is.True);
         }
 
+        /// <summary>
+        /// Observes a catchweigher zone through the client before and after its removal.
+        /// </summary>
+        [Test]
+        public async Task ClientAddsAndRemovesCatchweigherZonesAsync()
+        {
+            var product = (CatchweigherProductState)m_scales["Catch"].ProductionPreset!.ActiveProduct!;
+            NodeId zone = await m_client.AddZoneAsync(
+                product.NodeId,
+                new LocalizedText("Client zone"),
+                1,
+                2,
+                ScaleUnits.Kilogram);
+            var browser = new Browser(m_session, new BrowserOptions
+            {
+                BrowseDirection = BrowseDirection.Forward,
+                ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent,
+                IncludeSubtypes = false,
+                NodeClassMask = (int)NodeClass.Object,
+                ResultMask = (uint)BrowseResultMask.All
+            });
+            bool removed = false;
+            try
+            {
+                Assert.That(zone.IsNull, Is.False);
+                ArrayOf<ReferenceDescription> before = await browser.BrowseAsync(product.NodeId);
+                Assert.That(
+                    before.ToList().Select(reference =>
+                        ExpandedNodeId.ToNodeId(reference.NodeId, m_session.NamespaceUris)),
+                    Does.Contain(zone));
+                await m_client.RemoveZoneAsync(product.NodeId, zone);
+                removed = true;
+                ArrayOf<ReferenceDescription> after = await browser.BrowseAsync(product.NodeId);
+                Assert.That(
+                    after.ToList().Select(reference =>
+                        ExpandedNodeId.ToNodeId(reference.NodeId, m_session.NamespaceUris)),
+                    Does.Not.Contain(zone));
+            }
+            finally
+            {
+                if (!removed && !zone.IsNull)
+                {
+                    await m_client.RemoveZoneAsync(product.NodeId, zone);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Rejects an OPC UA null localized zone name before invoking the server.
+        /// </summary>
+        [Test]
+        public async Task ClientRejectsNullLocalizedZoneName()
+        {
+            var product = (CatchweigherProductState)m_scales["Catch"].ProductionPreset!.ActiveProduct!;
+
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
+                await m_client.AddZoneAsync(
+                    product.NodeId,
+                    LocalizedText.Null,
+                    1,
+                    2,
+                    ScaleUnits.Kilogram));
+        }
+
         [Test]
         public async Task CompanionsShareOneOwnerAndAmbKeepsTheirNativeNodesAsync()
         {
@@ -831,6 +895,357 @@ namespace Opc.Ua.Scales.Tests
             await m_client.InvokeAsync(m_system.NodeId, BrowseNames.ResetGlobalStatistics);
             ScaleIdentification feederId = await m_client.ReadIdentificationAsync(checker.Modules[0].NodeId);
             Assert.That(feederId.SerialNumber, Is.EqualTo("F1"));
+        }
+
+        /// <summary>
+        /// Observes element removal separately from removal of the containing recipe.
+        /// </summary>
+        [Test]
+        public async Task ClientRemovesRecipeElementsAndRecipesAsync()
+        {
+            ScaleHandle scale = m_scales["Recipe"];
+            ushort ns = m_session.NamespaceUris.GetIndexOrAppend(Namespaces.Scales);
+            NodeId recipe = await m_client.AddRecipeAsync(
+                scale.NodeId, "ClientRemoval", new LocalizedText("Client removal"));
+            NodeId element = await m_client.AddRecipeElementAsync(
+                recipe,
+                new NodeId(ObjectTypes.TimerType, ns),
+                "Wait",
+                [recipe]);
+
+            Assert.That(recipe.IsNull || element.IsNull, Is.False);
+            RecipeState recipeState = scale.Recipes!.Recipes["ClientRemoval"];
+            var browser = new Browser(m_session, new BrowserOptions
+            {
+                BrowseDirection = BrowseDirection.Forward,
+                ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent,
+                IncludeSubtypes = false,
+                NodeClassMask = (int)NodeClass.Object,
+                ResultMask = (uint)BrowseResultMask.All
+            });
+            ArrayOf<ReferenceDescription> visibleElements =
+                await browser.BrowseAsync(recipeState.RecipeElements!.NodeId);
+            Assert.That(
+                visibleElements.ToList()
+                    .Select(reference => ExpandedNodeId.ToNodeId(reference.NodeId, m_session.NamespaceUris)),
+                Does.Contain(element));
+            await m_client.RemoveRecipeElementAsync(recipe, element);
+            visibleElements = await browser.BrowseAsync(recipeState.RecipeElements.NodeId);
+            Assert.That(
+                visibleElements.ToArray()!
+                    .Select(reference => ExpandedNodeId.ToNodeId(reference.NodeId, m_session.NamespaceUris)),
+                Does.Not.Contain(element));
+            await m_client.RemoveRecipeAsync(scale.NodeId, "ClientRemoval");
+
+            Assert.That(scale.Recipes.Recipes.ContainsKey("ClientRemoval"), Is.False);
+        }
+
+        /// <summary>
+        /// Preserves start behavior on a fresh scale without PackML or an application release check.
+        /// </summary>
+        [Test]
+        public async Task ClientStartsRecipeWithoutConfiguredReleaseCheckAsync()
+        {
+            ScaleHandle scale = await m_runtime.CreateScaleAsync(
+                new QualifiedName("NoReleaseCheck", m_runtime.InstanceNamespaceIndex),
+                ScaleKind.Recipe,
+                builder => builder
+                    .WithIdentification(ScalesNodeManagerTests.Identity("NoReleaseCheck"))
+                    .WithWeighingRange(new WeighingRangeDefinition(0, 3, 0.001, 0.001))
+                    .WithTypeFeatures()
+                    .WithProductionPreset(preset => preset
+                        .AddProduct("BATCH", new LocalizedText("Batch"))
+                        .Select("BATCH")));
+            Assert.That(scale.PackML, Is.Null);
+            ushort scalesNamespaceIndex = m_session.NamespaceUris.GetIndexOrAppend(Namespaces.Scales);
+            NodeId recipe = await m_client.AddRecipeAsync(
+                scale.NodeId,
+                "NoReleaseCheck",
+                new LocalizedText("No release check"));
+            await m_client.AddRecipeElementAsync(
+                recipe,
+                new NodeId(ObjectTypes.TimerType, scalesNamespaceIndex),
+                "Wait",
+                [recipe]);
+
+            bool startAttempted = false;
+            try
+            {
+                startAttempted = true;
+                await m_client.ProcessRecipeAsync(scale.NodeId, BrowseNames.StartRecipe, recipe);
+                Assert.That(scale.Recipes!.State, Is.EqualTo(RecipeRunState.Running));
+            }
+            finally
+            {
+                await AbortRecipeIfRunningAsync(scale, recipe, startAttempted);
+            }
+        }
+
+        /// <summary>
+        /// Retains product selection during a remote check and releases it for every check outcome.
+        /// </summary>
+        [TestCase(0, "Allow")]
+        [TestCase(0, "Reject")]
+        [TestCase(0, "Throw")]
+        [TestCase(2, "Allow")]
+        [TestCase(2, "Reject")]
+        [TestCase(2, "Throw")]
+        public async Task ClientRecipeStartRetainsSelectionAndReleasesReservationAsync(int selected, string outcome)
+        {
+            string name = $"SelectionReservation{selected}{outcome}";
+            ScaleHandle scale = await m_runtime.CreateScaleAsync(
+                new QualifiedName(name, m_runtime.InstanceNamespaceIndex),
+                ScaleKind.Recipe,
+                builder => builder
+                    .WithIdentification(ScalesNodeManagerTests.Identity(name))
+                    .WithWeighingRange(new WeighingRangeDefinition(0, 3, 0.001, 0.001))
+                    .WithTypeFeatures()
+                    .WithProductionPreset(preset =>
+                    {
+                        preset.AllowSelection()
+                            .AddProduct("A", new LocalizedText("A"))
+                            .AddProduct("B", new LocalizedText("B"));
+                        if (selected == 2)
+                        {
+                            preset.Select("A").Select("B");
+                        }
+                    }));
+            RecipeController controller = scale.Recipes!;
+            ScaleProductionPreset productionPreset = scale.ProductionPreset!;
+            NodeId recipe = await m_client.AddRecipeAsync(scale.NodeId, name, new LocalizedText(name));
+            ushort ns = m_session.NamespaceUris.GetIndexOrAppend(Namespaces.Scales);
+            await m_client.AddRecipeElementAsync(recipe, new NodeId(ObjectTypes.TimerType, ns), "Wait", [recipe]);
+            using var entered = new ManualResetEventSlim(false);
+            using var release = new ManualResetEventSlim(false);
+            bool released = false;
+            int intercepted = 0;
+            scale.CommandInterceptor = command =>
+            {
+                if (command == ScaleCommand.StartRecipe)
+                {
+                    Interlocked.Increment(ref intercepted);
+                }
+                return ServiceResult.Good;
+            };
+            controller.SetApplicationReleaseCheck(() =>
+            {
+                entered.Set();
+                released = release.Wait(TimeSpan.FromSeconds(20));
+                if (outcome == "Throw")
+                {
+                    throw new InvalidOperationException("Release provider failed.");
+                }
+                return released && outcome == "Allow";
+            });
+            Task start = m_client.ProcessRecipeAsync(scale.NodeId, BrowseNames.StartRecipe, recipe).AsTask();
+            bool callbackEntered = entered.Wait(TimeSpan.FromSeconds(5));
+            ServiceResult? selectionResult = null;
+            Task<ServiceResult>? selection = null;
+            bool selectionCompletedDuringCheck = false;
+            try
+            {
+                if (callbackEntered)
+                {
+                    selection = Task.Run(() => selected == 0
+                        ? productionPreset.Select("A")
+                        : productionPreset.Deselect("A"));
+                    selectionResult = await selection.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    selectionCompletedDuringCheck = true;
+                }
+            }
+            catch (TimeoutException)
+            {
+            }
+            finally
+            {
+                release.Set();
+            }
+            if (selection is not null)
+            {
+                selectionResult = await selection.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            }
+            ServiceResultException? failure = null;
+            try
+            {
+                await start.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+            }
+            catch (ServiceResultException exception)
+            {
+                failure = exception;
+            }
+            try
+            {
+                Assert.That(callbackEntered, Is.True);
+                Assert.That(selectionCompletedDuringCheck, Is.True);
+                Assert.That(released, Is.True);
+                Assert.That(selectionResult?.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                Assert.That(productionPreset.CurrentProducts.Count, Is.EqualTo(selected));
+                Assert.That(productionPreset.ActiveProduct, Is.Null);
+                Assert.That(intercepted, Is.EqualTo(1));
+                if (outcome == "Allow")
+                {
+                    Assert.That(failure, Is.Null);
+                    Assert.That(controller.State, Is.EqualTo(RecipeRunState.Running));
+                }
+                else
+                {
+                    Assert.That(failure, Is.Not.Null);
+                    Assert.That(StatusCode.IsBad(failure!.StatusCode), Is.True);
+                    Assert.That(controller.State, Is.EqualTo(RecipeRunState.Idle));
+                }
+                ServiceResult after = selected == 0
+                    ? productionPreset.Select("A")
+                    : productionPreset.Deselect("A");
+                Assert.That(ServiceResult.IsGood(after), Is.True, "the reservation is released after every outcome");
+                Assert.That(productionPreset.ActiveProduct, Is.Not.Null);
+            }
+            finally
+            {
+                await AbortRecipeIfRunningAsync(scale, recipe, startAttempted: true);
+            }
+        }
+
+        /// <summary>
+        /// Allows callback coordination with scale and recipe reads and rejects callback configuration changes.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ClientReleaseCheckRunsOutsideBothLocksAndRejectsReplacementAsync(bool restoreOriginal)
+        {
+            string name = $"ReleaseCheckRace{restoreOriginal}";
+            ScaleHandle scale = await m_runtime.CreateScaleAsync(
+                new QualifiedName(name, m_runtime.InstanceNamespaceIndex),
+                ScaleKind.Recipe,
+                builder =>
+                {
+                    builder
+                        .WithIdentification(ScalesNodeManagerTests.Identity(name))
+                        .WithWeighingRange(new WeighingRangeDefinition(0, 3, 0.001, 0.001))
+                        .WithTypeFeatures()
+                        .WithRecipeFiles()
+                        .WithProductionPreset(preset => preset
+                            .AddProduct("BATCH", new LocalizedText("Batch"))
+                            .Select("BATCH"));
+                });
+            RecipeController controller = scale.Recipes!;
+            Assert.That(scale.PackML, Is.Null);
+            ushort scalesNamespaceIndex = m_session.NamespaceUris.GetIndexOrAppend(Namespaces.Scales);
+            NodeId recipe = await m_client.AddRecipeAsync(
+                scale.NodeId,
+                "ReleaseCheckRace",
+                new LocalizedText("Release check race"));
+            await m_client.AddRecipeElementAsync(
+                recipe,
+                new NodeId(ObjectTypes.TimerType, scalesNamespaceIndex),
+                "Wait",
+                [recipe]);
+
+            using var callbackEntered = new ManualResetEventSlim(false);
+            using var releaseCallback = new ManualResetEventSlim(false);
+            using var scaleLockReleased = new ManualResetEventSlim(false);
+            using var controllerLockReleased = new ManualResetEventSlim(false);
+            using var scaleWriteCompleted = new ManualResetEventSlim(false);
+            Task? scaleLockProbe = null;
+            Task? controllerLockProbe = null;
+            Task? scaleWriteProbe = null;
+            bool callbackAllowed = false;
+            Func<bool> originalCheck = () =>
+            {
+                scaleLockProbe = Task.Run(() =>
+                {
+                    _ = scale.CurrentReading;
+                    scaleLockReleased.Set();
+                });
+                controllerLockProbe = Task.Run(() =>
+                {
+                    _ = controller.CurrentElements;
+                    controllerLockReleased.Set();
+                });
+                scaleWriteProbe = Task.Run(() =>
+                {
+                    scale.PublishLoad(1);
+                    scaleWriteCompleted.Set();
+                });
+                callbackEntered.Set();
+                callbackAllowed = releaseCallback.Wait(TimeSpan.FromSeconds(20)) &&
+                    scaleLockReleased.Wait(TimeSpan.FromSeconds(5)) &&
+                    controllerLockReleased.Wait(TimeSpan.FromSeconds(5)) &&
+                    scaleWriteCompleted.Wait(TimeSpan.FromSeconds(5));
+                return callbackAllowed;
+            };
+            controller.SetApplicationReleaseCheck(originalCheck);
+
+            Task start = m_client.ProcessRecipeAsync(scale.NodeId, BrowseNames.StartRecipe, recipe).AsTask();
+            bool entered = callbackEntered.Wait(TimeSpan.FromSeconds(5));
+            bool scaleLockAvailable = false;
+            bool controllerLockAvailable = false;
+            bool scaleWriteAvailable = false;
+            Task? replaceCheck = null;
+            bool replaced = false;
+            ServiceResultException? failure = null;
+            try
+            {
+                if (entered)
+                {
+                    scaleLockAvailable = scaleLockReleased.Wait(TimeSpan.FromSeconds(5));
+                    controllerLockAvailable = controllerLockReleased.Wait(TimeSpan.FromSeconds(5));
+                    scaleWriteAvailable = scaleWriteCompleted.Wait(TimeSpan.FromSeconds(5));
+                    replaceCheck = Task.Run(() =>
+                    {
+                        controller.SetApplicationReleaseCheck(() => false);
+                        if (restoreOriginal)
+                        {
+                            controller.SetApplicationReleaseCheck(originalCheck);
+                        }
+                    });
+                    try
+                    {
+                        await replaceCheck.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                        replaced = true;
+                    }
+                    catch (TimeoutException)
+                    {
+                    }
+                }
+            }
+            finally
+            {
+                releaseCallback.Set();
+            }
+            var cleanupTasks = new List<Task> { start };
+            if (replaceCheck is not null)
+            {
+                cleanupTasks.Add(replaceCheck);
+            }
+            if (scaleLockProbe is not null)
+            {
+                cleanupTasks.Add(scaleLockProbe);
+            }
+            if (controllerLockProbe is not null)
+            {
+                cleanupTasks.Add(controllerLockProbe);
+            }
+            if (scaleWriteProbe is not null)
+            {
+                cleanupTasks.Add(scaleWriteProbe);
+            }
+            try
+            {
+                await Task.WhenAll(cleanupTasks).WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+            }
+            catch (ServiceResultException exception)
+            {
+                failure = exception;
+            }
+
+            Assert.That(entered, Is.True);
+            Assert.That(scaleLockAvailable, Is.True);
+            Assert.That(controllerLockAvailable, Is.True);
+            Assert.That(scaleWriteAvailable, Is.True);
+            Assert.That(replaced, Is.True);
+            Assert.That(callbackAllowed, Is.True);
+            Assert.That(failure?.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            Assert.That(controller.State, Is.EqualTo(RecipeRunState.Idle));
         }
 
         [Test]
@@ -1265,6 +1680,30 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(provider.GetService<Func<CancellationToken, Task<ScalesClient>>>(), Is.Not.Null);
             Assert.That(() => new ScalesClientFactory(null!, NUnitTelemetryContext.Create()), Throws.ArgumentNullException);
             Assert.That(() => ((Opc.Ua.Client.ISession)null!).Scales(NUnitTelemetryContext.Create()), Throws.ArgumentNullException);
+        }
+
+        /// <summary>
+        /// Rejects null zone units with the engineeringUnits parameter name.
+        /// </summary>
+        [Test]
+        public async Task AddZoneAsyncRejectsNullEngineeringUnits()
+        {
+            ArgumentNullException? error = await Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await m_client.AddZoneAsync(NodeId.Null, new LocalizedText("Zone"), 1, 2, null!));
+
+            Assert.That(error!.ParamName, Is.EqualTo("engineeringUnits"));
+        }
+
+        /// <summary>
+        /// Rejects a null recipe identifier with the recipeId parameter name.
+        /// </summary>
+        [Test]
+        public async Task RemoveRecipeAsyncRejectsNullRecipeId()
+        {
+            ArgumentNullException? error = await Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await m_client.RemoveRecipeAsync(NodeId.Null, null!));
+
+            Assert.That(error!.ParamName, Is.EqualTo("recipeId"));
         }
 
         [Test]
