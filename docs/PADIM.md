@@ -78,7 +78,10 @@ The application schedules acquisition by calling `RefreshAsync`. A device
 serializes provider calls, writes and physical-operation requests. Disposal
 rejects new work, cancels admitted work and waits for admitted callbacks to
 leave before releasing resources. Providers must observe cancellation so
-shutdown can complete.
+shutdown can complete. Asynchronous state-change callbacks run within the same
+serialized operation. A callback must not await another operation on the same
+device: that operation waits for the callback to return before it can acquire
+the device gate.
 
 `AddPadim()` registers the DI owner. When another companion already owns DI,
 use `AddPadimModel()` to add the models to that owner rather than creating a
@@ -202,6 +205,14 @@ remains retained after acknowledgement; when the acquired category returns to
 Normal, an acknowledged condition no longer needs to be retained. Bad-quality
 acquisition without a value updates condition quality without inventing a
 Normal category or changing the previous active state.
+
+Health publication awaits acknowledgement, activation and severity notifications
+in setter order while retaining the device gate. Once the provider sample has
+been published, caller cancellation does not interrupt these updates or their
+notifications. Event reporting still observes the caller's cancellation token;
+cancellation before reporting prevents event-sink entry without reverting the
+published value or completed health updates. Notification errors propagate and
+do not roll back mutations that have already occurred.
 
 ## Simulation, damping and configuration
 

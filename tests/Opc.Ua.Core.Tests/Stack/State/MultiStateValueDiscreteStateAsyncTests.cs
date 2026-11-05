@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
@@ -48,10 +49,16 @@ namespace Opc.Ua.Core.Tests.Stack.State
             MultiStateValueDiscreteState node = CreateNode(s_states);
             BaseDataVariableState entries = AddDictionary(node);
             bool providerCalled = false;
+            bool notified = false;
             node.OnSimpleWriteValueAsync = (_, _, _, _) =>
             {
                 providerCalled = true;
                 return new ValueTask<AttributeWriteResult>(new AttributeWriteResult(ServiceResult.Good));
+            };
+            node.OnStateChangedAsync = (_, _, _, _) =>
+            {
+                notified = true;
+                return default;
             };
             ServiceResult result = await node.WriteAttributeAsync(
                 m_context, Attributes.Value, NumericRange.Null, new DataValue(Variant.From(value)));
@@ -59,6 +66,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             {
                 Assert.That(result.StatusCode, Is.EqualTo(expected));
                 Assert.That(providerCalled, Is.EqualTo(called));
+                Assert.That(notified, Is.EqualTo(called));
                 Assert.That(node.ValueAsText!.Value.Text, Is.EqualTo(called ? "four" : "initial"));
                 Assert.That(node.WrappedValue, Is.EqualTo(Variant.From(called ? 4u : 0u)));
                 Assert.That(entries.WrappedValue, Is.EqualTo(Variant.From(
@@ -89,6 +97,262 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 Assert.That(node.WrappedValue, Is.EqualTo(Variant.From(0u)));
                 Assert.That(entries.WrappedValue, Is.EqualTo(
                     Variant.From((ArrayOf<NodeId>)[new NodeId("initial", 0), new NodeId("initial", 0)])));
+            });
+        }
+
+        /// <summary>
+        /// An acquired enum is committed before its notification, and cancellation cannot interrupt that notification.
+        /// </summary>
+        [Test]
+        public async Task AsyncEnumAcquisitionAwaitsNonCancellableNotificationAfterCommit()
+        {
+            MultiStateValueDiscreteState node = CreateNode(s_states);
+            AddDictionary(node);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            CancellationToken observedToken = default;
+            bool observedCommittedValue = false;
+            node.OnStateChangedAsync = async (_, changedNode, _, cancellationToken) =>
+            {
+                if (ReferenceEquals(changedNode, node))
+                {
+                    observedToken = cancellationToken;
+                    observedCommittedValue = node.WrappedValue == Variant.From(4u) &&
+                        node.ValueAsText!.Value.Text == "four";
+                    entered.TrySetResult(true);
+                    await release.Task.ConfigureAwait(false);
+                }
+            };
+            using var cancellation = new CancellationTokenSource();
+
+            Task<Task<ServiceResult>> invocation = Task.Run<Task<ServiceResult>>(
+                () => node.UpdateEnumValueAsync(
+                    m_context, new DataValue(Variant.From(4u)), cancellation.Token).AsTask());
+            Task<ServiceResult>? update = null;
+            try
+            {
+                await WaitForSignalAsync(entered.Task);
+                await WaitForSignalAsync(invocation);
+                update = await invocation.ConfigureAwait(false);
+                cancellation.Cancel();
+                Assert.That(update.IsCompleted, Is.False);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                if (update is null)
+                {
+                    await WaitForSignalAsync(invocation);
+                    update = await invocation.ConfigureAwait(false);
+                }
+                await WaitForSignalAsync(update);
+            }
+
+            Task<ServiceResult> completedUpdate = update ??
+                throw new InvalidOperationException("The enum acquisition task was not observed.");
+            ServiceResult result = await completedUpdate;
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                Assert.That(observedToken, Is.EqualTo(CancellationToken.None));
+                Assert.That(observedCommittedValue, Is.True);
+                Assert.That(node.WrappedValue, Is.EqualTo(Variant.From(4u)));
+                Assert.That(node.ValueAsText!.Value.Text, Is.EqualTo("four"));
+            });
+        }
+
+        /// <summary>
+        /// An invalid acquired sample preserves the current value and does not dispatch notifications.
+        /// </summary>
+        [Test]
+        public async Task AsyncEnumAcquisitionRejectsInvalidSampleWithoutNotification()
+        {
+            MultiStateValueDiscreteState node = CreateNode(s_states);
+            BaseDataVariableState entries = AddDictionary(node);
+            NodeStateChangeMasks initialNodeChangeMasks = node.ChangeMasks;
+            NodeStateChangeMasks initialEntriesChangeMasks = entries.ChangeMasks;
+            bool notified = false;
+            node.OnStateChangedAsync = (_, _, _, _) =>
+            {
+                notified = true;
+                return default;
+            };
+
+            ServiceResult result = await node.UpdateEnumValueAsync(
+                m_context, new DataValue(Variant.From(3u)));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
+                Assert.That(notified, Is.False);
+                Assert.That(node.WrappedValue, Is.EqualTo(Variant.From(0u)));
+                Assert.That(node.ValueAsText!.Value.Text, Is.EqualTo("initial"));
+                Assert.That(entries.WrappedValue, Is.EqualTo(
+                    Variant.From((ArrayOf<NodeId>)[new NodeId("initial", 0), new NodeId("initial", 0)])));
+                Assert.That(node.ChangeMasks, Is.EqualTo(initialNodeChangeMasks));
+                Assert.That(entries.ChangeMasks, Is.EqualTo(initialEntriesChangeMasks));
+            });
+        }
+
+        /// <summary>
+        /// Cancellation before an acquired enum is applied leaves state and notification masks untouched.
+        /// </summary>
+        [Test]
+        public async Task AsyncEnumAcquisitionHonorsCancellationBeforeCommit()
+        {
+            MultiStateValueDiscreteState node = CreateNode(s_states);
+            BaseDataVariableState entries = AddDictionary(node);
+            NodeStateChangeMasks initialNodeChangeMasks = node.ChangeMasks;
+            NodeStateChangeMasks initialEntriesChangeMasks = entries.ChangeMasks;
+            bool notified = false;
+            node.OnStateChangedAsync = (_, _, _, _) =>
+            {
+                notified = true;
+                return default;
+            };
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await node.UpdateEnumValueAsync(
+                    m_context, new DataValue(Variant.From(4u)), cancellation.Token));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(notified, Is.False);
+                Assert.That(node.WrappedValue, Is.EqualTo(Variant.From(0u)));
+                Assert.That(node.ValueAsText!.Value.Text, Is.EqualTo("initial"));
+                Assert.That(node.ChangeMasks, Is.EqualTo(initialNodeChangeMasks));
+                Assert.That(entries.ChangeMasks, Is.EqualTo(initialEntriesChangeMasks));
+            });
+        }
+
+        /// <summary>
+        /// An acquired value stays committed when an async notification sink fails.
+        /// </summary>
+        [Test]
+        public async Task AsyncEnumAcquisitionPropagatesNotificationFailureAfterCommit()
+        {
+            MultiStateValueDiscreteState node = CreateNode(s_states);
+            AddDictionary(node);
+            node.ClearChangeMasks(m_context, includeChildren: true);
+            node.OnStateChangedAsync = (_, changedNode, _, _) =>
+            {
+                if (ReferenceEquals(changedNode, node))
+                {
+                    throw new InvalidOperationException("Notification failed.");
+                }
+                return default;
+            };
+
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await node.UpdateEnumValueAsync(m_context, new DataValue(Variant.From(4u))));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(node.WrappedValue, Is.EqualTo(Variant.From(4u)));
+                Assert.That(node.ValueAsText!.Value.Text, Is.EqualTo("four"));
+                Assert.That(node.ChangeMasks, Is.Not.EqualTo(NodeStateChangeMasks.None));
+            });
+        }
+
+        /// <summary>
+        /// An accepted async write awaits its notification without allowing cancellation after the commit.
+        /// </summary>
+        [Test]
+        public async Task AsyncEnumWriteAwaitsNonCancellableNotificationAfterCommit()
+        {
+            MultiStateValueDiscreteState node = CreateNode(s_states);
+            BaseDataVariableState entries = AddDictionary(node);
+            node.OnSimpleWriteValueAsync = (_, _, _, _) =>
+                new ValueTask<AttributeWriteResult>(new AttributeWriteResult(ServiceResult.Good));
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            CancellationToken observedToken = default;
+            bool observedCommittedValue = false;
+            node.OnStateChangedAsync = async (_, changedNode, _, cancellationToken) =>
+            {
+                if (ReferenceEquals(changedNode, node))
+                {
+                    observedToken = cancellationToken;
+                    observedCommittedValue = node.WrappedValue == Variant.From(4u) &&
+                        node.ValueAsText!.Value.Text == "four";
+                    entered.TrySetResult(true);
+                    await release.Task.ConfigureAwait(false);
+                }
+            };
+            using var cancellation = new CancellationTokenSource();
+
+            Task<Task<ServiceResult>> invocation = Task.Run<Task<ServiceResult>>(
+                () => node.WriteAttributeAsync(
+                    m_context, Attributes.Value, NumericRange.Null, new DataValue(Variant.From(4u)),
+                    cancellation.Token).AsTask());
+            Task<ServiceResult>? write = null;
+            try
+            {
+                await WaitForSignalAsync(entered.Task);
+                await WaitForSignalAsync(invocation);
+                write = await invocation.ConfigureAwait(false);
+                cancellation.Cancel();
+                Assert.That(write.IsCompleted, Is.False);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                if (write is null)
+                {
+                    await WaitForSignalAsync(invocation);
+                    write = await invocation.ConfigureAwait(false);
+                }
+                await WaitForSignalAsync(write);
+            }
+
+            Task<ServiceResult> completedWrite = write ??
+                throw new InvalidOperationException("The enum write task was not observed.");
+            ServiceResult result = await completedWrite;
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                Assert.That(observedToken, Is.EqualTo(CancellationToken.None));
+                Assert.That(observedCommittedValue, Is.True);
+                Assert.That(node.WrappedValue, Is.EqualTo(Variant.From(4u)));
+                Assert.That(node.ValueAsText!.Value.Text, Is.EqualTo("four"));
+                Assert.That(entries.WrappedValue, Is.EqualTo(
+                    Variant.From((ArrayOf<NodeId>)[new NodeId("four-a", 0), new NodeId("four-b", 0)])));
+            });
+        }
+
+        /// <summary>
+        /// A notification failure after an accepted async write propagates without rolling back derived values.
+        /// </summary>
+        [Test]
+        public async Task AsyncEnumWritePropagatesNotificationFailureAfterCommit()
+        {
+            MultiStateValueDiscreteState node = CreateNode(s_states);
+            BaseDataVariableState entries = AddDictionary(node);
+            node.OnSimpleWriteValueAsync = (_, _, _, _) =>
+                new ValueTask<AttributeWriteResult>(new AttributeWriteResult(ServiceResult.Good));
+            node.ClearChangeMasks(m_context, includeChildren: true);
+            node.OnStateChangedAsync = (_, changedNode, _, _) =>
+            {
+                if (ReferenceEquals(changedNode, node))
+                {
+                    throw new InvalidOperationException("Notification failed.");
+                }
+                return default;
+            };
+
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await node.WriteAttributeAsync(
+                    m_context, Attributes.Value, NumericRange.Null, new DataValue(Variant.From(4u))));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(node.WrappedValue, Is.EqualTo(Variant.From(4u)));
+                Assert.That(node.ValueAsText!.Value.Text, Is.EqualTo("four"));
+                Assert.That(entries.WrappedValue, Is.EqualTo(
+                    Variant.From((ArrayOf<NodeId>)[new NodeId("four-a", 0), new NodeId("four-b", 0)])));
+                Assert.That(node.ChangeMasks, Is.Not.EqualTo(NodeStateChangeMasks.None));
             });
         }
 
@@ -388,6 +652,16 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 Assert.That(entries.WrappedValue, Is.EqualTo(
                     Variant.From((ArrayOf<NodeId>)[new NodeId("four-a", 0), new NodeId("four-b", 0)])));
             });
+        }
+
+        /// <summary>
+        /// Bounds waits for a gated async notification so a blocked implementation cannot hang the test suite.
+        /// </summary>
+        private static async Task WaitForSignalAsync(Task signal)
+        {
+            Task completed = await Task.WhenAny(signal, Task.Delay(TimeSpan.FromSeconds(10))).ConfigureAwait(false);
+            Assert.That(completed, Is.SameAs(signal), "The async notification was not entered within the timeout.");
+            await signal.ConfigureAwait(false);
         }
 
         /// <summary>

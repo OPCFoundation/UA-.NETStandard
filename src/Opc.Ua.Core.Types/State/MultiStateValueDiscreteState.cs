@@ -61,6 +61,50 @@ namespace Opc.Ua
         /// </remarks>
         public ServiceResult UpdateEnumValue(ISystemContext context, in DataValue sample)
         {
+            ServiceResult result = UpdateEnumValueCore(context, sample);
+            if (ServiceResult.IsBad(result))
+            {
+                return result;
+            }
+            ClearChangeMasks(context, includeChildren: true);
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Asynchronously publishes an acquired enumeration and its derived text/dictionary values.
+        /// </summary>
+        /// <remarks>
+        /// Invalid samples leave the previous value and derived properties unchanged.
+        /// A bad-quality null sample retains the last derived values with the new quality.
+        /// The cancellation token is checked before the sample is applied; notification sinks receive
+        /// <see cref="CancellationToken.None"/> after commit.
+        /// </remarks>
+        public async ValueTask<ServiceResult> UpdateEnumValueAsync(
+            ISystemContext context,
+            DataValue sample,
+            CancellationToken cancellationToken = default)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            ServiceResult result = UpdateEnumValueCore(context, sample);
+            if (ServiceResult.IsBad(result))
+            {
+                return result;
+            }
+            await ClearChangeMasksAsync(
+                context, includeChildren: true, cancellationToken: CancellationToken.None)
+                .ConfigureAwait(false);
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Validates and applies an enum sample without dispatching state-change notifications.
+        /// </summary>
+        private ServiceResult UpdateEnumValueCore(ISystemContext context, in DataValue sample)
+        {
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
@@ -85,7 +129,6 @@ namespace Opc.Ua
             StatusCode = sample.StatusCode;
             Timestamp = sample.SourceTimestamp;
             UpdateDerivedValues(context, sample, text, dictionaryEntries, resolved);
-            ClearChangeMasks(context, includeChildren: true);
             return ServiceResult.Good;
         }
 
@@ -128,7 +171,9 @@ namespace Opc.Ua
                         }
                     }
                     UpdateDerivedValues(context, accepted, text, dictionaryEntries, resolved);
-                    ClearChangeMasks(context, includeChildren: true);
+                    await ClearChangeMasksAsync(
+                        context, includeChildren: true, cancellationToken: CancellationToken.None)
+                        .ConfigureAwait(false);
                 }
                 return result;
             }

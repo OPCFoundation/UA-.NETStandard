@@ -337,6 +337,533 @@ namespace Opc.Ua.PADIM.Tests
         }
 
         /// <summary>
+        /// Awaits an asynchronous state-change sink without blocking the refresh invocation.
+        /// </summary>
+        [Test]
+        public async Task RefreshAwaitsAsyncStateChangedSinkWithoutBlockingInvocation()
+        {
+            (PadimDevice device, BaseVariableState value) = await CreateAnalogAsync("AsyncRefreshSink");
+            var sample = new DataValue(Variant.From(12.25f), StatusCodes.Good);
+            var provider = new Mock<IPadimValueProvider>(MockBehavior.Strict);
+            provider.Setup(p => p.ReadAsync("temperature", It.IsAny<CancellationToken>())).ReturnsAsync(sample);
+            PadimValueBinding binding = device.BindValue(value, "temperature", provider.Object);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var cancellation = new CancellationTokenSource();
+            CancellationToken notificationToken = default;
+            value.OnStateChangedAsync = async (_, _, _, token) =>
+            {
+                notificationToken = token;
+                entered.TrySetResult(true);
+                using CancellationTokenRegistration registration = token.Register(
+                    static state =>
+                    {
+                        ((TaskCompletionSource<bool>)state!).TrySetCanceled();
+                    },
+                    release);
+                await release.Task.ConfigureAwait(false);
+            };
+            Task<Task> invocation = Task.Run<Task>(() => binding.RefreshAsync(cancellation.Token).AsTask());
+            Task? refresh = null;
+            try
+            {
+                await AwaitWithinAsync(entered.Task);
+                refresh = await AwaitWithinAsync(invocation);
+                Assert.That(refresh.IsCompleted, Is.False);
+                Assert.That(value.WrappedValue, Is.EqualTo(sample.WrappedValue));
+                cancellation.Cancel();
+                Assert.That(notificationToken.IsCancellationRequested, Is.False);
+                Assert.That(refresh.IsCompleted, Is.False);
+                release.TrySetResult(true);
+                await AwaitWithinAsync(refresh);
+                Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                refresh ??= await AwaitWithinAsync(invocation);
+                try
+                {
+                    await AwaitWithinAsync(refresh);
+                }
+                catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+                {
+                }
+            }
+            provider.VerifyAll();
+        }
+
+        /// <summary>
+        /// Awaits asynchronous state-change sinks when publishing a multi-state enumeration.
+        /// </summary>
+        [Test]
+        public async Task MultiStateRefreshAwaitsAsyncStateChangedSinkWithoutBlockingInvocation()
+        {
+            PadimDevice device = await CreateDeviceAsync("AsyncMultiStateRefresh");
+            SignalState signal = await device.AddSignalAsync(
+                Name("Mode"), PadimSignalKind.MultiStateDiscrete, "MODE-001");
+            var value = (MultiStateValueDiscreteState)signal.FindChild(
+                device.Context, ModelName("MultiStateDiscreteSignal"))!;
+            value.EnumValues!.Value =
+            [
+                new EnumValueType { Value = 1, DisplayName = new LocalizedText("Stopped") },
+                new EnumValueType { Value = 2, DisplayName = new LocalizedText("Running") }
+            ];
+            var sample = new DataValue(Variant.From(2u), StatusCodes.Good);
+            var provider = new Mock<IPadimValueProvider>(MockBehavior.Strict);
+            provider.Setup(p => p.ReadAsync("mode", It.IsAny<CancellationToken>())).ReturnsAsync(sample);
+            PadimValueBinding binding = device.BindValue(value, "mode", provider.Object);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            value.OnStateChangedAsync = async (_, _, _, _) =>
+            {
+                entered.TrySetResult(true);
+                await release.Task.ConfigureAwait(false);
+            };
+            Task<Task> invocation = Task.Run<Task>(() => binding.RefreshAsync().AsTask());
+            Task? refresh = null;
+            try
+            {
+                await AwaitWithinAsync(entered.Task);
+                refresh = await AwaitWithinAsync(invocation);
+                Assert.That(refresh.IsCompleted, Is.False);
+                Assert.That(value.WrappedValue, Is.EqualTo(sample.WrappedValue));
+                Assert.That(value.ValueAsText!.Value.Text, Is.EqualTo("Running"));
+                release.TrySetResult(true);
+                await AwaitWithinAsync(refresh);
+                Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                refresh ??= await AwaitWithinAsync(invocation);
+                await AwaitWithinAsync(refresh);
+            }
+            provider.VerifyAll();
+        }
+
+        /// <summary>
+        /// Keeps later provider reads serialized behind the prior asynchronous state notification.
+        /// </summary>
+        [Test]
+        public async Task ConcurrentRefreshWaitsForPreviousAsyncStateNotification()
+        {
+            (PadimDevice device, BaseVariableState value) = await CreateAnalogAsync("AsyncRefreshSerialization");
+            var firstSample = new DataValue(Variant.From(12f), StatusCodes.Good);
+            var secondSample = new DataValue(Variant.From(14f), StatusCodes.Good);
+            var provider = new Mock<IPadimValueProvider>(MockBehavior.Strict);
+            provider.SetupSequence(p => p.ReadAsync("temperature", It.IsAny<CancellationToken>()))
+                .ReturnsAsync(firstSample)
+                .ReturnsAsync(secondSample);
+            PadimValueBinding binding = device.BindValue(value, "temperature", provider.Object);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int notifications = 0;
+            value.OnStateChangedAsync = async (_, _, _, _) =>
+            {
+                if (Interlocked.Increment(ref notifications) == 1)
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.ConfigureAwait(false);
+                }
+            };
+            Task<Task> firstInvocation = Task.Run<Task>(() => binding.RefreshAsync().AsTask());
+            Task? firstRefresh = null;
+            Task<Task>? secondInvocation = null;
+            Task? secondRefresh = null;
+            Exception? testFailure = null;
+            async Task<Exception?> DrainRefreshAsync(Task<Task> invocation, Task? refresh)
+            {
+                try
+                {
+                    refresh ??= await AwaitWithinAsync(invocation);
+                    await AwaitWithinAsync(refresh);
+                    return null;
+                }
+                catch (Exception exception)
+                {
+                    return exception;
+                }
+            }
+            try
+            {
+                await AwaitWithinAsync(entered.Task);
+                firstRefresh = await AwaitWithinAsync(firstInvocation);
+                secondInvocation = Task.Run<Task>(() => binding.RefreshAsync().AsTask());
+                secondRefresh = await AwaitWithinAsync(secondInvocation);
+                Assert.That(firstRefresh.IsCompleted, Is.False);
+                Assert.That(secondRefresh.IsCompleted, Is.False);
+                provider.Verify(
+                    p => p.ReadAsync("temperature", It.IsAny<CancellationToken>()), Times.Once);
+                release.TrySetResult(true);
+                await AwaitWithinAsync(firstRefresh);
+                await AwaitWithinAsync(secondRefresh);
+                Assert.That(value.WrappedValue, Is.EqualTo(secondSample.WrappedValue));
+            }
+            catch (Exception exception)
+            {
+                testFailure = exception;
+                throw;
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                Task<Exception?> firstDrain = DrainRefreshAsync(firstInvocation, firstRefresh);
+                Task<Exception?> secondDrain = secondInvocation is null
+                    ? Task.FromResult<Exception?>(null)
+                    : DrainRefreshAsync(secondInvocation, secondRefresh);
+                Exception?[] cleanupResults = await Task.WhenAll(firstDrain, secondDrain);
+                var cleanupFailures = new List<Exception>();
+                foreach (Exception? cleanupFailure in cleanupResults)
+                {
+                    if (cleanupFailure != null)
+                    {
+                        cleanupFailures.Add(cleanupFailure);
+                    }
+                }
+                if (cleanupFailures.Count > 0)
+                {
+                    if (testFailure != null)
+                    {
+                        cleanupFailures.Insert(0, testFailure);
+                    }
+                    throw new AggregateException(
+                        testFailure == null
+                            ? "One or more refresh cleanup operations failed."
+                            : "Refresh cleanup failed while preserving the earlier test failure.",
+                        cleanupFailures);
+                }
+            }
+            provider.Verify(p => p.ReadAsync("temperature", It.IsAny<CancellationToken>()), Times.Exactly(2));
+        }
+
+        /// <summary>
+        /// Awaits alarm setter notifications in mutation order while retaining the device gate.
+        /// </summary>
+        [Test]
+        public async Task HealthRefreshAwaitsOrderedAlarmStateNotifications()
+        {
+            PadimDevice device = await CreateDeviceAsync("AsyncHealthRefresh");
+            var provider = new Mock<IPadimValueProvider>(MockBehavior.Strict);
+            provider.Setup(p => p.ReadAsync("health", It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new DataValue(Variant.From(1), StatusCodes.Good));
+            PadimValueBinding binding = device.WithHealthAlarms("health", provider.Object);
+            await device.RegisterAsync();
+            var children = new List<BaseInstanceState>();
+            device.State.GetChildren(device.Context, children);
+            AlarmConditionState alarm = children.OfType<AlarmConditionState>()
+                .Single(condition => condition.BrowseName.Name == "Failure");
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            alarm.ClearChangeMasks(device.Context, includeChildren: true);
+            var observed = new List<(string Source, NodeState Node, bool Acknowledged, bool Active, ushort Severity)>();
+            async ValueTask RecordNotificationAsync(string source, NodeState node, bool gate)
+            {
+                observed.Add((
+                    source,
+                    node,
+                    alarm.AckedState!.Id!.Value,
+                    alarm.ActiveState!.Id!.Value,
+                    alarm.Severity!.Value));
+                if (gate)
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.ConfigureAwait(false);
+                }
+            }
+            PropertyState<bool> acknowledgedId = alarm.AckedState!.Id!;
+            PropertyState<bool> activeId = alarm.ActiveState!.Id!;
+            acknowledgedId.OnStateChangedAsync = (_, node, _, _) =>
+                RecordNotificationAsync("acknowledged", node, gate: true);
+            activeId.OnStateChangedAsync = (_, node, _, _) =>
+                RecordNotificationAsync("active", node, gate: false);
+            alarm.Severity!.OnStateChangedAsync = (_, node, _, _) =>
+                RecordNotificationAsync("severity", node, gate: false);
+            Task<Task> invocation = Task.Run<Task>(() => binding.RefreshAsync().AsTask());
+            Task? refresh = null;
+            try
+            {
+                await AwaitWithinAsync(entered.Task);
+                refresh = await AwaitWithinAsync(invocation);
+                Assert.That(refresh.IsCompleted, Is.False);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(alarm.AckedState!.Id!.Value, Is.False);
+                    Assert.That(alarm.ActiveState!.Id!.Value, Is.False);
+                });
+                release.TrySetResult(true);
+                await AwaitWithinAsync(refresh);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(alarm.ActiveState!.Id!.Value, Is.True);
+                    Assert.That(alarm.AckedState!.Id!.Value, Is.False);
+                    Assert.That(alarm.Severity!.Value, Is.EqualTo((ushort)EventSeverity.High));
+                    Assert.That(observed, Has.Count.EqualTo(3));
+                    Assert.That(observed.Select(item => item.Source),
+                        Is.EqualTo(new[] { "acknowledged", "active", "severity" }));
+                    Assert.That(observed[0].Node, Is.SameAs(acknowledgedId));
+                    Assert.That(observed[0].Acknowledged, Is.False);
+                    Assert.That(observed[0].Active, Is.False);
+                    Assert.That(observed[0].Severity, Is.EqualTo((ushort)EventSeverity.Low));
+                    Assert.That(observed[1].Node, Is.SameAs(activeId));
+                    Assert.That(observed[1].Acknowledged, Is.False);
+                    Assert.That(observed[1].Active, Is.True);
+                    Assert.That(observed[1].Severity, Is.EqualTo((ushort)EventSeverity.Low));
+                    Assert.That(observed[2].Node, Is.SameAs(alarm.Severity));
+                    Assert.That(observed[2].Acknowledged, Is.False);
+                    Assert.That(observed[2].Active, Is.True);
+                    Assert.That(observed[2].Severity, Is.EqualTo((ushort)EventSeverity.High));
+                });
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                refresh ??= await AwaitWithinAsync(invocation);
+                await AwaitWithinAsync(refresh);
+            }
+            provider.VerifyAll();
+        }
+
+        /// <summary>
+        /// Cancellation during value publication does not stop health updates, but prevents event reporting.
+        /// </summary>
+        [Test]
+        public async Task HealthRefreshCancellationDuringValueNotificationUpdatesHealthWithoutReportingEvent()
+        {
+            PadimDevice device = await CreateDeviceAsync("AsyncHealthCancellation");
+            var provider = new Mock<IPadimValueProvider>(MockBehavior.Strict);
+            provider.SetupSequence(p => p.ReadAsync("health", It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new DataValue(Variant.From(1), StatusCodes.Good))
+                .ReturnsAsync(new DataValue(Variant.From(0), StatusCodes.Good));
+            PadimValueBinding binding = device.WithHealthAlarms("health", provider.Object);
+            await device.RegisterAsync();
+            var children = new List<BaseInstanceState>();
+            device.State.GetChildren(device.Context, children);
+            AlarmConditionState failureAlarm = children.OfType<AlarmConditionState>()
+                .Single(condition => condition.BrowseName.Name == "Failure");
+            device.State.DeviceHealth!.ClearChangeMasks(device.Context, includeChildren: true);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var controlEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var controlRelease = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int reportEventCalls = 0;
+            bool gateControlEvent = false;
+            device.State.DeviceHealth.OnStateChangedAsync = async (_, _, _, _) =>
+            {
+                entered.TrySetResult(true);
+                await release.Task.ConfigureAwait(false);
+            };
+            failureAlarm.OnReportEventAsync = async (_, _, _, _) =>
+            {
+                reportEventCalls++;
+                if (gateControlEvent)
+                {
+                    controlEntered.TrySetResult(true);
+                    await controlRelease.Task.ConfigureAwait(false);
+                }
+            };
+            using var cancellation = new CancellationTokenSource();
+            failureAlarm.ClearChangeMasks(device.Context, includeChildren: true);
+            var healthNotifications = new List<(string Source, CancellationToken Token)>();
+            ValueTask RecordHealthNotificationAsync(string source, CancellationToken token)
+            {
+                token.ThrowIfCancellationRequested();
+                healthNotifications.Add((source, token));
+                return default;
+            }
+            failureAlarm.AckedState!.Id!.OnStateChangedAsync = (_, _, _, token) =>
+                RecordHealthNotificationAsync("acknowledged", token);
+            failureAlarm.ActiveState!.Id!.OnStateChangedAsync = (_, _, _, token) =>
+                RecordHealthNotificationAsync("active", token);
+            failureAlarm.Severity!.OnStateChangedAsync = (_, _, _, token) =>
+                RecordHealthNotificationAsync("severity", token);
+
+            Task<Task> invocation = Task.Run<Task>(() => binding.RefreshAsync(cancellation.Token).AsTask());
+            Task? refresh = null;
+            try
+            {
+                await AwaitWithinAsync(entered.Task);
+                refresh = await AwaitWithinAsync(invocation);
+                Assert.That(refresh.IsCompleted, Is.False);
+                Assert.That(device.State.DeviceHealth.Value, Is.EqualTo(
+                    Opc.Ua.Di.DeviceHealthEnumeration.FAILURE));
+                cancellation.Cancel();
+                release.TrySetResult(true);
+                await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                    await AwaitWithinAsync(refresh));
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(failureAlarm.AckedState!.Id!.Value, Is.False);
+                    Assert.That(failureAlarm.ActiveState!.Id!.Value, Is.True);
+                    Assert.That(failureAlarm.Severity!.Value, Is.EqualTo((ushort)EventSeverity.High));
+                    Assert.That(failureAlarm.Quality!.Value, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(reportEventCalls, Is.Zero);
+                    Assert.That(healthNotifications.Select(item => item.Source),
+                        Is.EqualTo(new[] { "acknowledged", "active", "severity" }));
+                    Assert.That(healthNotifications.All(item => item.Token == CancellationToken.None), Is.True);
+                });
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                refresh ??= await AwaitWithinAsync(invocation);
+                if (!refresh.IsCompleted)
+                {
+                    try
+                    {
+                        await AwaitWithinAsync(refresh);
+                    }
+                    catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+                    {
+                    }
+                }
+            }
+            device.State.DeviceHealth.OnStateChangedAsync = null;
+
+            gateControlEvent = true;
+            Task<Task> controlInvocation = Task.Run<Task>(() => binding.RefreshAsync().AsTask());
+            Task? controlRefresh = null;
+            try
+            {
+                await AwaitWithinAsync(controlEntered.Task);
+                controlRefresh = await AwaitWithinAsync(controlInvocation);
+                Assert.That(controlRefresh.IsCompleted, Is.False);
+                controlRelease.TrySetResult(true);
+                await AwaitWithinAsync(controlRefresh);
+                Assert.That(reportEventCalls, Is.EqualTo(1));
+            }
+            finally
+            {
+                controlRelease.TrySetResult(true);
+                controlRefresh ??= await AwaitWithinAsync(controlInvocation);
+                await AwaitWithinAsync(controlRefresh);
+            }
+            provider.VerifyAll();
+        }
+
+        /// <summary>
+        /// Awaits an asynchronous state-change sink after a provider-approved write commits.
+        /// </summary>
+        [Test]
+        public async Task ProviderWriteAwaitsAsyncStateChangedSinkAfterCommitWithoutBlockingInvocation()
+        {
+            (PadimDevice device, BaseVariableState value) = await CreateAnalogAsync("AsyncWriteSink");
+            var writer = new Mock<IPadimWriteProvider>(MockBehavior.Strict);
+            writer.Setup(p => p.WriteAsync("temperature", Variant.From(42f), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(StatusCodes.Good);
+            var authorizer = new Mock<IPadimAuthorizer>(MockBehavior.Strict);
+            authorizer.Setup(p => p.AuthorizeAsync(
+                device.Context, value.NodeId, "temperature", It.IsAny<CancellationToken>())).ReturnsAsync(true);
+            device.BindValue(value, "temperature", new Mock<IPadimValueProvider>().Object)
+                .WithWrites(writer.Object, authorizer.Object);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var cancellation = new CancellationTokenSource();
+            CancellationToken notificationToken = default;
+            value.OnStateChangedAsync = async (_, _, _, token) =>
+            {
+                notificationToken = token;
+                entered.TrySetResult(true);
+                using CancellationTokenRegistration registration = token.Register(
+                    static state =>
+                    {
+                        ((TaskCompletionSource<bool>)state!).TrySetCanceled();
+                    },
+                    release);
+                await release.Task.ConfigureAwait(false);
+            };
+            Task<Task<AttributeWriteResult>> invocation = Task.Run<Task<AttributeWriteResult>>(
+                () => value.OnSimpleWriteValueAsync!(
+                    device.Context, value, Variant.From(42f), cancellation.Token).AsTask());
+            Task<AttributeWriteResult>? write = null;
+            try
+            {
+                await AwaitWithinAsync(entered.Task);
+                write = await AwaitWithinAsync(invocation);
+                Assert.That(write.IsCompleted, Is.False);
+                Assert.That(value.WrappedValue, Is.EqualTo(Variant.From(42f)),
+                    "The provider commit is reflected before notification sinks finish.");
+                cancellation.Cancel();
+                Assert.That(notificationToken.IsCancellationRequested, Is.False);
+                Assert.That(write.IsCompleted, Is.False);
+                release.TrySetResult(true);
+                AttributeWriteResult result = await AwaitWithinAsync(write);
+                Assert.That(result.Result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                write ??= await AwaitWithinAsync(invocation);
+                await AwaitWithinAsync(write);
+            }
+            authorizer.VerifyAll();
+            writer.VerifyAll();
+        }
+
+        /// <summary>
+        /// Awaits an asynchronous state-change sink after simulation configuration commits.
+        /// </summary>
+        [Test]
+        public async Task SimulationWriteAwaitsAsyncStateChangedSinkWithoutBlockingInvocation()
+        {
+            (PadimDevice device, BaseVariableState value) = await CreateAnalogAsync("AsyncSimulationSink");
+            var writer = new Mock<IPadimWriteProvider>(MockBehavior.Strict);
+            writer.Setup(p => p.WriteAsync(
+                "temperature/SimulationState", Variant.From(true), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(StatusCodes.Good);
+            var authorizer = new Mock<IPadimAuthorizer>(MockBehavior.Strict);
+            authorizer.Setup(p => p.AuthorizeAsync(
+                device.Context, It.IsAny<NodeId>(), "temperature/SimulationState", It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
+            PadimValueBinding binding = device.BindValue(
+                value, "temperature", new Mock<IPadimValueProvider>().Object);
+            binding.WithSimulation(Variant.From(99f), writer.Object, authorizer.Object);
+            var simulationState = ((AnalogSignalVariableState)value).SimulationState!;
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var cancellation = new CancellationTokenSource();
+            CancellationToken notificationToken = default;
+            value.OnStateChangedAsync = async (_, _, _, token) =>
+            {
+                notificationToken = token;
+                entered.TrySetResult(true);
+                using CancellationTokenRegistration registration = token.Register(
+                    static state =>
+                    {
+                        ((TaskCompletionSource<bool>)state!).TrySetCanceled();
+                    },
+                    release);
+                await release.Task.ConfigureAwait(false);
+            };
+            Task<Task<AttributeWriteResult>> invocation = Task.Run<Task<AttributeWriteResult>>(
+                () => simulationState.OnSimpleWriteValueAsync!(
+                    device.Context, simulationState, Variant.From(true), cancellation.Token).AsTask());
+            Task<AttributeWriteResult>? write = null;
+            try
+            {
+                await AwaitWithinAsync(entered.Task);
+                write = await AwaitWithinAsync(invocation);
+                Assert.That(write.IsCompleted, Is.False);
+                Assert.That(value.WrappedValue, Is.EqualTo(Variant.From(99f)));
+                cancellation.Cancel();
+                Assert.That(notificationToken.IsCancellationRequested, Is.False);
+                Assert.That(write.IsCompleted, Is.False);
+                release.TrySetResult(true);
+                AttributeWriteResult result = await AwaitWithinAsync(write);
+                Assert.That(result.Result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                write ??= await AwaitWithinAsync(invocation);
+                await AwaitWithinAsync(write);
+            }
+            authorizer.VerifyAll();
+            writer.VerifyAll();
+        }
+
+        /// <summary>
         /// Rejects an incompatible provider sample without replacing the prior measurement.
         /// </summary>
         [Test]
@@ -1008,6 +1535,25 @@ namespace Opc.Ua.PADIM.Tests
             SignalState state = await device.AddSignalAsync(
                 Name("Temperature"), PadimSignalKind.Analytical, "temperature");
             return (device, ((AnalyticalSignalState)state).AnalogSignal!);
+        }
+
+        /// <summary>
+        /// Awaits a test operation with a finite timeout.
+        /// </summary>
+        private static async Task AwaitWithinAsync(Task task)
+        {
+            Task completed = await Task.WhenAny(task, Task.Delay(TimeSpan.FromSeconds(10))).ConfigureAwait(false);
+            Assert.That(completed, Is.SameAs(task), "The asynchronous operation exceeded its test timeout.");
+            await task.ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Awaits a result-bearing test operation with a finite timeout.
+        /// </summary>
+        private static async Task<T> AwaitWithinAsync<T>(Task<T> task)
+        {
+            await AwaitWithinAsync((Task)task).ConfigureAwait(false);
+            return await task.ConfigureAwait(false);
         }
 
         /// <summary>The server lifetime shared by the nonparallel runtime fixture.</summary>

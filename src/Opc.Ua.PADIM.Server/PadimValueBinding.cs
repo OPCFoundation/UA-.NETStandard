@@ -244,8 +244,11 @@ namespace Opc.Ua.PADIM.Server
                             simulated.WrappedValue = value;
                         }
                         variable.Timestamp = m_device.TimeProvider.GetUtcNow().UtcDateTime;
-                        PublishReportedValue();
-                        Variable.ClearChangeMasks(m_device.Context, includeChildren: true);
+                        await PublishReportedValueAsync().ConfigureAwait(false);
+                        await Variable.ClearChangeMasksAsync(
+                            m_device.Context,
+                            includeChildren: true,
+                            cancellationToken: CancellationToken.None).ConfigureAwait(false);
                     }, ct).ConfigureAwait(false);
                     return new AttributeWriteResult(new ServiceResult(status)) { SuppressCacheUpdate = true };
                 };
@@ -281,7 +284,7 @@ namespace Opc.Ua.PADIM.Server
             return m_device.RunAsync(async ct =>
             {
                 DataValue sample = await m_provider.ReadAsync(Key, ct).ConfigureAwait(false);
-                Publish(sample);
+                await PublishAsync(sample).ConfigureAwait(false);
                 if (OnPublishedAsync != null)
                 {
                     await OnPublishedAsync(sample, ct).ConfigureAwait(false);
@@ -293,6 +296,29 @@ namespace Opc.Ua.PADIM.Server
         /// Validates and publishes a provider sample before altering the current value.
         /// </summary>
         internal void Publish(in DataValue sample)
+        {
+            UpdateActualValue(sample);
+            PublishReportedValue();
+            Variable.ClearChangeMasks(m_device.Context, includeChildren: true);
+        }
+
+        /// <summary>
+        /// Validates and publishes a provider sample while awaiting asynchronous state-change sinks.
+        /// </summary>
+        internal async ValueTask PublishAsync(DataValue sample)
+        {
+            UpdateActualValue(sample);
+            await PublishReportedValueAsync().ConfigureAwait(false);
+            await Variable.ClearChangeMasksAsync(
+                m_device.Context,
+                includeChildren: true,
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Validates an acquired sample and updates the unsimulated value.
+        /// </summary>
+        private void UpdateActualValue(in DataValue sample)
         {
             if (sample.IsNull ||
                 (sample.WrappedValue.IsNull && !StatusCode.IsBad(sample.StatusCode)) ||
@@ -320,8 +346,6 @@ namespace Opc.Ua.PADIM.Server
                 m_actualVariable.StatusCode = sample.StatusCode;
                 m_actualVariable.Timestamp = sample.SourceTimestamp;
             }
-            PublishReportedValue();
-            Variable.ClearChangeMasks(m_device.Context, includeChildren: true);
         }
 
         /// <summary>
@@ -329,15 +353,19 @@ namespace Opc.Ua.PADIM.Server
         /// </summary>
         private void PublishReportedValue()
         {
-            Variant value = m_simulating ? m_simulationValue : m_actual.WrappedValue;
-            StatusCode status = m_simulating ? StatusCodes.Good : m_actual.StatusCode;
-            DateTimeUtc timestamp = m_simulating
-                ? m_device.TimeProvider.GetUtcNow().UtcDateTime
-                : m_actual.SourceTimestamp;
+            UpdateReportedValue();
+            Variable.ClearChangeMasks(m_device.Context, includeChildren: false);
+        }
+
+        /// <summary>
+        /// Updates the reported value and its derived enumeration properties.
+        /// </summary>
+        private void UpdateReportedValue()
+        {
+            DataValue sample = ReportedSample();
             if (Variable is MultiStateValueDiscreteState enumeration)
             {
-                ServiceResult result = enumeration.UpdateEnumValue(
-                    m_device.Context, new DataValue(value, status, timestamp));
+                ServiceResult result = enumeration.UpdateEnumValue(m_device.Context, sample);
                 if (ServiceResult.IsBad(result))
                 {
                     throw new ServiceResultException(result);
@@ -345,11 +373,64 @@ namespace Opc.Ua.PADIM.Server
             }
             else
             {
-                Variable.WrappedValue = value;
-                Variable.StatusCode = status;
-                Variable.Timestamp = timestamp;
+                SetReportedValue(sample);
             }
-            Variable.ClearChangeMasks(m_device.Context, includeChildren: false);
+        }
+
+        /// <summary>
+        /// Updates the reported value and its derived enumeration properties asynchronously.
+        /// </summary>
+        private async ValueTask UpdateReportedValueAsync()
+        {
+            DataValue sample = ReportedSample();
+            if (Variable is MultiStateValueDiscreteState enumeration)
+            {
+                ServiceResult result = await enumeration.UpdateEnumValueAsync(
+                    m_device.Context, sample, CancellationToken.None).ConfigureAwait(false);
+                if (ServiceResult.IsBad(result))
+                {
+                    throw new ServiceResultException(result);
+                }
+            }
+            else
+            {
+                SetReportedValue(sample);
+            }
+        }
+
+        /// <summary>
+        /// Selects the acquired or simulated process value without changing the address space.
+        /// </summary>
+        private DataValue ReportedSample()
+        {
+            Variant value = m_simulating ? m_simulationValue : m_actual.WrappedValue;
+            StatusCode status = m_simulating ? StatusCodes.Good : m_actual.StatusCode;
+            DateTimeUtc timestamp = m_simulating
+                ? m_device.TimeProvider.GetUtcNow().UtcDateTime
+                : m_actual.SourceTimestamp;
+            return new DataValue(value, status, timestamp);
+        }
+
+        /// <summary>
+        /// Publishes a sample on a process variable without derived enumeration members.
+        /// </summary>
+        private void SetReportedValue(in DataValue sample)
+        {
+            Variable.WrappedValue = sample.WrappedValue;
+            Variable.StatusCode = sample.StatusCode;
+            Variable.Timestamp = sample.SourceTimestamp;
+        }
+
+        /// <summary>
+        /// Updates and asynchronously reports the currently selected process value.
+        /// </summary>
+        private async ValueTask PublishReportedValueAsync()
+        {
+            await UpdateReportedValueAsync().ConfigureAwait(false);
+            await Variable.ClearChangeMasksAsync(
+                m_device.Context,
+                includeChildren: false,
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -444,7 +525,7 @@ namespace Opc.Ua.PADIM.Server
                 if (StatusCode.IsGood(status))
                 {
                     var sample = new DataValue(value, status, m_device.TimeProvider.GetUtcNow().UtcDateTime);
-                    Publish(sample);
+                    await PublishAsync(sample).ConfigureAwait(false);
                 }
             }, cancellationToken).ConfigureAwait(false);
             return new AttributeWriteResult(new ServiceResult(status)) { SuppressCacheUpdate = true };

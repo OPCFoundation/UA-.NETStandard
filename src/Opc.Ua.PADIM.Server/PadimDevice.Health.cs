@@ -109,21 +109,24 @@ namespace Opc.Ua.PADIM.Server
                 alarm.Quality.Timestamp = sample.SourceTimestamp;
                 if (active && !alarm.ActiveState.Id.Value)
                 {
-                    alarm.SetAcknowledgedState(Context, false);
+                    await alarm.SetAcknowledgedStateAsync(Context, false, CancellationToken.None).ConfigureAwait(false);
                 }
                 if (activeChanged)
                 {
-                    alarm.SetActiveState(Context, active);
+                    await alarm.SetActiveStateAsync(Context, active, CancellationToken.None).ConfigureAwait(false);
                     alarm.ActiveState.TransitionTime?.Value = sample.SourceTimestamp;
                     alarm.ActiveState.Timestamp = sample.SourceTimestamp;
-                    alarm.SetSeverity(Context, active ? EventSeverity.High : EventSeverity.Low);
+                    await alarm.SetSeverityAsync(
+                        Context, active ? EventSeverity.High : EventSeverity.Low, CancellationToken.None)
+                        .ConfigureAwait(false);
                 }
                 if (alarm.EnabledState!.Id!.Value)
                 {
                     alarm.EventId!.Value = Uuid.NewUuid().ToByteString();
                     alarm.Time!.Value = sample.SourceTimestamp;
                     alarm.ReceiveTime!.Value = TimeProvider.GetUtcNow().UtcDateTime;
-                    alarm.ClearChangeMasks(Context, includeChildren: true);
+                    await alarm.ClearChangeMasksAsync(Context, includeChildren: true, CancellationToken.None)
+                        .ConfigureAwait(false);
                     var snapshot = new InstanceStateSnapshot();
                     snapshot.Initialize(Context, alarm);
                     await alarm.ReportEventAsync(Context, snapshot, cancellationToken).ConfigureAwait(false);
