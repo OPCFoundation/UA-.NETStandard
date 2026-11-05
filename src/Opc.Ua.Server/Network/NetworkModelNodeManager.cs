@@ -40,7 +40,7 @@ namespace Opc.Ua.Server.Network
     /// <summary>
     /// Projects provider snapshots into the standard Part 22 Resources model.
     /// </summary>
-    public sealed partial class NetworkModelNodeManager : AsyncCustomNodeManager
+    public sealed partial class NetworkModelNodeManager : AsyncCustomNodeManager, INodeManagerReadinessNotification
     {
         /// <summary>
         /// Namespace URI used for application-owned network instances.
@@ -72,7 +72,7 @@ namespace Opc.Ua.Server.Network
 
         /// <summary>
         /// Asynchronously creates and registers the dynamic model below the existing
-        /// namespace-zero Part 22 entry points, then starts consuming provider updates.
+        /// namespace-zero Part 22 entry points before runtime observation begins.
         /// </summary>
         public override async ValueTask CreateAddressSpaceAsync(
             IDictionary<NodeId, IList<IReference>> externalReferences,
@@ -94,9 +94,26 @@ namespace Opc.Ua.Server.Network
                 NetworkModelNodeManagerLog.ProviderReadFailed(m_networkLogger, exception);
                 await MarkUnavailableAsync(ProviderFailureStatus(exception), cancellationToken).ConfigureAwait(false);
             }
+        }
 
-            m_watchCancellation = new CancellationTokenSource();
-            m_watchTask = WatchProviderAsync(m_watchCancellation.Token);
+        /// <summary>
+        /// Starts observation only after startup references and server subsystems are published.
+        /// </summary>
+        public async ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)
+        {
+            await m_applyGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                if (m_watchCancellation is null)
+                {
+                    m_watchCancellation = new CancellationTokenSource();
+                    m_watchTask = WatchProviderAsync(m_watchCancellation.Token);
+                }
+            }
+            finally
+            {
+                m_applyGate.Release();
+            }
         }
 
         /// <inheritdoc/>
@@ -189,7 +206,7 @@ namespace Opc.Ua.Server.Network
                     {
                         if (node is BaseVariableState variable && variable.Parent is not MethodState)
                         {
-                            variable.StatusCode = failure;
+                            PublishValue(variable, variable.Value, failure, variable.Timestamp);
                         }
                     }
                     await entity.Root.ClearChangeMasksAsync(SystemContext, true, cancellationToken)
@@ -201,7 +218,7 @@ namespace Opc.Ua.Server.Network
                         .FindPredefinedNode<BaseVariableState>(id);
                     if (variable is not null)
                     {
-                        variable.StatusCode = failure;
+                        PublishValue(variable, variable.Value, failure, variable.Timestamp);
                         await variable.ClearChangeMasksAsync(SystemContext, false, cancellationToken)
                             .ConfigureAwait(false);
                     }
@@ -815,9 +832,8 @@ namespace Opc.Ua.Server.Network
                     .FindPredefinedNode<BaseVariableState>(s_lldpLocalVariableIds[index]) ??
                     throw new ServiceResultException(StatusCodes.BadConfigurationError,
                         "The standard LLDP local-system node is missing.");
-                variable.Value = values[index];
-                variable.Timestamp = snapshot.Timestamp;
-                variable.StatusCode = local is null ? StatusCodes.BadNotSupported : snapshot.StatusCode;
+                PublishValue(variable, values[index],
+                    local is null ? StatusCodes.BadNotSupported : snapshot.StatusCode, snapshot.Timestamp);
                 await variable.ClearChangeMasksAsync(SystemContext, false, cancellationToken).ConfigureAwait(false);
             }
         }
@@ -1016,9 +1032,7 @@ namespace Opc.Ua.Server.Network
             variable.ArrayDimensions = dimensions is null ? default : ArrayOf.Wrapped(dimensions);
             variable.AccessLevel = AccessLevels.CurrentRead;
             variable.UserAccessLevel = AccessLevels.CurrentRead;
-            variable.Value = value;
-            variable.StatusCode = snapshot.StatusCode;
-            variable.Timestamp = snapshot.Timestamp;
+            PublishValue(variable, value, snapshot.StatusCode, snapshot.Timestamp);
             if (generated is null)
             {
                 parent.AddChild(variable);
@@ -1172,11 +1186,31 @@ namespace Opc.Ua.Server.Network
                     }
                     continue;
                 }
-                targetVariable.Value = sourceVariable.Value;
                 targetVariable.ArrayDimensions = sourceVariable.ArrayDimensions;
-                targetVariable.StatusCode = sourceVariable.StatusCode;
-                targetVariable.Timestamp = sourceVariable.Timestamp;
+                PublishValue(targetVariable, sourceVariable.Value, sourceVariable.StatusCode, sourceVariable.Timestamp);
             }
+        }
+
+        /// <summary>
+        /// Publishes a correlated value, quality and timestamp for service reads and monitored-item sampling.
+        /// </summary>
+        private static void PublishValue(
+            BaseVariableState variable, Variant value, StatusCode statusCode, DateTimeUtc timestamp)
+        {
+            var acquisition = new Acquisition(value, statusCode, timestamp);
+            if (variable.OnReadValue?.Target is PublishedValue published)
+            {
+                published.Update(acquisition);
+            }
+            else
+            {
+                published = new PublishedValue(acquisition);
+                variable.OnReadValue = published.Read;
+            }
+
+            variable.Value = value;
+            variable.StatusCode = statusCode;
+            variable.Timestamp = timestamp;
         }
 
         /// <summary>
@@ -1359,6 +1393,54 @@ namespace Opc.Ua.Server.Network
         /// Acquisition timestamp of the most recently applied provider revision.
         /// </summary>
         private DateTime m_timestamp = DateTime.MinValue;
+
+        /// <summary>
+        /// Correlated fields from a single provider acquisition.
+        /// </summary>
+        private sealed record Acquisition(Variant Value, StatusCode StatusCode, DateTimeUtc Timestamp);
+
+        /// <summary>
+        /// Supplies a single immutable acquisition to each value read, independently of cached attribute setters.
+        /// </summary>
+        private sealed class PublishedValue(Acquisition acquisition)
+        {
+            /// <summary>
+            /// Replaces all correlated fields together.
+            /// </summary>
+            public void Update(Acquisition value)
+            {
+                Volatile.Write(ref m_acquisition, value);
+            }
+
+            /// <summary>
+            /// Reads one acquisition and applies the requested index range and encoding.
+            /// </summary>
+            public ServiceResult Read(
+                ISystemContext context,
+                NodeState node,
+                NumericRange indexRange,
+                QualifiedName dataEncoding,
+                ref Variant value,
+                ref StatusCode statusCode,
+                ref DateTimeUtc timestamp)
+            {
+                Acquisition current = Volatile.Read(ref m_acquisition);
+                value = current.Value;
+                statusCode = current.StatusCode;
+                timestamp = current.Timestamp;
+                ServiceResult result = BaseVariableState.ApplyIndexRangeAndDataEncoding(
+                    context, indexRange, dataEncoding, ref value);
+                if (ServiceResult.IsGood(result) && node is BaseVariableState variable &&
+                    variable.CopyPolicy is VariableCopyPolicy.CopyOnRead or VariableCopyPolicy.Always)
+                {
+                    value = CoreUtils.Clone(value);
+                }
+                return result;
+            }
+
+            /// <summary>Latest complete acquisition, replaced by reference.</summary>
+            private Acquisition m_acquisition = acquisition;
+        }
 
         /// <summary>
         /// Entity root and the standard entry point that organizes it.

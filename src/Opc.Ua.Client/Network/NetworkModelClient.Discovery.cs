@@ -88,7 +88,7 @@ namespace Opc.Ua.Client.Network
         }
 
         /// <summary>
-        /// Resolves priority-table inheritance one layer at a time. A directly assigned table stops
+        /// Resolves priority-table inheritance through lower layers, reusing completed subgraphs. A direct table stops
         /// fallback on that branch. Aggregated interfaces may resolve multiple distinct tables;
         /// missing targets, cycles and multiple direct tables are reported, not selected arbitrarily.
         /// </summary>
@@ -97,22 +97,38 @@ namespace Opc.Ua.Client.Network
             CancellationToken cancellationToken = default)
         {
             ValidateNodeId(interfaceId);
-            var pending = new Queue<(NodeId Id, HashSet<NodeId> Ancestors)>();
-            pending.Enqueue((interfaceId, []));
-            var result = new HashSet<NodeId>();
-            int examined = 0;
+            var pending = new Stack<(NodeId Id, ArrayOf<NodeId> Lower, bool Complete)>();
+            pending.Push((interfaceId, [], false));
+            var active = new HashSet<NodeId>();
+            var resolved = new Dictionary<NodeId, HashSet<NodeId>>();
             while (pending.Count != 0)
             {
-                if (++examined > 4096)
+                cancellationToken.ThrowIfCancellationRequested();
+                (NodeId current, ArrayOf<NodeId> lowerIds, bool complete) = pending.Pop();
+                if (complete)
                 {
-                    throw new ServiceResultException(StatusCodes.BadTooManyOperations,
-                        "The lower-layer interface graph exceeds the client traversal limit.");
+                    var inherited = new HashSet<NodeId>();
+                    for (int index = 0; index < lowerIds.Count; index++)
+                    {
+                        inherited.UnionWith(resolved[lowerIds[index]]);
+                    }
+                    resolved.Add(current, inherited);
+                    active.Remove(current);
+                    continue;
                 }
-                (NodeId current, HashSet<NodeId> ancestors) = pending.Dequeue();
-                if (!ancestors.Add(current))
+                if (resolved.ContainsKey(current))
+                {
+                    continue;
+                }
+                if (!active.Add(current))
                 {
                     throw new ServiceResultException(StatusCodes.BadInvalidState,
                         "The lower-layer interface graph contains a cycle.");
+                }
+                if (resolved.Count + active.Count > 4096)
+                {
+                    throw new ServiceResultException(StatusCodes.BadTooManyOperations,
+                        "The lower-layer interface graph exceeds the client traversal limit.");
                 }
                 ArrayOf<ReferenceDescription> tables = await BrowseAsync(
                     current, ReferenceTypeIds.UsesPriorityMappingTable,
@@ -139,20 +155,28 @@ namespace Opc.Ua.Client.Network
                             "A referenced mapping table must have one type definition derived from " +
                             "PriorityMappingTableType.");
                     }
-                    result.Add(table);
+                    resolved.Add(current, [table]);
+                    active.Remove(current);
                     continue;
                 }
                 ArrayOf<ReferenceDescription> lower = await BrowseAsync(
                     current, ReferenceTypeIds.HasLowerLayerInterface,
                     BrowseDirection.Forward, NodeClass.Object, cancellationToken).ConfigureAwait(false);
-                for (int index = 0; index < lower.Count; index++)
+                var ids = new NodeId[lower.Count];
+                for (int index = 0; index < ids.Length; index++)
                 {
-                    pending.Enqueue((LocalNodeId(lower[index].NodeId), new HashSet<NodeId>(ancestors)));
+                    ids[index] = LocalNodeId(lower[index].NodeId);
+                }
+                pending.Push((current, ArrayOf.Wrapped(ids), true));
+                for (int index = ids.Length - 1; index >= 0; index--)
+                {
+                    pending.Push((ids[index], [], false));
                 }
             }
-            var ids = new NodeId[result.Count];
-            result.CopyTo(ids);
-            return ArrayOf.Wrapped(ids);
+            HashSet<NodeId> result = resolved[interfaceId];
+            var tablesFound = new NodeId[result.Count];
+            result.CopyTo(tablesFound);
+            return ArrayOf.Wrapped(tablesFound);
         }
 
         /// <summary>
@@ -307,7 +331,7 @@ namespace Opc.Ua.Client.Network
         }
 
         /// <summary>
-        /// Checks an object's actual HasInterface references.
+        /// Checks an object's actual HasInterface references, including vendor interface subtypes.
         /// </summary>
         private async ValueTask<bool> ImplementsAsync(
             NodeId id,
@@ -319,7 +343,9 @@ namespace Opc.Ua.Client.Network
                 NodeClass.ObjectType, cancellationToken).ConfigureAwait(false);
             for (int index = 0; index < interfaces.Count; index++)
             {
-                if (LocalNodeId(interfaces[index].NodeId) == expectedInterface)
+                if (await MatchesTypeAsync(
+                    LocalNodeId(interfaces[index].NodeId), expectedInterface, NodeId.Null, cancellationToken)
+                    .ConfigureAwait(false))
                 {
                     return true;
                 }

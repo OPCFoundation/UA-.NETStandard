@@ -133,6 +133,63 @@ namespace Opc.Ua.Client.Tests.Network
         }
 
         /// <summary>
+        /// Recognizes vendor interface ancestry declared on an instance or its concrete type's ancestor.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DiscoveryMatchesVendorInterfaceSubtypeOnInstanceOrTypeAncestorAsync(bool onTypeAncestor)
+        {
+            NodeId concreteType = new("VendorConcreteType", 2);
+            NodeId parentType = new("VendorParentType", 2);
+            NodeId vendorInterface = new("VendorInterface", 2);
+            NodeId parentInterface = new("VendorParentInterface", 2);
+            NodeId unrelated = new("UnrelatedInstance", 2);
+            NodeId unrelatedInterface = new("UnrelatedInterface", 2);
+            NodeId unrelatedParent = new("UnrelatedParentInterface", 2);
+            SetBrowse(ObjectIds.NetworkInterfaces, ReferenceTypeIds.HierarchicalReferences,
+                Reference(s_interface), Reference(unrelated));
+            if (onTypeAncestor)
+            {
+                SetBrowse(s_interface, ReferenceTypeIds.HasTypeDefinition, Reference(concreteType));
+                SetBrowse(concreteType, ReferenceTypeIds.HasSubtype, BrowseDirection.Inverse, Reference(parentType));
+            }
+            SetBrowse(onTypeAncestor ? parentType : s_interface, ReferenceTypeIds.HasInterface,
+                Reference(vendorInterface));
+            SetBrowse(vendorInterface, ReferenceTypeIds.HasSubtype, BrowseDirection.Inverse,
+                Reference(parentInterface));
+            SetBrowse(parentInterface, ReferenceTypeIds.HasSubtype, BrowseDirection.Inverse,
+                Reference(ObjectTypeIds.IIetfBaseNetworkInterfaceType));
+            SetBrowse(unrelated, ReferenceTypeIds.HasInterface, Reference(unrelatedInterface));
+            SetBrowse(unrelatedInterface, ReferenceTypeIds.HasSubtype, BrowseDirection.Inverse,
+                Reference(unrelatedParent));
+            SetBrowse(unrelatedParent, ReferenceTypeIds.HasSubtype, BrowseDirection.Inverse,
+                Reference(unrelatedInterface));
+
+            ArrayOf<NodeId> actual = await m_client.DiscoverInterfacesAsync().ConfigureAwait(false);
+
+            Assert.That(actual.ToArray(), Is.EqualTo(new[] { s_interface }));
+        }
+
+        /// <summary>
+        /// Discovers talkers and listeners implementing a vendor subtype of the TSN stream interface.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task StreamDiscoveryMatchesVendorInterfaceSubtypeAsync(bool talkers)
+        {
+            NodeId vendorInterface = new("VendorStreamInterface", 2);
+            SetBrowse(talkers ? ObjectIds.TalkerStreams : ObjectIds.ListenerStreams,
+                ReferenceTypeIds.HierarchicalReferences, Reference(s_interface));
+            SetBrowse(s_interface, ReferenceTypeIds.HasInterface, Reference(vendorInterface));
+            SetBrowse(vendorInterface, ReferenceTypeIds.HasSubtype, BrowseDirection.Inverse,
+                Reference(ObjectTypeIds.IIeeeBaseTsnStreamType));
+
+            ArrayOf<NodeId> actual = await m_client.DiscoverStreamsAsync(talkers).ConfigureAwait(false);
+
+            Assert.That(actual.ToArray(), Is.EqualTo(new[] { s_interface }));
+        }
+
+        /// <summary>
         /// Returns empty discovery results without issuing an empty Read request.
         /// </summary>
         [Test]
@@ -182,6 +239,93 @@ namespace Opc.Ua.Client.Tests.Network
 
             Assert.That((await m_client.GetEffectiveMappingTablesAsync(s_interface).ConfigureAwait(false))
                 .ToArray(), Is.EqualTo(new[] { s_table }));
+        }
+
+        /// <summary>
+        /// Resolves shared lower-layer subgraphs once, including empty resolutions and direct-table barriers.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SharedLowerLayerSubgraphsAreResolvedOnceAsync(bool hasTables)
+        {
+            const int layerCount = 13;
+            var layers = new NodeId[layerCount][];
+            for (int layer = 0; layer < layerCount; layer++)
+            {
+                layers[layer] = [new NodeId($"left{layer}", 2), new NodeId($"right{layer}", 2)];
+            }
+            SetBrowse(s_interface, ReferenceTypeIds.HasLowerLayerInterface,
+                Reference(layers[0][0]), Reference(layers[0][1]));
+            for (int layer = 0; layer < layerCount - 1; layer++)
+            {
+                foreach (NodeId id in layers[layer])
+                {
+                    SetBrowse(id, ReferenceTypeIds.HasLowerLayerInterface,
+                        Reference(layers[layer + 1][0]), Reference(layers[layer + 1][1]));
+                }
+            }
+            NodeId otherTable = new("otherMapping", 2);
+            if (hasTables)
+            {
+                SetBrowse(layers[^1][0], ReferenceTypeIds.UsesPriorityMappingTable, Reference(s_table));
+                SetBrowse(layers[^1][1], ReferenceTypeIds.UsesPriorityMappingTable, Reference(otherTable));
+                SetBrowse(s_table, ReferenceTypeIds.HasTypeDefinition,
+                    Reference(ObjectTypeIds.PriorityMappingTableType));
+                SetBrowse(otherTable, ReferenceTypeIds.HasTypeDefinition,
+                    Reference(ObjectTypeIds.PriorityMappingTableType));
+                foreach (NodeId id in layers[^1])
+                {
+                    SetBrowse(id, ReferenceTypeIds.HasLowerLayerInterface, Reference(s_interface));
+                }
+            }
+
+            ArrayOf<NodeId> actual = await m_client.GetEffectiveMappingTablesAsync(s_interface).ConfigureAwait(false);
+
+            Assert.That(actual.ToArray(), Is.EquivalentTo(hasTables ? new[] { s_table, otherTable } : []));
+            for (int layer = 0; layer < layerCount; layer++)
+            {
+                foreach (NodeId id in layers[layer])
+                {
+                    m_session.Verify(session => session.BrowseAsync(
+                        It.IsAny<RequestHeader>(), It.IsAny<ViewDescription>(), It.IsAny<uint>(),
+                        It.Is<ArrayOf<BrowseDescription>>(requests =>
+                            requests[0].NodeId == id &&
+                            requests[0].ReferenceTypeId == ReferenceTypeIds.UsesPriorityMappingTable),
+                        It.IsAny<CancellationToken>()), Times.Once);
+                    m_session.Verify(session => session.BrowseAsync(
+                        It.IsAny<RequestHeader>(), It.IsAny<ViewDescription>(), It.IsAny<uint>(),
+                        It.Is<ArrayOf<BrowseDescription>>(requests =>
+                            requests[0].NodeId == id &&
+                            requests[0].ReferenceTypeId == ReferenceTypeIds.HasLowerLayerInterface),
+                        It.IsAny<CancellationToken>()),
+                        hasTables && layer == layerCount - 1 ? Times.Never() : Times.Once());
+                }
+            }
+        }
+
+        /// <summary>
+        /// Does not mistake a completed shared branch for permission to revisit an active ancestor.
+        /// </summary>
+        [Test]
+        public async Task SharedLowerLayerDoesNotHideActivePathCycleAsync()
+        {
+            NodeId first = new("first", 2);
+            NodeId second = new("second", 2);
+            NodeId shared = new("shared", 2);
+            SetBrowse(s_interface, ReferenceTypeIds.HasLowerLayerInterface, Reference(first), Reference(second));
+            SetBrowse(first, ReferenceTypeIds.HasLowerLayerInterface, Reference(shared));
+            SetBrowse(second, ReferenceTypeIds.HasLowerLayerInterface, Reference(shared), Reference(s_interface));
+
+            await Assert.ThatAsync(
+                async () => await m_client.GetEffectiveMappingTablesAsync(s_interface).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadInvalidState)).ConfigureAwait(false);
+            m_session.Verify(session => session.BrowseAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ViewDescription>(), It.IsAny<uint>(),
+                It.Is<ArrayOf<BrowseDescription>>(requests =>
+                    requests[0].NodeId == shared &&
+                    requests[0].ReferenceTypeId == ReferenceTypeIds.UsesPriorityMappingTable),
+                It.IsAny<CancellationToken>()), Times.Once);
         }
 
         /// <summary>

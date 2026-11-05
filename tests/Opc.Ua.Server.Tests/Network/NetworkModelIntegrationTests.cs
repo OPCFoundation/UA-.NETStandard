@@ -111,6 +111,192 @@ namespace Opc.Ua.Server.Tests.Network
         }
 
         /// <summary>
+        /// Starts observation after reference installation, even when the first watch removes the initial interfaces.
+        /// </summary>
+        [Test]
+        [CancelAfter(60_000)]
+        public async Task InitialWatchRemovalCannotReinstallStartupReferences(CancellationToken cancellationToken)
+        {
+            string pkiRoot = Path.Combine(
+                Path.GetTempPath(), "OpcUaNetworkTests", Guid.NewGuid().ToString("N")[..8]);
+            ReferenceNetworkModelProvider provider = NetworkScenario.Create();
+            var delivered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var boundary = new FaultInjectingProvider(provider)
+            {
+                WatchTransform = snapshot => snapshot with
+                {
+                    Revision = snapshot.Revision + 1,
+                    Timestamp = snapshot.Timestamp.AddSeconds(1),
+                    Interfaces = [],
+                    Streams = [],
+                    Lldp = null
+                },
+                AfterDelivery = _ => delivered.TrySetResult(true)
+            };
+            bool watchedDuringCreation = false;
+            var pendingReferences = new Dictionary<NodeId, ExpandedNodeId[]>();
+            NodeId[] parents =
+            [
+                ObjectIds.NetworkInterfaces,
+                ObjectTypeIds.IIetfBaseNetworkInterfaceType,
+                ObjectTypeIds.IIeeeBaseEthernetPortType
+            ];
+            var server = new ServerFixture<StandardServer>(telemetry =>
+            {
+                var standardServer = new StandardServer(telemetry);
+                standardServer.AddNodeManager(new NetworkModelNodeManagerFactory(boundary, _ => false));
+                standardServer.AddNodeManager(new StartupProbeFactory(references =>
+                {
+                    watchedDuringCreation = boundary.WatchCount != 0;
+                    foreach (NodeId parent in parents)
+                    {
+                        pendingReferences[parent] = references.TryGetValue(parent, out IList<IReference>? entries)
+                            ? entries.Select(reference => reference.TargetId).ToArray()
+                            : [];
+                    }
+                }));
+                return standardServer;
+            })
+            {
+                SecurityNone = true,
+                AutoAccept = true
+            };
+            ClientFixture? clientFixture = null;
+            Client.ISession? session = null;
+            try
+            {
+                await server.LoadConfigurationAsync(pkiRoot).ConfigureAwait(false);
+                await server.StartAsync(pkiRoot).ConfigureAwait(false);
+                await delivered.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                Assert.That(watchedDuringCreation, Is.False);
+                Assert.That(pendingReferences[ObjectIds.NetworkInterfaces], Has.Length.EqualTo(2));
+                Assert.That(pendingReferences[ObjectTypeIds.IIetfBaseNetworkInterfaceType], Is.Not.Empty);
+                Assert.That(pendingReferences[ObjectTypeIds.IIeeeBaseEthernetPortType], Is.Not.Empty);
+                clientFixture = new ClientFixture(NUnitTelemetryContext.Create());
+                await clientFixture.LoadClientConfigurationAsync(pkiRoot).ConfigureAwait(false);
+                ConfiguredEndpoint endpoint = await clientFixture.GetEndpointAsync(
+                    new Uri("opc.tcp://localhost:" + server.Port.ToString(CultureInfo.InvariantCulture)),
+                    SecurityPolicies.None).ConfigureAwait(false);
+                session = await clientFixture.ConnectAsync(endpoint).ConfigureAwait(false);
+                foreach ((NodeId parent, ExpandedNodeId[] removed) in pendingReferences)
+                {
+                    BrowseResponse remaining = await session.BrowseAsync(null, null, 0,
+                        [
+                            new BrowseDescription
+                            {
+                                NodeId = parent,
+                                ReferenceTypeId = ReferenceTypeIds.References,
+                                BrowseDirection = BrowseDirection.Both,
+                                IncludeSubtypes = true,
+                                ResultMask = (uint)BrowseResultMask.All
+                            }
+                        ], cancellationToken).ConfigureAwait(false);
+                    Assert.That(remaining.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(remaining.Results[0].ContinuationPoint.IsEmpty, Is.True);
+                    Assert.That(remaining.Results[0].References.ToList()
+                        .Select(reference => reference.NodeId).Intersect(removed), Is.Empty);
+                }
+                NetworkModelNodeManager manager = server.Server.CurrentInstance.NodeManager.AsyncNodeManagers
+                    .OfType<NetworkModelNodeManager>().Single();
+                await manager.OnServerReadyAsync(cancellationToken).ConfigureAwait(false);
+                Assert.That(boundary.WatchCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                if (session is not null)
+                {
+                    await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                    await session.DisposeAsync().ConfigureAwait(false);
+                }
+                if (clientFixture is not null)
+                {
+                    await clientFixture.DisposeAsync().ConfigureAwait(false);
+                }
+                await server.StopAsync().ConfigureAwait(false);
+                if (Directory.Exists(pkiRoot))
+                {
+                    Directory.Delete(pkiRoot, recursive: true);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Reads and sampling use the complete acquisition even while the separate attribute cache is inconsistent.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [CancelAfter(60_000)]
+        public async Task ReadsAndSamplingUseCoherentAcquisitionInsteadOfAttributeCache(
+            bool lldp, CancellationToken cancellationToken)
+        {
+            NetworkModelSnapshot snapshot = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            NetworkParameterValue parameter = lldp
+                ? Parameter(await m_client.ReadParametersAsync(ObjectIds.LLDP_LocalSystemData, cancellationToken)
+                    .ConfigureAwait(false), BrowseNames.SystemName)
+                : (await m_client.ReadInterfaceAsync(
+                    await FindInterfaceAsync("eth0", cancellationToken).ConfigureAwait(false), cancellationToken)
+                    .ConfigureAwait(false)).Speed;
+            BaseVariableState variable = lldp
+                ? m_server.Server.CurrentInstance.NodeManager.DiagnosticsNodeManager!
+                    .FindPredefinedNode<BaseVariableState>(parameter.NodeId)
+                : m_server.Server.CurrentInstance.NodeManager.AsyncNodeManagers
+                    .OfType<NetworkModelNodeManager>().Single()
+                    .FindPredefinedNode<BaseVariableState>(parameter.NodeId);
+
+            var delivered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            DateTime timestamp = snapshot.Timestamp.AddSeconds(1);
+            Variant expected = lldp ? new Variant("updated-host") : new Variant(100_000_000UL);
+            m_providerBoundary.AfterDelivery = current =>
+            {
+                if (current.Timestamp == timestamp)
+                {
+                    delivered.TrySetResult(true);
+                }
+            };
+            m_provider.Publish(snapshot with
+            {
+                Timestamp = timestamp,
+                StatusCode = StatusCodes.UncertainDataSubNormal,
+                Interfaces = ArrayOf.Wrapped(snapshot.Interfaces.ToList()
+                    .Select(networkInterface => networkInterface with { Speed = 100_000_000 }).ToArray()),
+                Lldp = snapshot.Lldp! with { SystemName = "updated-host" }
+            });
+            await delivered.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+
+            variable.Value = lldp ? new Variant("partial-cache") : new Variant(10_000_000UL);
+            variable.StatusCode = StatusCodes.Good;
+            variable.Timestamp = snapshot.Timestamp;
+            ReadResponse read = await m_session.ReadAsync(null, 0, TimestampsToReturn.Both,
+                [new ReadValueId { NodeId = parameter.NodeId, AttributeId = Attributes.Value }],
+                cancellationToken).ConfigureAwait(false);
+            Assert.That(read.Results[0].WrappedValue, Is.EqualTo(expected));
+            Assert.That(read.Results[0].StatusCode, Is.EqualTo(StatusCodes.UncertainDataSubNormal));
+            Assert.That(read.Results[0].SourceTimestamp, Is.EqualTo((DateTimeUtc)timestamp));
+
+            CreateSubscriptionResponse subscription = await m_session.CreateSubscriptionAsync(
+                null!, 20, 3000, 10, 0, true, 0, cancellationToken).ConfigureAwait(false);
+            CreateMonitoredItemsResponse created = await m_session.CreateMonitoredItemsAsync(
+                null!, subscription.SubscriptionId, TimestampsToReturn.Both,
+                [
+                    new MonitoredItemCreateRequest
+                    {
+                        ItemToMonitor = new ReadValueId { NodeId = parameter.NodeId, AttributeId = Attributes.Value },
+                        MonitoringMode = MonitoringMode.Reporting,
+                        RequestedParameters = new MonitoringParameters
+                        {
+                            ClientHandle = 1, SamplingInterval = 0, QueueSize = 10, DiscardOldest = true
+                        }
+                    }
+                ], cancellationToken).ConfigureAwait(false);
+            Assert.That(created.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            DataValue sampled = await PublishAsync(subscription.SubscriptionId, cancellationToken)
+                .ConfigureAwait(false);
+            Assert.That(sampled.WrappedValue, Is.EqualTo(expected));
+            Assert.That(sampled.StatusCode, Is.EqualTo(StatusCodes.UncertainDataSubNormal));
+            Assert.That(sampled.SourceTimestamp, Is.EqualTo((DateTimeUtc)timestamp));
+        }
+
+        /// <summary>
         /// Discovers the standard entry points and inherited mappings with wire-level values.
         /// </summary>
         [Test]
@@ -3511,10 +3697,53 @@ namespace Opc.Ua.Server.Tests.Network
         private FaultInjectingProvider m_providerBoundary = null!;
 
         /// <summary>
+        /// Observes address-space preparation after the network manager has staged its external references.
+        /// </summary>
+        private sealed class StartupProbeFactory(
+            Action<IDictionary<NodeId, IList<IReference>>> inspect) : IAsyncNodeManagerFactory
+        {
+            /// <inheritdoc/>
+            public ArrayOf<string> NamespacesUris => ["urn:network:startup-probe"];
+
+            /// <inheritdoc/>
+            public ValueTask<IAsyncNodeManager> CreateAsync(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                CancellationToken cancellationToken = default)
+            {
+                return new ValueTask<IAsyncNodeManager>(new StartupProbeNodeManager(server, configuration, inspect));
+            }
+        }
+
+        /// <summary>
+        /// Inspects the shared reference graph before startup installs it.
+        /// </summary>
+        private sealed class StartupProbeNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            Action<IDictionary<NodeId, IList<IReference>>> inspect)
+            : AsyncCustomNodeManager(server, configuration, "urn:network:startup-probe")
+        {
+            /// <inheritdoc/>
+            public override async ValueTask CreateAddressSpaceAsync(
+                IDictionary<NodeId, IList<IReference>> externalReferences,
+                CancellationToken cancellationToken = default)
+            {
+                await base.CreateAddressSpaceAsync(externalReferences, cancellationToken).ConfigureAwait(false);
+                inspect(externalReferences);
+            }
+        }
+
+        /// <summary>
         /// Injects acquisition faults without changing production provider behavior.
         /// </summary>
         private sealed class FaultInjectingProvider(INetworkModelProvider inner) : INetworkModelProvider
         {
+            /// <summary>
+            /// Counts observation starts, including attempts made before runtime readiness.
+            /// </summary>
+            public int WatchCount => Volatile.Read(ref m_watchCount);
+
             /// <summary>
             /// Ends the sequence normally rather than throwing when observation is interrupted.
             /// </summary>
@@ -3590,6 +3819,7 @@ namespace Opc.Ua.Server.Tests.Network
             public async IAsyncEnumerable<NetworkModelSnapshot> WatchAsync(
                 [EnumeratorCancellation] CancellationToken cancellationToken = default)
             {
+                Interlocked.Increment(ref m_watchCount);
                 TaskCompletionSource<bool>? watchRelease = WatchRelease;
                 if (watchRelease is not null)
                 {
@@ -3644,6 +3874,9 @@ namespace Opc.Ua.Server.Tests.Network
 
             /// <summary>Whether observation ends normally when interrupted.</summary>
             private bool m_completeWatch;
+
+            /// <summary>Number of provider watch enumerations started.</summary>
+            private int m_watchCount;
         }
     }
 }
