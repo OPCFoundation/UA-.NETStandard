@@ -70,6 +70,11 @@ namespace Opc.Ua.Aot.Tests
                         ILadsDevice device = await provider.GetRequiredService<ILadsDeviceRegistry>()
                             .WaitForDeviceAsync(kDevice, cancellationToken).ConfigureAwait(false);
                         ILadsFunctionalUnit unit = device.GetFunctionalUnit(kUnit);
+                        IAnalogControlFunction flow = unit.GetFunction<IAnalogControlFunction>("Flow");
+                        await flow.ResetTotalizerAsync(12.5, cancellationToken).ConfigureAwait(false);
+                        await Assert.That(flow.TotalizedValue).IsEqualTo(12.5);
+                        await flow.ResetTotalizerAsync(cancellationToken).ConfigureAwait(false);
+                        await Assert.That(flow.TotalizedValue).IsEqualTo(0.0);
                         ILadsProgramManager programs = unit.Programs ??
                             throw new InvalidOperationException("The configured LADS program manager is missing.");
                         ILadsRunningOperations running = unit.RunningOperations ??
@@ -197,7 +202,10 @@ namespace Opc.Ua.Aot.Tests
             }).AddLads(options => options.Store = store)
                 .ConfigureLads(context => context.AddDevice(kDevice, device => device
                     .MaintenanceTask(kMaintenance)
-                    .FunctionalUnit(kUnit, unit => unit.RunningOperations().Programs())));
+                    .FunctionalUnit(kUnit, unit => unit
+                        .AnalogControl("Flow", options => options.Kind = LadsAnalogControlKind.Totalizer)
+                        .RunningOperations()
+                        .Programs())));
             return services.BuildServiceProvider();
         }
 

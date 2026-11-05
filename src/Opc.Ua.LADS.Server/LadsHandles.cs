@@ -591,6 +591,14 @@ namespace Opc.Ua.LADS.Server
         ValueTask ResetTotalizerAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Resets the totalized value to the supplied value without changing the current reading.
+        /// </summary>
+        /// <param name="value">The finite totalized value.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>A task that completes after provider acceptance and publication.</returns>
+        ValueTask ResetTotalizerAsync(double value, CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Writes a part of the target value of a <see cref="LadsAnalogControlKind.Composed"/> function.
         /// </summary>
         /// <param name="name">The name of the composed target value.</param>

@@ -230,6 +230,12 @@ namespace Opc.Ua.LADS.Tests.Integration
             Assert.That(target, Is.EqualTo(42));
             await temperature.StopAsync().ConfigureAwait(false);
             Assert.That(serverTemperature.State, Is.EqualTo(LadsFunctionalStateValue.Stopped));
+            await temperature.StartAsync().ConfigureAwait(false);
+            await temperature.AbortAsync().ConfigureAwait(false);
+            Assert.That(serverTemperature.State, Is.EqualTo(LadsFunctionalStateValue.Aborted));
+            await temperature.ClearAsync().ConfigureAwait(false);
+            Assert.That(serverTemperature.State, Is.EqualTo(LadsFunctionalStateValue.Stopped));
+            Assert.That((await temperature.ReadAsync().ConfigureAwait(false)).State, Is.EqualTo("Stopped"));
 
             LadsFunction door = await unit.GetFunctionAsync("Door").ConfigureAwait(false);
             Assert.That(serverDoor.State, Is.EqualTo(LadsCoverStateValue.Closed));
@@ -245,6 +251,37 @@ namespace Opc.Ua.LADS.Tests.Integration
             Assert.That(serverDoor.State, Is.EqualTo(LadsCoverStateValue.Closed));
             await door.OpenAsync().ConfigureAwait(false);
             Assert.That(serverDoor.State, Is.EqualTo(LadsCoverStateValue.Opened));
+        }
+
+        /// <summary>
+        /// The generated method proxy transports a nonzero reset value to the runtime and totalized node.
+        /// </summary>
+        [Test]
+        public async Task ClientResetTotalizerAppliesWireArgumentAsync()
+        {
+            await using LadsClientConnection connection = await LadsClientConnection.StartAsync(
+                nameof(ClientResetTotalizerAppliesWireArgumentAsync),
+                builder => builder.AddLads().ConfigureLads(context => LadsIncubator.Configure(
+                    context,
+                    LadsIncubator.DeviceName,
+                    device => device.FunctionalUnit("Aux", unit => unit
+                        .AnalogControl("Flow", options => options.Kind = LadsAnalogControlKind.Totalizer)))))
+                .ConfigureAwait(false);
+            ILadsDevice serverDevice = await connection.Server.DeviceAsync().ConfigureAwait(false);
+            IAnalogControlFunction serverFunction = serverDevice.GetFunctionalUnit("Aux")
+                .GetFunction<IAnalogControlFunction>("Flow");
+            LadsDevice device = await connection.Client.GetDeviceAsync(LadsIncubator.DeviceName).ConfigureAwait(false);
+            LadsFunctionalUnit unit = await device.GetFunctionalUnitAsync("Aux").ConfigureAwait(false);
+            LadsFunction flow = await unit.GetFunctionAsync("Flow").ConfigureAwait(false);
+
+            await flow.ResetTotalizerAsync(12.5).ConfigureAwait(false);
+
+            Assert.That(serverFunction.TotalizedValue, Is.EqualTo(12.5));
+            NodeId total = await connection.Server.ChildAsync(serverFunction.NodeId, "TotalizedValue")
+                .ConfigureAwait(false);
+            DataValue read = await connection.Server.ReadAsync(total).ConfigureAwait(false);
+            Assert.That(read.WrappedValue.TryGetValue(out double value), Is.True);
+            Assert.That(value, Is.EqualTo(12.5));
         }
 
         [Test]

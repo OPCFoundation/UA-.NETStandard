@@ -1029,7 +1029,10 @@ namespace Opc.Ua.LADS.Server
                     totalizer.AddResetTotalizer(context);
                     ConfigureAnalog(totalizer.TotalizedValue, options.EngineeringUnits, null);
                     Runtime.Update(totalizer.TotalizedValue, Variant.From(0.0));
-                    Runtime.Bind(totalizer.ResetTotalizer, (_, ct) => ResetTotalizerAsync(ct));
+                    Runtime.Bind(
+                        totalizer.ResetTotalizer,
+                        (inputs, ct) => ResetTotalizerAsync(
+                            ToDouble(inputs.Count > 0 ? inputs[0] : default), ct));
                     break;
                 case AnalogControlFunctionWithRelativeTargetValueState relative:
                     relative.AddModifyTargetValueBy(context);
@@ -1157,13 +1160,21 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public ValueTask ResetTotalizerAsync(CancellationToken cancellationToken = default)
         {
+            return ResetTotalizerAsync(0, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask ResetTotalizerAsync(double value, CancellationToken cancellationToken = default)
+        {
             RequireKind(LadsAnalogControlKind.Totalizer);
+            CheckRange(null, value);
             return ExclusiveAsync(
                 async () =>
                 {
-                    await InvokeProviderAsync(LadsFunctionCommandKind.ResetTotalizer, default, cancellationToken)
+                    await InvokeProviderAsync(
+                        LadsFunctionCommandKind.ResetTotalizer, Variant.From(value), cancellationToken)
                         .ConfigureAwait(false);
-                    Unit.Device.ResetTotalizer(this, Runtime.TimeProvider.GetTimestamp());
+                    Unit.Device.ResetTotalizer(this, Runtime.TimeProvider.GetTimestamp(), value);
                     var totalizer = (AnalogControlFunctionWithTotalizerState)m_node;
                     if (totalizer.TotalizedValue is { } totalizedValue)
                     {
@@ -1243,15 +1254,15 @@ namespace Opc.Ua.LADS.Server
         /// <summary>
         /// Resets the total and its clock sample without dispatching notifications.
         /// </summary>
-        internal void AssignTotalizerReset(long timestamp)
+        internal void AssignTotalizerReset(long timestamp, double value)
         {
             lock (m_lock)
             {
-                m_total = 0;
+                m_total = value;
                 m_lastUpdate = Math.Max(timestamp, m_lastUpdate);
             }
             LadsRuntime.AssignValue(
-                ((AnalogControlFunctionWithTotalizerState)m_node).TotalizedValue, Variant.From(0.0));
+                ((AnalogControlFunctionWithTotalizerState)m_node).TotalizedValue, Variant.From(value));
         }
 
         /// <summary>

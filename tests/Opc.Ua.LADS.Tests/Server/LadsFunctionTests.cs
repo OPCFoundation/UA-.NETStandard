@@ -978,6 +978,90 @@ namespace Opc.Ua.LADS.Tests.Server
             Assert.That(aux.TryGetFunction("Multi/Inner", out IAnalogScalarSensorFunction? _), Is.True);
         }
 
+        /// <summary>
+        /// Totalizer reset arguments reach the provider and node, while vetoes preserve the accepted total.
+        /// </summary>
+        [TestCase(12.5)]
+        [TestCase(-12.5)]
+        public async Task TotalizerResetPreservesRequestedValueAndProviderVetoAsync(double value)
+        {
+            Variant requested = default;
+            ServiceResult outcome = ServiceResult.Good;
+            var provider = new Mock<ILadsFunctionProvider>();
+            provider.Setup(p => p.OnCommandAsync(It.IsAny<LadsFunctionCommand>(), It.IsAny<CancellationToken>()))
+                .Returns((LadsFunctionCommand command, CancellationToken _) =>
+                {
+                    Assert.That(command.Kind, Is.EqualTo(LadsFunctionCommandKind.ResetTotalizer));
+                    requested = command.Value;
+                    return new ValueTask<ServiceResult>(outcome);
+                });
+            IAnalogControlFunction? function = null;
+            await using LadsHostedServer server = await LadsHostedServer.StartAsync(
+                nameof(TotalizerResetPreservesRequestedValueAndProviderVetoAsync),
+                builder => builder.AddLads().ConfigureLads(context => LadsIncubator.Configure(
+                    context,
+                    LadsIncubator.DeviceName,
+                    device => device.FunctionalUnit("Aux", unit => unit
+                        .FunctionProvider(provider.Object)
+                        .AnalogControl("Flow", options =>
+                        {
+                            options.Kind = LadsAnalogControlKind.Totalizer;
+                            options.InitialCurrentValue = 3;
+                        }, out function))))).ConfigureAwait(false);
+            await server.DeviceAsync().ConfigureAwait(false);
+
+            await function!.ResetTotalizerAsync(value).ConfigureAwait(false);
+            Assert.That(requested.TryGetValue(out double argument), Is.True);
+            Assert.That(argument, Is.EqualTo(value));
+            Assert.That(function.TotalizedValue, Is.EqualTo(value));
+            Assert.That(function.CurrentValue, Is.EqualTo(3));
+            NodeId total = await server.ChildAsync(function.NodeId, "TotalizedValue").ConfigureAwait(false);
+            DataValue read = await server.ReadAsync(total).ConfigureAwait(false);
+            Assert.That(read.WrappedValue.TryGetValue(out double published), Is.True);
+            Assert.That(published, Is.EqualTo(value));
+
+            outcome = StatusCodes.BadDeviceFailure;
+            await LadsAssert.ThrowsStatusAsync(
+                StatusCodes.BadDeviceFailure, () => function.ResetTotalizerAsync(value + 1)).ConfigureAwait(false);
+            Assert.That(function.TotalizedValue, Is.EqualTo(value));
+            read = await server.ReadAsync(total).ConfigureAwait(false);
+            Assert.That(read.WrappedValue.TryGetValue(out published), Is.True);
+            Assert.That(published, Is.EqualTo(value));
+            outcome = ServiceResult.Good;
+            await function.ResetTotalizerAsync().ConfigureAwait(false);
+            Assert.That(function.TotalizedValue, Is.Zero);
+            Assert.That(requested.TryGetValue(out argument), Is.True);
+            Assert.That(argument, Is.Zero);
+        }
+
+        /// <summary>
+        /// Non-finite reset arguments are rejected without dispatching a hardware command.
+        /// </summary>
+        [TestCase(double.NaN)]
+        [TestCase(double.PositiveInfinity)]
+        [TestCase(double.NegativeInfinity)]
+        public async Task TotalizerRejectsNonFiniteResetBeforeProviderAsync(double value)
+        {
+            var provider = new Mock<ILadsFunctionProvider>(MockBehavior.Strict);
+            IAnalogControlFunction? function = null;
+            await using LadsHostedServer server = await LadsHostedServer.StartAsync(
+                nameof(TotalizerRejectsNonFiniteResetBeforeProviderAsync),
+                builder => builder.AddLads().ConfigureLads(context => LadsIncubator.Configure(
+                    context,
+                    LadsIncubator.DeviceName,
+                    device => device.FunctionalUnit("Aux", unit => unit
+                        .FunctionProvider(provider.Object)
+                        .AnalogControl("Flow", options => options.Kind = LadsAnalogControlKind.Totalizer,
+                            out function))))).ConfigureAwait(false);
+            await server.DeviceAsync().ConfigureAwait(false);
+
+            await LadsAssert.ThrowsStatusAsync(
+                StatusCodes.BadOutOfRange, () => function!.ResetTotalizerAsync(value)).ConfigureAwait(false);
+            Assert.That(function!.TotalizedValue, Is.Zero);
+            provider.Verify(p => p.OnCommandAsync(
+                It.IsAny<LadsFunctionCommand>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
         [Test]
         public async Task FunctionProviderCanVetoCommandsAsync()
         {

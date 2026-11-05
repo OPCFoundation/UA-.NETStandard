@@ -1000,12 +1000,12 @@ namespace Opc.Ua.LADS.Server
         /// <summary>
         /// Resets an analog totalizer to the supplied monotonic clock sample.
         /// </summary>
-        internal void ResetTotalizer(LadsAnalogControlFunction function, long timestamp)
+        internal void ResetTotalizer(LadsAnalogControlFunction function, long timestamp, double value = 0)
         {
             lock (m_mutationLock)
             {
                 RequireStorageHealthy();
-                function.AssignTotalizerReset(timestamp);
+                function.AssignTotalizerReset(timestamp, value);
             }
         }
 

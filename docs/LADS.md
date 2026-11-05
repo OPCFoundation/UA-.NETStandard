@@ -319,6 +319,12 @@ counters, and `StateChanged` and `OperationModeChanged` events.
 `IncrementOperationCycles()` counts a completed cycle. `PowerOnDuration` and
 `OperationDuration` are computed when they are read.
 
+For a totalizer control function, `ResetTotalizerAsync(value, ct)` passes the
+requested finite value to the function provider and publishes it only after the
+provider accepts the command. The current sensor reading is unchanged. The
+overload without a value resets to zero; rejected commands leave the totalized
+value unchanged.
+
 ## State machines
 
 | State machine | States | Methods bound on the server |
@@ -721,6 +727,17 @@ Discovery browses `DeviceSet` and `Machines` for instances of
 as a `LadsFunctionKind`. `LadsFunction.IsSensor` and `IsControl` derive from
 that kind. A rejected method call throws `ServiceResultException` with the
 server's status, and every asynchronous member honours cancellation.
+
+An aborted control function is cleared with `LadsFunction.ClearAsync(ct)` or
+`LadsClient.ClearFunctionAsync(functionId, ct)`. The existing
+`LadsClient.ClearAsync(functionalUnitId, ct)` addresses the functional unit,
+not an individual control function. A totalizer's reset method carries the value
+through the generated method proxy:
+
+```csharp
+LadsFunction flow = await chamber.GetFunctionAsync("Flow", ct);
+await flow.ResetTotalizerAsync(12.5, ct);
+```
 
 The client keeps no state between calls. The handles hold only the client and a
 NodeId, and every read or call goes to the server. `ReadDeviceAsync`,

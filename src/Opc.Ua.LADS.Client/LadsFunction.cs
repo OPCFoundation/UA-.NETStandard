@@ -179,6 +179,15 @@ namespace Opc.Ua.LADS.Client
         }
 
         /// <summary>
+        /// Clears the aborted control function.
+        /// </summary>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        public ValueTask ClearAsync(CancellationToken cancellationToken = default)
+        {
+            return Client.ClearFunctionAsync(NodeId, cancellationToken);
+        }
+
+        /// <summary>
         /// Changes the target value of an analog control function with a relative
         /// target value by an offset.
         /// </summary>

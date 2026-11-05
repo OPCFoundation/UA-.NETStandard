@@ -254,6 +254,18 @@ namespace Opc.Ua.LADS.Client
         }
 
         /// <summary>
+        /// Clears an aborted control function through its <c>ControlFunctionState</c>.
+        /// </summary>
+        /// <param name="functionId">The NodeId of the control function.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        public async ValueTask ClearFunctionAsync(NodeId functionId, CancellationToken cancellationToken = default)
+        {
+            ControlFunctionStateMachineTypeClient state = await ControlStateAsync(functionId, cancellationToken)
+                .ConfigureAwait(false);
+            await state.ClearAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Changes the target value of an analog control function with a relative
         /// target value by an offset.
         /// </summary>
