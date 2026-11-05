@@ -396,19 +396,13 @@ namespace Opc.Ua.LADS.Server
             Runtime.Bind(node.Unsuspend, (_, ct) => UnsuspendAsync(ct));
             Runtime.Bind(node.Reset, (_, ct) => ResetAsync(ct));
             Runtime.Bind(node.ToComplete, (_, ct) => ToCompleteAsync(ct));
-            Running.StateChangedInternal += state =>
-            {
+            Running.StateAssigned += state =>
                 m_programs?.ActiveRun?.SetPauseTiming(
                     state is LadsRunningStateValue.Held or LadsRunningStateValue.Suspended);
-                UpdateRunningExecutability();
-            };
+            Running.StateChangedInternal += _ => UpdateRunningExecutability();
             Functional.StateChangedInternal += _ => UpdateRunningExecutability();
-            Running.StateChangedInternalAsync += async (state, cancellationToken) =>
-            {
-                m_programs?.ActiveRun?.SetPauseTiming(
-                    state is LadsRunningStateValue.Held or LadsRunningStateValue.Suspended);
-                await UpdateRunningExecutabilityAsync(cancellationToken).ConfigureAwait(false);
-            };
+            Running.StateChangedInternalAsync += (_, cancellationToken) =>
+                UpdateRunningExecutabilityAsync(cancellationToken);
             Functional.StateChangedInternalAsync += (_, cancellationToken) =>
                 UpdateRunningExecutabilityAsync(cancellationToken);
             UpdateRunningExecutability();

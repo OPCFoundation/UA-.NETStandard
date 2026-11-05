@@ -272,8 +272,14 @@ templates through the `ProgramTemplateSet` `Upload` method. `Download` and
 period, planned date and estimated downtime. `StartTask` moves the task to
 `Executing`, `StopTask` records a `MaintenanceTaskResultEnum` result and the
 last execution date and moves it to `Finished`, and `ResetTask` returns it to
-`Planned`. The condition is active while the task is planned and inactive once
-it is finished.
+`Planned`. The condition is active while the task is planned; a successful
+`StopTask` makes it inactive.
+
+The accepted `Finished` transition records the completion date and result before
+dispatching node notifications or the public `StateChanged` event. A transition
+veto leaves the previous completion record unchanged. If a notification throws,
+the command reports the failure, but `Finished` and its completion record remain
+committed.
 
 ## Driving the device at run time
 
@@ -399,6 +405,10 @@ also uses elapsed time, so wall-clock corrections do not change its counter.
 These values use
 the injected `TimeProvider` and are computed when read. The NodeSet
 descriptions define these distinct measures.
+
+State assignment records pause boundaries before node notifications and public
+state events. Waiting for a notification, or a notification failure, does not
+postpone the timing update.
 
 Method `Executable` follows the active functional-state nesting, the running
 transition graph and the configured executor capability. Client

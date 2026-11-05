@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Runtime.ExceptionServices;
 using System.Threading;
@@ -112,7 +113,7 @@ namespace Opc.Ua.LADS.Tests.Server
         {
             await using LadsHostedServer server = await LadsHostedServer.StartIncubatorAsync(
                 nameof(AsyncStateWriteRaisesOnePublicEventAndRecomputesItemStateAsync)).ConfigureAwait(false);
-            ILadsDevice device = await server.DeviceAsync().ConfigureAwait(false);
+            var device = (LadsDevice)await server.DeviceAsync().ConfigureAwait(false);
             var unit = (LadsFunctionalUnit)device.GetFunctionalUnit(LadsIncubator.UnitName);
             var states = new List<LadsFunctionalStateValue>();
             int synchronousItemStateChanges = 0;
@@ -158,13 +159,12 @@ namespace Opc.Ua.LADS.Tests.Server
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var observedState = new TaskCompletionSource<MachineryItemStateValue>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            NodeStateChangedAsyncHandler handler = async (_, _) =>
+            Func<MachineryItemStateValue, CancellationToken, ValueTask> handler = async (_, _) =>
             {
                 if (device.ItemState == MachineryItemStateValue.NotExecuting)
                 {
                     notificationEntered.TrySetResult(true);
-                    await releaseNotification.Task.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds))
-                        .ConfigureAwait(false);
+                    await releaseNotification.Task.ConfigureAwait(false);
                     observedState.TrySetResult(device.ItemState);
                 }
             };

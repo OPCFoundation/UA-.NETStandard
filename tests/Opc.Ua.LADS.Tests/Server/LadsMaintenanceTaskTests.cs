@@ -50,6 +50,111 @@ namespace Opc.Ua.LADS.Tests.Server
     public sealed class LadsMaintenanceTaskTests
     {
         /// <summary>
+        /// Commits completion metadata before Finished sinks, including when a sink fails, but not after a veto.
+        /// </summary>
+        [TestCase("None")]
+        [TestCase("Node")]
+        [TestCase("Public")]
+        [TestCase("Veto")]
+        public async Task FinishedObserversSeeCommittedCompletionRecordAsync(string failureStage)
+        {
+            await using LadsHostedServer server = await LadsHostedServer.StartIncubatorAsync(
+                nameof(FinishedObserversSeeCommittedCompletionRecordAsync),
+                options: options => options.TimeProvider = new LadsNotificationTestSupport.FixedClock())
+                .ConfigureAwait(false);
+            ILadsDevice device = await server.DeviceAsync().ConfigureAwait(false);
+            var task = (LadsMaintenanceTask)device.GetMaintenanceTask(LadsIncubator.MaintenanceName);
+            await task.StartAsync().ConfigureAwait(false);
+            var machine = task.Node.MaintenanceState!;
+            var stateNode = machine.CurrentState!;
+            NodeStateChangedAsyncHandler? previous = stateNode.OnStateChangedAsync;
+            StateMachineTransitionHandler? previousGuard = machine.OnBeforeTransition;
+            var failure = new InvalidOperationException("Finished notification failed.");
+            int nodeNotifications = 0;
+            int publicNotifications = 0;
+            void AssertCompletion()
+            {
+                Assert.That(task.State, Is.EqualTo(LadsMaintenanceStateValue.Finished));
+                Assert.That(task.LastResult, Is.EqualTo(MaintenanceTaskResultEnum.Failure));
+                Assert.That(task.LastExecutionDate.ToDateTime(),
+                    Is.EqualTo(LadsNotificationTestSupport.FixedClock.Now.UtcDateTime));
+                Assert.That(task.Node.LastExecutionDate!.Value, Is.EqualTo(task.LastExecutionDate));
+            }
+            void StateChanged(LadsMaintenanceStateValue state)
+            {
+                Assert.That(state, Is.EqualTo(LadsMaintenanceStateValue.Finished));
+                AssertCompletion();
+                publicNotifications++;
+                if (failureStage == "Public")
+                {
+                    throw failure;
+                }
+            }
+            task.StateChanged += StateChanged;
+            stateNode.OnStateChangedAsync = async (context, node, masks, token) =>
+            {
+                AssertCompletion();
+                nodeNotifications++;
+                if (failureStage == "Node")
+                {
+                    throw failure;
+                }
+                if (previous != null)
+                {
+                    await previous(context, node, masks, token).ConfigureAwait(false);
+                }
+            };
+            if (failureStage == "Veto")
+            {
+                machine.OnBeforeTransition = (_, _, _, _, _, _) =>
+                    new ServiceResult(StatusCodes.BadInvalidState);
+            }
+            try
+            {
+                if (failureStage == "None")
+                {
+                    await task.StopAsync(MaintenanceTaskResultEnum.Failure).ConfigureAwait(false);
+                }
+                else if (failureStage == "Veto")
+                {
+                    await LadsAssert.ThrowsStatusAsync(
+                        StatusCodes.BadInvalidState,
+                        () => task.StopAsync(MaintenanceTaskResultEnum.Failure)).ConfigureAwait(false);
+                }
+                else
+                {
+                    await Assert.ThatAsync(
+                        async () => await task.StopAsync(MaintenanceTaskResultEnum.Failure).ConfigureAwait(false),
+                        Throws.Exception.SameAs(failure)).ConfigureAwait(false);
+                }
+                if (failureStage == "Veto")
+                {
+                    Assert.That(task.State, Is.EqualTo(LadsMaintenanceStateValue.Executing));
+                    Assert.That(task.LastExecutionDate, Is.EqualTo(DateTimeUtc.MinValue));
+                    Assert.That(task.LastResult, Is.EqualTo(MaintenanceTaskResultEnum.Undetermined));
+                    Assert.That(nodeNotifications, Is.Zero);
+                    Assert.That(publicNotifications, Is.Zero);
+                }
+                else
+                {
+                    AssertCompletion();
+                    Assert.That(nodeNotifications, Is.EqualTo(1));
+                    Assert.That(publicNotifications, Is.EqualTo(failureStage == "Node" ? 0 : 1));
+                    LadsStoredMaintenanceData stored = task.CaptureStoredData();
+                    Assert.That(stored.State, Is.EqualTo(LadsMaintenanceStateValue.Finished));
+                    Assert.That(stored.LastExecutionDate, Is.EqualTo(task.LastExecutionDate));
+                    Assert.That(stored.LastResult, Is.EqualTo(MaintenanceTaskResultEnum.Failure));
+                }
+            }
+            finally
+            {
+                stateNode.OnStateChangedAsync = previous;
+                machine.OnBeforeTransition = previousGuard;
+                task.StateChanged -= StateChanged;
+            }
+        }
+
+        /// <summary>
         /// Exercises maintenance commands with gated notification sinks across state, event, and detail updates.
         /// </summary>
         [TestCase(LadsMaintenanceCommand.Start, "Condition")]

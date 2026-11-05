@@ -215,8 +215,22 @@ namespace Opc.Ua.LADS.Server
                 Device.RequireStorageHealthy();
                 Machine.Require(LadsMaintenanceStateValue.Executing);
                 await AskProviderAsync(LadsMaintenanceCommand.Stop, cancellationToken).ConfigureAwait(false);
-                await TransitionAsync(LadsMaintenanceStateValue.Finished).ConfigureAwait(false);
-                Device.RecordMaintenanceCompletion(this, Runtime.TimeProvider.GetUtcNow(), result);
+                void RecordCompletion(LadsMaintenanceStateValue state)
+                {
+                    if (state == LadsMaintenanceStateValue.Finished)
+                    {
+                        Device.RecordMaintenanceCompletion(this, Runtime.TimeProvider.GetUtcNow(), result);
+                    }
+                }
+                Machine.StateAssigned += RecordCompletion;
+                try
+                {
+                    await TransitionAsync(LadsMaintenanceStateValue.Finished).ConfigureAwait(false);
+                }
+                finally
+                {
+                    Machine.StateAssigned -= RecordCompletion;
+                }
                 if (Node.LastExecutionDate is { } lastExecutionDate)
                 {
                     await lastExecutionDate.ClearChangeMasksAsync(

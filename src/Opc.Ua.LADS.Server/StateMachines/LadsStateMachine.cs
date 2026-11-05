@@ -115,6 +115,12 @@ namespace Opc.Ua.LADS.Server.StateMachines
         internal event Func<uint, CancellationToken, ValueTask>? StateChangedInternalAsync;
 
         /// <summary>
+        /// Updates internal state invariants after assignment and before any notification sinks run.
+        /// Handlers must only assign local data without dispatching notifications.
+        /// </summary>
+        internal event Action<uint>? StateAssigned;
+
+        /// <summary>
         /// Writes a state without a transition, the way a freshly created or reset machine starts.
         /// </summary>
         /// <param name="stateId">The state identifier.</param>
@@ -296,6 +302,7 @@ namespace Opc.Ua.LADS.Server.StateMachines
                 WriteStateLocked(state);
                 m_currentStateId = state.Id;
             }
+            StateAssigned?.Invoke(state.Id);
         }
 
         /// <summary>
@@ -313,8 +320,9 @@ namespace Opc.Ua.LADS.Server.StateMachines
                 WriteStateLocked(state);
                 WriteTransitionLocked(transition);
                 m_currentStateId = state.Id;
-                return true;
             }
+            StateAssigned?.Invoke(state.Id);
+            return true;
         }
 
         /// <summary>

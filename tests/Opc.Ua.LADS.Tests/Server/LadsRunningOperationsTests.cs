@@ -41,6 +41,7 @@ using Opc.Ua.LADS.Tests.Integration;
 using Opc.Ua.Server.Hosting;
 using ClientUnit = Opc.Ua.LADS.Client.LadsFunctionalUnit;
 using LadsFunction = Opc.Ua.LADS.Client.LadsFunction;
+using LadsNotificationTestSupport = Opc.Ua.LADS.Tests.Server.LadsMaintenanceTaskTests.LadsNotificationTestSupport;
 
 namespace Opc.Ua.LADS.Tests.Server
 {
@@ -53,6 +54,132 @@ namespace Opc.Ua.LADS.Tests.Server
     [NonParallelizable]
     public sealed class LadsRunningOperationsTests
     {
+        /// <summary>
+        /// Measures pauses at committed states, independently of delayed or failed node notifications.
+        /// </summary>
+        [TestCase(LadsRunningStateValue.Held, "None")]
+        [TestCase(LadsRunningStateValue.Held, "Pause")]
+        [TestCase(LadsRunningStateValue.Held, "Resume")]
+        [TestCase(LadsRunningStateValue.Suspended, "None")]
+        [TestCase(LadsRunningStateValue.Suspended, "Pause")]
+        [TestCase(LadsRunningStateValue.Suspended, "Resume")]
+        public async Task PauseTimingPrecedesStateNotificationsAsync(
+            LadsRunningStateValue pausedState,
+            string failureStage)
+        {
+            var clock = new ManualClock();
+            await using LadsClientConnection connection = await StartAsync(
+                nameof(PauseTimingPrecedesStateNotificationsAsync), clock: clock).ConfigureAwait(false);
+            ILadsDevice device = await connection.Server.DeviceAsync().ConfigureAwait(false);
+            var unit = (LadsFunctionalUnit)device.GetFunctionalUnit(UnitName);
+            ClientUnit client = await ClientUnitAsync(connection).ConfigureAwait(false);
+            await client.StartProgramAsync(TemplateName).ConfigureAwait(false);
+            await LadsAssert.EventuallyAsync(
+                () => clock.HasDelay(TimeSpan.FromMinutes(10)),
+                "The first step did not enter its delay.").ConfigureAwait(false);
+            LadsProgramRun run = unit.Programs!.ActiveRun!;
+            var stateNode = unit.Node.FunctionalUnitState!.RunningStateMachine!.CurrentState!;
+            NodeStateChangedAsyncHandler? previous = stateNode.OnStateChangedAsync;
+            var failure = new InvalidOperationException("Running-state notification failed.");
+            var paused = new LadsNotificationTestSupport.Gate
+            {
+                Failure = failureStage == "Pause" ? failure : null
+            };
+            var resumed = new LadsNotificationTestSupport.Gate
+            {
+                Failure = failureStage == "Resume" ? failure : null
+            };
+            var publicStates = new List<LadsRunningStateValue>();
+            unit.Running.StateChanged += publicStates.Add;
+            stateNode.OnStateChangedAsync = async (context, node, masks, token) =>
+            {
+                if (unit.RunningState == pausedState)
+                {
+                    await paused.WaitAsync(token).ConfigureAwait(false);
+                }
+                else if (unit.RunningState == LadsRunningStateValue.Execute)
+                {
+                    await resumed.WaitAsync(token).ConfigureAwait(false);
+                }
+                if (previous != null)
+                {
+                    await previous(context, node, masks, token).ConfigureAwait(false);
+                }
+            };
+            Task? pause = null;
+            Task? resume = null;
+            try
+            {
+                clock.Advance(TimeSpan.FromMinutes(2));
+                pause = pausedState == LadsRunningStateValue.Held
+                    ? unit.RunningOperations!.HoldAsync().AsTask()
+                    : unit.RunningOperations!.SuspendAsync().AsTask();
+                await paused.Entered.Task.WaitAsync(LadsNotificationTestSupport.Timeout).ConfigureAwait(false);
+                clock.Advance(TimeSpan.FromMinutes(3));
+                Assert.That(pause.IsCompleted, Is.False);
+                Assert.That(unit.RunningState, Is.EqualTo(pausedState));
+                Assert.That(publicStates, Does.Not.Contain(pausedState));
+                Assert.That(run.CurrentRuntime, Is.EqualTo(TimeSpan.FromMinutes(2)));
+                Assert.That(run.CurrentStepRuntime, Is.EqualTo(TimeSpan.FromMinutes(2)));
+                Assert.That(run.TotalPauseTime, Is.EqualTo(TimeSpan.FromMinutes(3)));
+                paused.Release.TrySetResult(true);
+                if (failureStage == "Pause")
+                {
+                    await Assert.ThatAsync(
+                        () => pause.WaitAsync(LadsNotificationTestSupport.Timeout),
+                        Throws.Exception.SameAs(failure)).ConfigureAwait(false);
+                }
+                else
+                {
+                    await pause.WaitAsync(LadsNotificationTestSupport.Timeout).ConfigureAwait(false);
+                }
+                Assert.That(publicStates.Contains(pausedState), Is.EqualTo(failureStage != "Pause"));
+
+                resume = pausedState == LadsRunningStateValue.Held
+                    ? unit.RunningOperations!.UnholdAsync().AsTask()
+                    : unit.RunningOperations!.UnsuspendAsync().AsTask();
+                await resumed.Entered.Task.WaitAsync(LadsNotificationTestSupport.Timeout).ConfigureAwait(false);
+                clock.Advance(TimeSpan.FromMinutes(1));
+                Assert.That(resume.IsCompleted, Is.False);
+                Assert.That(unit.RunningState, Is.EqualTo(LadsRunningStateValue.Execute));
+                Assert.That(publicStates, Does.Not.Contain(LadsRunningStateValue.Execute));
+                Assert.That(run.CurrentRuntime, Is.EqualTo(TimeSpan.FromMinutes(3)));
+                Assert.That(run.CurrentStepRuntime, Is.EqualTo(TimeSpan.FromMinutes(3)));
+                Assert.That(run.TotalPauseTime, Is.EqualTo(TimeSpan.FromMinutes(3)));
+                resumed.Release.TrySetResult(true);
+                if (failureStage == "Resume")
+                {
+                    await Assert.ThatAsync(
+                        () => resume.WaitAsync(LadsNotificationTestSupport.Timeout),
+                        Throws.Exception.SameAs(failure)).ConfigureAwait(false);
+                }
+                else
+                {
+                    await resume.WaitAsync(LadsNotificationTestSupport.Timeout).ConfigureAwait(false);
+                }
+                Assert.That(
+                    publicStates.Contains(LadsRunningStateValue.Execute),
+                    Is.EqualTo(failureStage != "Resume"));
+                Assert.That(run.CurrentRuntime, Is.EqualTo(TimeSpan.FromMinutes(3)));
+                Assert.That(run.TotalPauseTime, Is.EqualTo(TimeSpan.FromMinutes(3)));
+            }
+            finally
+            {
+                paused.Release.TrySetResult(true);
+                resumed.Release.TrySetResult(true);
+                if (pause != null)
+                {
+                    await LadsNotificationTestSupport.DrainAsync(pause).ConfigureAwait(false);
+                }
+                if (resume != null)
+                {
+                    await LadsNotificationTestSupport.DrainAsync(resume).ConfigureAwait(false);
+                }
+                stateNode.OnStateChangedAsync = previous;
+                unit.Running.StateChanged -= publicStates.Add;
+            }
+        }
+
         [Test]
         public async Task LegacyUnitsOmitRunningOperationsAndStillStopOnCompletionAsync()
         {

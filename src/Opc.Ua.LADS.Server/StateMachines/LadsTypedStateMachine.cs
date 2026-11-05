@@ -57,6 +57,7 @@ namespace Opc.Ua.LADS.Server.StateMachines
         {
             m_map = map;
             Driver = new LadsStateMachine(stateMachine, context, map.Table, device);
+            Driver.StateAssigned += id => StateAssigned?.Invoke(m_map.ToValue(id));
             Driver.StateChanged += id => StateChanged?.Invoke(m_map.ToValue(id));
             Driver.StateChangedInternal += id => StateChangedInternal?.Invoke(m_map.ToValue(id));
             Driver.StateChangedInternalAsync += (id, cancellationToken) =>
@@ -95,6 +96,11 @@ namespace Opc.Ua.LADS.Server.StateMachines
         /// Raised asynchronously after a committed state change for internal observers.
         /// </summary>
         internal event Func<TEnum, CancellationToken, ValueTask>? StateChangedInternalAsync;
+
+        /// <summary>
+        /// Updates local state invariants after assignment and before notification sinks run.
+        /// </summary>
+        internal event Action<TEnum>? StateAssigned;
 
         /// <summary>
         /// Writes a state without a transition.
