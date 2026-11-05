@@ -270,6 +270,12 @@ signal before disposing the caller's prepared unit; caller disposal could
 otherwise conceal an admission leak. Do not inspect private writer fields or
 replace the running server's master manager.
 
+Queued-notification retention controls hold a source-validation callback through
+the ownership assertion. Once that callback is released, the consumer may finish
+and allow retirement before the test resumes. Observe the next queued callback
+and release it after the assertion; an earlier release signal does not establish
+that queued work remains pending.
+
 ### Testing UaLens
 
 All four assemblies are registered in `UA.slnx` and use the normal NUnit runner:
