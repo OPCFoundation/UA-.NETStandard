@@ -268,10 +268,10 @@ namespace Opc.Ua.Pumps.Tests
             System.ArgumentException? readOnlyPermissionsError =
                 await Assert.ThrowsAsync<System.ArgumentException>(
                     async () => await m_fixture.Manager.Runtime.WithRetainedIdentificationAsync(
-                        pump, PersistentStore(), ReadOnlyIdentityPermissions));
+                        pump, PersistentStore().Object, ReadOnlyIdentityPermissions));
             Assert.That(readOnlyPermissionsError!.ParamName, Is.EqualTo("permissions"));
             await m_fixture.Manager.Runtime.WithRetainedIdentificationAsync(
-                pump, PersistentStore(), WritableIdentityPermissions);
+                pump, PersistentStore().Object, WritableIdentityPermissions);
             Assert.That(Advertises(conformance.ServerProfiles, PumpBaseServerProfile), Is.True);
             Assert.That(Advertises(
                 conformance.ServerProfiles, MachineryMachineIdentificationWritableProfile), Is.True);
@@ -285,7 +285,7 @@ namespace Opc.Ua.Pumps.Tests
                 Variant.From("urn:example:pump:profile-eligibility-second"));
             Assert.That(Advertises(conformance.ServerProfiles, PumpBaseServerProfile), Is.False);
             await m_fixture.Manager.Runtime.WithRetainedIdentificationAsync(
-                secondPump, PersistentStore(), WritableIdentityPermissions);
+                secondPump, PersistentStore().Object, WritableIdentityPermissions);
             Assert.That(Advertises(conformance.ServerProfiles, PumpBaseServerProfile), Is.True);
             await m_fixture.Manager.DeleteNodeAsync(
                 m_fixture.Manager.SystemContext, secondPump.NodeId, CancellationToken.None);
@@ -375,7 +375,7 @@ namespace Opc.Ua.Pumps.Tests
         /// </summary>
         private void SetServerProfiles(ArrayOf<string> profiles)
         {
-            m_fixture.Server.ServerObject.ServerCapabilities!.ServerProfileArray!.Value = Variant.From(profiles);
+            m_fixture.Server.ServerObject.ServerCapabilities!.ServerProfileArray!.Value = profiles;
         }
 
         /// <summary>
@@ -429,7 +429,7 @@ namespace Opc.Ua.Pumps.Tests
         [
             new RolePermissionType
             {
-                RoleId = ObjectIds.WellKnownRole_ConfigureAdmin,
+                RoleId = Opc.Ua.ObjectIds.WellKnownRole_ConfigureAdmin,
                 Permissions = (uint)(PermissionType.Browse | PermissionType.Read | PermissionType.Write)
             }
         ];
@@ -441,7 +441,7 @@ namespace Opc.Ua.Pumps.Tests
         [
             new RolePermissionType
             {
-                RoleId = ObjectIds.WellKnownRole_ConfigureAdmin,
+                RoleId = Opc.Ua.ObjectIds.WellKnownRole_ConfigureAdmin,
                 Permissions = (uint)(PermissionType.Browse | PermissionType.Read)
             }
         ];
