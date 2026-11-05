@@ -434,8 +434,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 return default;
             };
 
-            using var cancellation = new CancellationTokenSource();
-            CancellationToken token = cancellation.Token;
+            var cancellation = new CancellationTokenSource();
             Task<Task>? invocation = null;
             Task<Exception?>? updateObserver = null;
             ExceptionDispatchInfo? testFailure = null;
@@ -443,7 +442,14 @@ namespace Opc.Ua.Core.Tests.Stack.State
             try
             {
                 invocation = Task.Factory.StartNew(
-                    () => alarm.SetActiveStateAsync(m_context, true, token).AsTask(),
+                    async () =>
+                    {
+                        using (cancellation)
+                        {
+                            await alarm.SetActiveStateAsync(m_context, true, cancellation.Token)
+                                .ConfigureAwait(false);
+                        }
+                    },
                     CancellationToken.None,
                     TaskCreationOptions.DenyChildAttach,
                     TaskScheduler.Default);
@@ -484,6 +490,10 @@ namespace Opc.Ua.Core.Tests.Stack.State
                     {
                         cleanupFailures.Add(failure);
                     }
+                }
+                else
+                {
+                    cancellation.Dispose();
                 }
             }
 
@@ -529,8 +539,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 return default;
             };
 
-            using var cancellation = new CancellationTokenSource();
-            CancellationToken token = cancellation.Token;
+            var cancellation = new CancellationTokenSource();
             Task<Task>? invocation = null;
             Task<Exception?>? updateObserver = null;
             ExceptionDispatchInfo? testFailure = null;
@@ -538,7 +547,14 @@ namespace Opc.Ua.Core.Tests.Stack.State
             try
             {
                 invocation = Task.Factory.StartNew(
-                    () => alarm.SetActiveStateAsync(m_context, false, token).AsTask(),
+                    async () =>
+                    {
+                        using (cancellation)
+                        {
+                            await alarm.SetActiveStateAsync(m_context, false, cancellation.Token)
+                                .ConfigureAwait(false);
+                        }
+                    },
                     CancellationToken.None,
                     TaskCreationOptions.DenyChildAttach,
                     TaskScheduler.Default);
@@ -579,6 +595,10 @@ namespace Opc.Ua.Core.Tests.Stack.State
                     {
                         cleanupFailures.Add(failure);
                     }
+                }
+                else
+                {
+                    cancellation.Dispose();
                 }
             }
 
