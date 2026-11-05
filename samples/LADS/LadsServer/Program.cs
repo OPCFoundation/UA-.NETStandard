@@ -31,6 +31,7 @@ using System;
 using System.Globalization;
 using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
 using LadsSample.Server;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -115,6 +116,12 @@ builder.Services
     .AddLads(options =>
     {
         options.Store = dataStore;
+        options.ConfirmInterruptedDeviceReadinessAsync = (_, ct) =>
+        {
+            ct.ThrowIfCancellationRequested();
+            // This simulator owns no physical equipment that needs inspection after interruption.
+            return new ValueTask<bool>(true);
+        };
     })
     .ConfigureLads(ShakingIncubator.Configure);
 

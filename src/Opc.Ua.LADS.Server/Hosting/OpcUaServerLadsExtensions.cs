@@ -220,6 +220,7 @@ namespace Microsoft.Extensions.DependencyInjection
             target.MaxResultFileBytes = source.MaxResultFileBytes;
             target.MaxRetainedResults = source.MaxRetainedResults;
             target.Store = source.Store;
+            target.ConfirmInterruptedDeviceReadinessAsync = source.ConfirmInterruptedDeviceReadinessAsync;
             target.TimeProvider = source.TimeProvider;
         }
     }

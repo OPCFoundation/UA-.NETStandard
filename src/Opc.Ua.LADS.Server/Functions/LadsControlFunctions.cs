@@ -285,6 +285,10 @@ namespace Opc.Ua.LADS.Server
             CancellationToken cancellationToken,
             string? parameterPath = null)
         {
+            if (kind is LadsFunctionCommandKind.Start or LadsFunctionCommandKind.StartWithTargetValue)
+            {
+                await Unit.Device.ConfirmReadinessAsync(cancellationToken).ConfigureAwait(false);
+            }
             ServiceResult result = await Unit.FunctionProvider
                 .OnCommandAsync(new LadsFunctionCommand(this, kind, value, parameterPath), cancellationToken)
                 .ConfigureAwait(false);

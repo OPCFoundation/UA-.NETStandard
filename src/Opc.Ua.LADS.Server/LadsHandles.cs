@@ -64,6 +64,11 @@ namespace Opc.Ua.LADS.Server
         IAssetHandle? Asset { get; }
 
         /// <summary>
+        /// Gets whether a recovered interruption requires equipment-readiness confirmation before a new start.
+        /// </summary>
+        bool RequiresReadinessConfirmation { get; }
+
+        /// <summary>
         /// The current state of the device state machine.
         /// </summary>
         LadsDeviceStateValue State { get; }

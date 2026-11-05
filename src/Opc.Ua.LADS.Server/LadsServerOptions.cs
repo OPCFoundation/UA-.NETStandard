@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.Machinery.Server;
 
 namespace Opc.Ua.LADS.Server
@@ -47,6 +49,19 @@ namespace Opc.Ua.LADS.Server
         /// Gets or sets the stored-data provider. Null selects the registered provider or memory default.
         /// </summary>
         public ILadsStore? Store { get; set; }
+
+        /// <summary>
+        /// Gets or sets equipment-readiness confirmation before starting a recovered interrupted device.
+        /// Missing confirmation or a false result blocks the start.
+        /// Exceptions and cancellation propagate to the caller.
+        /// The token observes caller cancellation, server shutdown and device disposal.
+        /// The callback must not issue another start or dispose the device while its confirmation is pending.
+        /// </summary>
+        public Func<ILadsDevice, CancellationToken, ValueTask<bool>>? ConfirmInterruptedDeviceReadinessAsync
+        {
+            get;
+            set;
+        }
 
         /// <summary>
         /// Gets or sets the standalone owner's application namespace.
@@ -119,6 +134,7 @@ namespace Opc.Ua.LADS.Server
             target.MaxResultFileBytes = MaxResultFileBytes;
             target.MaxRetainedResults = MaxRetainedResults;
             target.Store = Store;
+            target.ConfirmInterruptedDeviceReadinessAsync = ConfirmInterruptedDeviceReadinessAsync;
         }
     }
 }

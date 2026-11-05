@@ -179,6 +179,11 @@ namespace Opc.Ua.Aot.Tests
                     await Assert.That(maintenance.State).IsEqualTo(LadsMaintenanceStateValue.Finished);
                     await Assert.That(maintenance.LastResult).IsEqualTo(MaintenanceTaskResultEnum.Success);
                     await Assert.That(maintenance.LastExecutionDate).IsEqualTo(maintenanceDate);
+                    await Assert.That(device.RequiresReadinessConfirmation).IsTrue();
+                    await unit.StartAsync(cancellationToken).ConfigureAwait(false);
+                    await Assert.That(device.RequiresReadinessConfirmation).IsFalse();
+                    await Assert.That(restoredExecutor.Executions).IsEqualTo(0);
+                    await unit.StopAsync(cancellationToken).ConfigureAwait(false);
                 }
                 finally
                 {
@@ -229,7 +234,15 @@ namespace Opc.Ua.Aot.Tests
                 options.EndpointUrls.Clear();
                 options.EndpointUrls.Add("opc.tcp://localhost:" +
                     AotServerFixtureSupport.GetNextFreeIPPort().ToString(CultureInfo.InvariantCulture) + "/LadsAot");
-            }).AddLads(options => options.Store = store)
+            }).AddLads(options =>
+            {
+                options.Store = store;
+                options.ConfirmInterruptedDeviceReadinessAsync = (_, ct) =>
+                {
+                    ct.ThrowIfCancellationRequested();
+                    return new ValueTask<bool>(true);
+                };
+            })
                 .ConfigureLads(context => context.AddDevice(kDevice, device => device
                     .Identification(id => id.ProductInstanceUri = "urn:tests:lads:native:device")
                     .AssetManagement(asset => asset.WithConfigurableAssetId("Native-1").WithDeviceHealth())

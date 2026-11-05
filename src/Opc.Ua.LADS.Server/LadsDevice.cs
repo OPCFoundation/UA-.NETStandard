@@ -212,6 +212,9 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public IAssetHandle? Asset { get; private set; }
 
+        /// <inheritdoc/>
+        public bool RequiresReadinessConfirmation => Volatile.Read(ref m_requiresReadinessConfirmation);
+
         /// <summary>
         /// Gets the device state machine.
         /// </summary>
@@ -678,6 +681,10 @@ namespace Opc.Ua.LADS.Server
                 }
                 await unit.EnsureProgramManager().RestoreStoredDataAsync(data, cancellationToken)
                     .ConfigureAwait(false);
+                if (data.InterruptedRunId != null)
+                {
+                    Volatile.Write(ref m_requiresReadinessConfirmation, true);
+                }
             }
             ArrayOf<LadsStoredMaintenanceData> tasks = stored.MaintenanceTasks;
             for (int index = 0; index < tasks.Count; index++)
@@ -737,6 +744,68 @@ namespace Opc.Ua.LADS.Server
         }
 
         /// <summary>
+        /// Confirms equipment readiness once for the recovered device and checkpoints acknowledgement before any start.
+        /// </summary>
+        internal async ValueTask ConfirmReadinessAsync(CancellationToken cancellationToken)
+        {
+            if (!RequiresReadinessConfirmation)
+            {
+                return;
+            }
+            using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken, Runtime.Stopping, m_readinessStopping.Token);
+            cancellationToken = lifetime.Token;
+            await m_readinessGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                RequireStorageHealthy();
+                if (!RequiresReadinessConfirmation)
+                {
+                    return;
+                }
+                Func<ILadsDevice, CancellationToken, ValueTask<bool>>? confirm =
+                    Runtime.Options.ConfirmInterruptedDeviceReadinessAsync;
+                if (confirm == null || !await confirm(this, cancellationToken).ConfigureAwait(false))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadInvalidState,
+                        "The interrupted device '{0}' requires equipment-readiness confirmation before starting.",
+                        Name);
+                }
+                cancellationToken.ThrowIfCancellationRequested();
+                await m_storeGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    RequireStorageHealthy();
+                    LadsStoredDeviceData snapshot = CaptureStoredData();
+                    for (int index = 0; index < snapshot.FunctionalUnits.Count; index++)
+                    {
+                        snapshot.FunctionalUnits[index].InterruptedRunId = null;
+                    }
+                    await Runtime.Store.SaveAsync(StoreIdentity, snapshot, cancellationToken).ConfigureAwait(false);
+                    LadsFunctionalUnit[] units;
+                    lock (m_lock)
+                    {
+                        units = [.. m_units];
+                    }
+                    foreach (LadsFunctionalUnit unit in units)
+                    {
+                        unit.ProgramManager?.AcknowledgeInterruptedExecution();
+                    }
+                    Volatile.Write(ref m_requiresReadinessConfirmation, false);
+                }
+                finally
+                {
+                    m_storeGate.Release();
+                }
+            }
+            finally
+            {
+                m_readinessGate.Release();
+            }
+        }
+
+        /// <summary>
         /// Rejects synchronous state writes after the device is published.
         /// </summary>
         internal void EnsureSynchronousStateWriteAllowed()
@@ -756,6 +825,7 @@ namespace Opc.Ua.LADS.Server
             CancellationToken cancellationToken,
             Func<ValueTask>? continueStarting = null)
         {
+            await ConfirmReadinessAsync(cancellationToken).ConfigureAwait(false);
             await AcquireStateAdmissionAsync(cancellationToken).ConfigureAwait(false);
             try
             {
@@ -1497,6 +1567,16 @@ namespace Opc.Ua.LADS.Server
             var failures = new List<Exception>();
             try
             {
+                m_readinessStopping.Cancel();
+            }
+            catch (Exception failure)
+            {
+                failures.Add(failure);
+            }
+            await m_readinessGate.WaitAsync().ConfigureAwait(false);
+            m_readinessGate.Release();
+            try
+            {
                 if (IsPublished)
                 {
                     await SaveStoredDataAsync(CancellationToken.None).ConfigureAwait(false);
@@ -1551,6 +1631,8 @@ namespace Opc.Ua.LADS.Server
             m_storeGate.Dispose();
             m_stateAdmissionGate.Dispose();
             m_itemStateGate.Dispose();
+            m_readinessGate.Dispose();
+            m_readinessStopping.Dispose();
             if (failures.Count > 0)
             {
                 throw new AggregateException("The LADS device checkpoint or cleanup failed.", failures);
@@ -1897,6 +1979,15 @@ namespace Opc.Ua.LADS.Server
 
         /// <summary>The selected asset building blocks, applied during registration.</summary>
         private Action<IAssetBuilder>? m_configureAsset;
+
+        /// <summary>The gate serializing equipment-readiness confirmation across all device start paths.</summary>
+        private readonly SemaphoreSlim m_readinessGate = new(1, 1);
+
+        /// <summary>Cancels pending equipment confirmation before owned resources are released.</summary>
+        private readonly CancellationTokenSource m_readinessStopping = new();
+
+        /// <summary>Whether restored pending execution still requires equipment confirmation.</summary>
+        private bool m_requiresReadinessConfirmation;
 
         private bool m_published;
         private int m_cycles;

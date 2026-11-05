@@ -759,6 +759,38 @@ Restart restores records and creates new address-space nodes, but never calls
 an executor, reapplies a setpoint or resumes equipment. The program manager's
 `InterruptedRunId` reports the most recently recovered interruption to the
 application; that record remains stored after subsequent successful runs.
+The recovered device also reports `RequiresReadinessConfirmation`. Program,
+functional-unit and independent control starts remain blocked until the
+configured async callback confirms equipment readiness:
+
+```csharp
+// Supply the application's asynchronous equipment check, not an unconditional approval.
+Func<ILadsDevice, CancellationToken, ValueTask<bool>> confirmEquipmentReady = ConfirmEquipmentReadyAsync;
+server.AddLads(options =>
+{
+    options.Store = store;
+    options.ConfirmInterruptedDeviceReadinessAsync = confirmEquipmentReady;
+});
+```
+
+Confirmation runs on a start attempt, not during startup. Missing confirmation
+or a false result rejects that start with `BadInvalidState`; cancellation and
+callback exceptions propagate. None clears the block or starts an executor.
+Concurrent starts share the completed device confirmation. The callback must
+not start or dispose the device while confirmation is pending.
+Its cancellation token observes the start request, server shutdown and device
+disposal. Disposal requests cancellation and waits for admitted confirmation
+to finish before releasing the device's resources.
+
+After confirmation, the runtime saves acknowledgement for all recovered
+interruption markers before dispatching a start. A storage error leaves the
+device blocked and a later attempt repeats confirmation. Another restart before
+acknowledgement therefore still requires confirmation; a restart after it does
+not, unless a subsequent run was interrupted. The historical interruption id
+remains available in either case. Devices with no pending interruption do not
+call the callback.
+
+Equipment readiness does not grant a writer lease or fence shared-store writes.
 Maintenance that was Executing returns to Planned; its previous completion
 record remains available.
 Device and function operating states always come from the configured startup
@@ -929,6 +961,9 @@ The device selects configurable asset identification and DeviceHealth. Its
 `--data-root` option also retains AMB configuration in the `assets` subdirectory;
 without that option, the sample uses the memory store. The client prints the
 asset identifier and current health alongside the device state.
+The simulator explicitly confirms readiness after interruption because it owns
+no physical equipment. Replace that callback with equipment inspection before
+using this configuration for a physical device.
 
 ## Provenance
 
@@ -953,5 +988,6 @@ encodings, and run hosted servers with the LADS client over a real session.
 | `LadsProgramTests` | Template management, program runs, stop and abort, executor failures, results and result files |
 | `LadsRunningOperationsTests` | Opt-in lifecycle, cooperative pauses, acting-state failures, cancellation and client method discovery |
 | `LadsStoredDataTests` | Restarted templates, results/files, maintenance and counters, deletion/retention, interrupted execution and storage errors |
+| `LadsReadinessTests` | Device-wide blocking after interruption, rejected/canceled/failed confirmation, acknowledgement storage errors, concurrent starts, historical-only records and client starts |
 | `LadsMaintenanceTaskTests` | The maintenance state machine, invalid transitions, the task methods, provider vetoes |
 | `LadsClientServerTests` | Client discovery, snapshots, function and program control, file download and composition with Machinery over a real session |

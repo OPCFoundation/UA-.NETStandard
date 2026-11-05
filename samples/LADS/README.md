@@ -35,6 +35,12 @@ The client prints its asset identifier and health with the device state.
 subdirectory as well as LADS data; without it, AMB configuration uses the
 memory store and is not retained across process restarts.
 
+After an interrupted run, the simulator's configured callback confirms readiness
+on the next start attempt. It can do so without inspecting external equipment
+because all controls are simulated. A physical-device application must supply
+its own async equipment check; missing or unsuccessful confirmation blocks a
+new start.
+
 ## Run
 
 In two terminals:

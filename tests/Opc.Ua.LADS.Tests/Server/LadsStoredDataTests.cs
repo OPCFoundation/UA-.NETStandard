@@ -223,7 +223,17 @@ namespace Opc.Ua.LADS.Tests.Server
                     await using LadsHostedServer second = await LadsHostedServer.StartIncubatorAsync(
                         nameof(InterruptedExecutionIsRecordedButNeverResumedAsync) + "Restart",
                         builder => builder.Services.AddSingleton<ILadsProgramExecutor>(executor),
-                        options => options.Store = store).ConfigureAwait(false);
+                        options =>
+                        {
+                            options.Store = store;
+                            options.ConfirmInterruptedDeviceReadinessAsync = (device, ct) =>
+                            {
+                                ct.ThrowIfCancellationRequested();
+                                Assert.That(device.Name, Is.EqualTo(LadsIncubator.DeviceName));
+                                Assert.That(device.RequiresReadinessConfirmation, Is.True);
+                                return new ValueTask<bool>(true);
+                            };
+                        }).ConfigureAwait(false);
                     ILadsDevice restored = await second.DeviceAsync().ConfigureAwait(false);
                     ILadsFunctionalUnit unit = restored.GetFunctionalUnit(LadsIncubator.UnitName);
                     Assert.That(executor.Executions, Is.EqualTo(1));
@@ -232,10 +242,12 @@ namespace Opc.Ua.LADS.Tests.Server
                     Assert.That(unit.Programs.Results.Count, Is.Zero);
                     Assert.That(unit.State, Is.EqualTo(LadsFunctionalStateValue.Stopped));
                     Assert.That(restored.OperationCycleCounter, Is.Zero);
+                    Assert.That(restored.RequiresReadinessConfirmation, Is.True);
 
                     executor.CompleteImmediately = true;
                     next = await unit.Programs.StartProgramAsync(LadsIncubator.QuickTemplate).ConfigureAwait(false);
                     await unit.Programs.WaitForResultAsync(next).ConfigureAwait(false);
+                    Assert.That(restored.RequiresReadinessConfirmation, Is.False);
                     LadsStoredDeviceData? committed = await store.LoadAsync(
                         "urn:opcua-netstandard:lads:instances#" + LadsIncubator.DeviceName).ConfigureAwait(false);
                     Assert.That(committed, Is.Not.Null);
@@ -262,6 +274,7 @@ namespace Opc.Ua.LADS.Tests.Server
                     Assert.That(repeatedPrograms.Results.Count, Is.EqualTo(1));
                     Assert.That(repeatedPrograms.Results[0].RunId, Is.EqualTo(next));
                     Assert.That(repeatedPrograms.Results[0].Outcome, Is.EqualTo(LadsProgramOutcome.Completed));
+                    Assert.That(repeatedRestore.RequiresReadinessConfirmation, Is.False);
                 }
             }
             catch (Exception exception)

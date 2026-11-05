@@ -391,6 +391,7 @@ namespace Opc.Ua.LADS.Server
                     }
                     template = CopyTemplate(entry.Template, entry.Node);
                 }
+                await m_unit.Device.ConfirmReadinessAsync(cancellationToken).ConfigureAwait(false);
                 await m_unit.Device.AcquireStateAdmissionAsync(cancellationToken).ConfigureAwait(false);
                 stateAdmissionGateHeld = true;
                 m_unit.Device.RegisterAdmittedStart(m_unit);
@@ -723,8 +724,19 @@ namespace Opc.Ua.LADS.Server
                 Node.ResultSet!.AddChild(result.Node);
                 m_results.Add(result);
             }
-            m_storedInterruptedRunId = null;
+            m_storedInterruptedRunId = data.InterruptedRunId;
             m_lastInterruptedRunId = data.InterruptedRunId ?? data.LastInterruptedRunId;
+        }
+
+        /// <summary>
+        /// Clears the recovered pending marker after the device's readiness acknowledgement has been saved.
+        /// </summary>
+        internal void AcknowledgeInterruptedExecution()
+        {
+            lock (m_lock)
+            {
+                m_storedInterruptedRunId = null;
+            }
         }
 
         /// <summary>
