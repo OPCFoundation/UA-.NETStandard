@@ -72,7 +72,8 @@ namespace Opc.Ua.AutoID.Tests
                 Assert.That(CoreUtils.ToHexString(HashModelBytes(bytes)), Is.EqualTo(
                     provenance.RootElement.GetProperty("localCorrections").GetProperty("sha256").GetString())
                     .IgnoreCase);
-                bytes = Encoding.UTF8.GetBytes(text.Replace(corrected, corrected.Replace("3030", "3027")));
+                bytes = Encoding.UTF8.GetBytes(text.Replace(
+                    corrected, corrected.Replace("3030", "3027", StringComparison.Ordinal), StringComparison.Ordinal));
             }
             string actualHash = CoreUtils.ToHexString(HashModelBytes(bytes));
             JsonElement source = provenance.RootElement.GetProperty("sources").EnumerateArray()

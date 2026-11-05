@@ -36,13 +36,14 @@ using Opc.Ua.AutoID.Server.Builders;
 using Opc.Ua.Di.Server;
 using Opc.Ua.Di.Server.Builders;
 using Opc.Ua.Server;
+using Opc.Ua.Server.FileSystem;
 
 namespace Opc.Ua.AutoID.Server
 {
     /// <summary>
     /// Creates and owns the OPC 30010 readers of one Device Integration node manager: the
     /// stand-alone <see cref="AutoIdNodeManager"/>, or the owner AutoID is composed into with
-    /// <see cref="DiNodeManagerAutoIdExtensions.CreateAutoIdRuntime"/>.
+    /// <see cref="DiNodeManagerAutoIdExtensions.CreateAutoIdRuntime(DiNodeManager, AutoIdServerOptions)"/>.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -59,12 +60,13 @@ namespace Opc.Ua.AutoID.Server
     /// </remarks>
     public sealed class AutoIdRuntime : IAsyncDisposable, IConformanceContributor
     {
-        internal AutoIdRuntime(DiNodeManager manager, AutoIdServerOptions options)
+        internal AutoIdRuntime(DiNodeManager manager, AutoIdServerOptions options, IFileTypeBinder? fileBinder = null)
         {
             Manager = manager ?? throw new ArgumentNullException(nameof(manager));
             Options = (options ?? throw new ArgumentNullException(nameof(options))).Validate();
             m_logger = manager.SystemContext.Telemetry.CreateLogger<AutoIdRuntime>();
             m_placement = new AutoIdReaderPlacement(manager);
+            FileBinder = fileBinder ?? new FileTypeBinder();
             manager.RegisterConformanceContributor(this);
             m_sessionLease = manager.RegisterSessionClosingHandler(OnSessionClosingAsync);
         }
@@ -78,6 +80,11 @@ namespace Opc.Ua.AutoID.Server
         /// Gets the options the runtime was created with.
         /// </summary>
         public AutoIdServerOptions Options { get; }
+
+        /// <summary>
+        /// Gets the file binder used for reader-owned image slots.
+        /// </summary>
+        internal IFileTypeBinder FileBinder { get; }
 
         /// <summary>
         /// Gets the namespace the node manager mints instance NodeIds in, for the reader browse
@@ -389,6 +396,7 @@ namespace Opc.Ua.AutoID.Server
                     builder.Parameters,
                     builder.ParameterCapabilities);
                 reader.Bind();
+                reader.BindImages(builder.Images);
                 await Manager.RegisterRootNotifierAsync(device, cancellationToken).ConfigureAwait(false);
                 await reader.AttachAsync(cancellationToken).ConfigureAwait(false);
                 if (ReaderRegisteredForTest != null)

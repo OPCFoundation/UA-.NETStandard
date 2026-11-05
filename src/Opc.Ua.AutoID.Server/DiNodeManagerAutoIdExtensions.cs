@@ -56,6 +56,20 @@ namespace Opc.Ua.AutoID.Server
             this DiNodeManager manager,
             AutoIdServerOptions? options = null)
         {
+            return CreateAutoIdRuntime(manager, options, null);
+        }
+
+        /// <summary>
+        /// Creates or retrieves the owner-scoped runtime with an optional image file binder.
+        /// </summary>
+        /// <remarks>
+        /// The first call selects options and binder; subsequent calls share that runtime.
+        /// </remarks>
+        public static AutoIdRuntime CreateAutoIdRuntime(
+            this DiNodeManager manager,
+            AutoIdServerOptions? options,
+            Opc.Ua.Server.FileSystem.IFileTypeBinder? fileBinder)
+        {
             if (manager == null)
             {
                 throw new ArgumentNullException(nameof(manager));
@@ -78,7 +92,7 @@ namespace Opc.Ua.AutoID.Server
             AutoIdRuntime runtime = s_runtimes.GetValue(
                 manager,
                 owner => new Lazy<AutoIdRuntime>(
-                    () => new AutoIdRuntime(owner, options ?? new AutoIdServerOptions()))).Value;
+                    () => new AutoIdRuntime(owner, options ?? new AutoIdServerOptions(), fileBinder))).Value;
             runtime.RegisterLifetime();
             return runtime;
         }

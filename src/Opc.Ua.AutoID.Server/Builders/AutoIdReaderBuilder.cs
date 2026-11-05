@@ -41,6 +41,8 @@ namespace Opc.Ua.AutoID.Server.Builders
     internal sealed class AutoIdReaderBuilder :
         IAutoIdReaderBuilder,
         IAutoIdRuntimeParametersBuilder,
+        IAutoIdImagesBuilder,
+        IAutoIdIODataBuilder,
         IAutoIdDiagnosticsBuilder
     {
         internal AutoIdReaderBuilder(
@@ -95,6 +97,16 @@ namespace Opc.Ua.AutoID.Server.Builders
         internal bool HasDiagnostics { get; private set; }
 
         /// <summary>
+        /// Gets the fixed image slots configured before registration.
+        /// </summary>
+        internal ArrayOf<AutoIdImageSlot> Images { get; private set; }
+
+        /// <summary>
+        /// Gets the application callback that populates IOData before registration.
+        /// </summary>
+        internal Action<ISystemContext, BaseObjectState>? ConfigureIOData { get; private set; }
+
+        /// <summary>
         /// Gets or sets the initial provider configuration.
         /// </summary>
         internal AutoIdScanParameters? Parameters { get; set; }
@@ -113,6 +125,37 @@ namespace Opc.Ua.AutoID.Server.Builders
         /// Gets the standard parameter and control write permissions.
         /// </summary>
         internal ArrayOf<RolePermissionType> ScanWritePermissions { get; private set; }
+
+        /// <inheritdoc/>
+        public IAutoIdReaderBuilder WithIOData(Action<ISystemContext, BaseObjectState> configure)
+        {
+            ConfigureIOData = configure ?? throw new ArgumentNullException(nameof(configure));
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IAutoIdReaderBuilder WithImages(ArrayOf<AutoIdImageSlot> images)
+        {
+            if (Provider.Kind is not (AutoIdReaderKind.Ocr or AutoIdReaderKind.Optical or
+                AutoIdReaderKind.OpticalVerifier))
+            {
+                throw new InvalidOperationException("Only OCR and optical readers publish Images.");
+            }
+            if (images.Count > 16)
+            {
+                throw new ArgumentOutOfRangeException(nameof(images), "At most sixteen image slots are supported.");
+            }
+            var names = new System.Collections.Generic.HashSet<QualifiedName>();
+            for (int i = 0; i < images.Count; i++)
+            {
+                if (images[i] == null || !names.Add(images[i].Name))
+                {
+                    throw new ArgumentException("Image slots must be nonnull and have unique names.", nameof(images));
+                }
+            }
+            Images = images.Span.ToArray().ToArrayOf();
+            return this;
+        }
 
         /// <inheritdoc/>
         public IAutoIdReaderBuilder WithScanWritePermissions(ArrayOf<RolePermissionType> permissions)

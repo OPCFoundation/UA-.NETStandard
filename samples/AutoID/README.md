@@ -24,6 +24,12 @@ filtering. Those standard runtime parameters require a
 provider that implements their behavior; the sample does not infer hardware
 capabilities from its simulated antenna names or signal measurements.
 
+`LabelVerifier/Images/Label` is a read-only FileType containing a small portable
+graymap (`image/x-portable-graymap`). The server configures the slot with
+`WithImages` and publishes its bytes through `ReportImageAsync`. The client
+discovers it with `EnumerateImagesAsync` and uses the existing File System client
+to read it; the sample-pair script requires that output too.
+
 | Sample | What it does |
 | --- | --- |
 | [AutoIdServer](AutoIdServer/) | Serves `DockDoor1` with simulated RFID pallets and `LabelVerifier` with a label print-quality result |

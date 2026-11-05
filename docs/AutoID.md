@@ -13,7 +13,10 @@ clients configure readers and observe acquisition timestamps. Optional
 `CodeTypesRWData` uses a provider formatter for diagnostic user data; the simulated
 RFID provider supports `RAW:BYTES`. This projection changes neither method outputs
 nor event payloads. Hardware-specific IOData definitions remain application-owned.
-Support remains Partial for the [unresolved method contracts](#remaining-work-for-full-support).
+`WithIOData` composes their bindings; `WithImages` publishes acquired image files
+through standard FileType transfer. SDK support covers the defined mandatory and
+optional capabilities, with the [published contract limits](#support-scope-and-published-contract-limits)
+documented explicitly rather than supplied with invented signatures.
 
 | Package | What it adds |
 | --- | --- |
@@ -38,13 +41,14 @@ The [AutoID sample](../samples/AutoID/) runs a simulated RFID reader end to end.
   - [Runtime parameters and Data Access control](#runtime-parameters-and-data-access-control)
   - [Diagnostics through Data Access](#diagnostics-through-data-access)
 - [Behavior of the methods](#behavior-of-the-methods)
+- [Acquired images](#acquired-images)
 - [Events](#events)
 - [Conformance](#conformance)
 - [Client](#client)
 - [MCP tools](#mcp-tools)
 - [Sample](#sample)
 - [Specification notes](#specification-notes)
-  - [Remaining work for Full support](#remaining-work-for-full-support)
+  - [Support scope and published contract limits](#support-scope-and-published-contract-limits)
 - [Provenance](#provenance)
 
 ## Model and dependencies
@@ -705,14 +709,77 @@ RFID portal.
 
 The runtime does not invent vendor IO definitions. OPC 30010 6.1.3.2 defines
 `IOData` as an optional FunctionalGroup for application or reader-specific sensor
-and actuator variables, without standard children. No such hardware points are
+and actuator variables, without standard children. `WithIOData((context, group) =>
+...)` creates that group and invokes the application's composition callback
+before registration. The application adds its own variables, access permissions
+and asynchronous hardware bindings; the runtime preserves them. A callback
+failure aborts registration and leaves the reader name available for retry.
+Without that callback the group remains absent. No such hardware points are
 defined by the simulated reader, so it does not publish that group.
+Clients use ordinary Browse, Read, Write and subscriptions for these
+application-defined variables; the SDK does not invent a universal IO schema.
 Standard reader-specific runtime parameters require the explicit provider
 capability described above; `WithDiagnostics()` alone does not publish writable
 configuration. The sample's in-memory RFID provider implements raw-byte diagnostic
 formatting but does not implement RF configuration or tag-type filtering, so those
 optional parameters remain absent rather than advertising simulated hardware
 capabilities it does not implement.
+
+## Acquired images
+
+OCR and optical readers, including optical verifiers, can publish acquired images
+through `WithImages`. OPC 30010 [6.2.3.2](https://reference.opcfoundation.org/specs/OPC-30010/6.2.3)
+and [6.3.3.2](https://reference.opcfoundation.org/specs/OPC-30010/6.3.3)
+define an optional `Images` folder containing named `FileType` objects. Each file
+publishes `MimeType`; image encoding remains the provider's responsibility.
+
+```csharp
+QualifiedName frame = new("Frame", context.Runtime.InstanceNamespaceIndex);
+AutoIdReader reader = await context.Runtime
+    .Reader(new QualifiedName("Camera", frame.NamespaceIndex), opticalHardware)
+    .WithImages([new AutoIdImageSlot(frame, "image/png", maximumBytes: 1024 * 1024)])
+    .BuildAsync(ct);
+
+// A provider obtains this optional capability from its attached IAutoIdReaderSink.
+await ((IAutoIdImageSink)reader).ReportImageAsync(frame, pngBytes, ct);
+```
+
+The catalogue is fixed when the reader is built: at most 16 slots, with unique
+qualified browse names and a positive per-slot byte limit no larger than 16 MiB.
+These are SDK resource limits, not limits imposed by OPC 30010. Other reader kinds
+reject image configuration. No configured slots means no `Images` folder.
+A null initial value means that the image is not yet available; an explicitly
+empty byte string is a readable, zero-length file. Reports must be nonnull and
+fit the configured slot. Unknown names, oversized values and canceled reports
+leave the last accepted image unchanged.
+
+The reader copies initial and reported bytes. An update replaces the content
+used by subsequent opens; handles already open retain their prior snapshots.
+Standard read-only FileType methods enforce session-owned handles and the
+existing binder's 64-handle limit per file. Reader shutdown retires these handles
+and rejects further reports; failed registration also disposes bindings already
+created. The reader owns the bindings, not the injected binder service.
+Register `IFileTypeBinder` before hosting to supply another binder; direct
+construction and `CreateAutoIdRuntime` also accept one and otherwise use
+`FileTypeBinder`. A composed owner's first runtime creation selects the binder.
+
+The typed client discovers the files and reuses the
+[File System client](FileSystemClient.md) for metadata and transfer:
+
+```csharp
+await foreach (UaFileInfo image in autoId.EnumerateImagesAsync(camera, ct))
+{
+    Console.WriteLine(image.MimeType);
+    byte[] content = await image.ReadAllBytesAsync(ct);
+}
+```
+
+These are detached `UaFileInfo` objects because `Images` is a `FolderType`, not a
+`FileDirectoryType`. File reads do not depend on a server-wide file-system root.
+An absent optional folder yields no files; service failures propagate.
+The sample verifier publishes a small portable graymap and the client reads it
+through this same path. Images are independent of scan result/event payloads
+and diagnostic formatting.
 
 ## Behavior of the methods
 
@@ -938,10 +1005,15 @@ follows the published method table and is recorded explicitly in
 RTLS signatures remain unchanged. The Full Server Facet is evaluated separately
 for each hosted reader's implemented capabilities.
 
-### Remaining work for Full support
+### Support scope and published contract limits
 
-One wire method remains unimplemented because the published model provides no
-signature:
+The SDK supports the defined optional capabilities as well as mandatory reader
+behavior. Devices expose only their configured provider capabilities. Acquired
+images use bounded FileType slots, and `WithIOData` composes application-defined
+sensor and actuator nodes without assigning them invented standard semantics.
+
+One optional wire method is deliberately omitted because the published model
+provides no signature:
 
 - RTLS `GetUnits` is deliberately omitted until its inputs, outputs, types and
   value ranks are defined by an authoritative contract. The four unit properties
@@ -964,6 +1036,12 @@ readers. These cases are implementation evidence, not OPC certification.
 
 | Requirement | Test in `tests/Opc.Ua.AutoID.Tests` |
 |---|---|
+| IOData composition for every reader kind, application-owned access/bindings and real-service writes | `IODataCompositionPreservesApplicationBindingsAsync` |
+| Unconfigured IOData and callback rollback without reserving the reader name | `IODataConfigurationFailureRollsBackAndUnconfiguredGroupRemainsAbsentAsync` |
+| Images for OCR, optical and verifier readers, copied bytes, MIME metadata, read-only access and session-owned snapshot handles | `ImageSlotsPublishReadOnlySnapshotsThroughStandardFilesAsync` |
+| Unknown, null, oversized and canceled image reports; unavailable and empty content | `ImagePublicationRejectsUnknownNullOversizedAndCanceledUpdatesAsync` |
+| Image binding cleanup after shutdown or partial setup failure; accepted notifications retain reader lifetime | `DisposingAReaderRetiresImageBindingsAsync`, `FailedImageBindingDisposesEarlierSlotsAndAllowsRegistrationRetryAsync`, `ImagePublicationKeepsReaderLifetimeUntilNotificationsCompleteAsync` |
+| Invalid image catalogues, bounds and reader kinds | `ImageConfigurationRejectsInvalidSlots` |
 | Corrected verifier method metadata, typed synchronous results and unchanged asynchronous events | `VerifierScanMetadataUsesPublishedResultType`, `AVerifierReturnsTypedSynchronousResultsAndRetainsScanEventsAsync`, `TheVerifierReportsVerificationResultsAsync` |
 | Opt-in capability and legacy-provider compatibility | `CapabilityIsOptInAndExistingProvidersRemainCompatibleAsync` |
 | Runtime metadata and configured conformance units; async-only parameters do not qualify for Full | `ParametersHavePublishedMetadataAndContributeOnlyConfiguredUnitsAsync` |

@@ -46,7 +46,7 @@ namespace Opc.Ua.AutoID.Tests
     [TestFixture]
     [Category("AutoID")]
     [NonParallelizable]
-    public sealed class AutoIdReaderEndToEndTests
+    public sealed partial class AutoIdReaderEndToEndTests
     {
         [OneTimeSetUp]
         public async Task OneTimeSetUpAsync()

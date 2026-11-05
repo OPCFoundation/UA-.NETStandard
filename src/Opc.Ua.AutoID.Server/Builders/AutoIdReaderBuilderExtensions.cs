@@ -37,6 +37,40 @@ namespace Opc.Ua.AutoID.Server
     /// </summary>
     public static class AutoIdReaderBuilderExtensions
     {
+        /// <inheritdoc cref="IAutoIdIODataBuilder.WithIOData"/>
+        /// <param name="builder">The reader builder.</param>
+        /// <param name="configure">Binds application-owned IO variables before registration.</param>
+        public static IAutoIdReaderBuilder WithIOData(
+            this IAutoIdReaderBuilder builder, Action<ISystemContext, BaseObjectState> configure)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (builder is not IAutoIdIODataBuilder capability)
+            {
+                throw new NotSupportedException("The reader builder does not support IOData composition.");
+            }
+            return capability.WithIOData(configure);
+        }
+
+        /// <inheritdoc cref="IAutoIdImagesBuilder.WithImages"/>
+        /// <param name="builder">The reader builder.</param>
+        /// <param name="images">The fixed image catalogue.</param>
+        public static IAutoIdReaderBuilder WithImages(
+            this IAutoIdReaderBuilder builder, ArrayOf<AutoIdImageSlot> images)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (builder is not IAutoIdImagesBuilder capability)
+            {
+                throw new NotSupportedException("The reader builder does not support image slots.");
+            }
+            return capability.WithImages(images);
+        }
+
         /// <inheritdoc cref="IAutoIdRuntimeParametersBuilder.WithRuntimeParameters"/>
         /// <param name="builder">The reader builder.</param>
         /// <param name="enableScanControl">Whether to expose writable ScanActive.</param>

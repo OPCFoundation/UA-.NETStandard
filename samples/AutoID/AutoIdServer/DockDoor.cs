@@ -57,6 +57,11 @@ namespace AutoIdSample
         public InMemoryRfidReaderProvider Hardware { get; } = new(TimeSpan.FromMilliseconds(1000));
 
         /// <summary>
+        /// Gets the sample-owned label verifier hardware.
+        /// </summary>
+        public InMemoryOpticalVerifierProvider Verifier { get; } = new();
+
+        /// <summary>
         /// Gets the reader once the address space is ready.
         /// </summary>
         public AutoIdReader? Reader { get; private set; }
@@ -97,19 +102,26 @@ namespace AutoIdSample
                 })
                 .BuildAsync(context.CancellationToken).ConfigureAwait(false);
 
-            var verifier = new InMemoryOpticalVerifierProvider();
-            verifier.Present(new OpticalVerifierScanResult
+            Verifier.Present(new OpticalVerifierScanResult
             {
                 CodeType = "RAW:STRING",
                 ScanData = new ScanData { SwitchField = ScanDataFields.String, String = "PALLET-LABEL" },
                 Timestamp = DateTimeUtc.Now,
                 IsoGrade = "A"
             });
-            await context.Runtime.Reader(
-                new QualifiedName("LabelVerifier", context.Manager.InstanceNamespaceIndex), verifier)
-                .OwnsProvider()
+            AutoIdReader labelVerifier = await context.Runtime.Reader(
+                new QualifiedName("LabelVerifier", context.Manager.InstanceNamespaceIndex), Verifier)
                 .WithDeviceInfo("Dock door label print-quality verifier")
+                .WithImages(
+                [
+                    new AutoIdImageSlot(
+                        new QualifiedName("Label", context.Manager.InstanceNamespaceIndex), "image/x-portable-graymap")
+                ])
                 .BuildAsync(context.CancellationToken).ConfigureAwait(false);
+            await labelVerifier.ReportImageAsync(
+                new QualifiedName("Label", context.Manager.InstanceNamespaceIndex),
+                ByteString.From(Encoding.ASCII.GetBytes("P2\n2 2\n255\n0 255 255 0\n")), context.CancellationToken)
+                .ConfigureAwait(false);
         }
 
         /// <summary>
@@ -147,6 +159,7 @@ namespace AutoIdSample
         {
             // The reader owns its provider only when asked to; this sample does not ask, so it disposes it.
             Hardware.Dispose();
+            Verifier.Dispose();
             return default;
         }
     }

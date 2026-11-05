@@ -33,6 +33,7 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.AutoID.Server;
+using Opc.Ua.AutoID.Server.Builders;
 
 namespace Opc.Ua.AutoID.Tests
 {

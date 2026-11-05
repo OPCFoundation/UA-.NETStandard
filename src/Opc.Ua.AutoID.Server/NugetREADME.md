@@ -74,6 +74,14 @@ locks and kill; `InMemoryScanReaderProvider`; `InMemoryOpticalVerifierProvider`;
 
 ## Behavior
 
+- `WithImages` configures up to 16 named, read-only FileType slots on OCR and
+  optical readers, including verifiers. Providers publish copied image bytes
+  through the optional `IAutoIdImageSink`. Existing open handles retain snapshots;
+  the reader owns binding cleanup. Each slot declares its MIME type and a byte
+  limit of at most 16 MiB. Hosting accepts an injectable `IFileTypeBinder`.
+- `WithIOData` creates the optional FunctionalGroup before registration and
+  retains application-owned sensor/actuator nodes, access levels and asynchronous
+  bindings. No hardware points or universal IO schema are invented.
 - A reader runs one scan at a time; a second `Scan` or `ScanStart` fails with
   `Bad_InvalidState`. An infinite synchronous scan is `Bad_InvalidArgument`.
 - A method-started scan stops when its starting session closes. Variable-started

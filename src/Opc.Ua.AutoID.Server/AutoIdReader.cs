@@ -292,6 +292,10 @@ namespace Opc.Ua.AutoID.Server
                 m_controlGate.Release();
             }
             await drained.ConfigureAwait(false);
+            foreach (var image in m_images.Values)
+            {
+                await TryAsync(image.Binding.DisposeAsync, "disposing an image binding").ConfigureAwait(false);
+            }
             if (m_ownsProvider)
             {
                 await DisposeProviderAsync().ConfigureAwait(false);

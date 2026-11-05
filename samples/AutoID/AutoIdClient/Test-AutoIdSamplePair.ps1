@@ -141,6 +141,7 @@ try
         'Scan: SUCCESS, \d+ tag\(s\)',
         'OpticalVerifier reader LabelVerifier',
         'Verifier Scan: SUCCESS, ISO grade A',
+        'Verifier image: image/x-portable-graymap, \d+ byte\(s\)',
         'ReadTag user memory: SUCCESS, "PALLET-\d{4}"',
         'WriteTag: SUCCESS; read back: "CHECKED"',
         'ScanStart: SUCCESS',

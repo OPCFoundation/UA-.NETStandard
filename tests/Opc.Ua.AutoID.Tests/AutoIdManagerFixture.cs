@@ -337,7 +337,8 @@ namespace Opc.Ua.AutoID.Tests
 
         public ISystemContext Context => Manager.SystemContext;
 
-        public async Task StartAsync(AutoIdServerOptions? options = null)
+        public async Task StartAsync(
+            AutoIdServerOptions? options = null, Opc.Ua.Server.FileSystem.IFileTypeBinder? fileBinder = null)
         {
             m_fixture = new ServerFixture<StandardServer>(telemetry => new StandardServer(telemetry))
             {
@@ -345,9 +346,9 @@ namespace Opc.Ua.AutoID.Tests
                 SecurityNone = true
             };
             StandardServer server = await m_fixture.StartAsync().ConfigureAwait(false);
-            Manager = options == null
-                ? new AutoIdNodeManager(server.CurrentInstance, m_fixture.Config)
-                : new AutoIdNodeManager(server.CurrentInstance, m_fixture.Config, options);
+            Manager = new AutoIdNodeManager(server.CurrentInstance, m_fixture.Config, null,
+                new Microsoft.Extensions.Options.OptionsWrapper<AutoIdServerOptions>(
+                    options ?? new AutoIdServerOptions()), default, fileBinder);
             await Manager.CreateAddressSpaceAsync(
                 new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
         }

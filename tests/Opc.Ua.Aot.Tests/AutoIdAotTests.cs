@@ -136,6 +136,25 @@ namespace Opc.Ua.Aot.Tests
         }
 
         /// <summary>
+        /// Executes image discovery, MIME metadata and FileType transfer through NativeAOT proxies.
+        /// </summary>
+        [Test]
+        public async Task VerifierImagesExecuteThroughStandardFileClientAsync()
+        {
+            int count = 0;
+            await foreach (Opc.Ua.Client.FileSystem.UaFileInfo image in fixture.Client.EnumerateImagesAsync(
+                fixture.Verifier))
+            {
+                count++;
+                byte[] content = await image.ReadAllBytesAsync().ConfigureAwait(false);
+                await Assert.That(image.MimeType).IsEqualTo("image/x-portable-graymap");
+                await Assert.That(System.Text.Encoding.ASCII.GetString(content)).IsEqualTo("P2\n1 1\n255\n0\n");
+                await Assert.That(image.Writable).IsFalse();
+            }
+            await Assert.That(count).IsEqualTo(1);
+        }
+
+        /// <summary>
         /// Executes the standard diagnostics projection and reads its encoded values over a session.
         /// </summary>
         [Test]
@@ -217,6 +236,13 @@ namespace Opc.Ua.Aot.Tests
                     });
                     AutoIdReader verifierReader = await context.Runtime.Reader(
                         new QualifiedName("AotVerifier", context.Runtime.InstanceNamespaceIndex), verifier)
+                        .WithImages(
+                        [
+                            new AutoIdImageSlot(
+                                new QualifiedName("Frame", context.Runtime.InstanceNamespaceIndex),
+                                "image/x-portable-graymap",
+                                ByteString.From(System.Text.Encoding.ASCII.GetBytes("P2\n1 1\n255\n0\n")))
+                        ])
                         .OwnsProvider().BuildAsync(context.CancellationToken).ConfigureAwait(false);
                     m_verifierId = verifierReader.NodeId;
                 })

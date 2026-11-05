@@ -29,6 +29,9 @@ await foreach (AutoIdScanEventTypeRecord e in
   `LockTagAsync`, `SetTagPasswordAsync`; the status a device reports for a tag is
   returned, not thrown.
 - RTLS `GetLocationAsync` and `GetSupportedLocationTypesAsync`.
+- `EnumerateImagesAsync` discovers optional OCR/optical image files with MIME
+  metadata and returns detached `UaFileInfo` objects for standard asynchronous
+  FileType reads. No server-wide file-system root is required.
 - `ReadDeviceAsync` with `AutoIdReadOptions` (`Default`, `StatusOnly`), one
   Browse and one Read per call; the snapshot also carries the NodeIds of the
   variables to monitor and the methods the device publishes.

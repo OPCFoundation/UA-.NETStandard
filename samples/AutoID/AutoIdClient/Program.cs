@@ -157,6 +157,11 @@ if (verifier != null)
         var quality = (OpticalVerifierScanResult)result;
         Console.WriteLine($"Verifier Scan: {verified.Status}, ISO grade {quality.IsoGrade}");
     }
+    await foreach (Opc.Ua.Client.FileSystem.UaFileInfo image in autoId.EnumerateImagesAsync(verifier, ct))
+    {
+        byte[] content = await image.ReadAllBytesAsync(ct).ConfigureAwait(false);
+        Console.WriteLine($"Verifier image: {image.MimeType}, {content.Length} byte(s)");
+    }
 }
 
 // A synchronous scan: the method returns after the pallets in range were read.

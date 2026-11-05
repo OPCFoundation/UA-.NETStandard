@@ -74,6 +74,12 @@ namespace Opc.Ua.AutoID.Server
             {
                 AutoIdReader.ConfigureDiagnostics(context, device);
             }
+            AutoIdReader.ConfigureImages(context, device, builder.Images);
+            if (builder.ConfigureIOData != null)
+            {
+                device.AddIOData(context);
+                builder.ConfigureIOData(context, device.IOData!);
+            }
 
             if (builder.DeviceInfo != null)
             {
