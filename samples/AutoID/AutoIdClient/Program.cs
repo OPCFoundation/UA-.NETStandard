@@ -157,7 +157,8 @@ if (verifier != null)
         var quality = (OpticalVerifierScanResult)result;
         Console.WriteLine($"Verifier Scan: {verified.Status}, ISO grade {quality.IsoGrade}");
     }
-    await foreach (Opc.Ua.Client.FileSystem.UaFileInfo image in autoId.EnumerateImagesAsync(verifier, ct))
+    await foreach (Opc.Ua.Client.FileSystem.UaFileInfo image in autoId.EnumerateImagesAsync(verifier, ct)
+        .ConfigureAwait(false))
     {
         byte[] content = await image.ReadAllBytesAsync(ct).ConfigureAwait(false);
         Console.WriteLine($"Verifier image: {image.MimeType}, {content.Length} byte(s)");
