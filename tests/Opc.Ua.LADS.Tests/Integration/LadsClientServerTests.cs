@@ -261,16 +261,9 @@ namespace Opc.Ua.LADS.Tests.Integration
         /// <summary>
         /// Invalid paths and values cannot reach the hardware provider.
         /// </summary>
-        [TestCase("Mode", "ControllerModeSet/Missing/TargetValue", 1.0, StatusCodes.BadNotFound)]
-        [TestCase("Composed", "TargetValueSet/Missing", 1.0, StatusCodes.BadNotFound)]
-        [TestCase("Pid", "ControllerTuningParameter/Unknown", 1.0, StatusCodes.BadNotFound)]
-        [TestCase("Mode", "ControllerModeSet/Cool/TargetValue", -1.0, StatusCodes.BadOutOfRange)]
-        [TestCase("Mode", "ControllerModeSet/Cool/TargetValue", 101.0, StatusCodes.BadOutOfRange)]
-        [TestCase("Composed", "TargetValueSet/Sample%2FPrimary", double.NaN, StatusCodes.BadOutOfRange)]
-        [TestCase("Pid", "ControllerTuningParameter/CtrlP", double.PositiveInfinity, StatusCodes.BadOutOfRange)]
-        [TestCase("Pid", "ControllerTuningParameter/CtrlP", double.NegativeInfinity, StatusCodes.BadOutOfRange)]
+        [TestCaseSource(nameof(s_invalidParameterValues))]
         public async Task NamedParameterValidationPrecedesProviderAsync(
-            string name, string parameterPath, double value, uint status)
+            string name, string parameterPath, double value, StatusCode status)
         {
             var provider = new Mock<ILadsFunctionProvider>(MockBehavior.Strict);
             await using LadsClientConnection connection = await LadsClientConnection.StartAsync(
@@ -1274,6 +1267,19 @@ namespace Opc.Ua.LADS.Tests.Integration
                 CtrlTd = 3
             });
         }
+
+        /// <summary>Invalid parameter paths and values with their expected service errors.</summary>
+        private static readonly TestCaseData[] s_invalidParameterValues =
+        [
+            new("Mode", "ControllerModeSet/Missing/TargetValue", 1.0, StatusCodes.BadNotFound),
+            new("Composed", "TargetValueSet/Missing", 1.0, StatusCodes.BadNotFound),
+            new("Pid", "ControllerTuningParameter/Unknown", 1.0, StatusCodes.BadNotFound),
+            new("Mode", "ControllerModeSet/Cool/TargetValue", -1.0, StatusCodes.BadOutOfRange),
+            new("Mode", "ControllerModeSet/Cool/TargetValue", 101.0, StatusCodes.BadOutOfRange),
+            new("Composed", "TargetValueSet/Sample%2FPrimary", double.NaN, StatusCodes.BadOutOfRange),
+            new("Pid", "ControllerTuningParameter/CtrlP", double.PositiveInfinity, StatusCodes.BadOutOfRange),
+            new("Pid", "ControllerTuningParameter/CtrlP", double.NegativeInfinity, StatusCodes.BadOutOfRange)
+        ];
 
         private static readonly TimeSpan s_timeout = TimeSpan.FromSeconds(30);
         private static readonly string[] s_chamberFunctions = ["Temperature", "ShakerSpeed", "CO2", "Door", "Timer"];

@@ -29,6 +29,7 @@
 
 using System;
 using System.Globalization;
+using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -138,32 +139,29 @@ namespace LadsSample.Client
             {
                 throw new ServiceResultException(StatusCodes.BadLocked, $"DI InitLock returned {acquired}.");
             }
-            Exception? runFailure = null;
+            ExceptionDispatchInfo? runFailure = null;
             try
             {
                 await RunLockedIncubationAsync(device, ct).ConfigureAwait(false);
             }
             catch (Exception error)
             {
-                runFailure = error;
-                throw;
+                runFailure = ExceptionDispatchInfo.Capture(error);
             }
-            finally
+            try
             {
-                try
+                int released = await deviceLock.ExitLockAsync(CancellationToken.None).ConfigureAwait(false);
+                if (released != 0)
                 {
-                    int released = await deviceLock.ExitLockAsync(CancellationToken.None).ConfigureAwait(false);
-                    if (released != 0)
-                    {
-                        throw new ServiceResultException(
-                            StatusCodes.BadInvalidState, $"DI ExitLock returned {released}.");
-                    }
-                }
-                catch (Exception cleanupFailure) when (runFailure != null)
-                {
-                    throw new AggregateException(runFailure, cleanupFailure);
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidState, $"DI ExitLock returned {released}.");
                 }
             }
+            catch (Exception cleanupFailure) when (runFailure != null)
+            {
+                throw new AggregateException(runFailure.SourceException, cleanupFailure);
+            }
+            runFailure?.Throw();
         }
 
         /// <summary>
