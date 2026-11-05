@@ -2918,6 +2918,13 @@ namespace Opc.Ua
         /// <summary>
         /// Reports an event produced by the node.
         /// </summary>
+        /// <remarks>
+        /// A derived override may run for each parent or inverse-notifier path reaching this node.
+        /// The base implementation tracks visited nodes to suppress repeated sink delivery during propagation.
+        /// When the caller retains a serialization gate while reporting an event, synchronous sinks must not
+        /// block on work that needs the same gate. The synchronous path also waits for asynchronous sinks,
+        /// which must not await such work.
+        /// </remarks>
         /// <param name="context">The system context.</param>
         /// <param name="e">The event to report.</param>
         public virtual void ReportEvent(ISystemContext context, IFilterTarget e)
@@ -2993,10 +3000,19 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Asynchronously reports an event produced by the node, awaiting an asynchronous report
-        /// sink (see <see cref="OnReportEventAsync"/>) so the caller is never blocked. A synchronous
-        /// sink is invoked as well.
+        /// Reports an event through the asynchronous path, awaiting asynchronous report sinks
+        /// (see <see cref="OnReportEventAsync"/>) and inverse notifiers. Synchronous sinks are
+        /// still invoked directly.
         /// </summary>
+        /// <remarks>
+        /// This method does not invoke overrides of <see cref="ReportEvent"/>. A subclass that
+        /// customizes synchronous event reporting must also override this method to apply that
+        /// customization to asynchronous calls.
+        /// A derived override may run for each parent or inverse-notifier path reaching this node.
+        /// The base implementation tracks visited nodes to suppress repeated sink delivery during propagation.
+        /// When the caller retains a serialization gate while invoking or awaiting this method, report-event sinks
+        /// must not await or synchronously block on an operation that needs the same gate.
+        /// </remarks>
         /// <param name="context">The system context.</param>
         /// <param name="e">The event to report.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
@@ -3303,6 +3319,11 @@ namespace Opc.Ua
         /// <summary>
         /// Clears the change masks.
         /// </summary>
+        /// <remarks>
+        /// When the caller retains a serialization gate while clearing change masks, synchronous sinks must not block
+        /// on work that needs the same gate. This method also waits for asynchronous sinks, which must not await such
+        /// work.
+        /// </remarks>
         /// <param name="context">The context that describes how access the system containing the data..</param>
         /// <param name="includeChildren">if set to <c>true</c> clear masks recursively for all children..</param>
         public void ClearChangeMasks(ISystemContext context, bool includeChildren)
@@ -3412,10 +3433,14 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Asynchronously clears the change masks, awaiting any asynchronous state-changed sinks
-        /// (see <see cref="OnStateChangedAsync"/> / <see cref="StateChangedAsync"/>) so the caller
-        /// is never blocked. Synchronous sinks are invoked as well.
+        /// Asynchronously clears the change masks, awaiting asynchronous state-changed sinks
+        /// (see <see cref="OnStateChangedAsync"/> / <see cref="StateChangedAsync"/>). Synchronous sinks run inline
+        /// and may block the caller.
         /// </summary>
+        /// <remarks>
+        /// When the caller retains a serialization gate while invoking or awaiting this method, state-change sinks
+        /// must not await or synchronously block on an operation that needs the same gate.
+        /// </remarks>
         /// <param name="context">The context that describes how to access the system containing the data.</param>
         /// <param name="includeChildren">if set to <c>true</c> clear masks recursively for all children.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
