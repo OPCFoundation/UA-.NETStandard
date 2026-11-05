@@ -692,6 +692,16 @@ updates must override the overload that accepts `clearChangeMasks` and
 `updateRetainState`; overloads with both options enabled retain dispatch through
 the existing synchronous or asynchronous setter override.
 
+When publishing a condition snapshot after releasing an application mutation
+gate, initialize `InstanceStateSnapshot` while still holding that gate. Snapshot
+initialization captures the condition's EventId, acknowledgement and confirmation
+state and counters with its attributes; reporting registers that captured state
+instead of reading a newer live EventId. Assign a new EventId for each evaluation
+and do not change the snapshot's EventId or Handle after initialization. Snapshot
+capture alone does not register an EventId for condition methods; registration
+occurs when `ReportEvent` or `ReportEventAsync` is invoked, including a report
+whose delivery is subsequently canceled.
+
 <a id="ua0029"></a>
 
 ## Migrating callers of the SecurityPolicies lookup and cryptography statics
