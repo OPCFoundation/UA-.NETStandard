@@ -685,6 +685,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="translations">key = locale, value = text</param>
         /// <param name="translationInfo">The optional translation info></param>
+        /// <param name="ownedTranslations">Whether the dictionary has SDK-owned decoding or copying provenance.</param>
         /// <exception cref="ArgumentException">Thrown if both arguments are null
         /// or empty.</exception>"
         private LocalizedTextFormatAndTranslation(
