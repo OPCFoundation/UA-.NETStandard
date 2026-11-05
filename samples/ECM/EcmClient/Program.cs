@@ -39,6 +39,7 @@ using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.ECM;
 using Opc.Ua.ECM.Client;
+using Opc.Ua.IA.Client;
 
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 builder.Logging.EnableOpcUaRedaction();

@@ -591,7 +591,7 @@ namespace Opc.Ua.Machinery.Server.Builders
             AddMeasurement(
                 browseName.Name!,
                 value,
-                DataTypeOf(value, m_ecmNamespaceIndex),
+                DataTypeOf(value),
                 Opc.Ua.ReferenceTypeIds.HasComponent,
                 engineeringUnits,
                 measurementId,
@@ -654,15 +654,19 @@ namespace Opc.Ua.Machinery.Server.Builders
                 measurementId);
         }
 
-        private static NodeId DataTypeOf(Variant value, ushort ecmNamespaceIndex)
+        private NodeId DataTypeOf(Variant value)
         {
-            if (value.TryGetStructure<Opc.Ua.ECM.AcPeDataType>(out _))
+            if (value.TryGetStructure<Opc.Ua.ECM.AcPeDataType>(out Opc.Ua.ECM.AcPeDataType? _))
             {
-                return new NodeId(Opc.Ua.ECM.DataTypeIds.AcPeDataType, ecmNamespaceIndex);
+                return ExpandedNodeId.ToNodeId(
+                    Opc.Ua.ECM.DataTypeIds.AcPeDataType,
+                    m_scope.Context.NamespaceUris);
             }
-            if (value.TryGetStructure<Opc.Ua.ECM.AcPpDataType>(out _))
+            if (value.TryGetStructure<Opc.Ua.ECM.AcPpDataType>(out Opc.Ua.ECM.AcPpDataType? _))
             {
-                return new NodeId(Opc.Ua.ECM.DataTypeIds.AcPpDataType, ecmNamespaceIndex);
+                return ExpandedNodeId.ToNodeId(
+                    Opc.Ua.ECM.DataTypeIds.AcPpDataType,
+                    m_scope.Context.NamespaceUris);
             }
             return value.TypeInfo.BuiltInType switch
             {
