@@ -36,14 +36,16 @@ The SDK provides full or partial support for these core areas:
 - Part 21: [ticket validation, registrar runtime and pull/push workflows](GDS.md#opc-10000-21-onboardingclient),
   with retained device credentials, security reset and provider-backed managed
   Server/ClientAndServer push. The default managed-application verifier supports
-  UA-TCP only. Provider registration and provider-backed address-space behavior
+  UA-TCP and HTTPS, with separate TLS trust/pin and application-identity checks.
+  Provider registration and provider-backed address-space behavior
   have regression tests, but a full hosted composition test is not present. The
   registrar uses its configured certificate type by default; the host can select
   a different advertised type for each managed application.
   Per-entry remote `ConfigurationFile` update/confirm is optional Part 12
-  functionality and remains unimplemented; local `ConfigurationFile` transfer
+  functionality backed by application-scoped providers; shared `ConfigurationFile` transfer
   has separate Part 12/20 gaps. The device factory adds a Part 22 `Resources`
   parent reference, but shared Base Network integration remains a source gap.
+  The optional externally authenticated DCA handoff is not implemented.
   Connected recovery fixtures are present; their execution status is separate
   from this implementation rating.
 - Parts 22, 25 and 26: generated Base Network, Object Serialization and
@@ -619,14 +621,17 @@ OPC UA Part 12 areas:
   applications and supports managed Server/ClientAndServer applications when
   the host supplies authoritative discovery URLs, installed certificates,
   endpoints, user identities and explicit client trust. The default managed-
-  application verifier supports UA-TCP only. The sample can be configured for
+  application verifier supports UA-TCP and HTTPS with independently validated
+  TLS and application identities. The sample can be configured for
   one managed Server or ClientAndServer application after DCA proof. The
   provisionable-device factory adds a Part 22 `Resources` parent reference, but
   shared Resources manager integration is not implemented. Registrar push uses
   the configured certificate type by default and permits a host-selected type
   for each managed application; the selected type must be advertised by its
   certificate group. Per-entry remote `ConfigurationFile`
-  update/confirm is optional Part 12 functionality and remains unimplemented.
+  update/confirm and restart recovery use optional application-scoped Part 12
+  providers. The originally selected certificate type is retained during recovery.
+  The optional external-authentication handoff remains unimplemented.
   Connected recovery fixtures are present; their execution status is tracked
   separately. See
   [the implemented scope](GDS.md#opc-10000-21-onboardingclient).
@@ -871,7 +876,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 10000-18: Role-Based Security](https://reference.opcfoundation.org/specs/OPC-10000-18) | 1.05.06 | Full | - |
 | [OPC 10000-19: Dictionary Reference](https://reference.opcfoundation.org/specs/OPC-10000-19) | 1.05.03 | Full | - |
 | [OPC 10000-20: File Transfer](https://reference.opcfoundation.org/specs/OPC-10000-20) | 1.05.06 | Partial | The shared file handler rejects combined Read + Write opens; a conflicting write-only open on a writable file can return `Bad_InvalidState` instead of `Bad_NotWritable` |
-| [OPC 10000-21: Device Onboarding](https://reference.opcfoundation.org/specs/OPC-10000-21) | 1.05.04 | Partial | Ticket validation, registrar runtime and pull/push workflows are implemented, including managed Client and provider-backed Server/ClientAndServer push. The shared Part 22 `Resources` manager is not integrated; the device factory currently adds only its parent reference. Registrar push uses its configured certificate type by default; the host can select a different type per managed application, which must be advertised by that application's certificate group. The default managed-application verifier supports UA-TCP only; hosts can supply a verifier for another transport. Per-entry remote `ConfigurationFile` update, confirmation and restart recovery use optional application-scoped Part 12 providers; shared `ConfigurationFile` transfer has separate Part 12/20 gaps. The registrar sample can configure one managed Server/ClientAndServer application, and the device sample can configure multiple managed Client applications. The Partial rating reflects the Resources-manager integration gap, not pending test execution |
+| [OPC 10000-21: Device Onboarding](https://reference.opcfoundation.org/specs/OPC-10000-21) | 1.05.04 | Partial | Ticket validation, registrar runtime and pull/push workflows are implemented, including managed Client and provider-backed Server/ClientAndServer push. The shared Part 22 `Resources` manager is not integrated; the device factory currently adds only its parent reference. The optional externally authenticated DCA handoff is not implemented. Registrar push uses an explicit per-application certificate type or the configured default when absent, validates the advertised group types, and retains the original selection during recovery. The default managed-application verifier supports UA-TCP and HTTPS; HTTPS independently validates TLS trust or a TLS pin, the pinned application certificate, expected URI and application proof before credentials. Its TLS terminator is part of the trust boundary. Per-entry remote `ConfigurationFile` update, confirmation and restart recovery use optional application-scoped Part 12 providers; shared `ConfigurationFile` transfer has separate Part 12/20 gaps. The registrar sample can configure one managed Server/ClientAndServer application, and the device sample can configure multiple managed Client applications. The Partial rating reflects implementation gaps, not pending test execution |
 | [OPC 10000-22: Base Network Model](https://reference.opcfoundation.org/specs/OPC-10000-22) | 1.05.04 | Partial | Generated network model types; no complete network-management runtime |
 | [OPC 10000-23: Common ReferenceTypes](https://reference.opcfoundation.org/specs/OPC-10000-23) | 1.05.02 | Full | - |
 | [OPC 10000-24: Scheduler](https://reference.opcfoundation.org/specs/OPC-10000-24) | 1.05.02 | No | - |

@@ -699,6 +699,9 @@ registration. The host must select the standard unknown-capability identifier
 explicitly if it cannot identify any supported capability.
 The host can also set `CertificateTypeId` for that application. If it leaves
 the identifier null, push uses the registrar connection's configured type.
+This rule also applies to Client applications. Without a metadata provider,
+a Client uses the configured default; a configured provider returning no target
+is a configuration error, not permission to fall back.
 Before creating a signing request, push checks that the selected type appears
 in the application's `DefaultApplicationGroup.CertificateTypes`; it does not
 silently choose another type. A host can therefore provision applications
@@ -706,6 +709,19 @@ that support different certificate types while keeping the selection under
 operator policy. The OnboardingRegistrar sample accepts an optional
 `--managedApplicationCertificateTypeId` expanded NodeId for its configured
 managed application.
+The standard enrollment provider implements
+`IDeviceRegistrarPushCertificateEnrollmentProvider` to route that selected type
+to the existing GDS authority. A custom provider implementing only the original
+enrollment interface can serve the configured default; a nondefault selection
+is rejected before registration or CSR creation.
+
+The enrollment journal retains the original selected type and certificate group.
+Recovery validates the original CSR and request against those retained values,
+even if the configured default has changed. A subsequent attempt selecting a
+different type is rejected rather than starting another enrollment. The journal
+format remains version 1; an older implementation can resume it only when its
+configured type matches the retained selection. The connection default and
+enrollment-provider default remain separate host configuration values.
 The processor uses the model's application identity and type; it does not let
 the provider replace them. Discovery URLs identify DiscoveryEndpoints; the
 selected connection endpoint URL can differ from them (Part 4 §7.2 and
@@ -732,12 +748,9 @@ factory overload use reverse transport. Such a target requires a host-provided
 channel verifier using the existing reverse-connect session-factory overload.
 
 The host also registers a channel verifier with an initialized client
-`ApplicationConfiguration`. The onboarding verifier currently supports UA-TCP
-only. HTTPS validates its TLS certificate and OPC UA application certificate
-through separate mechanisms, and the CreateSession signature does not bind the
-TLS peer to the pinned application identity. The verifier therefore rejects
-HTTPS before calling the session factory; this restriction does not change
-generic HTTPS session behavior:
+`ApplicationConfiguration`. The onboarding verifier supports UA-TCP and HTTPS.
+HTTPS validates the TLS peer independently from the pinned OPC UA application
+certificate and expected application URI:
 
 ```csharp
 services.AddDeviceRegistrarManagedApplicationProvider(
@@ -747,7 +760,7 @@ services.AddDeviceRegistrarManagedApplicationChannelVerifier(
 ```
 
 After per-application authorization succeeds, the verifier opens a fresh
-UA-TCP session through the built-in `DefaultSessionFactory` or a factory that
+session through the built-in `DefaultSessionFactory` or a factory that
 explicitly declares `IPinnedServerCertificateSessionFactory`. It checks the
 channel endpoint and certificate against values captured from the host's
 selected endpoint before constructing a session. The session must retain that
@@ -775,23 +788,34 @@ The verifier opts into this check before opening the session; generic session
 opens do not enable it by default.
 It rejects a mismatch before sending ActivateSession credentials.
 
-HTTPS does not provide the required binding: its CreateSession signature covers
-the client certificate and nonce, not the TLS peer certificate. A TLS
-intermediary could relay a valid CreateSession proof for the pinned application
-certificate. The verifier rejects HTTPS and other unsupported transport
-profiles before calling the session factory. Generic Session use still does
-not compare the TLS channel certificate with the OPC UA application
-certificate; the onboarding restriction does not change that behavior.
+HTTPS requires `Sign` with a non-None security policy. The host can set
+`DeviceRegistrarManagedApplicationTarget.HttpsServerCertificate` to an exact TLS
+leaf pin; without it, the channel uses operating-system TLS trust and revocation
+checking. Both policies retain hostname and validity checks. The channel captures
+the policy before its first request, applies it to every TLS handshake, including
+replacement pooled connections, and does not follow redirects. An injected HTTP
+pipeline cannot bypass this policy.
+
+The TLS certificate may differ from the OPC UA application certificate.
+CreateSession must independently prove the pinned application key and return
+the expected application URI before ActivateSession sends user credentials.
+The TLS terminator is part of the trust boundary and can access transport and
+session data. Legacy CreateSession signatures cover the client certificate and
+nonce; they do not cryptographically bind the TLS terminator to the application
+certificate. Separate TLS validation does not change that limitation
+([Part 6 §7.4.1](https://reference.opcfoundation.org/specs/OPC-10000-6/v1.05.07/7.4.1)).
 
 The verifier accepts the exact built-in `DefaultSessionFactory` type or a
 factory whose concrete type directly declares
 `IPinnedServerCertificateSessionFactory` and whose base types do not declare
 that capability. A subclass cannot become capable only by inheriting the
 interface from a base factory. A custom factory must establish the selected
-UA-TCP channel without the target user identity. Before returning that channel,
-it must authenticate the signed OpenSecureChannel response, check its sender
-certificate against the selected endpoint certificate, and enforce the
-requested security mode and policy. It must preserve the selected endpoint and
+channel without the target user identity. For UA-TCP it must authenticate the
+signed OpenSecureChannel response and check its sender certificate against the
+selected endpoint certificate. For HTTPS it must expose
+`IHttpsServerCertificateValidation` and enforce the selected TLS policy on every
+handshake. Both transports must enforce the requested security mode and policy
+and preserve the selected endpoint and
 channel when constructing the session. Before `OpenAsync`, the verifier checks
 both `ConfiguredEndpoint.Description` and the transport channel endpoint against
 the selection, and checks them again after opening. The session must reject a
@@ -1442,7 +1466,8 @@ registrar/client round trip.
 
 Part 21 support remains partial because the provisionable-device factory adds
 the Part 22 `Resources` reference without integrating the shared `Resources`
-manager. Registrar push uses the configured certificate type by default, and
+manager, and the optional external-authentication handoff in §7.4 is not supplied.
+Registrar push uses the configured certificate type by default, and
 the host can select a different advertised type for each managed application.
 The following map uses
 [OPC 10000-21 v1.05.04](https://reference.opcfoundation.org/specs/OPC-10000-21/v1.05.04/)
@@ -1460,12 +1485,12 @@ gap.
 | §6.4: source-dependent ticket authority trust | `OnboardingTicketValidator`, `OnboardingTicketTrustProvider` | `OnboardingTicketValidatorTests`, `OnboardingTicketTrustProviderTests`; online authority-revocation services are not supplied by these adapters |
 | §7.2 and Part 12 §§7.9.5, 7.9.8: request retry and certificate recovery | issuance receipts, client receipts, `IPullDcaSigningRecoveryProvider`, sample signing journal with one fresh retained key per request | issuance-store, receipt-store, pull-workflow and `OnboardingSigningJournalTests` fixtures; remote execution and connected response-loss evidence remain required |
 | §7.3: push provisioning, first registrar and installed trust | device security transition provider, standard push authorization and transaction completion, generated-client processor with separate trust/certificate apply connections, secret-store enrollment journal, retained singleton scope and connected registrar/device samples | processor fixtures cover managed Client, Server and ClientAndServer paths; Server paths require host-authoritative endpoint metadata and two fresh-channel certificate proofs. `ConnectedManagedApplicationRecoveryTests.InterruptedManagedRotationReopensFilesAndResumesOnlyRetainedCertificate` covers process-durable recovery through two live servers, and `ProvisionableDevicePushChannelTests.ConcretePushActivatesCertificateAndRecoversAcrossHostRestartAndFactoryReset` covers DCA restart/reset. These fixtures are authored; this map does not assert their execution results. |
-| §7.4: alternate authentication/FDO | OPC UA ticket/identity authentication is implemented; no FDO protocol or external-authentication handoff is supplied | §7.4 describes an alternate authentication path, not a prerequisite for ticket-based pull/push; no FDO interoperability evidence |
+| §7.4: alternate authentication/FDO | OPC UA ticket/identity authentication is implemented; no external-authentication handoff is supplied | The optional handoff accepts an externally issued DCA certificate with `ProductInstanceUri` under configured authentication-service CA trust, then reuses registrar management. An external FDO Owner can supply this credential through `fdo.csr`; the FDO protocol itself belongs to that external service. No handoff or FDO interoperability evidence is supplied here |
 | §§8.1-8.2: signed JSON tickets and String-subtype `EncodedTicket` | `OnboardingTicketWriter`, ticket validator, standard model and strict-UTF-8 compatibility wrappers | writer, validator, onboarding-client and stack-generation fixtures; vendor-specific unprotected metadata is not interpreted and cannot extend signing-certificate validity |
 | §§9.2.2-9.2.8: registrar methods and application ownership | registrar runtime, async bindings, shared GDS database and certificate authorization | `DeviceRegistrarRuntimeTests`, `ProvideIdentitiesRuntimeTests`, `ApplicationsNodeManagerOnboardingTests`; database/lifecycle publication is not a distributed transaction |
 | §§9.2.9-9.2.15: administration, managed authorities and restricted audit delivery | ticket administration bindings, managed authority file services, `DeviceRegistrarAuditReporter` | administration, authority-list and audit-reporter fixtures; connected authorized/unauthorized event delivery still needs remote execution |
 | §§6.4, 9.2.11-9.2.12: accepted ticket retention across restart | `FileSystemTicketStore`, `AddFileSystemOnboardingTicketStore` | `FileSystemTicketStoreTests`; one instance owns the path, and remote execution remains required |
-| §§9.3.1-9.3.5: provisionable resource, singleton layout, tickets and registrar endpoints | `ProvisionableDeviceRuntime`, `ProvisionableDeviceNodeManagerFactory`, `AddProvisionableDeviceApplications` and generated node bindings | `ProvisionableDeviceRuntimeTests` cover fluent registration; `ManagedApplicationPushTests` exercise the provider-backed node manager and bindings. The full hosted address-space composition test is not present, and shared Part 22 `Resources` integration remains a source gap. |
+| §§9.3.1-9.3.5: provisionable resource, singleton layout, tickets and registrar endpoints | `ProvisionableDeviceRuntime`, `ProvisionableDeviceNodeManagerFactory`, `AddProvisionableDeviceApplications` and generated node bindings | `ProvisionableDeviceRuntimeTests` cover fluent registration; `ManagedApplicationPushTests` exercise the actual device factory, configuration-file recovery and authorization. A full hosted composition test remains absent; shared Part 22 `Resources` integration remains a source gap. |
 
 [Section 8.1](https://reference.opcfoundation.org/specs/OPC-10000-21/v1.05.04/8.1)
 permits vendor-specific unprotected metadata, including an RFC 3161
@@ -1478,7 +1503,9 @@ period.
 [Section 7.4](https://reference.opcfoundation.org/specs/OPC-10000-21/v1.05.04/7.4)
 allows external authentication, including an FDO handoff, as an alternative
 to OPC UA ticket/identity authentication. It does not make an FDO stack a
-dependency of the ticket-based pull and push paths described here.
+dependency of the ticket-based pull and push paths described here. Supporting
+all defined optional paths does require the registrar handoff; its absence is
+an implementation gap, independently of test execution.
 
 The published model associates `EncodedTicket` with **Onboarding Ticket Reader**,
 `DeviceRegistrarType` with
