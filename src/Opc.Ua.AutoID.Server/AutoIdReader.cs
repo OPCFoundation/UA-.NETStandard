@@ -479,5 +479,15 @@ namespace Opc.Ua.AutoID.Server
             Level = LogLevel.Error,
             Message = "Diagnostic RWData formatting failed with status '{StatusCode}'; RWData is unavailable.")]
         public static partial void DiagnosticFormattingFailed(this ILogger logger, StatusCode statusCode);
+
+        /// <summary>
+        /// Reports a rejected provider commit without exposing provider exception text.
+        /// </summary>
+        [LoggerMessage(
+            EventId = AutoIdServerEventIds.AutoIdReader + 4,
+            Level = LogLevel.Error,
+            Message = "The parameter provider failed to commit with status '{StatusCode}'; " +
+                "published settings are unchanged.")]
+        public static partial void ParameterCommitFailed(this ILogger logger, StatusCode statusCode);
     }
 }

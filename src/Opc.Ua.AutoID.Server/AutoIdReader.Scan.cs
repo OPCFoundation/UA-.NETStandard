@@ -94,7 +94,8 @@ namespace Opc.Ua.AutoID.Server
                     else if (m_activity != ScanActivity.Idle || m_parameterWrite)
                     {
                         refused = new ScanCallOutcome(
-                            BadResult(StatusCodes.BadInvalidState, "There is already a scan active."),
+                            BadResult(StatusCodes.BadInvalidState,
+                                "A scan is active or parameters are being committed."),
                             default,
                             default);
                     }

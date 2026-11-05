@@ -311,8 +311,17 @@ namespace Opc.Ua.AutoID.Server
                         ValidateParameters(next, provider.SupportedCodeTypes);
                         ValidateReaderParameters(next, Kind, m_parameterCapabilities);
                         next = SnapshotParameters(next);
-                        await provider.WriteParametersAsync(SnapshotParameters(next), linked.Token)
-                            .ConfigureAwait(false);
+                        AutoIdScanParameters providerParameters = SnapshotParameters(next);
+                        try
+                        {
+                            await provider.WriteParametersAsync(providerParameters, linked.Token)
+                                .ConfigureAwait(false);
+                        }
+                        catch (Exception ex) when (ex is not OperationCanceledException and not ServiceResultException)
+                        {
+                            m_logger.ParameterCommitFailed(StatusCodes.BadDeviceFailure);
+                            return BadResult(StatusCodes.BadDeviceFailure, "The provider could not commit parameters.");
+                        }
                         lock (m_lock)
                         {
                             m_parameters = next;

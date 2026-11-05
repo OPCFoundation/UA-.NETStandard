@@ -217,6 +217,40 @@ namespace Opc.Ua.AutoID.Tests
             });
         }
 
+        /// <summary>
+        /// Returns a per-node device failure for provider exceptions without changing the published configuration.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task UnexpectedProviderCommitFailurePreservesConfigurationAndAllowsRetryAsync(bool ioFailure)
+        {
+            (AutoIdReader reader, ParameterProvider provider) = await CreateAsync().ConfigureAwait(false);
+            BaseVariableState cycles = Parameter(reader, "Cycles");
+            DateTimeUtc timestamp = cycles.Timestamp;
+            provider.CommitFailure = ioFailure
+                ? new System.IO.IOException("Provider transport unavailable.")
+                : new InvalidOperationException("Provider unavailable.");
+            ServiceResult result = await WriteAsync(cycles, Variant.From(4));
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadDeviceFailure));
+                Assert.That(provider.Writes, Is.Zero);
+                Assert.That(provider.Parameters.Cycles, Is.Zero);
+                Assert.That(cycles.WrappedValue, Is.EqualTo(Variant.From(0)));
+                Assert.That(cycles.Timestamp, Is.EqualTo(timestamp));
+                Assert.That(cycles.StatusCode, Is.EqualTo(StatusCodes.Good));
+            });
+            provider.CommitFailure = null;
+            ServiceResult retried = await WriteAsync(cycles, Variant.From(4));
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(retried), Is.True);
+                Assert.That(provider.Writes, Is.EqualTo(1));
+                Assert.That(provider.Parameters.Cycles, Is.EqualTo(4));
+                Assert.That(cycles.WrappedValue, Is.EqualTo(Variant.From(4)));
+            });
+        }
+
         [Test]
         public async Task ParameterCommitSerializesStartAndCancelledCommitLeavesPreviousValuesAsync()
         {
@@ -490,6 +524,11 @@ namespace Opc.Ua.AutoID.Tests
 
             public bool RejectWrites { get; set; }
 
+            /// <summary>
+            /// The exception raised before a parameter commit changes provider state.
+            /// </summary>
+            public Exception? CommitFailure { get; set; }
+
             public bool RejectStops { get; set; }
 
             public TaskCompletionSource<bool> CommitEntered { get; } =
@@ -530,6 +569,10 @@ namespace Opc.Ua.AutoID.Tests
             public async ValueTask WriteParametersAsync(
                 AutoIdScanParameters parameters, CancellationToken cancellationToken = default)
             {
+                if (CommitFailure != null)
+                {
+                    throw CommitFailure;
+                }
                 if (RejectWrites)
                 {
                     throw new ServiceResultException(StatusCodes.BadDeviceFailure);
