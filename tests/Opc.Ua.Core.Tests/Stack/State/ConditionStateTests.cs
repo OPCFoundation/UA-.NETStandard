@@ -847,6 +847,302 @@ namespace Opc.Ua.Core.Tests.Stack.State
         }
 
         /// <summary>
+        /// Verifies deferred activation and deactivation keep exclusive limit and active states consistent.
+        /// </summary>
+        [TestCase(false, false, true)]
+        [TestCase(false, true, true)]
+        [TestCase(false, true, false)]
+        [TestCase(true, false, true)]
+        [TestCase(true, true, true)]
+        [TestCase(true, true, false)]
+        public async Task ExclusiveLimitDeferredActiveStatePreservesLimitInvariantAsync(
+            bool asynchronous, bool active, bool highLimit)
+        {
+            var alarm = new ExclusiveLimitAlarmState(null);
+            alarm.Create(m_context, new NodeId(Guid.NewGuid()), QualifiedName.From("Exclusive"), default, true);
+            if (highLimit)
+            {
+                alarm.HighLimit = PropertyState<double>.With<VariantBuilder>(alarm);
+            }
+            else
+            {
+                alarm.HighLimit = null;
+            }
+            alarm.SetEnableState(m_context, true);
+            alarm.SetLimitState(m_context, active ? LimitAlarmStates.Inactive : LimitAlarmStates.High);
+            alarm.Retain!.Value = false;
+            alarm.ClearChangeMasks(m_context, true);
+            int retentionCalls = 0;
+            alarm.RetainStateProvider = _ =>
+            {
+                retentionCalls++;
+                return true;
+            };
+            int activeNotifications = 0;
+            int limitNotifications = 0;
+            alarm.ActiveState!.Id!.StateChanged += (_, _, _) => activeNotifications++;
+            alarm.LimitState!.CurrentState!.Id!.StateChanged += (_, _, _) => limitNotifications++;
+
+            AlarmConditionState baseReference = alarm;
+            if (asynchronous)
+            {
+                await baseReference.SetActiveStateAsync(
+                    m_context, active, clearChangeMasks: false, updateRetainState: false).ConfigureAwait(false);
+            }
+            else
+            {
+                baseReference.SetActiveState(m_context, active, clearChangeMasks: false, updateRetainState: false);
+            }
+
+            NodeId expected = !active ? default :
+                highLimit ? ObjectIds.ExclusiveLimitStateMachineType_High :
+                ObjectIds.ExclusiveLimitStateMachineType_Low;
+            Assert.That(alarm.LimitState.CurrentState.Id.Value, Is.EqualTo(expected));
+            Assert.That(alarm.ActiveState.Id.Value, Is.EqualTo(active));
+            Assert.That(alarm.Retain.Value, Is.False);
+            Assert.That(retentionCalls, Is.Zero);
+            Assert.That(activeNotifications, Is.Zero);
+            Assert.That(limitNotifications, Is.Zero);
+            Assert.That(alarm.ActiveState.Id.ChangeMasks, Is.Not.EqualTo(NodeStateChangeMasks.None));
+            Assert.That(alarm.LimitState.CurrentState.Id.ChangeMasks, Is.Not.EqualTo(NodeStateChangeMasks.None));
+
+            await alarm.ClearChangeMasksAsync(m_context, true).ConfigureAwait(false);
+
+            Assert.That(activeNotifications, Is.EqualTo(1));
+            Assert.That(limitNotifications, Is.EqualTo(1));
+            Assert.That(alarm.ActiveState.Id.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+            Assert.That(alarm.LimitState.CurrentState.Id.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+            Assert.That(retentionCalls, Is.Zero);
+        }
+
+        /// <summary>
+        /// Verifies notification and retention options independently apply to exclusive limit updates.
+        /// </summary>
+        [TestCase(false, false, false)]
+        [TestCase(false, false, true)]
+        [TestCase(false, true, false)]
+        [TestCase(false, true, true)]
+        [TestCase(true, false, false)]
+        [TestCase(true, false, true)]
+        [TestCase(true, true, false)]
+        [TestCase(true, true, true)]
+        public async Task ExclusiveLimitActiveStateHonorsNotificationAndRetentionOptionsAsync(
+            bool asynchronous, bool clearChangeMasks, bool updateRetainState)
+        {
+            var alarm = new ExclusiveLimitAlarmState(null);
+            alarm.Create(m_context, new NodeId(Guid.NewGuid()), QualifiedName.From("Exclusive"), default, true);
+            alarm.SetEnableState(m_context, true);
+            alarm.SetLimitState(m_context, LimitAlarmStates.High);
+            alarm.Retain!.Value = false;
+            alarm.ClearChangeMasks(m_context, true);
+            int retentionCalls = 0;
+            alarm.RetainStateProvider = _ =>
+            {
+                retentionCalls++;
+                return true;
+            };
+            int notifications = 0;
+            alarm.LimitState!.CurrentState!.Id!.StateChanged += (_, _, _) => notifications++;
+
+            if (asynchronous)
+            {
+                await alarm.SetActiveStateAsync(m_context, false, clearChangeMasks, updateRetainState)
+                    .ConfigureAwait(false);
+            }
+            else
+            {
+                alarm.SetActiveState(m_context, false, clearChangeMasks, updateRetainState);
+            }
+
+            Assert.That(alarm.ActiveState!.Id!.Value, Is.False);
+            Assert.That(alarm.LimitState.CurrentState.Id.Value.IsNull, Is.True);
+            Assert.That(retentionCalls, Is.EqualTo(updateRetainState ? 1 : 0));
+            Assert.That(alarm.Retain.Value, Is.EqualTo(updateRetainState));
+            Assert.That(notifications, Is.EqualTo(clearChangeMasks ? 1 : 0));
+            Assert.That(alarm.LimitState.CurrentState.Id.ChangeMasks == NodeStateChangeMasks.None,
+                Is.EqualTo(clearChangeMasks));
+        }
+
+        /// <summary>
+        /// Verifies deferred activation preserves an already selected exclusive limit.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ExclusiveLimitDeferredActivationPreservesSelectedLimitAsync(bool asynchronous)
+        {
+            var alarm = new ExclusiveLimitAlarmState(null);
+            alarm.Create(m_context, new NodeId(Guid.NewGuid()), QualifiedName.From("Exclusive"), default, true);
+            alarm.SetLimitState(m_context, LimitAlarmStates.HighHigh);
+
+            if (asynchronous)
+            {
+                await alarm.SetActiveStateAsync(
+                    m_context, true, clearChangeMasks: false, updateRetainState: false).ConfigureAwait(false);
+            }
+            else
+            {
+                alarm.SetActiveState(m_context, true, clearChangeMasks: false, updateRetainState: false);
+            }
+
+            Assert.That(alarm.ActiveState!.Id!.Value, Is.True);
+            Assert.That(alarm.LimitState!.CurrentState!.Id!.Value,
+                Is.EqualTo(ObjectIds.ExclusiveLimitStateMachineType_HighHigh));
+        }
+
+        /// <summary>
+        /// Verifies cancellation prevents both exclusive limit and active-state mutation.
+        /// </summary>
+        [Test]
+        public async Task ExclusiveLimitDeferredUpdateRejectsCancellationBeforeMutationAsync()
+        {
+            var alarm = new ExclusiveLimitAlarmState(null);
+            alarm.Create(m_context, new NodeId(Guid.NewGuid()), QualifiedName.From("Exclusive"), default, true);
+            alarm.SetLimitState(m_context, LimitAlarmStates.High);
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await alarm.SetActiveStateAsync(
+                    m_context, false, clearChangeMasks: false, updateRetainState: false, cancellation.Token)
+                    .ConfigureAwait(false));
+
+            Assert.That(alarm.ActiveState!.Id!.Value, Is.True);
+            Assert.That(alarm.LimitState!.CurrentState!.Id!.Value,
+                Is.EqualTo(ObjectIds.ExclusiveLimitStateMachineType_High));
+        }
+
+        /// <summary>
+        /// Verifies rejected deferred one-shot unshelving does not partially change the limit state.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ExclusiveLimitDeferredUnshelvingRejectsBeforeLimitMutationAsync(bool asynchronous)
+        {
+            var alarm = new ExclusiveLimitAlarmState(null);
+            alarm.Create(m_context, new NodeId(Guid.NewGuid()), QualifiedName.From("Exclusive"), default, true);
+            alarm.SetLimitState(m_context, LimitAlarmStates.High);
+            alarm.ShelvingState = new ShelvedStateMachineState(alarm);
+            alarm.ShelvingState.Create(
+                m_context, default, QualifiedName.From(BrowseNames.ShelvingState), default, false);
+            alarm.ShelvingState.UnshelveTime =
+                PropertyState<double>.With<VariantBuilder>(alarm.ShelvingState);
+            alarm.MaxTimeShelved = null;
+            alarm.SetShelvingState(m_context, true, true, 0);
+
+            if (asynchronous)
+            {
+                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await alarm.SetActiveStateAsync(
+                        m_context, false, clearChangeMasks: false, updateRetainState: false).ConfigureAwait(false));
+            }
+            else
+            {
+                Assert.That(() => alarm.SetActiveState(
+                    m_context, false, clearChangeMasks: false, updateRetainState: false),
+                    Throws.TypeOf<InvalidOperationException>());
+            }
+
+            Assert.That(alarm.ActiveState!.Id!.Value, Is.True);
+            Assert.That(alarm.LimitState!.CurrentState!.Id!.Value,
+                Is.EqualTo(ObjectIds.ExclusiveLimitStateMachineType_High));
+            Assert.That(alarm.ShelvingState.CurrentState!.Id!.Value,
+                Is.EqualTo(ObjectIds.ShelvedStateMachineType_OneShotShelved));
+        }
+
+        /// <summary>
+        /// Verifies option-enabled overloads preserve existing active and limit override dispatch.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ExclusiveLimitOptionOverloadsPreserveDefaultOverrideDispatchAsync(bool asynchronous)
+        {
+            var alarm = new TestExclusiveLimitAlarmState();
+            alarm.Create(m_context, new NodeId(Guid.NewGuid()), QualifiedName.From("Exclusive"), default, true);
+            AlarmConditionState baseReference = alarm;
+
+            if (asynchronous)
+            {
+                await baseReference.SetActiveStateAsync(
+                    m_context, false, clearChangeMasks: true, updateRetainState: true).ConfigureAwait(false);
+            }
+            else
+            {
+                baseReference.SetActiveState(m_context, false, clearChangeMasks: true, updateRetainState: true);
+            }
+
+            Assert.That(alarm.SyncActiveCalls, Is.EqualTo(asynchronous ? 0 : 1));
+            Assert.That(alarm.AsyncActiveCalls, Is.EqualTo(asynchronous ? 1 : 0));
+            Assert.That(alarm.SyncLimitCalls, Is.EqualTo(asynchronous ? 0 : 1));
+            Assert.That(alarm.AsyncLimitCalls, Is.EqualTo(asynchronous ? 1 : 0));
+            Assert.That(alarm.ActiveState!.Id!.Value, Is.False);
+            Assert.That(alarm.LimitState!.CurrentState!.Id!.Value.IsNull, Is.True);
+        }
+
+        /// <summary>
+        /// Counts existing exclusive-limit setter overrides.
+        /// </summary>
+        private sealed class TestExclusiveLimitAlarmState : ExclusiveLimitAlarmState
+        {
+            /// <summary>
+            /// Creates the test alarm.
+            /// </summary>
+            public TestExclusiveLimitAlarmState()
+                : base(null)
+            {
+            }
+
+            /// <summary>
+            /// Gets the synchronous active setter call count.
+            /// </summary>
+            public int SyncActiveCalls { get; private set; }
+
+            /// <summary>
+            /// Gets the asynchronous active setter call count.
+            /// </summary>
+            public int AsyncActiveCalls { get; private set; }
+
+            /// <summary>
+            /// Gets the synchronous limit setter call count.
+            /// </summary>
+            public int SyncLimitCalls { get; private set; }
+
+            /// <summary>
+            /// Gets the asynchronous limit setter call count.
+            /// </summary>
+            public int AsyncLimitCalls { get; private set; }
+
+            /// <inheritdoc/>
+            public override void SetActiveState(ISystemContext context, bool active)
+            {
+                SyncActiveCalls++;
+                base.SetActiveState(context, active);
+            }
+
+            /// <inheritdoc/>
+            public override ValueTask SetActiveStateAsync(
+                ISystemContext context, bool active, CancellationToken cancellationToken = default)
+            {
+                AsyncActiveCalls++;
+                return base.SetActiveStateAsync(context, active, cancellationToken);
+            }
+
+            /// <inheritdoc/>
+            public override void SetLimitState(ISystemContext context, LimitAlarmStates limit)
+            {
+                SyncLimitCalls++;
+                base.SetLimitState(context, limit);
+            }
+
+            /// <inheritdoc/>
+            public override ValueTask SetLimitStateAsync(
+                ISystemContext context, LimitAlarmStates limit, CancellationToken cancellationToken = default)
+            {
+                AsyncLimitCalls++;
+                return base.SetLimitStateAsync(context, limit, cancellationToken);
+            }
+        }
+
+        /// <summary>
         /// Creates a snapshot used to report the specified condition.
         /// </summary>
         private InstanceStateSnapshot CreateEventSnapshot(ConditionState condition)
