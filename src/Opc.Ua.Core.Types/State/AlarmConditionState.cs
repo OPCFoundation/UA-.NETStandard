@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
@@ -147,6 +148,124 @@ namespace Opc.Ua
         public virtual void SetActiveState(ISystemContext context, bool active)
         {
             SetActiveState(context, active, clearChangeMasks: true, updateRetainState: true);
+        }
+
+        /// <summary>
+        /// Sets the active state and awaits state-change notification sinks.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="active">Whether the condition is active.</param>
+        /// <param name="cancellationToken">
+        /// The token is checked before mutation; cancellation is not observed after mutation starts.
+        /// </param>
+        /// <remarks>
+        /// Derived classes that customize <see cref="SetActiveState(ISystemContext, bool)"/> must also override
+        /// this method.
+        /// </remarks>
+        public virtual ValueTask SetActiveStateAsync(
+            ISystemContext context,
+            bool active,
+            CancellationToken cancellationToken = default)
+        {
+            return SetActiveStateAsync(
+                context, active, clearChangeMasks: true, updateRetainState: true, cancellationToken);
+        }
+
+        /// <summary>
+        /// Sets active-state attributes and optionally awaits state-change notification sinks.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="active">Whether the condition is active.</param>
+        /// <param name="clearChangeMasks">Whether to notify state observers now.</param>
+        /// <param name="updateRetainState">Whether to derive the Retain state.</param>
+        /// <param name="cancellationToken">
+        /// The token is checked before mutation; cancellation is not observed after mutation starts.
+        /// </param>
+        /// <remarks>
+        /// Deferred notifications are not supported for one-shot unshelving, which processes a separate
+        /// state machine with its own transition callbacks.
+        /// </remarks>
+        public virtual async ValueTask SetActiveStateAsync(
+            ISystemContext context,
+            bool active,
+            bool clearChangeMasks,
+            bool updateRetainState,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!clearChangeMasks && !active && ShelvingState != null && m_oneShot)
+            {
+                throw new InvalidOperationException("One-shot unshelving cannot defer its transition notifications.");
+            }
+
+            TranslationInfo state;
+            if (active)
+            {
+                state = new TranslationInfo(
+                    "ConditionStateActive",
+                    "en-US",
+                    ConditionStateNames.Active);
+
+                if (LatchedState != null && !LatchedState.Id!.Value)
+                {
+                    if (clearChangeMasks)
+                    {
+                        await SetLatchedStateAsync(context, true, CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await SetLatchedStateAsync(
+                            context, true, clearChangeMasks: false, CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
+                }
+
+                if (SilenceState is { } silenceState && silenceState.Id!.Value)
+                {
+                    if (clearChangeMasks)
+                    {
+                        await SetSilenceStateAsync(context, false, CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await SetSilenceStateAsync(
+                            context, false, clearChangeMasks: false, CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
+                }
+            }
+            else
+            {
+                if (ShelvingState != null && m_oneShot)
+                {
+                    await SetShelvingStateAsync(
+                        context, shelved: false, oneShot: false, shelvingTime: 0, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+
+                state = new TranslationInfo(
+                    "ConditionStateInactive",
+                    "en-US",
+                    ConditionStateNames.Inactive);
+            }
+
+            TwoStateVariableState activeState = ActiveState!;
+            activeState.Value = new LocalizedText(state);
+            activeState.Id!.Value = active;
+            activeState.TransitionTime?.Value = DateTimeUtc.Now;
+            activeState.Timestamp = DateTimeUtc.Now;
+            UpdateEffectiveState(context);
+            if (updateRetainState)
+            {
+                UpdateRetainState();
+            }
+            if (clearChangeMasks)
+            {
+                await ClearChangeMasksAsync(context, includeChildren: true, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -304,6 +423,50 @@ namespace Opc.Ua
                 return;
             }
 
+            UpdateShelvingState(context, shelved, oneShot, shelvingTime);
+            ClearChangeMasks(context, includeChildren: true);
+        }
+
+        /// <summary>
+        /// Sets the shelving state and awaits state-change notification sinks.
+        /// </summary>
+        /// <param name="context">The shelving context.</param>
+        /// <param name="shelved">Whether the condition is shelved.</param>
+        /// <param name="oneShot">Whether the condition is shelved for one shot.</param>
+        /// <param name="shelvingTime">The duration of a timed shelf.</param>
+        /// <param name="cancellationToken">
+        /// The token is checked before mutation; cancellation is not observed after mutation starts.
+        /// </param>
+        /// <remarks>
+        /// Derived classes that customize <see cref="SetShelvingState"/> must also override this method.
+        /// </remarks>
+        public virtual async ValueTask SetShelvingStateAsync(
+            ISystemContext context,
+            bool shelved,
+            bool oneShot,
+            double shelvingTime,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (ShelvingState == null)
+            {
+                return;
+            }
+
+            UpdateShelvingState(context, shelved, oneShot, shelvingTime);
+            await ClearChangeMasksAsync(context, includeChildren: true, CancellationToken.None)
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Updates shelving state without dispatching state-change notifications.
+        /// </summary>
+        private void UpdateShelvingState(
+            ISystemContext context,
+            bool shelved,
+            bool oneShot,
+            double shelvingTime)
+        {
             ShelvedStateMachineState shelvingState = ShelvingState!; // null check above
             m_unshelveTimer?.Dispose();
             m_unshelveTimer = null;
@@ -392,7 +555,6 @@ namespace Opc.Ua
             shelvingState.UnshelveTime?.Timestamp = DateTimeUtc.Now;
 
             UpdateEffectiveState(context);
-            ClearChangeMasks(context, includeChildren: true);
         }
 
         /// <summary>

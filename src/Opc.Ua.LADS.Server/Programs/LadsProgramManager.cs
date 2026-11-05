@@ -349,6 +349,7 @@ namespace Opc.Ua.LADS.Server
             CancellationToken cancellationToken = default)
         {
             await m_unit.Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            bool stateAdmissionGateHeld = false;
             try
             {
                 ThrowIfDisposed();
@@ -372,7 +373,11 @@ namespace Opc.Ua.LADS.Server
                     }
                     template = CopyTemplate(entry.Template, entry.Node);
                 }
-                await m_unit.EnterRunningAsync(cancellationToken).ConfigureAwait(false);
+                await m_unit.Device.AcquireStateAdmissionAsync(cancellationToken).ConfigureAwait(false);
+                stateAdmissionGateHeld = true;
+                m_unit.Device.RegisterAdmittedStart(m_unit);
+                await m_unit.Device.EnterFunctionalUnitWithAdmissionHeldAsync(m_unit, cancellationToken)
+                    .ConfigureAwait(false);
                 string runId = Guid.NewGuid().ToString("N");
                 LadsProgramRun? self = null;
                 var run = new LadsProgramRun(
@@ -385,7 +390,9 @@ namespace Opc.Ua.LADS.Server
                     samples,
                     Runtime.TimeProvider.GetUtcNow(),
                     Runtime.TimeProvider,
-                    (number, name) => OnStep(self, number, name));
+                    (number, name) => OnStep(self, number, name),
+                    (number, name, notificationToken) =>
+                        OnStepAsync(self, number, name, notificationToken));
                 self = run;
                 await m_unit.TransitionAsync(
                     m_unit.Running,
@@ -405,11 +412,14 @@ namespace Opc.Ua.LADS.Server
                         {
                             m_storedInterruptedRunId = runId;
                         }
-                    }, cancellationToken).ConfigureAwait(false);
+                    }, cancellationToken, quarantineOwner: m_unit, stateAdmissionGateHeld: true)
+                        .ConfigureAwait(false);
                     m_unit.Device.StartProgram(this, active);
-                    Node.ActiveProgram!.ClearChangeMasks(Runtime.Context, true);
+                    await Node.ActiveProgram!.ClearChangeMasksAsync(
+                        Runtime.Context, true, CancellationToken.None).ConfigureAwait(false);
+                    m_unit.Device.RequireStorageHealthy();
                     Runtime.Logger.ProgramStarted(m_unit.Name, runId, template.Id);
-                    _ = Task.Run(async () =>
+                    _ = m_unit.Device.ScheduleProgramExecution(async () =>
                     {
                         try
                         {
@@ -420,9 +430,10 @@ namespace Opc.Ua.LADS.Server
                         {
                             active.Complete(failure);
                         }
-                    }, CancellationToken.None);
+                    });
                     executionStarted = true;
-                    m_unit.UpdateRunningExecutability();
+                    await m_unit.UpdateRunningExecutabilityAsync(CancellationToken.None).ConfigureAwait(false);
+                    m_unit.Device.RequireStorageHealthy();
                 }
                 catch (Exception startFailure)
                 {
@@ -432,9 +443,11 @@ namespace Opc.Ua.LADS.Server
                         if (!executionStarted)
                         {
                             TaskCompletionSource<ILadsResult>? waiter;
+                            bool activeProgramPublished;
                             lock (m_lock)
                             {
-                                if (ReferenceEquals(m_active, active))
+                                activeProgramPublished = ReferenceEquals(m_active, active);
+                                if (activeProgramPublished)
                                 {
                                     m_active = null;
                                 }
@@ -443,7 +456,10 @@ namespace Opc.Ua.LADS.Server
                             }
                             waiter?.TrySetException(startFailure);
                             active.Cancellation.Dispose();
-                            ResetActiveProgram();
+                            if (activeProgramPublished)
+                            {
+                                await ResetActiveProgramAsync().ConfigureAwait(false);
+                            }
                         }
                         else
                         {
@@ -456,7 +472,7 @@ namespace Opc.Ua.LADS.Server
                     }
                     try
                     {
-                        m_unit.Device.RecordExecutionFailure(m_unit);
+                        await m_unit.Device.RecordExecutionFailureAsync(m_unit).ConfigureAwait(false);
                     }
                     catch (Exception stateFailure)
                     {
@@ -478,6 +494,10 @@ namespace Opc.Ua.LADS.Server
             }
             finally
             {
+                if (stateAdmissionGateHeld)
+                {
+                    m_unit.Device.ReleaseStateAdmission(m_unit);
+                }
                 m_unit.Gate.Release();
             }
         }
@@ -661,7 +681,8 @@ namespace Opc.Ua.LADS.Server
                 LadsStoredResultData stored = results[index];
                 var run = new LadsProgramRun(stored.RunId, m_unit, RestoreTemplate(stored.Template),
                     stored.Properties, stored.SupervisoryJobId, stored.SupervisoryTaskId, stored.Samples,
-                    stored.Started, Runtime.TimeProvider, static (_, _) => { });
+                    stored.Started, Runtime.TimeProvider, static (_, _) => { },
+                    static (_, _, _) => ValueTask.CompletedTask);
                 ArrayOf<LadsResultFile> files = stored.Files;
                 for (int fileIndex = 0; fileIndex < files.Count; fileIndex++)
                 {
@@ -779,6 +800,32 @@ namespace Opc.Ua.LADS.Server
             }
             await completion.ConfigureAwait(false);
             return accepted;
+        }
+
+        /// <summary>
+        /// Requests abort when device storage is quarantined and returns the run lifetime for
+        /// callers that must drain an admitted start before publishing device shutdown.
+        /// </summary>
+        internal (Task? Completion, Exception? Failure) RequestQuarantineAbort()
+        {
+            ActiveRunEntry? active;
+            lock (m_lock)
+            {
+                active = m_active;
+            }
+            if (active == null)
+            {
+                return (null, null);
+            }
+            try
+            {
+                active.RequestEnd(LadsProgramOutcome.Aborted);
+                return (active.Completion, null);
+            }
+            catch (Exception failure)
+            {
+                return (active.Completion, failure);
+            }
         }
 
         /// <summary>
@@ -1026,17 +1073,19 @@ namespace Opc.Ua.LADS.Server
                             m_unit.Functional,
                             LadsFunctionalStateValue.Stopping,
                             LadsFunctionalStateValue.Stopped).ConfigureAwait(false);
-                        m_unit.Running.SetState(LadsRunningStateValue.Idle);
+                        await m_unit.Running.SetStateAsync(
+                            LadsRunningStateValue.Idle, CancellationToken.None).ConfigureAwait(false);
                         break;
                     default:
                         await ForceAsync(
                             m_unit.Functional,
                             LadsFunctionalStateValue.Aborting,
                             LadsFunctionalStateValue.Aborted).ConfigureAwait(false);
-                        m_unit.Running.SetState(LadsRunningStateValue.Idle);
+                        await m_unit.Running.SetStateAsync(
+                            LadsRunningStateValue.Idle, CancellationToken.None).ConfigureAwait(false);
                         break;
                 }
-                UpdateRuntime(run);
+                await UpdateRuntimeAsync(run).ConfigureAwait(false);
                 if (!Runtime.Stopping.IsCancellationRequested)
                 {
                     result = await CreateResultAsync(run, outcome, stopped).ConfigureAwait(false);
@@ -1077,7 +1126,8 @@ namespace Opc.Ua.LADS.Server
                                         Node.ResultSet!, old.Node, CancellationToken.None).ConfigureAwait(false);
                                 }
                             },
-                            () => RestoreResultNodesAsync(result, pruned)).ConfigureAwait(false);
+                            () => RestoreResultNodesAsync(result, pruned),
+                            quarantineOwner: m_unit).ConfigureAwait(false);
                         committed = true;
                     }
                     catch (Exception publicationFailure)
@@ -1104,7 +1154,7 @@ namespace Opc.Ua.LADS.Server
                 failure = ex;
                 try
                 {
-                    m_unit.Device.RecordExecutionFailure(m_unit);
+                    await m_unit.Device.RecordExecutionFailureAsync(m_unit).ConfigureAwait(false);
                 }
                 catch (Exception stateFailure)
                 {
@@ -1175,7 +1225,8 @@ namespace Opc.Ua.LADS.Server
             }
             if (!applied)
             {
-                machine.SetState(states[states.Length - 1]);
+                await machine.SetStateAsync(states[states.Length - 1], CancellationToken.None)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -1479,6 +1530,13 @@ namespace Opc.Ua.LADS.Server
             Node.ActiveProgram!.ClearChangeMasks(Runtime.Context, true);
         }
 
+        private async ValueTask ResetActiveProgramAsync()
+        {
+            m_unit.Device.ResetActiveProgram(this);
+            await Node.ActiveProgram!.ClearChangeMasksAsync(Runtime.Context, true, CancellationToken.None)
+                .ConfigureAwait(false);
+        }
+
         /// <summary>
         /// Clears active-program attributes without dispatching observable notifications.
         /// </summary>
@@ -1506,6 +1564,18 @@ namespace Opc.Ua.LADS.Server
             double runtime = run?.CurrentRuntime.TotalMilliseconds ?? 0;
             m_unit.Device.SetProgramStep(this, run, number, name, runtime);
             Node.ActiveProgram!.ClearChangeMasks(Runtime.Context, true);
+        }
+
+        private async ValueTask OnStepAsync(
+            LadsProgramRun? run,
+            uint number,
+            string name,
+            CancellationToken cancellationToken)
+        {
+            double runtime = run?.CurrentRuntime.TotalMilliseconds ?? 0;
+            m_unit.Device.SetProgramStep(this, run, number, name, runtime);
+            await Node.ActiveProgram!.ClearChangeMasksAsync(Runtime.Context, true, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1540,6 +1610,18 @@ namespace Opc.Ua.LADS.Server
                 this, run.CurrentRuntime.TotalMilliseconds, run.CurrentPauseTime.TotalMilliseconds,
                 run.CurrentStepRuntime.TotalMilliseconds);
             Node.ActiveProgram!.ClearChangeMasks(Runtime.Context, true);
+        }
+
+        /// <summary>
+        /// Publishes the final runtime of a run and awaits its state notifications.
+        /// </summary>
+        internal async ValueTask UpdateRuntimeAsync(LadsProgramRun run)
+        {
+            m_unit.Device.SetProgramRuntime(
+                this, run.CurrentRuntime.TotalMilliseconds, run.CurrentPauseTime.TotalMilliseconds,
+                run.CurrentStepRuntime.TotalMilliseconds);
+            await Node.ActiveProgram!.ClearChangeMasksAsync(Runtime.Context, true, CancellationToken.None)
+                .ConfigureAwait(false);
         }
 
         /// <summary>

@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
@@ -66,6 +68,63 @@ namespace Opc.Ua
         public virtual void SetSilenceState(ISystemContext context, bool silenced)
         {
             SetSilenceState(context, silenced, clearChangeMasks: true);
+        }
+
+        /// <summary>
+        /// Sets the silence state and awaits state-change notification sinks.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="silenced">Whether the alarm is silenced.</param>
+        /// <param name="cancellationToken">
+        /// The token is checked before mutation; cancellation is not observed after mutation starts.
+        /// </param>
+        /// <remarks>
+        /// Derived classes that customize <see cref="SetSilenceState(ISystemContext, bool)"/> must also override
+        /// this method.
+        /// </remarks>
+        public virtual ValueTask SetSilenceStateAsync(
+            ISystemContext context,
+            bool silenced,
+            CancellationToken cancellationToken = default)
+        {
+            return SetSilenceStateAsync(context, silenced, clearChangeMasks: true, cancellationToken);
+        }
+
+        /// <summary>
+        /// Sets silence attributes and optionally awaits state-change notification sinks.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="silenced">Whether the alarm is silenced.</param>
+        /// <param name="clearChangeMasks">Whether to notify state observers now.</param>
+        /// <param name="cancellationToken">
+        /// The token is checked before mutation; cancellation is not observed after mutation starts.
+        /// </param>
+        public virtual async ValueTask SetSilenceStateAsync(
+            ISystemContext context,
+            bool silenced,
+            bool clearChangeMasks,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (SilenceState is not { } silenceState)
+            {
+                return;
+            }
+
+            TranslationInfo state = silenced
+                ? new TranslationInfo("ConditionStateSilenced", "en-US", ConditionStateNames.Silenced)
+                : new TranslationInfo("ConditionStateNotSilenced", "en-US", ConditionStateNames.NotSilenced);
+
+            silenceState.Value = new LocalizedText(state);
+            silenceState.Id!.Value = silenced;
+            silenceState.TransitionTime?.Value = DateTimeUtc.Now;
+            silenceState.Timestamp = DateTimeUtc.Now;
+            UpdateEffectiveState(context);
+            if (clearChangeMasks)
+            {
+                await ClearChangeMasksAsync(context, includeChildren: true, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -148,6 +207,63 @@ namespace Opc.Ua
         public virtual void SetLatchedState(ISystemContext context, bool latched)
         {
             SetLatchedState(context, latched, clearChangeMasks: true);
+        }
+
+        /// <summary>
+        /// Sets the latched state and awaits state-change notification sinks.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="latched">Whether the alarm is latched.</param>
+        /// <param name="cancellationToken">
+        /// The token is checked before mutation; cancellation is not observed after mutation starts.
+        /// </param>
+        /// <remarks>
+        /// Derived classes that customize <see cref="SetLatchedState(ISystemContext, bool)"/> must also override
+        /// this method.
+        /// </remarks>
+        public virtual ValueTask SetLatchedStateAsync(
+            ISystemContext context,
+            bool latched,
+            CancellationToken cancellationToken = default)
+        {
+            return SetLatchedStateAsync(context, latched, clearChangeMasks: true, cancellationToken);
+        }
+
+        /// <summary>
+        /// Sets latched-state attributes and optionally awaits state-change notification sinks.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="latched">Whether the alarm is latched.</param>
+        /// <param name="clearChangeMasks">Whether to notify state observers now.</param>
+        /// <param name="cancellationToken">
+        /// The token is checked before mutation; cancellation is not observed after mutation starts.
+        /// </param>
+        public virtual async ValueTask SetLatchedStateAsync(
+            ISystemContext context,
+            bool latched,
+            bool clearChangeMasks,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (LatchedState is not { } latchedState)
+            {
+                return;
+            }
+
+            TranslationInfo state = latched
+                ? new TranslationInfo("ConditionStateLatched", "en-US", ConditionStateNames.Latched)
+                : new TranslationInfo("ConditionStateUnlatched", "en-US", ConditionStateNames.Unlatched);
+
+            latchedState.Value = new LocalizedText(state);
+            latchedState.Id!.Value = latched;
+            latchedState.TransitionTime?.Value = DateTimeUtc.Now;
+            latchedState.Timestamp = DateTimeUtc.Now;
+            UpdateEffectiveState(context);
+            if (clearChangeMasks)
+            {
+                await ClearChangeMasksAsync(context, includeChildren: true, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
         }
 
         /// <summary>

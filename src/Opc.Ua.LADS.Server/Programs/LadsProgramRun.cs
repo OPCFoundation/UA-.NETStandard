@@ -62,7 +62,8 @@ namespace Opc.Ua.LADS.Server
             ArrayOf<SampleInfoType> samples,
             DateTimeUtc started,
             TimeProvider timeProvider,
-            Action<uint, string> onStep)
+            Action<uint, string> onStep,
+            Func<uint, string, CancellationToken, ValueTask> onStepAsync)
         {
             RunId = runId;
             FunctionalUnit = functionalUnit;
@@ -75,6 +76,7 @@ namespace Opc.Ua.LADS.Server
             TimeProvider = timeProvider;
             m_startedTimestamp = timeProvider.GetTimestamp();
             m_onStep = onStep;
+            m_onStepAsync = onStepAsync;
         }
 
         /// <summary>
@@ -367,6 +369,30 @@ namespace Opc.Ua.LADS.Server
         }
 
         /// <summary>
+        /// Publishes the current step in the ActiveProgram object and awaits its state notifications.
+        /// </summary>
+        /// <param name="number">The step number, starting at 1.</param>
+        /// <param name="name">The step name.</param>
+        /// <param name="cancellationToken">
+        /// The token is checked before recording the step. Once recorded, the step notification completes without
+        /// observing caller cancellation.
+        /// </param>
+        public async ValueTask ReportStepAsync(
+            uint number,
+            string name,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            lock (m_lock)
+            {
+                RequireWritableResult();
+                m_stepNumber = number;
+                m_stepStarted = CurrentRuntime;
+            }
+            await m_onStepAsync(number, name ?? string.Empty, CancellationToken.None).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Adds a file to the result of the run.
         /// </summary>
         /// <param name="name">The file name.</param>
@@ -583,6 +609,7 @@ namespace Opc.Ua.LADS.Server
         }
 
         private readonly Action<uint, string> m_onStep;
+        private readonly Func<uint, string, CancellationToken, ValueTask> m_onStepAsync;
         private readonly Lock m_lock = new();
         private readonly List<LadsResultFile> m_files = [];
         private readonly Dictionary<string, string> m_variables = new(StringComparer.Ordinal);

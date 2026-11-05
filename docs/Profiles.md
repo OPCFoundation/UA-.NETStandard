@@ -278,11 +278,11 @@ support gap.
 | [WoT Binding](WotBindings.md), OPC 10101 | Partial | Published 1.00 consumer mode and conversions; general UA Binary payload codec and complete TD/TM/Binding-result schema validation are missing |
 | [PackML](Scales.md), OPC 30050 | Partial | Generated model and Scales recipe/state integration; not a standalone implementation of every PackML unit mode |
 | [PA-DIM and ECM](Machinery.md), OPC 30081 and OPC 34100 | Partial | Generated dependency models and Machinery process-value/energy bindings; not complete standalone PA-DIM/ECM device runtimes |
-| [LADS](LADS.md), OPC 30500-1 | Full | Devices, functional units, functions, programs, results, maintenance, optional cooperative running operations and stored-data restoration; running operations require an acknowledging provider, and interrupted physical execution is never resumed |
+| [LADS](LADS.md), OPC 30500-1 | Partial | Devices, functional units, functions, programs, results, maintenance, optional cooperative running operations and stored-data restoration; Full rating awaits shared async-notification validation and #4968 design sign-off |
 | [Plastics and rubber common types](PlasticsRubber.md), OPC 40083 | Full | Common controls, monitoring, maintenance, materials, diagnostics and production datasets; independently authored 1.03 interface implementation on the licensed 1.02 basis |
 | [Granulate drying](PlasticsRubber.md#granulate-drying-devices-opc-40082-6), OPC 40082-6 | Full | Device construction, selectable conformance units, provider-backed commands, observations, events and typed clients |
 | [Extrusion](Extrusion.md), OPC 40084-1/-2/-3/-4/-5/-7/-8/-9/-10/-11/-12 | Full | General types and concrete device/line runtimes, jobs, datasets, events and clients; equipment authority remains with explicit providers |
-| [Extrusion Filter](Extrusion.md#filter-profile-discrepancy), OPC 40084-6 | Partial | Filter model/runtime implemented; profile withheld because the published table incorrectly requires the Part 5 Melt Pump profile |
+| [Extrusion Filter](Extrusion.md#filter-profile-discrepancy), OPC 40084-6 | Partial | Filter model/runtime implemented; profile withheld pending clarification of the published requirement for the Part 5 Melt Pump conformance unit |
 
 Implemented draft extensions are separate from the published-specification
 matrix:
@@ -894,7 +894,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 30400-1: Cloud Library - Architecture and Use Cases](https://reference.opcfoundation.org/specs/OPC-30400-1) | 1.00.1 | No | - |
 | [OPC 30400-2: Cloud Library - API Definition](https://reference.opcfoundation.org/specs/OPC-30400-2) | 1.00.0 | No | - |
 | [OPC 30450-1: Digital Product Passport - Information Model](https://reference.opcfoundation.org/specs/OPC-30450-1) | 1.0.0 | No | - |
-| [OPC 30500-1: Laboratory and Analytical Device Standard (LADS) - Basics](https://reference.opcfoundation.org/specs/OPC-30500-1) | 1.0.0 | Full | - |
+| [OPC 30500-1: Laboratory and Analytical Device Standard (LADS) - Basics](https://reference.opcfoundation.org/specs/OPC-30500-1) | 1.0.0 | Partial | See the companion catalogue for implemented capabilities; Full rating awaits shared async-notification validation and #4968 design sign-off |
 | [OPC 34100: Energy Consumption Management](https://reference.opcfoundation.org/specs/OPC-34100) | 1.0.1 | Partial | Generated model and Machinery energy bindings; no complete standalone ECM runtime |
 | [OPC 40001-1: Machinery - Basic Building Blocks](https://reference.opcfoundation.org/specs/OPC-40001-1) | 1.04.2 | Full | - |
 | [OPC 40001-2: Machinery - Process Values](https://reference.opcfoundation.org/specs/OPC-40001-2) | 1.00 | Full | - |
@@ -915,7 +915,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 40084-3: Extrusion - Extruder](https://reference.opcfoundation.org/specs/OPC-40084-3) | 2.00 | Full | - |
 | [OPC 40084-4: Extrusion - Haul-off](https://reference.opcfoundation.org/specs/OPC-40084-4) | 2.00 | Full | - |
 | [OPC 40084-5: Extrusion - Melt Pump](https://reference.opcfoundation.org/specs/OPC-40084-5) | 2.00 | Full | - |
-| [OPC 40084-6: Extrusion - Filter](https://reference.opcfoundation.org/specs/OPC-40084-6) | 2.00 | Partial | Filter profile withheld: published table incorrectly requires Part 5 Melt Pump profile |
+| [OPC 40084-6: Extrusion - Filter](https://reference.opcfoundation.org/specs/OPC-40084-6) | 2.00 | Partial | Filter profile withheld pending clarification of the published requirement for the Part 5 Melt Pump conformance unit |
 | [OPC 40084-7: Extrusion - Die](https://reference.opcfoundation.org/specs/OPC-40084-7) | 2.00 | Full | - |
 | [OPC 40084-8: Extrusion - Pelletizer](https://reference.opcfoundation.org/specs/OPC-40084-8) | 2.00 | Full | - |
 | [OPC 40084-9: Extrusion - Cutter](https://reference.opcfoundation.org/specs/OPC-40084-9) | 2.00 | Full | - |

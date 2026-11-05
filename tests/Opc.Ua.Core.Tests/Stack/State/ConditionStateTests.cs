@@ -31,6 +31,10 @@
 // making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
 #pragma warning disable CA2000
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.ExceptionServices;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -47,8 +51,779 @@ namespace Opc.Ua.Core.Tests.Stack.State
     [Parallelizable]
     public class ConditionStateTests
     {
+        private static readonly TimeSpan s_activeStateTimeout = TimeSpan.FromSeconds(4);
         private ISystemContext m_context;
         private ITelemetryContext m_telemetry;
+
+        /// <summary>
+        /// Verifies async setters reject cancellation before mutating their state.
+        /// </summary>
+        [TestCase("enable")]
+        [TestCase("severity")]
+        [TestCase("acknowledged")]
+        [TestCase("confirmed")]
+        [TestCase("active")]
+        [TestCase("shelving")]
+        [TestCase("silence")]
+        [TestCase("latched")]
+        public async Task AsyncSettersRejectPreCanceledTokensBeforeMutationAsync(string setter)
+        {
+            var condition = new AcknowledgeableConditionState(null);
+            condition.Create(m_context, new NodeId(Guid.NewGuid()), QualifiedName.From("Condition"), default, true);
+            condition.SetEnableState(m_context, true);
+            condition.SetAcknowledgedState(m_context, false);
+            condition.ConfirmedState = new TwoStateVariableState(condition);
+            condition.ConfirmedState.Create(
+                m_context, default, QualifiedName.From(BrowseNames.ConfirmedState), default, false);
+            condition.SetConfirmedState(m_context, false);
+            condition.SetSeverity(m_context, EventSeverity.Low);
+
+            AlarmConditionState alarm = CreateAlarmWithNestedStates();
+            alarm.ShelvingState = new ShelvedStateMachineState(alarm);
+            alarm.ShelvingState.Create(
+                m_context, default, QualifiedName.From(BrowseNames.ShelvingState), default, false);
+            alarm.ShelvingState.UnshelveTime =
+                PropertyState<double>.With<VariantBuilder>(alarm.ShelvingState);
+            alarm.SetShelvingState(m_context, false, false, 0);
+            alarm.ClearChangeMasks(m_context, true);
+
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+            Func<CancellationToken, ValueTask> operation = setter switch
+            {
+                "enable" => token => condition.SetEnableStateAsync(m_context, false, token),
+                "severity" => token => condition.SetSeverityAsync(m_context, EventSeverity.High, token),
+                "acknowledged" => token => condition.SetAcknowledgedStateAsync(m_context, true, token),
+                "confirmed" => token => condition.SetConfirmedStateAsync(m_context, true, token),
+                "active" => token => alarm.SetActiveStateAsync(m_context, true, token),
+                "shelving" => token => alarm.SetShelvingStateAsync(m_context, true, false, 1000, token),
+                "silence" => token => alarm.SetSilenceStateAsync(m_context, false, token),
+                "latched" => token => alarm.SetLatchedStateAsync(m_context, true, token),
+                _ => throw new ArgumentOutOfRangeException(nameof(setter))
+            };
+
+            await Assert.ThrowsAsync<OperationCanceledException>(
+                async () => await operation(cancellation.Token).ConfigureAwait(false));
+
+            switch (setter)
+            {
+                case "enable":
+                    Assert.That(condition.EnabledState!.Id!.Value, Is.True);
+                    break;
+                case "severity":
+                    Assert.That(condition.Severity!.Value, Is.EqualTo((ushort)EventSeverity.Low));
+                    break;
+                case "acknowledged":
+                    Assert.That(condition.AckedState!.Id!.Value, Is.False);
+                    break;
+                case "confirmed":
+                    Assert.That(condition.ConfirmedState!.Id!.Value, Is.False);
+                    break;
+                case "active":
+                    Assert.That(alarm.ActiveState!.Id!.Value, Is.False);
+                    Assert.That(alarm.LatchedState!.Id!.Value, Is.False);
+                    Assert.That(alarm.SilenceState!.Id!.Value, Is.True);
+                    break;
+                case "shelving":
+                    Assert.That(
+                        alarm.ShelvingState!.CurrentState!.Id!.Value,
+                        Is.EqualTo(ObjectIds.ShelvedStateMachineType_Unshelved));
+                    break;
+                case "silence":
+                    Assert.That(alarm.SilenceState!.Id!.Value, Is.True);
+                    break;
+                case "latched":
+                    Assert.That(alarm.LatchedState!.Id!.Value, Is.False);
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Verifies async enable updates commit state, await notification, and bypass the sync override.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task AsyncEnableStateSetterUsesAsyncOverrideAndAwaitsNotificationAsync()
+        {
+            var condition = new TestAsyncSetterConditionState();
+            condition.Create(m_context, new NodeId(Guid.NewGuid()), QualifiedName.From("Condition"), default, true);
+            condition.SetEnableState(m_context, true);
+            await condition.ClearChangeMasksAsync(m_context, true).ConfigureAwait(false);
+
+            var notificationEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseNotification = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            int notifications = 0;
+            NodeStateChangedAsyncHandler handler = async (_, _, _, _) =>
+            {
+                notifications++;
+                notificationEntered.TrySetResult(true);
+                await releaseNotification.Task.ConfigureAwait(false);
+            };
+            condition.EnabledState!.Id!.StateChangedAsync += handler;
+            Task<Task>? invocation = null;
+            Task<Exception?>? updateObserver = null;
+            ExceptionDispatchInfo? testFailure = null;
+            var cleanupFailures = new List<Exception>();
+            try
+            {
+                invocation = Task.Factory.StartNew(
+                    () => condition.SetEnableStateAsync(m_context, false).AsTask(),
+                    CancellationToken.None,
+                    TaskCreationOptions.DenyChildAttach,
+                    TaskScheduler.Default);
+                updateObserver = ObserveActiveStateUpdateAsync(invocation);
+                Task invocationCompleted = await Task.WhenAny(invocation, Task.Delay(s_activeStateTimeout))
+                    .ConfigureAwait(false);
+                Assert.That(invocationCompleted, Is.SameAs(invocation));
+                Task operation = await invocation.ConfigureAwait(false);
+                Task notificationCompleted = await Task.WhenAny(
+                    notificationEntered.Task,
+                    Task.Delay(s_activeStateTimeout)).ConfigureAwait(false);
+                Assert.That(notificationCompleted, Is.SameAs(notificationEntered.Task));
+                Assert.That(operation.IsCompleted, Is.False);
+            }
+            catch (Exception failure)
+            {
+                testFailure = ExceptionDispatchInfo.Capture(failure);
+            }
+            finally
+            {
+                releaseNotification.TrySetResult(true);
+                condition.EnabledState!.Id!.StateChangedAsync -= handler;
+                if (invocation != null)
+                {
+                    updateObserver ??= ObserveActiveStateUpdateAsync(invocation);
+                    try
+                    {
+                        Task observerCompleted = await Task.WhenAny(
+                            updateObserver,
+                            Task.Delay(s_activeStateTimeout)).ConfigureAwait(false);
+                        Assert.That(observerCompleted, Is.SameAs(updateObserver),
+                            "The enable-state update observer did not finish after notification release.");
+                        Exception? updateFailure = await updateObserver.ConfigureAwait(false);
+                        if (updateFailure != null)
+                        {
+                            cleanupFailures.Add(updateFailure);
+                        }
+                    }
+                    catch (Exception failure)
+                    {
+                        cleanupFailures.Add(failure);
+                    }
+                }
+            }
+
+            ThrowTestAndCleanupFailures(testFailure, cleanupFailures);
+
+            Assert.That(condition.EnabledState!.Id!.Value, Is.False);
+            Assert.That(condition.SyncEnableSetterCalls, Is.EqualTo(1));
+            Assert.That(condition.AsyncEnableSetterCalls, Is.EqualTo(1));
+            Assert.That(notifications, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Verifies the no-bool severity setter dispatches to its async override and awaits notification.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task AsyncSeveritySetterUsesAsyncOverrideAndAwaitsNotificationAsync()
+        {
+            var condition = new TestAsyncSetterConditionState();
+            condition.Create(m_context, new NodeId(Guid.NewGuid()), QualifiedName.From("Condition"), default, true);
+            condition.SetEnableState(m_context, true);
+            condition.SetSeverity(m_context, EventSeverity.Low);
+            await condition.ClearChangeMasksAsync(m_context, true).ConfigureAwait(false);
+
+            var notificationEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseNotification = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            int notifications = 0;
+            NodeStateChangedAsyncHandler handler = async (_, _, _, _) =>
+            {
+                notifications++;
+                notificationEntered.TrySetResult(true);
+                await releaseNotification.Task.ConfigureAwait(false);
+            };
+            condition.Severity!.StateChangedAsync += handler;
+            Task<Task>? invocation = null;
+            Task<Exception?>? updateObserver = null;
+            ExceptionDispatchInfo? testFailure = null;
+            var cleanupFailures = new List<Exception>();
+            try
+            {
+                invocation = Task.Factory.StartNew(
+                    () => condition.SetSeverityAsync(m_context, EventSeverity.High).AsTask(),
+                    CancellationToken.None,
+                    TaskCreationOptions.DenyChildAttach,
+                    TaskScheduler.Default);
+                updateObserver = ObserveActiveStateUpdateAsync(invocation);
+                Task invocationCompleted = await Task.WhenAny(invocation, Task.Delay(s_activeStateTimeout))
+                    .ConfigureAwait(false);
+                Assert.That(invocationCompleted, Is.SameAs(invocation));
+                Task operation = await invocation.ConfigureAwait(false);
+                Task notificationCompleted = await Task.WhenAny(
+                    notificationEntered.Task,
+                    Task.Delay(s_activeStateTimeout)).ConfigureAwait(false);
+                Assert.That(notificationCompleted, Is.SameAs(notificationEntered.Task));
+                Assert.That(operation.IsCompleted, Is.False);
+            }
+            catch (Exception failure)
+            {
+                testFailure = ExceptionDispatchInfo.Capture(failure);
+            }
+            finally
+            {
+                releaseNotification.TrySetResult(true);
+                condition.Severity!.StateChangedAsync -= handler;
+                if (invocation != null)
+                {
+                    updateObserver ??= ObserveActiveStateUpdateAsync(invocation);
+                    try
+                    {
+                        Task observerCompleted = await Task.WhenAny(
+                            updateObserver,
+                            Task.Delay(s_activeStateTimeout)).ConfigureAwait(false);
+                        Assert.That(observerCompleted, Is.SameAs(updateObserver),
+                            "The severity update observer did not finish after notification release.");
+                        Exception? updateFailure = await updateObserver.ConfigureAwait(false);
+                        if (updateFailure != null)
+                        {
+                            cleanupFailures.Add(updateFailure);
+                        }
+                    }
+                    catch (Exception failure)
+                    {
+                        cleanupFailures.Add(failure);
+                    }
+                }
+            }
+
+            ThrowTestAndCleanupFailures(testFailure, cleanupFailures);
+
+            Assert.That(condition.Severity!.Value, Is.EqualTo((ushort)EventSeverity.High));
+            Assert.That(condition.SyncSeveritySetterCalls, Is.EqualTo(1));
+            Assert.That(condition.AsyncSeveritySetterCalls, Is.EqualTo(1));
+            Assert.That(condition.AsyncSeverityWithChangeMasksSetterCalls, Is.EqualTo(1));
+            Assert.That(notifications, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Verifies the bool severity overload defers notification without dispatching through other overrides.
+        /// </summary>
+        [Test]
+        public async Task AsyncSeveritySetterCanDeferNotificationAsync()
+        {
+            var condition = new TestAsyncSetterConditionState();
+            condition.Create(m_context, new NodeId(Guid.NewGuid()), QualifiedName.From("Condition"), default, true);
+            condition.SetEnableState(m_context, true);
+            condition.SetSeverity(m_context, EventSeverity.Low);
+            await condition.ClearChangeMasksAsync(m_context, true).ConfigureAwait(false);
+            int notifications = 0;
+            NodeStateChangedAsyncHandler handler = (_, _, _, _) =>
+            {
+                notifications++;
+                return ValueTask.CompletedTask;
+            };
+            condition.Severity!.StateChangedAsync += handler;
+
+            Task<Task>? severityUpdateInvocation = null;
+            Task<Exception?>? severityUpdateObserver = null;
+            ExceptionDispatchInfo? testFailure = null;
+            var cleanupFailures = new List<Exception>();
+            try
+            {
+                severityUpdateInvocation = Task.Factory.StartNew(
+                    () => condition.SetSeverityAsync(
+                        m_context,
+                        EventSeverity.High,
+                        clearChangeMasks: false).AsTask(),
+                    CancellationToken.None,
+                    TaskCreationOptions.DenyChildAttach,
+                    TaskScheduler.Default);
+                severityUpdateObserver = ObserveActiveStateUpdateAsync(severityUpdateInvocation);
+                Task invocationCompleted = await Task.WhenAny(
+                    severityUpdateInvocation,
+                    Task.Delay(s_activeStateTimeout)).ConfigureAwait(false);
+                Assert.That(invocationCompleted, Is.SameAs(severityUpdateInvocation));
+                Task severityUpdate = await severityUpdateInvocation.ConfigureAwait(false);
+                Task updateCompleted = await Task.WhenAny(
+                    severityUpdate,
+                    Task.Delay(s_activeStateTimeout)).ConfigureAwait(false);
+                Assert.That(updateCompleted, Is.SameAs(severityUpdate));
+            }
+            catch (Exception failure)
+            {
+                testFailure = ExceptionDispatchInfo.Capture(failure);
+            }
+            finally
+            {
+                if (severityUpdateInvocation != null)
+                {
+                    severityUpdateObserver ??= ObserveActiveStateUpdateAsync(severityUpdateInvocation);
+                    try
+                    {
+                        Task observerCompleted = await Task.WhenAny(
+                            severityUpdateObserver,
+                            Task.Delay(s_activeStateTimeout)).ConfigureAwait(false);
+                        Assert.That(observerCompleted, Is.SameAs(severityUpdateObserver),
+                            "The severity update observer did not finish during cleanup.");
+                        Exception? updateFailure = await severityUpdateObserver.ConfigureAwait(false);
+                        if (updateFailure != null)
+                        {
+                            cleanupFailures.Add(updateFailure);
+                        }
+                    }
+                    catch (Exception failure)
+                    {
+                        cleanupFailures.Add(failure);
+                    }
+                }
+            }
+            if (testFailure != null || cleanupFailures.Count != 0)
+            {
+                condition.Severity!.StateChangedAsync -= handler;
+            }
+            ThrowTestAndCleanupFailures(testFailure, cleanupFailures);
+
+            Assert.That(condition.Severity!.Value, Is.EqualTo((ushort)EventSeverity.High));
+            Assert.That(condition.Severity!.ChangeMasks, Is.Not.EqualTo(NodeStateChangeMasks.None));
+            Assert.That(notifications, Is.Zero);
+            Assert.That(condition.SyncSeveritySetterCalls, Is.EqualTo(1));
+            Assert.That(condition.AsyncSeveritySetterCalls, Is.Zero);
+            Assert.That(condition.AsyncSeverityWithChangeMasksSetterCalls, Is.EqualTo(1));
+
+            await condition.ClearChangeMasksAsync(m_context, true).ConfigureAwait(false);
+            condition.Severity!.StateChangedAsync -= handler;
+
+            Assert.That(notifications, Is.EqualTo(1));
+            Assert.That(condition.Severity!.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+        }
+
+        /// <summary>
+        /// Verifies cancellation during the first nested notification does not interrupt an active-state update.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task ActiveStateCompletesNestedUpdatesAfterCancellationDuringFirstNotificationAsync()
+        {
+            AlarmConditionState alarm = CreateAlarmWithNestedStates();
+
+            var order = new List<string>();
+            var notificationEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseNotification = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            alarm.LatchedState!.Id!.StateChangedAsync += async (_, _, _, cancellationToken) =>
+            {
+                Assert.That(cancellationToken, Is.EqualTo(CancellationToken.None));
+                order.Add("latched");
+                notificationEntered.TrySetResult(true);
+                await releaseNotification.Task.ConfigureAwait(false);
+            };
+            alarm.SilenceState!.Id!.StateChangedAsync += (_, _, _, _) =>
+            {
+                order.Add("silence");
+                return ValueTask.CompletedTask;
+            };
+            alarm.ActiveState!.Id!.StateChangedAsync += (_, _, _, _) =>
+            {
+                order.Add("active");
+                return ValueTask.CompletedTask;
+            };
+
+            using var cancellation = new CancellationTokenSource();
+            Task<Task>? invocation = null;
+            Task<Exception?>? updateObserver = null;
+            ExceptionDispatchInfo? testFailure = null;
+            var cleanupFailures = new List<Exception>();
+            try
+            {
+                invocation = Task.Factory.StartNew(
+                    () => alarm.SetActiveStateAsync(m_context, true, cancellation.Token).AsTask(),
+                    CancellationToken.None,
+                    TaskCreationOptions.DenyChildAttach,
+                    TaskScheduler.Default);
+                updateObserver = ObserveActiveStateUpdateAsync(invocation);
+                Task invocationCompleted = await Task.WhenAny(invocation, Task.Delay(s_activeStateTimeout))
+                    .ConfigureAwait(false);
+                Assert.That(invocationCompleted, Is.SameAs(invocation));
+                Task update = await invocation.ConfigureAwait(false);
+                Task completed = await Task.WhenAny(notificationEntered.Task, Task.Delay(s_activeStateTimeout))
+                    .ConfigureAwait(false);
+                Assert.That(completed, Is.SameAs(notificationEntered.Task));
+                cancellation.Cancel();
+                Assert.That(update.IsCompleted, Is.False);
+            }
+            catch (Exception failure)
+            {
+                testFailure = ExceptionDispatchInfo.Capture(failure);
+            }
+            finally
+            {
+                releaseNotification.TrySetResult(true);
+                if (invocation != null)
+                {
+                    updateObserver ??= ObserveActiveStateUpdateAsync(invocation);
+                    try
+                    {
+                        Task observerCompleted = await Task.WhenAny(updateObserver, Task.Delay(s_activeStateTimeout))
+                            .ConfigureAwait(false);
+                        Assert.That(observerCompleted, Is.SameAs(updateObserver),
+                            "The active-state update observer did not finish after notification release.");
+                        Exception? updateFailure = await updateObserver.ConfigureAwait(false);
+                        if (updateFailure != null)
+                        {
+                            cleanupFailures.Add(updateFailure);
+                        }
+                    }
+                    catch (Exception failure)
+                    {
+                        cleanupFailures.Add(failure);
+                    }
+                }
+            }
+
+            ThrowTestAndCleanupFailures(testFailure, cleanupFailures);
+
+            Assert.That(alarm.LatchedState.Id.Value, Is.True);
+            Assert.That(alarm.SilenceState.Id.Value, Is.False);
+            Assert.That(alarm.ActiveState.Id.Value, Is.True);
+            Assert.That(order, Is.EqualTo(new[] { "latched", "silence", "active" }));
+        }
+
+        /// <summary>
+        /// Verifies cancellation during one-shot unshelving does not interrupt the active-state update.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task ActiveStateCompletesOneShotUnshelvingAfterCancellationDuringNotificationAsync()
+        {
+            AlarmConditionState alarm = CreateAlarmWithNestedStates();
+            alarm.ShelvingState = new ShelvedStateMachineState(alarm);
+            alarm.ShelvingState.Create(
+                m_context, default, QualifiedName.From(BrowseNames.ShelvingState), default, false);
+            alarm.ShelvingState.UnshelveTime =
+                PropertyState<double>.With<VariantBuilder>(alarm.ShelvingState);
+            alarm.SetShelvingState(m_context, true, true, 1000);
+            alarm.ClearChangeMasks(m_context, true);
+
+            var notificationEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseNotification = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var order = new List<string>();
+            alarm.ShelvingState.CurrentState!.Id!.StateChangedAsync += async (_, _, _, cancellationToken) =>
+            {
+                Assert.That(cancellationToken, Is.EqualTo(CancellationToken.None));
+                order.Add("shelving");
+                notificationEntered.TrySetResult(true);
+                await releaseNotification.Task.ConfigureAwait(false);
+            };
+            alarm.ActiveState!.Id!.StateChangedAsync += (_, _, _, _) =>
+            {
+                order.Add("active");
+                return ValueTask.CompletedTask;
+            };
+
+            using var cancellation = new CancellationTokenSource();
+            Task<Task>? invocation = null;
+            Task<Exception?>? updateObserver = null;
+            ExceptionDispatchInfo? testFailure = null;
+            var cleanupFailures = new List<Exception>();
+            try
+            {
+                invocation = Task.Factory.StartNew(
+                    () => alarm.SetActiveStateAsync(m_context, false, cancellation.Token).AsTask(),
+                    CancellationToken.None,
+                    TaskCreationOptions.DenyChildAttach,
+                    TaskScheduler.Default);
+                updateObserver = ObserveActiveStateUpdateAsync(invocation);
+                Task invocationCompleted = await Task.WhenAny(invocation, Task.Delay(s_activeStateTimeout))
+                    .ConfigureAwait(false);
+                Assert.That(invocationCompleted, Is.SameAs(invocation));
+                Task update = await invocation.ConfigureAwait(false);
+                Task completed = await Task.WhenAny(notificationEntered.Task, Task.Delay(s_activeStateTimeout))
+                    .ConfigureAwait(false);
+                Assert.That(completed, Is.SameAs(notificationEntered.Task));
+                cancellation.Cancel();
+                Assert.That(update.IsCompleted, Is.False);
+            }
+            catch (Exception failure)
+            {
+                testFailure = ExceptionDispatchInfo.Capture(failure);
+            }
+            finally
+            {
+                releaseNotification.TrySetResult(true);
+                if (invocation != null)
+                {
+                    updateObserver ??= ObserveActiveStateUpdateAsync(invocation);
+                    try
+                    {
+                        Task observerCompleted = await Task.WhenAny(updateObserver, Task.Delay(s_activeStateTimeout))
+                            .ConfigureAwait(false);
+                        Assert.That(observerCompleted, Is.SameAs(updateObserver),
+                            "The active-state update observer did not finish after notification release.");
+                        Exception? updateFailure = await updateObserver.ConfigureAwait(false);
+                        if (updateFailure != null)
+                        {
+                            cleanupFailures.Add(updateFailure);
+                        }
+                    }
+                    catch (Exception failure)
+                    {
+                        cleanupFailures.Add(failure);
+                    }
+                }
+            }
+
+            ThrowTestAndCleanupFailures(testFailure, cleanupFailures);
+
+            Assert.That(alarm.ShelvingState.CurrentState.Id.Value, Is.EqualTo(
+                ObjectIds.ShelvedStateMachineType_Unshelved));
+            Assert.That(alarm.ActiveState!.Id!.Value, Is.False);
+            Assert.That(order, Is.EqualTo(new[] { "shelving", "active" }));
+        }
+
+        /// <summary>
+        /// Observes both stages of an active-state update without leaving task failures unobserved.
+        /// </summary>
+        private static async Task<Exception?> ObserveActiveStateUpdateAsync(Task<Task> invocation)
+        {
+            try
+            {
+                Task update = await invocation.ConfigureAwait(false);
+                await update.ConfigureAwait(false);
+                return null;
+            }
+            catch (Exception failure)
+            {
+                return failure;
+            }
+        }
+
+        /// <summary>
+        /// Rethrows the test failure and any distinct failures encountered during cleanup.
+        /// </summary>
+        /// <param name="testFailure">The captured test failure, if any.</param>
+        /// <param name="cleanupFailures">The failures encountered while releasing test operations.</param>
+        private static void ThrowTestAndCleanupFailures(
+            ExceptionDispatchInfo? testFailure,
+            List<Exception> cleanupFailures)
+        {
+            if (testFailure != null)
+            {
+                if (cleanupFailures.Count == 0)
+                {
+                    testFailure.Throw();
+                    return;
+                }
+                var failures = new List<Exception>(cleanupFailures.Count + 1)
+                {
+                    testFailure.SourceException
+                };
+                foreach (Exception cleanupFailure in cleanupFailures)
+                {
+                    if (!failures.Any(failure => ReferenceEquals(failure, cleanupFailure)))
+                    {
+                        failures.Add(cleanupFailure);
+                    }
+                }
+                if (failures.Count == 1)
+                {
+                    testFailure.Throw();
+                    return;
+                }
+                throw new AggregateException("The test and its cleanup both failed.", failures);
+            }
+
+            List<Exception> distinctFailures = cleanupFailures
+                .Where((failure, index) => !cleanupFailures.Take(index)
+                    .Any(previous => ReferenceEquals(previous, failure)))
+                .ToList();
+            if (distinctFailures.Count == 1)
+            {
+                ExceptionDispatchInfo.Capture(distinctFailures[0]).Throw();
+                return;
+            }
+            if (distinctFailures.Count > 1)
+            {
+                throw new AggregateException("Test cleanup failed.", distinctFailures);
+            }
+        }
+
+        /// <summary>
+        /// Verifies a failed async notification restores masks so a later clear can report the committed change.
+        /// </summary>
+        [Test]
+        public async Task AsyncSetterRestoresChangeMasksWhenNotificationFailsAsync()
+        {
+            var condition = new AcknowledgeableConditionState(null);
+            condition.Create(m_context, new NodeId(Guid.NewGuid()), QualifiedName.From("Condition"), default, true);
+            condition.SetEnableState(m_context, true);
+            condition.SetAcknowledgedState(m_context, false);
+            condition.ClearChangeMasks(m_context, true);
+            condition.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            var failure = new InvalidOperationException("Notification failed.");
+            NodeStateChangedAsyncHandler failureHandler = (_, _, _, _) =>
+                new ValueTask(Task.FromException(failure));
+            condition.AckedState!.Id!.StateChangedAsync += failureHandler;
+
+            InvalidOperationException thrown = await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await condition.SetAcknowledgedStateAsync(m_context, true).ConfigureAwait(false))!;
+
+            Assert.That(thrown, Is.SameAs(failure));
+            Assert.That(condition.AckedState.Id.Value, Is.True);
+            Assert.That(condition.AckedState.Id.ChangeMasks, Is.Not.EqualTo(NodeStateChangeMasks.None));
+            Assert.That(condition.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.Value));
+
+            condition.AckedState.Id.StateChangedAsync -= failureHandler;
+            await condition.ClearChangeMasksAsync(m_context, true).ConfigureAwait(false);
+
+            Assert.That(condition.AckedState.Id.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+            Assert.That(condition.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+        }
+
+        /// <summary>
+        /// Verifies synchronous and asynchronous calls dispatch to their matching setter overrides.
+        /// </summary>
+        [Test]
+        public async Task AcknowledgedStateCallsMatchingSyncOrAsyncOverrideAsync()
+        {
+            var condition = new TestAcknowledgeableConditionState();
+            condition.Create(m_context, new NodeId(Guid.NewGuid()), QualifiedName.From("Condition"), default, true);
+            condition.SetEnableState(m_context, true);
+
+            condition.SetAcknowledgedState(m_context, true);
+
+            Assert.That(condition.SyncSetterCalls, Is.EqualTo(1));
+            Assert.That(condition.AsyncSetterCalls, Is.Zero);
+
+            await condition.SetAcknowledgedStateAsync(m_context, false).ConfigureAwait(false);
+
+            Assert.That(condition.SyncSetterCalls, Is.EqualTo(1));
+            Assert.That(condition.AsyncSetterCalls, Is.EqualTo(1));
+            Assert.That(condition.AckedState!.Id!.Value, Is.False);
+        }
+
+        /// <summary>
+        /// Verifies async reporting bypasses synchronous overrides and keeps the current EventId resolvable.
+        /// </summary>
+        [Test]
+        public async Task AsyncEventReportingUsesAsyncOverrideAndReachesSinkAsync()
+        {
+            var syncOnly = new TestSynchronousReportConditionState();
+            syncOnly.Create(m_context, new NodeId(Guid.NewGuid()), QualifiedName.From("SyncOnly"), default, true);
+            int syncOnlySinkCalls = 0;
+            syncOnly.EventReported += (_, _, _) => syncOnlySinkCalls++;
+            ByteString syncOnlyEventId = syncOnly.EventId!.Value;
+
+            var paired = new TestPairedReportConditionState();
+            paired.Create(m_context, new NodeId(Guid.NewGuid()), QualifiedName.From("Paired"), default, true);
+            int pairedSinkCalls = 0;
+            paired.EventReported += (_, _, _) => pairedSinkCalls++;
+            ByteString pairedEventId = paired.EventId!.Value;
+
+            await syncOnly.ReportEventAsync(m_context, CreateEventSnapshot(syncOnly)).ConfigureAwait(false);
+            await paired.ReportEventAsync(m_context, CreateEventSnapshot(paired)).ConfigureAwait(false);
+
+            Assert.That(syncOnly.SyncReportCalls, Is.Zero);
+            Assert.That(syncOnlySinkCalls, Is.EqualTo(1));
+            Assert.That(syncOnly.GetEventByEventId(syncOnlyEventId), Is.SameAs(syncOnly));
+            Assert.That(paired.SyncReportCalls, Is.Zero);
+            Assert.That(paired.AsyncReportCalls, Is.EqualTo(1));
+            Assert.That(pairedSinkCalls, Is.EqualTo(1));
+            Assert.That(paired.GetEventByEventId(pairedEventId), Is.SameAs(paired));
+        }
+
+        /// <summary>
+        /// Verifies synchronous reporting calls synchronous overrides and keeps the current EventId resolvable.
+        /// </summary>
+        [Test]
+        public void SynchronousEventReportingUsesSyncOverrideAndReachesSink()
+        {
+            var syncOnly = new TestSynchronousReportConditionState();
+            syncOnly.Create(m_context, new NodeId(Guid.NewGuid()), QualifiedName.From("SyncOnly"), default, true);
+            int syncOnlySinkCalls = 0;
+            syncOnly.EventReported += (_, _, _) => syncOnlySinkCalls++;
+            ByteString syncOnlyEventId = syncOnly.EventId!.Value;
+
+            var paired = new TestPairedReportConditionState();
+            paired.Create(m_context, new NodeId(Guid.NewGuid()), QualifiedName.From("Paired"), default, true);
+            int pairedSinkCalls = 0;
+            paired.EventReported += (_, _, _) => pairedSinkCalls++;
+            ByteString pairedEventId = paired.EventId!.Value;
+
+            syncOnly.ReportEvent(m_context, CreateEventSnapshot(syncOnly));
+            paired.ReportEvent(m_context, CreateEventSnapshot(paired));
+
+            Assert.That(syncOnly.SyncReportCalls, Is.EqualTo(1));
+            Assert.That(syncOnlySinkCalls, Is.EqualTo(1));
+            Assert.That(syncOnly.GetEventByEventId(syncOnlyEventId), Is.SameAs(syncOnly));
+            Assert.That(paired.SyncReportCalls, Is.EqualTo(1));
+            Assert.That(paired.AsyncReportCalls, Is.Zero);
+            Assert.That(pairedSinkCalls, Is.EqualTo(1));
+            Assert.That(paired.GetEventByEventId(pairedEventId), Is.SameAs(paired));
+        }
+
+        /// <summary>
+        /// Verifies async reporting retains a superseded EventId for acknowledgement and rejects an unknown ID.
+        /// </summary>
+        [Test]
+        public async Task AsyncEventReportingRetainsSupersededEventIdForAcknowledgeAsync()
+        {
+            var condition = new TestPairedReportConditionState();
+            condition.Create(m_context, new NodeId(Guid.NewGuid()), QualifiedName.From("Condition"), default, true);
+            condition.SetEnableState(m_context, true);
+            condition.SetAcknowledgedState(m_context, false);
+            condition.EventId!.Value = Uuid.NewUuid().ToByteString();
+            ByteString reportedEventId = condition.EventId!.Value;
+
+            await condition.ReportEventAsync(m_context, CreateEventSnapshot(condition)).ConfigureAwait(false);
+
+            condition.EventId.Value = Uuid.NewUuid().ToByteString();
+            Assert.That(condition.EventId.Value, Is.Not.EqualTo(reportedEventId));
+
+            ServiceResult unknown = condition.CallAcknowledge(m_context, Uuid.NewUuid().ToByteString());
+            Assert.That(unknown.StatusCode, Is.EqualTo(StatusCodes.BadEventIdUnknown));
+            Assert.That(condition.AckedState!.Id!.Value, Is.False);
+
+            ServiceResult acknowledged = condition.CallAcknowledge(m_context, reportedEventId);
+            Assert.That(ServiceResult.IsGood(acknowledged), Is.True, acknowledged.ToString());
+            Assert.That(condition.AckedState.Id.Value, Is.True);
+        }
+
+        /// <summary>
+        /// Characterizes that a pre-canceled async report retains its EventId before reporting is canceled.
+        /// </summary>
+        [Test]
+        public async Task CanceledAsyncEventReportingRetainsUnpublishedEventIdAsync()
+        {
+            var condition = new TestPairedReportConditionState();
+            condition.Create(m_context, new NodeId(Guid.NewGuid()), QualifiedName.From("Condition"), default, true);
+            condition.SetEnableState(m_context, true);
+            condition.SetAcknowledgedState(m_context, false);
+            condition.EventId!.Value = Uuid.NewUuid().ToByteString();
+            ByteString reportedEventId = condition.EventId!.Value;
+            int sinkCalls = 0;
+            condition.EventReported += (_, _, _) => sinkCalls++;
+
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+            await Assert.ThrowsAsync<OperationCanceledException>(
+                async () => await condition.ReportEventAsync(
+                    m_context, CreateEventSnapshot(condition), cancellation.Token).ConfigureAwait(false));
+
+            Assert.That(sinkCalls, Is.Zero);
+            condition.EventId.Value = Uuid.NewUuid().ToByteString();
+            ServiceResult acknowledged = condition.CallAcknowledge(m_context, reportedEventId);
+
+            Assert.That(ServiceResult.IsGood(acknowledged), Is.True, acknowledged.ToString());
+            Assert.That(condition.AckedState!.Id!.Value, Is.True);
+        }
 
         [OneTimeSetUp]
         protected void OneTimeSetUp()
@@ -67,6 +842,240 @@ namespace Opc.Ua.Core.Tests.Stack.State
         protected void OneTimeTearDown()
         {
             (m_context as IDisposable)?.Dispose();
+        }
+
+        /// <summary>
+        /// Creates a snapshot used to report the specified condition.
+        /// </summary>
+        private InstanceStateSnapshot CreateEventSnapshot(ConditionState condition)
+        {
+            var snapshot = new InstanceStateSnapshot();
+            snapshot.Initialize(m_context, condition);
+            return snapshot;
+        }
+
+        /// <summary>
+        /// Counts calls to synchronous and asynchronous enable and severity setter overloads.
+        /// </summary>
+        private sealed class TestAsyncSetterConditionState : AcknowledgeableConditionState
+        {
+            /// <summary>
+            /// Creates the test condition.
+            /// </summary>
+            public TestAsyncSetterConditionState()
+                : base(null)
+            {
+            }
+
+            /// <summary>
+            /// Gets the synchronous enable setter call count.
+            /// </summary>
+            public int SyncEnableSetterCalls { get; private set; }
+
+            /// <summary>
+            /// Gets the asynchronous enable setter call count.
+            /// </summary>
+            public int AsyncEnableSetterCalls { get; private set; }
+
+            /// <summary>
+            /// Gets the synchronous severity setter call count.
+            /// </summary>
+            public int SyncSeveritySetterCalls { get; private set; }
+
+            /// <summary>
+            /// Gets the asynchronous severity setter call count.
+            /// </summary>
+            public int AsyncSeveritySetterCalls { get; private set; }
+
+            /// <summary>
+            /// Gets the asynchronous severity setter call count for the bool overload.
+            /// </summary>
+            public int AsyncSeverityWithChangeMasksSetterCalls { get; private set; }
+
+            /// <inheritdoc/>
+            public override void SetEnableState(ISystemContext context, bool enabled)
+            {
+                SyncEnableSetterCalls++;
+                base.SetEnableState(context, enabled);
+            }
+
+            /// <inheritdoc/>
+            public override async ValueTask SetEnableStateAsync(
+                ISystemContext context,
+                bool enabled,
+                CancellationToken cancellationToken = default)
+            {
+                AsyncEnableSetterCalls++;
+                await base.SetEnableStateAsync(context, enabled, cancellationToken).ConfigureAwait(false);
+            }
+
+            /// <inheritdoc/>
+            public override void SetSeverity(ISystemContext context, EventSeverity severity)
+            {
+                SyncSeveritySetterCalls++;
+                base.SetSeverity(context, severity);
+            }
+
+            /// <inheritdoc/>
+            public override async ValueTask SetSeverityAsync(
+                ISystemContext context,
+                EventSeverity severity,
+                CancellationToken cancellationToken = default)
+            {
+                AsyncSeveritySetterCalls++;
+                await base.SetSeverityAsync(context, severity, cancellationToken).ConfigureAwait(false);
+            }
+
+            /// <inheritdoc/>
+            public override async ValueTask SetSeverityAsync(
+                ISystemContext context,
+                EventSeverity severity,
+                bool clearChangeMasks,
+                CancellationToken cancellationToken = default)
+            {
+                AsyncSeverityWithChangeMasksSetterCalls++;
+                await base.SetSeverityAsync(context, severity, clearChangeMasks, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Creates an alarm with latched and silence state variables for async setter tests.
+        /// </summary>
+        private AlarmConditionState CreateAlarmWithNestedStates()
+        {
+            var alarm = new AlarmConditionState(m_telemetry, null!);
+            alarm.Create(m_context, new NodeId(Guid.NewGuid()), QualifiedName.From("Alarm"), default, true);
+            alarm.SetEnableState(m_context, true);
+            alarm.LatchedState = new TwoStateVariableState(alarm);
+            alarm.LatchedState.Create(
+                m_context, default, QualifiedName.From(BrowseNames.LatchedState), default, true);
+            alarm.SilenceState = new TwoStateVariableState(alarm);
+            alarm.SilenceState.Create(
+                m_context, default, QualifiedName.From(BrowseNames.SilenceState), default, true);
+            alarm.SetSilenceState(m_context, true);
+            alarm.ClearChangeMasks(m_context, true);
+            return alarm;
+        }
+
+        /// <summary>
+        /// Counts calls to the synchronous and asynchronous acknowledgement setter overrides.
+        /// </summary>
+        private sealed class TestAcknowledgeableConditionState : AcknowledgeableConditionState
+        {
+            /// <summary>
+            /// Creates the test condition.
+            /// </summary>
+            public TestAcknowledgeableConditionState()
+                : base(null)
+            {
+            }
+
+            /// <summary>
+            /// Gets the synchronous acknowledgement setter call count.
+            /// </summary>
+            public int SyncSetterCalls { get; private set; }
+
+            /// <summary>
+            /// Gets the asynchronous acknowledgement setter call count.
+            /// </summary>
+            public int AsyncSetterCalls { get; private set; }
+
+            /// <inheritdoc/>
+            public override void SetAcknowledgedState(ISystemContext context, bool acknowledged)
+            {
+                SyncSetterCalls++;
+                base.SetAcknowledgedState(context, acknowledged);
+            }
+
+            /// <inheritdoc/>
+            public override async ValueTask SetAcknowledgedStateAsync(
+                ISystemContext context,
+                bool acknowledged,
+                CancellationToken cancellationToken = default)
+            {
+                AsyncSetterCalls++;
+                await base.SetAcknowledgedStateAsync(context, acknowledged, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Counts calls to the synchronous event reporting override.
+        /// </summary>
+        private sealed class TestSynchronousReportConditionState : AcknowledgeableConditionState
+        {
+            /// <summary>
+            /// Creates the test condition.
+            /// </summary>
+            public TestSynchronousReportConditionState()
+                : base(null)
+            {
+            }
+
+            /// <summary>
+            /// Gets the synchronous report override call count.
+            /// </summary>
+            public int SyncReportCalls { get; private set; }
+
+            /// <inheritdoc/>
+            public override void ReportEvent(ISystemContext context, IFilterTarget e)
+            {
+                SyncReportCalls++;
+                base.ReportEvent(context, e);
+            }
+        }
+
+        /// <summary>
+        /// Counts calls to paired synchronous and asynchronous event reporting overrides.
+        /// </summary>
+        private sealed class TestPairedReportConditionState : AcknowledgeableConditionState
+        {
+            /// <summary>
+            /// Creates the test condition.
+            /// </summary>
+            public TestPairedReportConditionState()
+                : base(null)
+            {
+            }
+
+            /// <summary>
+            /// Gets the synchronous report override call count.
+            /// </summary>
+            public int SyncReportCalls { get; private set; }
+
+            /// <summary>
+            /// Gets the asynchronous report override call count.
+            /// </summary>
+            public int AsyncReportCalls { get; private set; }
+
+            /// <summary>
+            /// Invokes the acknowledge method for the supplied event identifier.
+            /// </summary>
+            /// <param name="context">The system context.</param>
+            /// <param name="eventId">The event identifier.</param>
+            /// <returns>The acknowledge method result.</returns>
+            public ServiceResult CallAcknowledge(ISystemContext context, ByteString eventId)
+            {
+                return OnAcknowledgeCalled(context, Acknowledge!, NodeId, eventId, LocalizedText.From("ack"));
+            }
+
+            /// <inheritdoc/>
+            public override void ReportEvent(ISystemContext context, IFilterTarget e)
+            {
+                SyncReportCalls++;
+                base.ReportEvent(context, e);
+            }
+
+            /// <inheritdoc/>
+            public override async ValueTask ReportEventAsync(
+                ISystemContext context,
+                IFilterTarget e,
+                CancellationToken cancellationToken = default)
+            {
+                AsyncReportCalls++;
+                await base.ReportEventAsync(context, e, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         [TestCase(true, true, true, true)]
@@ -395,7 +1404,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
             var alarm = new AlarmConditionState(m_telemetry, null!);
             alarm.Create(m_context, new NodeId(1), QualifiedName.From("Alarm"), default, true);
             alarm.SuppressedState = new TwoStateVariableState(alarm);
-            alarm.SuppressedState.Create(m_context, default, QualifiedName.From(BrowseNames.SuppressedState), default, false);
+            alarm.SuppressedState.Create(
+                m_context, default, QualifiedName.From(BrowseNames.SuppressedState), default, false);
 
             DateTimeUtc beforeTime = DateTimeUtc.Now;
             alarm.SetSuppressedState(m_context, true);
@@ -441,7 +1451,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
             var condition = new AcknowledgeableConditionState(null);
             condition.Create(m_context, new NodeId(1), QualifiedName.From("AckCondition"), default, true);
             condition.ConfirmedState = new TwoStateVariableState(condition);
-            condition.ConfirmedState.Create(m_context, default, QualifiedName.From(BrowseNames.ConfirmedState), default, false);
+            condition.ConfirmedState.Create(
+                m_context, default, QualifiedName.From(BrowseNames.ConfirmedState), default, false);
 
             DateTimeUtc beforeTime = DateTimeUtc.Now;
             condition.SetConfirmedState(m_context, true);
@@ -465,7 +1476,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
             var alarm = new AlarmConditionState(m_telemetry, null!);
             alarm.Create(m_context, new NodeId(1), QualifiedName.From("Alarm"), default, true);
             alarm.ShelvingState = new ShelvedStateMachineState(alarm);
-            alarm.ShelvingState.Create(m_context, default, QualifiedName.From(BrowseNames.ShelvingState), default, false);
+            alarm.ShelvingState.Create(
+                m_context, default, QualifiedName.From(BrowseNames.ShelvingState), default, false);
             alarm.ShelvingState.UnshelveTime = PropertyState<double>.With<VariantBuilder>(alarm.ShelvingState);
 
             DateTimeUtc beforeTime = DateTimeUtc.Now;

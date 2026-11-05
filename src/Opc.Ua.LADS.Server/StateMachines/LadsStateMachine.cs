@@ -95,9 +95,24 @@ namespace Opc.Ua.LADS.Server.StateMachines
         public string CurrentStateName => Table.FindState(CurrentStateId).Name;
 
         /// <summary>
-        /// Raised after a transition was committed, with the new state identifier.
+        /// Raised after a transition or explicit state write, with the current state identifier.
         /// </summary>
         public event Action<uint>? StateChanged;
+
+        /// <summary>
+        /// Raised asynchronously after a committed transition and its state notifications.
+        /// </summary>
+        public event Func<uint, CancellationToken, ValueTask>? StateChangedAsync;
+
+        /// <summary>
+        /// Raised after the state changes on synchronous paths for internal observers.
+        /// </summary>
+        internal event Action<uint>? StateChangedInternal;
+
+        /// <summary>
+        /// Raised asynchronously after a committed state change for internal observers.
+        /// </summary>
+        internal event Func<uint, CancellationToken, ValueTask>? StateChangedInternalAsync;
 
         /// <summary>
         /// Writes a state without a transition, the way a freshly created or reset machine starts.
@@ -105,6 +120,7 @@ namespace Opc.Ua.LADS.Server.StateMachines
         /// <param name="stateId">The state identifier.</param>
         public void SetInitialState(uint stateId)
         {
+            m_device?.EnsureSynchronousStateWriteAllowed();
             if (m_device == null)
             {
                 AssignState(stateId);
@@ -114,6 +130,30 @@ namespace Opc.Ua.LADS.Server.StateMachines
                 m_device.SetMachineState(this, stateId);
             }
             NotifyStateChanged(stateId);
+        }
+
+        /// <summary>
+        /// Writes a state without a transition and awaits its state notifications.
+        /// </summary>
+        /// <param name="stateId">The state identifier.</param>
+        /// <param name="cancellationToken">
+        /// The token is checked before writing the state. Notifications for a written state complete without
+        /// observing caller cancellation.
+        /// </param>
+        public async ValueTask SetInitialStateAsync(
+            uint stateId,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (m_device == null)
+            {
+                AssignState(stateId);
+            }
+            else
+            {
+                m_device.SetMachineState(this, stateId);
+            }
+            await NotifyStateChangedAsync(stateId).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -135,9 +175,43 @@ namespace Opc.Ua.LADS.Server.StateMachines
         /// <exception cref="ServiceResultException">
         /// <see cref="StatusCodes.BadInvalidState"/> when no transition leads to the target state.
         /// </exception>
-        public ValueTask<bool> TransitionToAsync(uint targetStateId, CancellationToken cancellationToken = default)
+        public async ValueTask<bool> TransitionToAsync(
+            uint targetStateId,
+            CancellationToken cancellationToken = default)
         {
-            return new ValueTask<bool>(TransitionTo(targetStateId, cancellationToken));
+            LadsStateDefinition target = Table.FindState(targetStateId);
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                m_device?.RequireStorageHealthy();
+                LadsTransitionDefinition transition;
+                lock (m_lock)
+                {
+                    if (!Table.TryFindTransition(m_currentStateId, target.Id, out transition))
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadInvalidState,
+                            "The state machine '{0}' cannot move from '{1}' to '{2}'.",
+                            StateMachine.BrowseName,
+                            Table.FindState(m_currentStateId).Name,
+                            target.Name);
+                    }
+                }
+                ServiceResult guard = Invoke(StateMachine.OnBeforeTransition, transition.Id);
+                if (ServiceResult.IsBad(guard))
+                {
+                    return false;
+                }
+                bool committed = m_device == null
+                    ? AssignTransition(transition)
+                    : m_device.TransitionMachine(this, transition);
+                if (!committed)
+                {
+                    continue;
+                }
+                await NotifyTransitionAsync(transition, target.Id).ConfigureAwait(false);
+                return true;
+            }
         }
 
         /// <summary>
@@ -152,6 +226,7 @@ namespace Opc.Ua.LADS.Server.StateMachines
         /// </exception>
         public bool TransitionTo(uint targetStateId, CancellationToken cancellationToken = default)
         {
+            m_device?.EnsureSynchronousStateWriteAllowed();
             LadsStateDefinition target = Table.FindState(targetStateId);
             while (true)
             {
@@ -184,6 +259,7 @@ namespace Opc.Ua.LADS.Server.StateMachines
                 }
                 StateMachine.ClearChangeMasks(m_context, true);
                 Invoke(StateMachine.OnAfterTransition, transition.Id);
+                StateChangedInternal?.Invoke(target.Id);
                 StateChanged?.Invoke(target.Id);
                 return true;
             }
@@ -247,7 +323,61 @@ namespace Opc.Ua.LADS.Server.StateMachines
         internal void NotifyStateChanged(uint stateId)
         {
             StateMachine.ClearChangeMasks(m_context, true);
+            StateChangedInternal?.Invoke(stateId);
             StateChanged?.Invoke(stateId);
+        }
+
+        /// <summary>
+        /// Dispatches state notifications and asynchronous observers after a committed state write.
+        /// </summary>
+        internal async ValueTask NotifyStateChangedAsync(
+            uint stateId)
+        {
+            await StateMachine.ClearChangeMasksAsync(m_context, true, CancellationToken.None)
+                .ConfigureAwait(false);
+            await InvokeStateChangedInternalAsync(stateId, CancellationToken.None).ConfigureAwait(false);
+            StateChanged?.Invoke(stateId);
+            await InvokeStateChangedAsync(stateId, CancellationToken.None).ConfigureAwait(false);
+        }
+
+        private async ValueTask NotifyTransitionAsync(LadsTransitionDefinition transition, uint stateId)
+        {
+            await StateMachine.ClearChangeMasksAsync(m_context, true, CancellationToken.None)
+                .ConfigureAwait(false);
+            Invoke(StateMachine.OnAfterTransition, transition.Id);
+            await InvokeStateChangedInternalAsync(stateId, CancellationToken.None).ConfigureAwait(false);
+            StateChanged?.Invoke(stateId);
+            await InvokeStateChangedAsync(stateId, CancellationToken.None).ConfigureAwait(false);
+        }
+
+        private async ValueTask InvokeStateChangedInternalAsync(
+            uint stateId,
+            CancellationToken cancellationToken)
+        {
+            Func<uint, CancellationToken, ValueTask>? stateChangedInternalAsync = StateChangedInternalAsync;
+            if (stateChangedInternalAsync == null)
+            {
+                return;
+            }
+            foreach (Delegate handler in stateChangedInternalAsync.GetInvocationList())
+            {
+                await ((Func<uint, CancellationToken, ValueTask>)handler)(stateId, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        private async ValueTask InvokeStateChangedAsync(uint stateId, CancellationToken cancellationToken)
+        {
+            Func<uint, CancellationToken, ValueTask>? stateChangedAsync = StateChangedAsync;
+            if (stateChangedAsync == null)
+            {
+                return;
+            }
+            foreach (Delegate handler in stateChangedAsync.GetInvocationList())
+            {
+                await ((Func<uint, CancellationToken, ValueTask>)handler)(stateId, cancellationToken)
+                    .ConfigureAwait(false);
+            }
         }
 
         private ServiceResult Invoke(StateMachineTransitionHandler? handler, uint transitionId)

@@ -167,7 +167,7 @@ namespace Opc.Ua.LADS.Server
                     break;
                 }
                 number++;
-                run.ReportStep(number, step.Name);
+                await run.ReportStepAsync(number, step.Name, cancellationToken).ConfigureAwait(false);
                 ArrayOf<LadsSetpoint> setpoints = step.Setpoints;
                 for (int jj = 0; jj < setpoints.Count; jj++)
                 {

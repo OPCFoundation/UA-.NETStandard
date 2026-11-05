@@ -579,11 +579,28 @@ Removed file bindings are released only after the removal commits.
 
 If either node compensation or snapshot restoration fails, the runtime reports
 all errors, sets the device state to Shutdown and rejects further mutations and
-saves. Restart the device after correcting the underlying fault. Recovery uses
-the last snapshot the provider successfully retained and rebuilds its nodes;
-the failed call does not establish whether the new or previous snapshot remains
-durable. A file-binding cleanup error after committed removal is reported
-without reversing the removal.
+saves. It records storage failure while it still holds the device store gate,
+before releasing that gate. Checkpoints and program-data transactions waiting
+behind the failed transaction then reject before saving. Restart the device
+after correcting the underlying fault. Recovery uses the last snapshot the
+provider successfully retained and rebuilds its nodes; the failed call does not
+establish whether the new or previous snapshot remains durable. A file-binding
+cleanup error after committed removal is reported without reversing the
+removal.
+
+Quarantine records storage failure and captures any functional-unit start that
+still holds device state admission. Recording failure and releasing admission
+are serialized: if quarantine records failure first, it reconciles the captured
+start; if admission release wins first, the start's admission completed before
+quarantine began. A program start may already have queued its executor when
+quarantine records failure. Quarantine requests cancellation immediately, waits
+for the post-scheduling availability notification and start to unwind, then
+waits for that executor to finish after the start releases the unit gate. It
+assigns Aborted and running substate Idle before publishing device Shutdown and
+Machinery OutOfService. A start rejected before entering Running leaves the
+functional-unit and running states unchanged. Quarantine also requests
+cancellation of runs whose starts already completed; device disposal drains
+any such execution that has not returned.
 The device orders quarantine against its concrete state and value operations.
 Each operation checks the retained failure and writes its attributes while the
 device's private lock is held; callers cannot supply code to run under that

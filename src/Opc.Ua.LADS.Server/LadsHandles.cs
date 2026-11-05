@@ -99,11 +99,22 @@ namespace Opc.Ua.LADS.Server
         /// <summary>
         /// Raised after the device state changed.
         /// </summary>
+        /// <remarks>
+        /// Handlers run inline. <see cref="GotoOperateAsync"/>, <see cref="GotoSleepAsync"/>, and
+        /// <see cref="GotoShutdownAsync"/> raise this event from <c>ChangeStateAsync</c> while the device command
+        /// and state-admission gates are held. Initial publication raises the event while holding the
+        /// state-admission gate. A handler must not wait or synchronously block on an operation that needs either
+        /// gate before returning.
+        /// </remarks>
         event Action<LadsDeviceStateValue>? StateChanged;
 
         /// <summary>
         /// Raised after the operation mode changed.
         /// </summary>
+        /// <remarks>
+        /// Handlers run inline. <see cref="SetOperationModeAsync"/> raises this event while holding the device gate.
+        /// A handler must not wait or synchronously block on an operation that needs that gate before returning.
+        /// </remarks>
         event Action<MachineryOperationModeValue>? OperationModeChanged;
 
         /// <summary>
@@ -211,6 +222,16 @@ namespace Opc.Ua.LADS.Server
         /// <summary>
         /// Raised after the functional unit state changed.
         /// </summary>
+        /// <remarks>
+        /// This synchronous event invokes handlers inline on the state-transition path, even when an asynchronous
+        /// command raises it.
+        /// <see cref="StartAsync"/> and <see cref="ILadsProgramManager.StartProgramAsync"/> when they start a stopped
+        /// unit hold this unit's gate and the device state-admission gate while publishing the Running transition.
+        /// <see cref="StopAsync"/>, <see cref="AbortAsync"/>, <see cref="ClearAsync"/>, and program-run state
+        /// finalization hold this unit's gate. A handler must not wait or synchronously block on an operation that
+        /// needs a gate held by the current transition before returning. Device state commands use the admission
+        /// gate; unrelated device and program-manager operations do not all share this unit's gate.
+        /// </remarks>
         event Action<LadsFunctionalStateValue>? StateChanged;
 
         /// <summary>
@@ -445,6 +466,11 @@ namespace Opc.Ua.LADS.Server
         /// <summary>
         /// Raised after the control function state changed.
         /// </summary>
+        /// <remarks>
+        /// Handlers run inline. <see cref="StartAsync"/>, <see cref="StopAsync"/>, <see cref="AbortAsync"/>, and
+        /// <see cref="ClearAsync"/> raise this event while holding this function's <c>ExclusiveAsync</c> command gate.
+        /// A handler must not wait or synchronously block on an operation that needs that gate before returning.
+        /// </remarks>
         event Action<LadsFunctionalStateValue>? StateChanged;
 
         /// <summary>
@@ -838,6 +864,12 @@ namespace Opc.Ua.LADS.Server
         /// <summary>
         /// Raised after the cover state changed.
         /// </summary>
+        /// <remarks>
+        /// Handlers run inline. <see cref="OpenAsync"/>, <see cref="CloseAsync"/>, <see cref="LockAsync"/>,
+        /// <see cref="UnlockAsync"/>, <see cref="ResetAsync"/>, and <see cref="ReportErrorAsync"/> raise this event
+        /// while holding this cover's <c>ExclusiveAsync</c> command gate. A handler must not wait or synchronously
+        /// block on an operation that needs that gate before returning.
+        /// </remarks>
         event Action<LadsCoverStateValue>? StateChanged;
 
         /// <summary>
@@ -921,6 +953,13 @@ namespace Opc.Ua.LADS.Server
         /// <summary>
         /// Raised after the maintenance state changed.
         /// </summary>
+        /// <remarks>
+        /// This synchronous event invokes handlers inline on the maintenance transition path, even when an
+        /// asynchronous command raises it. <see cref="StartAsync"/>, <see cref="StopAsync"/>, and
+        /// <see cref="ResetAsync"/> publish their transitions while holding the task's serialization gate. A handler
+        /// must not wait for an operation that needs that gate before returning, including by synchronously blocking
+        /// within the callback. This warning applies only to work that needs this task's gate.
+        /// </remarks>
         event Action<LadsMaintenanceStateValue>? StateChanged;
 
         /// <summary>

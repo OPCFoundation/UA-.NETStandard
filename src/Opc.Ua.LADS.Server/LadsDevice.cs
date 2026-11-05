@@ -58,6 +58,7 @@ namespace Opc.Ua.LADS.Server
             {
                 Node.RevisionCounter.Value = 0;
             }
+
             LADSDeviceStateMachineState deviceState = Node.DeviceState ??
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,
@@ -69,14 +70,22 @@ namespace Opc.Ua.LADS.Server
                 LadsStateMaps.Device,
                 LadsDeviceStateValue.Initialization,
                 this);
-            DeviceState.StateChanged += state =>
+            DeviceState.StateChangedInternal += state =>
             {
                 if (Runtime.Logger.IsEnabled(LogLevel.Debug))
                 {
                     Runtime.Logger.StateChanged(Name, state);
                 }
                 UpdateItemState();
-                StateChanged?.Invoke(state);
+            };
+            DeviceState.StateChanged += state => StateChanged?.Invoke(state);
+            DeviceState.StateChangedInternalAsync += async (state, cancellationToken) =>
+            {
+                if (Runtime.Logger.IsEnabled(LogLevel.Debug))
+                {
+                    Runtime.Logger.StateChanged(Name, state);
+                }
+                await UpdateItemStateAsync(cancellationToken).ConfigureAwait(false);
             };
             Runtime.Bind(deviceState.GotoOperate, (_, ct) => GotoOperateAsync(ct));
             Runtime.Bind(deviceState.GotoSleep, (_, ct) => GotoSleepAsync(ct));
@@ -113,13 +122,22 @@ namespace Opc.Ua.LADS.Server
                 LadsStateMaps.OperationMode,
                 MachineryOperationModeValue.None,
                 this);
-            OperationModeMachine.StateChanged += mode =>
+            OperationModeMachine.StateChangedInternal += mode =>
             {
                 if (Runtime.Logger.IsEnabled(LogLevel.Debug))
                 {
                     Runtime.Logger.StateChanged(Name, mode);
                 }
                 OperationModeChanged?.Invoke(mode);
+            };
+            OperationModeMachine.StateChangedAsync += (mode, _) =>
+            {
+                if (Runtime.Logger.IsEnabled(LogLevel.Debug))
+                {
+                    Runtime.Logger.StateChanged(Name, mode);
+                }
+                OperationModeChanged?.Invoke(mode);
+                return ValueTask.CompletedTask;
             };
             Runtime.Bind(
                 operationMode.GotoProcessing,
@@ -304,6 +322,11 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public event Action<MachineryOperationModeValue>? OperationModeChanged;
 
+        /// <summary>
+        /// Gets whether failed storage compensation has quarantined the device.
+        /// </summary>
+        internal bool IsStorageQuarantined => Volatile.Read(ref m_storageFailure) != null;
+
         /// <inheritdoc/>
         public ILadsFunctionalUnit GetFunctionalUnit(string name)
         {
@@ -390,7 +413,8 @@ namespace Opc.Ua.LADS.Server
                     .ConfigureAwait(false);
                 RequireStorageHealthy();
                 Reject(result, "SetOperationMode");
-                if (!OperationModeMachine.TransitionTo(mode))
+                if (!await OperationModeMachine.TransitionToAsync(mode, CancellationToken.None)
+                    .ConfigureAwait(false))
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadInvalidState,
@@ -416,6 +440,21 @@ namespace Opc.Ua.LADS.Server
             Counters.OperationCycleCounter?.ClearChangeMasks(Runtime.Context, false);
         }
 
+        private async ValueTask IncrementOperationCyclesAsync()
+        {
+            lock (m_mutationLock)
+            {
+                RequireStorageHealthy();
+                uint cycles = (uint)Interlocked.Increment(ref m_cycles);
+                LadsRuntime.AssignValue(Counters.OperationCycleCounter, Variant.From(cycles));
+            }
+            if (Counters.OperationCycleCounter is { } counter)
+            {
+                await counter.ClearChangeMasksAsync(Runtime.Context, false, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+        }
+
         /// <summary>
         /// Adds the duration of a program run to the operation duration.
         /// </summary>
@@ -433,6 +472,26 @@ namespace Opc.Ua.LADS.Server
                     Counters.OperationDuration, Variant.From(TimeSpan.FromTicks(ticks).TotalMilliseconds));
             }
             Counters.OperationDuration?.ClearChangeMasks(Runtime.Context, false);
+        }
+
+        private async ValueTask AddOperationDurationAsync(TimeSpan duration)
+        {
+            lock (m_mutationLock)
+            {
+                RequireStorageHealthy();
+                if (duration <= TimeSpan.Zero)
+                {
+                    return;
+                }
+                long ticks = Interlocked.Add(ref m_operationTicks, duration.Ticks);
+                LadsRuntime.AssignValue(
+                    Counters.OperationDuration, Variant.From(TimeSpan.FromTicks(ticks).TotalMilliseconds));
+            }
+            if (Counters.OperationDuration is { } operationDuration)
+            {
+                await operationDuration.ClearChangeMasksAsync(Runtime.Context, false, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
         }
 
         /// <inheritdoc/>
@@ -463,10 +522,13 @@ namespace Opc.Ua.LADS.Server
             Action commit,
             CancellationToken cancellationToken,
             Func<ValueTask>? publish = null,
-            Func<ValueTask>? compensate = null)
+            Func<ValueTask>? compensate = null,
+            LadsFunctionalUnit? quarantineOwner = null,
+            bool stateAdmissionGateHeld = false)
         {
             RequireStorageHealthy();
             await m_storeGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            bool storeGateHeld = true;
             try
             {
                 RequireStorageHealthy();
@@ -508,20 +570,27 @@ namespace Opc.Ua.LADS.Server
                     }
                     if (failures.Count > 1)
                     {
-                        throw Quarantine(failures);
+                        LadsFunctionalUnit? admittedStart = MarkStorageQuarantined(failures);
+                        m_storeGate.Release();
+                        storeGateHeld = false;
+                        throw await QuarantineAsync(
+                            failures, quarantineOwner, stateAdmissionGateHeld, admittedStart).ConfigureAwait(false);
                     }
                     throw;
                 }
                 commit();
                 if (completed)
                 {
-                    IncrementOperationCycles();
+                    await IncrementOperationCyclesAsync().ConfigureAwait(false);
                 }
-                AddOperationDuration(duration);
+                await AddOperationDurationAsync(duration).ConfigureAwait(false);
             }
             finally
             {
-                m_storeGate.Release();
+                if (storeGateHeld)
+                {
+                    m_storeGate.Release();
+                }
             }
         }
 
@@ -660,6 +729,107 @@ namespace Opc.Ua.LADS.Server
                 throw new InvalidOperationException(
                     "The LADS device requires restart after a failed stored-data transaction.", failure);
             }
+        }
+
+        /// <summary>
+        /// Rejects synchronous state writes after the device is published.
+        /// </summary>
+        internal void EnsureSynchronousStateWriteAllowed()
+        {
+            if (IsPublished)
+            {
+                throw new InvalidOperationException(
+                    "Synchronous LADS state writes are only supported before device publication.");
+            }
+        }
+
+        /// <summary>
+        /// Completes a functional-unit start sequence while ordered against device Sleep and Shutdown.
+        /// </summary>
+        internal async ValueTask EnterFunctionalUnitAsync(
+            LadsFunctionalUnit unit,
+            CancellationToken cancellationToken,
+            Func<ValueTask>? continueStarting = null)
+        {
+            await AcquireStateAdmissionAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                RegisterAdmittedStart(unit);
+                await EnterFunctionalUnitWithAdmissionHeldAsync(unit, cancellationToken).ConfigureAwait(false);
+                if (continueStarting != null)
+                {
+                    await continueStarting().ConfigureAwait(false);
+                }
+                RequireStorageHealthy();
+            }
+            catch (Exception failure) when (IsStorageQuarantined)
+            {
+                try
+                {
+                    await unit.ReconcileQuarantinedUnitAsync().ConfigureAwait(false);
+                }
+                catch (Exception reconciliationFailure)
+                {
+                    throw new AggregateException(
+                        "The functional-unit start and quarantine reconciliation failed.",
+                        failure,
+                        reconciliationFailure);
+                }
+                throw;
+            }
+            finally
+            {
+                ReleaseStateAdmission(unit);
+            }
+        }
+
+        /// <summary>
+        /// Acquires the gate that orders functional-unit admission against device Sleep and Shutdown.
+        /// </summary>
+        internal async ValueTask AcquireStateAdmissionAsync(CancellationToken cancellationToken)
+        {
+            await m_stateAdmissionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Records the functional unit whose start currently holds device state admission.
+        /// </summary>
+        internal void RegisterAdmittedStart(LadsFunctionalUnit unit)
+        {
+            lock (m_mutationLock)
+            {
+                RequireStorageHealthy();
+                m_admittedStart = unit;
+            }
+        }
+
+        /// <summary>
+        /// Releases admission and clears the active-start marker as one quarantine ordering point.
+        /// A quarantine that records failure first retains this start for reconciliation; a release
+        /// that wins first makes the start's state visible before quarantine begins.
+        /// </summary>
+        internal void ReleaseStateAdmission(LadsFunctionalUnit unit)
+        {
+            lock (m_mutationLock)
+            {
+                m_stateAdmissionGate.Release();
+                if (ReferenceEquals(m_admittedStart, unit))
+                {
+                    m_admittedStart = null;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Enters Running when the caller already holds the device state-admission gate.
+        /// </summary>
+        internal async ValueTask EnterFunctionalUnitWithAdmissionHeldAsync(
+            LadsFunctionalUnit unit,
+            CancellationToken cancellationToken)
+        {
+            RequireStorageHealthy();
+            RequireOperate();
+            await unit.EnterRunningAsync(cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -865,6 +1035,23 @@ namespace Opc.Ua.LADS.Server
         }
 
         /// <summary>
+        /// Sets a function parameter and awaits its state notifications.
+        /// </summary>
+        internal async ValueTask SetFunctionParameterAsync(BaseVariableState? parameter, Variant value)
+        {
+            lock (m_mutationLock)
+            {
+                RequireStorageHealthy();
+                LadsRuntime.AssignValue(parameter, value);
+            }
+            if (parameter is { } variable)
+            {
+                await variable.ClearChangeMasksAsync(Runtime.Context, false, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
         /// Records a completed maintenance task.
         /// </summary>
         internal void RecordMaintenanceCompletion(
@@ -902,13 +1089,24 @@ namespace Opc.Ua.LADS.Server
         }
 
         /// <summary>
-        /// Clears the published active program.
+        /// Schedules a program only if quarantine has not already rejected its start.
+        /// </summary>
+        internal Task ScheduleProgramExecution(Func<Task> execution)
+        {
+            lock (m_mutationLock)
+            {
+                RequireStorageHealthy();
+                return Task.Run(execution, CancellationToken.None);
+            }
+        }
+
+        /// <summary>
+        /// Clears a program published before its start failed, including cleanup after quarantine.
         /// </summary>
         internal void ResetActiveProgram(LadsProgramManager programs)
         {
             lock (m_mutationLock)
             {
-                RequireStorageHealthy();
                 programs.AssignActiveProgramReset();
             }
         }
@@ -943,7 +1141,7 @@ namespace Opc.Ua.LADS.Server
         /// <summary>
         /// Marks a failed execution only while state writes remain admitted; quarantined cleanup still drains.
         /// </summary>
-        internal void RecordExecutionFailure(LadsFunctionalUnit unit)
+        internal async ValueTask RecordExecutionFailureAsync(LadsFunctionalUnit unit)
         {
             lock (m_mutationLock)
             {
@@ -953,7 +1151,52 @@ namespace Opc.Ua.LADS.Server
                 }
                 unit.Functional.AssignState(LadsFunctionalStateValue.Aborted);
             }
-            unit.Functional.NotifyStateChanged();
+            await unit.Functional.NotifyStateChangedAsync().ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Assigns the terminal state for a unit whose start was interrupted by storage quarantine.
+        /// </summary>
+        internal (bool RunningChanged, bool FunctionalChanged, List<Exception> Failures)
+            AssignQuarantinedStartState(LadsFunctionalUnit unit)
+        {
+            var failures = new List<Exception>();
+            bool runningChanged = false;
+            bool functionalChanged = false;
+            lock (m_mutationLock)
+            {
+                if (m_storageFailure == null ||
+                    unit.Functional.Current is not (
+                        LadsFunctionalStateValue.Running or LadsFunctionalStateValue.Aborted))
+                {
+                    return (runningChanged, functionalChanged, failures);
+                }
+                try
+                {
+                    if (unit.Running.Current != LadsRunningStateValue.Idle)
+                    {
+                        unit.Running.AssignState(LadsRunningStateValue.Idle);
+                        runningChanged = true;
+                    }
+                }
+                catch (Exception failure)
+                {
+                    failures.Add(failure);
+                }
+                try
+                {
+                    if (unit.Functional.Current != LadsFunctionalStateValue.Aborted)
+                    {
+                        unit.Functional.AssignState(LadsFunctionalStateValue.Aborted);
+                        functionalChanged = true;
+                    }
+                }
+                catch (Exception failure)
+                {
+                    failures.Add(failure);
+                }
+            }
+            return (runningChanged, functionalChanged, failures);
         }
 
         /// <summary>
@@ -962,6 +1205,14 @@ namespace Opc.Ua.LADS.Server
         public void OnFunctionalUnitStateChanged()
         {
             UpdateItemState();
+        }
+
+        /// <summary>
+        /// Updates the item state after a functional unit changed its state asynchronously.
+        /// </summary>
+        internal ValueTask OnFunctionalUnitStateChangedAsync(CancellationToken cancellationToken)
+        {
+            return UpdateItemStateAsync(cancellationToken);
         }
 
         /// <summary>
@@ -1081,22 +1332,29 @@ namespace Opc.Ua.LADS.Server
         /// <summary>
         /// Moves the published device to its initial state and operation mode.
         /// </summary>
-        public ValueTask StartAsync(CancellationToken cancellationToken)
+        public async ValueTask StartAsync(CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            Interlocked.Exchange(ref m_powerOnTimestamp, Runtime.TimeProvider.GetTimestamp());
-            Volatile.Write(ref m_powerOnStarted, true);
-            Volatile.Write(ref m_published, true);
-            OperationModeMachine.SetState(InitialOperationMode);
-            LadsDeviceStateValue initial = InitialDeviceState;
-            if (initial != LadsDeviceStateValue.Initialization)
+            await m_stateAdmissionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
-                if (!DeviceState.CanTransitionTo(initial) || !DeviceState.TransitionTo(initial))
+                Interlocked.Exchange(ref m_powerOnTimestamp, Runtime.TimeProvider.GetTimestamp());
+                Volatile.Write(ref m_powerOnStarted, true);
+                Volatile.Write(ref m_published, true);
+                await OperationModeMachine.SetStateAsync(InitialOperationMode, CancellationToken.None)
+                    .ConfigureAwait(false);
+                LadsDeviceStateValue initial = InitialDeviceState;
+                if (initial != LadsDeviceStateValue.Initialization &&
+                    (!DeviceState.CanTransitionTo(initial) ||
+                    !await DeviceState.TransitionToAsync(initial, CancellationToken.None).ConfigureAwait(false)))
                 {
-                    DeviceState.SetState(initial);
+                    await DeviceState.SetStateAsync(initial, CancellationToken.None).ConfigureAwait(false);
                 }
             }
-            return default;
+            finally
+            {
+                m_stateAdmissionGate.Release();
+            }
         }
 
         /// <inheritdoc/>
@@ -1196,6 +1454,8 @@ namespace Opc.Ua.LADS.Server
             Volatile.Write(ref m_published, false);
             m_gate.Dispose();
             m_storeGate.Dispose();
+            m_stateAdmissionGate.Dispose();
+            m_itemStateGate.Dispose();
             if (failures.Count > 0)
             {
                 throw new AggregateException("The LADS device checkpoint or cleanup failed.", failures);
@@ -1209,8 +1469,11 @@ namespace Opc.Ua.LADS.Server
         {
             RequireStorageHealthy();
             await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            bool admissionGateHeld = false;
             try
             {
+                await m_stateAdmissionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+                admissionGateHeld = true;
                 RequireStorageHealthy();
                 if (!DeviceState.CanTransitionTo(target))
                 {
@@ -1242,7 +1505,7 @@ namespace Opc.Ua.LADS.Server
                     .ConfigureAwait(false);
                 RequireStorageHealthy();
                 Reject(result, "Goto" + target);
-                if (!DeviceState.TransitionTo(target))
+                if (!await DeviceState.TransitionToAsync(target, CancellationToken.None).ConfigureAwait(false))
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadInvalidState,
@@ -1252,46 +1515,148 @@ namespace Opc.Ua.LADS.Server
             }
             finally
             {
+                if (admissionGateHeld)
+                {
+                    m_stateAdmissionGate.Release();
+                }
                 m_gate.Release();
             }
         }
 
         /// <summary>
-        /// Publishes shutdown and the retained failure before any later mutation can be admitted.
+        /// Records the quarantine before the store gate is released and captures any admitted start.
         /// </summary>
-        private AggregateException Quarantine(List<Exception> failures)
+        private LadsFunctionalUnit? MarkStorageQuarantined(List<Exception> failures)
         {
             lock (m_mutationLock)
             {
                 Volatile.Write(ref m_storageFailure, new AggregateException(failures));
+                return m_admittedStart;
+            }
+        }
+
+        /// <summary>
+        /// Cancels active runs when quarantine begins, drains an admitted start outside its unit gate,
+        /// and publishes Shutdown only after that unit has reached Aborted/Idle.
+        /// </summary>
+        private async ValueTask<AggregateException> QuarantineAsync(
+            List<Exception> failures,
+            LadsFunctionalUnit? quarantineOwner,
+            bool stateAdmissionGateHeld,
+            LadsFunctionalUnit? admittedStart)
+        {
+            LadsFunctionalUnit[] units;
+            lock (m_lock)
+            {
+                units = [.. m_units];
+            }
+            Task? admittedExecution = null;
+            foreach (LadsFunctionalUnit unit in units)
+            {
                 try
                 {
-                    ItemStateMachine.AssignState(MachineryItemStateValue.OutOfService);
+                    (Task? completion, Exception? cancellationFailure) =
+                        unit.ProgramManager?.RequestQuarantineAbort() ?? (null, null);
+                    if (cancellationFailure != null)
+                    {
+                        failures.Add(cancellationFailure);
+                    }
+                    if (ReferenceEquals(unit, admittedStart) && !ReferenceEquals(unit, quarantineOwner))
+                    {
+                        admittedExecution = completion;
+                    }
+                }
+                catch (Exception cancellationFailure)
+                {
+                    failures.Add(cancellationFailure);
+                }
+            }
+
+            bool admissionGateAcquired = false;
+            if (!stateAdmissionGateHeld)
+            {
+                await m_stateAdmissionGate.WaitAsync().ConfigureAwait(false);
+                admissionGateAcquired = true;
+            }
+            try
+            {
+                if (admittedExecution != null)
+                {
+                    try
+                    {
+                        await admittedExecution.ConfigureAwait(false);
+                    }
+                    catch (Exception executionFailure)
+                    {
+                        failures.Add(executionFailure);
+                    }
+                }
+                var reconcile = new List<LadsFunctionalUnit>(2);
+                if (admittedStart != null)
+                {
+                    reconcile.Add(admittedStart);
+                }
+                if (quarantineOwner != null && !reconcile.Contains(quarantineOwner))
+                {
+                    reconcile.Add(quarantineOwner);
+                }
+                foreach (LadsFunctionalUnit unit in reconcile)
+                {
+                    try
+                    {
+                        await unit.ReconcileQuarantinedUnitAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception stateFailure)
+                    {
+                        failures.Add(stateFailure);
+                    }
+                }
+            }
+            finally
+            {
+                if (admissionGateAcquired)
+                {
+                    m_stateAdmissionGate.Release();
+                }
+            }
+            await m_itemStateGate.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                lock (m_mutationLock)
+                {
+                    try
+                    {
+                        ItemStateMachine.AssignState(MachineryItemStateValue.OutOfService);
+                    }
+                    catch (Exception stateFailure)
+                    {
+                        failures.Add(stateFailure);
+                    }
+                    try
+                    {
+                        DeviceState.AssignState(LadsDeviceStateValue.Shutdown);
+                    }
+                    catch (Exception stateFailure)
+                    {
+                        failures.Add(stateFailure);
+                    }
+                }
+                try
+                {
+                    await ItemStateMachine.NotifyStateChangedAsync().ConfigureAwait(false);
                 }
                 catch (Exception stateFailure)
                 {
                     failures.Add(stateFailure);
                 }
-                try
-                {
-                    DeviceState.AssignState(LadsDeviceStateValue.Shutdown);
-                }
-                catch (Exception stateFailure)
-                {
-                    failures.Add(stateFailure);
-                }
+            }
+            finally
+            {
+                m_itemStateGate.Release();
             }
             try
             {
-                ItemStateMachine.NotifyStateChanged();
-            }
-            catch (Exception stateFailure)
-            {
-                failures.Add(stateFailure);
-            }
-            try
-            {
-                DeviceState.NotifyStateChanged();
+                await DeviceState.NotifyStateChangedAsync().ConfigureAwait(false);
             }
             catch (Exception stateFailure)
             {
@@ -1320,27 +1685,8 @@ namespace Opc.Ua.LADS.Server
         /// </summary>
         private void UpdateItemState()
         {
-            MachineryItemStateValue target;
-            switch (DeviceState.Current)
-            {
-                case LadsDeviceStateValue.Shutdown:
-                    target = MachineryItemStateValue.OutOfService;
-                    break;
-                case LadsDeviceStateValue.Operate:
-                    target = MachineryItemStateValue.NotExecuting;
-                    foreach (ILadsFunctionalUnit unit in FunctionalUnits)
-                    {
-                        if (unit.State == LadsFunctionalStateValue.Running)
-                        {
-                            target = MachineryItemStateValue.Executing;
-                            break;
-                        }
-                    }
-                    break;
-                default:
-                    target = MachineryItemStateValue.NotAvailable;
-                    break;
-            }
+            EnsureSynchronousStateWriteAllowed();
+            MachineryItemStateValue target = GetItemStateTarget();
             if (ItemStateMachine.Current == target)
             {
                 return;
@@ -1348,6 +1694,58 @@ namespace Opc.Ua.LADS.Server
             if (!ItemStateMachine.CanTransitionTo(target) || !ItemStateMachine.TransitionTo(target))
             {
                 ItemStateMachine.SetState(target);
+            }
+        }
+
+        /// <summary>
+        /// Derives the Machinery item state after an asynchronous device or functional-unit state change.
+        /// </summary>
+        private async ValueTask UpdateItemStateAsync(CancellationToken cancellationToken)
+        {
+            await m_itemStateGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                if (Volatile.Read(ref m_storageFailure) != null)
+                {
+                    return;
+                }
+                MachineryItemStateValue target = GetItemStateTarget();
+                if (ItemStateMachine.Current == target)
+                {
+                    return;
+                }
+                if (!ItemStateMachine.CanTransitionTo(target) ||
+                    !await ItemStateMachine.TransitionToAsync(target, cancellationToken).ConfigureAwait(false))
+                {
+                    await ItemStateMachine.SetStateAsync(target, cancellationToken).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                m_itemStateGate.Release();
+            }
+        }
+
+        /// <summary>
+        /// Gets the Machinery item state derived from the device and functional-unit states.
+        /// </summary>
+        private MachineryItemStateValue GetItemStateTarget()
+        {
+            switch (DeviceState.Current)
+            {
+                case LadsDeviceStateValue.Shutdown:
+                    return MachineryItemStateValue.OutOfService;
+                case LadsDeviceStateValue.Operate:
+                    foreach (ILadsFunctionalUnit unit in FunctionalUnits)
+                    {
+                        if (unit.State == LadsFunctionalStateValue.Running)
+                        {
+                            return MachineryItemStateValue.Executing;
+                        }
+                    }
+                    return MachineryItemStateValue.NotExecuting;
+                default:
+                    return MachineryItemStateValue.NotAvailable;
             }
         }
 
@@ -1389,8 +1787,11 @@ namespace Opc.Ua.LADS.Server
         /// <summary>Orders local writes and the transition to an unusable device.</summary>
         private readonly Lock m_mutationLock = new();
         private readonly SemaphoreSlim m_gate = new(1, 1);
+        private readonly SemaphoreSlim m_stateAdmissionGate = new(1, 1);
+        private readonly SemaphoreSlim m_itemStateGate = new(1, 1);
         private readonly List<LadsFunctionalUnit> m_units = [];
         private readonly List<LadsMaintenanceTask> m_tasks = [];
+        private LadsFunctionalUnit? m_admittedStart;
         private ILadsDeviceProvider? m_provider;
         private bool m_published;
         private int m_cycles;

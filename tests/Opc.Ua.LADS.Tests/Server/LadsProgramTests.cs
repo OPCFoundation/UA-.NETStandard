@@ -47,6 +47,148 @@ namespace Opc.Ua.LADS.Tests.Server
     [NonParallelizable]
     public sealed class LadsProgramTests
     {
+        /// <summary>
+        /// Verifies program start waits for notification of the committed active-program state.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        public async Task StartProgramAwaitsCommittedActiveProgramNotificationAsync(
+            bool cancelAfterCommit,
+            bool failNotification)
+        {
+            var notification = new LadsNotificationTestSupport.Gate();
+            var executor = new NotificationExecutor();
+            var store = new InMemoryLadsStore();
+            await using LadsHostedServer server = await LadsHostedServer.StartIncubatorAsync(
+                nameof(StartProgramAwaitsCommittedActiveProgramNotificationAsync),
+                builder =>
+                {
+                    builder.Services.AddSingleton<ILadsProgramExecutor>(executor);
+                    builder.Services.AddSingleton<ILadsStore>(store);
+                }).ConfigureAwait(false);
+            var device = (LadsDevice)await server.DeviceAsync().ConfigureAwait(false);
+            var unit = (LadsFunctionalUnit)device.GetFunctionalUnit(LadsIncubator.UnitName);
+            var programs = (LadsProgramManager)unit.Programs!;
+            var runIdNode = programs.Node.ActiveProgram!.DeviceProgramRunId!;
+            NodeStateChangedHandler? previousSync = runIdNode.OnStateChanged;
+            NodeStateChangedAsyncHandler? previous = runIdNode.OnStateChangedAsync;
+            var syncNotified = LadsNotificationTestSupport.NewSignal();
+            runIdNode.OnStateChanged = (context, node, masks) =>
+            {
+                previousSync?.Invoke(context, node, masks);
+                syncNotified.TrySetResult(true);
+            };
+            var failure = new InvalidOperationException("Active-program notification failed.");
+            notification.Failure = failNotification ? failure : null;
+            string? notifiedRunId = null;
+            runIdNode.OnStateChangedAsync = async (context, node, masks, token) =>
+            {
+                // Re-enter read-only public handles from the sink, after the device mutation lock.
+                if (notification.Calls == 0)
+                {
+                    Assert.That(syncNotified.Task.IsCompleted, Is.True,
+                        "The synchronous state sink must still run before the asynchronous sink.");
+                    notifiedRunId = programs.ActiveRun?.RunId;
+                    Assert.That(runIdNode.Value, Is.EqualTo(notifiedRunId));
+                    Assert.That(programs.ActiveRun!.Template.Id, Is.EqualTo(LadsIncubator.QuickTemplate));
+                    Assert.That(unit.RunningState, Is.EqualTo(LadsRunningStateValue.Execute));
+                    Assert.That(masks & NodeStateChangeMasks.Value, Is.Not.EqualTo(NodeStateChangeMasks.None));
+                }
+                await notification.WaitAsync(token).ConfigureAwait(false);
+                if (previous != null)
+                {
+                    await previous(context, node, masks, token).ConfigureAwait(false);
+                }
+            };
+
+            using var cancellation = new CancellationTokenSource();
+            var returned = LadsNotificationTestSupport.NewSignal();
+            Task<string>? start = null;
+            Task<ILadsResult>? result = null;
+            try
+            {
+                // Do not unwrap Task.Run around the call alone: that would hide a blocking bridge.
+                start = Task.Run(async () =>
+                {
+                    Task<string> pending = programs.StartProgramAsync(
+                        LadsIncubator.QuickTemplate, cancellationToken: cancellation.Token).AsTask();
+                    returned.TrySetResult(true);
+                    return await pending.ConfigureAwait(false);
+                });
+                await notification.Entered.Task.WaitAsync(LadsNotificationTestSupport.Timeout)
+                    .ConfigureAwait(false);
+                await returned.Task.WaitAsync(LadsNotificationTestSupport.Timeout).ConfigureAwait(false);
+                Assert.That(start.IsCompleted, Is.False);
+                Assert.That(executor.Started.Task.IsCompleted, Is.False);
+                Assert.That(unit.Gate.CurrentCount, Is.Zero);
+                Assert.That(notifiedRunId, Is.Not.Null.And.Not.Empty);
+                result = programs.WaitForResultAsync(notifiedRunId!).AsTask();
+                Assert.That(result.IsCompleted, Is.False);
+                LadsStoredDeviceData saved = (await store.LoadAsync(device.StoreIdentity).ConfigureAwait(false))!;
+                Assert.That(
+                    saved.FunctionalUnits.ToList().Single(value => value.Name == unit.Name).InterruptedRunId,
+                    Is.EqualTo(notifiedRunId));
+
+                if (cancelAfterCommit)
+                {
+                    cancellation.Cancel();
+                }
+                Assert.That(notification.Token.CanBeCanceled, Is.False,
+                    "The committed active program must notify independently of the caller token.");
+                Assert.That(start.IsCompleted, Is.False);
+                notification.Release.TrySetResult(true);
+                if (failNotification)
+                {
+                    await Assert.ThatAsync(
+                        async () => await start.WaitAsync(LadsNotificationTestSupport.Timeout).ConfigureAwait(false),
+                        Throws.Exception.SameAs(failure)).ConfigureAwait(false);
+                    await Assert.ThatAsync(
+                        async () => await result.WaitAsync(LadsNotificationTestSupport.Timeout).ConfigureAwait(false),
+                        Throws.Exception.SameAs(failure)).ConfigureAwait(false);
+                    Assert.That(programs.ActiveRun, Is.Null);
+                    Assert.That(runIdNode.Value, Is.Empty);
+                    Assert.That(unit.State, Is.EqualTo(LadsFunctionalStateValue.Aborted));
+                    Assert.That(executor.Started.Task.IsCompleted, Is.False);
+                }
+                else
+                {
+                    Assert.That(
+                        await start.WaitAsync(LadsNotificationTestSupport.Timeout).ConfigureAwait(false),
+                        Is.EqualTo(notifiedRunId));
+                    await executor.Started.Task.WaitAsync(LadsNotificationTestSupport.Timeout).ConfigureAwait(false);
+                    Assert.That(programs.ActiveRun!.RunId, Is.EqualTo(notifiedRunId));
+                    Assert.That(programs.Results.Count, Is.Zero);
+                    Assert.That(result.IsCompleted, Is.False);
+                }
+                Assert.That(unit.Gate.CurrentCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                // Remove the sink before cleanup/reset notifications, including failure cleanup.
+                runIdNode.OnStateChanged = previousSync;
+                runIdNode.OnStateChangedAsync = previous;
+                notification.Release.TrySetResult(true);
+                executor.Release.TrySetResult(true);
+                if (start != null)
+                {
+                    await LadsNotificationTestSupport.DrainAsync(start).ConfigureAwait(false);
+                }
+                if (result != null)
+                {
+                    await LadsNotificationTestSupport.DrainAsync(result).ConfigureAwait(false);
+                }
+            }
+            if (!failNotification)
+            {
+                ILadsResult completed = await result!.WaitAsync(LadsNotificationTestSupport.Timeout)
+                    .ConfigureAwait(false);
+                Assert.That(completed.RunId, Is.EqualTo(notifiedRunId));
+                Assert.That(completed.Outcome, Is.EqualTo(LadsProgramOutcome.Completed));
+                Assert.That(device.OperationCycleCounter, Is.EqualTo(1));
+            }
+        }
+
         [Test]
         public async Task QuickProgramCompletesWithAResultFileAsync()
         {
@@ -646,6 +788,20 @@ namespace Opc.Ua.LADS.Tests.Server
             public ValueTask ExecuteAsync(LadsProgramRun run, CancellationToken cancellationToken)
             {
                 throw new InvalidOperationException("The device failed.");
+            }
+        }
+
+        private sealed class NotificationExecutor : ILadsProgramExecutor
+        {
+            public TaskCompletionSource<bool> Started { get; } = LadsNotificationTestSupport.NewSignal();
+
+            public TaskCompletionSource<bool> Release { get; } = LadsNotificationTestSupport.NewSignal();
+
+            public async ValueTask ExecuteAsync(LadsProgramRun run, CancellationToken cancellationToken)
+            {
+                Started.TrySetResult(true);
+                await Release.Task.WaitAsync(LadsNotificationTestSupport.Timeout, cancellationToken)
+                    .ConfigureAwait(false);
             }
         }
 

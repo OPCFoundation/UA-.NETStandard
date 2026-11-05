@@ -138,43 +138,110 @@ namespace Opc.Ua.LADS.Tests.Server
             Assert.That(downloaded.ToArray(), Is.EqualTo(bytes.ToArray()));
         }
 
-        [Test]
-        public async Task InterruptedExecutionIsRecordedButNeverResumedAsync()
+        /// <summary>
+        /// Verifies an interrupted run is not resumed and its identity survives
+        /// a successful run and subsequent server restarts.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task InterruptedExecutionIsRecordedButNeverResumedAsync(bool fileSystem)
         {
-            var store = new InMemoryLadsStore();
+            string directory = Path.Combine(
+                Path.GetTempPath(), "LadsInterruptedExecution-" + Guid.NewGuid().ToString("N"));
+            var memoryStore = fileSystem ? null : new InMemoryLadsStore();
             var executor = new CountingExecutor();
             string runId;
-            await using (LadsHostedServer first = await LadsHostedServer.StartIncubatorAsync(
-                nameof(InterruptedExecutionIsRecordedButNeverResumedAsync),
-                builder => builder.Services.AddSingleton<ILadsProgramExecutor>(executor),
-                options => options.Store = store).ConfigureAwait(false))
+            string next;
+            Exception? testFailure = null;
+            try
             {
-                ILadsDevice device = await first.DeviceAsync().ConfigureAwait(false);
-                runId = await device.GetFunctionalUnit(LadsIncubator.UnitName).Programs!
-                    .StartProgramAsync(LadsIncubator.LongTemplate).ConfigureAwait(false);
-            }
-            await using LadsHostedServer second = await LadsHostedServer.StartIncubatorAsync(
-                nameof(InterruptedExecutionIsRecordedButNeverResumedAsync) + "Restart",
-                builder => builder.Services.AddSingleton<ILadsProgramExecutor>(executor),
-                options => options.Store = store).ConfigureAwait(false);
-            ILadsDevice restored = await second.DeviceAsync().ConfigureAwait(false);
-            ILadsFunctionalUnit unit = restored.GetFunctionalUnit(LadsIncubator.UnitName);
-            Assert.That(executor.Executions, Is.EqualTo(1));
-            Assert.That(unit.Programs!.InterruptedRunId, Is.EqualTo(runId));
-            Assert.That(unit.Programs.ActiveRun, Is.Null);
-            Assert.That(unit.Programs.Results.Count, Is.Zero);
-            Assert.That(unit.State, Is.EqualTo(LadsFunctionalStateValue.Stopped));
-            Assert.That(restored.OperationCycleCounter, Is.Zero);
+                {
+                    using FileSystemLadsStore? fileStore = fileSystem
+                        ? new FileSystemLadsStore(LocalFileSystem.Instance, directory)
+                        : null;
+                    ILadsStore store = fileSystem ? fileStore! : memoryStore!;
+                    await using LadsHostedServer first = await LadsHostedServer.StartIncubatorAsync(
+                        nameof(InterruptedExecutionIsRecordedButNeverResumedAsync),
+                        builder => builder.Services.AddSingleton<ILadsProgramExecutor>(executor),
+                        options => options.Store = store).ConfigureAwait(false);
+                    ILadsDevice device = await first.DeviceAsync().ConfigureAwait(false);
+                    runId = await device.GetFunctionalUnit(LadsIncubator.UnitName).Programs!
+                        .StartProgramAsync(LadsIncubator.LongTemplate).ConfigureAwait(false);
+                }
 
-            executor.CompleteImmediately = true;
-            string next = await unit.Programs.StartProgramAsync(LadsIncubator.QuickTemplate).ConfigureAwait(false);
-            await unit.Programs.WaitForResultAsync(next).ConfigureAwait(false);
-            LadsStoredDeviceData? committed = await store.LoadAsync(
-                "urn:opcua-netstandard:lads:instances#" + LadsIncubator.DeviceName).ConfigureAwait(false);
-            Assert.That(committed, Is.Not.Null);
-            Assert.That(committed!.FunctionalUnits[0].InterruptedRunId, Is.Null);
-            Assert.That(committed.FunctionalUnits[0].LastInterruptedRunId, Is.EqualTo(runId));
-            Assert.That(executor.Executions, Is.EqualTo(2));
+                {
+                    using FileSystemLadsStore? fileStore = fileSystem
+                        ? new FileSystemLadsStore(LocalFileSystem.Instance, directory)
+                        : null;
+                    ILadsStore store = fileSystem ? fileStore! : memoryStore!;
+                    await using LadsHostedServer second = await LadsHostedServer.StartIncubatorAsync(
+                        nameof(InterruptedExecutionIsRecordedButNeverResumedAsync) + "Restart",
+                        builder => builder.Services.AddSingleton<ILadsProgramExecutor>(executor),
+                        options => options.Store = store).ConfigureAwait(false);
+                    ILadsDevice restored = await second.DeviceAsync().ConfigureAwait(false);
+                    ILadsFunctionalUnit unit = restored.GetFunctionalUnit(LadsIncubator.UnitName);
+                    Assert.That(executor.Executions, Is.EqualTo(1));
+                    Assert.That(unit.Programs!.InterruptedRunId, Is.EqualTo(runId));
+                    Assert.That(unit.Programs.ActiveRun, Is.Null);
+                    Assert.That(unit.Programs.Results.Count, Is.Zero);
+                    Assert.That(unit.State, Is.EqualTo(LadsFunctionalStateValue.Stopped));
+                    Assert.That(restored.OperationCycleCounter, Is.Zero);
+
+                    executor.CompleteImmediately = true;
+                    next = await unit.Programs.StartProgramAsync(LadsIncubator.QuickTemplate).ConfigureAwait(false);
+                    await unit.Programs.WaitForResultAsync(next).ConfigureAwait(false);
+                    LadsStoredDeviceData? committed = await store.LoadAsync(
+                        "urn:opcua-netstandard:lads:instances#" + LadsIncubator.DeviceName).ConfigureAwait(false);
+                    Assert.That(committed, Is.Not.Null);
+                    Assert.That(committed!.FunctionalUnits[0].InterruptedRunId, Is.Null);
+                    Assert.That(committed.FunctionalUnits[0].LastInterruptedRunId, Is.EqualTo(runId));
+                    Assert.That(executor.Executions, Is.EqualTo(2));
+                }
+
+                {
+                    using FileSystemLadsStore? fileStore = fileSystem
+                        ? new FileSystemLadsStore(LocalFileSystem.Instance, directory)
+                        : null;
+                    ILadsStore store = fileSystem ? fileStore! : memoryStore!;
+                    await using LadsHostedServer restarted = await LadsHostedServer.StartIncubatorAsync(
+                        nameof(InterruptedExecutionIsRecordedButNeverResumedAsync) + "RepeatedRestart",
+                        builder => builder.Services.AddSingleton<ILadsProgramExecutor>(executor),
+                        options => options.Store = store).ConfigureAwait(false);
+                    ILadsDevice repeatedRestore = await restarted.DeviceAsync().ConfigureAwait(false);
+                    ILadsProgramManager repeatedPrograms =
+                        repeatedRestore.GetFunctionalUnit(LadsIncubator.UnitName).Programs!;
+                    Assert.That(executor.Executions, Is.EqualTo(2));
+                    Assert.That(repeatedPrograms.InterruptedRunId, Is.EqualTo(runId));
+                    Assert.That(repeatedPrograms.ActiveRun, Is.Null);
+                    Assert.That(repeatedPrograms.Results.Count, Is.EqualTo(1));
+                    Assert.That(repeatedPrograms.Results[0].RunId, Is.EqualTo(next));
+                    Assert.That(repeatedPrograms.Results[0].Outcome, Is.EqualTo(LadsProgramOutcome.Completed));
+                }
+            }
+            catch (Exception exception)
+            {
+                testFailure = exception;
+                throw;
+            }
+            finally
+            {
+                try
+                {
+                    if (Directory.Exists(directory))
+                    {
+                        Directory.Delete(directory, recursive: true);
+                    }
+                }
+                catch (Exception cleanupFailure)
+                {
+                    if (testFailure != null)
+                    {
+                        throw new AggregateException(
+                            "The test and temporary directory cleanup both failed.", testFailure, cleanupFailure);
+                    }
+                    throw;
+                }
+            }
         }
 
         [Test]

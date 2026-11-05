@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -256,6 +257,435 @@ namespace Opc.Ua.LADS.Tests.Server
         }
 
         /// <summary>
+        /// Serializes the quarantined ItemState write and notification with queued projections.
+        /// </summary>
+        [Test]
+        public async Task QuarantineSerializesItemStateNotificationAndProjectionAsync()
+        {
+            const int timeoutMilliseconds = 5000;
+            var nodes = new FaultingNodeOperations { FailAfterChange = true, FailRemovalBeforeChange = true };
+            await using LadsHostedServer server = await StartAsync(
+                nameof(QuarantineSerializesItemStateNotificationAndProjectionAsync),
+                new FaultingStore(),
+                nodes).ConfigureAwait(false);
+            var device = (LadsDevice)await server.DeviceAsync().ConfigureAwait(false);
+
+            var notificationEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseNotification = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            NodeStateChangedAsyncHandler handler = async (_, _) =>
+            {
+                if (device.ItemState == MachineryItemStateValue.OutOfService)
+                {
+                    notificationEntered.TrySetResult(true);
+                    await releaseNotification.Task.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds))
+                        .ConfigureAwait(false);
+                }
+            };
+            device.ItemStateMachine.StateChangedAsync += handler;
+
+            Task? quarantine = null;
+            Task? projection = null;
+            ExceptionDispatchInfo? testFailure = null;
+            var cleanupFailures = new List<Exception>();
+            try
+            {
+                quarantine = QuarantineAsync(device, nodes);
+                Task notificationStarted = await Task.WhenAny(
+                    notificationEntered.Task,
+                    Task.Delay(timeoutMilliseconds)).ConfigureAwait(false);
+                Assert.That(notificationStarted, Is.SameAs(notificationEntered.Task));
+                Assert.That(device.ItemState, Is.EqualTo(MachineryItemStateValue.OutOfService));
+
+                projection = device.OnFunctionalUnitStateChangedAsync(CancellationToken.None).AsTask();
+                Assert.That(projection.IsCompleted, Is.False);
+                Assert.That(quarantine.IsCompleted, Is.False);
+
+                releaseNotification.TrySetResult(true);
+                await quarantine.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds)).ConfigureAwait(false);
+                await projection.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds)).ConfigureAwait(false);
+                Assert.That(device.ItemState, Is.EqualTo(MachineryItemStateValue.OutOfService));
+                Assert.That(device.State, Is.EqualTo(LadsDeviceStateValue.Shutdown));
+            }
+            catch (Exception failure)
+            {
+                testFailure = ExceptionDispatchInfo.Capture(failure);
+            }
+            finally
+            {
+                releaseNotification.TrySetResult(true);
+                device.ItemStateMachine.StateChangedAsync -= handler;
+                var pending = new List<Task>();
+                if (quarantine != null)
+                {
+                    pending.Add(quarantine);
+                }
+                if (projection != null)
+                {
+                    pending.Add(projection);
+                }
+                if (pending.Count > 0)
+                {
+                    try
+                    {
+                        await Task.WhenAll(pending).WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds))
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception failure)
+                    {
+                        if (testFailure == null || !ReferenceEquals(testFailure.SourceException, failure))
+                        {
+                            cleanupFailures.Add(failure);
+                        }
+                    }
+                }
+            }
+
+            if (testFailure != null && cleanupFailures.Count > 0)
+            {
+                throw new AggregateException(
+                    "The quarantine notification test and its cleanup both failed.",
+                    [testFailure.SourceException, .. cleanupFailures]);
+            }
+            if (testFailure != null)
+            {
+                testFailure.Throw();
+            }
+            if (cleanupFailures.Count > 0)
+            {
+                throw new AggregateException("Quarantine notification cleanup failed.", cleanupFailures);
+            }
+        }
+
+        /// <summary>
+        /// Drains admitted unit and program starts before quarantine publishes Shutdown.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task QuarantineAbortsAdmittedStartBeforeShutdownAsync(bool programStart)
+        {
+            const int timeoutMilliseconds = 5000;
+            var nodes = new FaultingNodeOperations
+            {
+                FailAfterChange = true,
+                FailRemovalBeforeChange = true,
+                PauseNextRemove = true
+            };
+            await using LadsHostedServer server = await StartAsync(
+                nameof(QuarantineAbortsAdmittedStartBeforeShutdownAsync) + programStart,
+                new FaultingStore(),
+                nodes,
+                extra: device => device.FunctionalUnit("Second", unit => unit.Programs(_ => { })))
+                .ConfigureAwait(false);
+            var device = (LadsDevice)await server.DeviceAsync().ConfigureAwait(false);
+            var unit = (LadsFunctionalUnit)device.GetFunctionalUnit("Second");
+            if (programStart)
+            {
+                await unit.Programs!.AddTemplateAsync(Template("Start")).ConfigureAwait(false);
+            }
+            var notificationEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseNotification = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var shutdownObserved = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            Func<LadsFunctionalStateValue, CancellationToken, ValueTask> functionalHandler = async (state, _) =>
+            {
+                if (state == LadsFunctionalStateValue.Running)
+                {
+                    notificationEntered.TrySetResult(true);
+                    await releaseNotification.Task.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds))
+                        .ConfigureAwait(false);
+                }
+            };
+            Func<LadsDeviceStateValue, CancellationToken, ValueTask> deviceHandler = (state, _) =>
+            {
+                if (state == LadsDeviceStateValue.Shutdown)
+                {
+                    shutdownObserved.TrySetResult(
+                        unit.Functional.Current == LadsFunctionalStateValue.Aborted &&
+                        unit.Running.Current == LadsRunningStateValue.Idle &&
+                        device.ItemState == MachineryItemStateValue.OutOfService);
+                }
+                return ValueTask.CompletedTask;
+            };
+            unit.Functional.StateChangedAsync += functionalHandler;
+            device.DeviceState.StateChangedAsync += deviceHandler;
+
+            Task? start = null;
+            Task? quarantine = null;
+            ExceptionDispatchInfo? testFailure = null;
+            var cleanupFailures = new List<Exception>();
+            try
+            {
+                start = Task.Run(async () =>
+                {
+                    if (programStart)
+                    {
+                        await unit.Programs!.StartProgramAsync("Start").ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await unit.StartAsync().ConfigureAwait(false);
+                    }
+                });
+                Task notificationStarted = await Task.WhenAny(
+                    notificationEntered.Task,
+                    Task.Delay(timeoutMilliseconds)).ConfigureAwait(false);
+                Assert.That(notificationStarted, Is.SameAs(notificationEntered.Task));
+
+                quarantine = Task.Run(() => QuarantineAsync(device, nodes));
+                await nodes.RemoveEntered.Task.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds))
+                    .ConfigureAwait(false);
+                nodes.ReleaseRemove.TrySetResult(true);
+                await WaitForStorageQuarantineAsync(device, timeoutMilliseconds).ConfigureAwait(false);
+
+                Assert.That(start.IsCompleted, Is.False);
+                Assert.That(quarantine.IsCompleted, Is.False);
+                Assert.That(device.State, Is.EqualTo(LadsDeviceStateValue.Operate));
+                Assert.That(unit.Functional.Current, Is.EqualTo(LadsFunctionalStateValue.Running));
+
+                releaseNotification.TrySetResult(true);
+                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await start.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds)).ConfigureAwait(false));
+                start = null;
+                await quarantine.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds)).ConfigureAwait(false);
+                quarantine = null;
+
+                Assert.That(unit.Functional.Current, Is.EqualTo(LadsFunctionalStateValue.Aborted));
+                Assert.That(unit.Running.Current, Is.EqualTo(LadsRunningStateValue.Idle));
+                Assert.That(await shutdownObserved.Task.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds))
+                    .ConfigureAwait(false), Is.True);
+            }
+            catch (Exception failure)
+            {
+                testFailure = ExceptionDispatchInfo.Capture(failure);
+            }
+            finally
+            {
+                releaseNotification.TrySetResult(true);
+                nodes.ReleaseRemove.TrySetResult(true);
+                var pending = new List<Task>();
+                if (start != null)
+                {
+                    pending.Add(start);
+                }
+                if (quarantine != null)
+                {
+                    pending.Add(quarantine);
+                }
+                if (pending.Count > 0)
+                {
+                    try
+                    {
+                        await Task.WhenAll(pending).WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds))
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception failure)
+                    {
+                        cleanupFailures.Add(failure);
+                    }
+                }
+                unit.Functional.StateChangedAsync -= functionalHandler;
+                device.DeviceState.StateChangedAsync -= deviceHandler;
+            }
+
+            if (testFailure != null && cleanupFailures.Count > 0)
+            {
+                throw new AggregateException(
+                    "The quarantine start test and its cleanup both failed.",
+                    [testFailure.SourceException, .. cleanupFailures]);
+            }
+            if (testFailure != null)
+            {
+                testFailure.Throw();
+            }
+            if (cleanupFailures.Count > 0)
+            {
+                throw new AggregateException("Quarantine start cleanup failed.", cleanupFailures);
+            }
+        }
+
+        /// <summary>
+        /// Cancels and drains an admitted executor when quarantine interrupts its post-scheduling notification.
+        /// </summary>
+        [Test]
+        public async Task QuarantineDrainsProgramStartAfterSchedulingBeforeShutdownAsync()
+        {
+            const int timeoutMilliseconds = 5000;
+            var nodes = new FaultingNodeOperations
+            {
+                FailAfterChange = true,
+                FailRemovalBeforeChange = true,
+                PauseNextRemove = true
+            };
+            var executorEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var executorCancelled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var executor = new Mock<ILadsProgramExecutor>();
+            executor.Setup(value => value.ExecuteAsync(
+                    It.IsAny<LadsProgramRun>(), It.IsAny<CancellationToken>()))
+                .Returns(async (LadsProgramRun _, CancellationToken cancellationToken) =>
+                {
+                    executorEntered.TrySetResult(true);
+                    try
+                    {
+                        await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        executorCancelled.TrySetResult(true);
+                        throw;
+                    }
+                });
+            await using LadsHostedServer server = await StartAsync(
+                nameof(QuarantineDrainsProgramStartAfterSchedulingBeforeShutdownAsync),
+                new FaultingStore(),
+                nodes,
+                compose: builder => builder.Services.AddSingleton(executor.Object),
+                extra: device => device.FunctionalUnit("Second", unit =>
+                    unit.RunningOperations().Programs(_ => { }))).ConfigureAwait(false);
+            var device = (LadsDevice)await server.DeviceAsync().ConfigureAwait(false);
+            var unit = (LadsFunctionalUnit)device.GetFunctionalUnit("Second");
+            LadsProgramManager programs = unit.Programs ??
+                throw new AssertionException("The program manager is missing.");
+            await programs.AddTemplateAsync(Template("Start")).ConfigureAwait(false);
+            MethodState startProgram = unit.Node.FunctionalUnitState!.StartProgram ??
+                throw new AssertionException("The StartProgram method is missing.");
+            NodeStateChangedAsyncHandler? previous = startProgram.OnStateChangedAsync;
+            var notificationEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseNotification = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var shutdownObserved = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            startProgram.OnStateChangedAsync = async (_, _, _, _) =>
+            {
+                if (programs.ActiveRun == null)
+                {
+                    return;
+                }
+                await executorEntered.Task.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds))
+                    .ConfigureAwait(false);
+                notificationEntered.TrySetResult(true);
+                await releaseNotification.Task.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds))
+                    .ConfigureAwait(false);
+            };
+            Func<LadsDeviceStateValue, CancellationToken, ValueTask> deviceHandler = (state, _) =>
+            {
+                if (state == LadsDeviceStateValue.Shutdown)
+                {
+                    shutdownObserved.TrySetResult(
+                        unit.Functional.Current == LadsFunctionalStateValue.Aborted &&
+                        unit.Running.Current == LadsRunningStateValue.Idle &&
+                        device.ItemState == MachineryItemStateValue.OutOfService);
+                }
+                return ValueTask.CompletedTask;
+            };
+            device.DeviceState.StateChangedAsync += deviceHandler;
+
+            Task? start = null;
+            Task? quarantine = null;
+            ExceptionDispatchInfo? testFailure = null;
+            var cleanupFailures = new List<Exception>();
+            try
+            {
+                start = Task.Run(() => programs.StartProgramAsync("Start").AsTask());
+                Task notificationStarted = await Task.WhenAny(
+                    notificationEntered.Task,
+                    Task.Delay(timeoutMilliseconds)).ConfigureAwait(false);
+                Assert.That(notificationStarted, Is.SameAs(notificationEntered.Task));
+                await executorEntered.Task.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds))
+                    .ConfigureAwait(false);
+
+                quarantine = Task.Run(() => QuarantineAsync(device, nodes));
+                await nodes.RemoveEntered.Task.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds))
+                    .ConfigureAwait(false);
+                nodes.ReleaseRemove.TrySetResult(true);
+                await WaitForStorageQuarantineAsync(device, timeoutMilliseconds).ConfigureAwait(false);
+                await executorCancelled.Task.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds))
+                    .ConfigureAwait(false);
+
+                Assert.That(start.IsCompleted, Is.False);
+                Assert.That(quarantine.IsCompleted, Is.False);
+                Assert.That(device.State, Is.EqualTo(LadsDeviceStateValue.Operate));
+                Assert.That(unit.Functional.Current, Is.EqualTo(LadsFunctionalStateValue.Running));
+
+                releaseNotification.TrySetResult(true);
+                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await start.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds)).ConfigureAwait(false));
+                start = null;
+                await quarantine.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds)).ConfigureAwait(false);
+                quarantine = null;
+
+                Assert.That(unit.Functional.Current, Is.EqualTo(LadsFunctionalStateValue.Aborted));
+                Assert.That(unit.Running.Current, Is.EqualTo(LadsRunningStateValue.Idle));
+                Assert.That(await shutdownObserved.Task.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds))
+                    .ConfigureAwait(false), Is.True);
+            }
+            catch (Exception failure)
+            {
+                testFailure = ExceptionDispatchInfo.Capture(failure);
+            }
+            finally
+            {
+                releaseNotification.TrySetResult(true);
+                nodes.ReleaseRemove.TrySetResult(true);
+                if (programs.HasActiveRun)
+                {
+                    try
+                    {
+                        await programs.EndActiveRunAsync(
+                            LadsProgramOutcome.Aborted, CancellationToken.None).AsTask()
+                            .WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds)).ConfigureAwait(false);
+                    }
+                    catch (Exception failure)
+                    {
+                        cleanupFailures.Add(failure);
+                    }
+                }
+                var pending = new List<Task>();
+                if (start != null)
+                {
+                    pending.Add(start);
+                }
+                if (quarantine != null)
+                {
+                    pending.Add(quarantine);
+                }
+                if (pending.Count > 0)
+                {
+                    try
+                    {
+                        await Task.WhenAll(pending).WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds))
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception failure)
+                    {
+                        cleanupFailures.Add(failure);
+                    }
+                }
+                startProgram.OnStateChangedAsync = previous;
+                device.DeviceState.StateChangedAsync -= deviceHandler;
+            }
+
+            if (testFailure != null && cleanupFailures.Count > 0)
+            {
+                throw new AggregateException(
+                    "The post-scheduling quarantine test and its cleanup both failed.",
+                    [testFailure.SourceException, .. cleanupFailures]);
+            }
+            if (testFailure != null)
+            {
+                testFailure.Throw();
+            }
+            if (cleanupFailures.Count > 0)
+            {
+                throw new AggregateException("Post-scheduling quarantine cleanup failed.", cleanupFailures);
+            }
+        }
+
+        /// <summary>
         /// Rejects both a provider's delayed acknowledgement and the command waiting behind that provider.
         /// </summary>
         [TestCase(false)]
@@ -326,7 +756,7 @@ namespace Opc.Ua.LADS.Tests.Server
                 .ConfigureAwait(false);
             var device = (LadsDevice)await server.DeviceAsync().ConfigureAwait(false);
             var unit = (LadsFunctionalUnit)device.GetFunctionalUnit(LadsIncubator.UnitName);
-            unit.Functional.SetState(LadsFunctionalStateValue.Aborted);
+            await unit.Functional.SetStateAsync(LadsFunctionalStateValue.Aborted).ConfigureAwait(false);
             await unit.Gate.WaitAsync().ConfigureAwait(false);
             Task clear = unit.ClearAsync().AsTask();
             try
@@ -418,7 +848,7 @@ namespace Opc.Ua.LADS.Tests.Server
                 .ConfigureAwait(false);
             var device = (LadsDevice)await server.DeviceAsync().ConfigureAwait(false);
             var unit = (LadsFunctionalUnit)device.GetFunctionalUnit(LadsIncubator.UnitName);
-            unit.Functional.SetState(LadsFunctionalStateValue.Aborted);
+            await unit.Functional.SetStateAsync(LadsFunctionalStateValue.Aborted).ConfigureAwait(false);
             MachineryOperationModeValue originalMode = device.OperationMode;
             MachineryOperationModeValue target = originalMode == MachineryOperationModeValue.Setup
                 ? MachineryOperationModeValue.Maintenance : MachineryOperationModeValue.Setup;
@@ -728,6 +1158,98 @@ namespace Opc.Ua.LADS.Tests.Server
             Assert.That(saved.FunctionalUnits[0].Templates.ToList().Any(template => template.Id == "RolledBack"),
                 Is.False);
             Assert.That(saved.FunctionalUnits[1].Templates[0].Id, Is.EqualTo("Retained"));
+        }
+
+        /// <summary>
+        /// Rejects a queued transaction after failed storage compensation records quarantine.
+        /// </summary>
+        [Test]
+        public async Task FailedStorageCompensationRejectsQueuedProgramTransactionAsync()
+        {
+            const int timeoutMilliseconds = 5000;
+            var nodes = new FaultingNodeOperations { FailAfterChange = true };
+            var store = new FaultingStore();
+            await using LadsHostedServer server = await StartAsync(
+                nameof(FailedStorageCompensationRejectsQueuedProgramTransactionAsync), store, nodes,
+                extra: device => device.FunctionalUnit("Second", unit => unit.Programs(_ => { })))
+                .ConfigureAwait(false);
+            var device = (LadsDevice)await server.DeviceAsync().ConfigureAwait(false);
+            LadsProgramManager first = (LadsProgramManager)device
+                .GetFunctionalUnit(LadsIncubator.UnitName).Programs!;
+            var secondUnit = (LadsFunctionalUnit)device.GetFunctionalUnit("Second");
+            LadsProgramManager second = secondUnit.Programs ??
+                throw new AssertionException("The second program manager is missing.");
+            nodes.FailNextAdd = true;
+            nodes.FailNextRemove = true;
+            int failedRestoreSave = store.Saves + 2;
+            store.FailSaveNumber = failedRestoreSave;
+            store.PauseSaveNumber = failedRestoreSave;
+
+            Task? rejected = null;
+            Task? queued = null;
+            ExceptionDispatchInfo? testFailure = null;
+            var cleanupFailures = new List<Exception>();
+            try
+            {
+                rejected = Task.Run(() => first.AddTemplateAsync(Template("RolledBack")).AsTask());
+                await store.SaveEntered.Task.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds))
+                    .ConfigureAwait(false);
+                Assert.That(secondUnit.Gate.CurrentCount, Is.EqualTo(1));
+                queued = second.AddTemplateAsync(Template("Rejected")).AsTask();
+                Assert.That(secondUnit.Gate.CurrentCount, Is.Zero);
+                Assert.That(queued.IsCompleted, Is.False);
+                Assert.That(store.Saves, Is.EqualTo(failedRestoreSave));
+                store.ReleaseSave.TrySetResult(true);
+
+                await Assert.ThrowsAsync<AggregateException>(async () =>
+                    await rejected.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds)).ConfigureAwait(false));
+                rejected = null;
+                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await queued.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds)).ConfigureAwait(false));
+                queued = null;
+
+                Assert.That(store.Saves, Is.EqualTo(failedRestoreSave));
+                Assert.That(device.State, Is.EqualTo(LadsDeviceStateValue.Shutdown));
+                Assert.That(second.Templates.Count, Is.Zero);
+            }
+            catch (Exception failure)
+            {
+                testFailure = ExceptionDispatchInfo.Capture(failure);
+            }
+            finally
+            {
+                store.ReleaseSave.TrySetResult(true);
+                foreach (Task? pending in new[] { rejected, queued })
+                {
+                    if (pending != null)
+                    {
+                        try
+                        {
+                            await pending.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds))
+                                .ConfigureAwait(false);
+                        }
+                        catch (Exception failure)
+                        {
+                            cleanupFailures.Add(failure);
+                        }
+                    }
+                }
+            }
+
+            if (testFailure != null && cleanupFailures.Count > 0)
+            {
+                throw new AggregateException(
+                    "The storage quarantine test and its cleanup both failed.",
+                    [testFailure.SourceException, .. cleanupFailures]);
+            }
+            if (testFailure != null)
+            {
+                testFailure.Throw();
+            }
+            if (cleanupFailures.Count > 0)
+            {
+                throw new AggregateException("Storage quarantine cleanup failed.", cleanupFailures);
+            }
         }
 
         /// <summary>
@@ -1114,6 +1636,26 @@ namespace Opc.Ua.LADS.Tests.Server
         }
 
         /// <summary>
+        /// Waits until a failed compensation has made the device reject stored-data operations.
+        /// </summary>
+        private static async Task WaitForStorageQuarantineAsync(LadsDevice device, int timeoutMilliseconds)
+        {
+            for (int attempt = 0; attempt < timeoutMilliseconds; attempt++)
+            {
+                try
+                {
+                    device.RequireStorageHealthy();
+                }
+                catch (InvalidOperationException)
+                {
+                    return;
+                }
+                await Task.Delay(1).ConfigureAwait(false);
+            }
+            throw new TimeoutException("The failed compensation did not quarantine the device in time.");
+        }
+
+        /// <summary>
         /// Checks both browse containment and node-manager registration.
         /// </summary>
         private static void AssertTemplateNode(
@@ -1372,9 +1914,26 @@ namespace Opc.Ua.LADS.Tests.Server
             public int FailSaveNumber { get; set; }
 
             /// <summary>
+            /// Gets or sets the one-based save call to pause before it succeeds or fails.
+            /// </summary>
+            public int PauseSaveNumber { get; set; }
+
+            /// <summary>
             /// Gets or sets whether every checkpoint is rejected.
             /// </summary>
             public bool FailAllSaves { get; set; }
+
+            /// <summary>
+            /// Gets the notification that a selected save has paused.
+            /// </summary>
+            public TaskCompletionSource<bool> SaveEntered { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>
+            /// Gets the release signal for a selected paused save.
+            /// </summary>
+            public TaskCompletionSource<bool> ReleaseSave { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
 
             /// <inheritdoc/>
             public ValueTask<LadsStoredDeviceData?> LoadAsync(
@@ -1390,15 +1949,20 @@ namespace Opc.Ua.LADS.Tests.Server
             }
 
             /// <inheritdoc/>
-            public ValueTask SaveAsync(
+            public async ValueTask SaveAsync(
                 string deviceIdentity, LadsStoredDeviceData data, CancellationToken cancellationToken = default)
             {
                 Saves++;
+                if (Saves == PauseSaveNumber)
+                {
+                    SaveEntered.TrySetResult(true);
+                    await ReleaseSave.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                }
                 if (FailAllSaves || Saves == FailSaveNumber)
                 {
                     throw new IOException("Store save failed.");
                 }
-                return m_inner.SaveAsync(deviceIdentity, data, cancellationToken);
+                await m_inner.SaveAsync(deviceIdentity, data, cancellationToken).ConfigureAwait(false);
             }
 
             /// <inheritdoc/>

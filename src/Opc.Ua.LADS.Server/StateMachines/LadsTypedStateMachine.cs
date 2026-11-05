@@ -58,6 +58,11 @@ namespace Opc.Ua.LADS.Server.StateMachines
             m_map = map;
             Driver = new LadsStateMachine(stateMachine, context, map.Table, device);
             Driver.StateChanged += id => StateChanged?.Invoke(m_map.ToValue(id));
+            Driver.StateChangedInternal += id => StateChangedInternal?.Invoke(m_map.ToValue(id));
+            Driver.StateChangedInternalAsync += (id, cancellationToken) =>
+                InvokeStateChangedInternalAsync(m_map.ToValue(id), cancellationToken);
+            Driver.StateChangedAsync += (id, cancellationToken) =>
+                InvokeStateChangedAsync(m_map.ToValue(id), cancellationToken);
             Driver.SetInitialState(map.ToId(initial));
         }
 
@@ -77,12 +82,40 @@ namespace Opc.Ua.LADS.Server.StateMachines
         public event Action<TEnum>? StateChanged;
 
         /// <summary>
+        /// Raised asynchronously after the state changed.
+        /// </summary>
+        public event Func<TEnum, CancellationToken, ValueTask>? StateChangedAsync;
+
+        /// <summary>
+        /// Raised after the state changes on synchronous paths for internal observers.
+        /// </summary>
+        internal event Action<TEnum>? StateChangedInternal;
+
+        /// <summary>
+        /// Raised asynchronously after a committed state change for internal observers.
+        /// </summary>
+        internal event Func<TEnum, CancellationToken, ValueTask>? StateChangedInternalAsync;
+
+        /// <summary>
         /// Writes a state without a transition.
         /// </summary>
         /// <param name="state">The state.</param>
         public void SetState(TEnum state)
         {
             Driver.SetInitialState(m_map.ToId(state));
+        }
+
+        /// <summary>
+        /// Writes a state without a transition and awaits its state notifications.
+        /// </summary>
+        /// <param name="state">The state.</param>
+        /// <param name="cancellationToken">
+        /// The token is checked before writing the state. Notifications for a written state complete without
+        /// observing caller cancellation.
+        /// </param>
+        public ValueTask SetStateAsync(TEnum state, CancellationToken cancellationToken = default)
+        {
+            return Driver.SetInitialStateAsync(m_map.ToId(state), cancellationToken);
         }
 
         /// <summary>
@@ -169,6 +202,42 @@ namespace Opc.Ua.LADS.Server.StateMachines
         internal void NotifyStateChanged()
         {
             Driver.NotifyStateChanged(Driver.CurrentStateId);
+        }
+
+        /// <summary>
+        /// Reports a state written by the owning device and awaits its state notifications.
+        /// </summary>
+        internal ValueTask NotifyStateChangedAsync()
+        {
+            return Driver.NotifyStateChangedAsync(Driver.CurrentStateId);
+        }
+
+        private async ValueTask InvokeStateChangedInternalAsync(TEnum state, CancellationToken cancellationToken)
+        {
+            Func<TEnum, CancellationToken, ValueTask>? handlers = StateChangedInternalAsync;
+            if (handlers == null)
+            {
+                return;
+            }
+            foreach (Delegate handler in handlers.GetInvocationList())
+            {
+                await ((Func<TEnum, CancellationToken, ValueTask>)handler)(state, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        private async ValueTask InvokeStateChangedAsync(TEnum state, CancellationToken cancellationToken)
+        {
+            Func<TEnum, CancellationToken, ValueTask>? handlers = StateChangedAsync;
+            if (handlers == null)
+            {
+                return;
+            }
+            foreach (Delegate handler in handlers.GetInvocationList())
+            {
+                await ((Func<TEnum, CancellationToken, ValueTask>)handler)(state, cancellationToken)
+                    .ConfigureAwait(false);
+            }
         }
 
         private readonly LadsStateMap<TEnum> m_map;

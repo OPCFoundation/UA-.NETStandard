@@ -340,13 +340,22 @@ namespace Opc.Ua.LADS.Server
                 LadsStateMaps.Cover,
                 options.InitialState,
                 Unit.Device);
-            m_machine.StateChanged += state =>
+            m_machine.StateChangedInternal += state =>
             {
                 if (Runtime.Logger.IsEnabled(LogLevel.Debug))
                 {
                     Runtime.Logger.StateChanged(Path, state);
                 }
                 StateChanged?.Invoke(state);
+            };
+            m_machine.StateChangedAsync += (state, _) =>
+            {
+                if (Runtime.Logger.IsEnabled(LogLevel.Debug))
+                {
+                    Runtime.Logger.StateChanged(Path, state);
+                }
+                StateChanged?.Invoke(state);
+                return ValueTask.CompletedTask;
             };
             Runtime.Bind(stateMachine.Open, (_, ct) => OpenAsync(ct));
             Runtime.Bind(stateMachine.Close, (_, ct) => CloseAsync(ct));
@@ -434,7 +443,8 @@ namespace Opc.Ua.LADS.Server
                         !await m_machine.TransitionToAsync(LadsCoverStateValue.Error, cancellationToken)
                             .ConfigureAwait(false))
                     {
-                        m_machine.SetState(LadsCoverStateValue.Error);
+                        await m_machine.SetStateAsync(LadsCoverStateValue.Error, CancellationToken.None)
+                            .ConfigureAwait(false);
                     }
                 },
                 cancellationToken);

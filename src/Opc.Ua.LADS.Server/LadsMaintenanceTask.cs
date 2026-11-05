@@ -78,10 +78,16 @@ namespace Opc.Ua.LADS.Server
                 LadsStateMaps.Maintenance,
                 LadsMaintenanceStateValue.Planned,
                 Device);
-            Machine.StateChanged += state =>
+            Machine.StateChangedInternal += state =>
             {
                 Runtime.Logger.MaintenanceStateChanged(Device.Name, Name, state);
                 StateChanged?.Invoke(state);
+            };
+            Machine.StateChangedAsync += (state, _) =>
+            {
+                Runtime.Logger.MaintenanceStateChanged(Device.Name, Name, state);
+                StateChanged?.Invoke(state);
+                return ValueTask.CompletedTask;
             };
 
             node.EventType?.Value = node.TypeDefinitionId;
@@ -186,8 +192,8 @@ namespace Opc.Ua.LADS.Server
                 Device.RequireStorageHealthy();
                 Machine.Require(LadsMaintenanceStateValue.Planned);
                 await AskProviderAsync(LadsMaintenanceCommand.Start, cancellationToken).ConfigureAwait(false);
-                Transition(LadsMaintenanceStateValue.Executing);
-                ApplyCondition(Runtime.Context, active: true, message: default);
+                await TransitionAsync(LadsMaintenanceStateValue.Executing).ConfigureAwait(false);
+                await ApplyConditionAsync(active: true, message: default).ConfigureAwait(false);
                 await Device.SaveStoredDataAsync(cancellationToken).ConfigureAwait(false);
             }
             finally
@@ -209,10 +215,14 @@ namespace Opc.Ua.LADS.Server
                 Device.RequireStorageHealthy();
                 Machine.Require(LadsMaintenanceStateValue.Executing);
                 await AskProviderAsync(LadsMaintenanceCommand.Stop, cancellationToken).ConfigureAwait(false);
-                Transition(LadsMaintenanceStateValue.Finished);
+                await TransitionAsync(LadsMaintenanceStateValue.Finished).ConfigureAwait(false);
                 Device.RecordMaintenanceCompletion(this, Runtime.TimeProvider.GetUtcNow(), result);
-                Node.LastExecutionDate?.ClearChangeMasks(Runtime.Context, false);
-                ApplyCondition(Runtime.Context, active: false, comment);
+                if (Node.LastExecutionDate is { } lastExecutionDate)
+                {
+                    await lastExecutionDate.ClearChangeMasksAsync(
+                        Runtime.Context, false, CancellationToken.None).ConfigureAwait(false);
+                }
+                await ApplyConditionAsync(active: false, comment).ConfigureAwait(false);
                 await Device.SaveStoredDataAsync(cancellationToken).ConfigureAwait(false);
             }
             finally
@@ -231,13 +241,14 @@ namespace Opc.Ua.LADS.Server
                 Device.RequireStorageHealthy();
                 Machine.Require(LadsMaintenanceStateValue.Finished);
                 await AskProviderAsync(LadsMaintenanceCommand.Reset, cancellationToken).ConfigureAwait(false);
-                Transition(LadsMaintenanceStateValue.Planned);
+                await TransitionAsync(LadsMaintenanceStateValue.Planned).ConfigureAwait(false);
                 if (m_options.RecurrencePeriod is TimeSpan recurrence && Node.PlannedDate != null)
                 {
                     DateTime next = LastExecutionDate.ToDateTime() + recurrence;
-                    Device.SetFunctionParameter(Node.PlannedDate, Variant.From((DateTimeUtc)next));
+                    await Device.SetFunctionParameterAsync(
+                        Node.PlannedDate, Variant.From((DateTimeUtc)next)).ConfigureAwait(false);
                 }
-                ApplyCondition(Runtime.Context, active: true, message: default);
+                await ApplyConditionAsync(active: true, message: default).ConfigureAwait(false);
                 await Device.SaveStoredDataAsync(cancellationToken).ConfigureAwait(false);
             }
             finally
@@ -305,9 +316,9 @@ namespace Opc.Ua.LADS.Server
         /// <summary>
         /// Applies a transition and rejects a vetoed one.
         /// </summary>
-        private void Transition(LadsMaintenanceStateValue target)
+        private async ValueTask TransitionAsync(LadsMaintenanceStateValue target)
         {
-            if (!Machine.TransitionTo(target))
+            if (!await Machine.TransitionToAsync(target, CancellationToken.None).ConfigureAwait(false))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadInvalidState,
@@ -380,6 +391,20 @@ namespace Opc.Ua.LADS.Server
             var snapshot = new InstanceStateSnapshot();
             snapshot.Initialize(context, Node);
             Node.ReportEvent(context, snapshot);
+        }
+
+        private async ValueTask ApplyConditionAsync(bool active, LocalizedText message)
+        {
+            ISystemContext context = Runtime.Context;
+            Device.SetMaintenanceCondition(this, active, message);
+            await Node.ClearChangeMasksAsync(context, true, CancellationToken.None).ConfigureAwait(false);
+            if (!Device.IsPublished || Node.EnabledState?.Id?.Value != true)
+            {
+                return;
+            }
+            var snapshot = new InstanceStateSnapshot();
+            snapshot.Initialize(context, Node);
+            await Node.ReportEventAsync(context, snapshot, CancellationToken.None).ConfigureAwait(false);
         }
 
         /// <summary>

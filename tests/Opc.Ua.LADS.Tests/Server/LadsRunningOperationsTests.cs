@@ -572,7 +572,8 @@ namespace Opc.Ua.LADS.Tests.Server
                 [],
                 DateTimeUtc.MinValue,
                 TimeProvider.System,
-                static (_, _) => { });
+                static (_, _) => { },
+                static (_, _, _) => ValueTask.CompletedTask);
             using var cancellation = new CancellationTokenSource();
             var active = new LadsProgramManager.ActiveRunEntry(run, cancellation);
             var acknowledgment = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -894,6 +895,455 @@ namespace Opc.Ua.LADS.Tests.Server
         }
 
         /// <summary>
+        /// Releases the admitted command after availability publication fails.
+        /// </summary>
+        [Test]
+        public async Task AdmissionNotificationFailureReleasesGateAndCleansCommandAsync()
+        {
+            TaskCompletionSource<bool> executionStarted = NewSignal();
+            int commandCount = 0;
+            var executor = new ControlledExecutor(
+                (_, _, _) =>
+                {
+                    Interlocked.Increment(ref commandCount);
+                    return new ValueTask<ServiceResult>(ServiceResult.Good);
+                },
+                async (run, cancellationToken) =>
+                {
+                    run.ReportStep(1, "Wait");
+                    executionStarted.TrySetResult(true);
+                    await run.DelayAsync(TimeSpan.FromDays(1), cancellationToken).ConfigureAwait(false);
+                });
+            await using LadsClientConnection connection = await StartAsync(
+                nameof(AdmissionNotificationFailureReleasesGateAndCleansCommandAsync), executor)
+                .ConfigureAwait(false);
+            ILadsDevice device = await connection.Server.DeviceAsync().ConfigureAwait(false);
+            var unit = (LadsFunctionalUnit)device.GetFunctionalUnit(UnitName);
+            await unit.Programs!.StartProgramAsync(TemplateName).ConfigureAwait(false);
+            await executionStarted.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+
+            MethodState hold = unit.Node.FunctionalUnitState!.RunningStateMachine!.Hold!;
+            NodeStateChangedAsyncHandler? previous = hold.OnStateChangedAsync;
+            int notifications = 0;
+            hold.OnStateChangedAsync = (_, _, _, _) =>
+            {
+                int notification = Interlocked.Increment(ref notifications);
+                if (notification == 1)
+                {
+                    hold.Executable = true;
+                    return ValueTask.CompletedTask;
+                }
+                return notification == 2
+                    ? new ValueTask(Task.FromException(new InvalidOperationException("admission notification failed")))
+                    : ValueTask.CompletedTask;
+            };
+            try
+            {
+                InvalidOperationException? failure = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await unit.RunningOperations!.HoldAsync().ConfigureAwait(false)).ConfigureAwait(false);
+                Assert.That(failure!.Message, Is.EqualTo("admission notification failed"));
+            }
+            finally
+            {
+                hold.OnStateChangedAsync = previous;
+            }
+
+            Assert.That(commandCount, Is.Zero);
+            Assert.That(unit.RunningState, Is.EqualTo(LadsRunningStateValue.Holding));
+            Assert.That(unit.HasPendingExecutionCommands, Is.False);
+            Assert.That(notifications, Is.GreaterThanOrEqualTo(2));
+            Assert.That(await unit.Gate.WaitAsync(s_timeout).ConfigureAwait(false), Is.True);
+            unit.Gate.Release();
+        }
+
+        /// <summary>
+        /// Recomputes availability after a committed transition fails before command admission.
+        /// </summary>
+        [Test]
+        public async Task PreAdmissionTransitionNotificationFailureRecomputesAvailabilityAsync()
+        {
+            TaskCompletionSource<bool> executionStarted = NewSignal();
+            int commandCount = 0;
+            var executor = new ControlledExecutor(
+                (_, _, _) =>
+                {
+                    Interlocked.Increment(ref commandCount);
+                    return new ValueTask<ServiceResult>(ServiceResult.Good);
+                },
+                async (run, cancellationToken) =>
+                {
+                    run.ReportStep(1, "Wait");
+                    executionStarted.TrySetResult(true);
+                    await run.DelayAsync(TimeSpan.FromDays(1), cancellationToken).ConfigureAwait(false);
+                });
+            await using LadsClientConnection connection = await StartAsync(
+                nameof(PreAdmissionTransitionNotificationFailureRecomputesAvailabilityAsync), executor)
+                .ConfigureAwait(false);
+            ILadsDevice device = await connection.Server.DeviceAsync().ConfigureAwait(false);
+            var unit = (LadsFunctionalUnit)device.GetFunctionalUnit(UnitName);
+            await unit.Programs!.StartProgramAsync(TemplateName).ConfigureAwait(false);
+            await executionStarted.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+
+            NodeState currentState = unit.Node.FunctionalUnitState!.RunningStateMachine!.CurrentState!;
+            NodeStateChangedAsyncHandler? previous = currentState.OnStateChangedAsync;
+            int notifications = 0;
+            currentState.OnStateChangedAsync = (_, _, _, _) =>
+            {
+                if (Interlocked.Increment(ref notifications) == 1)
+                {
+                    return new ValueTask(Task.FromException(
+                        new InvalidOperationException("transition notification failed")));
+                }
+                return ValueTask.CompletedTask;
+            };
+            try
+            {
+                InvalidOperationException? failure = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await unit.RunningOperations!.HoldAsync().ConfigureAwait(false)).ConfigureAwait(false);
+                Assert.That(failure!.Message, Is.EqualTo("transition notification failed"));
+            }
+            finally
+            {
+                currentState.OnStateChangedAsync = previous;
+            }
+
+            Assert.That(unit.RunningState, Is.EqualTo(LadsRunningStateValue.Holding));
+            Assert.That(commandCount, Is.Zero);
+            Assert.That(unit.HasPendingExecutionCommands, Is.False);
+            Assert.That(notifications, Is.EqualTo(2));
+            Assert.That(await unit.Gate.WaitAsync(s_timeout).ConfigureAwait(false), Is.True);
+            unit.Gate.Release();
+        }
+
+        /// <summary>
+        /// Recomputes availability after a precondition rejects an operation before admission.
+        /// </summary>
+        [Test]
+        public async Task PreconditionFailureRecomputesAvailabilityAsync()
+        {
+            await using LadsClientConnection connection = await StartAsync(
+                nameof(PreconditionFailureRecomputesAvailabilityAsync)).ConfigureAwait(false);
+            ILadsDevice device = await connection.Server.DeviceAsync().ConfigureAwait(false);
+            var unit = (LadsFunctionalUnit)device.GetFunctionalUnit(UnitName);
+            NodeState currentState = unit.Node.FunctionalUnitState!.RunningStateMachine!.CurrentState!;
+            NodeStateChangedAsyncHandler? previous = currentState.OnStateChangedAsync;
+            int notifications = 0;
+            currentState.OnStateChangedAsync = (_, _, _, _) =>
+            {
+                Interlocked.Increment(ref notifications);
+                return ValueTask.CompletedTask;
+            };
+            try
+            {
+                currentState.UpdateChangeMasks(NodeStateChangeMasks.Value);
+                await LadsAssert.ThrowsStatusAsync(
+                    StatusCodes.BadInvalidState,
+                    () => unit.RunningOperations!.HoldAsync()).ConfigureAwait(false);
+            }
+            finally
+            {
+                currentState.OnStateChangedAsync = previous;
+            }
+
+            Assert.That(unit.RunningState, Is.EqualTo(LadsRunningStateValue.Idle));
+            Assert.That(notifications, Is.GreaterThan(0));
+            Assert.That(await unit.Gate.WaitAsync(s_timeout).ConfigureAwait(false), Is.True);
+            unit.Gate.Release();
+        }
+
+        /// <summary>
+        /// Releases the gate when precondition availability publication throws.
+        /// </summary>
+        [Test]
+        public async Task PreconditionAvailabilityFailureReleasesGateAsync()
+        {
+            await using LadsClientConnection connection = await StartAsync(
+                nameof(PreconditionAvailabilityFailureReleasesGateAsync)).ConfigureAwait(false);
+            ILadsDevice device = await connection.Server.DeviceAsync().ConfigureAwait(false);
+            var unit = (LadsFunctionalUnit)device.GetFunctionalUnit(UnitName);
+            NodeState currentState = unit.Node.FunctionalUnitState!.RunningStateMachine!.CurrentState!;
+            NodeStateChangedAsyncHandler? previous = currentState.OnStateChangedAsync;
+            currentState.OnStateChangedAsync = (_, _, _, _) =>
+                new ValueTask(Task.FromException(new InvalidOperationException("availability publication failed")));
+            try
+            {
+                currentState.UpdateChangeMasks(NodeStateChangeMasks.Value);
+                InvalidOperationException? failure = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await unit.RunningOperations!.HoldAsync().ConfigureAwait(false)).ConfigureAwait(false);
+                Assert.That(failure!.Message, Is.EqualTo("availability publication failed"));
+            }
+            finally
+            {
+                currentState.OnStateChangedAsync = previous;
+            }
+
+            Assert.That(unit.RunningState, Is.EqualTo(LadsRunningStateValue.Idle));
+            Assert.That(await unit.Gate.WaitAsync(s_timeout).ConfigureAwait(false), Is.True);
+            unit.Gate.Release();
+        }
+
+        /// <summary>
+        /// Recomputes availability when a transition guard rejects before state commit.
+        /// </summary>
+        [Test]
+        public async Task PreCommitTransitionFailureRecomputesAvailabilityAsync()
+        {
+            TaskCompletionSource<bool> executionStarted = NewSignal();
+            var executor = new ControlledExecutor(
+                (_, _, _) => new ValueTask<ServiceResult>(ServiceResult.Good),
+                async (run, cancellationToken) =>
+                {
+                    run.ReportStep(1, "Wait");
+                    executionStarted.TrySetResult(true);
+                    await run.DelayAsync(TimeSpan.FromDays(1), cancellationToken).ConfigureAwait(false);
+                });
+            await using LadsClientConnection connection = await StartAsync(
+                nameof(PreCommitTransitionFailureRecomputesAvailabilityAsync), executor).ConfigureAwait(false);
+            ILadsDevice device = await connection.Server.DeviceAsync().ConfigureAwait(false);
+            var unit = (LadsFunctionalUnit)device.GetFunctionalUnit(UnitName);
+            await unit.Programs!.StartProgramAsync(TemplateName).ConfigureAwait(false);
+            await executionStarted.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+
+            FiniteStateMachineState machine = unit.Node.FunctionalUnitState!.RunningStateMachine!;
+            NodeState currentState = machine.CurrentState!;
+            NodeStateChangedAsyncHandler? previousStateChanged = currentState.OnStateChangedAsync;
+            StateMachineTransitionHandler? previousGuard = machine.OnBeforeTransition;
+            int notifications = 0;
+            currentState.OnStateChangedAsync = (_, _, _, _) =>
+            {
+                Interlocked.Increment(ref notifications);
+                return ValueTask.CompletedTask;
+            };
+            machine.OnBeforeTransition = (_, _, _, _, _, _) =>
+                ServiceResult.Create(StatusCodes.BadInvalidState, "transition rejected");
+            try
+            {
+                currentState.UpdateChangeMasks(NodeStateChangeMasks.Value);
+                await LadsAssert.ThrowsStatusAsync(
+                    StatusCodes.BadInvalidState,
+                    () => unit.RunningOperations!.HoldAsync()).ConfigureAwait(false);
+            }
+            finally
+            {
+                currentState.OnStateChangedAsync = previousStateChanged;
+                machine.OnBeforeTransition = previousGuard;
+            }
+
+            Assert.That(unit.RunningState, Is.EqualTo(LadsRunningStateValue.Execute));
+            Assert.That(unit.HasPendingExecutionCommands, Is.False);
+            Assert.That(notifications, Is.GreaterThan(0));
+            Assert.That(await unit.Gate.WaitAsync(s_timeout).ConfigureAwait(false), Is.True);
+            unit.Gate.Release();
+        }
+
+        /// <summary>
+        /// Verifies raw and typed observers see running-operation availability after sync and async state changes.
+        /// </summary>
+        [Test]
+        public async Task RunningStateObserversSeeRecomputedAvailabilityAsync()
+        {
+            TaskCompletionSource<bool> executionStarted = NewSignal();
+            var executor = new ControlledExecutor(
+                (_, _, _) => new ValueTask<ServiceResult>(ServiceResult.Good),
+                async (run, cancellationToken) =>
+                {
+                    run.ReportStep(1, "Wait");
+                    executionStarted.TrySetResult(true);
+                    await run.DelayAsync(TimeSpan.FromDays(1), cancellationToken).ConfigureAwait(false);
+                });
+            await using LadsClientConnection connection = await StartAsync(
+                nameof(RunningStateObserversSeeRecomputedAvailabilityAsync), executor).ConfigureAwait(false);
+            ILadsDevice device = await connection.Server.DeviceAsync().ConfigureAwait(false);
+            var unit = (LadsFunctionalUnit)device.GetFunctionalUnit(UnitName);
+            await unit.Programs!.StartProgramAsync(TemplateName).ConfigureAwait(false);
+            await executionStarted.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+
+            var runningNode = unit.Node.FunctionalUnitState!.RunningStateMachine!;
+            MethodState hold = runningNode.Hold!;
+            MethodState unhold = runningNode.Unhold!;
+            var observations = new List<string>();
+            void Observe(string observer, LadsRunningStateValue state)
+            {
+                if (state == LadsRunningStateValue.Holding)
+                {
+                    Assert.That(hold.Executable, Is.False);
+                    Assert.That(unhold.Executable, Is.False);
+                }
+                else if (state == LadsRunningStateValue.Held)
+                {
+                    Assert.That(hold.Executable, Is.False);
+                    Assert.That(unhold.Executable, Is.True);
+                }
+                else
+                {
+                    Assert.That(state, Is.EqualTo(LadsRunningStateValue.Execute));
+                    Assert.That(hold.Executable, Is.True);
+                    Assert.That(unhold.Executable, Is.False);
+                }
+                observations.Add($"{observer}:{state}");
+            }
+            unit.Running.StateChanged += state => Observe("typed", state);
+            unit.Running.Driver.StateChanged += _ => Observe("raw", unit.Running.Current);
+
+            Assert.That(
+                await unit.Running.TransitionToAsync(LadsRunningStateValue.Holding).ConfigureAwait(false),
+                Is.True);
+            Assert.That(
+                await unit.Running.TransitionToAsync(LadsRunningStateValue.Held).ConfigureAwait(false),
+                Is.True);
+            await unit.Running.SetStateAsync(LadsRunningStateValue.Execute).ConfigureAwait(false);
+
+            Assert.That(
+                observations,
+                Is.EqualTo(new[]
+                {
+                    "typed:Holding",
+                    "raw:Holding",
+                    "typed:Held",
+                    "raw:Held",
+                    "typed:Execute",
+                    "raw:Execute"
+                }));
+        }
+
+        /// <summary>
+        /// Verifies control-function events precede running-method availability updates on async transitions.
+        /// </summary>
+        [Test]
+        public async Task ControlFunctionEventPrecedesAvailabilityUpdateAsync()
+        {
+            var provider = new ControlledFunctionProvider(
+                (_, _, _) => new ValueTask<ServiceResult>(ServiceResult.Good));
+            await using LadsClientConnection connection = await StartFunctionsAsync(
+                nameof(ControlFunctionEventPrecedesAvailabilityUpdateAsync), provider).ConfigureAwait(false);
+            ILadsDevice device = await connection.Server.DeviceAsync().ConfigureAwait(false);
+            ILadsControlFunction function = device.GetFunctionalUnit(UnitName)
+                .GetFunction<ILadsControlFunction>("Analog");
+            MethodState hold = ((LadsControlFunction)function).Node.ControlFunctionState!.RunningStateMachine!.Hold!;
+            var observedAvailability = new List<bool>();
+            function.StateChanged += state =>
+            {
+                if (state is LadsFunctionalStateValue.Running or LadsFunctionalStateValue.Stopping)
+                {
+                    observedAvailability.Add(hold.Executable);
+                }
+            };
+
+            await function.StartAsync().ConfigureAwait(false);
+            Assert.That(hold.Executable, Is.True);
+            await function.StopAsync().ConfigureAwait(false);
+
+            Assert.That(observedAvailability, Is.EqualTo(new[] { false, true }));
+            Assert.That(hold.Executable, Is.False);
+        }
+
+        /// <summary>
+        /// Verifies a throwing control-function event prevents its later availability update.
+        /// </summary>
+        [Test]
+        public async Task ThrowingControlFunctionEventPreventsAvailabilityUpdateAsync()
+        {
+            var provider = new ControlledFunctionProvider(
+                (_, _, _) => new ValueTask<ServiceResult>(ServiceResult.Good));
+            await using LadsClientConnection connection = await StartFunctionsAsync(
+                nameof(ThrowingControlFunctionEventPreventsAvailabilityUpdateAsync), provider)
+                .ConfigureAwait(false);
+            ILadsDevice device = await connection.Server.DeviceAsync().ConfigureAwait(false);
+            ILadsControlFunction function = device.GetFunctionalUnit(UnitName)
+                .GetFunction<ILadsControlFunction>("Analog");
+            MethodState hold = ((LadsControlFunction)function).Node.ControlFunctionState!.RunningStateMachine!.Hold!;
+            await function.StartAsync().ConfigureAwait(false);
+            Assert.That(hold.Executable, Is.True);
+            function.StateChanged += state =>
+            {
+                if (state == LadsFunctionalStateValue.Stopping)
+                {
+                    throw new InvalidOperationException("control event failed");
+                }
+            };
+
+            InvalidOperationException? failure = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await function.StopAsync().ConfigureAwait(false)).ConfigureAwait(false);
+
+            Assert.That(failure!.Message, Is.EqualTo("control event failed"));
+            Assert.That(function.State, Is.EqualTo(LadsFunctionalStateValue.Stopping));
+            Assert.That(hold.Executable, Is.True);
+        }
+
+        /// <summary>
+        /// Preserves the acknowledged state and reports both notification failures.
+        /// </summary>
+        [Test]
+        public async Task PostAcknowledgmentNotificationFailuresPreserveStateAndReportBothFailuresAsync()
+        {
+            TaskCompletionSource<bool> executionStarted = NewSignal();
+            MethodState? hold = null;
+            bool failNotifications = false;
+            int commandCount = 0;
+            var executor = new ControlledExecutor(
+                (_, target, _) =>
+                {
+                    Interlocked.Increment(ref commandCount);
+                    if (target == LadsRunningStateValue.Completing)
+                    {
+                        hold!.Executable = true;
+                        failNotifications = true;
+                    }
+                    return new ValueTask<ServiceResult>(ServiceResult.Good);
+                },
+                async (run, cancellationToken) =>
+                {
+                    run.ReportStep(1, "Wait");
+                    executionStarted.TrySetResult(true);
+                    await run.DelayAsync(TimeSpan.FromDays(1), cancellationToken).ConfigureAwait(false);
+                });
+            await using LadsClientConnection connection = await StartAsync(
+                nameof(PostAcknowledgmentNotificationFailuresPreserveStateAndReportBothFailuresAsync), executor)
+                .ConfigureAwait(false);
+            ILadsDevice device = await connection.Server.DeviceAsync().ConfigureAwait(false);
+            var unit = (LadsFunctionalUnit)device.GetFunctionalUnit(UnitName);
+            await unit.Programs!.StartProgramAsync(TemplateName).ConfigureAwait(false);
+            await executionStarted.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+
+            hold = unit.Node.FunctionalUnitState!.RunningStateMachine!.Hold!;
+            NodeStateChangedAsyncHandler? previous = hold.OnStateChangedAsync;
+            int notifications = 0;
+            hold.OnStateChangedAsync = (_, _, _, _) =>
+            {
+                if (!failNotifications)
+                {
+                    return ValueTask.CompletedTask;
+                }
+                int notification = Interlocked.Increment(ref notifications);
+                return new ValueTask(Task.FromException(
+                    new InvalidOperationException($"availability notification {notification} failed")));
+            };
+            try
+            {
+                AggregateException? failure = await Assert.ThrowsAsync<AggregateException>(async () =>
+                    await unit.RunningOperations!.ToCompleteAsync().ConfigureAwait(false)).ConfigureAwait(false);
+                Assert.That(
+                    failure!.Flatten().InnerExceptions.Select(exception => exception.Message),
+                    Is.EqualTo(new[]
+                    {
+                        "availability notification 1 failed",
+                        "availability notification 2 failed"
+                    }));
+            }
+            finally
+            {
+                hold.OnStateChangedAsync = previous;
+            }
+
+            Assert.That(commandCount, Is.EqualTo(1));
+            Assert.That(unit.RunningState, Is.EqualTo(LadsRunningStateValue.Completing));
+            Assert.That(unit.HasPendingExecutionCommands, Is.False);
+            Assert.That(notifications, Is.EqualTo(2));
+            Assert.That(await unit.Gate.WaitAsync(s_timeout).ConfigureAwait(false), Is.True);
+            unit.Gate.Release();
+        }
+
+        /// <summary>
         /// Waits for run cleanup when an observer ends or disposes a newly published active run.
         /// </summary>
         [TestCase("Stop")]
@@ -1115,7 +1565,8 @@ namespace Opc.Ua.LADS.Tests.Server
                 [],
                 DateTimeUtc.MinValue,
                 TimeProvider.System,
-                static (_, _) => { });
+                static (_, _) => { },
+                static (_, _, _) => ValueTask.CompletedTask);
             var active = new LadsProgramManager.ActiveRunEntry(run, cancellation);
             LadsProgramOutcome candidate = active.GetCompletionOutcome(true);
             Assert.That(candidate, Is.EqualTo(LadsProgramOutcome.Completed));
