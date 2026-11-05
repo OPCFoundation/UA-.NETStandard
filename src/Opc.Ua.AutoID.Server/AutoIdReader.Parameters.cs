@@ -327,7 +327,7 @@ namespace Opc.Ua.AutoID.Server
                         variable.Timestamp = DateTimeUtc.Now;
                         variable.StatusCode = StatusCodes.Good;
                         await variable
-                            .ClearChangeMasksAsync(Runtime.SystemContext, false)
+                            .ClearChangeMasksAsync(Runtime.SystemContext, false, CancellationToken.None)
                             .ConfigureAwait(false);
                         return ServiceResult.Good;
                     }

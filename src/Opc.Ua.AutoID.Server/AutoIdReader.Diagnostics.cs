@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
@@ -240,7 +241,8 @@ namespace Opc.Ua.AutoID.Server
                 client, command, result, tolerateDiagnosticCopyFailure, cancellationToken).ConfigureAwait(false);
             if (access != null)
             {
-                await access.ClearChangeMasksAsync(Runtime.SystemContext, true).ConfigureAwait(false);
+                await access.ClearChangeMasksAsync(Runtime.SystemContext, true, CancellationToken.None)
+                    .ConfigureAwait(false);
             }
         }
 
