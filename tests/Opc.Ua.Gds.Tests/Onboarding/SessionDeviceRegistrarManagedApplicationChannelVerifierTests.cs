@@ -298,16 +298,24 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         /// <summary>
         /// Real session proof validates the application independently of TLS before sending username credentials.
         /// </summary>
-        [TestCase("valid", StatusCodes.Good)]
-        [TestCase("certificate", StatusCodes.BadCertificateInvalid)]
-        [TestCase("endpointUri", StatusCodes.BadSecurityChecksFailed)]
-        [TestCase("certificateUri", StatusCodes.BadCertificateUriInvalid)]
-        [TestCase("missingSignature", StatusCodes.BadApplicationSignatureInvalid)]
-        [TestCase("wrongSignature", StatusCodes.BadApplicationSignatureInvalid)]
+        [TestCase("valid")]
+        [TestCase("certificate")]
+        [TestCase("endpointUri")]
+        [TestCase("certificateUri")]
+        [TestCase("missingSignature")]
+        [TestCase("wrongSignature")]
         public async Task HttpsRealSessionRequiresPinnedApplicationUriAndLegacyProofBeforeCredentials(
-            string proof,
-            uint expectedStatus)
+            string proof)
         {
+            StatusCode expectedStatus = proof switch
+            {
+                "valid" => StatusCodes.Good,
+                "certificate" => StatusCodes.BadCertificateInvalid,
+                "endpointUri" => StatusCodes.BadSecurityChecksFailed,
+                "certificateUri" => StatusCodes.BadCertificateUriInvalid,
+                "missingSignature" or "wrongSignature" => StatusCodes.BadApplicationSignatureInvalid,
+                _ => throw new ArgumentOutOfRangeException(nameof(proof))
+            };
             using Certificate tlsCertificate = CertificateBuilder.Create("CN=TLS Terminator").CreateForRSA();
             using Certificate wrongCertificate = CertificateBuilder.Create("CN=Other Application")
                 .AddExtension(new X509SubjectAltNameExtension("urn:other:application", ["localhost"]))
