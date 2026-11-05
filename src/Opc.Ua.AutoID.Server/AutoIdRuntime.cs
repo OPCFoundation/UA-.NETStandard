@@ -206,6 +206,11 @@ namespace Opc.Ua.AutoID.Server
                     profiles.Add(AutoIdProfiles.BaseSyncServer);
                 }
                 profiles.Add(AutoIdProfiles.BaseAsyncServer);
+                if (Array.Exists(readers, reader => reader.SupportsScan && reader.SupportsAsyncScan &&
+                    reader.Device.RuntimeParameters != null))
+                {
+                    profiles.Add(AutoIdProfiles.FullServer);
+                }
                 return profiles.ToArrayOf();
             }
         }

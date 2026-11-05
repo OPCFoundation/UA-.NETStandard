@@ -780,10 +780,10 @@ reader implements all its mandatory units.
 
 The *Simple Sync*, *Base Sync* and *Base Async* facets are advertised
 accordingly. Simple Sync Access Control is optional in Table 82, not a mandatory
-requirement for the Simple Sync facet. The runtime keeps the *Full AutoID Server
-Facet* withheld while the published-method discrepancies below remain unresolved;
-units from unrelated readers do not establish that one reader supports the Full
-facet. `DeviceInfo`, `DeviceLocation`, `DeviceLocationName` and `AntennaNames` are
+requirement for the Simple Sync facet. The runtime advertises the *Full AutoID
+Server Facet* when one reader implements all mandatory capabilities; units from
+unrelated readers do not establish that one reader supports that facet.
+`DeviceInfo`, `DeviceLocation`, `DeviceLocationName` and `AntennaNames` are
 published when configured.
 
 For Table 85, a Full candidate must provide Device Parameters and Async Access
@@ -792,9 +792,9 @@ Base Async facets. The host must also load the DI device model, encode the
 AutoID complex types and support event subscriptions. A parameter-enabled RFID
 reader with synchronous and asynchronous providers supplies that reader-level
 combination; a parameter-only reader or a different reader's scan methods do
-not. This package still withholds the Full facet rather than treating that
-configuration as evidence that the unresolved verifier and RTLS SDK paths are
-complete.
+not. Table 85 defines scan operation modes, not every optional method on every
+device kind. Advertising this facet does not resolve the verifier and RTLS
+contract discrepancies described below or assert product certification.
 
 ## Client
 
@@ -929,7 +929,8 @@ The published reference still identifies version 1.01 as current. The
 `2cdca69cd86c4f46c61ea4da9ce7d625a02ed53a`, identical to the pinned source.
 No corrected authoritative artifact has been established for these contracts,
 so this implementation does not rewrite the standard namespace, enable the
-disputed methods or rate OPC 30010 support Full.
+disputed methods. The Full Server Facet is evaluated separately for each hosted
+reader's implemented capabilities.
 
 ### Remaining work for Full support
 
@@ -949,10 +950,10 @@ provide a consistent signature:
 The RTLS `GetLocation` argument-order discrepancy and prescribed
 `AutoIdModelVersion` value also need an authoritative disposition; their current
 NodeSet-based behavior is described above. No replacement signature or version
-string is inferred here. After the contracts are resolved and implemented,
-conformance reporting must include the supported methods and the affected
-client/server, sample and NativeAOT checks must pass before support is rated Full.
-Current-head CI validation is separate from these specification blockers.
+string is inferred here. Contract resolution and any resulting implementation
+work determine the scope of SDK support. Current-head client/server, sample and
+NativeAOT execution is recorded separately as validation evidence; pending tests
+alone do not make implemented support Partial.
 Hardware-specific IO definitions and additional real-world formatter capabilities
 are provider responsibilities, not missing universal SDK wire contracts.
 

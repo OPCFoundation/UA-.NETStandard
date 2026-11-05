@@ -35,9 +35,9 @@ namespace Opc.Ua.AutoID.Server
     /// </summary>
     /// <remarks>
     /// A server advertises a facet only when a reader it hosts implements
-    /// every mandatory conformance unit of that facet. The
-    /// Full AutoID support is withheld while published-model interoperability
-    /// discrepancies remain unresolved.
+    /// every mandatory conformance unit of that facet. The Full facet requires
+    /// synchronous scans, asynchronous scan control and runtime parameters on
+    /// the same reader; it does not require every optional method on every reader kind.
     /// </remarks>
     public static class AutoIdProfiles
     {
