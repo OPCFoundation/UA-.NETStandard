@@ -313,10 +313,10 @@ namespace Opc.Ua.LADS.Tests.Server
             var report = new LadsNotificationTestSupport.Gate();
             var save = new LadsNotificationTestSupport.Gate();
             var queuedCommands = new ConcurrentQueue<Task<Exception?>>();
-            var failure = new InvalidOperationException("Maintenance " + failureStage + " failed.");
-            condition.Failure = failureStage == "Condition" ? failure : null;
-            report.Failure = failureStage == "Event" ? failure : null;
-            save.Failure = failureStage == "Save" ? failure : null;
+            var notificationFailure = new InvalidOperationException("Maintenance " + failureStage + " failed.");
+            condition.Failure = failureStage == "Condition" ? notificationFailure : null;
+            report.Failure = failureStage == "Event" ? notificationFailure : null;
+            save.Failure = failureStage == "Save" ? notificationFailure : null;
             var innerStore = new InMemoryLadsStore();
             var store = new Mock<ILadsStore>();
             store.Setup(value => value.LoadAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -556,7 +556,7 @@ namespace Opc.Ua.LADS.Tests.Server
                     await Assert.ThatAsync(
                         async () => await operation
                             .WaitAsync(LadsNotificationTestSupport.Timeout).ConfigureAwait(false),
-                        Throws.Exception.SameAs(failure)).ConfigureAwait(false);
+                        Throws.Exception.SameAs(notificationFailure)).ConfigureAwait(false);
                 }
                 else if (cancelAfterTransition)
                 {

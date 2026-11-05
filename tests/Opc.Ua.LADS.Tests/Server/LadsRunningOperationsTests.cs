@@ -41,6 +41,7 @@ using Opc.Ua.LADS.Tests.Integration;
 using Opc.Ua.Server.Hosting;
 using ClientUnit = Opc.Ua.LADS.Client.LadsFunctionalUnit;
 using LadsFunction = Opc.Ua.LADS.Client.LadsFunction;
+using LadsFunctionalUnit = Opc.Ua.LADS.Server.LadsFunctionalUnit;
 using LadsNotificationTestSupport = Opc.Ua.LADS.Tests.Server.LadsMaintenanceTaskTests.LadsNotificationTestSupport;
 
 namespace Opc.Ua.LADS.Tests.Server

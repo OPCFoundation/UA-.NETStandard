@@ -547,8 +547,8 @@ namespace Opc.Ua.LADS.Tests.Server
                     unit.RunningOperations().Programs(_ => { }))).ConfigureAwait(false);
             var device = (LadsDevice)await server.DeviceAsync().ConfigureAwait(false);
             var unit = (LadsFunctionalUnit)device.GetFunctionalUnit("Second");
-            LadsProgramManager programs = unit.Programs ??
-                throw new AssertionException("The program manager is missing.");
+            var programs = (LadsProgramManager)(unit.Programs ??
+                throw new AssertionException("The program manager is missing."));
             await programs.AddTemplateAsync(Template("Start")).ConfigureAwait(false);
             MethodState startProgram = unit.Node.FunctionalUnitState!.StartProgram ??
                 throw new AssertionException("The StartProgram method is missing.");
@@ -1177,8 +1177,8 @@ namespace Opc.Ua.LADS.Tests.Server
             LadsProgramManager first = (LadsProgramManager)device
                 .GetFunctionalUnit(LadsIncubator.UnitName).Programs!;
             var secondUnit = (LadsFunctionalUnit)device.GetFunctionalUnit("Second");
-            LadsProgramManager second = secondUnit.Programs ??
-                throw new AssertionException("The second program manager is missing.");
+            var second = (LadsProgramManager)(secondUnit.Programs ??
+                throw new AssertionException("The second program manager is missing."));
             nodes.FailNextAdd = true;
             nodes.FailNextRemove = true;
             int failedRestoreSave = store.Saves + 2;
