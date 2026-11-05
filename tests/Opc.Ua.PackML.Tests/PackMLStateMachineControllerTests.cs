@@ -43,7 +43,7 @@ namespace Opc.Ua.PackML.Tests
         {
             SystemContext context = PackMLTestSupport.CreateContext();
             PackMLBaseStateMachineState generated = context
-                .CreateInstanceOfPackMLBaseObjectType(null, PackMLTestSupport.Name(context))
+                .CreateInstanceOfPackMLBaseObjectType(browseName: PackMLTestSupport.Name(context))
                 .BaseStateMachine
                 .Required();
             var machine = new AbortRejectingStateMachine(null)
@@ -67,7 +67,7 @@ namespace Opc.Ua.PackML.Tests
                 Methods.PackMLBaseStateMachineType_Abort,
                 Methods.PackMLBaseStateMachineType_Abort
             }));
-            Assert.That(machine.Paths, Is.EqualTo(new[] { "sync", "async" }));
+            Assert.That(machine.Paths, Is.EqualTo(s_expectedPaths));
             Assert.That(controller.CurrentState, Is.EqualTo(PackMLStateNumbers.Idle));
         }
 
@@ -76,7 +76,7 @@ namespace Opc.Ua.PackML.Tests
         {
             SystemContext context = PackMLTestSupport.CreateContext();
             PackMLBaseStateMachineState machine = context
-                .CreateInstanceOfPackMLBaseObjectType(null, PackMLTestSupport.Name(context))
+                .CreateInstanceOfPackMLBaseObjectType(browseName: PackMLTestSupport.Name(context))
                 .BaseStateMachine
                 .Required();
             var controller = new PackMLStateMachineController(context, machine)
@@ -138,7 +138,7 @@ namespace Opc.Ua.PackML.Tests
         {
             SystemContext context = PackMLTestSupport.CreateContext();
             PackMLBaseStateMachineState machine = context
-                .CreateInstanceOfPackMLBaseObjectType(null, PackMLTestSupport.Name(context))
+                .CreateInstanceOfPackMLBaseObjectType(browseName: PackMLTestSupport.Name(context))
                 .BaseStateMachine
                 .Required();
             var controller = new PackMLStateMachineController(context, machine)
@@ -216,7 +216,7 @@ namespace Opc.Ua.PackML.Tests
         {
             SystemContext context = PackMLTestSupport.CreateContext();
             PackMLBaseStateMachineState generated = context
-                .CreateInstanceOfPackMLBaseObjectType(null, PackMLTestSupport.Name(context))
+                .CreateInstanceOfPackMLBaseObjectType(browseName: PackMLTestSupport.Name(context))
                 .BaseStateMachine
                 .Required();
             var machine = new ThrowingAfterCauseStateMachine(null)
@@ -261,7 +261,7 @@ namespace Opc.Ua.PackML.Tests
         {
             SystemContext context = PackMLTestSupport.CreateContext();
             PackMLBaseStateMachineState machine = context
-                .CreateInstanceOfPackMLBaseObjectType(null, PackMLTestSupport.Name(context))
+                .CreateInstanceOfPackMLBaseObjectType(browseName: PackMLTestSupport.Name(context))
                 .BaseStateMachine
                 .Required();
             var controller = new PackMLStateMachineController(context, machine);
@@ -309,7 +309,7 @@ namespace Opc.Ua.PackML.Tests
         {
             SystemContext context = PackMLTestSupport.CreateContext();
             PackMLBaseStateMachineState machine = context
-                .CreateInstanceOfPackMLBaseObjectType(null, PackMLTestSupport.Name(context))
+                .CreateInstanceOfPackMLBaseObjectType(browseName: PackMLTestSupport.Name(context))
                 .BaseStateMachine
                 .Required();
             var controller = new PackMLStateMachineController(context, machine);
@@ -371,7 +371,7 @@ namespace Opc.Ua.PackML.Tests
         {
             SystemContext context = PackMLTestSupport.CreateContext();
             PackMLBaseStateMachineState machine = context
-                .CreateInstanceOfPackMLBaseObjectType(null, PackMLTestSupport.Name(context))
+                .CreateInstanceOfPackMLBaseObjectType(browseName: PackMLTestSupport.Name(context))
                 .BaseStateMachine
                 .Required();
             var controller = new PackMLStateMachineController(context, machine)
@@ -413,7 +413,7 @@ namespace Opc.Ua.PackML.Tests
         {
             SystemContext context = PackMLTestSupport.CreateContext();
             PackMLBaseStateMachineState machine = context
-                .CreateInstanceOfPackMLBaseObjectType(null, PackMLTestSupport.Name(context))
+                .CreateInstanceOfPackMLBaseObjectType(browseName: PackMLTestSupport.Name(context))
                 .BaseStateMachine
                 .Required();
             var controller = new PackMLStateMachineController(context, machine)
@@ -438,6 +438,7 @@ namespace Opc.Ua.PackML.Tests
         }
 
         private static readonly TimeSpan s_timeout = TimeSpan.FromSeconds(30);
+        private static readonly string[] s_expectedPaths = ["sync", "async"];
 
         /// <summary>
         /// A base machine whose async customization throws after publication.

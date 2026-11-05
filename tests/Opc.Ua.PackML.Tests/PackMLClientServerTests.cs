@@ -165,12 +165,16 @@ namespace Opc.Ua.PackML.Tests
                         [
                             new ReadValueId
                             {
-                                NodeId = VariableIds.Server_ServerCapabilities_MaxMonitoredItems,
+                                NodeId =
+                                    global::Opc.Ua.VariableIds
+                                        .Server_ServerCapabilities_MaxMonitoredItems,
                                 AttributeId = Attributes.Value
                             },
                             new ReadValueId
                             {
-                                NodeId = VariableIds.Server_ServerCapabilities_MaxMonitoredItemsPerSubscription,
+                                NodeId =
+                                    global::Opc.Ua.VariableIds
+                                        .Server_ServerCapabilities_MaxMonitoredItemsPerSubscription,
                                 AttributeId = Attributes.Value
                             }
                         ], ct).ConfigureAwait(false);
@@ -277,7 +281,7 @@ namespace Opc.Ua.PackML.Tests
                 {
                     MonitoredItemNotification[] retained = queued.ToList()
                         .Where(item => item.ClientHandle == handle).ToArray();
-                    Assert.That(retained.Length, Is.EqualTo(5));
+                    Assert.That(retained, Has.Length.EqualTo(5));
                     for (int index = 0; index < expected.Length; index++)
                     {
                         Assert.That(StatusCode.IsGood(retained[index].Value.StatusCode), Is.True);
@@ -341,7 +345,7 @@ namespace Opc.Ua.PackML.Tests
                         changes.AddRange(notification!.MonitoredItems.ToList());
                     }
                 }
-                Assert.That(changes.Count, Is.EqualTo(count));
+                Assert.That(changes, Has.Count.EqualTo(count));
                 return changes.ToArray().ToArrayOf();
             }
         }
@@ -1292,9 +1296,11 @@ namespace Opc.Ua.PackML.Tests
                     {
                         throw new InvalidOperationException("The test requires the application configuration builder.");
                     }
-                    configuration.ApplicationConfiguration.ServerConfiguration.MaxMonitoredItemCount = 102;
-                    configuration.ApplicationConfiguration.ServerConfiguration.MaxMonitoredItemsPerSubscription = 102;
-                    configuration.ApplicationConfiguration.ServerConfiguration.MaxNotificationQueueSize = 5;
+                    ServerConfiguration serverConfiguration =
+                        configuration.ApplicationConfiguration.ServerConfiguration ??= new ServerConfiguration();
+                    serverConfiguration.MaxMonitoredItemCount = 102;
+                    serverConfiguration.MaxMonitoredItemsPerSubscription = 102;
+                    serverConfiguration.MaxNotificationQueueSize = 5;
                 };
             }
             options.ApplicationName = nameof(PackMLClientServerTests);

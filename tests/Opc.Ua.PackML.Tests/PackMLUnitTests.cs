@@ -673,12 +673,12 @@ namespace Opc.Ua.PackML.Tests
             TaskCompletionSource<bool> entered = PackMLTestSupport.Signal();
             TaskCompletionSource<bool> release = PackMLTestSupport.Signal();
             var notified = new ConcurrentQueue<string>();
-            status.CurMachSpeed.Required().OnStateChangedAsync = async (_, _, _, _) =>
+            status.CurMachSpeed.Required().OnStateChangedAsync = async (_, _, _, cancellationToken) =>
             {
                 notified.Enqueue(nameof(PackMLStatusObjectState.CurMachSpeed));
                 entered.TrySetResult(true);
                 // Bounded so that a blocking regression fails instead of hanging.
-                await Task.WhenAny(release.Task, Task.Delay(TimeSpan.FromSeconds(5)));
+                await Task.WhenAny(release.Task, Task.Delay(TimeSpan.FromSeconds(5), cancellationToken));
             };
             status.EquipmentBlocked.Required().OnStateChangedAsync = (_, _, _, _) =>
             {
@@ -720,13 +720,13 @@ namespace Opc.Ua.PackML.Tests
             TaskCompletionSource<bool> entered = PackMLTestSupport.Signal();
             TaskCompletionSource<bool> release = PackMLTestSupport.Signal();
             int notifications = 0;
-            NodeStateChangedAsyncHandler sink = async (_, _, _, _) =>
+            NodeStateChangedAsyncHandler sink = async (_, _, _, cancellationToken) =>
             {
                 if (Interlocked.Increment(ref notifications) == 1)
                 {
                     entered.TrySetResult(true);
                     // Bounded so that a blocking regression fails instead of hanging.
-                    await Task.WhenAny(release.Task, Task.Delay(TimeSpan.FromSeconds(5)));
+                    await Task.WhenAny(release.Task, Task.Delay(TimeSpan.FromSeconds(5), cancellationToken));
                 }
             };
             foreach (BaseInstanceState node in Descendants(context, unit.Node.BaseStateMachine.Required()))
@@ -786,7 +786,7 @@ namespace Opc.Ua.PackML.Tests
 
             inProcess.OnStateChangedAsync = null;
             Good(await unit.RequestAsync(context, Command(PackMLCommand.Reset)));
-            Assert.That(provider.Executed.Count, Is.EqualTo(1));
+            Assert.That(provider.Executed, Has.Count.EqualTo(1));
             Assert.That(inProcess.WrappedValue, Is.EqualTo(Variant.From(true)));
         }
 
