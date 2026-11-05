@@ -480,6 +480,11 @@ Feature inspection returns the original `DataValue`, units, resolution, type
 definition, and display name. Custom object features remain visible with their
 display name and `DataValue.Null`; the client does not invent a numeric
 interpretation for them.
+The client browses each feature once to resolve both metadata properties, then
+reads feature values and present metadata in one batch. Managed browsing and the
+session's read batching apply server operation limits; returned values retain
+their individual status codes and timestamps. An empty feature folder does not
+issue a value read.
 
 ## Ownership and support evidence
 
