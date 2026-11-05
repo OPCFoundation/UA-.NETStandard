@@ -488,6 +488,7 @@ namespace Opc.Ua
 
             if (!shelved)
             {
+                m_oneShot = false;
                 if ((SuppressedState == null || !SuppressedState.Id!.Value) &&
                     (OutOfServiceState == null || !OutOfServiceState.Id!.Value)) // Id is created with SuppressedState/OutOfServiceState
                 {

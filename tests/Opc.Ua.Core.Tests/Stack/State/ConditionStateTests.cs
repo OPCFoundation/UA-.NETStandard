@@ -500,7 +500,9 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 m_context, default, QualifiedName.From(BrowseNames.ShelvingState), default, false);
             alarm.ShelvingState.UnshelveTime =
                 PropertyState<double>.With<VariantBuilder>(alarm.ShelvingState);
-            alarm.SetShelvingState(m_context, true, true, 1000);
+            alarm.MaxTimeShelved = null;
+            alarm.SetActiveState(m_context, true);
+            alarm.SetShelvingState(m_context, true, true, 0);
             alarm.ClearChangeMasks(m_context, true);
 
             var notificationEntered = new TaskCompletionSource<bool>(
@@ -572,6 +574,52 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 ObjectIds.ShelvedStateMachineType_Unshelved));
             Assert.That(alarm.ActiveState!.Id!.Value, Is.False);
             Assert.That(order, Is.EqualTo(s_unshelvingNotificationOrder));
+        }
+
+        /// <summary>
+        /// Verifies an unshelved one-shot alarm accepts a later deferred inactive-state update.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task UnshelvedOneShotAlarmAllowsDeferredDeactivationAsync(bool asynchronous)
+        {
+            AlarmConditionState alarm = CreateAlarmWithNestedStates();
+            alarm.ShelvingState = new ShelvedStateMachineState(alarm);
+            alarm.ShelvingState.Create(
+                m_context, default, QualifiedName.From(BrowseNames.ShelvingState), default, false);
+            alarm.ShelvingState.UnshelveTime =
+                PropertyState<double>.With<VariantBuilder>(alarm.ShelvingState);
+            alarm.MaxTimeShelved = null;
+            alarm.SetActiveState(m_context, true);
+            alarm.SetShelvingState(m_context, true, true, 0);
+            if (asynchronous)
+            {
+                await alarm.SetShelvingStateAsync(m_context, false, false, 0).ConfigureAwait(false);
+            }
+            else
+            {
+                alarm.SetShelvingState(m_context, false, false, 0);
+            }
+            int notifications = 0;
+            alarm.ActiveState!.Id!.StateChanged += (_, _, _) => notifications++;
+
+            if (asynchronous)
+            {
+                await alarm.SetActiveStateAsync(
+                    m_context, false, clearChangeMasks: false, updateRetainState: false).ConfigureAwait(false);
+            }
+            else
+            {
+                alarm.SetActiveState(m_context, false, clearChangeMasks: false, updateRetainState: false);
+            }
+
+            Assert.That(alarm.ActiveState.Id.Value, Is.False);
+            Assert.That(alarm.ShelvingState.CurrentState!.Id!.Value,
+                Is.EqualTo(ObjectIds.ShelvedStateMachineType_Unshelved));
+            Assert.That(notifications, Is.Zero);
+            Assert.That(alarm.ActiveState.Id.ChangeMasks, Is.Not.EqualTo(NodeStateChangeMasks.None));
+            await alarm.ClearChangeMasksAsync(m_context, true).ConfigureAwait(false);
+            Assert.That(notifications, Is.EqualTo(1));
         }
 
         /// <summary>
@@ -819,6 +867,103 @@ namespace Opc.Ua.Core.Tests.Stack.State
             ServiceResult acknowledged = condition.CallAcknowledge(m_context, reportedEventId);
             Assert.That(ServiceResult.IsGood(acknowledged), Is.True, acknowledged.ToString());
             Assert.That(condition.AckedState.Id.Value, Is.True);
+        }
+
+        /// <summary>
+        /// Verifies delayed snapshot publication registers captured identity and acknowledgement state.
+        /// </summary>
+        [TestCase(false, "unacknowledged")]
+        [TestCase(true, "unacknowledged")]
+        [TestCase(false, "acknowledged")]
+        [TestCase(true, "acknowledged")]
+        [TestCase(false, "acknowledgedAfterCapture")]
+        [TestCase(true, "acknowledgedAfterCapture")]
+        public async Task DelayedSnapshotReportingPreservesAcknowledgementIdentityAsync(
+            bool asynchronous, string state)
+        {
+            var condition = new TestPairedReportConditionState();
+            condition.Create(m_context, new NodeId(Guid.NewGuid()), QualifiedName.From("Condition"), default, true);
+            condition.SetEnableState(m_context, true);
+            condition.SetAcknowledgedState(m_context, state == "acknowledged");
+            condition.EventId!.Value = Uuid.NewUuid().ToByteString();
+            ByteString capturedId = condition.EventId.Value;
+            InstanceStateSnapshot snapshot = CreateEventSnapshot(condition);
+            if (state == "acknowledgedAfterCapture")
+            {
+                condition.SetAcknowledgedState(m_context, true);
+            }
+            condition.SetAcknowledgedState(m_context, false);
+            condition.EventId.Value = Uuid.NewUuid().ToByteString();
+            ByteString currentId = condition.EventId.Value;
+            Assert.That(condition.CallAcknowledge(m_context, capturedId).StatusCode,
+                Is.EqualTo(StatusCodes.BadEventIdUnknown));
+            ByteString deliveredId = default;
+            condition.EventReported += (_, _, reported) =>
+            {
+                Variant id = reported.GetAttributeValue(
+                    null!, default, [QualifiedName.From(BrowseNames.EventId)], Attributes.Value, default);
+                Assert.That(id.TryGetValue(out deliveredId), Is.True);
+            };
+
+            if (asynchronous)
+            {
+                await condition.ReportEventAsync(m_context, snapshot).ConfigureAwait(false);
+            }
+            else
+            {
+                condition.ReportEvent(m_context, snapshot);
+            }
+
+            Assert.That(deliveredId, Is.EqualTo(capturedId));
+            Assert.That(currentId, Is.Not.EqualTo(capturedId));
+            ServiceResult result = condition.CallAcknowledge(m_context, deliveredId);
+            Assert.That(result.StatusCode, Is.EqualTo(state == "unacknowledged"
+                ? StatusCodes.Good : StatusCodes.BadConditionBranchAlreadyAcked));
+            Assert.That(condition.AckedState!.Id!.Value, Is.EqualTo(state == "unacknowledged"));
+        }
+
+        /// <summary>
+        /// Verifies delayed snapshot publication preserves confirmation state and intervening confirmations.
+        /// </summary>
+        [TestCase(false, "unconfirmed")]
+        [TestCase(true, "unconfirmed")]
+        [TestCase(false, "confirmed")]
+        [TestCase(true, "confirmed")]
+        [TestCase(false, "confirmedAfterCapture")]
+        [TestCase(true, "confirmedAfterCapture")]
+        public async Task DelayedSnapshotReportingPreservesConfirmationIdentityAsync(
+            bool asynchronous, string state)
+        {
+            var condition = new TestPairedReportConditionState();
+            condition.Create(m_context, new NodeId(Guid.NewGuid()), QualifiedName.From("Condition"), default, true);
+            condition.ConfirmedState = new TwoStateVariableState(condition);
+            condition.ConfirmedState.Create(
+                m_context, default, QualifiedName.From(BrowseNames.ConfirmedState), default, false);
+            condition.SetEnableState(m_context, true);
+            condition.SetConfirmedState(m_context, state == "confirmed");
+            condition.EventId!.Value = Uuid.NewUuid().ToByteString();
+            ByteString capturedId = condition.EventId.Value;
+            InstanceStateSnapshot snapshot = CreateEventSnapshot(condition);
+            if (state == "confirmedAfterCapture")
+            {
+                condition.SetConfirmedState(m_context, true);
+            }
+            condition.SetConfirmedState(m_context, false);
+            condition.EventId.Value = Uuid.NewUuid().ToByteString();
+
+            if (asynchronous)
+            {
+                await condition.ReportEventAsync(m_context, snapshot).ConfigureAwait(false);
+            }
+            else
+            {
+                condition.ReportEvent(m_context, snapshot);
+            }
+
+            ServiceResult result = condition.CallConfirm(m_context, capturedId);
+            Assert.That(result.StatusCode, Is.EqualTo(state == "unconfirmed"
+                ? StatusCodes.Good : StatusCodes.BadConditionBranchAlreadyConfirmed));
+            Assert.That(condition.ConfirmedState.Id!.Value, Is.EqualTo(state == "unconfirmed"));
         }
 
         /// <summary>
@@ -1379,6 +1524,17 @@ namespace Opc.Ua.Core.Tests.Stack.State
             public ServiceResult CallAcknowledge(ISystemContext context, ByteString eventId)
             {
                 return OnAcknowledgeCalled(context, Acknowledge!, NodeId, eventId, LocalizedText.From("ack"));
+            }
+
+            /// <summary>
+            /// Invokes the confirm method for the supplied event identifier.
+            /// </summary>
+            /// <param name="context">The system context.</param>
+            /// <param name="eventId">The event identifier.</param>
+            /// <returns>The confirm method result.</returns>
+            public ServiceResult CallConfirm(ISystemContext context, ByteString eventId)
+            {
+                return OnConfirmCalled(context, Confirm!, NodeId, eventId, LocalizedText.From("confirm"));
             }
 
             /// <inheritdoc/>
