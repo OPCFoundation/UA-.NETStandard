@@ -564,6 +564,38 @@ namespace Opc.Ua.LADS.Tests.Server
             Assert.That(mode, Is.EqualTo(2u));
         }
 
+        /// <summary>
+        /// Accepts legacy trailing record whitespace without changing step or function names.
+        /// </summary>
+        [TestCase(" \n")]
+        [TestCase("\t\r\n")]
+        [TestCase(" \t")]
+        public void TemplateContentPreservesTrailingRecordWhitespace(string ending)
+        {
+            string text = "step; Spin ;1" + ending + "\n"
+                + "set; Door ;true" + ending + "\n"
+                + "set;Other;false" + ending + "\n"
+                + "set;Mode;u2" + ending + "\n"
+                + "set;Speed;1.5" + ending;
+            LadsProgramTemplate parsed = LadsProgramTemplate.Parse(
+                "Legacy", ByteString.From(Encoding.UTF8.GetBytes(text)));
+
+            Assert.That(parsed.Steps.Count, Is.EqualTo(1));
+            Assert.That(parsed.Steps[0].Name, Is.EqualTo(" Spin "));
+            Assert.That(parsed.Steps[0].Duration, Is.EqualTo(TimeSpan.FromMilliseconds(1)));
+            ArrayOf<LadsSetpoint> setpoints = parsed.Steps[0].Setpoints;
+            Assert.That(setpoints.Count, Is.EqualTo(4));
+            Assert.That(setpoints[0].FunctionName, Is.EqualTo(" Door "));
+            Assert.That(setpoints[0].Value.TryGetValue(out bool opened), Is.True);
+            Assert.That(opened, Is.True);
+            Assert.That(setpoints[1].Value.TryGetValue(out bool closed), Is.True);
+            Assert.That(closed, Is.False);
+            Assert.That(setpoints[2].Value.TryGetValue(out uint mode), Is.True);
+            Assert.That(mode, Is.EqualTo(2u));
+            Assert.That(setpoints[3].Value.TryGetValue(out double speed), Is.True);
+            Assert.That(speed, Is.EqualTo(1.5));
+        }
+
         [Test]
         public async Task ActiveRecipeKeepsFullDurationAndIsDetachedFromCallerMutationsAsync()
         {

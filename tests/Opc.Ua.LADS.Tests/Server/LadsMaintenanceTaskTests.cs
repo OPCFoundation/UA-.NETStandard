@@ -50,6 +50,192 @@ namespace Opc.Ua.LADS.Tests.Server
     public sealed class LadsMaintenanceTaskTests
     {
         /// <summary>
+        /// Serializes direct and persisted snapshots with the complete maintenance state assignment.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task MaintenanceSnapshotWaitsForCompletionMetadataAsync(bool persist)
+        {
+            var store = new InMemoryLadsStore();
+            await using LadsHostedServer server = await LadsHostedServer.StartIncubatorAsync(
+                nameof(MaintenanceSnapshotWaitsForCompletionMetadataAsync),
+                options: options =>
+                {
+                    options.Store = store;
+                    options.TimeProvider = new LadsNotificationTestSupport.FixedClock();
+                }).ConfigureAwait(false);
+            var device = (LadsDevice)await server.DeviceAsync().ConfigureAwait(false);
+            var task = (LadsMaintenanceTask)device.GetMaintenanceTask(LadsIncubator.MaintenanceName);
+            await task.StartAsync().ConfigureAwait(false);
+            var assigned = LadsNotificationTestSupport.NewSignal();
+            var captureStarted = LadsNotificationTestSupport.NewSignal();
+            using var releaseAssignment = new ManualResetEventSlim();
+            void StateAssigned(LadsMaintenanceStateValue state)
+            {
+                if (state == LadsMaintenanceStateValue.Finished)
+                {
+                    Assert.That(task.LastExecutionDate, Is.EqualTo(DateTimeUtc.MinValue));
+                    assigned.TrySetResult(true);
+                    if (!releaseAssignment.Wait(LadsNotificationTestSupport.Timeout))
+                    {
+                        throw new TimeoutException("The maintenance assignment was not released.");
+                    }
+                }
+            }
+            task.Machine.StateAssigned += StateAssigned;
+            Task? stop = null;
+            Task<LadsStoredMaintenanceData>? capture = null;
+            try
+            {
+                stop = Task.Run(() => task.StopAsync(MaintenanceTaskResultEnum.Failure).AsTask());
+                await assigned.Task.WaitAsync(LadsNotificationTestSupport.Timeout).ConfigureAwait(false);
+                capture = Task.Run(async () =>
+                {
+                    captureStarted.TrySetResult(true);
+                    if (persist)
+                    {
+                        await device.SaveStoredDataAsync().ConfigureAwait(false);
+                        LadsStoredDeviceData saved = (await store.LoadAsync(device.StoreIdentity)
+                            .ConfigureAwait(false))!;
+                        return saved.MaintenanceTasks.ToList().Single(value => value.Name == task.Name);
+                    }
+                    return task.CaptureStoredData();
+                });
+                await captureStarted.Task.WaitAsync(LadsNotificationTestSupport.Timeout).ConfigureAwait(false);
+                Task first = await Task.WhenAny(capture, Task.Delay(TimeSpan.FromMilliseconds(250)))
+                    .ConfigureAwait(false);
+                Assert.That(first, Is.Not.SameAs(capture), "A snapshot must wait for completion metadata.");
+                releaseAssignment.Set();
+                LadsStoredMaintenanceData snapshot = await capture.WaitAsync(LadsNotificationTestSupport.Timeout)
+                    .ConfigureAwait(false);
+                Assert.That(snapshot.State, Is.EqualTo(LadsMaintenanceStateValue.Finished));
+                Assert.That(snapshot.LastExecutionDate.ToDateTime(),
+                    Is.EqualTo(LadsNotificationTestSupport.FixedClock.Now.UtcDateTime));
+                Assert.That(snapshot.LastResult, Is.EqualTo(MaintenanceTaskResultEnum.Failure));
+                await stop.WaitAsync(LadsNotificationTestSupport.Timeout).ConfigureAwait(false);
+            }
+            finally
+            {
+                releaseAssignment.Set();
+                try
+                {
+                    if (stop != null)
+                    {
+                        await LadsNotificationTestSupport.DrainAsync(stop).ConfigureAwait(false);
+                    }
+                    if (capture != null)
+                    {
+                        await LadsNotificationTestSupport.DrainAsync(capture).ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    task.Machine.StateAssigned -= StateAssigned;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Commits a recurring date before Planned observers and retains the old date on a guard veto.
+        /// </summary>
+        [TestCase("None")]
+        [TestCase("Node")]
+        [TestCase("Public")]
+        [TestCase("Veto")]
+        public async Task PlannedObserversSeeCommittedRecurringDateAsync(string failureStage)
+        {
+            await using LadsHostedServer server = await LadsHostedServer.StartIncubatorAsync(
+                nameof(PlannedObserversSeeCommittedRecurringDateAsync),
+                options: options => options.TimeProvider = new LadsNotificationTestSupport.FixedClock())
+                .ConfigureAwait(false);
+            ILadsDevice device = await server.DeviceAsync().ConfigureAwait(false);
+            var task = (LadsMaintenanceTask)device.GetMaintenanceTask(LadsIncubator.MaintenanceName);
+            await task.StartAsync().ConfigureAwait(false);
+            await task.StopAsync().ConfigureAwait(false);
+            var machine = task.Node.MaintenanceState!;
+            var stateNode = machine.CurrentState!;
+            var plannedDate = task.Node.PlannedDate!;
+            DateTimeUtc previousDate = plannedDate.Value;
+            DateTime expectedDate = task.LastExecutionDate.ToDateTime() + TimeSpan.FromDays(30);
+            NodeStateChangedAsyncHandler? previous = stateNode.OnStateChangedAsync;
+            StateMachineTransitionHandler? previousGuard = machine.OnBeforeTransition;
+            var failure = new InvalidOperationException("Planned notification failed.");
+            int nodeNotifications = 0;
+            int publicNotifications = 0;
+            void AssertPlannedDate()
+            {
+                Assert.That(task.State, Is.EqualTo(LadsMaintenanceStateValue.Planned));
+                Assert.That(plannedDate.Value.ToDateTime(), Is.EqualTo(expectedDate));
+                Assert.That(task.CaptureStoredData().PlannedDate, Is.EqualTo(plannedDate.Value));
+            }
+            void StateChanged(LadsMaintenanceStateValue state)
+            {
+                Assert.That(state, Is.EqualTo(LadsMaintenanceStateValue.Planned));
+                AssertPlannedDate();
+                publicNotifications++;
+                if (failureStage == "Public")
+                {
+                    throw failure;
+                }
+            }
+            task.StateChanged += StateChanged;
+            stateNode.OnStateChangedAsync = async (context, node, masks, token) =>
+            {
+                AssertPlannedDate();
+                nodeNotifications++;
+                if (failureStage == "Node")
+                {
+                    throw failure;
+                }
+                if (previous != null)
+                {
+                    await previous(context, node, masks, token).ConfigureAwait(false);
+                }
+            };
+            if (failureStage == "Veto")
+            {
+                machine.OnBeforeTransition = (_, _, _, _, _, _) => new ServiceResult(StatusCodes.BadInvalidState);
+            }
+            try
+            {
+                if (failureStage == "None")
+                {
+                    await task.ResetAsync().ConfigureAwait(false);
+                }
+                else if (failureStage == "Veto")
+                {
+                    await LadsAssert.ThrowsStatusAsync(
+                        StatusCodes.BadInvalidState, () => task.ResetAsync()).ConfigureAwait(false);
+                }
+                else
+                {
+                    await Assert.ThatAsync(
+                        async () => await task.ResetAsync().ConfigureAwait(false),
+                        Throws.Exception.SameAs(failure)).ConfigureAwait(false);
+                }
+                if (failureStage == "Veto")
+                {
+                    Assert.That(task.State, Is.EqualTo(LadsMaintenanceStateValue.Finished));
+                    Assert.That(plannedDate.Value, Is.EqualTo(previousDate));
+                    Assert.That(nodeNotifications, Is.Zero);
+                    Assert.That(publicNotifications, Is.Zero);
+                }
+                else
+                {
+                    AssertPlannedDate();
+                    Assert.That(nodeNotifications, Is.EqualTo(1));
+                    Assert.That(publicNotifications, Is.EqualTo(failureStage == "Node" ? 0 : 1));
+                }
+            }
+            finally
+            {
+                stateNode.OnStateChangedAsync = previous;
+                machine.OnBeforeTransition = previousGuard;
+                task.StateChanged -= StateChanged;
+            }
+        }
+
+        /// <summary>
         /// Commits completion metadata before Finished sinks, including when a sink fails, but not after a veto.
         /// </summary>
         [TestCase("None")]

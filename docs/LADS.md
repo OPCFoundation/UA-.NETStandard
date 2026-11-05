@@ -281,6 +281,13 @@ veto leaves the previous completion record unchanged. If a notification throws,
 the command reports the failure, but `Finished` and its completion record remain
 committed.
 
+For recurring tasks, an accepted `Planned` transition also assigns the next
+planned date before notifying observers. A veto retains the previous date;
+a notification failure leaves the new state and date committed. Stored-data
+capture uses the same device serialization as these assignments, so another
+checkpoint cannot capture the new maintenance state with the old completion
+record or planned date.
+
 ## Driving the device at run time
 
 The handles returned by the builder, or by `ILadsDeviceRegistry`, connect the
@@ -390,6 +397,10 @@ callback fails after processing ends, the result records Aborted and no
 successful cycle is counted.
 Stop or Abort while paused uses the existing cancellation path and does not
 count a successful cycle.
+
+Orderly completion visits controls inside multi-sensor groups as well as
+top-level controls. A rejected stop prevents successful recipe completion and
+the operation-cycle counter is not incremented.
 
 If an executor finishes while Held, Suspended or awaiting a pause/resume
 acknowledgment, the runtime records Aborted rather than reporting successful

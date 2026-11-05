@@ -321,7 +321,7 @@ namespace Opc.Ua.LADS.Server
                 }
                 else if (kind == "set" && stepName != null)
                 {
-                    setpoints.Add(new LadsSetpoint(parts[1], ParseValue(parts[2])));
+                    setpoints.Add(new LadsSetpoint(parts[1], ParseValue(parts[2].TrimEnd())));
                 }
                 else
                 {

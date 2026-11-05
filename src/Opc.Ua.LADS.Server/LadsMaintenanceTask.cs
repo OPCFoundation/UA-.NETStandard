@@ -255,12 +255,28 @@ namespace Opc.Ua.LADS.Server
                 Device.RequireStorageHealthy();
                 Machine.Require(LadsMaintenanceStateValue.Finished);
                 await AskProviderAsync(LadsMaintenanceCommand.Reset, cancellationToken).ConfigureAwait(false);
-                await TransitionAsync(LadsMaintenanceStateValue.Planned).ConfigureAwait(false);
-                if (m_options.RecurrencePeriod is TimeSpan recurrence && Node.PlannedDate != null)
+                void RecordPlannedDate(LadsMaintenanceStateValue state)
                 {
-                    DateTime next = LastExecutionDate.ToDateTime() + recurrence;
-                    await Device.SetFunctionParameterAsync(
-                        Node.PlannedDate, Variant.From((DateTimeUtc)next)).ConfigureAwait(false);
+                    if (state == LadsMaintenanceStateValue.Planned &&
+                        m_options.RecurrencePeriod is TimeSpan recurrence && Node.PlannedDate != null)
+                    {
+                        DateTime next = LastExecutionDate.ToDateTime() + recurrence;
+                        LadsRuntime.AssignValue(Node.PlannedDate, Variant.From((DateTimeUtc)next));
+                    }
+                }
+                Machine.StateAssigned += RecordPlannedDate;
+                try
+                {
+                    await TransitionAsync(LadsMaintenanceStateValue.Planned).ConfigureAwait(false);
+                }
+                finally
+                {
+                    Machine.StateAssigned -= RecordPlannedDate;
+                }
+                if (m_options.RecurrencePeriod.HasValue && Node.PlannedDate is { } plannedDate)
+                {
+                    await plannedDate.ClearChangeMasksAsync(
+                        Runtime.Context, false, CancellationToken.None).ConfigureAwait(false);
                 }
                 await ApplyConditionAsync(active: true, message: default).ConfigureAwait(false);
                 await Device.SaveStoredDataAsync(cancellationToken).ConfigureAwait(false);
@@ -276,18 +292,7 @@ namespace Opc.Ua.LADS.Server
         /// </summary>
         internal LadsStoredMaintenanceData CaptureStoredData()
         {
-            lock (m_lock)
-            {
-                return new LadsStoredMaintenanceData
-                {
-                    Name = Name,
-                    State = State,
-                    LastExecutionDate = m_lastExecution,
-                    LastResult = m_lastResult,
-                    PlannedDate = Node.PlannedDate is { } plannedDate ? plannedDate.Value : default,
-                    Comment = Node.Message is { } message ? message.Value : LocalizedText.Null
-                };
-            }
+            return Device.CaptureMaintenanceData(this);
         }
 
         /// <summary>

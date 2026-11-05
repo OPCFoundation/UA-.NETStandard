@@ -1065,6 +1065,25 @@ namespace Opc.Ua.LADS.Server
         }
 
         /// <summary>
+        /// Captures a maintenance record after its state and associated metadata have been assigned together.
+        /// </summary>
+        internal LadsStoredMaintenanceData CaptureMaintenanceData(LadsMaintenanceTask task)
+        {
+            lock (m_mutationLock)
+            {
+                return new LadsStoredMaintenanceData
+                {
+                    Name = task.Name,
+                    State = task.State,
+                    LastExecutionDate = task.LastExecutionDate,
+                    LastResult = task.LastResult,
+                    PlannedDate = task.Node.PlannedDate is { } plannedDate ? plannedDate.Value : default,
+                    Comment = task.Node.Message is { } message ? message.Value : LocalizedText.Null
+                };
+            }
+        }
+
+        /// <summary>
         /// Updates a maintenance condition without reporting an event during the attribute writes.
         /// </summary>
         internal void SetMaintenanceCondition(LadsMaintenanceTask task, bool active, LocalizedText message)

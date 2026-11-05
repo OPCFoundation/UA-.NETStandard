@@ -184,18 +184,31 @@ namespace Opc.Ua.LADS.Server
             }
             if (run.IsCompletionRequested)
             {
-                ArrayOf<ILadsFunction> functions = run.FunctionalUnit.Functions;
-                for (int index = 0; index < functions.Count; index++)
-                {
-                    if (functions[index] is ILadsControlFunction control &&
-                        control.State == LadsFunctionalStateValue.Running)
-                    {
-                        await control.StopAsync(cancellationToken).ConfigureAwait(false);
-                    }
-                }
+                await StopControlsAsync(run.FunctionalUnit.Functions, cancellationToken).ConfigureAwait(false);
             }
             run.SetResultVariable("Steps", number.ToString(CultureInfo.InvariantCulture));
             run.AddResultFile("Protocol.csv", "text/csv", ByteString.From(Encoding.UTF8.GetBytes(protocol.ToString())));
+        }
+
+        /// <summary>
+        /// Stops running controls throughout the function tree before publishing orderly completion.
+        /// </summary>
+        private static async ValueTask StopControlsAsync(
+            ArrayOf<ILadsFunction> functions,
+            CancellationToken cancellationToken)
+        {
+            for (int index = 0; index < functions.Count; index++)
+            {
+                ILadsFunction function = functions[index];
+                if (function is IMultiSensorFunction group)
+                {
+                    await StopControlsAsync(group.Functions, cancellationToken).ConfigureAwait(false);
+                }
+                if (function is ILadsControlFunction control && control.State == LadsFunctionalStateValue.Running)
+                {
+                    await control.StopAsync(cancellationToken).ConfigureAwait(false);
+                }
+            }
         }
     }
 }

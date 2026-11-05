@@ -56,6 +56,79 @@ namespace Opc.Ua.LADS.Tests.Server
     public sealed class LadsRunningOperationsTests
     {
         /// <summary>
+        /// Stops nested recipe controls before success and does not count a rejected nested stop as completion.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task OrderlyCompletionStopsGroupedControlsAsync(bool rejectStop)
+        {
+            var clock = new ManualClock();
+            var referenceProvider = new InMemoryLadsFunctionProvider();
+            var provider = new Mock<ILadsFunctionProvider>();
+            provider.Setup(value => value.OnCommandAsync(
+                    It.IsAny<LadsFunctionCommand>(), It.IsAny<CancellationToken>()))
+                .Returns((LadsFunctionCommand command, CancellationToken token) =>
+                    rejectStop && command.Function.Name == "Valve" && command.Kind == LadsFunctionCommandKind.Stop
+                        ? new ValueTask<ServiceResult>(new ServiceResult(StatusCodes.BadUserAccessDenied))
+                        : referenceProvider.OnCommandAsync(command, token));
+            await using LadsClientConnection connection = await LadsClientConnection.StartAsync(
+                nameof(OrderlyCompletionStopsGroupedControlsAsync),
+                builder => builder.AddLads(options => options.TimeProvider = clock).ConfigureLads(
+                    context => LadsIncubator.Configure(
+                        context,
+                        LadsIncubator.DeviceName,
+                        device => device.FunctionalUnit(UnitName, unit => unit
+                            .RunningOperations()
+                            .FunctionProvider(provider.Object)
+                            .AnalogControl("Top")
+                            .MultiSensor("Group", group => group
+                                .AnalogControl("Heater")
+                                .AnalogControl("Idle")
+                                .MultiSensor("Inner", inner => inner.TwoStateDiscreteControl("Valve")))
+                            .Programs(programs => programs.Template(TemplateName, template => template.Step(
+                                "Nested",
+                                TimeSpan.FromMinutes(10),
+                                new LadsSetpoint("Top", Variant.From(1.0)),
+                                new LadsSetpoint("Group/Heater", Variant.From(2.0)),
+                                new LadsSetpoint("Group/Inner/Valve", Variant.From(true)))))))))
+                .ConfigureAwait(false);
+            ILadsDevice device = await connection.Server.DeviceAsync().ConfigureAwait(false);
+            ILadsFunctionalUnit unit = device.GetFunctionalUnit(UnitName);
+            ILadsProgramManager programs = unit.Programs!;
+            var top = unit.GetFunction<IAnalogControlFunction>("Top");
+            var heater = unit.GetFunction<IAnalogControlFunction>("Group/Heater");
+            var idle = unit.GetFunction<IAnalogControlFunction>("Group/Idle");
+            var valve = unit.GetFunction<ITwoStateDiscreteControlFunction>("Group/Inner/Valve");
+            string runId = await programs.StartProgramAsync(TemplateName).ConfigureAwait(false);
+            await LadsAssert.EventuallyAsync(
+                () => clock.HasDelay(TimeSpan.FromMinutes(10)),
+                "The nested recipe did not enter its delay.").ConfigureAwait(false);
+            Assert.That(top.State, Is.EqualTo(LadsFunctionalStateValue.Running));
+            Assert.That(heater.State, Is.EqualTo(LadsFunctionalStateValue.Running));
+            Assert.That(valve.State, Is.EqualTo(LadsFunctionalStateValue.Running));
+
+            await unit.RunningOperations!.ToCompleteAsync().ConfigureAwait(false);
+            ILadsResult result = await programs.WaitForResultAsync(runId).ConfigureAwait(false);
+
+            Assert.That(result.Outcome,
+                Is.EqualTo(rejectStop ? LadsProgramOutcome.Aborted : LadsProgramOutcome.Completed));
+            Assert.That(top.State, Is.EqualTo(LadsFunctionalStateValue.Stopped));
+            Assert.That(heater.State, Is.EqualTo(LadsFunctionalStateValue.Stopped));
+            Assert.That(idle.State, Is.EqualTo(LadsFunctionalStateValue.Stopped));
+            Assert.That(valve.State,
+                Is.EqualTo(rejectStop ? LadsFunctionalStateValue.Running : LadsFunctionalStateValue.Stopped));
+            Assert.That(device.OperationCycleCounter, Is.EqualTo(rejectStop ? 0 : 1));
+            provider.Verify(value => value.OnCommandAsync(
+                It.Is<LadsFunctionCommand>(command =>
+                    command.Function.Name == "Valve" && command.Kind == LadsFunctionCommandKind.Stop),
+                It.IsAny<CancellationToken>()), Times.Once);
+            provider.Verify(value => value.OnCommandAsync(
+                It.Is<LadsFunctionCommand>(command =>
+                    command.Function.Name == "Idle" && command.Kind == LadsFunctionCommandKind.Stop),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
         /// Measures pauses at committed states, independently of delayed or failed node notifications.
         /// </summary>
         [TestCase(LadsRunningStateValue.Held, "None")]
