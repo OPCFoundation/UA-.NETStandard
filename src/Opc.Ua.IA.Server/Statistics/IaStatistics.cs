@@ -351,7 +351,7 @@ namespace Opc.Ua.IA.Server
                     cancellationToken.ThrowIfCancellationRequested();
                     IaStatisticsSnapshot snapshot = await m_provider.ResetAsync(cancellationToken)
                         .ConfigureAwait(false);
-                    Publish(snapshot);
+                    Publish(snapshot, CancellationToken.None);
                     await ClearPublishedChangeMasksAsync().ConfigureAwait(false);
                 }
                 finally
