@@ -60,7 +60,8 @@ namespace Opc.Ua.SourceGeneration
                     {
                         analysis.ReportDiagnostic(Diagnostic.Create(
                             EcmFieldCopyGeneration.InvalidShape, type?.Locations.FirstOrDefault() ?? Location.None,
-                            name + " requires one generated declaration, no added partial state or base class, " +
+                            name + " requires only its generated data and pooling declarations, " +
+                            "no added state or base class, " +
                             "and only its three nonvirtual scalar Float properties and backing fields."));
                     }
                 }

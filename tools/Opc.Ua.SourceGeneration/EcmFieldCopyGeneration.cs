@@ -73,13 +73,25 @@ namespace Opc.Ua.SourceGeneration
         {
             if (type.TypeKind != TypeKind.Class || type.IsAbstract ||
                 type.BaseType?.SpecialType != SpecialType.System_Object ||
-                type.DeclaringSyntaxReferences.Length != 1 ||
+                type.DeclaringSyntaxReferences.Length != 2 ||
+                type.DeclaringSyntaxReferences.Any(reference =>
+                    reference.SyntaxTree != type.DeclaringSyntaxReferences[0].SyntaxTree) ||
                 !type.DeclaringSyntaxReferences[0].SyntaxTree.FilePath.EndsWith(
-                    "Opc.Ua.ECM.DataTypes.g.cs", StringComparison.Ordinal))
+                    "Opc.Ua.ECM.DataTypes.g.cs", StringComparison.Ordinal) ||
+                !type.DeclaringSyntaxReferences.Any(reference =>
+                    reference.GetSyntax() is ClassDeclarationSyntax declaration && IsPoolingDeclaration(declaration)))
             {
                 return false;
             }
-            ImmutableArray<IFieldSymbol> storage = [.. type.GetMembers().OfType<IFieldSymbol>()];
+            ImmutableArray<IFieldSymbol> allStorage = [.. type.GetMembers().OfType<IFieldSymbol>()];
+            IFieldSymbol? sentinel = allStorage.FirstOrDefault(field => field.Name == "m_pooledSentinel");
+            if (sentinel is not { IsStatic: false, DeclaredAccessibility: Accessibility.Private } ||
+                sentinel.Type.SpecialType != SpecialType.System_Int32)
+            {
+                return false;
+            }
+            ImmutableArray<IFieldSymbol> storage = [.. allStorage.Where(field =>
+                !SymbolEqualityComparer.Default.Equals(field, sentinel))];
             if (storage.Length != fields.Length ||
                 storage.Any(field => field.IsStatic || field.Type.SpecialType != SpecialType.System_Single))
             {
@@ -119,6 +131,28 @@ namespace Opc.Ua.SourceGeneration
                 }
             }
             return true;
+        }
+
+        /// <summary>
+        /// Recognizes only the generator's fixed pooling partial, whose integer sentinel is not provider data.
+        /// </summary>
+        private static bool IsPoolingDeclaration(ClassDeclarationSyntax declaration)
+        {
+            if (declaration.Members.Count != 5 ||
+                declaration.BaseList is not { Types.Count: 1 } bases ||
+                bases.Types[0].Type.ToString() != "global::Opc.Ua.IPooledEncodeable")
+            {
+                return false;
+            }
+            FieldDeclarationSyntax? storage = declaration.Members.OfType<FieldDeclarationSyntax>().FirstOrDefault();
+            if (storage == null || storage.Declaration.Variables.Count != 1 ||
+                storage.Declaration.Variables[0].Identifier.ValueText != "m_pooledSentinel")
+            {
+                return false;
+            }
+            ImmutableArray<string> methods = [.. declaration.Members.OfType<MethodDeclarationSyntax>()
+                .Select(method => method.Identifier.ValueText).OrderBy(name => name, StringComparer.Ordinal)];
+            return methods.SequenceEqual(s_poolingMethods);
         }
 
         /// <summary>
@@ -218,5 +252,9 @@ namespace Opc.Ua.SourceGeneration
             ("AcPeDataType", ["L1", "L2", "L3"]),
             ("AcPpDataType", ["L1L2", "L2L3", "L3L1"])
         ];
+
+        /// <summary>The fixed methods emitted by the generated pooling partial.</summary>
+        private static readonly ImmutableArray<string> s_poolingMethods =
+            ["ClearPooledSentinel", "ResetForReuse", "Reuse", "ReuseCore"];
     }
 }

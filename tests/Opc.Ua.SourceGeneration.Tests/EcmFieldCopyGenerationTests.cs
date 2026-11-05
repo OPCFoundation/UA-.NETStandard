@@ -31,6 +31,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using NUnit.Framework;
+using RoslynAnalyzerOptions = Microsoft.CodeAnalysis.Diagnostics.AnalyzerOptions;
 
 namespace Opc.Ua.SourceGeneration
 {
@@ -65,6 +66,10 @@ namespace Opc.Ua.SourceGeneration
             }
             Assert.That(copies, Does.Not.Contain(".Clone("));
             Assert.That(copies, Does.Not.Contain(".Encode("));
+            Assert.That(copies, Does.Not.Contain("m_pooledSentinel"));
+            INamedTypeSymbol? acPe = result.Output.GetTypeByMetadataName("Opc.Ua.ECM.AcPeDataType");
+            Assert.That(acPe, Is.Not.Null);
+            Assert.That(acPe!.DeclaringSyntaxReferences, Has.Length.EqualTo(2));
             Assert.That(await Analyze(result.Output, result.Options).ConfigureAwait(false), Is.Empty);
         }
 
@@ -99,7 +104,7 @@ namespace Opc.Ua.SourceGeneration
             "<Field Name=\"L3\" DataType=\"Float\" /><Field Name=\"Extra\" DataType=\"Float\" />")]
         public void EcmCopiesRejectUnsupportedModelFields(string original, string replacement)
         {
-            var result = Generate(Model.Replace(original, replacement));
+            var result = Generate(Model.Replace(original, replacement, StringComparison.Ordinal));
             Assert.That(result.Diagnostics.Any(d => d.Id == "MODELGEN039"), Is.True);
             Assert.That(result.Driver.GetRunResult().Results[0].GeneratedSources.Any(
                 source => source.HintName.EndsWith("PublicationCopies.g.cs", StringComparison.Ordinal)), Is.False);
@@ -167,6 +172,26 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
+        /// Pool bookkeeping cannot introduce mutable payload storage or another field.
+        /// </summary>
+        [TestCase("private object m_pooledSentinel;")]
+        [TestCase("private int m_pooledSentinel; private int m_extra;")]
+        [TestCase("private int m_otherSentinel;")]
+        public async Task EcmCopiesRejectModifiedPoolingStorage(string replacement)
+        {
+            var result = Generate(Model);
+            SyntaxTree types = result.Output.SyntaxTrees.Single(
+                tree => tree.FilePath.EndsWith("Opc.Ua.ECM.DataTypes.g.cs", StringComparison.Ordinal));
+            string changed = types.ToString().Replace(
+                "private int m_pooledSentinel;", replacement, StringComparison.Ordinal);
+            Assert.That(changed, Is.Not.EqualTo(types.ToString()));
+            Compilation output = result.Output.ReplaceSyntaxTree(types, CSharpSyntaxTree.ParseText(
+                changed, (CSharpParseOptions)types.Options, types.FilePath));
+            Assert.That((await Analyze(output, result.Options).ConfigureAwait(false))
+                .Any(d => d.Id == "MODELGEN039"), Is.True);
+        }
+
+        /// <summary>
         /// Final verification disallows virtual accessors in an otherwise unchanged generated declaration.
         /// </summary>
         [Test]
@@ -197,7 +222,9 @@ namespace Opc.Ua.SourceGeneration
                 tree => tree.FilePath.EndsWith("Opc.Ua.ECM.DataTypes.g.cs", StringComparison.Ordinal));
             SyntaxNode root = await types.GetRootAsync().ConfigureAwait(false);
             ClassDeclarationSyntax declaration = root.DescendantNodes().OfType<ClassDeclarationSyntax>()
-                .Single(node => node.Identifier.ValueText == "AcPeDataType");
+                .Single(node => node.Identifier.ValueText == "AcPeDataType" &&
+                    node.Members.OfType<PropertyDeclarationSyntax>().Any(
+                        property => property.Identifier.ValueText == "L1"));
             PropertyDeclarationSyntax property = declaration.Members.OfType<PropertyDeclarationSyntax>()
                 .Single(node => node.Identifier.ValueText == "L1");
             AccessorDeclarationSyntax getter = property.AccessorList!.Accessors.Single(
@@ -217,7 +244,7 @@ namespace Opc.Ua.SourceGeneration
         /// Runs the existing model generator with the ECM-only opt-in.
         /// </summary>
         private static (Compilation Output, GeneratorDriver Driver, ImmutableArray<Diagnostic> Diagnostics,
-            AnalyzerOptions Options) Generate(string model, bool enabled = true)
+            RoslynAnalyzerOptions Options) Generate(string model, bool enabled = true)
         {
             AdditionalText text = EmbeddedText.Create("Opc.Ua.ECM.NodeSet2.xml", model);
             var options = new AnalyzerOptionsProvider(new Dictionary<string, string>
@@ -242,13 +269,13 @@ namespace Opc.Ua.SourceGeneration
                 .AddAdditionalTexts([text]).WithUpdatedAnalyzerConfigOptions(options);
             driver = driver.RunGeneratorsAndUpdateCompilation(
                 compilation, out Compilation output, out ImmutableArray<Diagnostic> diagnostics);
-            return (output, driver, diagnostics, new AnalyzerOptions([text], options));
+            return (output, driver, diagnostics, new RoslynAnalyzerOptions([text], options));
         }
 
         /// <summary>
         /// Checks the final compilation, rather than only the input compilation seen by a generator.
         /// </summary>
-        private static Task<ImmutableArray<Diagnostic>> Analyze(Compilation output, AnalyzerOptions options)
+        private static Task<ImmutableArray<Diagnostic>> Analyze(Compilation output, RoslynAnalyzerOptions options)
         {
             return output.WithAnalyzers([new EcmFieldCopyEligibilityAnalyzer()], options)
                 .GetAnalyzerDiagnosticsAsync();

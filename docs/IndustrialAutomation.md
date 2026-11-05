@@ -297,7 +297,11 @@ the published AcPe/AcPp definitions for their exact required scalar Float
 fields. A final-compilation analyzer checks the generated types after all
 generators have run: added source or peer-generated partial declarations,
 extra backing fields, inherited state and nonprimitive properties reject the
-model build with `MODELGEN039`. Each field property must read and assign its
+model build with `MODELGEN039`. The generated data declaration and its fixed
+pooling partial are permitted together. The pooling partial contains only its
+integer reuse sentinel and four lifecycle methods; that sentinel is not a
+measurement field and starts fresh in a copied instance. Additional pooling
+storage is rejected. Each field property must read and assign its
 own distinct primitive backing field directly; a custom accessor call also
 rejects the build. This is a bounded first-party path for these
 two types, not an acceptance rule inferred from a public interface, attribute
