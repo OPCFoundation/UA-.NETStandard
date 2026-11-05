@@ -612,6 +612,7 @@ namespace Opc.Ua.Tools.Tests
                     : profile.First().Os == "macos" ? [
                         "wot-materialization-core",
                         "wot-materialization-integration",
+                        "wot-materialization-live-events",
                         "wot-other"
                     ] : ["wot-materialization", "wot-other"];
                 Assert.That(
@@ -643,31 +644,43 @@ namespace Opc.Ua.Tools.Tests
             Assert.That(wot.Any(entry => entry.Framework == "net48"), Is.True);
             Assert.That(wot.Any(entry => entry.Framework != "net48"), Is.True);
 
-            string testName = materialization
-                ? "Opc.Ua.WotCon.Tests.Materialization.ExampleTests.ExampleAsync"
-                : "Opc.Ua.WotCon.Tests.Registry.ExampleTests.ExampleAsync";
+            string[] testNames = materialization
+                ? [
+                    "Opc.Ua.WotCon.Tests.Materialization.ExampleTests.ExampleAsync",
+                    "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests.ExampleAsync"
+                ]
+                : ["Opc.Ua.WotCon.Tests.Registry.ExampleTests.ExampleAsync"];
             foreach (IGrouping<string, MatrixEntry> profile in wot.GroupBy(entry => entry.Profile))
             {
-                foreach (string category in new[] { string.Empty, "LongRunning", "Stress" })
+                foreach (string testName in testNames)
                 {
-                    string[] categories = integration ? [category, "Integration"] : [category];
-                    bool allowed = profile.First().Tier != "mainline" || category.Length == 0;
-                    string[] matches = profile
-                        .Where(entry => MatchesWotFilter(entry.Filter, testName, categories))
-                        .Select(entry => entry.Shard)
-                        .ToArray();
-                    string expectedShard = !materialization
-                        ? profile.First().Framework != "net48"
-                            ? "wot-other"
-                            : integration ? "wot-other-integration" : "wot-other-core"
-                        : profile.First().Framework != "net48" && profile.First().Os != "macos"
-                            ? "wot-materialization"
-                            : integration ? "wot-materialization-integration" : "wot-materialization-core";
+                    foreach (string category in new[] { string.Empty, "LongRunning", "Stress" })
+                    {
+                        string[] categories = integration ? [category, "Integration"] : [category];
+                        bool allowed = profile.First().Tier != "mainline" || category.Length == 0;
+                        string[] matches = profile
+                            .Where(entry => MatchesWotFilter(entry.Filter, testName, categories))
+                            .Select(entry => entry.Shard)
+                            .ToArray();
+                        string expectedShard = !materialization
+                            ? profile.First().Framework != "net48"
+                                ? "wot-other"
+                                : integration ? "wot-other-integration" : "wot-other-core"
+                            : profile.First().Framework != "net48" && profile.First().Os != "macos"
+                                ? "wot-materialization"
+                                : integration ? "wot-materialization-integration" : "wot-materialization-core";
+                        if (integration && profile.First().Framework != "net48" &&
+                            profile.First().Os == "macos" &&
+                            testName.Contains(".WotEventModesLiveTests.", StringComparison.Ordinal))
+                        {
+                            expectedShard = "wot-materialization-live-events";
+                        }
 
-                    Assert.That(
-                        matches,
-                        Is.EqualTo(allowed ? new[] { expectedShard } : Array.Empty<string>()),
-                        $"Profile '{profile.Key}', test '{testName}', categories '{string.Join(",", categories)}'.");
+                        Assert.That(
+                            matches,
+                            Is.EqualTo(allowed ? new[] { expectedShard } : Array.Empty<string>()),
+                            $"Profile '{profile.Key}', test '{testName}', categories '{string.Join(",", categories)}'.");
+                    }
                 }
             }
         }
