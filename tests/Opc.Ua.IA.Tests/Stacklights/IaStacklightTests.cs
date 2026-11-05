@@ -682,7 +682,7 @@ namespace Opc.Ua.IA.Tests.Stacklights
             var alarms = new FolderState(state)
             {
                 BrowseName = new QualifiedName(Opc.Ua.Di.BrowseNames.DeviceHealthAlarms, (ushort)diNamespace),
-                ReferenceTypeId = ReferenceTypeIds.HasComponent
+                ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent
             };
             var variable = new BaseDataVariableState(alarms)
             {

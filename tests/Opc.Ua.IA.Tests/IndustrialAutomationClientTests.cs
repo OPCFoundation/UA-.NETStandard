@@ -243,11 +243,11 @@ namespace Opc.Ua.IA.Tests
             Assert.That(features[1].Value.IsNull, Is.True);
             Assert.That(features[1].EngineeringUnits.IsNull, Is.True);
             Assert.That(features[1].Resolution.IsNull, Is.True);
-            Assert.That(fixture.BrowseRequestSizes.Count, Is.EqualTo(3));
+            Assert.That(fixture.BrowseRequestSizes, Has.Count.EqualTo(3));
             Assert.That(fixture.BrowseRequestSizes[0], Is.EqualTo(1));
             Assert.That(fixture.BrowseRequestSizes[1], Is.EqualTo(1));
             Assert.That(fixture.BrowseRequestSizes[2], Is.EqualTo(2));
-            Assert.That(fixture.ReadRequestSizes.Count, Is.EqualTo(1));
+            Assert.That(fixture.ReadRequestSizes, Has.Count.EqualTo(1));
             Assert.That(fixture.ReadRequestSizes[0], Is.EqualTo(3));
         }
 
