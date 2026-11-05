@@ -1177,10 +1177,10 @@ namespace Opc.Ua.Server.Tests.Network
                 ObjectIds.NetworkInterfaces, cancellationToken).ConfigureAwait(false);
             NodeId physical = ExpandedNodeId.ToNodeId(publishedInterfaces.ToList()
                 .Single(reference => reference.BrowseName.Name == "eth0").NodeId, m_session.NamespaceUris);
-            await WaitForAsync(async () =>
-                await HasInterfaceInSubtreeAsync(
-                    physical, ObjectTypeIds.IIeeeAutoNegotiationStatusType, cancellationToken)
-                    .ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
+            await WaitForAsync(
+                () => HasInterfaceInSubtreeAsync(
+                    physical, ObjectTypeIds.IIeeeAutoNegotiationStatusType, cancellationToken),
+                cancellationToken).ConfigureAwait(false);
             Assert.That(await HasInterfaceInSubtreeAsync(
                 physical, ObjectTypeIds.IIeeeAutoNegotiationStatusType, cancellationToken)
                 .ConfigureAwait(false), Is.True);
