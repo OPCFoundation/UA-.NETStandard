@@ -324,16 +324,24 @@ namespace Opc.Ua.Pumps.Tests
             };
             group.SetDiscrete(BrowseNames.BearingFault, true);
 
-            InvalidOperationException? observed = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                await binding.EvaluateAsync());
-
-            Assert.Multiple(() =>
+            try
             {
-                Assert.That(observed, Is.SameAs(failure));
-                Assert.That(binding.Alarm.Severity!.Value, Is.EqualTo((ushort)EventSeverity.High));
-                Assert.That(binding.Alarm.ActiveState!.Id!.Value, Is.False);
-                Assert.That(reported, Is.False);
-            });
+                InvalidOperationException? observed = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await binding.EvaluateAsync());
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(observed, Is.SameAs(failure));
+                    Assert.That(binding.Alarm.Severity!.Value, Is.EqualTo((ushort)EventSeverity.High));
+                    Assert.That(binding.Alarm.ActiveState!.Id!.Value, Is.False);
+                    Assert.That(reported, Is.False);
+                });
+            }
+            finally
+            {
+                binding.Alarm.OnStateChangedAsync = null;
+                binding.Alarm.OnReportEventAsync = null;
+            }
             await binding.DisposeAsync();
             await Assert.ThrowsAsync<ObjectDisposedException>(async () => await binding.EvaluateAsync());
         }
