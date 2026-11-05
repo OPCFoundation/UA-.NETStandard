@@ -105,7 +105,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(stream.Position, Is.EqualTo(1));
             stream.Position = 0;
             byte[] buffer = new byte[1];
-            int read = await stream.ReadAsync(buffer, 0, 1, CancellationToken.None).ConfigureAwait(false);
+            int read = await ReadPayloadAsync(stream, buffer).ConfigureAwait(false);
             Assert.That(read, Is.EqualTo(1));
             Assert.That(buffer[0], Is.EqualTo(9));
             Assert.That(stream.Length, Is.EqualTo(Math.Max(1, initialLength)));
@@ -133,7 +133,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             using Stream reader = await provider.OpenReadAsync("append.bin", CancellationToken.None)
                 .ConfigureAwait(false);
             byte[] bytes = new byte[3];
-            int count = await reader.ReadAsync(bytes, 0, bytes.Length, CancellationToken.None).ConfigureAwait(false);
+            int count = await ReadPayloadAsync(reader, bytes).ConfigureAwait(false);
             Assert.That(count, Is.EqualTo(3));
             Assert.That(bytes, Is.EqualTo(s_appendContent));
         }
@@ -187,7 +187,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             using Stream stream = await writable.OpenReadAsync("preserved.bin", CancellationToken.None)
                 .ConfigureAwait(false);
             byte[] buffer = new byte[3];
-            int count = await stream.ReadAsync(buffer, 0, buffer.Length, CancellationToken.None).ConfigureAwait(false);
+            int count = await ReadPayloadAsync(stream, buffer).ConfigureAwait(false);
             Assert.That(count, Is.EqualTo(3));
             Assert.That(buffer, Is.EqualTo(s_combinedContent));
         }
@@ -205,12 +205,25 @@ namespace Opc.Ua.Server.Tests.FileSystem
         /// <param name="cancellationToken">
         /// The cancellation token to observe while writing.
         /// </param>
-        private static Task WritePayloadAsync(Stream stream, byte[] payload, CancellationToken cancellationToken = default)
+        private static Task WritePayloadAsync(
+            Stream stream, byte[] payload, CancellationToken cancellationToken = default)
         {
 #if NET48
             return stream.WriteAsync(payload, 0, payload.Length, cancellationToken);
 #else
             return stream.WriteAsync((ReadOnlyMemory<byte>)payload, cancellationToken).AsTask();
+#endif
+        }
+
+        /// <summary>
+        /// Reads through the array overload on .NET Framework and the memory overload on newer targets.
+        /// </summary>
+        private static Task<int> ReadPayloadAsync(Stream stream, byte[] payload)
+        {
+#if NET48
+            return stream.ReadAsync(payload, 0, payload.Length, CancellationToken.None);
+#else
+            return stream.ReadAsync(payload.AsMemory(), CancellationToken.None).AsTask();
 #endif
         }
 

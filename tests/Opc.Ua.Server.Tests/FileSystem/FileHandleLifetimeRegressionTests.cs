@@ -85,7 +85,12 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 .ConfigureAwait(false))
             {
                 Assert.That(write, Is.Not.Null);
+#if NET48
                 await write!.Stream.WriteAsync(new byte[] { 17 }, 0, 1, write.CancellationToken).ConfigureAwait(false);
+#else
+                await write!.Stream.WriteAsync(new byte[] { 17 }.AsMemory(), write.CancellationToken)
+                    .ConfigureAwait(false);
+#endif
             }
             using (FileHandle.Operation? read = await handles.AcquireAsync(s_session, id, 1, CancellationToken.None)
                 .ConfigureAwait(false))
@@ -93,7 +98,11 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 Assert.That(read!.Stream.Position, Is.EqualTo(1));
                 read.Stream.Position = 0;
                 byte[] buffer = new byte[1];
+#if NET48
                 await read.Stream.ReadAsync(buffer, 0, 1, read.CancellationToken).ConfigureAwait(false);
+#else
+                await read.Stream.ReadAsync(buffer.AsMemory(), read.CancellationToken).ConfigureAwait(false);
+#endif
                 Assert.That(buffer[0], Is.EqualTo(17));
             }
             (ServiceResult blocked, _) = await handles.OpenAsync(s_other, 7, CancellationToken.None)
@@ -477,10 +486,15 @@ namespace Opc.Ua.Server.Tests.FileSystem
             /// <inheritdoc/>
             public override async ValueTask DisposeAsync()
             {
-                Entered.TrySetResult(true);
-                await Release.Task.ConfigureAwait(false);
-                base.Dispose(true);
-                GC.SuppressFinalize(this);
+                try
+                {
+                    Entered.TrySetResult(true);
+                    await Release.Task.ConfigureAwait(false);
+                }
+                finally
+                {
+                    await base.DisposeAsync().ConfigureAwait(false);
+                }
             }
         }
 #endif
