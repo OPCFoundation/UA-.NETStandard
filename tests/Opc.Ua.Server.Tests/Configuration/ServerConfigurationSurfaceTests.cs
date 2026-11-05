@@ -732,6 +732,143 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Deferred recovery reacquires deployment admission after its delay and never mutates a revoked deployment.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task ConfigurationFileDeferredRecoveryChecksDeploymentAfterTimerAsync(bool revert, bool revoked)
+        {
+            var time = new ControllableTimeProvider();
+            var provider = new Mock<IRecoverableApplicationConfigurationFileProvider>();
+            provider.SetupGet(value => value.CurrentVersion).Returns(1u);
+            Uuid updateId = Uuid.NewUuid();
+            DateTime later = DateTime.UtcNow.AddMinutes(1);
+            provider.Setup(value => value.GetPendingUpdateAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new PendingApplicationConfigurationUpdate(
+                    updateId, later, revert ? later : null, revert));
+            var operations = new Mock<IApplicationConfigurationPushOperations>(MockBehavior.Strict);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            operations.Setup(value => value.ExecuteAsync(
+                It.IsAny<Func<ValueTask>>(), It.IsAny<CancellationToken>()))
+                .Returns((Func<ValueTask> effect, CancellationToken _) => ExecuteAsync(effect));
+            Harness harness = await CreateHarnessAsync(new ServerConfigurationOptions
+            {
+                ConfigurationFileProvider = new FakeConfigurationFileProvider(s_initialConfig)
+            }).ConfigureAwait(false);
+            using (harness.Manager)
+            using (var file = new ApplicationConfigurationFile(
+                harness.Node.ConfigurationFile!, provider.Object, _ => { }, _ => { }, s_telemetry,
+                harness.Coordinator, time, 0, operations.Object))
+            {
+                try
+                {
+                    await file.RecoverPendingUpdateAsync(harness.Manager.SystemContext).ConfigureAwait(false);
+                    DateTime deadline = DateTime.UtcNow.AddSeconds(10);
+                    while (time.Timers.Count == 0 && DateTime.UtcNow < deadline)
+                    {
+                        await Task.Delay(10).ConfigureAwait(false);
+                    }
+                    Assert.That(time.Timers, Has.Count.EqualTo(1));
+                    operations.Verify(value => value.ExecuteAsync(
+                        It.IsAny<Func<ValueTask>>(), It.IsAny<CancellationToken>()), Times.Never);
+                    time.Timers[0].Fire();
+                    await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
+                finally
+                {
+                    await file.StopAsync().ConfigureAwait(false);
+                }
+
+                operations.Verify(value => value.ExecuteAsync(
+                    It.IsAny<Func<ValueTask>>(), It.IsAny<CancellationToken>()), Times.Once);
+                provider.Verify(value => value.ApplyPendingUpdateAsync(updateId, It.IsAny<CancellationToken>()),
+                    !revert && !revoked ? Times.Once() : Times.Never());
+                provider.Verify(value => value.RevertPendingUpdateAsync(updateId, It.IsAny<CancellationToken>()),
+                    revert && !revoked ? Times.Once() : Times.Never());
+            }
+
+            async ValueTask ExecuteAsync(Func<ValueTask> effect)
+            {
+                try
+                {
+                    if (revoked)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadInvalidState);
+                    }
+                    await effect().ConfigureAwait(false);
+                }
+                finally
+                {
+                    entered.TrySetResult(true);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Shutdown waits for a provider effect already admitted before releasing its owner.
+        /// </summary>
+        [Test]
+        public async Task ConfigurationFileShutdownDrainsAdmittedRecoveryEffectAsync()
+        {
+            var time = new ControllableTimeProvider();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var operations = new Mock<IApplicationConfigurationPushOperations>(MockBehavior.Strict);
+            operations.Setup(value => value.ExecuteAsync(
+                It.IsAny<Func<ValueTask>>(), It.IsAny<CancellationToken>()))
+                .Returns((Func<ValueTask> effect, CancellationToken _) => effect());
+            var provider = new Mock<IRecoverableApplicationConfigurationFileProvider>();
+            provider.SetupGet(value => value.CurrentVersion).Returns(1u);
+            Uuid updateId = Uuid.NewUuid();
+            provider.Setup(value => value.GetPendingUpdateAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new PendingApplicationConfigurationUpdate(
+                    updateId, DateTime.UtcNow.AddMinutes(1), null, false));
+            provider.Setup(value => value.ApplyPendingUpdateAsync(updateId, It.IsAny<CancellationToken>()))
+                .Returns(() => ApplyAsync());
+            Harness harness = await CreateHarnessAsync(new ServerConfigurationOptions
+            {
+                ConfigurationFileProvider = new FakeConfigurationFileProvider(s_initialConfig)
+            }).ConfigureAwait(false);
+            using (harness.Manager)
+            using (var file = new ApplicationConfigurationFile(
+                harness.Node.ConfigurationFile!, provider.Object, _ => { }, _ => { }, s_telemetry,
+                harness.Coordinator, time, 0, operations.Object))
+            {
+                Task? stopping = null;
+                try
+                {
+                    await file.RecoverPendingUpdateAsync(harness.Manager.SystemContext).ConfigureAwait(false);
+                    DateTime deadline = DateTime.UtcNow.AddSeconds(10);
+                    while (time.Timers.Count == 0 && DateTime.UtcNow < deadline)
+                    {
+                        await Task.Delay(10).ConfigureAwait(false);
+                    }
+                    Assert.That(time.Timers, Has.Count.EqualTo(1));
+                    time.Timers[0].Fire();
+                    await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    stopping = file.StopAsync().AsTask();
+                    Assert.That(stopping.IsCompleted, Is.False);
+                }
+                finally
+                {
+                    release.TrySetResult(true);
+                    await (stopping ?? file.StopAsync().AsTask()).WaitAsync(TimeSpan.FromSeconds(10))
+                        .ConfigureAwait(false);
+                }
+                provider.Verify(value => value.ApplyPendingUpdateAsync(
+                    updateId, It.IsAny<CancellationToken>()), Times.Once);
+            }
+
+            async ValueTask ApplyAsync()
+            {
+                entered.TrySetResult(true);
+                await release.Task.ConfigureAwait(false);
+            }
+        }
+
         [Test]
         public async Task ConfigurationFileApplyFailureLeavesNoPartialUpdateAsync()
         {
