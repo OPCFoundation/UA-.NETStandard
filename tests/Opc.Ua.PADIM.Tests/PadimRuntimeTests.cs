@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
@@ -472,6 +473,7 @@ namespace Opc.Ua.PADIM.Tests
             Task<Task>? secondInvocation = null;
             Task? secondRefresh = null;
             Exception? testFailure = null;
+            var cleanupFailures = new List<Exception>();
             async Task<Exception?> DrainRefreshAsync(Task<Task> invocation, Task? refresh)
             {
                 try
@@ -503,7 +505,6 @@ namespace Opc.Ua.PADIM.Tests
             catch (Exception exception)
             {
                 testFailure = exception;
-                throw;
             }
             finally
             {
@@ -513,7 +514,6 @@ namespace Opc.Ua.PADIM.Tests
                     ? Task.FromResult<Exception?>(null)
                     : DrainRefreshAsync(secondInvocation, secondRefresh);
                 Exception?[] cleanupResults = await Task.WhenAll(firstDrain, secondDrain);
-                var cleanupFailures = new List<Exception>();
                 foreach (Exception? cleanupFailure in cleanupResults)
                 {
                     if (cleanupFailure != null)
@@ -521,18 +521,22 @@ namespace Opc.Ua.PADIM.Tests
                         cleanupFailures.Add(cleanupFailure);
                     }
                 }
-                if (cleanupFailures.Count > 0)
+            }
+            if (cleanupFailures.Count > 0)
+            {
+                if (testFailure != null)
                 {
-                    if (testFailure != null)
-                    {
-                        cleanupFailures.Insert(0, testFailure);
-                    }
-                    throw new AggregateException(
-                        testFailure == null
-                            ? "One or more refresh cleanup operations failed."
-                            : "Refresh cleanup failed while preserving the earlier test failure.",
-                        cleanupFailures);
+                    cleanupFailures.Insert(0, testFailure);
                 }
+                throw new AggregateException(
+                    testFailure == null
+                        ? "One or more refresh cleanup operations failed."
+                        : "Refresh cleanup failed while preserving the earlier test failure.",
+                    cleanupFailures);
+            }
+            if (testFailure != null)
+            {
+                ExceptionDispatchInfo.Capture(testFailure).Throw();
             }
             provider.Verify(p => p.ReadAsync("temperature", It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
@@ -600,7 +604,7 @@ namespace Opc.Ua.PADIM.Tests
                     Assert.That(alarm.Severity!.Value, Is.EqualTo((ushort)EventSeverity.High));
                     Assert.That(observed, Has.Count.EqualTo(3));
                     Assert.That(observed.Select(item => item.Source),
-                        Is.EqualTo(new[] { "acknowledged", "active", "severity" }));
+                        Is.EqualTo(s_healthNotificationOrder));
                     Assert.That(observed[0].Node, Is.SameAs(acknowledgedId));
                     Assert.That(observed[0].Acknowledged, Is.False);
                     Assert.That(observed[0].Active, Is.False);
@@ -700,7 +704,7 @@ namespace Opc.Ua.PADIM.Tests
                     Assert.That(failureAlarm.Quality!.Value, Is.EqualTo(StatusCodes.Good));
                     Assert.That(reportEventCalls, Is.Zero);
                     Assert.That(healthNotifications.Select(item => item.Source),
-                        Is.EqualTo(new[] { "acknowledged", "active", "severity" }));
+                        Is.EqualTo(s_healthNotificationOrder));
                     Assert.That(healthNotifications.All(item => item.Token == CancellationToken.None), Is.True);
                 });
             }
@@ -1555,6 +1559,9 @@ namespace Opc.Ua.PADIM.Tests
             await AwaitWithinAsync((Task)task).ConfigureAwait(false);
             return await task.ConfigureAwait(false);
         }
+
+        /// <summary>The expected order of health alarm child notifications.</summary>
+        private static readonly string[] s_healthNotificationOrder = ["acknowledged", "active", "severity"];
 
         /// <summary>The server lifetime shared by the nonparallel runtime fixture.</summary>
         private ServerFixture<StandardServer>? m_fixture;
