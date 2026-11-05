@@ -457,6 +457,7 @@ namespace Opc.Ua.Server
                         {
                             System.Threading.Interlocked.Exchange(ref m_firstSystemContext, null);
                             System.Threading.Interlocked.Exchange(ref m_systemContextCache, null);
+                            System.Threading.Interlocked.Exchange(ref m_systemContextList, null);
                         }
                     }
                 }
@@ -686,6 +687,7 @@ namespace Opc.Ua.Server
         {
             Interlocked.Exchange(ref m_weakSystemContextCache, 1);
             Interlocked.Exchange(ref m_firstSystemContext, null);
+            Interlocked.Exchange(ref m_systemContextList, null);
         }
 
         /// <summary>
@@ -697,10 +699,13 @@ namespace Opc.Ua.Server
         /// metadata, reference descriptions) otherwise clone the system context once for
         /// every call or node of a request. The copies are equal for one request and
         /// node manager, so one copy is kept per template. A request that touches several
-        /// node managers keeps one copy for each live template, so they do not evict each
-        /// other. Ordinary operations retain the first copy directly and weakly key the rest;
-        /// shared subscriber operations weakly key every copy so retired templates can be
-        /// collected while the operation remains live. Disposing releases the cache.
+        /// node managers keeps one copy for each template, so they do not evict each other.
+        /// Ordinary operations live for one service request and are disposed at its end: they
+        /// retain the first copy directly and the others in a lock-free list, which allocates one
+        /// entry per further template and nothing the garbage collector has to finalize or track
+        /// with a handle. Shared subscriber operations are retained by sessions and monitored
+        /// items, so they weakly key every copy and retired templates can be collected while the
+        /// operation remains live. Disposing releases the cache.
         /// </remarks>
         /// <param name="template">The node manager's system context.</param>
         internal ServerSystemContext GetSystemContext(ServerSystemContext template)
@@ -727,6 +732,8 @@ namespace Opc.Ua.Server
                         return first ?? firstCopy;
                     }
                 }
+
+                return GetListedSystemContext(template);
             }
 
             SystemContextCache? cache = Volatile.Read(ref m_systemContextCache);
@@ -755,6 +762,48 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Returns the copy for a template after the first of an ordinary request context.
+        /// </summary>
+        /// <remarks>
+        /// A per-request <see cref="ConditionalWeakTable{TKey, TValue}"/> made every request
+        /// served by two node managers allocate a finalizable container and dependent handles,
+        /// which multiplied the gen0 mark time. Entries are immutable and prepended with a
+        /// compare-and-swap; a caller that loses the race looks the template up again, so
+        /// concurrent callers share one copy per template.
+        /// </remarks>
+        private ServerSystemContext GetListedSystemContext(ServerSystemContext template)
+        {
+            SystemContextEntry? head = Volatile.Read(ref m_systemContextList);
+            ServerSystemContext? copy = null;
+            while (true)
+            {
+                for (SystemContextEntry? entry = head; entry != null; entry = entry.Next)
+                {
+                    if (ReferenceEquals(entry.Template, template))
+                    {
+                        return entry.Copy;
+                    }
+                }
+
+                if (copy == null)
+                {
+                    copy = template.Copy(this);
+                    copy.CopiedFrom = template;
+                }
+
+                var added = new SystemContextEntry(template, copy, head);
+                SystemContextEntry? current = Interlocked.CompareExchange(ref m_systemContextList, added, head);
+                if (ReferenceEquals(current, head))
+                {
+                    return copy;
+                }
+
+                // another caller prepended entries: search them before adding this copy.
+                head = current;
+            }
+        }
+
         /// <inheritdoc/>
         uint IRequestTableEntry.TableKey => RequestId;
 
@@ -779,6 +828,33 @@ namespace Opc.Ua.Server
         /// The system context copy of the first node manager the request called.
         /// </summary>
         private ServerSystemContext? m_firstSystemContext;
+
+        /// <summary>
+        /// The copies after the first of an ordinary request context, newest first.
+        /// </summary>
+        private SystemContextEntry? m_systemContextList;
+
+        /// <summary>
+        /// An immutable system context copy and its template in the list of an ordinary request context.
+        /// </summary>
+        private sealed class SystemContextEntry
+        {
+            public SystemContextEntry(
+                ServerSystemContext template,
+                ServerSystemContext copy,
+                SystemContextEntry? next)
+            {
+                Template = template;
+                Copy = copy;
+                Next = next;
+            }
+
+            public ServerSystemContext Template { get; }
+
+            public ServerSystemContext Copy { get; }
+
+            public SystemContextEntry? Next { get; }
+        }
 
         /// <summary>
         /// Holds weakly keyed system-context copies beyond the first request copy, or all copies
