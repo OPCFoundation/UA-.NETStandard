@@ -309,6 +309,25 @@ namespace Opc.Ua.AMB.Tests
             });
         }
 
+        /// <summary>
+        /// The fixture reports the startup exception instead of waiting for the readiness timeout.
+        /// </summary>
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task HostedFixtureReportsStartupFailureAsync(CancellationToken ct)
+        {
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+            {
+                await using AmbHostedServer server = await AmbHostedServer.StartAsync(
+                    nameof(HostedFixtureReportsStartupFailureAsync),
+                    builder => builder.AddAssetManagement().ConfigureAssetManagement(
+                        _ => throw new InvalidDataException("broken setup")),
+                    ct).ConfigureAwait(false);
+            }).ConfigureAwait(false);
+
+            Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadInternalError));
+        }
+
         private static IOpcUaServerBuilder CreateServerBuilder()
         {
             var services = new ServiceCollection();

@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -52,10 +53,12 @@ namespace Opc.Ua.AMB.Tests
     /// </summary>
     internal sealed class AmbHostedServer : IAsyncDisposable
     {
-        private AmbHostedServer(ServiceProvider provider, IHostedService hostedService, string endpointUrl)
+        private AmbHostedServer(
+            ServiceProvider provider, IHostedService hostedService, string endpointUrl, string testRoot)
         {
             Provider = provider;
             m_hostedService = hostedService;
+            m_testRoot = testRoot;
             EndpointUrl = endpointUrl;
             AssetManagement = provider.GetRequiredService<AssetManagement>();
         }
@@ -73,10 +76,13 @@ namespace Opc.Ua.AMB.Tests
         /// <summary>
         /// Builds and starts a server.
         /// </summary>
-        /// <param name="name">A name unique to the test, used for the PKI and endpoint.</param>
+        /// <param name="name">A name unique to the test, used for the application identity and endpoint.</param>
         /// <param name="compose">Adds the node managers and their configuration.</param>
-        public static async Task<AmbHostedServer> StartAsync(string name, Action<IOpcUaServerBuilder> compose)
+        /// <param name="ct">Cancels startup and the readiness wait.</param>
+        public static async Task<AmbHostedServer> StartAsync(
+            string name, Action<IOpcUaServerBuilder> compose, CancellationToken ct = default)
         {
+            string testRoot = Path.Combine(Path.GetTempPath(), "amb-host", Guid.NewGuid().ToString("N")[..12]);
             string endpointUrl = "opc.tcp://localhost:" +
                 GetAvailablePort().ToString(CultureInfo.InvariantCulture) +
                 "/" +
@@ -85,14 +91,10 @@ namespace Opc.Ua.AMB.Tests
             services.AddLogging();
             IOpcUaServerBuilder builder = services.AddOpcUa().AddServer<StandardServer>(options =>
             {
-                string root = System.IO.Path.Combine(
-                    TestContext.CurrentContext.WorkDirectory,
-                    name,
-                    Guid.NewGuid().ToString("N"));
                 options.ApplicationName = name;
                 options.ApplicationUri = "urn:localhost:" + name;
                 options.ProductUri = "urn:localhost:" + name + ":product";
-                options.PkiRoot = System.IO.Path.Combine(root, "pki");
+                options.PkiRoot = Path.Combine(testRoot, "pki");
                 options.AutoAcceptUntrustedCertificates = true;
                 options.IncludeUnsecurePolicyNone = true;
                 options.EndpointUrls.Clear();
@@ -101,21 +103,32 @@ namespace Opc.Ua.AMB.Tests
             compose(builder);
 
             ServiceProvider provider = services.BuildServiceProvider();
-            IHostedService hostedService = provider.GetServices<IHostedService>().Single();
-            await hostedService.StartAsync(CancellationToken.None).ConfigureAwait(false);
-            var server = new AmbHostedServer(provider, hostedService, endpointUrl);
-
-            var watch = Stopwatch.StartNew();
-            while (server.AssetManagement.Manager?.Server.IsRunning != true)
+            var hostedService = (BackgroundService)provider.GetServices<IHostedService>().Single();
+            var server = new AmbHostedServer(provider, hostedService, endpointUrl, testRoot);
+            try
             {
-                if (watch.Elapsed > TimeSpan.FromSeconds(90))
+                await hostedService.StartAsync(ct).ConfigureAwait(false);
+                var watch = Stopwatch.StartNew();
+                while (server.AssetManagement.Manager?.Server.IsRunning != true)
                 {
-                    await server.DisposeAsync().ConfigureAwait(false);
-                    Assert.Fail("The server did not start.");
+                    if (hostedService.ExecuteTask is { IsCompleted: true } execution)
+                    {
+                        await execution.ConfigureAwait(false);
+                        Assert.Fail("The server stopped before completing startup.");
+                    }
+                    if (watch.Elapsed > TimeSpan.FromSeconds(90))
+                    {
+                        Assert.Fail("The server did not start.");
+                    }
+                    await Task.Delay(50, ct).ConfigureAwait(false);
                 }
-                await Task.Delay(50).ConfigureAwait(false);
+                return server;
             }
-            return server;
+            catch
+            {
+                await server.DisposeAsync().ConfigureAwait(false);
+                throw;
+            }
         }
 
         public NodeId ToNodeId(ExpandedNodeId nodeId)
@@ -255,6 +268,7 @@ namespace Opc.Ua.AMB.Tests
             return aliases;
         }
 
+        /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
             try
@@ -263,7 +277,17 @@ namespace Opc.Ua.AMB.Tests
             }
             finally
             {
-                await Provider.DisposeAsync().ConfigureAwait(false);
+                try
+                {
+                    await Provider.DisposeAsync().ConfigureAwait(false);
+                }
+                finally
+                {
+                    if (Directory.Exists(m_testRoot))
+                    {
+                        Directory.Delete(m_testRoot, recursive: true);
+                    }
+                }
             }
         }
 
@@ -292,5 +316,6 @@ namespace Opc.Ua.AMB.Tests
         }
 
         private readonly IHostedService m_hostedService;
+        private readonly string m_testRoot;
     }
 }

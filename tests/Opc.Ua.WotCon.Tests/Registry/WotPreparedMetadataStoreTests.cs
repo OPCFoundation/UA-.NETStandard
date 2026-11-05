@@ -53,9 +53,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
         public void SetUp()
         {
             m_root = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
+                Path.GetTempPath(),
                 nameof(WotPreparedMetadataStoreTests),
-                Guid.NewGuid().ToString("N"));
+                Guid.NewGuid().ToString("N")[..12]);
         }
 
         /// <summary>

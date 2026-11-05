@@ -480,11 +480,14 @@ namespace Opc.Ua.Gds.Tests.Hosting
             return services;
         }
 
+        /// <summary>
+        /// Creates a unique root with room for certificate filenames on .NET Framework.
+        /// </summary>
         private static string CreateTestRoot()
         {
             string testRoot = Path.Combine(
                 TestContext.CurrentContext.WorkDirectory,
-                nameof(GdsServerHostedServiceTests),
+                "gds",
                 Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(testRoot);
             return testRoot;

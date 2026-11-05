@@ -84,9 +84,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
         public async Task SetUpAsync()
         {
             m_pkiRoot = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
+                Path.GetTempPath(),
                 nameof(WotRegistryEventIntegrationTests),
-                Guid.NewGuid().ToString("N"));
+                Guid.NewGuid().ToString("N")[..12]);
 
             m_fixture = new ServerFixture<ReferenceServer>(t => new ReferenceServer(t))
             {
