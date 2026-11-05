@@ -42,6 +42,10 @@ readback. The server must separately authorize these requests. These timestamps
 describe completion in this sample provider; another device can expose a
 different operation lifecycle through its condition and calibration members.
 
+The simulation cleanup also attempts disable when the enable request throws or
+is cancelled, because the server may already have accepted the write. Disable
+uses no caller cancellation token; a cleanup error is reported to the client.
+
 The client also prints the device's identity and health values, the pH signal's
 condition fields, calibration metadata and neutral calibration point without
 requiring write authorization.

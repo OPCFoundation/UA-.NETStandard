@@ -171,17 +171,11 @@ try
                         PadimProcessValueClient analog = client.ProcessValue(value.NodeId);
                         await analog.SimulationValue.WriteAsync(Variant.From(99f), lifetime.Token)
                             .ConfigureAwait(false);
-                        await analog.SimulationState.WriteAsync(true, lifetime.Token).ConfigureAwait(false);
-                        try
-                        {
-                            await PrintSignalAsync(client, signals[jj].NodeId, "Simulation", lifetime.Token)
-                                .ConfigureAwait(false);
-                        }
-                        finally
-                        {
-                            await analog.SimulationState.WriteAsync(false, CancellationToken.None)
-                                .ConfigureAwait(false);
-                        }
+                        await DemonstrationSimulation.RunAsync(
+                            async (enabled, ct) =>
+                                await analog.SimulationState.WriteAsync(enabled, ct).ConfigureAwait(false),
+                            ct => PrintSignalAsync(client, signals[jj].NodeId, "Simulation", ct),
+                            lifetime.Token).ConfigureAwait(false);
                         await PrintSignalAsync(client, signals[jj].NodeId, "Restored acquisition", lifetime.Token)
                             .ConfigureAwait(false);
                     }

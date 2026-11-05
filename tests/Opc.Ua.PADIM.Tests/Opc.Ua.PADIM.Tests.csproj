@@ -19,6 +19,8 @@
     <Compile Include="..\Common\Main.cs" />
     <Compile Include="..\..\samples\PADIM\PadimDemo\DemonstrationDevice.cs"
              Link="Samples\DemonstrationDevice.cs" />
+    <Compile Include="..\..\samples\PADIM\PadimDemo\DemonstrationSimulation.cs"
+             Link="Samples\DemonstrationSimulation.cs" />
     <None Include="..\..\src\Opc.Ua.PADIM\Model\Opc.Ua.PADIM.NodeSet2.xml"
           Link="Model\Opc.Ua.PADIM.NodeSet2.xml" CopyToOutputDirectory="PreserveNewest" />
     <ProjectReference Include="..\..\src\Opc.Ua.PADIM.Client\Opc.Ua.PADIM.Client.csproj" />

@@ -43,6 +43,107 @@ namespace Opc.Ua.PADIM.Tests
     public sealed class PadimSampleTests
     {
         /// <summary>
+        /// An uncertain enable result still restores acquisition and propagates the original failure.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SampleSimulationDisablesAfterEnableFailure(bool cancelled)
+        {
+            bool simulating = false;
+            bool read = false;
+            int writes = 0;
+            CancellationToken disableToken = new CancellationToken(canceled: true);
+            CancellationToken callerToken = new CancellationToken(canceled: cancelled);
+            Exception failure = cancelled
+                ? new OperationCanceledException(callerToken)
+                : new InvalidOperationException("The enable notification failed after commit.");
+            ValueTask WriteStateAsync(bool enabled, CancellationToken token)
+            {
+                writes++;
+                simulating = enabled;
+                if (enabled)
+                {
+                    throw failure;
+                }
+                disableToken = token;
+                return default;
+            }
+            ValueTask ReadAsync(CancellationToken token)
+            {
+                read = true;
+                return default;
+            }
+
+            if (cancelled)
+            {
+                OperationCanceledException? error = await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                    await DemonstrationSimulation.RunAsync(WriteStateAsync, ReadAsync, callerToken));
+                Assert.That(error, Is.SameAs(failure));
+            }
+            else
+            {
+                InvalidOperationException? error = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await DemonstrationSimulation.RunAsync(WriteStateAsync, ReadAsync, callerToken));
+                Assert.That(error, Is.SameAs(failure));
+            }
+            Assert.Multiple(() =>
+            {
+                Assert.That(simulating, Is.False);
+                Assert.That(read, Is.False);
+                Assert.That(writes, Is.EqualTo(2));
+                Assert.That(disableToken, Is.EqualTo(CancellationToken.None));
+            });
+        }
+
+        /// <summary>
+        /// Successful enable restores acquisition whether reading succeeds or fails.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SampleSimulationDisablesAfterRead(bool failRead)
+        {
+            bool simulating = false;
+            bool read = false;
+            int writes = 0;
+            CancellationToken disableToken = new CancellationToken(canceled: true);
+            ValueTask WriteStateAsync(bool enabled, CancellationToken token)
+            {
+                writes++;
+                simulating = enabled;
+                if (!enabled)
+                {
+                    disableToken = token;
+                }
+                return default;
+            }
+            ValueTask ReadAsync(CancellationToken token)
+            {
+                read = simulating;
+                if (failRead)
+                {
+                    throw new InvalidOperationException("The simulated read failed.");
+                }
+                return default;
+            }
+            if (failRead)
+            {
+                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await DemonstrationSimulation.RunAsync(WriteStateAsync, ReadAsync, CancellationToken.None));
+            }
+            else
+            {
+                await DemonstrationSimulation.RunAsync(WriteStateAsync, ReadAsync, CancellationToken.None);
+            }
+            Assert.Multiple(() =>
+            {
+                Assert.That(read, Is.True);
+                Assert.That(simulating, Is.False);
+                Assert.That(writes, Is.EqualTo(2));
+                Assert.That(disableToken, Is.EqualTo(CancellationToken.None));
+            });
+        }
+
+        /// <summary>
         /// Separates method acceptance from completion and rejects a repeat without postponing completion.
         /// </summary>
         [Test]
