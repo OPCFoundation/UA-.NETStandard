@@ -1110,11 +1110,9 @@ namespace Opc.Ua.Scales.Server.Runtime
             while (true)
             {
                 List<Action> pending;
-                bool evaluate;
                 lock (m_lock)
                 {
-                    evaluate = m_conditionEvaluationRequested;
-                    if (m_disposed || (m_pending.Count == 0 && !evaluate))
+                    if (m_disposed)
                     {
                         return;
                     }
@@ -1136,13 +1134,17 @@ namespace Opc.Ua.Scales.Server.Runtime
                         (failures ??= []).Add(ex);
                     }
                 }
-                if (evaluate)
+                if (!TryEvaluateRequestedConditionWaits(out bool evaluated))
+                {
+                    return;
+                }
+                if (!evaluated)
                 {
                     lock (m_lock)
                     {
-                        if (m_conditionEvaluationRequested)
+                        if (m_disposed || (m_pending.Count == 0 && !m_conditionEvaluationRequested))
                         {
-                            EvaluateConditionWaitsCore();
+                            return;
                         }
                     }
                 }

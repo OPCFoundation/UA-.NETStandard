@@ -698,6 +698,143 @@ namespace Opc.Ua.Scales.Tests
         }
 
         [Test]
+        public async Task DrainPendingEvaluationWaitsForScaleWriteAdmissionAsync()
+        {
+            ScaleHandle scale = await m_fixture.Manager.CreateScaleAsync(
+                m_fixture.Name("AdmissionConditionScale"), ScaleKind.Recipe, b => b
+                    .WithIdentification(ScalesNodeManagerTests.Identity("AdmissionConditionScale"))
+                    .WithWeighingRange(new WeighingRangeDefinition(0, 100, 0.001, 0.001))
+                    .WithTypeFeatures()
+                    .WithProductionPreset(p => p.AddProduct("A", new LocalizedText("First")).Select("A")));
+            m_scale = scale;
+            m_controller = scale.Recipes!;
+            m_recipe = m_controller.AddRecipe("Admission", new LocalizedText("Admission recipe"));
+            Enable(BuiltInType.Double);
+            Publish(10.0);
+            AnalogConditionSleepState element = Analog(0, 10.0);
+            var product = (RecipeProductState)scale.ProductionPreset!.ActiveProduct!;
+            var completed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            m_controller.RecipeCompleted += (_, _) => completed.TrySetResult(true);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task<bool> write = m_scale.WriteOperations.ExecuteAsynchronouslyAsync(
+                async cancellationToken =>
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    return true;
+                },
+                CancellationToken.None).AsTask();
+
+            try
+            {
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                AssertGood(m_controller.Start(m_recipe.NodeId));
+                int reportCount = product.Report!.Value.Count;
+                Assert.That(m_controller.CurrentElements.ToArray(), Does.Contain(element));
+                Assert.That(completed.Task.IsCompleted, Is.False);
+                Assert.That(product.Report.Value.Count, Is.EqualTo(reportCount));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+
+            await write.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            await completed.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            Assert.That(m_controller.State, Is.EqualTo(RecipeRunState.Idle));
+            Assert.That(product.Report!.Value.Contains(
+                entry => entry.ReportMessage.Text?.Contains("condition satisfied", StringComparison.Ordinal) == true),
+                Is.True);
+        }
+
+        [Test]
+        public async Task QueuedObservationsPreserveBooleanEdgesAsync()
+        {
+            Enable(BuiltInType.Boolean);
+            Publish(false);
+            EdgeTriggeredSleepState edge = Edge(0);
+            var completed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            m_controller.RecipeCompleted += (_, _) => completed.TrySetResult(true);
+            AssertGood(m_controller.Start(m_recipe.NodeId));
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task<bool> write = m_scale.WriteOperations.ExecuteAsynchronouslyAsync(
+                async cancellationToken =>
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    return true;
+                },
+                CancellationToken.None).AsTask();
+
+            try
+            {
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Publish(true);
+                Publish(false);
+                Assert.That(m_controller.CurrentElements.ToArray(), Does.Contain(edge));
+                Assert.That(completed.Task.IsCompleted, Is.False);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+
+            await write.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            await completed.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            Assert.That(m_controller.State, Is.EqualTo(RecipeRunState.Idle));
+        }
+
+        [Test]
+        public async Task TimeoutEventWaitsForScaleWriteAdmissionAsync()
+        {
+            Enable(BuiltInType.Double);
+            AnalogConditionSleepState element = Analog(0, 10.0);
+            element.AddTimeout(m_fixture.Context);
+            element.Timeout!.Value = 1000;
+            AssertGood(m_controller.Start(m_recipe.NodeId));
+            var eventReported = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            NodeState source = m_scale.Scale;
+            NodeStateReportEventHandler? previous = source.OnReportEvent;
+            int reported = 0;
+            source.OnReportEvent = (context, node, e) =>
+            {
+                previous?.Invoke(context, node, e);
+                reported++;
+                eventReported.TrySetResult(true);
+            };
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task<bool> write = m_scale.WriteOperations.ExecuteAsynchronouslyAsync(
+                async cancellationToken =>
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    return true;
+                },
+                CancellationToken.None).AsTask();
+
+            try
+            {
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                m_clock.Advance(TimeSpan.FromMilliseconds(1000));
+                Assert.That(m_controller.ConditionWaitsRequiringIntervention.ToArray(), Is.Empty);
+                Assert.That(eventReported.Task.IsCompleted, Is.False);
+                release.TrySetResult(true);
+                await write.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                await eventReported.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.That(m_controller.ConditionWaitsRequiringIntervention.ToArray(), Does.Contain(element));
+                Assert.That(reported, Is.EqualTo(1));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                source.OnReportEvent = previous;
+            }
+        }
+
+        [Test]
         public async Task AutomaticConditionReportsRemainWithTheStartingProductAsync()
         {
             ScaleHandle scale = await m_fixture.Manager.CreateScaleAsync(

@@ -144,48 +144,60 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// Bad, uncertain, overflowed, missing, stale, future or out-of-order observations cannot satisfy a wait.
         /// A gap resets edge history; its first good value establishes a baseline, not an edge.
         /// </summary>
+        /// <remarks>
+        /// If a scale write is active or another condition operation is queued, this observation is queued in
+        /// arrival order and processed asynchronously.
+        /// In that case this method returns before the observation is processed.
+        /// </remarks>
         /// <param name="thresholdId">The registered source identifier.</param>
         /// <param name="value">The observed scalar value, quality and source timestamp.</param>
         /// <param name="hasGap">Whether the producer lost any intervening observations.</param>
         public void ObserveConditionSource(uint thresholdId, in DataValue value, bool hasGap = false)
         {
-            lock (m_lock)
+            DataValue observation = value;
+            RunConditionWork(() => ObserveConditionSourceCore(thresholdId, observation, hasGap));
+        }
+
+        /// <summary>
+        /// Updates one source and evaluates its waits as one admitted state transition.
+        /// The caller holds the controller lock and scale write admission.
+        /// </summary>
+        private void ObserveConditionSourceCore(uint thresholdId, DataValue value, bool hasGap)
+        {
+            if (m_disposed)
             {
-                if (m_disposed)
+                return;
+            }
+            if (!m_conditionSources.TryGetValue(thresholdId, out ConditionSource? source))
+            {
+                throw new ArgumentException("The condition source is not registered.", nameof(thresholdId));
+            }
+            DateTime timestamp = (DateTime)value.SourceTimestamp;
+            DateTime now = m_conditionClock.GetUtcNow().UtcDateTime;
+            bool ordered = !source.HasObservation || timestamp > source.Timestamp;
+            bool gap = hasGap || !ordered || (source.HasObservation &&
+                timestamp - source.Timestamp > m_maximumSourceAge);
+            source.Value = value.WrappedValue;
+            source.Good = ordered && StatusCode.IsGood(value.StatusCode) && !value.StatusCode.Overflow &&
+                timestamp != DateTime.MinValue && timestamp <= now &&
+                now - timestamp <= m_maximumSourceAge &&
+                value.WrappedValue.TypeInfo.ValueRank == ValueRanks.Scalar &&
+                value.WrappedValue.TypeInfo.BuiltInType == source.DataType;
+            source.HasObservation = true;
+            if (ordered && timestamp != DateTime.MinValue && timestamp <= now)
+            {
+                source.Timestamp = timestamp;
+            }
+            source.Sequence++;
+            if (gap || !source.Good || State != RecipeRunState.Running)
+            {
+                foreach (ConditionWait wait in m_conditionWaits.Values
+                    .Where(w => ReferenceEquals(w.Source, source)))
                 {
-                    return;
-                }
-                if (!m_conditionSources.TryGetValue(thresholdId, out ConditionSource? source))
-                {
-                    throw new ArgumentException("The condition source is not registered.", nameof(thresholdId));
-                }
-                DateTime timestamp = (DateTime)value.SourceTimestamp;
-                DateTime now = m_conditionClock.GetUtcNow().UtcDateTime;
-                bool ordered = !source.HasObservation || timestamp > source.Timestamp;
-                bool gap = hasGap || !ordered || (source.HasObservation &&
-                    timestamp - source.Timestamp > m_maximumSourceAge);
-                source.Value = value.WrappedValue;
-                source.Good = ordered && StatusCode.IsGood(value.StatusCode) && !value.StatusCode.Overflow &&
-                    timestamp != DateTime.MinValue && timestamp <= now &&
-                    now - timestamp <= m_maximumSourceAge &&
-                    value.WrappedValue.TypeInfo.ValueRank == ValueRanks.Scalar &&
-                    value.WrappedValue.TypeInfo.BuiltInType == source.DataType;
-                source.HasObservation = true;
-                if (ordered && timestamp != DateTime.MinValue && timestamp <= now)
-                {
-                    source.Timestamp = timestamp;
-                }
-                source.Sequence++;
-                if (gap || !source.Good || State != RecipeRunState.Running)
-                {
-                    foreach (ConditionWait wait in m_conditionWaits.Values
-                        .Where(w => ReferenceEquals(w.Source, source)))
-                    {
-                        wait.HasPrevious = false;
-                    }
+                    wait.HasPrevious = false;
                 }
             }
-            EvaluateConditionWaits();
+            EvaluateConditionWaitsCore();
         }
 
         /// <summary>
@@ -193,13 +205,246 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// The timer also calls this method; applications may call it after advancing a test clock.
         /// Timeout is latched as an intervention and never completes an element.
         /// </summary>
+        /// <remarks>
+        /// If a scale write is active or another condition operation is queued, evaluation is queued and this
+        /// method returns before it completes.
+        /// </remarks>
         public void EvaluateConditionWaits()
         {
-            lock (m_lock)
+            RunConditionWork(EvaluateConditionWaitsCore);
+        }
+
+        /// <summary>
+        /// Runs condition state changes under scale admission before taking the controller lock.
+        /// Contended operations are queued in arrival order and run asynchronously when admitted.
+        /// </summary>
+        private void RunConditionWork(Action operation)
+        {
+            bool runPending = false;
+            lock (m_conditionWorkLock)
             {
-                EvaluateConditionWaitsCore();
+                if (m_conditionWorkStopped)
+                {
+                    return;
+                }
+                if (m_conditionWorkRunning)
+                {
+                    EnqueueConditionWorkLocked(CreateConditionWork(operation));
+                    return;
+                }
+                if (m_owner.WriteOperations.TryExecuteSynchronously(() =>
+                    {
+                        lock (m_lock)
+                        {
+                            if (!m_disposed)
+                            {
+                                operation();
+                            }
+                        }
+                    }))
+                {
+                    runPending = true;
+                }
+                else
+                {
+                    EnqueueConditionWorkLocked(CreateConditionWork(operation));
+                }
             }
-            RaisePending();
+            if (runPending)
+            {
+                RaisePending();
+            }
+        }
+
+        /// <summary>
+        /// Evaluates a requested condition pass from the notification drain under scale admission.
+        /// </summary>
+        /// <param name="evaluated">Whether a requested evaluation ran.</param>
+        /// <returns>Whether the operation was admitted synchronously.</returns>
+        private bool TryEvaluateRequestedConditionWaits(out bool evaluated)
+        {
+            bool didEvaluate = false;
+            lock (m_conditionWorkLock)
+            {
+                if (m_conditionWorkStopped)
+                {
+                    evaluated = false;
+                    return false;
+                }
+                Action evaluate = () =>
+                {
+                    if (m_conditionEvaluationRequested)
+                    {
+                        didEvaluate = true;
+                        EvaluateConditionWaitsCore();
+                    }
+                };
+                if (m_conditionWorkRunning)
+                {
+                    EnqueueConditionWorkLocked(CreateRequestedEvaluationWork());
+                    evaluated = false;
+                    return false;
+                }
+                if (!m_owner.WriteOperations.TryExecuteSynchronously(() =>
+                    {
+                        lock (m_lock)
+                        {
+                            if (!m_disposed)
+                            {
+                                evaluate();
+                            }
+                        }
+                    }))
+                {
+                    EnqueueConditionWorkLocked(CreateRequestedEvaluationWork());
+                    evaluated = false;
+                    return false;
+                }
+                evaluated = didEvaluate;
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Creates a queued evaluation that drains notifications only when it performed an evaluation.
+        /// </summary>
+        private Func<CancellationToken, ValueTask> CreateRequestedEvaluationWork()
+        {
+            return async cancellationToken =>
+            {
+                bool evaluated = false;
+                await m_owner.ExecuteWriteOperationAsync(
+                    _ =>
+                    {
+                        lock (m_lock)
+                        {
+                            if (!m_disposed && m_conditionEvaluationRequested)
+                            {
+                                evaluated = true;
+                                EvaluateConditionWaitsCore();
+                            }
+                        }
+                        return ValueTask.FromResult(true);
+                    },
+                    cancellationToken).ConfigureAwait(false);
+                if (evaluated)
+                {
+                    RaisePending();
+                }
+            };
+        }
+
+        /// <summary>
+        /// Creates queued work that takes scale admission before the controller lock.
+        /// </summary>
+        private Func<CancellationToken, ValueTask> CreateConditionWork(Action operation)
+        {
+            return async cancellationToken =>
+            {
+                await m_owner.ExecuteWriteOperationAsync(
+                    _ =>
+                    {
+                        lock (m_lock)
+                        {
+                            if (!m_disposed)
+                            {
+                                operation();
+                            }
+                        }
+                        return ValueTask.FromResult(true);
+                    },
+                    cancellationToken).ConfigureAwait(false);
+                RaisePending();
+            };
+        }
+
+        /// <summary>
+        /// Queues an event after a synchronous admission attempt found the scale busy.
+        /// </summary>
+        private void QueueConditionFaultEvent(LocalizedText message)
+        {
+            lock (m_conditionWorkLock)
+            {
+                if (m_conditionWorkStopped)
+                {
+                    return;
+                }
+                if (m_owner.Notifications.TryRaiseEvent(ScaleNotificationId.GeneralProcessFault, message))
+                {
+                    return;
+                }
+                EnqueueConditionWorkLocked(async cancellationToken =>
+                    await m_owner.Notifications.RaiseEventAsync(
+                        ScaleNotificationId.GeneralProcessFault,
+                        message,
+                        cancellationToken).ConfigureAwait(false));
+            }
+        }
+
+        /// <summary>
+        /// Adds work while the condition-work lock is held.
+        /// </summary>
+        private void EnqueueConditionWorkLocked(Func<CancellationToken, ValueTask> work)
+        {
+            m_conditionWorkQueue.Enqueue(work);
+            if (!m_conditionWorkRunning)
+            {
+                m_conditionWorkRunning = true;
+                m_conditionWorkTask = Task.Run(DrainConditionWorkQueueAsync);
+            }
+        }
+
+        /// <summary>
+        /// Runs queued condition mutations and deferred notifications in order.
+        /// </summary>
+        private async Task DrainConditionWorkQueueAsync()
+        {
+            CancellationToken cancellationToken = m_conditionWorkCancellation.Token;
+            while (true)
+            {
+                Func<CancellationToken, ValueTask>? work;
+                lock (m_conditionWorkLock)
+                {
+                    if (m_conditionWorkStopped || m_conditionWorkQueue.Count == 0)
+                    {
+                        m_conditionWorkRunning = false;
+                        return;
+                    }
+                    work = m_conditionWorkQueue.Dequeue();
+                }
+                try
+                {
+                    await work(cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    lock (m_conditionWorkLock)
+                    {
+                        m_conditionWorkRunning = false;
+                    }
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    m_owner.Services.Logger.ConditionEvaluationFailed(ex, Scale.BrowseName.Name);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Stops queued condition work and returns its worker task for shutdown coordination.
+        /// </summary>
+        private Task StopConditionWork()
+        {
+            Task conditionWork;
+            lock (m_conditionWorkLock)
+            {
+                m_conditionWorkStopped = true;
+                m_conditionWorkQueue.Clear();
+                conditionWork = m_conditionWorkTask ?? Task.CompletedTask;
+            }
+            m_conditionWorkCancellation.Cancel();
+            return conditionWork;
         }
 
         /// <summary>
@@ -301,10 +546,11 @@ namespace Opc.Ua.Scales.Server.Runtime
 
         /// <summary>
         /// Stops the controller like <see cref="Dispose"/>, then completes once the condition
-        /// timer callback and every subscriber callback in flight at the stop have returned.
-        /// Every caller, including one that follows an earlier <see cref="Dispose"/>, awaits the
-        /// same completion. A subscriber may call this from its own callback; the returned task
-        /// then completes after that callback has returned, so it must be awaited, not blocked on.
+        /// timer callback, admitted condition work and subscriber callbacks in flight at the stop
+        /// have returned. Queued work that has not acquired scale admission is discarded. Every
+        /// caller, including one that follows an earlier <see cref="Dispose"/>, awaits the same
+        /// completion. A subscriber may call this from its own callback; the returned task then
+        /// completes after that callback has returned, so it must be awaited, not blocked on.
         /// </summary>
         public ValueTask DisposeAsync()
         {
@@ -313,7 +559,7 @@ namespace Opc.Ua.Scales.Server.Runtime
 
         /// <summary>
         /// Marks the controller disposed, once, and returns the shared task that completes when
-        /// the timer is disposed and every running notification drain has ended.
+        /// the timer, admitted condition work and running notification drains have ended.
         /// </summary>
         private Task<bool> Stop()
         {
@@ -334,15 +580,18 @@ namespace Opc.Ua.Scales.Server.Runtime
                 timer = m_conditionTimer;
                 m_conditionTimer = null;
             }
-            _ = QuiesceAsync(timer, quiesced);
+            _ = QuiesceAsync(timer, StopConditionWork(), quiesced);
             return quiesced.Task;
         }
 
         /// <summary>
-        /// Disposes the condition timer, waiting for a running timer callback, then waits for
-        /// the notification drains that were running when the controller stopped.
+        /// Disposes the condition timer, then waits for queued condition work and notification
+        /// drains that were running when the controller stopped.
         /// </summary>
-        private async Task QuiesceAsync(ITimer? timer, TaskCompletionSource<bool> quiesced)
+        private async Task QuiesceAsync(
+            ITimer? timer,
+            Task conditionWork,
+            TaskCompletionSource<bool> quiesced)
         {
             Exception? failure = null;
             try
@@ -359,6 +608,8 @@ namespace Opc.Ua.Scales.Server.Runtime
                 // propagated to every DisposeAsync caller after admitted notifications drain.
                 m_owner.Services.Logger.ShutdownFailed(ex, Scale.BrowseName.Name);
             }
+            await conditionWork.ConfigureAwait(false);
+            m_conditionWorkCancellation.Dispose();
             Task? drained = null;
             lock (m_lock)
             {
@@ -500,7 +751,7 @@ namespace Opc.Ua.Scales.Server.Runtime
             wait.Intervention = true;
             Report($"Element '{element.BrowseName.Name}' requires operator intervention: {reason}");
             var message = new LocalizedText($"Recipe condition '{element.BrowseName.Name}': {reason}");
-            m_pending.Add(() => m_owner.Notifications.RaiseEvent(ScaleNotificationId.GeneralProcessFault, message));
+            m_pending.Add(() => QueueConditionFaultEvent(message));
         }
 
         /// <summary>
@@ -798,6 +1049,24 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <summary>The registered local sources.</summary>
         private readonly Dictionary<uint, ConditionSource> m_conditionSources = [];
 
+        /// <summary>Queued contended condition operations and deferred notifications.</summary>
+        private readonly Queue<Func<CancellationToken, ValueTask>> m_conditionWorkQueue = [];
+
+        /// <summary>Protects the ordered condition-work queue.</summary>
+        private readonly Lock m_conditionWorkLock = new();
+
+        /// <summary>Cancels condition work that has not acquired scale admission during shutdown.</summary>
+        private readonly CancellationTokenSource m_conditionWorkCancellation = new();
+
+        /// <summary>The asynchronous worker that drains queued condition work.</summary>
+        private Task? m_conditionWorkTask;
+
+        /// <summary>Whether the ordered condition worker is active.</summary>
+        private bool m_conditionWorkRunning;
+
+        /// <summary>Whether condition work has been stopped.</summary>
+        private bool m_conditionWorkStopped;
+
         /// <summary>The active activation snapshots.</summary>
         private readonly Dictionary<RecipeElementState, ConditionWait> m_conditionWaits = [];
 
@@ -840,7 +1109,7 @@ namespace Opc.Ua.Scales.Server.Runtime
         [LoggerMessage(
             EventId = ScalesServerEventIds.ScaleRecipes + 0,
             Level = LogLevel.Error,
-            Message = "Timer-driven recipe condition evaluation of scale '{Name}' failed.")]
+            Message = "Recipe condition processing on scale '{Name}' failed.")]
         public static partial void ConditionEvaluationFailed(this ILogger logger, Exception exception, string? name);
 
         /// <summary>

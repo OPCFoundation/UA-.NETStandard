@@ -92,7 +92,8 @@ namespace Opc.Ua.Scales.Server.Runtime
             ServiceResult result = m_readUserAccessLevel?.Invoke(context, node, ref value) ?? ServiceResult.Good;
             if (ServiceResult.IsBad(result) ||
                 ((value & AccessLevels.CurrentWrite) != 0 &&
-                    ServiceResult.IsBad(ScaleValues.CheckLock(m_services, context, m_product.NodeId))))
+                    m_product is { } product &&
+                    ServiceResult.IsBad(ScaleValues.CheckLock(m_services, context, product.NodeId))))
             {
                 value = (byte)(value & ~AccessLevels.CurrentWrite);
             }

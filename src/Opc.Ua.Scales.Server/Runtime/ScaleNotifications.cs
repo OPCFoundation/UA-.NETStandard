@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Scales.Server.Runtime
 {
@@ -98,6 +99,72 @@ namespace Opc.Ua.Scales.Server.Runtime
                 message,
                 severity,
                 auxParameters));
+        }
+
+        /// <summary>
+        /// Attempts to raise a standard event under synchronous scale-write admission.
+        /// </summary>
+        /// <param name="notificationId">The notification id.</param>
+        /// <param name="message">The event message.</param>
+        /// <returns>Whether the event was admitted and raised.</returns>
+        internal bool TryRaiseEvent(
+            ScaleNotificationId notificationId,
+            LocalizedText message)
+        {
+            Action raise = () => RaiseEventCore(
+                (uint)notificationId,
+                ScalesModel.CategoryOf(notificationId),
+                ScalesModel.TextOf(notificationId),
+                vendorNotificationId: null,
+                message,
+                EventSeverity.Medium,
+                []);
+            if (m_writeGate == null)
+            {
+                raise();
+                return true;
+            }
+            return m_writeGate.TryExecuteSynchronously(raise);
+        }
+
+        /// <summary>
+        /// Raises a standard event after asynchronously waiting for scale-write admission.
+        /// </summary>
+        /// <param name="notificationId">The notification id.</param>
+        /// <param name="message">The event message.</param>
+        /// <param name="cancellationToken">Cancels while waiting to enter.</param>
+        internal async ValueTask RaiseEventAsync(
+            ScaleNotificationId notificationId,
+            LocalizedText message,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (m_writeGate == null)
+            {
+                RaiseEventCore(
+                    (uint)notificationId,
+                    ScalesModel.CategoryOf(notificationId),
+                    ScalesModel.TextOf(notificationId),
+                    vendorNotificationId: null,
+                    message,
+                    EventSeverity.Medium,
+                    []);
+                return;
+            }
+            await m_writeGate.ExecuteAsynchronouslyAsync(
+                _ =>
+                {
+                    RaiseEventCore(
+                        (uint)notificationId,
+                        ScalesModel.CategoryOf(notificationId),
+                        ScalesModel.TextOf(notificationId),
+                        vendorNotificationId: null,
+                        message,
+                        EventSeverity.Medium,
+                        []);
+                    return ValueTask.FromResult(true);
+                },
+                cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
