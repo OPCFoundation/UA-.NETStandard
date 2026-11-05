@@ -34,6 +34,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Di.Server.Locking;
 using Opc.Ua.Redaction;
+using Opc.Ua.Server;
 using static Opc.Ua.ECM.Server.EcmModelNodes;
 
 namespace Opc.Ua.ECM.Server
@@ -177,6 +178,18 @@ namespace Opc.Ua.ECM.Server
         /// </summary>
         public EnergyDevicePowerOffState? PowerOff { get; }
 
+        /// <summary>Gets whether this binding includes a WOL object.</summary>
+        internal bool SupportsWol => PowerOff != null;
+
+        /// <summary>Gets whether this binding has a DI locking service.</summary>
+        internal bool SupportsLocking => Standby.Lock != null;
+
+        /// <summary>Gets whether this binding has been disposed.</summary>
+        internal bool IsDisposed => Volatile.Read(ref m_disposed) != 0;
+
+        /// <summary>Gets the server associated with this binding's system context.</summary>
+        internal IServerInternal? Server => (m_context as ServerSystemContext)?.Server;
+
         /// <summary>
         /// Publishes a coherent provider snapshot, including dynamic mode characteristics.
         /// The owner schedules refreshes at its required acquisition rate.
@@ -199,6 +212,7 @@ namespace Opc.Ua.ECM.Server
         /// </remarks>
         public async ValueTask DisposeAsync()
         {
+            Interlocked.Exchange(ref m_disposed, 1);
             try
             {
                 await m_operations.StopAsync(RemoveCallbacks).ConfigureAwait(false);
@@ -592,6 +606,9 @@ namespace Opc.Ua.ECM.Server
 
         /// <summary>Whether the mode identities have been published.</summary>
         private bool m_initialized;
+
+        /// <summary>Whether disposal has started.</summary>
+        private int m_disposed;
     }
 
     /// <summary>

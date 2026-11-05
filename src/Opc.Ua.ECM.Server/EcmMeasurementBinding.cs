@@ -37,6 +37,7 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.Di.Server.Locking;
 using Opc.Ua.IA.Server;
 using Opc.Ua.Redaction;
+using Opc.Ua.Server;
 
 namespace Opc.Ua.ECM.Server
 {
@@ -90,6 +91,15 @@ namespace Opc.Ua.ECM.Server
         /// </summary>
         public EnergyMeasurementState MeasurementPoint { get; }
 
+        /// <summary>Gets the complete profiles exposed by this measurement point.</summary>
+        internal IReadOnlyList<string> ProfileNames => m_profileNames;
+
+        /// <summary>Gets whether this binding has been disposed.</summary>
+        internal bool IsDisposed => Volatile.Read(ref m_disposed) != 0;
+
+        /// <summary>Gets the server associated with this binding's system context.</summary>
+        internal IServerInternal? Server => (m_context as ServerSystemContext)?.Server;
+
         /// <summary>
         /// Reads and publishes one provider snapshot.
         /// </summary>
@@ -112,13 +122,21 @@ namespace Opc.Ua.ECM.Server
         /// </remarks>
         public async ValueTask DisposeAsync()
         {
+            Interlocked.Exchange(ref m_disposed, 1);
             try
             {
                 await m_operations.StopAsync(RemoveCallbacks).ConfigureAwait(false);
             }
             finally
             {
-                await m_operations.DisposeAsync().ConfigureAwait(false);
+                try
+                {
+                    Interlocked.Exchange(ref m_statistics, null)?.Dispose();
+                }
+                finally
+                {
+                    await m_operations.DisposeAsync().ConfigureAwait(false);
+                }
             }
         }
 
@@ -255,7 +273,6 @@ namespace Opc.Ua.ECM.Server
             await MeasurementPoint
                 .ClearChangeMasksAsync(m_context, true, CancellationToken.None)
                 .ConfigureAwait(false);
-            m_initialized = true;
         }
 
         /// <summary>
@@ -265,8 +282,12 @@ namespace Opc.Ua.ECM.Server
             Dictionary<string, EcmMeasurementReading> readings,
             CancellationToken cancellationToken)
         {
-            foreach (EcmProfileDefinition profile in EcmMeasurementProfiles.Declared(readings.Keys))
+            IReadOnlyList<EcmProfileDefinition> declaredProfiles = EcmMeasurementProfiles.Declared(readings.Keys);
+            m_profileNames = new string[declaredProfiles.Count];
+            for (int ii = 0; ii < declaredProfiles.Count; ii++)
             {
+                EcmProfileDefinition profile = declaredProfiles[ii];
+                m_profileNames[ii] = profile.Name;
                 AddProfileReference(ProfileType(profile));
             }
             var components = new List<BaseVariableState>();
@@ -347,7 +368,19 @@ namespace Opc.Ua.ECM.Server
                     m_statistics.ResetStatistics.OnCallMethod2Async = null;
                 }
             });
-            clean &= TryCleanup(() => m_statistics?.Dispose());
+            bool statisticsDisposed = false;
+            clean &= TryCleanup(() =>
+            {
+                if (m_statistics != null)
+                {
+                    m_statistics.Dispose();
+                    statisticsDisposed = true;
+                }
+            });
+            if (statisticsDisposed)
+            {
+                m_statistics = null;
+            }
             foreach (BaseInstanceState child in OwnedChildren(existing))
             {
                 BaseInstanceState owned = child;
@@ -372,7 +405,6 @@ namespace Opc.Ua.ECM.Server
                 m_topologyFaulted = true;
                 return;
             }
-            m_statistics = null;
             m_adapter = null;
             m_measurements.Clear();
             m_metadata.Clear();
@@ -480,13 +512,18 @@ namespace Opc.Ua.ECM.Server
                 throw new InvalidOperationException(
                     "The ECM measurement provider returned an unsupported or duplicate profile.");
             }
+            EUInformation? ownedUnits = EcmOwnership.Own(
+                reading.EngineeringUnits,
+                nameof(reading.EngineeringUnits));
             if (reading.DataType != EcmMeasurementProfiles.DataTypeOf(member.Kind) ||
                 reading.SourceTimestamp.Kind != DateTimeKind.Utc ||
                 float.IsNaN(reading.AccuracyRange.GetValueOrDefault()) ||
                 float.IsInfinity(reading.AccuracyRange.GetValueOrDefault()) ||
                 reading.AccuracyRange < 0 ||
                 (reading.AccuracyRange.HasValue && !member.AllowsRange) ||
-                (reading.EngineeringUnits is not null && !member.AllowsUnits) ||
+                (reading.MeasurementId.HasValue && reading.MeasurementId.Value != member.MeasurementId) ||
+                (ownedUnits is not null &&
+                    !EcmMeasurementProfiles.HasExpectedEngineeringUnits(member, ownedUnits)) ||
                 !IsValidAccuracyMetadata(reading))
             {
                 throw new InvalidOperationException(
@@ -508,7 +545,10 @@ namespace Opc.Ua.ECM.Server
             {
                 Value = EcmOwnership.Own(reading.Value),
                 AccuracyDomain = EcmOwnership.Own(reading.AccuracyDomain),
-                EngineeringUnits = EcmOwnership.Own(reading.EngineeringUnits, nameof(reading.EngineeringUnits))
+                EngineeringUnits = ownedUnits ?? EcmOwnership.Own(
+                    EcmMeasurementProfiles.EngineeringUnitsOf(member),
+                    nameof(reading.EngineeringUnits)),
+                MeasurementId = member.MeasurementId
             };
         }
 
@@ -584,7 +624,6 @@ namespace Opc.Ua.ECM.Server
             if (m_statistics != null)
             {
                 m_statistics.ResetStatistics.OnCallMethod2Async = null;
-                m_statistics.Dispose();
             }
         }
 
@@ -820,16 +859,20 @@ namespace Opc.Ua.ECM.Server
         /// <summary>Immutable metadata for published measurement variables.</summary>
         private readonly Dictionary<string, EcmMeasurementMetadata> m_metadata = new(StringComparer.Ordinal);
 
-        /// <summary>Whether the first provider snapshot has been published.</summary>
-        private bool m_initialized;
+        /// <summary>Whether the first provider snapshot has built the measurement topology.</summary>
         private bool m_topologyBuilt;
+
+        /// <summary>Whether failed topology cleanup prevents another initialization attempt.</summary>
         private bool m_topologyFaulted;
 
         /// <summary>Statistic member names in shared component order.</summary>
         private readonly List<string> m_statisticNames = [];
 
+        // TODO: Remove the pragma when CA2213 recognizes fields disposed by an asynchronous teardown path.
+#pragma warning disable CA2213 // Disposed after admitted operations drain in DisposeAsync.
         /// <summary>The shared IA statistics runtime, present when statistic members are published.</summary>
         private IaStatistics? m_statistics;
+#pragma warning restore CA2213
 
         /// <summary>Non-statistic member names published with the statistics, in companion order.</summary>
         private readonly List<string> m_companionNames = [];
@@ -839,6 +882,12 @@ namespace Opc.Ua.ECM.Server
 
         /// <summary>The adapter that feeds validated snapshots to the shared runtime.</summary>
         private StatisticsAdapter? m_adapter;
+
+        /// <summary>Complete profile names exposed by the built measurement topology.</summary>
+        private string[] m_profileNames = [];
+
+        /// <summary>Whether disposal has started.</summary>
+        private int m_disposed;
 
         /// <summary>Stable measurement metadata after initial publication.</summary>
         private sealed record EcmMeasurementMetadata(

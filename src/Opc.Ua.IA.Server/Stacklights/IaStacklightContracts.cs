@@ -124,5 +124,20 @@ namespace Opc.Ua.IA.Server
     public sealed record IaStacklightAcousticSnapshot(
         IaStacklightSample<bool>? SignalOn,
         IaStacklightSample<uint> OperationMode,
-        IaStacklightSample<float>? Intensity) : IaStacklightElementSnapshot;
+        IaStacklightSample<float>? Intensity) : IaStacklightElementSnapshot
+    {
+        /// <summary>
+        /// Gets optional audio samples for configured signals, in ascending NumberInList order.
+        /// </summary>
+        public ArrayOf<IaStacklightAudioSample> AudioSamples { get; init; }
+    }
+
+    /// <summary>
+    /// One source-owned audio sample for a configured acoustic signal.
+    /// </summary>
+    /// <param name="SignalName">The acoustic signal's qualified browse name.</param>
+    /// <param name="Sample">The audio bytes and acquisition metadata.</param>
+    public sealed record IaStacklightAudioSample(
+        QualifiedName SignalName,
+        IaStacklightSample<ByteString> Sample);
 }

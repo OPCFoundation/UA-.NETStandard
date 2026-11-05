@@ -250,10 +250,13 @@ namespace Opc.Ua.Machinery.Server.Builders
         /// OPC 34100 namespace, where the predefined measurement names live.
         /// </param>
         /// <param name="value">The reading.</param>
-        /// <param name="engineeringUnits">Optional engineering unit.</param>
+        /// <param name="engineeringUnits">
+        /// Optional engineering unit. For a standardized ECM browse name, the unit identity must match the published
+        /// value.
+        /// </param>
         /// <param name="measurementId">
-        /// Optional OPC 34100 <c>MeasurementID</c>, the semantic identifier of
-        /// the reading.
+        /// Optional OPC 34100 <c>MeasurementID</c>. The builder supplies the published identifier for a standardized
+        /// ECM browse name and rejects a different supplied value.
         /// </param>
         IMachineryMeteringPointBuilder AddMeasurementValue(
             QualifiedName browseName,
@@ -588,7 +591,7 @@ namespace Opc.Ua.Machinery.Server.Builders
             AddMeasurement(
                 browseName.Name!,
                 value,
-                DataTypeOf(value),
+                DataTypeOf(value, m_ecmNamespaceIndex),
                 Opc.Ua.ReferenceTypeIds.HasComponent,
                 engineeringUnits,
                 measurementId,
@@ -651,8 +654,16 @@ namespace Opc.Ua.Machinery.Server.Builders
                 measurementId);
         }
 
-        private static NodeId DataTypeOf(Variant value)
+        private static NodeId DataTypeOf(Variant value, ushort ecmNamespaceIndex)
         {
+            if (value.TryGetStructure<Opc.Ua.ECM.AcPeDataType>(out _))
+            {
+                return new NodeId(Opc.Ua.ECM.DataTypeIds.AcPeDataType, ecmNamespaceIndex);
+            }
+            if (value.TryGetStructure<Opc.Ua.ECM.AcPpDataType>(out _))
+            {
+                return new NodeId(Opc.Ua.ECM.DataTypeIds.AcPpDataType, ecmNamespaceIndex);
+            }
             return value.TypeInfo.BuiltInType switch
             {
                 BuiltInType.Double => Opc.Ua.DataTypeIds.Double,

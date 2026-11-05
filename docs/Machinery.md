@@ -104,9 +104,11 @@ The Machinery models compose types from these companion specifications:
 | `Opc.Ua.ISA95` | OPC 10031-4 ISA-95 Job Control V2 | 40001-3's `JobManagementType` composes the Job Control V2 receiver and response provider. |
 
 For standalone OPC 34100 standby and WOL bindings without the Machinery
-Consumption hierarchy, see [Energy Consumption Management](ECM.md).
-Standalone ECM measurement profiles and accuracy/statistics integration
-remain pending; Machinery's existing energy APIs retain their current behavior.
+Consumption hierarchy, see [Energy Consumption Management](ECM.md). Standalone
+ECM measurement profiles and accuracy/statistics integration are available
+through the ECM provider binding. The Machinery energy builder keeps metering
+points inside the Consumption hierarchy and applies the same published
+MeasurementID and EngineeringUnits identities to standardized ECM browse names.
 
 The model reference graph:
 
@@ -577,6 +579,13 @@ own: §6.5 defers it to OPC 34100's energy profiles. `WithInterface` and
             Variant.From(41_250.0f),
             watt))
 ```
+
+For a standardized ECM browse name, `AddMeasurementValue` supplies the published
+MeasurementID and EngineeringUnits when they are omitted. A supplied
+MeasurementID or unit identity that conflicts with the OPC 34100 catalogue is
+rejected, as is a value whose type differs from the published DataType.
+Measurements outside the OPC 34100 namespace keep caller-supplied metadata,
+even when they reuse a standardized browse-name string.
 
 The units OPC 40001-4 pins are the UNECE Recommendation 20 codes from its
 attribute tables and are applied by the builder: watt hours for the two energy

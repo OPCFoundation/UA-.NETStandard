@@ -45,8 +45,14 @@ namespace Opc.Ua.ECM.Server
     /// <param name="DataType">The namespace-qualified OPC UA DataType of the value.</param>
     /// <param name="StatusCode">The measurement quality.</param>
     /// <param name="SourceTimestamp">The UTC time at which the value was acquired.</param>
-    /// <param name="EngineeringUnits">The optional engineering units.</param>
-    /// <param name="MeasurementId">The optional standardized measurement identifier.</param>
+    /// <param name="EngineeringUnits">
+    /// The optional standardized engineering units. The binding supplies the published unit when omitted and
+    /// rejects a supplied value with a different namespace URI or unit ID.
+    /// </param>
+    /// <param name="MeasurementId">
+    /// The optional standardized measurement identifier. The binding supplies the published identifier when omitted
+    /// and rejects a different supplied identifier.
+    /// </param>
     /// <param name="AccuracyClass">The optional class within the accuracy domain.</param>
     /// <param name="AccuracyDomain">The optional accuracy-domain NodeId, or <see cref="NodeId.Null"/>.</param>
     /// <param name="AccuracyRange">The optional accuracy range.</param>

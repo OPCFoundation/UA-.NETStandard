@@ -67,6 +67,73 @@ namespace Opc.Ua.ECM.Tests
         }
 
         /// <summary>
+        /// The profile catalogue carries the standardized MeasurementID and engineering-unit identity for every member.
+        /// </summary>
+        [TestCase(nameof(BrowseNames.AcCurrentPe), 1218, "http://www.opcfoundation.org/UA/units/un/cefact",
+            4279632, "A", "ampere")]
+        [TestCase(nameof(BrowseNames.AcActivePowerTotal), 1412, "http://www.opcfoundation.org/UA/units/un/cefact",
+            5723220, "W", "watt")]
+        [TestCase(nameof(BrowseNames.AcActiveEnergyTotalExportLp), 1004,
+            "http://www.opcfoundation.org/UA/units/un/cefact", 5720146, "W·h", "watt hour")]
+        [TestCase(nameof(BrowseNames.AcActiveEnergyTotalImportLp), 1001,
+            "http://www.opcfoundation.org/UA/units/un/cefact", 5720146, "W·h", "watt hour")]
+        [TestCase(nameof(BrowseNames.AcActiveEnergyTotalExportHp), 1005,
+            "http://www.opcfoundation.org/UA/units/un/cefact", 5720146, "W·h", "watt hour")]
+        [TestCase(nameof(BrowseNames.AcActiveEnergyTotalImportHp), 1002,
+            "http://www.opcfoundation.org/UA/units/un/cefact", 5720146, "W·h", "watt hour")]
+        [TestCase(nameof(BrowseNames.AcActivePowerPe), 1409, "http://www.opcfoundation.org/UA/units/un/cefact",
+            5723220, "W", "watt")]
+        [TestCase(nameof(BrowseNames.AcPowerFactorPe), 1709, null, null, null, null)]
+        [TestCase(nameof(BrowseNames.AcReactiveEnergyTotalExportHp), 1014, "http://opcfoundation.org/UA/ECM/",
+            1, "var·h", "volt ampere reactive hour")]
+        [TestCase(nameof(BrowseNames.AcReactiveEnergyTotalImportHp), 1011, "http://opcfoundation.org/UA/ECM/",
+            1, "var·h", "volt ampere reactive hour")]
+        [TestCase(nameof(BrowseNames.AcReactivePowerPe), 1618, "http://www.opcfoundation.org/UA/units/un/cefact",
+            4469812, "var", "var")]
+        [TestCase(nameof(BrowseNames.AcVoltagePe), 1118, "http://www.opcfoundation.org/UA/units/un/cefact",
+            5655636, "V", "volt")]
+        [TestCase(nameof(BrowseNames.AcVoltagePp), 1145, "http://www.opcfoundation.org/UA/units/un/cefact",
+            5655636, "V", "volt")]
+        [TestCase(nameof(BrowseNames.DcCurrent), 1033, "http://www.opcfoundation.org/UA/units/un/cefact",
+            4279632, "A", "ampere")]
+        [TestCase(nameof(BrowseNames.DcActivePower), 1032, "http://www.opcfoundation.org/UA/units/un/cefact",
+            5723220, "W", "watt")]
+        [TestCase(nameof(BrowseNames.DcElectricalCharge), 1030,
+            "http://www.opcfoundation.org/UA/units/un/cefact", 4279624, "A·h", "ampere hour")]
+        [TestCase(nameof(BrowseNames.DcEnergyTotalExportLp), 1025,
+            "http://www.opcfoundation.org/UA/units/un/cefact", 5720146, "W·h", "watt hour")]
+        [TestCase(nameof(BrowseNames.DcEnergyTotalImportLp), 1022,
+            "http://www.opcfoundation.org/UA/units/un/cefact", 5720146, "W·h", "watt hour")]
+        [TestCase(nameof(BrowseNames.DcRelativeCharge), 1031, "http://www.opcfoundation.org/UA/units/un/cefact",
+            20529, "%", "percent")]
+        [TestCase(nameof(BrowseNames.DcVoltage), 1034, "http://www.opcfoundation.org/UA/units/un/cefact",
+            5655636, "V", "volt")]
+        public void CatalogueDeclaresStandardMeasurementMetadata(
+            string name,
+            int expectedMeasurementId,
+            string? expectedNamespaceUri,
+            int? expectedUnitId,
+            string? expectedSymbol,
+            string? expectedDescription)
+        {
+            Assert.That(EcmMeasurementProfiles.TryGetMember(name, out EcmProfileMember? member), Is.True);
+            Assert.That(member!.MeasurementId, Is.EqualTo(expectedMeasurementId));
+
+            EUInformation? engineeringUnits = EcmMeasurementProfiles.EngineeringUnitsOf(member);
+            if (expectedUnitId is null)
+            {
+                Assert.That(engineeringUnits, Is.Null);
+                return;
+            }
+
+            Assert.That(engineeringUnits, Is.Not.Null);
+            Assert.That(engineeringUnits!.NamespaceUri, Is.EqualTo(expectedNamespaceUri));
+            Assert.That(engineeringUnits.UnitId, Is.EqualTo(expectedUnitId));
+            Assert.That(engineeringUnits.DisplayName.Text, Is.EqualTo(expectedSymbol));
+            Assert.That(engineeringUnits.Description.Text, Is.EqualTo(expectedDescription));
+        }
+
+        /// <summary>
         /// Members that the profile does not declare reject AccuracyRange or EngineeringUnits.
         /// </summary>
         [Test]
@@ -75,7 +142,7 @@ namespace Opc.Ua.ECM.Tests
             Assert.That(EcmMeasurementProfiles.TryGetMember(
                 nameof(BrowseNames.AcPowerFactorPe), out EcmProfileMember? factor),
                 Is.True);
-            Assert.That(factor!.AllowsUnits, Is.False);
+            Assert.That(factor!.Unit, Is.Null);
             Assert.That(factor.AllowsRange, Is.True);
             Assert.That(EcmMeasurementProfiles.TryGetMember(
                 nameof(BrowseNames.DcVoltage), out EcmProfileMember? voltage),
@@ -288,7 +355,8 @@ namespace Opc.Ua.ECM.Tests
             var argument = new FormatProbe();
             var units = new EUInformation
             {
-                UnitId = 0x4B574800,
+                NamespaceUri = "http://www.opcfoundation.org/UA/units/un/cefact",
+                UnitId = 5_720_146,
                 DisplayName = new LocalizedText("unit", "en", "{0}", new object[] { argument })
             };
             EcmMeasurementReading unsafeReading = Float(
@@ -366,6 +434,7 @@ namespace Opc.Ua.ECM.Tests
             MethodState reset = children.OfType<MethodState>()
                 .Single(method => method.BrowseName.Name == "ResetStatistics");
 
+            await binding.DisposeAsync();
             await binding.DisposeAsync();
 
             Assert.That(reset.OnCallMethod2Async, Is.Null);

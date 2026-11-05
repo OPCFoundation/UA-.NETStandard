@@ -188,11 +188,9 @@ namespace Opc.Ua.ECM.Client
         /// Reads the beginning of the current statistics collection with its quality and timestamps.
         /// </summary>
         /// <param name="cancellationToken">Cancels the read.</param>
-        public async ValueTask<ClientRead<DateTimeUtc>> ReadStatisticsStartTimeAsync(
-            CancellationToken cancellationToken = default)
-        {
-            return await Statistics.StartTimeVariable().ReadAsync(cancellationToken).ConfigureAwait(false);
-        }
+        public ValueTask<ClientRead<DateTimeUtc>> ReadStatisticsStartTimeAsync(
+            CancellationToken cancellationToken = default) =>
+            Statistics.StartTimeVariable().ReadAsync(cancellationToken);
 
         /// <summary>
         /// Invokes the single ResetStatistics method that resets every statistic. The server's authorization

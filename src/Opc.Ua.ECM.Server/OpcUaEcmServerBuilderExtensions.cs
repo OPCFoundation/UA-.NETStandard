@@ -51,7 +51,11 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 throw new ArgumentNullException(nameof(builder));
             }
-            return builder.AddDiModel<EcmModelProvider>();
+            return builder.AddDiModel<EcmModelProvider, DiNodeManager>(static context =>
+            {
+                EcmConformanceContributor.For(context.Manager);
+                return default;
+            });
         }
 
         /// <summary>

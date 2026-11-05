@@ -438,6 +438,7 @@ namespace Opc.Ua.IA.Server
         {
             var pending = new Stack<NodeState>();
             pending.Push(root);
+            int deviceHealthNamespace = context.NamespaceUris.GetIndex(Opc.Ua.Di.Namespaces.OpcUaDi);
             while (pending.Count > 0)
             {
                 NodeState node = pending.Pop();
@@ -449,6 +450,13 @@ namespace Opc.Ua.IA.Server
 
                 foreach (BaseInstanceState child in GetChildren(context, node))
                 {
+                    // The host's DI alarm implementation owns this subtree and its access policy.
+                    if (deviceHealthNamespace >= 0 &&
+                        child.BrowseName.NamespaceIndex == deviceHealthNamespace &&
+                        child.BrowseName.Name == DiBrowseNames.DeviceHealthAlarms)
+                    {
+                        continue;
+                    }
                     pending.Push(child);
                 }
             }
@@ -478,6 +486,7 @@ namespace Opc.Ua.IA.Server
                     Blue = value.Blue,
                     White = value.White
                 }),
+                ByteString value => Variant.From(ByteString.From(value.Span)),
                 _ => throw Configuration("Unsupported stacklight sample type.")
             };
             variable.StatusCode = sample.StatusCode;
@@ -605,6 +614,14 @@ namespace Opc.Ua.IA.Server
                     throw Configuration("AcousticSignals must contain a non-empty inventory with unique numbers.");
                 }
 
+                m_audioSampleBindings = GetChildren(m_context, signals)
+                    .OfType<AcousticSignalState>()
+                    .OrderBy(signal => ReadNumberInList(m_context, signal))
+                    .Select(signal => new AudioSignalBinding(
+                        signal.BrowseName,
+                        FindVariable(m_context, signal, "AudioSample")))
+                    .Where(signal => signal.AudioSample is not null)
+                    .ToArray();
                 m_channels = [];
                 m_channelBindings = [];
             }
@@ -705,6 +722,25 @@ namespace Opc.Ua.IA.Server
                     ValidateRange(
                         acoustic.Intensity.Value.Value, m_intensityRange!, Path("Intensity"), strictlyPositive: true);
                 }
+
+                if (acoustic.AudioSamples.Count != m_audioSampleBindings.Length)
+                {
+                    throw Configuration(
+                        $"{Path("AudioSamples")} inventory does not match configured AudioSample nodes.");
+                }
+
+                for (int index = 0; index < m_audioSampleBindings.Length; index++)
+                {
+                    AudioSignalBinding binding = m_audioSampleBindings[index];
+                    IaStacklightAudioSample sample = acoustic.AudioSamples[index];
+                    if (sample.SignalName != binding.Name)
+                    {
+                        throw Configuration(
+                            $"{Path("AudioSamples")} order does not match configured acoustic signals.");
+                    }
+
+                    ValidateSample(sample.Sample, $"{binding.Name.Name}.AudioSample");
+                }
             }
 
             /// <summary>
@@ -736,6 +772,12 @@ namespace Opc.Ua.IA.Server
                 ApplyIfConfigured(m_signalOn, acoustic.SignalOn);
                 IaStacklight.Apply(m_operationMode!, acoustic.OperationMode);
                 ApplyIfConfigured(m_intensity, acoustic.Intensity);
+                for (int index = 0; index < m_audioSampleBindings.Length; index++)
+                {
+                    AudioSignalBinding binding = m_audioSampleBindings[index];
+                    IaStacklightAudioSample sample = acoustic.AudioSamples[index];
+                    IaStacklight.Apply(binding.AudioSample!, sample.Sample);
+                }
             }
 
             /// <summary>
@@ -820,9 +862,19 @@ namespace Opc.Ua.IA.Server
             /// <summary>The valid acoustic signal indexes.</summary>
             private uint[] m_acousticSignalNumbers = [];
 
+            /// <summary>The configured audio sample variables.</summary>
+            private AudioSignalBinding[] m_audioSampleBindings = [];
+
             /// <summary>The fixed channel bindings.</summary>
             private ChannelBinding[] m_channelBindings = [];
         }
+
+        /// <summary>
+        /// Caches an acoustic signal and its optional audio sample variable.
+        /// </summary>
+        /// <param name="Name">The qualified signal browse name.</param>
+        /// <param name="AudioSample">The optional configured audio variable.</param>
+        private sealed record AudioSignalBinding(QualifiedName Name, BaseVariableState? AudioSample);
 
         /// <summary>
         /// Caches one independently observed, namespace-qualified color channel.

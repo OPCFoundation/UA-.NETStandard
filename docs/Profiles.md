@@ -43,11 +43,13 @@ Machine Vision, weighing, measurement, Pumps and MachineTool families.
 Source-generation tooling also implements selected modelling checks relevant
 to OPC 11030.
 
-[Energy Consumption Management](ECM.md), OPC 34100, includes standalone
-provider-backed E0, E1, E2, E3, D0 and D1 measurements, accuracy domains, standby and WOL
-server bindings, typed clients and samples. Support remains Partial because
-the statistics integration depends on the shared IA.Server runtime (#4988),
-which is not on `master`, and the implementation is unexecuted.
+[Energy Consumption Management](ECM.md), OPC 34100, implements the ECM-specific
+server conformance units with standalone E0, E1, E2, E3, D0 and D1 measurements,
+their standardized MeasurementIDs and engineering-unit identities, accuracy
+domains, standby and WOL bindings, typed clients and samples. Configured
+capabilities determine which ECM conformance units and required inherited
+profile URIs the server advertises. Equipment behavior is supplied through
+application-owned providers.
 
 Support describes SDK functionality, not certification of every current
 feature, companion model or application. Historical reference-server
@@ -290,7 +292,7 @@ support gap.
 | [WoT Binding](WotBindings.md), OPC 10101 | Partial | Published 1.00 consumer mode and conversions; general UA Binary payload codec and complete TD/TM/Binding-result schema validation are missing |
 | [PackML](Scales.md), OPC 30050 | Partial | Generated model and Scales recipe/state integration; not a standalone implementation of every PackML unit mode |
 | [PA-DIM](Machinery.md), OPC 30081 | Partial | Generated dependency model and Machinery process-value bindings; not a complete standalone PA-DIM device runtime |
-| [Energy Consumption Management](ECM.md), OPC 34100 | Partial | Machinery energy bindings and standalone provider-backed E0-E3/D0/D1, accuracy, standby and WOL APIs, clients and samples; statistics reuse IA.Server (#4988, not on master) and are unexecuted |
+| [Energy Consumption Management](ECM.md), OPC 34100 | Full | All defined ECM capabilities, including E0-E3/D0/D1 measurements and statistics with standardized MeasurementIDs and engineering-unit identities, accuracy domains, standby/control and WOL; configured capabilities drive ECM and inherited profile advertisement; equipment behavior is supplied through application-owned providers |
 | [LADS](LADS.md), OPC 30500-1 | Partial | Devices, functional units, functions, programs, results and maintenance; optional Hold/Unhold/Suspend/Unsuspend/Reset/ToComplete server methods and persistence are missing |
 | [Plastics and rubber common types](PlasticsRubber.md), OPC 40083 | Full | Common controls, monitoring, maintenance, materials, diagnostics and production datasets; independently authored 1.03 interface implementation on the licensed 1.02 basis |
 | [Granulate drying](PlasticsRubber.md#granulate-drying-devices-opc-40082-6), OPC 40082-6 | Full | Device construction, selectable conformance units, provider-backed commands, observations, events and typed clients |
@@ -910,7 +912,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 30400-2: Cloud Library - API Definition](https://reference.opcfoundation.org/specs/OPC-30400-2) | 1.00.0 | No | - |
 | [OPC 30450-1: Digital Product Passport - Information Model](https://reference.opcfoundation.org/specs/OPC-30450-1) | 1.0.0 | No | - |
 | [OPC 30500-1: Laboratory and Analytical Device Standard (LADS) - Basics](https://reference.opcfoundation.org/specs/OPC-30500-1) | 1.0.0 | Partial | Optional Hold/Unhold/Suspend/Unsuspend/Reset/ToComplete server methods and persistence missing |
-| [OPC 34100: Energy Consumption Management](https://reference.opcfoundation.org/specs/OPC-34100) | 1.0.1 | Partial | Standalone E0-E3/D0/D1 measurement, accuracy, standby/WOL server, typed clients, samples and Machinery energy bindings; statistics reuse IA.Server (#4988, not on master) and are unexecuted |
+| [OPC 34100: Energy Consumption Management](https://reference.opcfoundation.org/specs/OPC-34100) | 1.0.1 | Full | All defined ECM capabilities, including E0-E3/D0/D1 measurements and statistics with standardized MeasurementIDs and engineering-unit identities, accuracy domains, standby/control and WOL; configured capabilities drive ECM and inherited profile advertisement; equipment behavior is supplied through application-owned providers |
 | [OPC 40001-1: Machinery - Basic Building Blocks](https://reference.opcfoundation.org/specs/OPC-40001-1) | 1.04.2 | Full | - |
 | [OPC 40001-2: Machinery - Process Values](https://reference.opcfoundation.org/specs/OPC-40001-2) | 1.00 | Full | - |
 | [OPC 40001-3: Machinery - Job Management](https://reference.opcfoundation.org/specs/OPC-40001-3) | 1.0.1 | Full | - |

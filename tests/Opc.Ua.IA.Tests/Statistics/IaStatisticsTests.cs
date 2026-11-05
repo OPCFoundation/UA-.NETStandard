@@ -449,7 +449,7 @@ namespace Opc.Ua.IA.Tests.Statistics
             BaseObjectState owner = fixture.Owner();
             BaseVariableState statistic = fixture.Quantity(owner);
             BaseVariableState reading = fixture.Quantity(fixture.Owner("Other"), "Instantaneous");
-            var tag = new PropertyState<string>(owner);
+            var tag = new PropertyState(owner);
             tag.Create(fixture.Context, NodeId.Null, fixture.Name("ApplicationTag"),
                 new LocalizedText("ApplicationTag"), true);
             tag.DataType = Opc.Ua.DataTypeIds.String;
@@ -482,7 +482,7 @@ namespace Opc.Ua.IA.Tests.Statistics
                 Assert.That(token.CanBeCanceled, Is.False);
                 AssertValue(statistic, expected);
                 AssertValue(reading, expected + 100);
-                Assert.That(tag.Value, Is.EqualTo($"tag-{expected}"));
+                Assert.That(tag.WrappedValue, Is.EqualTo(Variant.From($"tag-{expected}")));
                 Assert.That(reading.StatusCode, Is.EqualTo((StatusCode)StatusCodes.UncertainLastUsableValue));
                 Assert.That(reading.Timestamp, Is.EqualTo(IaTestContext.Timestamp));
                 Assert.That(binding.StartTime.Value.TryGetValue(out DateTimeUtc startTime), Is.True);
@@ -523,7 +523,8 @@ namespace Opc.Ua.IA.Tests.Statistics
             }
             if (failSink)
             {
-                await Assert.ThatAsync(async () => await first.ConfigureAwait(false), Throws.SameAs(failure));
+                await Assert.ThatAsync(async () => await first.ConfigureAwait(false),
+                    Throws.Exception.SameAs(failure));
             }
             else
             {
@@ -535,7 +536,7 @@ namespace Opc.Ua.IA.Tests.Statistics
             }
             AssertValue(statistic, 23);
             AssertValue(reading, 123);
-            Assert.That(tag.Value, Is.EqualTo("tag-23"));
+            Assert.That(tag.WrappedValue, Is.EqualTo(Variant.From("tag-23")));
             Assert.That(companionNotifications, Is.EqualTo(failSink ? 1 : 2));
         }
 
@@ -701,7 +702,7 @@ namespace Opc.Ua.IA.Tests.Statistics
                 .Returns(() =>
                 {
                     cancellation.Cancel();
-                    return ValueTask.FromResult(next);
+                    return new ValueTask<IaStatisticsSnapshot>(next);
                 });
             provider.Setup(item => item.AuthorizeResetAsync(fixture.Context, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(ServiceResult.Good);
@@ -709,7 +710,7 @@ namespace Opc.Ua.IA.Tests.Statistics
                 .Returns(() =>
                 {
                     cancellation.Cancel();
-                    return ValueTask.FromResult(next);
+                    return new ValueTask<IaStatisticsSnapshot>(next);
                 });
             int notifications = 0;
             statistic.OnStateChangedAsync = (_, _, _, token) =>
@@ -763,7 +764,7 @@ namespace Opc.Ua.IA.Tests.Statistics
                     .EqualTo((StatusCode)StatusCodes.BadNotSupported));
             AssertValue(statistic, 7);
             Assert.That(binding.StartTime.Value.IsNull, Is.True);
-            Assert.That(companion.WrappedValue.TryGetStructure<LossyStructure>(out var retained), Is.True);
+            Assert.That(companion.WrappedValue.TryGetStructure(out LossyStructure? retained), Is.True);
             Assert.That(ReferenceEquals(retained, unsupported), Is.True);
             Assert.That(unsupported.CloneCalls, Is.Zero);
             Assert.That(unsupported.EncodeCalls, Is.Zero);
@@ -2850,7 +2851,7 @@ namespace Opc.Ua.IA.Tests.Statistics
         {
             if (source is ECM.AcPeDataType)
             {
-                Assert.That(node.WrappedValue.TryGetStructure<ECM.AcPeDataType>(out var value), Is.True);
+                Assert.That(node.WrappedValue.TryGetStructure(out ECM.AcPeDataType? value), Is.True);
                 Assert.That(value!.GetType(), Is.EqualTo(typeof(ECM.AcPeDataType)));
                 Assert.That(ReferenceEquals(value, source), Is.False);
                 Assert.That(value.L1, Is.EqualTo(first));
@@ -2859,7 +2860,7 @@ namespace Opc.Ua.IA.Tests.Statistics
             }
             else
             {
-                Assert.That(node.WrappedValue.TryGetStructure<ECM.AcPpDataType>(out var value), Is.True);
+                Assert.That(node.WrappedValue.TryGetStructure(out ECM.AcPpDataType? value), Is.True);
                 Assert.That(value!.GetType(), Is.EqualTo(typeof(ECM.AcPpDataType)));
                 Assert.That(ReferenceEquals(value, source), Is.False);
                 Assert.That(value.L1L2, Is.EqualTo(first));

@@ -52,19 +52,51 @@ namespace Opc.Ua.ECM.Server
     }
 
     /// <summary>
+    /// A standardized engineering unit used by an OPC 34100 measurement.
+    /// </summary>
+    internal enum EcmMeasurementUnit
+    {
+        /// <summary>The ampere.</summary>
+        Ampere,
+
+        /// <summary>The watt.</summary>
+        Watt,
+
+        /// <summary>The watt hour.</summary>
+        WattHour,
+
+        /// <summary>The ampere hour.</summary>
+        AmpereHour,
+
+        /// <summary>The percent.</summary>
+        Percent,
+
+        /// <summary>The volt.</summary>
+        Volt,
+
+        /// <summary>The volt ampere reactive.</summary>
+        ReactivePower,
+
+        /// <summary>The volt ampere reactive hour.</summary>
+        ReactiveEnergy
+    }
+
+    /// <summary>
     /// One mandatory member of a published OPC 34100 energy profile.
     /// </summary>
     /// <param name="Name">The ECM BrowseName.</param>
     /// <param name="Kind">The declared value type.</param>
     /// <param name="IsStatistic">Whether the profile declares the member with HasStatisticComponent.</param>
+    /// <param name="MeasurementId">The standardized measurement identifier.</param>
     /// <param name="AllowsRange">Whether the profile declares an AccuracyRange property.</param>
-    /// <param name="AllowsUnits">Whether the profile declares an EngineeringUnits property.</param>
+    /// <param name="Unit">The standardized engineering unit, or null when the member has no units.</param>
     internal sealed record EcmProfileMember(
         string Name,
         EcmMeasurementKind Kind,
         bool IsStatistic,
+        ushort MeasurementId,
         bool AllowsRange,
-        bool AllowsUnits);
+        EcmMeasurementUnit? Unit);
 
     /// <summary>
     /// One standalone energy profile interface and its mandatory members.
@@ -113,6 +145,51 @@ namespace Opc.Ua.ECM.Server
         }
 
         /// <summary>
+        /// Creates the standardized EngineeringUnits value for a profile member.
+        /// </summary>
+        /// <param name="member">The profile member.</param>
+        internal static EUInformation? EngineeringUnitsOf(EcmProfileMember member)
+        {
+            ArgumentNullException.ThrowIfNull(member, nameof(member));
+            return member.Unit switch
+            {
+                EcmMeasurementUnit.Ampere => Units("A", "ampere", 4_279_632),
+                EcmMeasurementUnit.Watt => Units("W", "watt", 5_723_220),
+                EcmMeasurementUnit.WattHour => Units("W·h", "watt hour", 5_720_146),
+                EcmMeasurementUnit.AmpereHour => Units("A·h", "ampere hour", 4_279_624),
+                EcmMeasurementUnit.Percent => Units("%", "percent", 20_529),
+                EcmMeasurementUnit.Volt => Units("V", "volt", 5_655_636),
+                EcmMeasurementUnit.ReactivePower => Units("var", "var", 4_469_812),
+                EcmMeasurementUnit.ReactiveEnergy => new EUInformation(
+                    "var·h",
+                    "volt ampere reactive hour",
+                    "http://opcfoundation.org/UA/ECM/")
+                {
+                    UnitId = 1
+                },
+                _ => null
+            };
+        }
+
+        /// <summary>
+        /// Checks the unit identity against the published profile member.
+        /// </summary>
+        /// <param name="member">The profile member.</param>
+        /// <param name="engineeringUnits">The provider's value.</param>
+        internal static bool HasExpectedEngineeringUnits(
+            EcmProfileMember member,
+            EUInformation engineeringUnits)
+        {
+            EUInformation? expected = EngineeringUnitsOf(member);
+            return expected != null &&
+                string.Equals(
+                    engineeringUnits.NamespaceUri,
+                    expected.NamespaceUri,
+                    StringComparison.Ordinal) &&
+                engineeringUnits.UnitId == expected.UnitId;
+        }
+
+        /// <summary>
         /// Checks the runtime Variant type of a measurement against its declared kind.
         /// </summary>
         /// <param name="kind">The declared kind.</param>
@@ -123,10 +200,10 @@ namespace Opc.Ua.ECM.Server
             {
                 EcmMeasurementKind.Float => value.TryGetValue(out float _),
                 EcmMeasurementKind.Double => value.TryGetValue(out double _),
-                EcmMeasurementKind.AcPe => value.TryGetStructure(out AcPeDataType? phases) &&
-                    phases is not null && phases.GetType() == typeof(AcPeDataType),
-                _ => value.TryGetStructure(out AcPpDataType? lines) &&
-                    lines is not null && lines.GetType() == typeof(AcPpDataType)
+                EcmMeasurementKind.AcPe => value.TryGetStructure<AcPeDataType>(out AcPeDataType phases) &&
+                    phases.GetType() == typeof(AcPeDataType),
+                _ => value.TryGetStructure<AcPpDataType>(out AcPpDataType lines) &&
+                    lines.GetType() == typeof(AcPpDataType)
             };
         }
 
@@ -161,50 +238,148 @@ namespace Opc.Ua.ECM.Server
             [
                 new("E0", ObjectTypeIds.IEnergyProfileE0Type,
                 [
-                    Component(nameof(BrowseNames.AcCurrentPe), EcmMeasurementKind.AcPe)
+                    Component(
+                        nameof(BrowseNames.AcCurrentPe),
+                        EcmMeasurementKind.AcPe,
+                        1218,
+                        EcmMeasurementUnit.Ampere)
                 ]),
                 new("E1", ObjectTypeIds.IEnergyProfileE1Type,
                 [
-                    Component(nameof(BrowseNames.AcActivePowerTotal), EcmMeasurementKind.Float)
+                    Component(
+                        nameof(BrowseNames.AcActivePowerTotal),
+                        EcmMeasurementKind.Float,
+                        1412,
+                        EcmMeasurementUnit.Watt)
                 ]),
                 new("E2", ObjectTypeIds.IEnergyProfileE2Type,
                 [
-                    Statistic(nameof(BrowseNames.AcActiveEnergyTotalExportLp), EcmMeasurementKind.Float),
-                    Statistic(nameof(BrowseNames.AcActiveEnergyTotalImportLp), EcmMeasurementKind.Float),
-                    Component(nameof(BrowseNames.AcActivePowerTotal), EcmMeasurementKind.Float)
+                    Statistic(
+                        nameof(BrowseNames.AcActiveEnergyTotalExportLp),
+                        EcmMeasurementKind.Float,
+                        1004,
+                        EcmMeasurementUnit.WattHour),
+                    Statistic(
+                        nameof(BrowseNames.AcActiveEnergyTotalImportLp),
+                        EcmMeasurementKind.Float,
+                        1001,
+                        EcmMeasurementUnit.WattHour),
+                    Component(
+                        nameof(BrowseNames.AcActivePowerTotal),
+                        EcmMeasurementKind.Float,
+                        1412,
+                        EcmMeasurementUnit.Watt)
                 ]),
                 new("E3", ObjectTypeIds.IEnergyProfileE3Type,
                 [
-                    Statistic(nameof(BrowseNames.AcActiveEnergyTotalExportHp), EcmMeasurementKind.Double),
-                    Statistic(nameof(BrowseNames.AcActiveEnergyTotalImportHp), EcmMeasurementKind.Double),
-                    Component(nameof(BrowseNames.AcActivePowerPe), EcmMeasurementKind.AcPe),
-                    Component(nameof(BrowseNames.AcCurrentPe), EcmMeasurementKind.AcPe),
-                    Component(nameof(BrowseNames.AcPowerFactorPe), EcmMeasurementKind.AcPe, units: false),
-                    Statistic(nameof(BrowseNames.AcReactiveEnergyTotalExportHp), EcmMeasurementKind.Double),
-                    Statistic(nameof(BrowseNames.AcReactiveEnergyTotalImportHp), EcmMeasurementKind.Double),
-                    Component(nameof(BrowseNames.AcReactivePowerPe), EcmMeasurementKind.AcPe),
-                    Component(nameof(BrowseNames.AcVoltagePe), EcmMeasurementKind.AcPe),
-                    Component(nameof(BrowseNames.AcVoltagePp), EcmMeasurementKind.AcPp)
+                    Statistic(
+                        nameof(BrowseNames.AcActiveEnergyTotalExportHp),
+                        EcmMeasurementKind.Double,
+                        1005,
+                        EcmMeasurementUnit.WattHour),
+                    Statistic(
+                        nameof(BrowseNames.AcActiveEnergyTotalImportHp),
+                        EcmMeasurementKind.Double,
+                        1002,
+                        EcmMeasurementUnit.WattHour),
+                    Component(
+                        nameof(BrowseNames.AcActivePowerPe),
+                        EcmMeasurementKind.AcPe,
+                        1409,
+                        EcmMeasurementUnit.Watt),
+                    Component(
+                        nameof(BrowseNames.AcCurrentPe),
+                        EcmMeasurementKind.AcPe,
+                        1218,
+                        EcmMeasurementUnit.Ampere),
+                    Component(
+                        nameof(BrowseNames.AcPowerFactorPe),
+                        EcmMeasurementKind.AcPe,
+                        1709,
+                        null),
+                    Statistic(
+                        nameof(BrowseNames.AcReactiveEnergyTotalExportHp),
+                        EcmMeasurementKind.Double,
+                        1014,
+                        EcmMeasurementUnit.ReactiveEnergy),
+                    Statistic(
+                        nameof(BrowseNames.AcReactiveEnergyTotalImportHp),
+                        EcmMeasurementKind.Double,
+                        1011,
+                        EcmMeasurementUnit.ReactiveEnergy),
+                    Component(
+                        nameof(BrowseNames.AcReactivePowerPe),
+                        EcmMeasurementKind.AcPe,
+                        1618,
+                        EcmMeasurementUnit.ReactivePower),
+                    Component(
+                        nameof(BrowseNames.AcVoltagePe),
+                        EcmMeasurementKind.AcPe,
+                        1118,
+                        EcmMeasurementUnit.Volt),
+                    Component(
+                        nameof(BrowseNames.AcVoltagePp),
+                        EcmMeasurementKind.AcPp,
+                        1145,
+                        EcmMeasurementUnit.Volt)
                 ]),
                 new("D0", ObjectTypeIds.IEnergyProfileD0Type,
                 [
-                    Component(nameof(BrowseNames.DcCurrent), EcmMeasurementKind.Float)
+                    Component(
+                        nameof(BrowseNames.DcCurrent),
+                        EcmMeasurementKind.Float,
+                        1033,
+                        EcmMeasurementUnit.Ampere)
                 ]),
                 new("D1", ObjectTypeIds.IEnergyProfileD1Type,
                 [
-                    Component(nameof(BrowseNames.DcActivePower), EcmMeasurementKind.Float, range: false),
-                    Component(nameof(BrowseNames.DcCurrent), EcmMeasurementKind.Float),
-                    Statistic(nameof(BrowseNames.DcElectricalCharge), EcmMeasurementKind.Float, range: false),
-                    Statistic(nameof(BrowseNames.DcEnergyTotalExportLp), EcmMeasurementKind.Float, range: false),
-                    Statistic(nameof(BrowseNames.DcEnergyTotalImportLp), EcmMeasurementKind.Float, range: false),
-                    Statistic(nameof(BrowseNames.DcRelativeCharge), EcmMeasurementKind.Float, range: false),
-                    Component(nameof(BrowseNames.DcVoltage), EcmMeasurementKind.Float, range: false)
+                    Component(
+                        nameof(BrowseNames.DcActivePower),
+                        EcmMeasurementKind.Float,
+                        1032,
+                        EcmMeasurementUnit.Watt,
+                        range: false),
+                    Component(
+                        nameof(BrowseNames.DcCurrent),
+                        EcmMeasurementKind.Float,
+                        1033,
+                        EcmMeasurementUnit.Ampere),
+                    Statistic(
+                        nameof(BrowseNames.DcElectricalCharge),
+                        EcmMeasurementKind.Float,
+                        1030,
+                        EcmMeasurementUnit.AmpereHour,
+                        range: false),
+                    Statistic(
+                        nameof(BrowseNames.DcEnergyTotalExportLp),
+                        EcmMeasurementKind.Float,
+                        1025,
+                        EcmMeasurementUnit.WattHour,
+                        range: false),
+                    Statistic(
+                        nameof(BrowseNames.DcEnergyTotalImportLp),
+                        EcmMeasurementKind.Float,
+                        1022,
+                        EcmMeasurementUnit.WattHour,
+                        range: false),
+                    Statistic(
+                        nameof(BrowseNames.DcRelativeCharge),
+                        EcmMeasurementKind.Float,
+                        1031,
+                        EcmMeasurementUnit.Percent,
+                        range: false),
+                    Component(
+                        nameof(BrowseNames.DcVoltage),
+                        EcmMeasurementKind.Float,
+                        1034,
+                        EcmMeasurementUnit.Volt,
+                        range: false)
                 ])
             ];
         }
 
         /// <summary>
-        /// Merges members shared between profiles; a property is allowed when any profile declares it.
+        /// Merges shared members and verifies that their standardized identifiers and units agree.
         /// </summary>
         private static Dictionary<string, EcmProfileMember> CreateMembers()
         {
@@ -213,13 +388,22 @@ namespace Opc.Ua.ECM.Server
             {
                 foreach (EcmProfileMember member in profile.Members)
                 {
-                    members[member.Name] = members.TryGetValue(member.Name, out EcmProfileMember? existing)
-                        ? existing with
+                    if (members.TryGetValue(member.Name, out EcmProfileMember? existing))
+                    {
+                        if (existing.MeasurementId != member.MeasurementId || existing.Unit != member.Unit)
                         {
-                            AllowsRange = existing.AllowsRange || member.AllowsRange,
-                            AllowsUnits = existing.AllowsUnits || member.AllowsUnits
+                            throw new InvalidOperationException(
+                                "A shared ECM BrowseName must have identical standardized metadata in every profile.");
                         }
-                        : member;
+                        members[member.Name] = existing with
+                        {
+                            AllowsRange = existing.AllowsRange || member.AllowsRange
+                        };
+                    }
+                    else
+                    {
+                        members.Add(member.Name, member);
+                    }
                 }
             }
             return members;
@@ -231,10 +415,11 @@ namespace Opc.Ua.ECM.Server
         private static EcmProfileMember Component(
             string name,
             EcmMeasurementKind kind,
-            bool range = true,
-            bool units = true)
+            ushort measurementId,
+            EcmMeasurementUnit? unit,
+            bool range = true)
         {
-            return new EcmProfileMember(name, kind, false, range, units);
+            return new EcmProfileMember(name, kind, false, measurementId, range, unit);
         }
 
         /// <summary>
@@ -243,13 +428,24 @@ namespace Opc.Ua.ECM.Server
         private static EcmProfileMember Statistic(
             string name,
             EcmMeasurementKind kind,
-            bool range = true,
-            bool units = true)
+            ushort measurementId,
+            EcmMeasurementUnit? unit,
+            bool range = true)
         {
-            return new EcmProfileMember(name, kind, true, range, units);
+            return new EcmProfileMember(name, kind, true, measurementId, range, unit);
+        }
+
+        /// <summary>
+        /// Creates a UN/CEFACT engineering unit value.
+        /// </summary>
+        private static EUInformation Units(string symbol, string name, int unitId)
+        {
+            return new EUInformation(symbol, name, s_cefactUnitsNamespaceUri) { UnitId = unitId };
         }
 
         /// <summary>Lazily merged members, created after the catalogue exists.</summary>
         private static readonly Lazy<Dictionary<string, EcmProfileMember>> s_members = new(CreateMembers);
+
+        private const string s_cefactUnitsNamespaceUri = "http://www.opcfoundation.org/UA/units/un/cefact";
     }
 }

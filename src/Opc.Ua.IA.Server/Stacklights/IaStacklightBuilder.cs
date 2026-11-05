@@ -61,12 +61,17 @@ namespace Opc.Ua.IA.Server
         }
 
         /// <summary>
-        /// Adds an acoustic element with one named signal; callbacks can add further ordered signals.
+        /// Adds an acoustic element with one named signal; callbacks can add further signals and optional audio data.
         /// </summary>
+        /// <param name="name">The acoustic element's browse name.</param>
+        /// <param name="signalName">The first acoustic signal's browse name.</param>
+        /// <param name="configure">Configures optional members on the acoustic element.</param>
+        /// <param name="configureSignal">Configures optional members on the first acoustic signal.</param>
         public IaStacklightBuilder AddAcoustic(
             QualifiedName name,
             QualifiedName signalName,
-            Action<StackElementAcousticState>? configure = null)
+            Action<StackElementAcousticState>? configure = null,
+            Action<AcousticSignalState>? configureSignal = null)
         {
             StackElementAcousticState acoustic = m_context.CreateInstanceOfStackElementAcousticType(State, name);
             acoustic.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasOrderedComponent;
@@ -75,6 +80,7 @@ namespace Opc.Ua.IA.Server
                 acoustic.AcousticSignals!, signalName);
             signal.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasOrderedComponent;
             signal.NumberInList!.Value = 0u;
+            configureSignal?.Invoke(signal);
             acoustic.AcousticSignals!.AddChild(signal);
             configure?.Invoke(acoustic);
             State.AddChild(acoustic);

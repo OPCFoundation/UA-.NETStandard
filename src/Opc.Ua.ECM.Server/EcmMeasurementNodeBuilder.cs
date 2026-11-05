@@ -91,6 +91,27 @@ namespace Opc.Ua.ECM.Server
             Variant ownedValue = EcmOwnership.Own(value);
             NodeId ownedAccuracyDomain = EcmOwnership.Own(accuracyDomain);
             EUInformation? ownedUnits = EcmOwnership.Own(engineeringUnits, nameof(engineeringUnits));
+            if (string.Equals(
+                    context.NamespaceUris.GetString(browseName.NamespaceIndex),
+                    Namespaces.ECM,
+                    StringComparison.Ordinal) &&
+                EcmMeasurementProfiles.TryGetMember(name, out EcmProfileMember? standardMember))
+            {
+                NodeId expectedDataType = ExpandedNodeId.ToNodeId(
+                    EcmMeasurementProfiles.DataTypeOf(standardMember.Kind),
+                    context.NamespaceUris);
+                if (dataTypeId != expectedDataType ||
+                    (measurementId.HasValue && measurementId.Value != standardMember.MeasurementId) ||
+                    (ownedUnits is not null &&
+                        !EcmMeasurementProfiles.HasExpectedEngineeringUnits(standardMember, ownedUnits)))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadInvalidArgument,
+                        "A standardized ECM measurement must retain its published DataType, MeasurementID and unit.");
+                }
+                measurementId = standardMember.MeasurementId;
+                ownedUnits ??= EcmMeasurementProfiles.EngineeringUnitsOf(standardMember);
+            }
 
             var children = new List<BaseInstanceState>();
             measurementPoint.GetChildren(context, children);

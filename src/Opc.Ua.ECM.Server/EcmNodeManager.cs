@@ -57,6 +57,7 @@ namespace Opc.Ua.ECM.Server
             : base(server, configuration, postSetupRunner, providers, [Namespaces.ECM, IA.Namespaces.IA])
         {
             m_ecmLogger = server.Telemetry.CreateLogger<EcmNodeManager>();
+            m_conformance = EcmConformanceContributor.For(this, server);
         }
 
         /// <summary>
@@ -240,6 +241,8 @@ namespace Opc.Ua.ECM.Server
                     owner.AddChild(standby);
                     await AddPredefinedNodeAsync(standby, cancellationToken).ConfigureAwait(false);
                     RegisterResource(binding);
+                    m_conformance.Register(binding);
+                    await m_conformance.PublishAsync(binding, cancellationToken).ConfigureAwait(false);
                     return binding;
                 }
                 catch
@@ -285,6 +288,8 @@ namespace Opc.Ua.ECM.Server
                     owner.AddChild(powerOff);
                     await AddPredefinedNodeAsync(powerOff, cancellationToken).ConfigureAwait(false);
                     RegisterResource(binding);
+                    m_conformance.Register(binding);
+                    await m_conformance.PublishAsync(binding, cancellationToken).ConfigureAwait(false);
                     return binding;
                 }
                 catch
@@ -333,6 +338,8 @@ namespace Opc.Ua.ECM.Server
                     owner.AddChild(measurement);
                     await AddPredefinedNodeAsync(measurement, cancellationToken).ConfigureAwait(false);
                     RegisterResource(binding);
+                    m_conformance.Register(binding);
+                    await m_conformance.PublishAsync(binding, cancellationToken).ConfigureAwait(false);
                     return binding;
                 }
                 catch
@@ -466,6 +473,9 @@ namespace Opc.Ua.ECM.Server
 
         /// <summary>The manager's diagnostic logger.</summary>
         private readonly ILogger m_ecmLogger;
+
+        /// <summary>The ECM capabilities published by this manager.</summary>
+        private readonly EcmConformanceContributor m_conformance;
 
         /// <summary>Serializes duplicate checks and publication.</summary>
         private readonly SemaphoreSlim m_creation = new(1, 1);

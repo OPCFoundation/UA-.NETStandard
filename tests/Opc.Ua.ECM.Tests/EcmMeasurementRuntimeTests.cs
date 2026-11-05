@@ -104,6 +104,13 @@ namespace Opc.Ua.ECM.Tests
             Assert.That(phaseCurrent!.L1, Is.EqualTo(1.25f));
             Assert.That(phaseCurrent.L2, Is.EqualTo(2.5f));
             Assert.That(phaseCurrent.L3, Is.EqualTo(3.75f));
+            Assert.That(
+                ReadProperty(acCurrentPe, context, "MeasurementID"),
+                Is.EqualTo(Variant.From((ushort)1218)));
+            EUInformation acCurrentUnits = acCurrentPe.EngineeringUnits!.Value;
+            Assert.That(acCurrentUnits.NamespaceUri, Is.EqualTo(
+                "http://www.opcfoundation.org/UA/units/un/cefact"));
+            Assert.That(acCurrentUnits.UnitId, Is.EqualTo(4_279_632));
             Assert.That(acCurrentPe.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(acCurrentPe.Timestamp, Is.EqualTo(acquiredTimestamp));
 
@@ -113,6 +120,10 @@ namespace Opc.Ua.ECM.Tests
             Assert.That(activePower.ValueRank, Is.EqualTo(Opc.Ua.ValueRanks.Scalar));
             Assert.That(activePower.WrappedValue.TryGetValue(out float activePowerValue), Is.True);
             Assert.That(activePowerValue, Is.EqualTo(15.5f));
+            Assert.That(
+                ReadProperty(activePower, context, "MeasurementID"),
+                Is.EqualTo(Variant.From((ushort)1412)));
+            Assert.That(activePower.EngineeringUnits!.Value.UnitId, Is.EqualTo(5_723_220));
             Assert.That(activePower.StatusCode, Is.EqualTo(StatusCodes.UncertainLastUsableValue));
             Assert.That(activePower.Timestamp, Is.EqualTo(acquiredTimestamp));
 
@@ -122,6 +133,10 @@ namespace Opc.Ua.ECM.Tests
             Assert.That(dcCurrent.ValueRank, Is.EqualTo(Opc.Ua.ValueRanks.Scalar));
             Assert.That(dcCurrent.WrappedValue.TryGetValue(out float dcCurrentValue), Is.True);
             Assert.That(dcCurrentValue, Is.EqualTo(24.75f));
+            Assert.That(
+                ReadProperty(dcCurrent, context, "MeasurementID"),
+                Is.EqualTo(Variant.From((ushort)1033)));
+            Assert.That(dcCurrent.EngineeringUnits!.Value.UnitId, Is.EqualTo(4_279_632));
             Assert.That(dcCurrent.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(dcCurrent.Timestamp, Is.EqualTo(acquiredTimestamp));
 
@@ -231,6 +246,72 @@ namespace Opc.Ua.ECM.Tests
                         new NodeId(otherProfile, ecmNamespace)),
                     Is.False);
             }
+        }
+
+        /// <summary>
+        /// The provider cannot replace a standardized measurement identifier or engineering-unit identity.
+        /// </summary>
+        [TestCase("measurement-id")]
+        [TestCase("unit-namespace")]
+        [TestCase("unit-id")]
+        [TestCase("no-units-member")]
+        public async Task ProviderCannotOverrideStandardMeasurementMetadata(string overrideKind)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queues = new MonitoredItemQueueFactory(telemetry);
+            await using EcmNodeManager manager = CreateManager(telemetry, queues);
+            BaseObjectState parent = await AddParentAsync(manager, "StandardMetadataDevice");
+            string measurementName = overrideKind == "no-units-member"
+                ? nameof(BrowseNames.AcPowerFactorPe)
+                : nameof(BrowseNames.AcActivePowerTotal);
+            var acquired = new DateTime(2026, 8, 14, 9, 25, 0, DateTimeKind.Utc);
+            EcmMeasurementReading reading = overrideKind == "no-units-member"
+                ? new EcmMeasurementReading(
+                    measurementName,
+                    Variant.FromStructure(new AcPeDataType { L1 = 0.9f, L2 = 0.9f, L3 = 0.9f }),
+                    DataTypeIds.AcPeDataType,
+                    StatusCodes.Good,
+                    acquired)
+                : FloatReading(measurementName, 18f, StatusCodes.Good, acquired);
+            reading = overrideKind switch
+            {
+                "measurement-id" => reading with { MeasurementId = 1413 },
+                "unit-namespace" => reading with
+                {
+                    EngineeringUnits = new EUInformation("W", "watt", "urn:nonstandard")
+                    {
+                        UnitId = 5_723_220
+                    }
+                },
+                "unit-id" => reading with
+                {
+                    EngineeringUnits = new EUInformation(
+                        "W",
+                        "watt",
+                        "http://www.opcfoundation.org/UA/units/un/cefact")
+                    {
+                        UnitId = 42
+                    }
+                },
+                "no-units-member" => reading with
+                {
+                    EngineeringUnits = new EUInformation(
+                        "A",
+                        "ampere",
+                        "http://www.opcfoundation.org/UA/units/un/cefact")
+                    {
+                        UnitId = 4_279_632
+                    }
+                },
+                _ => throw new ArgumentOutOfRangeException(nameof(overrideKind))
+            };
+            var browseName = new QualifiedName("InvalidStandardMetadata", manager.InstanceNamespaceIndex);
+            var provider = new TestMeasurementProvider(Snapshot("meter/invalid-metadata", reading));
+
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await manager.CreateMeasurementAsync(browseName, provider, parent));
+
+            Assert.That(parent.FindChild(manager.SystemContext, browseName), Is.Null);
         }
 
         /// <summary>
@@ -498,13 +579,13 @@ namespace Opc.Ua.ECM.Tests
             using var queues = new MonitoredItemQueueFactory(telemetry);
             await using EcmNodeManager manager = CreateManager(telemetry, queues);
             ushort ecmNamespace = manager.SystemContext.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
-            var firstUnits = new EUInformation("kW", "kilowatt", "http://www.opcfoundation.org/UA/units/un/cefact")
+            var firstUnits = new EUInformation("W", "watt", "http://www.opcfoundation.org/UA/units/un/cefact")
             {
-                UnitId = 0x4B5754
+                UnitId = 5_723_220
             };
-            var nextUnits = new EUInformation("kW", "kilowatt", "http://www.opcfoundation.org/UA/units/un/cefact")
+            var nextUnits = new EUInformation("W", "watt", "http://www.opcfoundation.org/UA/units/un/cefact")
             {
-                UnitId = 0x4B5754
+                UnitId = 5_723_220
             };
             var provider = new TestMeasurementProvider(
                 Snapshot("meter/units",
@@ -628,8 +709,8 @@ namespace Opc.Ua.ECM.Tests
             var units = new Mock<EUInformation> { CallBase = true };
             units.Setup(value => value.Clone()).Returns(() => units.Object);
             EUInformation source = units.Object;
-            source.NamespaceUri = nullText ? null : "urn:ecm-tests:units";
-            source.UnitId = 42;
+            source.NamespaceUri = "http://www.opcfoundation.org/UA/units/un/cefact";
+            source.UnitId = 4_279_632;
             source.DisplayName = nullText ? LocalizedText.Null : new LocalizedText("de", "Ampere");
             source.Description = nullText ? LocalizedText.Null : new LocalizedText("en", "Current");
             string? expectedNamespace = source.NamespaceUri;
@@ -1239,7 +1320,12 @@ namespace Opc.Ua.ECM.Tests
                     nameof(BrowseNames.DcCurrent), 3f, StatusCodes.Good,
                     new DateTime(2026, 8, 14, 10, 0, 0, DateTimeKind.Utc)) with
                 {
-                    EngineeringUnits = new EUInformation { UnitId = 1, DisplayName = source }
+                    EngineeringUnits = new EUInformation
+                    {
+                        NamespaceUri = "http://www.opcfoundation.org/UA/units/un/cefact",
+                        UnitId = 4_279_632,
+                        DisplayName = source
+                    }
                 };
                 EcmMeasurementBinding binding = await manager.CreateMeasurementAsync(
                     new QualifiedName("LocalizedUnitsMeter", manager.InstanceNamespaceIndex),
@@ -1308,7 +1394,12 @@ namespace Opc.Ua.ECM.Tests
                     nameof(BrowseNames.DcCurrent), 3f, StatusCodes.Good,
                     new DateTime(2026, 8, 14, 10, 0, 0, DateTimeKind.Utc)) with
                 {
-                    EngineeringUnits = new EUInformation { UnitId = 1, DisplayName = displayName }
+                    EngineeringUnits = new EUInformation
+                    {
+                        NamespaceUri = "http://www.opcfoundation.org/UA/units/un/cefact",
+                        UnitId = 4_279_632,
+                        DisplayName = displayName
+                    }
                 };
                 await Assert.ThrowsAsync<ArgumentException>(async () =>
                     await manager.CreateMeasurementAsync(
@@ -1338,7 +1429,8 @@ namespace Opc.Ua.ECM.Tests
             {
                 EngineeringUnits = new EUInformation
                 {
-                    UnitId = 1,
+                    NamespaceUri = "http://www.opcfoundation.org/UA/units/un/cefact",
+                    UnitId = 4_279_632,
                     DisplayName = new LocalizedText("unit", "en", "Class {0}", "A")
                 }
             };
@@ -1347,7 +1439,8 @@ namespace Opc.Ua.ECM.Tests
             {
                 EngineeringUnits = new EUInformation
                 {
-                    UnitId = 1,
+                    NamespaceUri = "http://www.opcfoundation.org/UA/units/un/cefact",
+                    UnitId = 4_279_632,
                     DisplayName = new LocalizedText(
                         "unit",
                         "en",
@@ -1400,12 +1493,22 @@ namespace Opc.Ua.ECM.Tests
             EcmMeasurementReading firstReading = FloatReading(
                 nameof(BrowseNames.DcCurrent), 3f, StatusCodes.Good, firstTimestamp) with
             {
-                EngineeringUnits = new EUInformation { UnitId = 1, DisplayName = displayName }
+                EngineeringUnits = new EUInformation
+                {
+                    NamespaceUri = "http://www.opcfoundation.org/UA/units/un/cefact",
+                    UnitId = 4_279_632,
+                    DisplayName = displayName
+                }
             };
             EcmMeasurementReading refreshedReading = FloatReading(
                 nameof(BrowseNames.DcCurrent), 4f, StatusCodes.Good, refreshedTimestamp) with
             {
-                EngineeringUnits = new EUInformation { UnitId = 1, DisplayName = displayName }
+                EngineeringUnits = new EUInformation
+                {
+                    NamespaceUri = "http://www.opcfoundation.org/UA/units/un/cefact",
+                    UnitId = 4_279_632,
+                    DisplayName = displayName
+                }
             };
             var provider = new TestMeasurementProvider(
                 Snapshot("meter/initial", firstReading),

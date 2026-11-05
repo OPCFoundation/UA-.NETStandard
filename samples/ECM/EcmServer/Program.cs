@@ -468,20 +468,49 @@ internal sealed class SampleEnergyProvider : IEcmStatisticsProvider
         var readings = new List<EcmMeasurementReading>();
         if (!statisticsOnly)
         {
-            readings.Add(Float(BrowseNames.AcActivePowerTotal, 4.2f, "kW", 0x4B5754, timestamp, true));
+            readings.Add(Float(BrowseNames.AcActivePowerTotal, 4200f, "W", 5_723_220, timestamp, true));
             readings.Add(Float(BrowseNames.DcCurrent, 5.1f, "A", 0x414D50, timestamp, true));
-            readings.Add(Float(BrowseNames.DcActivePower, 0.12f, "kW", 0x4B5754, timestamp, false));
-            readings.Add(Float(BrowseNames.DcVoltage, 24f, "V", 0x564F4C, timestamp, false));
+            readings.Add(Float(BrowseNames.DcActivePower, 120f, "W", 5_723_220, timestamp, false));
+            readings.Add(Float(BrowseNames.DcVoltage, 24f, "V", 5_655_636, timestamp, false));
         }
         if (includeStatistics)
         {
-            readings.Add(Float(BrowseNames.AcActiveEnergyTotalExportLp, m_energy, "kWh", 0x4B5748, timestamp, true));
             readings.Add(Float(
-                BrowseNames.AcActiveEnergyTotalImportLp, m_energy / 2, "kWh", 0x4B5748, timestamp, true));
-            readings.Add(Float(BrowseNames.DcElectricalCharge, m_energy, "Ah", 0x414148, timestamp, false));
-            readings.Add(Float(BrowseNames.DcEnergyTotalExportLp, m_energy, "kWh", 0x4B5748, timestamp, false));
-            readings.Add(Float(BrowseNames.DcEnergyTotalImportLp, m_energy / 2, "kWh", 0x4B5748, timestamp, false));
-            readings.Add(Float(BrowseNames.DcRelativeCharge, 80f, "%", 0x50434E, timestamp, false));
+                BrowseNames.AcActiveEnergyTotalExportLp,
+                m_energy * 1000,
+                "W·h",
+                5_720_146,
+                timestamp,
+                true));
+            readings.Add(Float(
+                BrowseNames.AcActiveEnergyTotalImportLp,
+                m_energy * 500,
+                "W·h",
+                5_720_146,
+                timestamp,
+                true));
+            readings.Add(Float(
+                BrowseNames.DcElectricalCharge,
+                m_energy * (1000f / 24f),
+                "A·h",
+                4_279_624,
+                timestamp,
+                false));
+            readings.Add(Float(
+                BrowseNames.DcEnergyTotalExportLp,
+                m_energy * 1000,
+                "W·h",
+                5_720_146,
+                timestamp,
+                false));
+            readings.Add(Float(
+                BrowseNames.DcEnergyTotalImportLp,
+                m_energy * 500,
+                "W·h",
+                5_720_146,
+                timestamp,
+                false));
+            readings.Add(Float(BrowseNames.DcRelativeCharge, 80f, "%", 20_529, timestamp, false));
         }
         return [.. readings];
     }

@@ -33,6 +33,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Di.Server.Locking;
 using Opc.Ua.Redaction;
+using Opc.Ua.Server;
 using static Opc.Ua.ECM.Server.EcmModelNodes;
 
 namespace Opc.Ua.ECM.Server
@@ -56,6 +57,7 @@ namespace Opc.Ua.ECM.Server
             {
                 throw new ArgumentNullException(nameof(context));
             }
+            m_context = context;
             PowerOff = powerOff ?? throw new ArgumentNullException(nameof(powerOff));
             m_provider = provider ?? throw new ArgumentNullException(nameof(provider));
             m_authorize = authorize;
@@ -83,11 +85,18 @@ namespace Opc.Ua.ECM.Server
         /// </summary>
         public EnergyDevicePowerOffState PowerOff { get; }
 
+        /// <summary>Gets the server associated with this binding's system context.</summary>
+        internal IServerInternal? Server => (m_context as ServerSystemContext)?.Server;
+
+        /// <summary>Gets whether this binding has been disposed.</summary>
+        internal bool IsDisposed => Volatile.Read(ref m_disposed) != 0;
+
         /// <summary>
         /// Joins provider work and removes callbacks without disposing the borrowed provider.
         /// </summary>
         public async ValueTask DisposeAsync()
         {
+            Interlocked.Exchange(ref m_disposed, 1);
             try
             {
                 await m_operations.StopAsync(() => Required(PowerOff.SwitchOffWOL).OnCallAsync = null)
@@ -173,6 +182,9 @@ namespace Opc.Ua.ECM.Server
         /// <summary>The borrowed WOL provider.</summary>
         private readonly IEcmWolProvider m_provider;
 
+        /// <summary>The system context used to create and publish the bound nodes.</summary>
+        private readonly ISystemContext m_context;
+
         /// <summary>The optional application policy.</summary>
         private readonly Func<ISystemContext, CancellationToken, ValueTask<bool>>? m_authorize;
 
@@ -184,6 +196,9 @@ namespace Opc.Ua.ECM.Server
 
         /// <summary>The shared admission and serialization mechanism.</summary>
         private readonly EcmBindingOperations m_operations = new();
+
+        /// <summary>Whether disposal has started.</summary>
+        private int m_disposed;
     }
 
     /// <summary>

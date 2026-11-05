@@ -129,17 +129,17 @@ namespace Opc.Ua.ECM.Server
             {
                 return value;
             }
-            if (value.TryGetStructure(out AcPeDataType? phases))
+            if (value.TryGetStructure<AcPeDataType>(out AcPeDataType phases))
             {
-                if (phases is null || phases.GetType() != typeof(AcPeDataType))
+                if (phases.GetType() != typeof(AcPeDataType))
                 {
                     throw Unsupported();
                 }
                 return Variant.FromStructure(new AcPeDataType { L1 = phases.L1, L2 = phases.L2, L3 = phases.L3 });
             }
-            if (value.TryGetStructure(out AcPpDataType? lines))
+            if (value.TryGetStructure<AcPpDataType>(out AcPpDataType lines))
             {
-                if (lines is null || lines.GetType() != typeof(AcPpDataType))
+                if (lines.GetType() != typeof(AcPpDataType))
                 {
                     throw Unsupported();
                 }
