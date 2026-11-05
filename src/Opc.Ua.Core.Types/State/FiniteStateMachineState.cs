@@ -1968,6 +1968,7 @@ namespace Opc.Ua
         /// Serializes state changes and the checks that reject superseded transitions.
         /// </summary>
         private readonly Lock m_transitionLock = new();
+
         /// <summary>
         /// Identifies callbacks executing within one asynchronous invocation.
         /// </summary>
@@ -1991,6 +1992,7 @@ namespace Opc.Ua
         private readonly Dictionary<NodeId, Action> m_transitionCompletions = [];
         private readonly Queue<NodeId> m_transitionCompletionOrder = [];
         private readonly Queue<Action> m_transitionObserverQueue = [];
+
         /// <summary>
         /// Native completion work owned exclusively by the current asynchronous admission.
         /// </summary>
