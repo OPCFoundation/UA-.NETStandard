@@ -229,7 +229,7 @@ namespace Opc.Ua.Server.Network
             await m_applyGate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                if (snapshot.Revision <= m_revision)
+                if (m_hasAppliedRevision && snapshot.Revision <= m_revision)
                 {
                     return;
                 }
@@ -241,7 +241,7 @@ namespace Opc.Ua.Server.Network
                         "Snapshot acquisition timestamps must be UTC.");
                 }
 
-                if (m_revision != long.MinValue && snapshot.Timestamp < m_timestamp)
+                if (m_hasAppliedRevision && snapshot.Timestamp < m_timestamp)
                 {
                     NetworkModelNodeManagerLog.StaleSnapshotRejected(
                         m_networkLogger, snapshot.Revision, snapshot.Timestamp, m_revision, m_timestamp);
@@ -297,6 +297,7 @@ namespace Opc.Ua.Server.Network
                 await ApplyLldpLocalValuesAsync(snapshot, cancellationToken).ConfigureAwait(false);
                 m_revision = snapshot.Revision;
                 m_timestamp = snapshot.Timestamp;
+                m_hasAppliedRevision = true;
             }
             finally
             {
@@ -1347,7 +1348,12 @@ namespace Opc.Ua.Server.Network
         /// <summary>
         /// The most recently applied provider revision.
         /// </summary>
-        private long m_revision = long.MinValue;
+        private long m_revision;
+
+        /// <summary>
+        /// Whether a provider acquisition has been applied.
+        /// </summary>
+        private bool m_hasAppliedRevision;
 
         /// <summary>
         /// Acquisition timestamp of the most recently applied provider revision.

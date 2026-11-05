@@ -665,6 +665,169 @@ namespace Opc.Ua.Server.Tests.Network
         }
 
         /// <summary>
+        /// Accepts the minimum initial revision and preserves revision and timestamp ordering thereafter.
+        /// </summary>
+        [Test]
+        [CancelAfter(60_000)]
+        public async Task MinimumInitialRevisionPreservesSubsequentAcquisitionOrdering(
+            CancellationToken cancellationToken)
+        {
+            string pkiRoot = Path.Combine(
+                Path.GetTempPath(), "OpcUaNetworkTests", Guid.NewGuid().ToString("N")[..8]);
+            ReferenceNetworkModelProvider provider = NetworkScenario.Create();
+            NetworkModelSnapshot initial = await provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            var watchRelease = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var providerBoundary = new FaultInjectingProvider(provider)
+            {
+                ReadTransform = snapshot => snapshot with { Revision = long.MinValue },
+                WatchTransform = snapshot => snapshot with { Revision = long.MinValue },
+                WatchRelease = watchRelease
+            };
+            ServerFixture<StandardServer>? server = null;
+            ClientFixture? clientFixture = null;
+            Client.ISession? session = null;
+            try
+            {
+                server = new ServerFixture<StandardServer>(telemetry =>
+                {
+                    var standardServer = new StandardServer(telemetry);
+                    standardServer.AddNodeManager(new NetworkModelNodeManagerFactory(
+                        providerBoundary, _ => false));
+                    return standardServer;
+                })
+                {
+                    SecurityNone = true,
+                    AutoAccept = true
+                };
+                await server.LoadConfigurationAsync(pkiRoot).ConfigureAwait(false);
+                await server.StartAsync(pkiRoot).ConfigureAwait(false);
+                clientFixture = new ClientFixture(NUnitTelemetryContext.Create());
+                await clientFixture.LoadClientConfigurationAsync(pkiRoot).ConfigureAwait(false);
+                ConfiguredEndpoint endpoint = await clientFixture.GetEndpointAsync(
+                    new Uri("opc.tcp://localhost:" + server.Port.ToString(CultureInfo.InvariantCulture)),
+                    SecurityPolicies.None).ConfigureAwait(false);
+                session = await clientFixture.ConnectAsync(endpoint).ConfigureAwait(false);
+                var client = new NetworkModelClient(session, NUnitTelemetryContext.Create());
+
+                ArrayOf<NodeId> interfaces = await client.DiscoverInterfacesAsync(cancellationToken)
+                    .ConfigureAwait(false);
+                Assert.That(interfaces.Count, Is.EqualTo(2));
+                NodeId id = interfaces[0];
+                NetworkInterfaceValues published = await client.ReadInterfaceAsync(id, cancellationToken)
+                    .ConfigureAwait(false);
+                Assert.That(published.Speed.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(published.Speed.DataValue.WrappedValue, Is.EqualTo(new Variant(1_000_000_000UL)));
+                Assert.That(published.Speed.DataValue.SourceTimestamp, Is.EqualTo((DateTimeUtc)initial.Timestamp));
+
+                var replayed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                providerBoundary.AfterDelivery = _ => replayed.TrySetResult(true);
+                watchRelease.TrySetResult(true);
+                await replayed.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+
+                async Task<NetworkInterfaceValues> DeliverAsync(long revision, DateTime timestamp, ulong speed)
+                {
+                    var delivered = new TaskCompletionSource<bool>(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
+                    NetworkModelSnapshot current = await provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+                    DateTime sourceTimestamp = current.Timestamp.AddSeconds(1);
+                    providerBoundary.WatchTransform = snapshot => snapshot with
+                    {
+                        Revision = revision,
+                        Timestamp = timestamp
+                    };
+                    providerBoundary.AfterDelivery = snapshot =>
+                    {
+                        if (snapshot.Revision == revision && snapshot.Timestamp == timestamp)
+                        {
+                            delivered.TrySetResult(true);
+                        }
+                    };
+                    NetworkInterfaceSnapshot[] updated = current.Interfaces.Span.ToArray();
+                    for (int index = 0; index < updated.Length; index++)
+                    {
+                        updated[index] = updated[index] with { Speed = speed };
+                    }
+                    provider.Publish(current with
+                    {
+                        Timestamp = sourceTimestamp,
+                        Interfaces = ArrayOf.Wrapped(updated)
+                    });
+                    await delivered.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    return await client.ReadInterfaceAsync(id, cancellationToken).ConfigureAwait(false);
+                }
+
+                NetworkInterfaceValues repeatedMinimum = await DeliverAsync(
+                    long.MinValue, initial.Timestamp.AddSeconds(1), 100_000_000).ConfigureAwait(false);
+                Assert.That(repeatedMinimum.Speed.DataValue.WrappedValue,
+                    Is.EqualTo(published.Speed.DataValue.WrappedValue));
+                Assert.That(repeatedMinimum.Speed.DataValue.SourceTimestamp,
+                    Is.EqualTo(published.Speed.DataValue.SourceTimestamp));
+                Assert.That(repeatedMinimum.Speed.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+
+                NetworkInterfaceValues staleMinimumTimestamp = await DeliverAsync(
+                    long.MinValue + 1, initial.Timestamp.AddSeconds(-1), 100_000_000).ConfigureAwait(false);
+                Assert.That(staleMinimumTimestamp.Speed.DataValue.WrappedValue,
+                    Is.EqualTo(published.Speed.DataValue.WrappedValue));
+                Assert.That(staleMinimumTimestamp.Speed.DataValue.SourceTimestamp,
+                    Is.EqualTo(published.Speed.DataValue.SourceTimestamp));
+                Assert.That(staleMinimumTimestamp.Speed.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+
+                DateTime newerTimestamp = initial.Timestamp.AddSeconds(2);
+                NetworkInterfaceValues newer = await DeliverAsync(
+                    long.MinValue + 1, newerTimestamp, 100_000_000).ConfigureAwait(false);
+                Assert.That(newer.Speed.DataValue.WrappedValue, Is.EqualTo(new Variant(100_000_000UL)));
+                Assert.That(newer.Speed.DataValue.SourceTimestamp, Is.EqualTo((DateTimeUtc)newerTimestamp));
+                Assert.That(newer.Speed.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+
+                NetworkInterfaceValues older = await DeliverAsync(
+                    long.MinValue, newerTimestamp.AddSeconds(1), 10_000_000).ConfigureAwait(false);
+                Assert.That(older.Speed.DataValue.WrappedValue, Is.EqualTo(newer.Speed.DataValue.WrappedValue));
+                Assert.That(older.Speed.DataValue.SourceTimestamp, Is.EqualTo(newer.Speed.DataValue.SourceTimestamp));
+                Assert.That(older.Speed.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+
+                NetworkInterfaceValues equal = await DeliverAsync(
+                    long.MinValue + 1, newerTimestamp.AddSeconds(2), 10_000_000).ConfigureAwait(false);
+                Assert.That(equal.Speed.DataValue.WrappedValue, Is.EqualTo(newer.Speed.DataValue.WrappedValue));
+                Assert.That(equal.Speed.DataValue.SourceTimestamp, Is.EqualTo(newer.Speed.DataValue.SourceTimestamp));
+                Assert.That(equal.Speed.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+
+                NetworkInterfaceValues staleTimestamp = await DeliverAsync(
+                    long.MinValue + 2, initial.Timestamp, 10_000_000).ConfigureAwait(false);
+                Assert.That(staleTimestamp.Speed.DataValue.WrappedValue,
+                    Is.EqualTo(newer.Speed.DataValue.WrappedValue));
+                Assert.That(staleTimestamp.Speed.DataValue.SourceTimestamp,
+                    Is.EqualTo(newer.Speed.DataValue.SourceTimestamp));
+                Assert.That(staleTimestamp.Speed.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+
+                NetworkInterfaceValues recovered = await DeliverAsync(
+                    long.MinValue + 2, newerTimestamp, 10_000_000).ConfigureAwait(false);
+                Assert.That(recovered.Speed.DataValue.WrappedValue, Is.EqualTo(new Variant(10_000_000UL)));
+                Assert.That(recovered.Speed.DataValue.SourceTimestamp, Is.EqualTo((DateTimeUtc)newerTimestamp));
+                Assert.That(recovered.Speed.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+            }
+            finally
+            {
+                if (session is not null)
+                {
+                    await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                    await session.DisposeAsync().ConfigureAwait(false);
+                }
+                if (clientFixture is not null)
+                {
+                    await clientFixture.DisposeAsync().ConfigureAwait(false);
+                }
+                if (server is not null)
+                {
+                    await server.StopAsync().ConfigureAwait(false);
+                }
+                if (Directory.Exists(pkiRoot))
+                {
+                    Directory.Delete(pkiRoot, recursive: true);
+                }
+            }
+        }
+
+        /// <summary>
         /// Validates SR-class boundaries even when custom acquisitions bypass the reference provider.
         /// </summary>
         [TestCase((byte)0, (byte)0)]
