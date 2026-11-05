@@ -1858,7 +1858,20 @@ namespace Opc.Ua.IA.Tests.Statistics
                 var items = new DataValue[1];
                 var values = new ArrayOf<DataValue>(items.AsMemory());
                 cyclic = matrix ? new Variant(values.ToMatrix(1, 1)) : new Variant(values);
-                items[0] = new DataValue(cyclic);
+                ReadOnlyMemory<DataValue> storage;
+                if (matrix)
+                {
+                    Assert.That(cyclic.TryGetValue(out MatrixOf<DataValue> owned), Is.True);
+                    storage = owned.ToArrayOf().Memory;
+                }
+                else
+                {
+                    Assert.That(cyclic.TryGetValue(out ArrayOf<DataValue> owned), Is.True);
+                    storage = owned.Memory;
+                }
+                Assert.That(System.Runtime.InteropServices.MemoryMarshal.TryGetArray(
+                    storage, out ArraySegment<DataValue> segment), Is.True);
+                segment.Array![segment.Offset] = new DataValue(cyclic);
             }
             else
             {
@@ -2235,6 +2248,8 @@ namespace Opc.Ua.IA.Tests.Statistics
             await binding.RefreshAsync().ConfigureAwait(false);
             Variant previous = quantity.WrappedValue;
             Variant start = binding.StartTime.WrappedValue;
+            StatusCode previousStatus = quantity.StatusCode;
+            DateTimeUtc previousTimestamp = quantity.Timestamp;
             provider.Setup(source => source.ReadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(
                 Snapshot(0) with
                 {
@@ -2246,8 +2261,8 @@ namespace Opc.Ua.IA.Tests.Statistics
                     .EqualTo((StatusCode)StatusCodes.BadNotSupported));
             Assert.That(quantity.WrappedValue, Is.EqualTo(previous));
             Assert.That(binding.StartTime.WrappedValue, Is.EqualTo(start));
-            Assert.That(quantity.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
-            Assert.That(quantity.Timestamp, Is.EqualTo(IaTestContext.Timestamp));
+            Assert.That(quantity.StatusCode, Is.EqualTo(previousStatus));
+            Assert.That(quantity.Timestamp, Is.EqualTo(previousTimestamp));
         }
 
         /// <summary>

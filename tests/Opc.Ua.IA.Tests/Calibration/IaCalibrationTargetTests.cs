@@ -409,7 +409,7 @@ namespace Opc.Ua.IA.Tests.Calibration
             Assert.That(publishedFeature, Is.Not.Null);
             Assert.That(fixture.Children(node.CalibrationTargetFeatures!), Has.Count.EqualTo(2));
             Assert.That(publishedFeature!.BrowseName, Is.EqualTo(fixture.Name("VendorGeometry")));
-            Assert.That(publishedFeature.WriteMask, Is.Zero);
+            Assert.That(publishedFeature.WriteMask, Is.EqualTo(AttributeWriteMask.None));
             Assert.That(publishedVariable, Is.Not.Null);
             Assert.That(publishedVariable!.AccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
             Assert.That(binding.Configuration.Features.Count, Is.Zero);
@@ -709,7 +709,7 @@ namespace Opc.Ua.IA.Tests.Calibration
 
             Assert.That(node.OperationalConditions, Is.Not.Null);
             Assert.That(fixture.Children(node.OperationalConditions!), Has.Count.EqualTo(2));
-            Assert.That(publishedCondition!.WriteMask, Is.Zero);
+            Assert.That(publishedCondition!.WriteMask, Is.EqualTo(AttributeWriteMask.None));
             Assert.That(publishedVariable!.AccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
             Assert.That(publishedVariable.WrappedValue, Is.EqualTo(Variant.From(45.0)));
             Assert.That(configurations, Is.EqualTo(1));

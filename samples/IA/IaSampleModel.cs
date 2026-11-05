@@ -99,8 +99,9 @@ namespace IndustrialAutomationSample
                 throw new InvalidOperationException("The sample model has already been configured.");
             }
             CancellationToken ct = setup.CancellationToken;
+            ushort ns = setup.Manager.CompanionInstanceNamespaceIndex;
             IDeviceBuilder<DeviceState> device = await setup.CreateDeviceAsync(
-                new QualifiedName("InspectionCell", setup.Manager.InstanceNamespaceIndex)).ConfigureAwait(false);
+                new QualifiedName("InspectionCell", ns)).ConfigureAwait(false);
             device.WithIdentification(nameplate =>
             {
                 nameplate.Manufacturer = new LocalizedText("OPC Foundation");
@@ -109,7 +110,6 @@ namespace IndustrialAutomationSample
             });
             Device = device.Device.NodeId;
             ISystemContext context = device.Context;
-            ushort ns = setup.Manager.InstanceNamespaceIndex;
             BasicStacklightState stack = context.CreateInstanceOfBasicStacklightType(
                 device.Device, new QualifiedName("Stacklight", ns));
             stack.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent;
