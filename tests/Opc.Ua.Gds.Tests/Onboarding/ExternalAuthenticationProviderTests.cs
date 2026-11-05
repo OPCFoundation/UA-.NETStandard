@@ -326,12 +326,12 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         /// </summary>
         private static Certificate Identity(bool withUri = true)
         {
-            var builder = CertificateBuilder.Create("CN=External DCA").SetRSAKeySize(2048);
+            var builder = CertificateBuilder.Create("CN=External DCA");
             if (withUri)
             {
                 builder.AddExtension(new X509SubjectAltNameExtension(Product, ["localhost"]));
             }
-            return builder.CreateForRSA();
+            return builder.SetRSAKeySize(2048).CreateForRSA();
         }
 
         /// <summary>The exact case-sensitive product and DCA application URI approved by the host.</summary>

@@ -371,8 +371,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                             }
                             response = new CreateSessionResponse
                             {
-                                SessionId = new NodeId("https-proof-session"),
-                                AuthenticationToken = new NodeId("https-proof-token"),
+                                SessionId = NodeId.Parse("s=https-proof-session"),
+                                AuthenticationToken = NodeId.Parse("s=https-proof-token"),
                                 RevisedSessionTimeout = 60000,
                                 ServerNonce = ByteString.From(serverNonce),
                                 ServerCertificate = proof == "certificate"
@@ -1808,15 +1808,15 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         /// </summary>
         private static DataValue ReadHttpsProofValue(ReadValueId value)
         {
-            if (value.NodeId == VariableIds.Server_NamespaceArray)
+            if (value.NodeId == global::Opc.Ua.VariableIds.Server_NamespaceArray)
             {
                 return new DataValue(ArrayOf.Create([Namespaces.OpcUa]));
             }
-            if (value.NodeId == VariableIds.Server_ServerArray)
+            if (value.NodeId == global::Opc.Ua.VariableIds.Server_ServerArray)
             {
                 return new DataValue(ArrayOf.Create([ApplicationUri]));
             }
-            if (value.NodeId == VariableIds.Server_ServerStatus_State)
+            if (value.NodeId == global::Opc.Ua.VariableIds.Server_ServerStatus_State)
             {
                 return new DataValue(new Variant((int)ServerState.Running));
             }

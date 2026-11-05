@@ -61,7 +61,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             PullDcaExternalAuthenticationResult result = await fixture.Create(includeSoftware: false)
                 .RunExternalAuthenticationAsync(kRegistrar, managed ? [application] : []).ConfigureAwait(false);
 
-            Assert.That(fixture.Calls.Take(2), Is.EqualTo(new[] { "connect", "managers" }));
+            Assert.That(fixture.Calls.Take(2), Is.EqualTo(s_connectManagersCalls));
             Assert.That(fixture.Calls, Does.Not.Contain("provide"));
             Assert.That(fixture.Calls, Does.Not.Contain("identity"));
             Assert.That(fixture.Calls, Does.Not.Contain("software"));
@@ -93,7 +93,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             Assert.That(error!.Message, Is.EqualTo("host failure"));
             Assert.That(fixture.Host.InstalledIds, Is.Empty);
-            Assert.That(fixture.Calls, Is.EqualTo(new[] { "connect", "managers" }));
+            Assert.That(fixture.Calls, Is.EqualTo(s_connectManagersCalls));
         }
 
         [Test]
@@ -1350,6 +1350,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         private static readonly string[] s_installCalls = ["connect", "trust:dca", "install:dca"];
         private static readonly string[] s_finishCalls = ["connect", "finish:dca"];
         private static readonly string[] s_connectCalls = ["connect"];
+        private static readonly string[] s_connectManagersCalls = ["connect", "managers"];
         private static readonly string[] s_recoveryCalls =
         [
             "connect", "finish:dca", "certificates:dca", "trust:dca", "validate-recovery",

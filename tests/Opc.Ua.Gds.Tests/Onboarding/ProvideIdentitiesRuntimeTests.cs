@@ -139,7 +139,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 await harness.Lifecycle.RecordCandidateAsync(
                     "urn:device:other-owner", SharedId, OtherCertificate, false).ConfigureAwait(false);
             }
-            harness.Database.Setup(value => value.FindApplications(harness.Application.ApplicationUri))
+            harness.Database.Setup(value => value.FindApplications(harness.Application.ApplicationUri!))
                 .Returns([new ApplicationRecordDataType { ApplicationId = SharedId }]);
             var external = new Mock<IDeviceRegistrarExternalAuthenticationProvider>(MockBehavior.Strict);
             external.Setup(value => value.EvaluateAsync(SelectedCertificate, It.IsAny<CancellationToken>()))
