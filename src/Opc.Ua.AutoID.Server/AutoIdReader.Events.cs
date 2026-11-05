@@ -58,7 +58,7 @@ namespace Opc.Ua.AutoID.Server
             try
             {
                 ISystemContext context = Runtime.SystemContext;
-                await PublishPresenceAsync(presence).ConfigureAwait(false);
+                await PublishPresenceAsync(presence, cancellationToken).ConfigureAwait(false);
                 AutoIdPresenceEventState e = context.CreateInstanceOfAutoIdPresenceEventType(Device, default);
                 e.Initialize(context, Device, EventSeverity.Low, new LocalizedText("Presence changed"));
                 e.DeviceName!.Value = DeviceNameOf();
@@ -87,7 +87,7 @@ namespace Opc.Ua.AutoID.Server
             try
             {
                 ISystemContext context = Runtime.SystemContext;
-                await PublishLogEntryAsync(entry).ConfigureAwait(false);
+                await PublishLogEntryAsync(entry, cancellationToken).ConfigureAwait(false);
                 AutoIdLogEntryEventState e = context.CreateInstanceOfAutoIdLogEntryEventType(Device, default);
                 e.Initialize(context, Device, EventSeverity.Low, new LocalizedText(entry));
                 e.DeviceName!.Value = DeviceNameOf();

@@ -248,6 +248,57 @@ namespace Opc.Ua.AutoID.Tests
         }
 
         /// <summary>
+        /// Cancels pending presence and log notifications without rolling back cached values.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task DiagnosticReportCancellationReleasesPendingNotificationAsync(bool presence)
+        {
+            AutoIdReader reader = await CreateAsync().ConfigureAwait(false);
+            BaseVariableState variable = presence
+                ? Variable(reader, "Presence")
+                : Variable(reader, "Logbook", "LastLogEntry");
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var cancellation = new CancellationTokenSource();
+            CancellationToken observed = default;
+            variable.OnStateChangedAsync = async (_, _, _, token) =>
+            {
+                observed = token;
+                entered.TrySetResult(true);
+                await release.Task.WaitAsync(token).ConfigureAwait(false);
+            };
+            await AutoIdGatedTest.RunAsync(
+                reader,
+                async () =>
+                {
+                    await Assert.ThatAsync(async () =>
+                    {
+                        if (presence)
+                        {
+                            await reader.ReportPresenceAsync(3, cancellation.Token).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            await reader.ReportLogEntryAsync("Updated", cancellation.Token).ConfigureAwait(false);
+                        }
+                    }, Throws.InstanceOf<OperationCanceledException>());
+                    return true;
+                },
+                () => release.TrySetResult(true),
+                async (invocation, _) =>
+                {
+                    await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    Assert.That(observed, Is.EqualTo(cancellation.Token));
+                    Task<bool> report = await invocation.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    cancellation.Cancel();
+                    await report.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    Assert.That(variable.Value,
+                        Is.EqualTo(presence ? Variant.From((ushort)3) : Variant.From("Updated")));
+                }).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Retains fault and recovery admission until status callbacks finish, even after provider detachment.
         /// </summary>
         [TestCase(true)]

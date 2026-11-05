@@ -336,6 +336,58 @@ namespace Opc.Ua.AutoID.Tests
             });
         }
 
+        /// <summary>
+        /// Publishes an error even when stopping fails, retaining scan ownership until provider confirmation.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task FailedFaultStopRetainsErrorAndActiveScanUntilConfirmationAsync(bool cancelled)
+        {
+            (RfidReaderDeviceState device, FakeProvider provider) = await CreateAsync().ConfigureAwait(false);
+            AutoIdReader reader = ReaderOf(device);
+            await StartAsync(device, AutoIdTestData.Settings()).ConfigureAwait(false);
+            using var cancellation = new CancellationTokenSource();
+            var rejected = new InvalidOperationException("Stop rejected.");
+            provider.OnStop = token =>
+            {
+                if (cancelled)
+                {
+                    cancellation.Cancel();
+                    token.ThrowIfCancellationRequested();
+                }
+                throw rejected;
+            };
+            if (cancelled)
+            {
+                await Assert.CatchAsync<OperationCanceledException>(async () =>
+                    await reader.SetFaultedAsync(true, cancellation.Token).ConfigureAwait(false));
+            }
+            else
+            {
+                InvalidOperationException? failure = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await reader.SetFaultedAsync(true, cancellation.Token).ConfigureAwait(false));
+                Assert.That(failure, Is.SameAs(rejected));
+            }
+            Assert.Multiple(() =>
+            {
+                Assert.That(reader.Status, Is.EqualTo(DeviceStatusEnumeration.Error));
+                Assert.That(device.DeviceStatus!.Value, Is.EqualTo(DeviceStatusEnumeration.Error));
+                Assert.That(reader.IsAsyncScanActive, Is.True);
+                Assert.That(provider.StopCalls, Is.EqualTo(1));
+            });
+            await reader.SetFaultedAsync(true).ConfigureAwait(false);
+            Assert.That(reader.Status, Is.EqualTo(DeviceStatusEnumeration.Error));
+            await reader.SetFaultedAsync(false).ConfigureAwait(false);
+            Assert.That(reader.Status, Is.EqualTo(DeviceStatusEnumeration.Scanning));
+            provider.OnStop = _ => default;
+            await provider.Sink!.CompleteScanAsync().ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(reader.IsAsyncScanActive, Is.False);
+                Assert.That(reader.Status, Is.EqualTo(DeviceStatusEnumeration.Idle));
+            });
+        }
+
         [Test]
         public async Task ScanStartMarksTheReaderScanningUntilStoppedAsync()
         {

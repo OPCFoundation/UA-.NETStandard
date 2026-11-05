@@ -156,7 +156,8 @@ namespace Opc.Ua.AutoID.Server
         /// <remarks>
         /// A faulty device reports <c>Error_1</c> and fails new <c>Scan</c> and <c>ScanStart</c>
         /// calls with the status <c>DEVICE_NOT_READY_17</c>; an asynchronous scan that is active
-        /// is stopped. Repairing it returns <c>Idle_0</c>.
+        /// is asked to stop. If stopping fails, the device retains its error status and active scan.
+        /// Repairing it restores the status of the current activity.
         /// </remarks>
         /// <param name="faulted">Whether the device has an error condition.</param>
         /// <param name="cancellationToken">Cancels the operation.</param>
@@ -177,14 +178,8 @@ namespace Opc.Ua.AutoID.Server
                         return;
                     }
                     m_faulted = faulted;
-                    if (faulted && m_activity == ScanActivity.Asynchronous)
-                    {
-                        stopAsync = true;
-                    }
-                    else
-                    {
-                        UpdateStatusLocked();
-                    }
+                    stopAsync = faulted && m_activity == ScanActivity.Asynchronous;
+                    UpdateStatusLocked();
                 }
                 await PublishStatusAsync().ConfigureAwait(false);
                 if (stopAsync)

@@ -179,6 +179,9 @@ in `DeviceStatus`. `AutoIdReader.SetFaultedAsync(true)` reports `Error_1`: new
 scans then return `DEVICE_NOT_READY_17` and an active asynchronous scan stops.
 Fault and recovery operations retain admission through status callbacks and the
 optional stop; disposal waits for them before disposing an owned provider.
+The error status is published before stopping. A rejected or cancelled stop
+retains the active scan and error status until provider confirmation; repairing
+the device restores the status of its current activity.
 `SetDeviceLocation` moves the `DeviceLocation` of a mobile reader.
 
 ### Coexisting with a server that already owns DI
@@ -568,6 +571,8 @@ await reader disposal or an operation waiting for their own callback.
 notifications, scan events and access publication. Cancelling a provider's report
 loop can therefore release a cancellation-aware pending sink. Cancellation during
 notification does not roll back values already published to the cache.
+Presence and log-entry reports also forward cancellation to diagnostic change
+notifications; values cached before cancellation remain available.
 
 `InMemoryRfidReaderProvider` declares only `RAW:BYTES`, initially selected as
 index zero, and formats byte-valued user data. Additional formats require a

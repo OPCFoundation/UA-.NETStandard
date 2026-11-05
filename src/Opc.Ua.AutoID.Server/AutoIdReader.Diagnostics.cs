@@ -200,7 +200,7 @@ namespace Opc.Ua.AutoID.Server
         /// <summary>
         /// Projects the existing presence report without deriving a count from scan results.
         /// </summary>
-        private async ValueTask PublishPresenceAsync(ushort presence)
+        private async ValueTask PublishPresenceAsync(ushort presence, CancellationToken cancellationToken)
         {
             if (Device.Diagnostics is not { } diagnostics)
             {
@@ -210,13 +210,14 @@ namespace Opc.Ua.AutoID.Server
             {
                 SetDiagnostic(diagnostics, "Presence", Variant.From(presence), DateTimeUtc.Now);
             }
-            await diagnostics.ClearChangeMasksAsync(Runtime.SystemContext, true).ConfigureAwait(false);
+            await diagnostics.ClearChangeMasksAsync(Runtime.SystemContext, true, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         /// <summary>
         /// Projects the sink's single message column without maintaining another log.
         /// </summary>
-        private async ValueTask PublishLogEntryAsync(string entry)
+        private async ValueTask PublishLogEntryAsync(string entry, CancellationToken cancellationToken)
         {
             if (Device.Diagnostics == null)
             {
@@ -227,7 +228,7 @@ namespace Opc.Ua.AutoID.Server
             {
                 SetDiagnostic(logbook, "LastLogEntry", Variant.From(entry), DateTimeUtc.Now);
             }
-            await logbook.ClearChangeMasksAsync(Runtime.SystemContext, true).ConfigureAwait(false);
+            await logbook.ClearChangeMasksAsync(Runtime.SystemContext, true, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
