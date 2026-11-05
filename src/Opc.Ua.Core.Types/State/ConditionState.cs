@@ -1049,10 +1049,11 @@ namespace Opc.Ua
         /// <returns>The captured EventId and acknowledgement and confirmation state.</returns>
         internal (ByteString EventId, ReportedConditionEvent Event) CaptureReportedEvent()
         {
+            var acknowledgeable = this as AcknowledgeableConditionState;
             return (EventId is { } eventId ? eventId.Value : default, new ReportedConditionEvent(
                 this, false, false, m_acknowledgeCount, m_confirmCount,
-                this is AcknowledgeableConditionState { AckedState.Id.Value: true },
-                this is AcknowledgeableConditionState { ConfirmedState.Id.Value: true }));
+                acknowledgeable?.AckedState?.Id?.Value == true,
+                acknowledgeable?.ConfirmedState?.Id?.Value == true));
         }
 
         /// <summary>
