@@ -300,6 +300,82 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Concurrent cleanup observers receive the same failure before ownership is released.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PublicationDisposalSharesFailureAndReleasesShutdownOwnershipAsync(bool observeCompletion)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            using var writer = new LifecycleWriter();
+            LifecycleWriter.PublicationRevision revision = CreateRevision(writer, out _);
+            LifecycleWriter.PublicationSession session = writer.BeginPublication(revision);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var failure = new InvalidOperationException("Transaction cleanup failed.");
+            var cleanup = new Mock<IAsyncDisposable>(MockBehavior.Strict);
+            cleanup.Setup(value => value.DisposeAsync()).Returns(async () =>
+            {
+                entered.TrySetResult(true);
+                await release.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                throw failure;
+            });
+            _ = await session.PrepareAsync(() => new ValueTask<IAsyncDisposable>(cleanup.Object))
+                .ConfigureAwait(false);
+            int siblingDisposals = 0;
+            _ = await session.PrepareAsync(() => new ValueTask<PublicationCleanup>(
+                new PublicationCleanup(() => siblingDisposals++))).ConfigureAwait(false);
+            Task disposal = session.DisposeAsync().AsTask();
+            Task? observer = null;
+            try
+            {
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                observer = observeCompletion ? session.Finished : session.DisposeAsync().AsTask();
+                Task drained = await writer.BeginShutdownAsync(timeout.Token).ConfigureAwait(false);
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(disposal.IsCompleted, Is.False);
+                    Assert.That(observer.IsCompleted, Is.False);
+                    Assert.That(drained.IsCompleted, Is.False);
+                    Assert.That(writer.ActiveOperationCount, Is.EqualTo(1));
+                    Assert.That(siblingDisposals, Is.Zero);
+                }
+                release.TrySetResult(true);
+                await Assert.ThatAsync(() => disposal.WaitAsync(timeout.Token),
+                    Throws.TypeOf<AggregateException>().With.InnerException.SameAs(failure)).ConfigureAwait(false);
+                await Assert.ThatAsync(() => observer.WaitAsync(timeout.Token),
+                    Throws.TypeOf<AggregateException>().With.InnerException.SameAs(failure)).ConfigureAwait(false);
+                await drained.WaitAsync(timeout.Token).ConfigureAwait(false);
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(observer.Exception!.InnerException, Is.SameAs(disposal.Exception!.InnerException));
+                    Assert.That(siblingDisposals, Is.EqualTo(1));
+                    Assert.That(writer.ActiveOperationCount, Is.Zero);
+                }
+                await session.DisposeAsync().ConfigureAwait(false);
+                cleanup.Verify(value => value.DisposeAsync(), Times.Once);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                try
+                {
+                    await Assert.ThatAsync(() => disposal.WaitAsync(timeout.Token),
+                        Throws.TypeOf<AggregateException>().With.InnerException.SameAs(failure)).ConfigureAwait(false);
+                    if (observer is not null)
+                    {
+                        await Assert.ThatAsync(() => observer.WaitAsync(timeout.Token),
+                            Throws.TypeOf<AggregateException>().With.InnerException.SameAs(failure)).ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    writer.EndShutdown(prepared: false, completing: true);
+                }
+            }
+        }
+
+        /// <summary>
         /// Canceling shutdown before admission must not close the writer or leak shutdown ownership.
         /// </summary>
         [Test]

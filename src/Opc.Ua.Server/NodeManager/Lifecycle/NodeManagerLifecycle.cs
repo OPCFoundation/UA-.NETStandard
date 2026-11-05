@@ -3093,13 +3093,38 @@ namespace Opc.Ua.Server
                 {
                     await m_finished.Task.ConfigureAwait(false);
                 }
-                OperationLifetime? operation = Interlocked.Exchange(ref m_operation, null);
+                TaskCompletionSource<bool> disposalFinished;
+                OperationLifetime? operation;
+                lock (m_stateGate)
+                {
+                    if (m_disposalFinished is { } current)
+                    {
+                        if (current.Task.IsCompleted)
+                        {
+                            return;
+                        }
+                        disposalFinished = current;
+                        operation = null;
+                    }
+                    else
+                    {
+                        operation = Interlocked.Exchange(ref m_operation, null);
+                        if (operation is null)
+                        {
+                            return;
+                        }
+                        disposalFinished = m_disposalFinished = new TaskCompletionSource<bool>(
+                            TaskCreationOptions.RunContinuationsAsynchronously);
+                    }
+                }
+                if (operation is null)
+                {
+                    await disposalFinished.Task.ConfigureAwait(false);
+                    return;
+                }
+                Exception? cleanupFailure = null;
                 try
                 {
-                    if (operation is null)
-                    {
-                        return;
-                    }
                     if (!IsCommitted && !DecisionCommitted)
                     {
                         Exception? failure = await m_owner.AbortBatchEntriesAsync(
@@ -3110,10 +3135,23 @@ namespace Opc.Ua.Server
                         }
                     }
                 }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    cleanupFailure = failure;
+                }
                 finally
                 {
-                    operation?.Dispose();
+                    operation.Dispose();
+                    if (cleanupFailure is null)
+                    {
+                        disposalFinished.TrySetResult(true);
+                    }
+                    else
+                    {
+                        disposalFinished.TrySetException(cleanupFailure);
+                    }
                 }
+                await disposalFinished.Task.ConfigureAwait(false);
             }
 
             private async ValueTask<NodeManagerBatchResult> CommitCoreAsync(
@@ -3211,6 +3249,10 @@ namespace Opc.Ua.Server
             private readonly Lock m_stateGate = new();
             private readonly TaskCompletionSource<bool> m_finished =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>Completion shared only while this batch's abort disposal is in progress.</summary>
+            private TaskCompletionSource<bool>? m_disposalFinished;
+
             private OperationLifetime? m_operation;
             private int m_state;
             private bool m_readImagesBound;

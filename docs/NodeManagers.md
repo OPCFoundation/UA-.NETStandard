@@ -1238,6 +1238,16 @@ the candidate metadata, `Slots` and `IsCommitted` facts. If provider cleanup
 throws, the adapter reports the failure and retains the provider for a later
 disposal attempt.
 
+The built-in prepared unit gives its abort and immediate manager-disposal attempt
+one owner. Concurrent disposal calls await that attempt and observe its outcome.
+Later calls do not replay those callbacks, even if address-space teardown failed.
+
+The internal publication invocation excludes further preparation when disposal
+starts and retains shutdown admission until every admitted transaction has had
+its cleanup attempt. Callers already waiting for that attempt receive the same
+aggregated failure; a later disposal call does not invoke those callbacks again.
+This does not retry failed private-candidate destruction.
+
 `LifecycleResult.Registrations` and `PublishedSlots` contain non-owning
 snapshots. They retain slot identity and generation metadata, not historical
 NodeManagers. `NodeManagerRegistrationSnapshot.TryGetNodeManager` can obtain a
