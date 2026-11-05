@@ -434,28 +434,9 @@ namespace Opc.Ua.Core.Tests.Stack.State
             try
             {
                 invocation = Task.Factory.StartNew(
-                    async () =>
-                    {
-                        using var cancellation = new CancellationTokenSource();
-                        NodeStateChangedAsyncHandler handler = async (_, _, _, cancellationToken) =>
-                        {
-                            Assert.That(cancellationToken, Is.EqualTo(CancellationToken.None));
-                            order.Add("latched");
-                            cancellation.Cancel();
-                            notificationEntered.TrySetResult(true);
-                            await releaseNotification.Task.ConfigureAwait(false);
-                        };
-                        alarm.LatchedState!.Id!.StateChangedAsync += handler;
-                        try
-                        {
-                            await alarm.SetActiveStateAsync(m_context, true, cancellation.Token)
-                                .ConfigureAwait(false);
-                        }
-                        finally
-                        {
-                            alarm.LatchedState.Id.StateChangedAsync -= handler;
-                        }
-                    },
+                    () => RunCanceledActiveStateUpdateAsync(
+                        alarm, true, alarm.LatchedState!.Id!, "latched", order,
+                        notificationEntered, releaseNotification),
                     CancellationToken.None,
                     TaskCreationOptions.DenyChildAttach,
                     TaskScheduler.Default);
@@ -500,7 +481,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             ThrowTestAndCleanupFailures(testFailure, cleanupFailures);
 
-            Assert.That(alarm.LatchedState.Id.Value, Is.True);
+            Assert.That(alarm.LatchedState!.Id!.Value, Is.True);
             Assert.That(alarm.SilenceState.Id.Value, Is.False);
             Assert.That(alarm.ActiveState.Id.Value, Is.True);
             Assert.That(order, Is.EqualTo(s_activationNotificationOrder));
@@ -540,28 +521,9 @@ namespace Opc.Ua.Core.Tests.Stack.State
             try
             {
                 invocation = Task.Factory.StartNew(
-                    async () =>
-                    {
-                        using var cancellation = new CancellationTokenSource();
-                        NodeStateChangedAsyncHandler handler = async (_, _, _, cancellationToken) =>
-                        {
-                            Assert.That(cancellationToken, Is.EqualTo(CancellationToken.None));
-                            order.Add("shelving");
-                            cancellation.Cancel();
-                            notificationEntered.TrySetResult(true);
-                            await releaseNotification.Task.ConfigureAwait(false);
-                        };
-                        alarm.ShelvingState.CurrentState!.Id!.StateChangedAsync += handler;
-                        try
-                        {
-                            await alarm.SetActiveStateAsync(m_context, false, cancellation.Token)
-                                .ConfigureAwait(false);
-                        }
-                        finally
-                        {
-                            alarm.ShelvingState.CurrentState.Id.StateChangedAsync -= handler;
-                        }
-                    },
+                    () => RunCanceledActiveStateUpdateAsync(
+                        alarm, false, alarm.ShelvingState.CurrentState!.Id!, "shelving", order,
+                        notificationEntered, releaseNotification),
                     CancellationToken.None,
                     TaskCreationOptions.DenyChildAttach,
                     TaskScheduler.Default);
@@ -606,10 +568,49 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             ThrowTestAndCleanupFailures(testFailure, cleanupFailures);
 
-            Assert.That(alarm.ShelvingState.CurrentState.Id.Value, Is.EqualTo(
+            Assert.That(alarm.ShelvingState.CurrentState!.Id!.Value, Is.EqualTo(
                 ObjectIds.ShelvedStateMachineType_Unshelved));
             Assert.That(alarm.ActiveState!.Id!.Value, Is.False);
             Assert.That(order, Is.EqualTo(s_unshelvingNotificationOrder));
+        }
+
+        /// <summary>
+        /// Owns cancellation and notification registration until the active-state update completes.
+        /// </summary>
+        /// <param name="alarm">The alarm to update.</param>
+        /// <param name="active">The requested active state.</param>
+        /// <param name="notificationNode">The first nested state whose notification pauses the update.</param>
+        /// <param name="notificationName">The name recorded for the nested notification.</param>
+        /// <param name="order">The notification sequence.</param>
+        /// <param name="notificationEntered">The signal set after cancellation during notification.</param>
+        /// <param name="releaseNotification">The signal allowing notification to finish.</param>
+        private async Task RunCanceledActiveStateUpdateAsync(
+            AlarmConditionState alarm,
+            bool active,
+            BaseVariableState notificationNode,
+            string notificationName,
+            List<string> order,
+            TaskCompletionSource<bool> notificationEntered,
+            TaskCompletionSource<bool> releaseNotification)
+        {
+            using var cancellation = new CancellationTokenSource();
+            NodeStateChangedAsyncHandler handler = async (_, _, _, cancellationToken) =>
+            {
+                Assert.That(cancellationToken, Is.EqualTo(CancellationToken.None));
+                order.Add(notificationName);
+                cancellation.Cancel();
+                notificationEntered.TrySetResult(true);
+                await releaseNotification.Task.ConfigureAwait(false);
+            };
+            notificationNode.StateChangedAsync += handler;
+            try
+            {
+                await alarm.SetActiveStateAsync(m_context, active, cancellation.Token).ConfigureAwait(false);
+            }
+            finally
+            {
+                notificationNode.StateChangedAsync -= handler;
+            }
         }
 
         /// <summary>
