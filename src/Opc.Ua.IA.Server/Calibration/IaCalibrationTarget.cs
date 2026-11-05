@@ -122,6 +122,8 @@ namespace Opc.Ua.IA.Server
         /// <remarks>
         /// Concurrent refresh attempts are rejected rather than reordering provider snapshots.
         /// A failed or cancelled read leaves all previously published values intact.
+        /// Committed notifications are awaited without caller cancellation; notification errors propagate
+        /// without reverting published values. Overlapping refreshes remain rejected until notifications finish.
         /// The provider's status and source timestamp are retained, not replaced with refresh time.
         /// UA server timestamps continue to be assigned by the hosting server's read pipeline.
         /// </remarks>
@@ -178,7 +180,7 @@ namespace Opc.Ua.IA.Server
                         snapshot.CertificateUri.StatusCode,
                         snapshot.CertificateUri.SourceTimestamp));
                 }
-                State.ClearChangeMasks(m_context, true);
+                await State.ClearChangeMasksAsync(m_context, true, CancellationToken.None).ConfigureAwait(false);
             }
             finally
             {

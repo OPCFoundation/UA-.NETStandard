@@ -22,6 +22,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -72,10 +73,105 @@ namespace Opc.Ua.IA.Tests.Stacklights
         }
 
         /// <summary>
-        /// A synchronous stacklight observer can re-enter refresh after publication releases its gate.
+        /// A queued refresh waits for committed notifications, even when cancellation or a sink failure occurs.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task StacklightRefreshSerializesNotificationsAndQueuedRefresh(bool notificationFails)
+        {
+            var fixture = new IaTestContext();
+            BasicStacklightState state = fixture.Context.CreateInstanceOfBasicStacklightType(
+                browseName: fixture.Name("Stacklight"));
+            StackElementLightState? light = null;
+            IaStacklightSnapshot firstSnapshot = Snapshot(StacklightOperationMode.Segmented, true);
+            IaStacklightSnapshot secondSnapshot = Snapshot(StacklightOperationMode.Segmented, false);
+            Mock<IIaStacklightProvider> provider = Provider(firstSnapshot);
+            provider.SetupSequence(source => source.ReadSnapshotAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(firstSnapshot)
+                .ReturnsAsync(secondSnapshot);
+            using IaStacklight binding = new IaStacklightBuilder(fixture.Context, state).WithModes()
+                .AddLight(fixture.Name("Lamp"), item => light = item).Build(provider.Object);
+            using var cancellation = new CancellationTokenSource();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var secondStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var notificationFailure = new InvalidOperationException("Notification failed");
+            var observed = new List<bool>();
+            int calls = 0;
+            light!.SignalOn!.OnStateChangedAsync = async (_, _, _, token) =>
+            {
+                Assert.That(token.CanBeCanceled, Is.False);
+                observed.Add(light.SignalOn.Value);
+                if (Interlocked.Increment(ref calls) == 1)
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.ConfigureAwait(false);
+                    if (notificationFails)
+                    {
+                        throw notificationFailure;
+                    }
+                }
+            };
+            Task<Exception?> firstOperation = Task.Run(async () =>
+            {
+                try
+                {
+                    await binding.RefreshAsync(cancellation.Token).ConfigureAwait(false);
+                    return null;
+                }
+                catch (Exception exception)
+                {
+                    return exception;
+                }
+            });
+            Task? secondOperation = null;
+            try
+            {
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                secondOperation = Task.Run(async () =>
+                {
+                    ValueTask refresh = binding.RefreshAsync();
+                    secondStarted.TrySetResult(true);
+                    await refresh.ConfigureAwait(false);
+                });
+                await secondStarted.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.That(secondOperation.IsCompleted, Is.False);
+                Assert.That(light.SignalOn.Value, Is.True);
+                provider.Verify(source => source.ReadSnapshotAsync(It.IsAny<CancellationToken>()), Times.Once);
+                cancellation.Cancel();
+                Assert.That(firstOperation.IsCompleted, Is.False);
+                Assert.That(light.SignalOn.Value, Is.True);
+                release.TrySetResult(true);
+                Exception? firstError = await firstOperation.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                await secondOperation.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                if (notificationFails)
+                {
+                    Assert.That(firstError, Is.SameAs(notificationFailure));
+                }
+                else
+                {
+                    Assert.That(firstError, Is.Null);
+                }
+                Assert.That(light.SignalOn.Value, Is.False);
+                Assert.That(observed, Is.EqualTo(new[] { true, false }));
+                provider.Verify(source => source.ReadSnapshotAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await firstOperation.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                if (secondOperation != null)
+                {
+                    await secondOperation.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// A synchronous stacklight observer can queue refresh without blocking on the held gate.
         /// </summary>
         [Test]
-        public async Task StacklightObserverCanReenterRefresh()
+        public async Task StacklightObserverCanQueueReentrantRefresh()
         {
             var fixture = new IaTestContext();
             BasicStacklightState state = fixture.Context.CreateInstanceOfBasicStacklightType(
@@ -106,7 +202,7 @@ namespace Opc.Ua.IA.Tests.Stacklights
             await reentrantRefresh.ConfigureAwait(false);
 
             Assert.That(observerCalls, Is.EqualTo(1));
-            Assert.That(reentrantRefreshCompleted, Is.True);
+            Assert.That(reentrantRefreshCompleted, Is.False);
             Assert.That(light!.SignalOn!.Value, Is.True);
             provider.Verify(source => source.ReadSnapshotAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
         }

@@ -341,6 +341,58 @@ namespace Opc.Ua.IA.Tests.Calibration
         }
 
         /// <summary>
+        /// Async notifications yield the caller without permitting overlapping calibration refreshes.
+        /// </summary>
+        [Test]
+        public async Task CalibrationNotificationsAwaitAsyncSink()
+        {
+            var fixture = new IaTestContext();
+            IaCalibrationFeature feature = Feature(fixture);
+            var provider = Provider(Configuration(IaCalibrationTargetCategory.Dynamic, feature), Snapshot(feature, 25));
+            CalibrationTargetState node = fixture.Context.CreateInstanceOfCalibrationTargetType(
+                browseName: fixture.Name("Target"));
+            var binding = new IaCalibrationTarget(fixture.Context, node, provider.Object);
+            BaseVariableState variable = fixture.Children(node.CalibrationTargetFeatures!)
+                .OfType<BaseVariableState>().Single();
+            using var cancellation = new CancellationTokenSource();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var returned = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            bool completed = false;
+            variable.OnStateChangedAsync = async (_, _, _, token) =>
+            {
+                cancellation.Cancel();
+                Assert.That(token.CanBeCanceled, Is.False);
+                entered.TrySetResult(true);
+                await release.Task.ConfigureAwait(false);
+                completed = true;
+            };
+            Task operation = Task.Run(async () =>
+            {
+                Task notification = binding.RefreshAsync(cancellation.Token).AsTask();
+                returned.TrySetResult(true);
+                await notification.ConfigureAwait(false);
+            });
+            try
+            {
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                await returned.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.That(operation.IsCompleted, Is.False);
+                Assert.That(variable.WrappedValue, Is.EqualTo(Variant.From(25.0)));
+                Assert.That(completed, Is.False);
+                await Assert.ThatAsync(async () => await binding.RefreshAsync().ConfigureAwait(false),
+                    Throws.InvalidOperationException);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await operation.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            }
+            Assert.That(completed, Is.True);
+            await binding.RefreshAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Cancelled acquisition and overlapping refreshes do not reorder the provider's absolute images.
         /// </summary>
         [Test]

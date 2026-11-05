@@ -444,12 +444,86 @@ namespace Opc.Ua
             {
                 return this;
             }
+            LocalizedTextFormatAndTranslation? translation = Translation;
             return new LocalizedText(
                 m_locale,
                 m_text,
-                LocalizedTextFormatAndTranslation.Create(
-                    Translation?.Translations!,
-                    info));
+                translation?.WithTranslationInfo(info) ??
+                    LocalizedTextFormatAndTranslation.Create(null!, info));
+        }
+
+        /// <summary>
+        /// Copies translation dictionaries and formatting arguments without evaluating the text.
+        /// </summary>
+        /// <remarks>
+        /// Formatting arguments may be null, strings, Boolean, Char, the integral and floating-point
+        /// primitives, Decimal, DateTime, DateTimeOffset, TimeSpan or Guid. Other argument types are
+        /// rejected without invoking their formatting or cloning methods. The caller must prevent
+        /// concurrent mutation while copying. Existing constructors continue to borrow their inputs.
+        /// Caller-supplied translation dictionaries must be concrete Dictionary instances with the default, ordinal or
+        /// ordinal-ignore-case comparer. Other dictionary implementations or comparers are rejected
+        /// because their lookup behavior cannot be preserved without retaining caller-owned state.
+        /// SDK-decoded multi-language dictionaries are also supported. Encoded multi-language text
+        /// retains its immutable representation.
+        /// </remarks>
+        /// <returns>A value retaining the selected locale, template and deferred translation fallback.</returns>
+        /// <exception cref="ServiceResultException">A formatting argument or dictionary is unsupported.</exception>
+        [Pure]
+        public LocalizedText Copy()
+        {
+            if (m_translation?.IsEncoded == true)
+            {
+                return new LocalizedText(m_locale, m_text);
+            }
+            LocalizedTextFormatAndTranslation? translation = Translation;
+            if (translation == null)
+            {
+                return this;
+            }
+            TranslationInfo info = translation.TranslationInfo;
+            if (info.Args is object[] source)
+            {
+                object[] args = new object[source.Length];
+                for (int i = 0; i < source.Length; i++)
+                {
+                    object? argument = source[i];
+                    if (argument is not (null or string or bool or char or sbyte or byte or short or ushort or
+                        int or uint or long or ulong or float or double or decimal or DateTime or
+                        DateTimeOffset or TimeSpan or Guid))
+                    {
+                        throw new ServiceResultException(StatusCodes.BadNotSupported,
+                            $"LocalizedText formatting argument at index {i} cannot be copied safely.");
+                    }
+                    args[i] = argument!;
+                }
+                info = info with { Args = args };
+            }
+            IReadOnlyDictionary<string, string>? translations = translation.Translations;
+            if (translations != null)
+            {
+                IEqualityComparer<string> comparer = StringComparer.Ordinal;
+                if (!translation.HasOwnedTranslations)
+                {
+                    if (translations is not Dictionary<string, string> dictionary ||
+                        dictionary.GetType() != typeof(Dictionary<string, string>) ||
+                        (!ReferenceEquals(dictionary.Comparer, EqualityComparer<string>.Default) &&
+                            !ReferenceEquals(dictionary.Comparer, StringComparer.Ordinal) &&
+                            !ReferenceEquals(dictionary.Comparer, StringComparer.OrdinalIgnoreCase)))
+                    {
+                        throw new ServiceResultException(StatusCodes.BadNotSupported,
+                            "LocalizedText translation dictionary lookup behavior cannot be copied safely.");
+                    }
+                    comparer = dictionary.Comparer;
+                }
+                var copied = new Dictionary<string, string>(comparer);
+                foreach (KeyValuePair<string, string> entry in translations)
+                {
+                    copied.Add(entry.Key, entry.Value);
+                }
+                translations = copied;
+            }
+            return new LocalizedText(m_locale, m_text,
+                LocalizedTextFormatAndTranslation.Create(translations!, info));
         }
 
         /// <summary>
@@ -518,7 +592,8 @@ namespace Opc.Ua
             string? text = translationInfo.Text;
             return new LocalizedTextFormatAndTranslation(
                 DecodeMulLocale(locale, text),
-                translationInfo);
+                translationInfo,
+                ownedTranslations: true);
         }
 
         /// <summary>
@@ -558,7 +633,8 @@ namespace Opc.Ua
         {
             return new LocalizedTextFormatAndTranslation(
                 DecodeMulLocale(locale, text),
-                new TranslationInfo(key, locale, text));
+                new TranslationInfo(key, locale, text),
+                ownedTranslations: true);
         }
 
         /// <summary>
@@ -612,7 +688,8 @@ namespace Opc.Ua
         /// or empty.</exception>"
         private LocalizedTextFormatAndTranslation(
             IReadOnlyDictionary<string, string>? translations,
-            TranslationInfo translationInfo = default)
+            TranslationInfo translationInfo = default,
+            bool ownedTranslations = false)
         {
             if (translationInfo.IsNull &&
                 (translations == null || translations.Count == 0))
@@ -628,6 +705,7 @@ namespace Opc.Ua
                 Locale = translationInfo.Locale ?? first.Key
             };
             Translations = translations;
+            HasOwnedTranslations = ownedTranslations;
         }
 
         /// <summary>
@@ -658,7 +736,7 @@ namespace Opc.Ua
                     DecodeMulLocale(kMulLocale, m_encodedMulText);
                 resolved = translations == null
                     ? s_unresolvable
-                    : new LocalizedTextFormatAndTranslation(translations);
+                    : new LocalizedTextFormatAndTranslation(translations, ownedTranslations: true);
                 Volatile.Write(ref m_resolved, resolved);
             }
             return ReferenceEquals(resolved, s_unresolvable) ? null : resolved;
@@ -673,6 +751,27 @@ namespace Opc.Ua
         /// Translations
         /// </summary>
         public IReadOnlyDictionary<string, string>? Translations { get; }
+
+        /// <summary>
+        /// Indicates immutable encoded multi-language input rather than caller-supplied translation storage.
+        /// </summary>
+        internal bool IsEncoded => m_encodedMulText != null;
+
+        /// <summary>
+        /// Indicates translations decoded into SDK-owned immutable dictionary storage.
+        /// </summary>
+        internal bool HasOwnedTranslations { get; }
+
+        /// <summary>
+        /// Replaces formatting information while retaining provenance for the same translations dictionary.
+        /// </summary>
+        internal LocalizedTextFormatAndTranslation WithTranslationInfo(TranslationInfo info)
+        {
+            return new LocalizedTextFormatAndTranslation(
+                Translations,
+                info,
+                ownedTranslations: HasOwnedTranslations);
+        }
 
         /// <summary>
         /// Get locale

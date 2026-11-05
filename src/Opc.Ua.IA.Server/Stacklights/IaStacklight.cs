@@ -86,7 +86,12 @@ namespace Opc.Ua.IA.Server
         /// <summary>
         /// Reads and publishes one coherent source observation, preserving source quality and timestamps.
         /// </summary>
-        /// <param name="cancellationToken">The token used to cancel acquisition or publication.</param>
+        /// <remarks>
+        /// The refresh gate remains held until committed notifications complete. Notification sinks must
+        /// not await or synchronously block on another refresh through this binding. Notifications ignore
+        /// caller cancellation; errors propagate without reverting published values.
+        /// </remarks>
+        /// <param name="cancellationToken">The token used to cancel acquisition or pre-publication validation.</param>
         /// <returns>A task that completes after the state change masks are cleared.</returns>
         public async ValueTask RefreshAsync(CancellationToken cancellationToken = default)
         {
@@ -105,12 +110,12 @@ namespace Opc.Ua.IA.Server
                 ValidateSnapshot(snapshot);
                 cancellationToken.ThrowIfCancellationRequested();
                 ApplySnapshot(snapshot);
+                await m_state.ClearChangeMasksAsync(m_context, true, CancellationToken.None).ConfigureAwait(false);
             }
             finally
             {
                 m_refreshGate.Release();
             }
-            m_state.ClearChangeMasks(m_context, true);
         }
 
         /// <summary>
@@ -904,7 +909,7 @@ namespace Opc.Ua.IA.Server
         /// <summary>The borrowed observation provider.</summary>
         private readonly IIaStacklightProvider m_provider;
 
-        /// <summary>Serializes acquisition and publication.</summary>
+        /// <summary>Serializes acquisition, publication, and notification dispatch.</summary>
         private readonly SemaphoreSlim m_refreshGate = new(1, 1);
 
         /// <summary>The mandatory mode variable.</summary>

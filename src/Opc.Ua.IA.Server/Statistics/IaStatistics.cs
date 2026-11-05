@@ -252,8 +252,13 @@ namespace Opc.Ua.IA.Server
         public MethodState ResetStatistics { get; }
 
         /// <summary>
-        /// Publishes a provider snapshot, serializing reads and reset commits on this binding.
+        /// Publishes a provider snapshot, serializing reads, reset commits and notification dispatch on this binding.
         /// </summary>
+        /// <remarks>
+        /// The publication gate remains held until committed notifications complete. Notification sinks must
+        /// not await or synchronously block on another refresh or reset through this binding. Notifications
+        /// ignore caller cancellation; errors propagate without reverting published values.
+        /// </remarks>
         public async ValueTask RefreshAsync(CancellationToken cancellationToken = default)
         {
             IaStatisticsSnapshot snapshot;
@@ -263,17 +268,23 @@ namespace Opc.Ua.IA.Server
                 snapshot = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
                 cancellationToken.ThrowIfCancellationRequested();
                 Publish(snapshot);
+                await ClearPublishedChangeMasksAsync().ConfigureAwait(false);
             }
             finally
             {
                 m_gate.Release();
             }
-            ClearPublishedChangeMasks();
         }
 
         /// <summary>
         /// Authorizes and resets the complete collection, publishing only a successful committed snapshot.
         /// </summary>
+        /// <remarks>
+        /// The reset and publication gates remain held until committed notifications complete. Notification
+        /// sinks must not await or synchronously block on another refresh or reset through this binding.
+        /// Notifications ignore caller cancellation; errors propagate without reverting the provider commit
+        /// or published values.
+        /// </remarks>
         public async ValueTask<ServiceResult> ResetAsync(
             ISystemContext requestContext,
             CancellationToken cancellationToken = default)
@@ -301,6 +312,7 @@ namespace Opc.Ua.IA.Server
                     IaStatisticsSnapshot snapshot = await m_provider.ResetAsync(cancellationToken)
                         .ConfigureAwait(false);
                     Publish(snapshot);
+                    await ClearPublishedChangeMasksAsync().ConfigureAwait(false);
                 }
                 finally
                 {
@@ -311,7 +323,6 @@ namespace Opc.Ua.IA.Server
             {
                 m_resetGate.Release();
             }
-            ClearPublishedChangeMasks();
             return ServiceResult.Good;
         }
 
@@ -514,14 +525,15 @@ namespace Opc.Ua.IA.Server
         }
 
         /// <summary>
-        /// Notifies observers after the collection serialization gate has been released.
+        /// Notifies observers while the collection serialization gate remains held.
         /// </summary>
-        private void ClearPublishedChangeMasks()
+        private async ValueTask ClearPublishedChangeMasksAsync()
         {
-            State.ClearChangeMasks(m_context, true);
+            await State.ClearChangeMasksAsync(m_context, true, CancellationToken.None).ConfigureAwait(false);
             for (int i = 0; i < m_components.Count; i++)
             {
-                m_components[i].ClearChangeMasks(m_context, false);
+                await m_components[i].ClearChangeMasksAsync(m_context, false, CancellationToken.None)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -554,10 +566,10 @@ namespace Opc.Ua.IA.Server
         /// <summary>The selected calculation semantics.</summary>
         private readonly IaStatisticsOptions m_options;
 
-        /// <summary>Serializes observations and resets without blocking asynchronous providers.</summary>
+        /// <summary>Serializes publication and notification dispatch without blocking asynchronous providers.</summary>
         private readonly SemaphoreSlim m_gate = new(1, 1);
 
-        /// <summary>Serializes resets while authorization runs outside the publication gate.</summary>
+        /// <summary>Serializes reset authorization, publication, and notification dispatch.</summary>
         private readonly SemaphoreSlim m_resetGate = new(1, 1);
     }
 }

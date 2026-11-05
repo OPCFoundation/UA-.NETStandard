@@ -136,6 +136,9 @@ namespace Opc.Ua.Aot.Tests
                 new LocalizedText("Statistics"), true);
             BaseDataVariableState registered = Quantity(context, owner, ids, "Registered");
             BaseDataVariableState custom = Quantity(context, owner, ids, "Custom");
+            BaseDataVariableState localized = Quantity(context, owner, ids, "Localized");
+            object[] formatting = ["Original"];
+            var localizedText = new LocalizedText("key", "en-US", "Value: {0}", formatting);
 
             uint[] dimensions = [2, 3];
             double[] values = [1, 2];
@@ -160,10 +163,11 @@ namespace Opc.Ua.Aot.Tests
                 Values =
                 [
                     new DataValue(new Variant(new ExtensionObject(argument)), StatusCodes.Good, timestamp),
-                    new DataValue(new Variant(new ExtensionObject(structure)), StatusCodes.Good, timestamp)
+                    new DataValue(new Variant(new ExtensionObject(structure)), StatusCodes.Good, timestamp),
+                    new DataValue(new Variant(localizedText), StatusCodes.Good, timestamp)
                 ]
             });
-            using (var binding = new IaStatistics(context, owner, [registered, custom], provider))
+            using (var binding = new IaStatistics(context, owner, [registered, custom, localized], provider))
             {
                 await binding.RefreshAsync().ConfigureAwait(false);
             }
@@ -171,6 +175,10 @@ namespace Opc.Ua.Aot.Tests
             values[0] = 99;
             payload[0] = 99;
             nested[0] = 99;
+            formatting[0] = "Changed";
+            await Assert.That(localized.WrappedValue.TryGetValue(out LocalizedText localizedCopy)).IsTrue();
+            await Assert.That(localizedCopy.Text).IsEqualTo("Value: Original");
+            await Assert.That(localizedCopy.TranslationInfo.Key).IsEqualTo("key");
 
             await Assert.That(registered.WrappedValue.TryGetValue(out ExtensionObject first)).IsTrue();
             await Assert.That(first.TryGetValue(out Argument? argumentCopy)).IsTrue();

@@ -87,6 +87,15 @@ represent a model-permitted write, but the server rejects writes to this binding
 with `Bad_NotWritable`. It does not interpret a UA write as permission to operate
 physical equipment.
 
+Refresh holds the stacklight's acquisition gate through asynchronous state-change
+dispatch. A sink must not await or synchronously block on a reentrant refresh
+through this binding. Caller cancellation after publication does not skip
+committed notifications; a notification error reaches the caller without
+reverting values, and the gate is released after dispatch ends.
+The gate serializes binding refreshes only. Because `State` exposes live
+`NodeState` instances, callers must coordinate direct in-process mutations of
+those nodes with refresh; the binding cannot serialize external setters.
+
 ## Application-owned statistics
 
 The specification defines interfaces and collection behavior, not fixed
@@ -116,28 +125,80 @@ Use `.AddGroup(group)` alongside `.AddComponent(...)` for indirect quantities
 under application-owned grouping objects. Every grouped quantity needs a provider
 snapshot slot; a group cannot introduce another statistics owner.
 
-The binding publishes a copy of each provider value, so a provider can reuse its
-buffers after `RefreshAsync` returns without changing the address space. Arrays,
-matrices, byte strings, opaque identifiers, nested variants and extension object
-type identifiers are copied into new storage with their type and dimensions
-unchanged. A decoded structure is binary encoded and decoded into a new
-instance, because its generated clone shares array, byte string and variant
-fields. Its type must be registered through an `IEncodeableType` activator
-that creates a new receiver with no mutable storage shared with the provider.
-An unregistered decoded body is rejected before calling its `Clone`, `Encode`
-or `Decode`; an activator returning the provider instance or a different
-runtime type is also rejected before encoding or decoding. Distinct object
-identity alone does not establish buffer isolation: supplying an independent
-receiver is the activator's contract. The binding does not use arbitrary
-`Clone` implementations as receivers.
+The binding publishes a detached copy of each supported provider value, so a
+provider can reuse its buffers after `RefreshAsync` returns without changing the
+address space. Arrays, matrices, byte strings, opaque identifiers, nested
+variants, data values and extension object type identifiers are copied into new
+storage with their type and dimensions unchanged. Nonempty arrays and matrices
+explicitly tagged as the abstract numeric types `Number`, `Integer` or
+`UInteger` are rejected with `Bad_NotSupported` before publication. Providers
+must use concrete numeric element types, such as `Double`, `Int64` or `UInt64`,
+or a supported `Variant` container; the binding does not infer a concrete type
+from an abstract container's elements or invoke their clone methods.
+For scalar byte strings, node identifiers, expanded node identifiers, localized
+text, data values and extension objects, a payload that cannot be read as its
+declared type is rejected with `Bad_NotSupported`; it is not returned unchanged.
+Supported typed null values retain their existing behavior.
 
-When the decoded copy differs from the original, the refresh throws
-`BadNotSupported` and the binding publishes nothing. A structure nested in
-another structure causes this when its type is not registered with the
-server's encodeable factory, because it decodes as an opaque binary body. Such
-statistics are not supported, even though the specification admits statistics
-of any kind. Calibration feature and operational-condition readings use the
-same copy.
+Nested variants and data values are copied with a nesting check at each recursive
+entry. A `ServerSystemContext` supplies the server's configured
+`MessageContext.MaxEncodingNestingLevels`; other system contexts use
+`DefaultEncodingLimits.MaxEncodingNestingLevels`. The copy also checks remaining
+stack space, as the codecs do. A cyclic graph or an acyclic graph exceeding the
+nesting or stack limit rejects the snapshot with `Bad_EncodingLimitsExceeded`
+before publication, retaining the previous values and collection metadata.
+Shared acyclic branches remain supported and are copied independently.
+
+A decoded
+`IEncodeable` extension object body is copied only when it is an exact
+`EnumValueType` or `Argument`, using a field-wise copy rather than its codec,
+equality implementation or clone. Other decoded structures, including
+subclasses and custom `IEncodeable` implementations, are rejected with
+`Bad_NotSupported` before calling `Encode`, `Decode`, `IsEqual`, `Clone` or an
+encodeable-factory activator. Registering a structure does not make it safe to
+copy. `Argument.Value` is runtime-only and may reference arbitrary mutable
+state; an `Argument` with a non-null value is therefore rejected before
+publication.
+
+Localized text uses the shared `LocalizedText.Copy()` operation. It retains
+all translations, the selected locale and template, and the translation key
+and fallback without formatting them during copying. Translation dictionaries
+and argument arrays are detached. Deferred arguments may be null, strings,
+Boolean, Char, integral and floating-point primitives, Decimal, DateTime,
+DateTimeOffset, TimeSpan or Guid. Other argument types, including mutable
+formatting objects, reject the refresh with `BadNotSupported` without replacing
+published state. Copying never invokes an argument's `Clone` or `ToString`.
+Providers must not mutate inputs concurrently with a refresh. This applies to
+scalar text, array and matrix elements, and text nested in a `DataValue`;
+it does not change calibration's fixed configuration contract.
+Caller-supplied translation dictionaries must be concrete
+`Dictionary<string, string>` instances using the default, ordinal or
+ordinal-ignore-case comparer. The copy retains
+that comparer and entry order, including the requested locale spelling
+returned by a direct case-insensitive lookup. Unknown dictionary
+implementations and comparers are rejected with `BadNotSupported` because
+their lookup behavior cannot be preserved without retaining provider-owned
+state. SDK-decoded
+multi-language dictionaries remain supported, including `TranslationInfo`
+templates with deferred arguments; copying detaches their argument arrays.
+This exception follows internal decoding provenance, not the dictionary's
+read-only wrapper type. Encoded multi-language text remains supported without
+borrowing caller-owned storage.
+
+An `ExtensionObject` whose body is exactly `EnumValueType` copies its numeric
+value, `DisplayName` and `Description` field by field into a new instance. Both
+text fields use `LocalizedText.Copy()` before any wire encoding or formatting.
+This preserves deferred translations and rejects
+unsupported arguments without changing publication. An exact `Argument` also
+copies its name, data type, value rank, dimensions, and description field by
+field, preserving null dimensions separately from an explicitly empty array.
+A non-null runtime-only `Value` is not copied. These field-wise rules
+apply to each `ExtensionObject` body reached through the supported `Variant`,
+array, matrix and `DataValue` traversal; they do not traverse fields in custom
+decoded structures.
+Statistics whose values require copying any other decoded structure are not
+supported, even though the specification admits statistics of any kind.
+Calibration feature and operational-condition readings use the same copy.
 
 For vendor-defined grouping ObjectTypes, supply
 `.WithGroupTypeResolver(nodeId => manager.FindPredefinedNode<BaseObjectTypeState>(nodeId))`.
@@ -154,6 +215,23 @@ context. A denial returns the provider's status without changing values or
 `StartTime`. A successful `ResetAsync` must commit the entire collection and its
 new start time before returning its snapshot. Refresh and reset operations are
 serialized per binding. Repeated resets are separate authorized operations.
+
+Statistics notification dispatch awaits child nodes before their parent, then
+any statistic components outside the owner's subtree. Synchronous sinks run
+before asynchronous sinks; asynchronous event sinks are awaited in registration
+order. The publication gate remains held through dispatch, and reset also holds
+the reset gate. A sink must not await or synchronously block on a reentrant
+refresh or reset through this binding. A later refresh or reset cannot publish
+while an earlier operation is still notifying its nodes, so each setter's live
+node value remains from the same snapshot throughout that operation's dispatch.
+Caller cancellation after publication does not cancel committed notifications.
+A sink error reaches the caller without reverting the published collection or
+provider commit; the failing node retains its change masks for a subsequent
+notification attempt. Both gates are released when dispatch completes or throws.
+These gates serialize operations made through the binding. Callers must
+coordinate direct in-process mutations through the exposed `NodeState`
+instances with refresh and reset; those setters do not acquire the binding's
+gates.
 
 Cancellation or failure before a provider commit leaves its previous state
 intact. Once committed, a provider returns that committed snapshot even if
@@ -210,8 +288,12 @@ reference the instruments that measured the individual target.
 Each refresh supplies exactly the configured features and optional fields.
 The binding validates native type, rank, ranges, acquisition time, validation
 dates, and quality from 0 through 100 before publishing. A failed or cancelled
-refresh retains the previous cache; simultaneous refresh attempts are rejected
+acquisition or validation retains the previous cache; simultaneous refresh attempts are rejected
 to avoid publishing provider snapshots in a different order.
+Committed notifications await asynchronous sinks without caller cancellation.
+The overlap guard remains active until notification dispatch finishes, so a
+calibration sink cannot re-enter refresh. A notification error reaches the caller
+without reverting values; the guard is released even when dispatch throws.
 
 All target variables are read-only. External applications authorize and commit
 changes in the provider's authoritative store, then refresh the binding.
@@ -300,11 +382,11 @@ The IA test project separates provider/topology tests from the encrypted
 client/server scenario. NativeAOT, supported-framework solution results, and
 companion compatibility results must be recorded before changing a support
 rating to Full. IA support is **Partial**. OPC 10000-200 §6.2.1.1 admits
-statistics of any kind, but the statistics binding rejects a decoded structure
-with `BadNotSupported` when its binary copy differs from the original. This
-happens, for example, when a structure nested in the value has a type that is
-not registered with the encodeable factory. Unregistered top-level decoded
-bodies are also rejected because no independent receiver is available through
-the required activator contract. The
+statistics of any kind, but the statistics binding rejects decoded structures
+outside the exact `EnumValueType` and `Argument` field-wise copy paths with
+`Bad_NotSupported`. It also rejects an `Argument` with a non-null runtime-only
+value. The binding does not invoke codecs, equality, clone methods or
+encodeable-factory activators to determine whether an unsupported structure is
+safe to copy. The
 [published-specification matrix](Profiles.md#published-specification-support-matrix)
 records the same reason.
