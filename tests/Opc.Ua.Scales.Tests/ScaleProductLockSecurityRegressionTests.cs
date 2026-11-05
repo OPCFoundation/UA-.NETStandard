@@ -948,6 +948,40 @@ namespace Opc.Ua.Scales.Tests
         }
 
         /// <summary>
+        /// Cancellation during access validation prevents an ordinary native cache write from committing.
+        /// </summary>
+        [Test]
+        public async Task NativeCacheWriteCancellationAfterAdmissionDoesNotCommitAsync()
+        {
+            using var harness = new Harness();
+            using var cancellation = new CancellationTokenSource();
+            ScaleHandle scale = harness.CreateScale(
+                ScaleKind.AutomaticFilling,
+                (context, product) =>
+                {
+                    ConfigureFillingProduct(context, product);
+                    product.TargetWeight!.OnReadUserAccessLevel = (_, _, ref _) =>
+                    {
+                        cancellation.Cancel();
+                        return ServiceResult.Good;
+                    };
+                });
+            TargetItemState target = ((AutomaticFillingProductState)scale.ProductionPreset!.ActiveProduct!)
+                .TargetWeight!;
+            Variant original = target.WrappedValue;
+
+            ServiceResult result = await target.WriteAttributeAsync(
+                harness.Owner,
+                Attributes.Value,
+                NumericRange.Null,
+                new DataValue(Variant.From(15.0)),
+                cancellation.Token).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadUnexpectedError));
+            Assert.That(target.WrappedValue, Is.EqualTo(original));
+        }
+
+        /// <summary>
         /// Models an unknown application enumeration subtype.
         /// </summary>
         private sealed class CustomEnumerationState : MultiStateValueDiscreteState

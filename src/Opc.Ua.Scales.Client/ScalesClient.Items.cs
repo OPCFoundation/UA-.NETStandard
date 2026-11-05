@@ -79,39 +79,39 @@ namespace Opc.Ua.Scales.Client
                 ], cancellationToken).ConfigureAwait(false);
             ArrayOf<NodeId> priceIds = await ResolvePathsAsync(product,
                 [[unitPrice], [unitPrice, currency]], cancellationToken).ConfigureAwait(false);
-            var combined = new NodeId[24];
+            var combined = new NodeId[itemIds.Count + priceIds.Count];
             for (int index = 0; index < itemIds.Count; index++)
             {
-                combined[index + 1] = itemIds[index];
+                combined[index] = itemIds[index];
             }
-            combined[22] = priceIds[0];
-            combined[23] = priceIds[1];
+            combined[itemIds.Count] = priceIds[0];
+            combined[itemIds.Count + 1] = priceIds[1];
             ArrayOf<NodeId> ids = combined.ToArrayOf();
             DataValue[] values = await ReadDataValuesAsync(ids, cancellationToken).ConfigureAwait(false);
-            bool hasWeight = values[2].WrappedValue.TryGetStructure<WeightType>(
+            bool hasWeight = values[1].WrappedValue.TryGetStructure<WeightType>(
                 Session.MessageContext, out WeightType? _);
             ScaleReading reading = DecodeWeightItem(
-                [values[2], values[15], values[16], values[17], values[18],
-                    values[19], values[20], values[21], values[3]]);
+                [values[1], values[14], values[15], values[16], values[17],
+                    values[18], values[19], values[20], values[2]]);
             return new ScaleLastItemSnapshot
             {
                 ProductNodeId = product,
                 LastItemNodeId = item is { } lastItem ? lastItem.ObjectId : NodeId.Null,
-                ItemId = TextField(values[1]),
-                MeasuredWeight = Field(values[2], hasWeight, reading),
-                MeasuredHeight = NumberField(values[4]),
-                MeasuredHeightEngineeringUnits = StructureField<EUInformation>(values[5]),
-                MeasuredLength = NumberField(values[6]),
-                MeasuredLengthEngineeringUnits = StructureField<EUInformation>(values[7]),
-                MeasuredWidth = NumberField(values[8]),
-                MeasuredWidthEngineeringUnits = StructureField<EUInformation>(values[9]),
-                MeasuredVolume = NumberField(values[10]),
-                MeasuredVolumeEngineeringUnits = StructureField<EUInformation>(values[11]),
-                ZoneName = TextField(values[12]),
-                ItemPrice = NumberField(values[13]),
-                ItemPriceCurrencyUnit = StructureField<CurrencyUnitType>(values[14]),
-                UnitPrice = NumberField(values[22]),
-                UnitPriceCurrencyUnit = StructureField<CurrencyUnitType>(values[23])
+                ItemId = TextField(values[0]),
+                MeasuredWeight = Field(values[1], hasWeight, reading),
+                MeasuredHeight = NumberField(values[3]),
+                MeasuredHeightEngineeringUnits = StructureField<EUInformation>(values[4]),
+                MeasuredLength = NumberField(values[5]),
+                MeasuredLengthEngineeringUnits = StructureField<EUInformation>(values[6]),
+                MeasuredWidth = NumberField(values[7]),
+                MeasuredWidthEngineeringUnits = StructureField<EUInformation>(values[8]),
+                MeasuredVolume = NumberField(values[9]),
+                MeasuredVolumeEngineeringUnits = StructureField<EUInformation>(values[10]),
+                ZoneName = TextField(values[11]),
+                ItemPrice = NumberField(values[12]),
+                ItemPriceCurrencyUnit = StructureField<CurrencyUnitType>(values[13]),
+                UnitPrice = NumberField(values[21]),
+                UnitPriceCurrencyUnit = StructureField<CurrencyUnitType>(values[22])
             };
         }
 

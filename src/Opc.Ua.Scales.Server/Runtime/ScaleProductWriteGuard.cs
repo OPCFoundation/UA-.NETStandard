@@ -230,6 +230,7 @@ namespace Opc.Ua.Scales.Server.Runtime
             Variant value,
             CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var variable = (BaseVariableState)node;
             ServiceResult result = variable.OnWriteValue != null || variable.OnSimpleWriteValue != null
                 ? new ServiceResult(StatusCodes.BadNotSupported)
