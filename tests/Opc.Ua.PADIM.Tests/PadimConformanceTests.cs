@@ -845,7 +845,7 @@ namespace Opc.Ua.PADIM.Tests
             device.State.HardwareRevision!.Value = "1.0";
             device.State.ProductCode!.Value = "fixture";
             device.State.ProductInstanceUri!.Value = $"urn:fixture:{device.State.NodeId}";
-            device.State.AssetId!.Value = $"asset:{device.State.NodeId}";
+            device.State.AddAssetId(device.Context).Value = $"asset:{device.State.NodeId}";
             device.State.RevisionCounter!.Value = 0;
         }
 

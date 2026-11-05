@@ -44,7 +44,7 @@ builder.Services.AddOpcUa()
             identity.ProductInstanceUri = "urn:example:instrument:12345";
             identity.RevisionCounter = 0;
         });
-        builder.Device.AssetId!.Value = "TT-12345";
+        builder.Device.AddAssetId(context.Manager.SystemContext).Value = "TT-12345";
         builder.Device.DeviceHealth!.Value = DeviceHealthEnumeration.NORMAL;
 
         PadimDevice device = builder.BindPadim();
