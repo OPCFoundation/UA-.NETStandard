@@ -470,6 +470,7 @@ namespace Opc.Ua.Scales.Server.Runtime
 
         private readonly ISystemContext m_context;
         private readonly Dictionary<StatisticCounterState, Accumulator> m_accumulators = [];
+
         /// <summary>
         /// The owning scale's writer gate, when this statistic belongs to a scale.
         /// </summary>

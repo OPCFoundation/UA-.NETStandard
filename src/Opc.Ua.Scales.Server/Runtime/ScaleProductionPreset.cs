@@ -334,13 +334,13 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// </summary>
         /// <param name="productId">The product id.</param>
         /// <param name="cancellationToken">Cancels the removal.</param>
-        public async ValueTask<ServiceResult> RemoveAsync(
+        public ValueTask<ServiceResult> RemoveAsync(
             string productId,
             CancellationToken cancellationToken = default)
         {
-            return await ExecuteAsynchronouslyAsync(
+            return ExecuteAsynchronouslyAsync(
                 ct => RemoveCoreAsync(m_services.Context, productId, checkLock: false, ct),
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken);
         }
 
         private void BindMethods()
@@ -890,8 +890,8 @@ namespace Opc.Ua.Scales.Server.Runtime
                     }
                     return result;
                 };
-            product.RemoveZone?.OnCallAsync = async (context, method, objectId, zoneNodeId, ct) =>
-                await ExecuteAsynchronouslyAsync(async token =>
+            product.RemoveZone?.OnCallAsync = (context, method, objectId, zoneNodeId, ct) =>
+                ExecuteAsynchronouslyAsync(async token =>
                 {
                     ServiceResult access = ScaleValues.CheckLock(m_services, context, product.NodeId);
                     if (ServiceResult.IsBad(access))
@@ -921,7 +921,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                         product.RemoveChild(zone);
                     }
                     return new RemoveZoneMethodStateResult { ServiceResult = ServiceResult.Good };
-                }, ct).ConfigureAwait(false);
+                }, ct);
         }
 
         /// <summary>

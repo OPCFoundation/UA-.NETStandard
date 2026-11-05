@@ -1082,6 +1082,7 @@ namespace Opc.Ua.Scales.Server.Runtime
 
         private readonly ScaleRuntimeServices m_services;
         private readonly ScaleWeighingEngine m_engine;
+
         /// <summary>
         /// The nonblocking synchronous and awaited asynchronous writer gate.
         /// </summary>
