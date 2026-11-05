@@ -375,7 +375,7 @@ namespace Opc.Ua.Server.FileSystem
         /// <summary>
         /// Opens an exclusive stream and sets its initial append position without restricting subsequent seeks.
         /// </summary>
-        private static Stream OpenWritableFile(string full, FileWriteMode mode, FileAccess access)
+        private static FileStream OpenWritableFile(string full, FileWriteMode mode, FileAccess access)
         {
             var stream = new FileStream(full,
                 mode == FileWriteMode.Truncate ? FileMode.Create : FileMode.OpenOrCreate,

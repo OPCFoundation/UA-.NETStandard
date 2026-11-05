@@ -967,6 +967,7 @@ namespace Opc.Ua.Server.FileSystem
 
         private readonly Lock m_lock = new();
         private readonly List<Task> m_cleanup = [];
+
         /// <summary>Bounds lifecycle waiting without shortening stream ownership.</summary>
         private TimeSpan m_closeTimeout = TimeSpan.FromSeconds(10);
         private readonly Dictionary<uint, OpenFile> m_reads = [];

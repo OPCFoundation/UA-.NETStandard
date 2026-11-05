@@ -310,10 +310,10 @@ namespace Opc.Ua.Server.FileSystem
 
             public ValueTask CommitAsync(
                 NodeId session, uint handle, CancellationToken cancellationToken = default) =>
-                CommitCoreAsync(session, handle, cancellationToken, gateHeld: false);
+                CommitCoreAsync(session, handle, gateHeld: false, cancellationToken);
 
             private async ValueTask CommitCoreAsync(
-                NodeId session, uint handle, CancellationToken cancellationToken, bool gateHeld)
+                NodeId session, uint handle, bool gateHeld, CancellationToken cancellationToken)
             {
                 ByteString content;
                 TaskCompletionSource<bool> completion;
@@ -479,7 +479,7 @@ namespace Opc.Ua.Server.FileSystem
                     // Commit preparation takes ownership of this gate and installs its admission guard
                     // before releasing it, so no Write can slip between an accepted Close and its snapshot.
                     releaseGate = false;
-                    await CommitCoreAsync(session, handle, cancellationToken, gateHeld: true).ConfigureAwait(false);
+                    await CommitCoreAsync(session, handle, gateHeld: true, cancellationToken).ConfigureAwait(false);
                 }
                 finally
                 {
@@ -506,8 +506,8 @@ namespace Opc.Ua.Server.FileSystem
                 }
                 if (completion != null)
                 {
-                    _ = m_handles.RequestShutdown();
-                    _ = CompleteDisposalAsync(completion);
+                    Task handleDisposal = m_handles.DisposeAsync().AsTask();
+                    _ = CompleteDisposalAsync(completion, handleDisposal);
                 }
                 if (await Task.WhenAny(cleanup, Task.Delay(m_closeTimeout)).ConfigureAwait(false) == cleanup)
                 {
@@ -515,11 +515,11 @@ namespace Opc.Ua.Server.FileSystem
                 }
             }
 
-            private async Task CompleteDisposalAsync(TaskCompletionSource<bool> completion)
+            private async Task CompleteDisposalAsync(TaskCompletionSource<bool> completion, Task handleDisposal)
             {
                 try
                 {
-                    await DisposeBindingAsync().ConfigureAwait(false);
+                    await DisposeBindingAsync(handleDisposal).ConfigureAwait(false);
                     completion.TrySetResult(true);
                 }
                 catch (Exception exception)
@@ -528,7 +528,7 @@ namespace Opc.Ua.Server.FileSystem
                 }
             }
 
-            private async Task DisposeBindingAsync()
+            private async Task DisposeBindingAsync(Task handleDisposal)
             {
                 List<Exception> errors = [];
                 // Session close and disposal may interrupt a callback outside the global binding gate.
@@ -571,6 +571,7 @@ namespace Opc.Ua.Server.FileSystem
                 {
                     try
                     {
+                        await handleDisposal.ConfigureAwait(false);
                         await m_handles.CleanupCompletion.ConfigureAwait(false);
                     }
                     catch (Exception exception)
@@ -750,8 +751,10 @@ namespace Opc.Ua.Server.FileSystem
             private readonly SessionEventHandler m_sessionClosingHandler;
             private ISessionManager? m_sessions;
             private TaskCompletionSource<bool>? m_commitCompletion;
+
             /// <summary>Identifies the handle whose publication Close must drain.</summary>
             private uint m_commitHandle;
+
             /// <summary>Identifies the session that owns the pending publication.</summary>
             private NodeId m_commitSession;
             private Task? m_disposal;

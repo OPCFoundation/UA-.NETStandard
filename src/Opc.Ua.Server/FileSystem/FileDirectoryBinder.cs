@@ -77,6 +77,7 @@ namespace Opc.Ua.Server.FileSystem
         }
 
         internal const int DefaultMaxEntries = 1024;
+
         /// <summary>Bounds lifecycle waiting without shortening provider operation ownership.</summary>
         private TimeSpan m_closeTimeout = TimeSpan.FromSeconds(10);
     }
