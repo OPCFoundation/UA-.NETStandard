@@ -6,6 +6,15 @@ The AutoID packages implement
 and verifiers, and real-time locating systems (RTLS), with their scan results,
 tag access methods, diagnostics events and optional read-only diagnostic variables.
 
+Provider-backed runtime parameters and variable-triggered scanning share the
+existing configuration and operation-ownership paths. Optional RFID and
+OCR/optical parameters require explicit provider capabilities. Typed Data Access
+clients configure readers and observe acquisition timestamps. Optional
+`CodeTypesRWData` uses a provider formatter for diagnostic user data; the simulated
+RFID provider supports `RAW:BYTES`. This projection changes neither method outputs
+nor event payloads. Hardware-specific IOData definitions remain application-owned.
+Support remains Partial for the [unresolved method contracts](#remaining-work-for-full-support).
+
 | Package | What it adds |
 | --- | --- |
 | `Opc.Ua.AutoID` | The information model: node states, DataTypes, identifiers, encodeables and client proxies |
@@ -35,6 +44,7 @@ The [AutoID sample](../samples/AutoID/) runs a simulated RFID reader end to end.
 - [MCP tools](#mcp-tools)
 - [Sample](#sample)
 - [Specification notes](#specification-notes)
+  - [Remaining work for Full support](#remaining-work-for-full-support)
 - [Provenance](#provenance)
 
 ## Model and dependencies
@@ -920,6 +930,31 @@ The published reference still identifies version 1.01 as current. The
 No corrected authoritative artifact has been established for these contracts,
 so this implementation does not rewrite the standard namespace, enable the
 disputed methods or rate OPC 30010 support Full.
+
+### Remaining work for Full support
+
+Two wire methods remain unimplemented because the published contracts do not
+provide a consistent signature:
+
+- Optical-verifier `Scan` needs an authoritative result type resolving
+  `OpticalVerifierScanResult` in the text versus `WGS84Coordinate` in the NodeSet.
+  Once resolved, the SDK needs the matching generated method contract, server
+  provider binding and typed client call, with sample and client/server
+  interoperability coverage for the agreed result encoding.
+- RTLS `GetUnits` needs authoritative output metadata, including its type and
+  value rank. Once supplied, the SDK needs the generated method contract,
+  provider-backed server implementation and typed client call, with sample and
+  client/server coverage for the agreed output.
+
+The RTLS `GetLocation` argument-order discrepancy and prescribed
+`AutoIdModelVersion` value also need an authoritative disposition; their current
+NodeSet-based behavior is described above. No replacement signature or version
+string is inferred here. After the contracts are resolved and implemented,
+conformance reporting must include the supported methods and the affected
+client/server, sample and NativeAOT checks must pass before support is rated Full.
+Current-head CI validation is separate from these specification blockers.
+Hardware-specific IO definitions and additional real-world formatter capabilities
+are provider responsibilities, not missing universal SDK wire contracts.
 
 ### Data Access regression evidence
 
