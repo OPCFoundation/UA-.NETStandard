@@ -8,8 +8,8 @@ Two console applications show the `Opc.Ua.Scales*` libraries end to end:
 
 | Sample | What it does |
 | --- | --- |
-| [ScalesServer](ScalesServer/) | Serves a packing line, stand-alone scales, registered catchweigher/price-labeler items and completed totalizing-hopper fills |
-| [ScalesClient](ScalesClient/) | Discovers every scale, prints each one, drives the checkweigher, then streams its weights, events and alarms |
+| [ScalesServer](ScalesServer/) | Serves a packing line, stand-alone scales, registered catchweigher/price-labeler items, piece-count totals and completed totalizing-hopper fills |
+| [ScalesClient](ScalesClient/) | Discovers every scale, prints each one, reads piece-count totals, drives the checkweigher, then streams its weights, events and alarms |
 
 The [Scales developer guide](../../docs/Scales.md) explains every API used here.
 
@@ -86,7 +86,8 @@ browse names are stable.
 - **Laboratory balance.** The sample sets its legal-for-trade model flag through
   `WithLegalForTrade()` and accepts kg, g and mg. This simulated configuration is
   not regulatory approval for a weighing instrument.
-- **Counting scale.** A piece-counting scale with a selected product.
+- **Counting scale.** A piece-counting scale with a selected product,
+  reference weight and opt-in registered piece and weight totals.
 - **Weighbridge.** A vehicle scale whose `VehicleInformationProvider`
   answers `GetVehicleInformation`.
 - **Batching scale.** A recipe scale with a two-branch `BREAD` recipe and a
@@ -111,6 +112,8 @@ browse names are stable.
   `PRINTER_FAULT` alarm.
 - Drives the laboratory balance, the counting scale and a truck crossing the
   weighbridge.
+- Registers a piece-count weighing every ten simulation ticks and exposes the
+  selected product's accumulated count and weight.
 - Reports catchweigher and priced items with increasing acquisition sequences,
   source timestamps and independent dimensions. It does not call scalar
   `RegisterWeight` again for those acquisitions.
@@ -127,7 +130,7 @@ its changes, so subscribed clients see each update without further code.
 | `scales.IsSupported` | Detecting whether the server publishes OPC 40200 |
 | `DiscoverScalesAsync`, `EnumerateSystemScalesAsync` | Discovery from the DI `DeviceSet` and Machinery `Machines`, then the scales of a system |
 | `ReadSnapshotAsync` → `ScaleSnapshot` | A whole scale in one pass |
-| `ReadLastItemAsync`, `ReadTipCounterAsync`, `ReadRecipeStatusAsync` | Dimensions, price/currency, completed fills and recipe reports, retaining field quality and source time |
+| `ReadLastItemAsync`, `ReadTipCounterAsync`, `ReadPieceCountingTotalsAsync`, `ReadRecipeStatusAsync` | Dimensions, price/currency, completed fills, piece-count totals and recipe reports, retaining field quality and source time |
 | `ReadPackMLStateAsync` | The innermost active PackML state |
 | `SetTareAsync`, `ClearTareAsync`, `RegisterWeightAsync`, `SwitchProductAsync` | Driving a scale that sits inside a scale system |
 | `ObserveWeightAsync`, `ObserveNotificationsAsync` | Streaming weights, events and alarms of that nested scale |

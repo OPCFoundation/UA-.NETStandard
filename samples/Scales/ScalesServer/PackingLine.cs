@@ -151,12 +151,19 @@ namespace ScalesSample
                     .WithAllowedEngineeringUnits(ScaleUnits.Kilogram, ScaleUnits.Gram)
                     .WithWeightDetails()
                     .WithZeroAndTare()
+                    .WithPieceCountingTotals()
                     .WithTypeFeatures()
                     .WithProductionPreset(preset => preset
                         .AllowSelection()
                         .AddProduct("M4-SCREW", new LocalizedText("M4 x 10 screw"))
                         .Select("M4-SCREW")),
                 context.CancellationToken).ConfigureAwait(false);
+            ServiceResult referenceResult = PieceCounter.PieceCounting!.SetReferencePieceWeight(0.0005);
+            if (ServiceResult.IsBad(referenceResult))
+            {
+                throw new InvalidOperationException(
+                    $"Could not configure the piece-counting reference weight: {referenceResult}");
+            }
 
             Weighbridge = await manager.CreateScaleAsync(
                 Name("Weighbridge"),

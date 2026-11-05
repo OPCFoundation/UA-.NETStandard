@@ -117,6 +117,17 @@ foreach (ScaleEntry entry in all)
             string count = tips.HasValue ? tips.Value.ToString(CultureInfo.InvariantCulture) : "unavailable";
             Console.WriteLine($"  completed fills {count} ({tips.StatusCode})");
         }
+        else if (entry.Kind == ScaleKind.PieceCounting)
+        {
+            ScalePieceCountingSnapshot totals = await scales.ReadPieceCountingTotalsAsync(product, ct)
+                .ConfigureAwait(false);
+            string pieces = totals.TotalizedItemCount.HasValue
+                ? totals.TotalizedItemCount.Value.ToString(CultureInfo.InvariantCulture) : "unavailable";
+            string weight = totals.TotalizedWeight.HasValue
+                ? totals.TotalizedWeight.Value.Net.ToString(CultureInfo.InvariantCulture) : "unavailable";
+            Console.WriteLine($"  registered pieces {pieces} ({totals.TotalizedItemCount.StatusCode}), " +
+                $"weight {weight} ({totals.TotalizedWeight.StatusCode})");
+        }
         else if (entry.Kind == ScaleKind.Recipe)
         {
             ScaleRecipeStatus status = await scales.ReadRecipeStatusAsync(product, ct).ConfigureAwait(false);

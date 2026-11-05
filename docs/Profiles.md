@@ -41,8 +41,9 @@ Positioning, ISA-95, WoT, AutoID, PackML, PA-DIM, LADS, Energy Consumption
 Management, Machinery, Robotics, Cranes and Hoists, plastics/rubber, extrusion,
 Machine Vision, weighing, measurement, Pumps and MachineTool families.
 Weighing includes registered catchweigher and price-labeler observations,
-completed hopper fills and opt-in recipe condition waits; equipment operation
-and recipe-file parsing remain application responsibilities.
+completed hopper fills, piece-count registration and product totals, and opt-in
+recipe condition waits; equipment operation and recipe-file parsing remain
+application responsibilities.
 Scales provides native async service writes for product targets/tolerances,
 recipe condition settings and notification category/ID enums with
 `ValueAsText`. Custom synchronous-only handlers must provide native async behavior.
@@ -269,7 +270,7 @@ support gap.
 | [Cranes and Hoists](CranesHoists.md), OPC 40020-1 | Full | Robotics-derived topology, load/protection observations and authorized limit requests; not a motion or safety controller |
 | [Pumps](Pumps.md), OPC 40223 | Partial | Model, builders and typed clients; writable identification is not retained and pump-specific alarms, event notification and history are absent |
 | [AutoID Devices](AutoID.md), OPC 30010 | Partial | Reader hosting, scanning, RFID access, RTLS, events and clients; Full facet lacks `ScanActive` control/RuntimeParameters, and the optical-verifier Scan declaration is inconsistent upstream |
-| [Scales](Scales.md), OPC 40200 | Partial | Weighing, products, registered catchweigher/price-labeler items, completed hopper fills, recipes, PackML, per-vehicle signed/absolute totals, typed clients and opt-in analog/edge waits over registered local sources. Without PackML, recipe starts require explicit application release or an allowing callback. Optional statistics, piece-count registration/totalization and notification metadata remain incomplete; physical equipment operation remains application-owned |
+| [Scales](Scales.md), OPC 40200 | Partial | Weighing, products, registered catchweigher/price-labeler items, completed hopper fills, piece-count registration and opt-in product totals, recipes, PackML, per-vehicle signed/absolute totals, typed clients and opt-in analog/edge waits over registered local sources. Without PackML, recipe starts require explicit application release or an allowing callback. Optional statistics and notification metadata remain incomplete; physical equipment operation remains application-owned |
 | [ISA-95](ISA95.md), OPC 10030 and OPC 10031-4 | Full | Common resources and Job Control V1/V2 server/client interfaces; providers supply execution, catalogues and persistence |
 | [Positioning](Positioning.md), OPC 10000-210/-211 | Full | RSL/GPOS models, spatial lists, model changes, positions, locations, zones and transforms; hardware observations require providers |
 | [Robotics](Robotics.md), OPC 40010-1 | Full | Released motion-device topology and controller/program interfaces; physical motion and safety behavior remain equipment responsibilities |
@@ -925,7 +926,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 40092-1: Flexible PUR Foam - Cutting Machines](https://reference.opcfoundation.org/specs/OPC-40092-1) | 1.0.0 | No | - |
 | [OPC 40100-1: Machine Vision - Control, Configuration, Recipe and Result Management](https://reference.opcfoundation.org/specs/OPC-40100-1) | 1.0 | Full | - |
 | [OPC 40100-2: Machine Vision - Asset Management and Condition Monitoring](https://reference.opcfoundation.org/specs/OPC-40100-2) | 1.00.0 | Full | - |
-| [OPC 40200: Weighing Technology](https://reference.opcfoundation.org/specs/OPC-40200) | 2.00 | Partial | Recipe starts require PackML readiness, an allowing callback or explicit application release. Vehicle totals support per-vehicle signed/absolute aggregation. Optional statistics, piece-count registration/totalization and notification metadata remain incomplete |
+| [OPC 40200: Weighing Technology](https://reference.opcfoundation.org/specs/OPC-40200) | 2.00 | Partial | Recipe starts require PackML readiness, an allowing callback or explicit application release. Vehicle totals support per-vehicle signed/absolute aggregation; piece-count registrations can update configured product totals. Optional statistics and notification metadata remain incomplete |
 | [OPC 40210: Geometric Measurement Systems](https://reference.opcfoundation.org/specs/OPC-40210) | 1.0.1 | Partial | Production facet withheld: required GMS_ProductionStatisticsType undefined upstream |
 | [OPC 40223: Pumps and Vacuum Pumps](https://reference.opcfoundation.org/specs/OPC-40223) | 1.0 | Partial | Writable identification not retained; pump alarms, event notification and history missing |
 | [OPC 40250-1: Compressed Air Systems - Main Control Systems](https://reference.opcfoundation.org/specs/OPC-40250-1) | 1.00.1 | No | - |

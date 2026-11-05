@@ -397,12 +397,13 @@ completion.
 
 ### `IScaleBuilder`
 
-The item, completed-fill and recipe-configuration extension methods require
-the optional `IScaleRuntimeBuilder` capability, implemented by the stock
-builder. Existing implementations of `IScaleBuilder` do not need additional
-members; requesting these capabilities from a builder that does not implement
-them throws `NotSupportedException`. `WithRecipeReleaseCheck` composes
-`ConfigureRecipes` rather than adding another required interface member.
+The item, completed-fill, vehicle-total, piece-count and recipe-configuration
+extension methods require the optional `IScaleRuntimeBuilder` capability,
+implemented by the stock builder. Existing implementations of `IScaleBuilder`
+do not need additional members; requesting these capabilities from a builder
+that does not implement them throws `NotSupportedException`.
+`WithRecipeReleaseCheck` composes `ConfigureRecipes` rather than adding another
+required interface member.
 
 | Call | Materialises |
 | --- | --- |
@@ -424,6 +425,7 @@ them throws `NotSupportedException`. `WithRecipeReleaseCheck` composes
 | `WithVehicleTotals(aggregation)` | Materializes vehicle totals and selects signed or absolute aggregation by `VehicleId`, or product id when no vehicle id is set |
 | `WithItemProcessing(calculator)` | Registered catchweigher or price-labeler item reports, product/output statistics and typed `LastItem`; an optional injected `IScalePriceCalculator` calculates labeler prices |
 | `WithCompletedFills()` | Completed-fill reports and the selected totalizing-hopper product's `TipCounter` |
+| `WithPieceCountingTotals()` | `RegisterWeight` and per-product totalized item counts and weights |
 | `ConfigureRecipes(configure)` | Post-construction recipe runtime configuration, shared by standalone, DI and composed hosting |
 | `WithRecipeReleaseCheck(check)` | Application-owned enabled/released precondition for recipe scales without PackML |
 | `WithRecipeFiles()` | A `RecipeFile` on every recipe of a recipe scale (*FileRecipeManagement*) |
@@ -469,7 +471,7 @@ The application publishes the raw load. The handle does the rest.
 | Member | Purpose |
 | --- | --- |
 | `PublishLoad(rawLoad, stable)` | Evaluates the load and publishes `CurrentWeight` with every property |
-| `SetZero()`, `SetTare()`, `ClearTare()`, `SetPresetTare(value, unit)`, `RegisterWeight()` | The same operations the methods run, for local operator panels |
+| `SetZero()`, `SetTare()`, `ClearTare()`, `SetPresetTare(value, unit)`, `RegisterWeight()`, `RegisterWeightAsync(ct)` | The same operations the methods run, for local operator panels; asynchronous registration awaits write admission |
 | `CurrentReading`, `RegisteredReading` | The last published values as `ScaleReading` |
 | `WeightRegistered` | Raised on every registration, whether by method or locally |
 | `CommandInterceptor` | A `Func<ScaleCommand, ServiceResult>` that can veto any method before it runs, for example while the machine is interlocked |
@@ -571,7 +573,7 @@ The methods and the local API share the same rules.
 | --- | --- |
 | `ContinuousController` | `PublishFlow`, `Totalize`, `ResetTotalizer` (method and local) |
 | `LossInWeightController` | `DischargeStart/Stop`, `RefillStart/Stop` reflected in `Discharging`/`Refilling`; `PublishHopper` |
-| `PieceCountingController` | `SetReferencePieceWeight`, `SetNumberOfReferencePieces`, `StartReference` (method and local; the local `SetReferencePieceWeight(weight, unit)` takes the real weight, the method a UInt32); derives `CurrentPieceCount` from the net weight; the product's target counts |
+| `PieceCountingController` | `SetReferencePieceWeight`, `SetNumberOfReferencePieces`, `StartReference` (method and local; the local `SetReferencePieceWeight(weight, unit)` takes the real weight, the method a UInt32); derives `CurrentPieceCount` from net weight and updates the product's `RegisteredPieceCount` on registration; with `WithPieceCountingTotals`, it also updates configured totals |
 | `LaboratoryController` | Draft shields, leveling, calibration and ionisator with their `*Running` flags. `CompleteImmediately` or `CompleteLeveling` / `CompleteCalibration` end the running operations |
 | `HopperController` | `PublishLevels` for the limit switches and levels |
 | `AutomaticFillingController` | `EvaluateFilling` sets `Deviation` and `ToleranceState` against the product target |
@@ -617,6 +619,39 @@ the transaction and total unchanged. The client exposes
 source-time fields for the measurements, total and reset date. The sample
 weighbridge selects absolute aggregation; its choice does not assert that a
 physical vehicle or weighing instrument is ready.
+
+#### Piece-count registration totals
+
+Each piece-counting product has `RegisteredPieceCount`, which records the
+calculated count from its last successful runtime registration.
+`WithPieceCountingTotals()` materializes
+`TotalizedItemCount` and `TotalizedWeight` on each product, and adds
+`RegisterWeight` and `RegisteredWeight` if they were not already configured.
+A successful `RegisterWeightAsync` or OPC UA `RegisterWeight` adds the current net weight to
+the configured weight total. When the selected product has a valid reference
+piece weight, the same registration adds the calculated count to both
+`RegisteredPieceCount` and `TotalizedItemCount`. If the reference is missing or
+invalid, registration still records the weight; the registered count is marked
+`BadNoData`, and the item-count total is left unchanged.
+
+Selecting a product clears that product's configured totals, so a product
+selected again starts a new accumulation. Applications can also reset one
+product explicitly:
+
+```csharp
+scale.PieceCounting!.SetReferencePieceWeight(0.0005);
+ServiceResult result = await scale.RegisterWeightAsync(cancellationToken);
+if (ServiceResult.IsGood(result))
+{
+    await scale.PieceCounting.ResetTotalsAsync("M4-SCREW", cancellationToken);
+}
+```
+
+The client reads the registered count and both optional totals with independent
+quality and source-time fields through `ReadPieceCountingTotalsAsync(product)`.
+The Scales sample configures a reference weight, registers simulated loads and
+reads the resulting totals. This feature records scale registrations; it does
+not infer piece counts from unrelated production reports.
 
 #### Registered items and completed fills
 
@@ -1044,6 +1079,8 @@ units, zone, price and currency. `ReadTipCounterAsync(product)` retains the
 hopper counter's full unsigned 64-bit range. `ReadRecipeStatusAsync(product)`
 reads `RecipeNodeId` and typed report entries; `ObserveRecipeReportsAsync(product)`
 streams those entries through the existing subscription infrastructure.
+`ReadPieceCountingTotalsAsync(product)` reads the registered piece count and
+the opt-in totalized item count and weight.
 
 These methods take a product node, not a scale node. Each `ScaleField<T>` carries
 `HasValue`, `StatusCode` and the source `Timestamp`. Check those before using
@@ -1091,7 +1128,7 @@ await foreach (ScaleField<ArrayOf<RecipeReportElementType>> report in
 | `WeighingRangeDefinition(Low, High, d, e)` | One weighing range; `Validate()` checks the limits and intervals |
 | `ScaleReading` | Gross, net, tare, tare mode, overload, underload, stability, zero, range, weight id, unit, timestamp, status |
 | `ScaleEntry`, `ScaleProductInfo`, `ScaleNotificationInfo`, `ScaleSnapshot` | The client's discovery, product, notification and snapshot results |
-| `ScaleField<T>`, `ScaleLastItemSnapshot`, `ScaleVehicleWeightSnapshot`, `ScaleRecipeStatus` | Per-field presence, quality and source time for registered items, prices, counters, vehicle weights and recipe reports |
+| `ScaleField<T>`, `ScaleLastItemSnapshot`, `ScaleVehicleWeightSnapshot`, `ScalePieceCountingSnapshot`, `ScaleRecipeStatus` | Per-field presence, quality and source time for registered items, prices, counters, vehicle weights, piece-count totals and recipe reports |
 | `ScaleKind`, `ScaleNotificationId`, `ScaleNotificationCategory` | The kinds and the Annex C tables |
 
 ## Conformance matrix
@@ -1101,11 +1138,10 @@ path · ❌ not shipped.
 
 The tables identify implementation paths and their tests, not certification.
 Test names identify the cases associated with each behavior; names alone do not
-establish that the cases have passed. OPC 40200
-support remains Partial while optional statistic fields, piece-count
-registration/totalization and notification metadata are being
-completed. A scale without PackML requires explicit application release or an
-allowing release callback before starting a recipe.
+establish that the cases have passed. OPC 40200 support remains Partial while
+optional statistic fields and notification metadata are incomplete. A scale
+without PackML requires explicit application release or an allowing release
+callback before starting a recipe.
 
 OPC 40200 defines server facets only; there are no client facets or client
 conformance units (§12). The server advertises the facets and CUs of what
@@ -1133,7 +1169,7 @@ are left out (`ScaleFacetsBringTheMachineIdentificationTheyIncludeAsync`,
 | Catchweigher, AutomaticWeightPriceLabeler | ✅ | `CatchweigherClassifiesBoundariesAndPreservesRegisteredItemAsync`; `PricesUseEquipmentOrExplicitRoundingAndPublishMandatoryCurrencyAsync`; `KindFacetsRequireTheirConfiguredRuntimeAsync`; `ClientReadsRegisteredItemsPricesAndCompletedFillsWithSourceMetadataAsync` (advertised only with `WithItemProcessing`) |
 | Checkweigher | ✅ | `CheckweigherStatisticsCountAcceptedAndRejectedAsync`; `ClientSubscribesToANestedScaleThroughTheNotifierHierarchyAsync` |
 | Continuous Scale, LossInWeight Scale | ✅ | `ContinuousScaleTotalizesAndResetsAsync`; `LossInWeightDischargesAndRefillsAsync`; `ClientStreamsWeightsEventsAndAlarmsAsync` |
-| PieceCountingScale | ✅ | `PieceCountingReferencesAndCountsAsync`; `PieceCountingProductTargetsCanBeSetAsync`; `ClientCallsTheTypeSpecificMethodsAsync` |
+| PieceCountingScale | ✅ | `PieceCountingReferencesAndCountsAsync`; `PieceCountingTotalsTrackSuccessfulRegistrationsAndResetOnProductChangeAsync`; `PieceCountingTotalsIgnoreFailedAndCancelledRegistrationsAsync`; `PieceCountingRegistrationWithoutReferenceStillAddsWeightOnlyAsync`; `PieceCountingProductTargetsCanBeSetAsync`; `ClientCallsTheTypeSpecificMethodsAsync` |
 | RecipeScale | ✅ | `RecipesAreManagedAndProcessedAlongTheirGraphAsync`; `RecipeProcessingGuardsAsync`; `RecipeFilesAreUploadedParsedAndReportedAsync`; `ClientBuildsAndProcessesARecipeAsync` |
 | Totalizing Hopper Scale | ✅ | `CompletedHopperFillsRespectDuplicatesResetsProductsAndOverflowAsync`; `KindFacetsRequireTheirConfiguredRuntimeAsync`; `ClientReadsRegisteredItemsPricesAndCompletedFillsWithSourceMetadataAsync` (advertised only with `WithCompletedFills`) |
 | Vehicle Scale | ✅ | `VehicleWeighingComputesTheDeltaAsync`; `CompletedTransactionsTotalizeSignedOrAbsoluteAsync`; `ResetClearsOnlyTheVehicleTotalAndPreservesIncompleteJourneyAsync`; `ClientVehicleTotalsPreserveSignedDeltaAndSourceQualityAsync` |
@@ -1223,8 +1259,8 @@ submits example reports; `ScalesClient/Program.cs` reads item and hopper results
 
 | Sample | Shows |
 | --- | --- |
-| [ScalesServer](../samples/Scales/ScalesServer) | A packing line (scale system with a checkweigher, infeed feeder and labeler) plus a laboratory balance, a counting scale, a weighbridge, a catchweigher, an EUR price labeler, a totalizing hopper and two recipe batching scales, one manual and one with condition waits. The simulation rejects packages and runs the labeler out of labels |
-| [ScalesClient](../samples/Scales/ScalesClient) | Discovery, snapshots, tare/register/switch product on the nested checkweigher, the last registered item with price, the hopper `TipCounter`, recipe status, and streaming of weights, events and alarms |
+| [ScalesServer](../samples/Scales/ScalesServer) | A packing line (scale system with a checkweigher, infeed feeder and labeler) plus a laboratory balance, a counting scale with registered piece and weight totals, a weighbridge, a catchweigher, an EUR price labeler, a totalizing hopper and two recipe batching scales, one manual and one with condition waits. The simulation rejects packages and runs the labeler out of labels |
+| [ScalesClient](../samples/Scales/ScalesClient) | Discovery, snapshots, tare/register/switch product on the nested checkweigher, the last registered item with price, piece-count totals, the hopper `TipCounter`, recipe status, and streaming of weights, events and alarms |
 
 See [the samples README](../samples/Scales/README.md) for how to run them.
 

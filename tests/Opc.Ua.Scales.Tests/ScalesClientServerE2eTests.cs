@@ -246,6 +246,7 @@ namespace Opc.Ua.Scales.Tests
                 {
                     ScalesNodeManagerTests.FullScale(b, "Pieces");
                     b.WithAllowedEngineeringUnits(ScaleUnits.Kilogram, ScaleUnits.Gram)
+                        .WithPieceCountingTotals()
                         .WithProductionPreset(p => p
                             .AllowSelection()
                             .AddProduct("Screws", new LocalizedText("M4"))
@@ -868,6 +869,16 @@ namespace Opc.Ua.Scales.Tests
             pieces.PublishLoad(0.06);
             await m_client.StartReferenceAsync(pieces.NodeId, 20);
             Assert.That(pieces.PieceCounting.ReferencePieceWeight, Is.EqualTo(0.003).Within(1e-12));
+            pieces.PublishLoad(0.06);
+            Assert.That(await m_client.RegisterWeightAsync(pieces.NodeId), Is.Not.Null);
+            ScalePieceCountingSnapshot totals = await m_client.ReadPieceCountingTotalsAsync(
+                pieces.ProductionPreset!.ActiveProduct!.NodeId);
+            Assert.That(totals.RegisteredPieceCount.HasValue, Is.True);
+            Assert.That(totals.RegisteredPieceCount.Value, Is.EqualTo(20u));
+            Assert.That(totals.TotalizedItemCount.HasValue, Is.True);
+            Assert.That(totals.TotalizedItemCount.Value, Is.EqualTo(20u));
+            Assert.That(totals.TotalizedWeight.HasValue, Is.True);
+            Assert.That(totals.TotalizedWeight.Value.Net, Is.EqualTo(0.06).Within(1e-12));
 
             ScaleHandle lab = m_scales["Lab"];
             await m_client.SetDraftShieldsAsync(lab.NodeId, DraftShieldType.All_3, close: true);
@@ -952,7 +963,8 @@ namespace Opc.Ua.Scales.Tests
             double expectedTotal)
         {
             ScaleHandle scale = await m_runtime.CreateScaleAsync(
-                Name("VehicleTotals" + aggregation), ScaleKind.Vehicle,
+                new QualifiedName("VehicleTotals" + aggregation, m_runtime.InstanceNamespaceIndex),
+                ScaleKind.Vehicle,
                 builder => builder.WithTypeFeatures()
                     .WithWeighingRange(new WeighingRangeDefinition(0, 60000, 20, 20))
                     .WithVehicleTotals(_ => aggregation)
@@ -1006,7 +1018,8 @@ namespace Opc.Ua.Scales.Tests
         public async Task ClientVehicleWeightsRetainMissingOptionalTotalsAsync()
         {
             ScaleHandle scale = await m_runtime.CreateScaleAsync(
-                Name("VehicleWithoutTotals"), ScaleKind.Vehicle,
+                new QualifiedName("VehicleWithoutTotals", m_runtime.InstanceNamespaceIndex),
+                ScaleKind.Vehicle,
                 builder => builder.WithTypeFeatures()
                     .WithWeighingRange(new WeighingRangeDefinition(0, 60000, 20, 20))
                     .WithProductionPreset(preset => preset.AddProduct("V", new LocalizedText("Vehicle"))));

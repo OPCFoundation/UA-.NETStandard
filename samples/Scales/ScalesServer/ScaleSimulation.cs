@@ -64,7 +64,17 @@ namespace ScalesSample
 #pragma warning disable CA5394 // Simulated load noise, not security relevant
                 m_line.Laboratory.PublishLoad(0.1 + (random.NextDouble() * 0.000004), stable: tick % 4 != 0);
 #pragma warning restore CA5394
-                m_line.PieceCounter.PublishLoad(0.00498 * (tick % 200));
+                double pieceLoad = 0.00498 * (tick % 200);
+                m_line.PieceCounter.PublishLoad(pieceLoad);
+                if (tick % 10 == 0 && pieceLoad > 0)
+                {
+                    ServiceResult registered = await m_line.PieceCounter.RegisterWeightAsync(stoppingToken)
+                        .ConfigureAwait(false);
+                    if (ServiceResult.IsBad(registered))
+                    {
+                        m_logger.LogPieceRegistrationRejected(registered.StatusCode);
+                    }
+                }
                 await CrossWeighbridgeAsync(tick, stoppingToken).ConfigureAwait(false);
                 await ReportItemsAsync(tick, stoppingToken).ConfigureAwait(false);
                 ObserveRecipeConditions(tick);
@@ -245,5 +255,14 @@ namespace ScalesSample
             Level = LogLevel.Warning,
             Message = "The simulated vehicle weighing was rejected with {StatusCode}.")]
         public static partial void LogVehicleWeighingRejected(this ILogger logger, StatusCode statusCode);
+
+        /// <summary>
+        /// Reports a rejected simulated piece-count registration.
+        /// </summary>
+        [LoggerMessage(
+            EventId = global::Opc.Ua.ScalesServerEventIds.ScaleSimulation + 3,
+            Level = LogLevel.Warning,
+            Message = "The simulated piece-count registration was rejected with {StatusCode}.")]
+        public static partial void LogPieceRegistrationRejected(this ILogger logger, StatusCode statusCode);
     }
 }

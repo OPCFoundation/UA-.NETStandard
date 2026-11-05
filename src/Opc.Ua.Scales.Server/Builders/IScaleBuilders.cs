@@ -214,7 +214,8 @@ namespace Opc.Ua.Scales.Server.Builders
     }
 
     /// <summary>
-    /// Optional runtime configuration supported by builders that provide item, fill and recipe processing.
+    /// Optional runtime configuration supported by builders for item, fill, vehicle,
+    /// piece-count and recipe processing.
     /// </summary>
     public interface IScaleRuntimeBuilder : IScaleBuilder
     {
@@ -234,6 +235,11 @@ namespace Opc.Ua.Scales.Server.Builders
         /// </summary>
         /// <param name="aggregation">Selects signed or absolute completed-transaction weights by vehicle id.</param>
         IScaleBuilder WithVehicleTotals(Func<string, VehicleWeightAggregation> aggregation);
+
+        /// <summary>
+        /// Enables weight registration and totalized counts and weights for piece-counting products.
+        /// </summary>
+        IScaleBuilder WithPieceCountingTotals();
 
         /// <summary>
         /// Configures the recipe controller after construction.
@@ -279,6 +285,15 @@ namespace Opc.Ua.Scales.Server.Builders
         {
             aggregation.ThrowIfNull(nameof(aggregation));
             return RuntimeBuilder(builder).WithVehicleTotals(aggregation);
+        }
+
+        /// <summary>
+        /// Enables weight registration and totalized counts and weights for piece-counting products.
+        /// </summary>
+        /// <param name="builder">The scale builder.</param>
+        public static IScaleBuilder WithPieceCountingTotals(this IScaleBuilder builder)
+        {
+            return RuntimeBuilder(builder).WithPieceCountingTotals();
         }
 
         /// <summary>

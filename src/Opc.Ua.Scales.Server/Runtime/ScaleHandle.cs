@@ -227,7 +227,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                     services.ScalesId(ScalesModel.ProductTypeOf(kind)),
                     () => AllowedEngineeringUnits,
                     configuration.ItemProcessing || configuration.CompletedFills ||
-                        configuration.VehicleAggregation != null
+                        configuration.VehicleAggregation != null || Kind == ScaleKind.PieceCounting
                         ? product =>
                         {
                             if (configuration.ItemProcessing || configuration.CompletedFills)
@@ -237,6 +237,11 @@ namespace Opc.Ua.Scales.Server.Runtime
                             if (configuration.VehicleAggregation != null && product is VehicleProductState vehicle)
                             {
                                 VehicleController.InitializeTotals(services.Context, vehicle);
+                            }
+                            if (product is PieceCountingProductState pieceCounting)
+                            {
+                                PieceCountingController.InitializeProduct(
+                                    services.Context, pieceCounting, configuration.PieceCountingTotals, Unit);
                             }
                         }
                         : null,
@@ -724,6 +729,59 @@ namespace Opc.Ua.Scales.Server.Runtime
         }
 
         /// <summary>
+        /// Registers the current stable weighing and updates the selected piece-counting product when configured.
+        /// </summary>
+        /// <param name="cancellationToken">Cancels while waiting for scale write admission.</param>
+        public ValueTask<ServiceResult> RegisterWeightAsync(CancellationToken cancellationToken = default)
+        {
+            return RegisterWeightAsync(null, cancellationToken);
+        }
+
+        /// <summary>
+        /// Registers the current weighing for a remote method caller or trusted local application.
+        /// </summary>
+        private async ValueTask<ServiceResult> RegisterWeightAsync(
+            ISystemContext? callContext,
+            CancellationToken cancellationToken)
+        {
+            ScaleReading? registered = null;
+            ServiceResult result = await m_writeGate.ExecuteAsynchronouslyAsync(ct =>
+            {
+                ct.ThrowIfCancellationRequested();
+                ServiceResult veto = CommandInterceptor?.Invoke(ScaleCommand.RegisterWeight) ?? ServiceResult.Good;
+                if (ServiceResult.IsBad(veto))
+                {
+                    return new ValueTask<ServiceResult>(veto);
+                }
+                lock (m_lock)
+                {
+                    using ScaleProductionPreset.ActiveProductReservation? reservation =
+                        ProductionPreset?.ReserveActiveProduct();
+                    PieceCountingProductState? product = reservation?.Product as PieceCountingProductState;
+                    if (callContext != null && product != null)
+                    {
+                        ServiceResult access = ScaleValues.CheckLock(m_services, callContext, product.NodeId);
+                        if (ServiceResult.IsBad(access))
+                        {
+                            return new ValueTask<ServiceResult>(access);
+                        }
+                    }
+                    ServiceResult committed = RegisterWeightCore(product, out registered);
+                    if (ServiceResult.IsGood(committed))
+                    {
+                        PublishCore(product);
+                    }
+                    return new ValueTask<ServiceResult>(committed);
+                }
+            }, cancellationToken).ConfigureAwait(false);
+            if (registered != null)
+            {
+                WeightRegistered?.Invoke(this, registered);
+            }
+            return result;
+        }
+
+        /// <summary>
         /// Runs a command through the interceptor and republishes the weight when it succeeded.
         /// Remote counting commands retain the authorized product as their publication target.
         /// </summary>
@@ -777,6 +835,37 @@ namespace Opc.Ua.Scales.Server.Runtime
                     "A scale write is awaiting an asynchronous state notification.");
             }
             return result;
+        }
+
+        /// <summary>
+        /// Commits a validated registration while the caller owns the scale lock.
+        /// </summary>
+        private ServiceResult RegisterWeightCore(
+            PieceCountingProductState? product,
+            out ScaleReading? registered)
+        {
+            registered = null;
+            ServiceResult check = m_engine.CanRegister();
+            if (ServiceResult.IsBad(check))
+            {
+                return check;
+            }
+            WeighingResult current = m_engine.Evaluate();
+            ServiceResult pieceResult = PieceCounting?.OnRegistered(current, product) ?? ServiceResult.Good;
+            if (ServiceResult.IsBad(pieceResult))
+            {
+                return pieceResult;
+            }
+            m_weightCounter++;
+            m_weightId = m_weightCounter.ToString(CultureInfo.InvariantCulture);
+            registered = ToReading(current, m_weightId);
+            m_registered = registered;
+            if (Scale.RegisteredWeight != null)
+            {
+                PublishWeight(Scale.RegisteredWeight, current, m_weightId);
+            }
+            ProductionOutput?.Record(current.Net, m_weightId);
+            return ServiceResult.Good;
         }
 
         /// <summary>
@@ -849,8 +938,8 @@ namespace Opc.Ua.Scales.Server.Runtime
             Scale.ClearTare?.OnCallMethod2 = (context, method, objectId, inputs, outputs) => ClearTare(context);
             Scale.SetPresetTare?.OnCall = (context, method, objectId, presetTare, engineeringUnits) =>
                     SetPresetTare(presetTare, engineeringUnits, context);
-            Scale.RegisterWeight?.OnCallMethod2 = (context, method, objectId, inputs, outputs) =>
-                    RegisterWeight(context);
+            Scale.RegisterWeight?.OnCallMethod2Async = async (context, method, objectId, inputs, outputs, ct) =>
+                await RegisterWeightAsync(context, ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -948,25 +1037,39 @@ namespace Opc.Ua.Scales.Server.Runtime
         private ServiceResult RegisterWeight(ISystemContext? callContext)
         {
             ScaleReading? registered = null;
-            ServiceResult result = Execute(ScaleCommand.RegisterWeight, () =>
+            if (!m_writeGate.TryExecuteSynchronously(() =>
             {
-                ServiceResult check = m_engine.CanRegister();
-                if (ServiceResult.IsBad(check))
+                ServiceResult veto = CommandInterceptor?.Invoke(ScaleCommand.RegisterWeight) ?? ServiceResult.Good;
+                if (ServiceResult.IsBad(veto))
                 {
-                    return check;
+                    return veto;
                 }
-                m_weightCounter++;
-                m_weightId = m_weightCounter.ToString(CultureInfo.InvariantCulture);
-                WeighingResult current = m_engine.Evaluate();
-                registered = ToReading(current, m_weightId);
-                m_registered = registered;
-                if (Scale.RegisteredWeight != null)
+                lock (m_lock)
                 {
-                    PublishWeight(Scale.RegisteredWeight, current, m_weightId);
+                    using ScaleProductionPreset.ActiveProductReservation? reservation =
+                        ProductionPreset?.ReserveActiveProduct();
+                    PieceCountingProductState? product = reservation?.Product as PieceCountingProductState;
+                    if (callContext != null && product != null)
+                    {
+                        ServiceResult access = ScaleValues.CheckLock(m_services, callContext, product.NodeId);
+                        if (ServiceResult.IsBad(access))
+                        {
+                            return access;
+                        }
+                    }
+                    ServiceResult result = RegisterWeightCore(product, out registered);
+                    if (ServiceResult.IsGood(result))
+                    {
+                        PublishCore(product);
+                    }
+                    return result;
                 }
-                ProductionOutput?.Record(current.Net, m_weightId);
-                return ServiceResult.Good;
-            }, callContext);
+            }, out ServiceResult result))
+            {
+                return ServiceResult.Create(
+                    StatusCodes.BadInvalidState,
+                    "A scale write is awaiting an asynchronous state notification.");
+            }
             if (registered != null)
             {
                 WeightRegistered?.Invoke(this, registered);
@@ -1130,7 +1233,8 @@ namespace Opc.Ua.Scales.Server.Runtime
         bool ItemProcessing = false,
         IScalePriceCalculator? PriceCalculator = null,
         bool CompletedFills = false,
-        Func<string, VehicleWeightAggregation>? VehicleAggregation = null);
+        Func<string, VehicleWeightAggregation>? VehicleAggregation = null,
+        bool PieceCountingTotals = false);
 
     /// <summary>
     /// Sets the OPC 40001-1 state machines, which the model supplies without

@@ -364,6 +364,35 @@ namespace Opc.Ua.Scales
     }
 
     /// <summary>
+    /// Registered and totalized piece-counting values with their OPC UA quality and source time.
+    /// </summary>
+    public sealed record ScalePieceCountingSnapshot
+    {
+        /// <summary>
+        /// Gets the piece-counting product node.
+        /// </summary>
+        public NodeId ProductNodeId { get; init; }
+
+        /// <summary>
+        /// Gets the count calculated for the last accepted weight registration.
+        /// </summary>
+        public ScaleField<uint> RegisteredPieceCount { get; init; } =
+            new(default, false, StatusCodes.BadNoData, DateTime.MinValue);
+
+        /// <summary>
+        /// Gets the product's accumulated registered item count, when enabled.
+        /// </summary>
+        public ScaleField<uint> TotalizedItemCount { get; init; } =
+            new(default, false, StatusCodes.BadNoData, DateTime.MinValue);
+
+        /// <summary>
+        /// Gets the product's accumulated registered net weight, when enabled.
+        /// </summary>
+        public ScaleField<WeightType> TotalizedWeight { get; init; } =
+            new(default!, false, StatusCodes.BadNoData, DateTime.MinValue);
+    }
+
+    /// <summary>
     /// Recipe fields observed on a recipe product (OPC 40200 §7.29).
     /// </summary>
     public sealed record ScaleRecipeStatus

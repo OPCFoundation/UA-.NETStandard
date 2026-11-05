@@ -176,6 +176,31 @@ namespace Opc.Ua.Scales.Client
         }
 
         /// <summary>
+        /// Reads registered and totalized piece-counting values with independent quality and source-time fields.
+        /// </summary>
+        /// <param name="product">The piece-counting product node.</param>
+        /// <param name="cancellationToken">Cancels the read.</param>
+        public async ValueTask<ScalePieceCountingSnapshot> ReadPieceCountingTotalsAsync(
+            NodeId product,
+            CancellationToken cancellationToken = default)
+        {
+            ArrayOf<NodeId> ids = await ResolvePathsAsync(product,
+                [
+                    [ScalesName(BrowseNames.RegisteredPieceCount)],
+                    [ScalesName(BrowseNames.TotalizedItemCount)],
+                    [ScalesName(BrowseNames.TotalizedWeight)]
+                ], cancellationToken).ConfigureAwait(false);
+            DataValue[] values = await ReadDataValuesAsync(ids, cancellationToken).ConfigureAwait(false);
+            return new ScalePieceCountingSnapshot
+            {
+                ProductNodeId = product,
+                RegisteredPieceCount = UnsignedField(values[0]),
+                TotalizedItemCount = UnsignedField(values[1]),
+                TotalizedWeight = StructureField<WeightType>(values[2])
+            };
+        }
+
+        /// <summary>
         /// Reads the recipe selected on a product and its typed report entries.
         /// </summary>
         /// <param name="product">The recipe product node.</param>
@@ -274,6 +299,31 @@ namespace Opc.Ua.Scales.Client
                 : value.TryGetValue(out long i64) ? i64
                 : value.TryGetValue(out ulong u64) ? u64 : double.NaN;
             return Field(data, !double.IsNaN(number), number);
+        }
+
+        /// <summary>
+        /// Reads OPC UA unsigned integer values without narrowing a valid UInt32.
+        /// </summary>
+        private static ScaleField<uint> UnsignedField(in DataValue data)
+        {
+            Variant value = data.WrappedValue;
+            bool valid = value.TryGetValue(out uint count);
+            if (!valid && value.TryGetValue(out ushort u16))
+            {
+                count = u16;
+                valid = true;
+            }
+            if (!valid && value.TryGetValue(out byte u8))
+            {
+                count = u8;
+                valid = true;
+            }
+            if (!valid && value.TryGetValue(out ulong u64) && u64 <= uint.MaxValue)
+            {
+                count = (uint)u64;
+                valid = true;
+            }
+            return Field(data, valid, count);
         }
     }
 }

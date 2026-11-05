@@ -296,6 +296,15 @@ namespace Opc.Ua.Scales.Server.Runtime
         {
             m_owner = owner;
             Scale = scale;
+            if (owner.ProductionPreset is { } preset)
+            {
+                preset.CurrentProductsChanged += OnCurrentProductsChanged;
+                if (preset.ActiveProduct is PieceCountingProductState product &&
+                    TryReadReference(product, out double referenceWeight))
+                {
+                    m_referencePieceWeight = referenceWeight;
+                }
+            }
             scale.SetReferencePieceWeight?.OnCall = (context, method, objectId, weight, units) =>
                     owner.Execute(
                         ScaleCommand.SetReferencePieceWeight,
@@ -369,17 +378,275 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// </summary>
         internal void OnWeight(WeighingResult current, PieceCountingProductState? product)
         {
-            if (!(m_referencePieceWeight > 0))
+            if (!TryCount(current, product, out uint pieces))
+            {
+                SetUnavailable(Scale.CurrentPieceCount);
+                SetUnavailable(product?.CurrentItemCount);
+                CurrentPieceCount = 0;
+                return;
+            }
+            CurrentPieceCount = pieces;
+            ScaleValues.Set(m_owner.Services.Context, Scale.CurrentPieceCount, Variant.From(pieces));
+            if (product?.CurrentItemCount != null)
+            {
+                ScaleValues.Set(m_owner.Services.Context, product.CurrentItemCount, Variant.From(pieces));
+            }
+        }
+
+        /// <summary>
+        /// Adds one accepted registration to the selected product's configured count and weight totals.
+        /// </summary>
+        internal ServiceResult OnRegistered(WeighingResult current, PieceCountingProductState? product)
+        {
+            if (product == null)
+            {
+                return ServiceResult.Good;
+            }
+            bool hasCount = TryCount(current, product, out uint pieces);
+            uint itemTotal = 0;
+            bool updateItemTotal = hasCount && product.TotalizedItemCount != null;
+            if (updateItemTotal)
+            {
+                if (!TryReadUnsigned(product.TotalizedItemCount!.WrappedValue, out uint existing))
+                {
+                    return ServiceResult.Create(
+                        StatusCodes.BadTypeMismatch, "The totalized piece count is not a UInt32 value.");
+                }
+                if (uint.MaxValue - existing < pieces)
+                {
+                    return ServiceResult.Create(
+                        StatusCodes.BadOutOfRange, "The totalized piece count exceeds UInt32.");
+                }
+                itemTotal = existing + pieces;
+            }
+            WeightType? weightTotal = null;
+            if (product.TotalizedWeight != null)
+            {
+                double existing = product.TotalizedWeight.Value.Net;
+                double total = existing + current.Net;
+                if (!double.IsFinite(total))
+                {
+                    return ServiceResult.Create(
+                        StatusCodes.BadOutOfRange, "The totalized weight is not finite.");
+                }
+                weightTotal = new WeightType { Gross = total, Net = total, Tare = 0 };
+            }
+
+            if (hasCount)
+            {
+                CurrentPieceCount = pieces;
+                ScaleValues.Set(m_owner.Services.Context, product.RegisteredPieceCount, Variant.From(pieces));
+            }
+            else
+            {
+                SetUnavailable(product.RegisteredPieceCount);
+            }
+            if (updateItemTotal)
+            {
+                ScaleValues.Set(m_owner.Services.Context, product.TotalizedItemCount, Variant.From(itemTotal));
+            }
+            if (weightTotal != null)
+            {
+                ScaleValues.Set(m_owner.Services.Context, product.TotalizedWeight, weightTotal);
+            }
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Resets one product's optional totals after asynchronous writer admission.
+        /// </summary>
+        /// <param name="productId">The product whose totals are reset.</param>
+        /// <param name="cancellationToken">Cancels while waiting to enter.</param>
+        public ValueTask<ServiceResult> ResetTotalsAsync(
+            string productId,
+            CancellationToken cancellationToken = default)
+        {
+            productId.ThrowIfNull(nameof(productId));
+            return m_owner.ExecuteWriteOperationAsync(async ct =>
+            {
+                ct.ThrowIfCancellationRequested();
+                if (m_owner.ProductionPreset?.Find(productId) is not PieceCountingProductState product)
+                {
+                    return ServiceResult.Create(
+                        StatusCodes.BadNotFound,
+                        "Piece-counting product '{0}' not found.",
+                        productId);
+                }
+                if (product.TotalizedItemCount == null && product.TotalizedWeight == null)
+                {
+                    return ServiceResult.Create(StatusCodes.BadNotSupported, "Product totals are not enabled.");
+                }
+                await ResetTotalsAsync(product).ConfigureAwait(false);
+                return ServiceResult.Good;
+            }, cancellationToken);
+        }
+
+        /// <summary>
+        /// Adds required registered count and the configured optional totals before a product is published.
+        /// </summary>
+        internal static void InitializeProduct(
+            ISystemContext context,
+            PieceCountingProductState product,
+            bool totalsEnabled,
+            EUInformation units)
+        {
+            if (product.ReferencePieceWeight == null)
+            {
+                product.AddReferencePieceWeight(context);
+                product.ReferencePieceWeight!.WrappedValue = Variant.From(0.0);
+                ScaleValues.SetUnits(context, product.ReferencePieceWeight, units);
+            }
+            if (product.NumberOfReferencePieces == null)
+            {
+                product.AddNumberOfReferencePieces(context);
+                product.NumberOfReferencePieces!.WrappedValue = Variant.From(0u);
+            }
+            if (product.CurrentItemCount == null)
+            {
+                product.AddCurrentItemCount(context);
+                product.CurrentItemCount!.WrappedValue = Variant.From(0u);
+            }
+            if (product.RegisteredPieceCount == null)
+            {
+                product.AddRegisteredPieceCount(context);
+                product.RegisteredPieceCount!.WrappedValue = Variant.From(0u);
+            }
+            if (!totalsEnabled)
             {
                 return;
             }
-            double pieces = Math.Max(0, Math.Round(current.HighResolutionNet / m_referencePieceWeight));
-            CurrentPieceCount = (ulong)pieces;
-            ScaleValues.Set(m_owner.Services.Context, Scale.CurrentPieceCount, Variant.From(CurrentPieceCount));
-            if (product?.CurrentItemCount != null)
+            if (product.TotalizedItemCount == null)
             {
-                ScaleValues.Set(m_owner.Services.Context, product.CurrentItemCount, Variant.From(CurrentPieceCount));
+                product.AddTotalizedItemCount(context);
+                product.TotalizedItemCount!.WrappedValue = Variant.From(0u);
             }
+            if (product.TotalizedWeight == null)
+            {
+                product.AddTotalizedWeight(context);
+                product.TotalizedWeight!.Value = new WeightType();
+                ScaleValues.SetUnits(context, product.TotalizedWeight, units);
+            }
+        }
+
+        /// <summary>
+        /// Resets totals for the newly selected product as required when processing changes product.
+        /// </summary>
+        private void OnCurrentProductsChanged(object? sender, EventArgs e)
+        {
+            if (m_owner.ProductionPreset?.ActiveProduct is PieceCountingProductState product)
+            {
+                m_referencePieceWeight = TryReadReference(product, out double reference) ? reference : 0;
+                ResetTotals(product);
+            }
+            else
+            {
+                m_referencePieceWeight = 0;
+            }
+        }
+
+        /// <summary>
+        /// Clears available totals and notifies their consumers.
+        /// </summary>
+        private void ResetTotals(PieceCountingProductState product)
+        {
+            ISystemContext context = m_owner.Services.Context;
+            if (product.TotalizedItemCount != null)
+            {
+                ScaleValues.Set(context, product.TotalizedItemCount, Variant.From(0u));
+            }
+            if (product.TotalizedWeight != null)
+            {
+                ScaleValues.Set(context, product.TotalizedWeight, new WeightType());
+            }
+        }
+
+        /// <summary>
+        /// Clears available totals and awaits notification for an explicit user reset.
+        /// </summary>
+        private async ValueTask ResetTotalsAsync(PieceCountingProductState product)
+        {
+            ISystemContext context = m_owner.Services.Context;
+            if (product.TotalizedItemCount != null)
+            {
+                await ScaleValues.SetAsync(context, product.TotalizedItemCount, Variant.From(0u))
+                    .ConfigureAwait(false);
+            }
+            if (product.TotalizedWeight != null)
+            {
+                await ScaleValues.SetAsync(context, product.TotalizedWeight, new WeightType()).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Computes a count only when this product has a valid reference piece weight.
+        /// </summary>
+        private bool TryCount(WeighingResult current, PieceCountingProductState? product, out uint pieces)
+        {
+            pieces = 0;
+            double referenceWeight = product != null && TryReadReference(product, out double productReference)
+                ? productReference
+                : product == null ? m_referencePieceWeight : 0;
+            if (!(referenceWeight > 0) || !double.IsFinite(referenceWeight))
+            {
+                return false;
+            }
+            double count = Math.Max(0, Math.Round(current.HighResolutionNet / referenceWeight));
+            if (!double.IsFinite(count) || count > uint.MaxValue)
+            {
+                return false;
+            }
+            pieces = (uint)count;
+            return true;
+        }
+
+        /// <summary>
+        /// Reads a product's configured reference without substituting a controller-wide value.
+        /// </summary>
+        private static bool TryReadReference(PieceCountingProductState product, out double referenceWeight)
+        {
+            referenceWeight = 0;
+            return product.ReferencePieceWeight != null &&
+                product.ReferencePieceWeight.WrappedValue.TryGetValue(out referenceWeight) &&
+                double.IsFinite(referenceWeight) && referenceWeight > 0;
+        }
+
+        /// <summary>
+        /// Reads an unsigned OPC UA count in its common integer encodings.
+        /// </summary>
+        private static bool TryReadUnsigned(in Variant value, out uint count)
+        {
+            if (value.TryGetValue(out uint u32))
+            {
+                count = u32;
+                return true;
+            }
+            if (value.TryGetValue(out ushort u16))
+            {
+                count = u16;
+                return true;
+            }
+            if (value.TryGetValue(out byte u8))
+            {
+                count = u8;
+                return true;
+            }
+            count = 0;
+            return false;
+        }
+
+        /// <summary>
+        /// Marks an uncomputable count as unavailable rather than retaining a stale number.
+        /// </summary>
+        private void SetUnavailable(BaseVariableState? variable)
+        {
+            if (variable == null)
+            {
+                return;
+            }
+            variable.WrappedValue = Variant.Null;
+            variable.StatusCode = StatusCodes.BadNoData;
+            variable.Timestamp = DateTimeUtc.Now;
+            variable.ClearChangeMasks(m_owner.Services.Context, includeChildren: false);
         }
 
         private ServiceResult SetReferencePieceWeightCore(
@@ -435,7 +702,6 @@ namespace Opc.Ua.Scales.Server.Runtime
                     StatusCodes.BadOutOfRange,
                     "The number of reference pieces must be positive.");
             }
-            m_referencePieces = count;
             if (product != null)
             {
                 ScaleValues.Set(m_owner.Services.Context, product.NumberOfReferencePieces, Variant.From(count));
@@ -469,7 +735,6 @@ namespace Opc.Ua.Scales.Server.Runtime
                     StatusCodes.BadInvalidState,
                     "Reference weighing needs the reference pieces on the scale.");
             }
-            m_referencePieces = count;
             m_referencePieceWeight = net / count;
             if (product != null)
             {
@@ -500,7 +765,6 @@ namespace Opc.Ua.Scales.Server.Runtime
 
         private readonly ScaleHandle m_owner;
         private double m_referencePieceWeight;
-        private uint m_referencePieces;
     }
 
     /// <summary>
@@ -780,20 +1044,29 @@ namespace Opc.Ua.Scales.Server.Runtime
                     owner.Execute(
                         ScaleCommand.OnePassWeighing,
                         () => Outbound(vehicleId, onePass: true, context));
-            scale.InboundWeighing?.OnCallAsync = async (context, method, objectId, vehicleId, ct) =>
-                new InboundWeighingMethodStateResult
+            scale.InboundWeighing?.OnCallMethod2Async = async (context, method, objectId, inputs, outputs, ct) =>
                 {
-                    ServiceResult = await InboundAsync(vehicleId, context, ct).ConfigureAwait(false)
+                    if (inputs.Count != 1 || !inputs[0].TryGetValue(out string? vehicleId))
+                    {
+                        return ServiceResult.Create(StatusCodes.BadInvalidArgument, "A vehicle id is required.");
+                    }
+                    return await InboundAsync(vehicleId, context, ct).ConfigureAwait(false);
                 };
-            scale.OutboundWeighing?.OnCallAsync = async (context, method, objectId, vehicleId, ct) =>
-                new OutboundWeighingMethodStateResult
+            scale.OutboundWeighing?.OnCallMethod2Async = async (context, method, objectId, inputs, outputs, ct) =>
                 {
-                    ServiceResult = await OutboundAsync(vehicleId, onePass: false, context, ct).ConfigureAwait(false)
+                    if (inputs.Count != 1 || !inputs[0].TryGetValue(out string? vehicleId))
+                    {
+                        return ServiceResult.Create(StatusCodes.BadInvalidArgument, "A vehicle id is required.");
+                    }
+                    return await OutboundAsync(vehicleId, onePass: false, context, ct).ConfigureAwait(false);
                 };
-            scale.OnePassWeighing?.OnCallAsync = async (context, method, objectId, vehicleId, ct) =>
-                new OnePassWeighingMethodStateResult
+            scale.OnePassWeighing?.OnCallMethod2Async = async (context, method, objectId, inputs, outputs, ct) =>
                 {
-                    ServiceResult = await OutboundAsync(vehicleId, onePass: true, context, ct).ConfigureAwait(false)
+                    if (inputs.Count != 1 || !inputs[0].TryGetValue(out string? vehicleId))
+                    {
+                        return ServiceResult.Create(StatusCodes.BadInvalidArgument, "A vehicle id is required.");
+                    }
+                    return await OutboundAsync(vehicleId, onePass: true, context, ct).ConfigureAwait(false);
                 };
         }
 

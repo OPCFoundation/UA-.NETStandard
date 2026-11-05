@@ -545,6 +545,19 @@ namespace Opc.Ua.Scales.Server.Builders
             return this;
         }
 
+        /// <inheritdoc/>
+        public IScaleBuilder WithPieceCountingTotals()
+        {
+            if (Kind != ScaleKind.PieceCounting)
+            {
+                throw new InvalidOperationException("Piece-counting totals require a piece-counting scale.");
+            }
+            m_pieceCountingTotals = true;
+            WithRegisterWeight();
+            WithTypeFeatures();
+            return this;
+        }
+
         public IScaleBuilder AddTotalizer(string name)
         {
             if (Scale is not ContinuousScaleState continuous)
@@ -718,7 +731,8 @@ namespace Opc.Ua.Scales.Server.Builders
                     m_itemProcessing,
                     m_priceCalculator,
                     m_completedFills,
-                    m_vehicleAggregation));
+                    m_vehicleAggregation,
+                    m_pieceCountingTotals));
             if (handle.Recipes != null)
             {
                 m_configureRecipes?.Invoke(handle.Recipes);
@@ -902,6 +916,9 @@ namespace Opc.Ua.Scales.Server.Builders
 
         /// <summary>The application-selected aggregation rule for each vehicle.</summary>
         private Func<string, VehicleWeightAggregation>? m_vehicleAggregation;
+
+        /// <summary>Whether optional per-product piece-count totals are enabled.</summary>
+        private bool m_pieceCountingTotals;
     }
 
     /// <summary>

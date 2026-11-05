@@ -400,7 +400,6 @@ namespace Opc.Ua.Scales.Tests
                 return VehicleWeightAggregation.Signed;
             }).ConfigureAwait(false);
             var vehicle = (VehicleProductState)scale.ProductionPreset!.Find("A")!;
-            vehicle.AddVehicleId(m_fixture.Context);
             vehicle.VehicleId!.Value = "LICENSE-A";
             scale.PublishLoad(40000);
             AssertGood(await scale.Vehicle!.InboundWeighingAsync("A").ConfigureAwait(false));
