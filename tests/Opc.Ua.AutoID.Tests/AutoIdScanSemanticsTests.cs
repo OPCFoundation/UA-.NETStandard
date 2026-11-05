@@ -508,9 +508,11 @@ namespace Opc.Ua.AutoID.Tests
         [Test]
         public async Task CompletionStatusNotificationKeepsShutdownWaitingForTheOperationAsync()
         {
+            AutoIdManagerFixture fixture = m_fixture ??
+                throw new InvalidOperationException("The test fixture has not been initialized.");
             var provider = new FakeProvider();
-            AutoIdReader reader = await m_fixture.Runtime.Reader(
-                m_fixture.Name("OwnedCompletion" + Interlocked.Increment(ref s_counter)), provider)
+            AutoIdReader reader = await fixture.Runtime.Reader(
+                fixture.Name("OwnedCompletion" + Interlocked.Increment(ref s_counter)), provider)
                 .OwnsProvider().BuildAsync().ConfigureAwait(false);
             var device = (RfidReaderDeviceState)reader.Device;
             await StartAsync(device, AutoIdTestData.Settings()).ConfigureAwait(false);
@@ -683,6 +685,8 @@ namespace Opc.Ua.AutoID.Tests
         [Test]
         public async Task AcquisitionReadsKeepValueQualityAndTimestampTogetherAsync()
         {
+            AutoIdManagerFixture fixture = m_fixture ??
+                throw new InvalidOperationException("The test fixture has not been initialized.");
             (RfidReaderDeviceState device, FakeProvider provider) = await CreateAsync().ConfigureAwait(false);
             BaseVariableState[] variables =
                 [device.LastScanData!, device.LastScanTimestamp!, device.LastScanAntenna!, device.LastScanRSSI!];
@@ -711,7 +715,7 @@ namespace Opc.Ua.AutoID.Tests
                     foreach (BaseVariableState variable in variables)
                     {
                         AttributeReadResult read = await variable.OnReadValueAsync!(
-                            m_fixture.Context, variable, default, default, default).ConfigureAwait(false);
+                            fixture.Context, variable, default, default, default).ConfigureAwait(false);
                         bool isFirst = read.SourceTimestamp == first.Timestamp;
                         RfidScanResult expected = isFirst ? first : second;
                         Variant expectedValue = variable.BrowseName.Name switch
