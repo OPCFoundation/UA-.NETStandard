@@ -400,6 +400,10 @@ foreach ($project in $projectList) {
             $projectFilter -like '*FullyQualifiedName!~Opc.Ua.WotCon.Tests.Materialization.*') {
             $testArguments += @('--logger', 'console;verbosity=detailed')
         }
+        # Above the adapter's default 2,000-case limit, a non-category
+        # selection becomes an empty engine filter and runs the whole assembly.
+        # Apply this after coverage options and share one runsettings delimiter.
+        $testArguments += @('--', 'NUnit.AssemblySelectLimit=2147483647')
         if ($IsMacOS -and $env:OPCUA_CAPTURE_MACOS_NATIVE_LOADER_DIAGNOSTICS -eq 'true' -and
             $stem -eq 'Opc.Ua.Security.Pkcs11.Tests') {
             # VSTest does not forward the test host's stderr, where dyld writes
@@ -408,7 +412,6 @@ foreach ($project in $projectList) {
             # the test host alone, and DYLD_PRINT_TO_FILE keeps its trace.
             $dyldTrace = Join-Path $projectResults 'dyld-testhost.log'
             $testArguments += @(
-                '--',
                 "RunConfiguration.EnvironmentVariables.DYLD_PRINT_TO_FILE=$dyldTrace",
                 'RunConfiguration.EnvironmentVariables.DYLD_PRINT_LIBRARIES=1',
                 'RunConfiguration.EnvironmentVariables.DYLD_PRINT_SEGMENTS=1',
