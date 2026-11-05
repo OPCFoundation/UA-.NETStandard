@@ -622,6 +622,15 @@ their event reports to finish, then releases the evaluation gate. Repeated
 disposal calls await the same completion. A notification callback must not
 await disposal of its own binding.
 
+An evaluation records its duplicate-suppression state only after all state
+notifications finish. If a notification throws, earlier mutations remain
+visible and the exception propagates; the next evaluation retries the
+incomplete update using the current input. Completed event snapshots wait in
+publication order until reporting succeeds. A reporting exception or
+cancellation leaves the failed snapshot queued for the next evaluation.
+Retrying can notify a sink again if it received the event before another sink
+failed. Event delivery remains outside the state-mutation gate.
+
 The condition exposes standard enable/disable, acknowledgment and retained
 refresh behavior through the shared alarm service. `InputNode` and `SourceNode`
 identify the actual variable. The binding adds `HasCondition` and
@@ -690,8 +699,12 @@ For a signal object the publish happens on the `DiscreteInputValue` /
 client subscribes to (`PumpValue.NodeId`).
 
 When acquisition already supplies quality and source time, use
-`runtime.PublishValue(group, browseName, in dataValue)` instead. It preserves
-those fields while publishing the change. The variable must already exist and
+`await runtime.PublishValueAsync(group, browseName, in dataValue, ct)` instead.
+It preserves those fields and awaits asynchronous state-change notifications
+after invoking synchronous observers. Cancellation is checked before mutation;
+after assigning the sample, notifications complete without cancellation. If a
+sink throws, the exception propagates and the acquired sample remains visible.
+The variable must already exist and
 remain registered under a pump owned by the runtime. Publication does not
 materialize an absent optional member, and a stopped runtime rejects updates.
 

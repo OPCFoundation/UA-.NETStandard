@@ -575,7 +575,7 @@ namespace Opc.Ua.Pumps.Server
         /// </summary>
         private async ValueTask EvaluateStateAsync(CancellationToken cancellationToken)
         {
-            InstanceStateSnapshot? snapshot = null;
+            bool report = false;
             await m_gate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
             try
             {
@@ -615,60 +615,124 @@ namespace Opc.Ua.Pumps.Server
                 {
                     state = m_lastState;
                 }
-                if (m_evaluated && state == m_lastState && quality == Alarm.Quality!.Value)
+                if (m_updatePending || !m_evaluated || state != m_lastState || quality != m_lastQuality)
                 {
-                    return;
-                }
-                bool newlyActive = state != LimitAlarmStates.Inactive && state != m_lastState;
-                m_lastState = state;
-                m_evaluated = true;
-                Alarm.Quality!.Value = quality;
-                await Alarm.SetSeverityAsync(
-                    m_context,
-                    state == LimitAlarmStates.Inactive ? EventSeverity.Min : m_activeSeverity,
-                    CancellationToken.None).ConfigureAwait(false);
-                if (newlyActive)
-                {
-                    await Alarm.SetAcknowledgedStateAsync(
-                        m_context, false, CancellationToken.None).ConfigureAwait(false);
-                    if (Alarm.SupportsConfirm())
+                    m_updatePending = true;
+                    bool newlyActive = state != LimitAlarmStates.Inactive && state != m_lastState;
+                    Alarm.Quality!.Value = quality;
+                    await Alarm.SetSeverityAsync(
+                        m_context,
+                        state == LimitAlarmStates.Inactive ? EventSeverity.Min : m_activeSeverity,
+                        CancellationToken.None).ConfigureAwait(false);
+                    if (newlyActive)
                     {
-                        await Alarm.SetConfirmedStateAsync(
+                        await Alarm.SetAcknowledgedStateAsync(
                             m_context, false, CancellationToken.None).ConfigureAwait(false);
+                        if (Alarm.SupportsConfirm())
+                        {
+                            await Alarm.SetConfirmedStateAsync(
+                                m_context, false, CancellationToken.None).ConfigureAwait(false);
+                        }
+                    }
+                    if (Alarm is ExclusiveLimitAlarmState limitAlarm)
+                    {
+                        await limitAlarm.SetLimitStateAsync(
+                            m_context, state, CancellationToken.None).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await Alarm.SetActiveStateAsync(
+                            m_context, state != LimitAlarmStates.Inactive, CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
+                    Alarm.Message!.Value = new LocalizedText(
+                        state == LimitAlarmStates.Inactive
+                            ? "Input is normal." : "Input is outside its configured normal state.");
+                    InstanceStateSnapshot? snapshot = null;
+                    if (Alarm.EnabledState!.Id!.Value)
+                    {
+                        Alarm.EventId!.Value = Uuid.NewUuid().ToByteString();
+                        Alarm.ReceiveTime!.Value = DateTimeUtc.Now;
+                        Alarm.Time!.Value = Input.Timestamp == DateTimeUtc.MinValue
+                            ? Alarm.ReceiveTime.Value
+                            : Input.Timestamp;
+                        snapshot = new InstanceStateSnapshot();
+                        snapshot.Initialize(m_context, Alarm);
+                    }
+                    await Alarm.ClearChangeMasksAsync(m_context, true, CancellationToken.None).ConfigureAwait(false);
+                    m_lastState = state;
+                    m_lastQuality = quality;
+                    m_evaluated = true;
+                    m_updatePending = false;
+                    if (snapshot is not null)
+                    {
+                        m_pendingReports.Enqueue(snapshot);
                     }
                 }
-                if (Alarm is ExclusiveLimitAlarmState limitAlarm)
+                if (!m_reporting && m_pendingReports.Count != 0)
                 {
-                    await limitAlarm.SetLimitStateAsync(
-                        m_context, state, CancellationToken.None).ConfigureAwait(false);
+                    m_reporting = true;
+                    report = true;
                 }
-                else
-                {
-                    await Alarm.SetActiveStateAsync(
-                        m_context, state != LimitAlarmStates.Inactive, CancellationToken.None).ConfigureAwait(false);
-                }
-                Alarm.Message!.Value = new LocalizedText(
-                    state == LimitAlarmStates.Inactive
-                        ? "Input is normal." : "Input is outside its configured normal state.");
-                if (Alarm.EnabledState!.Id!.Value)
-                {
-                    Alarm.EventId!.Value = Uuid.NewUuid().ToByteString();
-                    Alarm.ReceiveTime!.Value = DateTimeUtc.Now;
-                    Alarm.Time!.Value = Input.Timestamp == DateTimeUtc.MinValue
-                        ? Alarm.ReceiveTime.Value
-                        : Input.Timestamp;
-                    snapshot = new InstanceStateSnapshot();
-                    snapshot.Initialize(m_context, Alarm);
-                }
-                await Alarm.ClearChangeMasksAsync(m_context, true, CancellationToken.None).ConfigureAwait(false);
             }
             finally
             {
                 m_gate.Release();
             }
-            if (snapshot is not null)
+            if (report)
             {
-                await Alarm.ReportEventAsync(m_context, snapshot, cancellationToken).ConfigureAwait(false);
+                await ReportPendingEventsAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Delivers queued snapshots in order, retaining the first failed report for the next evaluation to retry.
+        /// </summary>
+        private async ValueTask ReportPendingEventsAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                while (true)
+                {
+                    InstanceStateSnapshot snapshot;
+                    await m_gate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                    try
+                    {
+                        snapshot = m_pendingReports.Peek();
+                    }
+                    finally
+                    {
+                        m_gate.Release();
+                    }
+                    await Alarm.ReportEventAsync(m_context, snapshot, cancellationToken).ConfigureAwait(false);
+                    await m_gate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                    try
+                    {
+                        m_pendingReports.Dequeue();
+                        if (m_pendingReports.Count == 0)
+                        {
+                            m_reporting = false;
+                            return;
+                        }
+                    }
+                    finally
+                    {
+                        m_gate.Release();
+                    }
+                }
+            }
+            catch
+            {
+                await m_gate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                try
+                {
+                    m_reporting = false;
+                }
+                finally
+                {
+                    m_gate.Release();
+                }
+                throw;
             }
         }
 
@@ -698,6 +762,18 @@ namespace Opc.Ua.Pumps.Server
 
         /// <summary>The last evaluated limit or diagnostic state.</summary>
         private LimitAlarmStates m_lastState;
+
+        /// <summary>The quality of the last successfully completed condition update.</summary>
+        private StatusCode m_lastQuality;
+
+        /// <summary>Whether a failed update left live state that must be completed on the next evaluation.</summary>
+        private bool m_updatePending;
+
+        /// <summary>Completed condition updates waiting for successful event delivery.</summary>
+        private readonly Queue<InstanceStateSnapshot> m_pendingReports = new();
+
+        /// <summary>Whether an admitted evaluation is currently delivering queued reports.</summary>
+        private bool m_reporting;
 
         /// <summary>Whether a baseline evaluation has completed.</summary>
         private bool m_evaluated;

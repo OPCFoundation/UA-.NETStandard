@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.Pumps.Server.Builders;
 
 namespace Opc.Ua.Pumps.Server
@@ -44,12 +46,14 @@ namespace Opc.Ua.Pumps.Server
         /// Unlike the convenience Set/SetAnalog methods, an unset source timestamp remains unset.
         /// Signals represented by objects must address their DiscreteInputValue/DiscreteOutputValue group.
         /// </remarks>
-        public static IPumpGroupBuilder PublishValue(
+        public static ValueTask<IPumpGroupBuilder> PublishValueAsync(
             this PumpsRuntime runtime,
             IPumpGroupBuilder group,
             string browseName,
-            in DataValue value)
+            in DataValue value,
+            CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (runtime is null)
             {
                 throw new ArgumentNullException(nameof(runtime));
@@ -92,7 +96,19 @@ namespace Opc.Ua.Pumps.Server
             variable.WrappedValue = value.WrappedValue;
             variable.StatusCode = value.StatusCode;
             variable.Timestamp = value.SourceTimestamp;
-            variable.ClearChangeMasks(runtime.SystemContext, includeChildren: false);
+            return NotifyAsync(runtime.SystemContext, variable, group);
+        }
+
+        /// <summary>
+        /// Awaits committed-value notifications without canceling after the value has been assigned.
+        /// </summary>
+        private static async ValueTask<IPumpGroupBuilder> NotifyAsync(
+            ISystemContext context,
+            BaseVariableState variable,
+            IPumpGroupBuilder group)
+        {
+            await variable.ClearChangeMasksAsync(context, includeChildren: false, CancellationToken.None)
+                .ConfigureAwait(false);
             return group;
         }
     }

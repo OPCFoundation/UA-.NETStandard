@@ -181,12 +181,12 @@ namespace Opc.Ua.Pumps.Tests
         /// A provider sample keeps its acquisition timestamp and unavailable status.
         /// </summary>
         [Test]
-        public void PublishingProviderValuePreservesSourceQualityAndTime()
+        public async Task PublishingProviderValuePreservesSourceQualityAndTimeAsync()
         {
             IPumpGroupBuilder measurements = m_pump.Measurements.SetAnalog(BrowseNames.MassFlow, 0);
             var sample = new DataValue(
                 Variant.From(12.5), StatusCodes.BadOutOfService, new DateTime(2026, 1, 2, 3, 4, 5, DateTimeKind.Utc));
-            m_fixture.Manager.Runtime.PublishValue(measurements, BrowseNames.MassFlow, sample);
+            await m_fixture.Manager.Runtime.PublishValueAsync(measurements, BrowseNames.MassFlow, sample);
             var variable = (BaseVariableState)measurements.Child(BrowseNames.MassFlow)!;
             Assert.That(variable.WrappedValue, Is.EqualTo(sample.WrappedValue));
             Assert.That(variable.StatusCode, Is.EqualTo(sample.StatusCode));
@@ -194,18 +194,110 @@ namespace Opc.Ua.Pumps.Tests
         }
 
         /// <summary>
+        /// Provider publication awaits the asynchronous observer after invoking the synchronous observer.
+        /// </summary>
+        [Test]
+        public async Task PublishingAwaitsNotificationAfterCommittingProviderSampleAsync()
+        {
+            IPumpGroupBuilder measurements = m_pump.Measurements.SetAnalog(BrowseNames.MassFlow, 0);
+            var variable = (BaseVariableState)measurements.Child(BrowseNames.MassFlow)!;
+            var sample = new DataValue(
+                Variant.From(12.5), StatusCodes.BadOutOfService, new DateTime(2026, 1, 2, 3, 4, 5, DateTimeKind.Utc));
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            bool synchronousNotified = false;
+            variable.OnStateChanged = (_, _, _) => synchronousNotified = true;
+            variable.OnStateChangedAsync = async (_, _, _, token) =>
+            {
+                Assert.That(synchronousNotified, Is.True);
+                Assert.That(token.CanBeCanceled, Is.False);
+                entered.TrySetResult(true);
+                await release.Task.ConfigureAwait(false);
+            };
+            using var cancellation = new CancellationTokenSource();
+            Task<IPumpGroupBuilder> publication = m_fixture.Manager.Runtime.PublishValueAsync(
+                measurements, BrowseNames.MassFlow, sample, cancellation.Token).AsTask();
+            try
+            {
+                Task ready = await Task.WhenAny(entered.Task, Task.Delay(TimeSpan.FromSeconds(10)));
+                Assert.That(ready, Is.SameAs(entered.Task));
+                Assert.That(publication.IsCompleted, Is.False);
+                Assert.That(variable.WrappedValue, Is.EqualTo(sample.WrappedValue));
+                Assert.That(variable.StatusCode, Is.EqualTo(sample.StatusCode));
+                Assert.That(variable.Timestamp, Is.EqualTo(sample.SourceTimestamp));
+                cancellation.Cancel();
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                Task drained = await Task.WhenAny(publication, Task.Delay(TimeSpan.FromSeconds(10)));
+                Assert.That(drained, Is.SameAs(publication));
+                await publication;
+            }
+            Assert.That(await publication, Is.SameAs(measurements));
+        }
+
+        /// <summary>
+        /// Notification failure propagates without reverting an acquired sample, and the next publication can retry.
+        /// </summary>
+        [Test]
+        public async Task PublishingPropagatesNotificationFailureWithoutRollingBackSampleAsync()
+        {
+            IPumpGroupBuilder measurements = m_pump.Measurements.SetAnalog(BrowseNames.MassFlow, 0);
+            var variable = (BaseVariableState)measurements.Child(BrowseNames.MassFlow)!;
+            var sample = new DataValue(Variant.From(12.5), StatusCodes.BadOutOfService, DateTimeUtc.MinValue);
+            var failure = new InvalidOperationException("notification failed");
+            variable.OnStateChangedAsync = (_, _, _, _) => throw failure;
+            InvalidOperationException? observed = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await m_fixture.Manager.Runtime.PublishValueAsync(measurements, BrowseNames.MassFlow, sample));
+            Assert.That(observed, Is.SameAs(failure));
+            Assert.That(variable.WrappedValue, Is.EqualTo(sample.WrappedValue));
+            Assert.That(variable.StatusCode, Is.EqualTo(sample.StatusCode));
+            Assert.That(variable.Timestamp, Is.EqualTo(DateTimeUtc.MinValue));
+            int notifications = 0;
+            variable.OnStateChangedAsync = (_, _, _, _) =>
+            {
+                notifications++;
+                return default;
+            };
+            await m_fixture.Manager.Runtime.PublishValueAsync(measurements, BrowseNames.MassFlow, sample);
+            Assert.That(notifications, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Cancellation before publication does not change the acquired value or notify observers.
+        /// </summary>
+        [Test]
+        public async Task PublishingRejectsCancellationBeforeMutatingSampleAsync()
+        {
+            IPumpGroupBuilder measurements = m_pump.Measurements.SetAnalog(BrowseNames.MassFlow, 2);
+            var variable = (BaseVariableState)measurements.Child(BrowseNames.MassFlow)!;
+            bool notified = false;
+            variable.OnStateChangedAsync = (_, _, _, _) =>
+            {
+                notified = true;
+                return default;
+            };
+            var sample = new DataValue(Variant.From(12.5));
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await m_fixture.Manager.Runtime.PublishValueAsync(
+                    measurements, BrowseNames.MassFlow, sample, new CancellationToken(canceled: true)));
+            Assert.That(variable.WrappedValue, Is.EqualTo(Variant.From(2d)));
+            Assert.That(notified, Is.False);
+        }
+
+        /// <summary>
         /// Publication requires an existing variable rather than using the builder's lazy creation path.
         /// </summary>
         [Test]
-        public void PublishingDoesNotMaterializeAnAbsentOptionalVariable()
+        public async Task PublishingDoesNotMaterializeAnAbsentOptionalVariableAsync()
         {
             IPumpGroupBuilder measurements = m_pump.Measurements;
             var name = new QualifiedName(BrowseNames.MassFlow, m_fixture.Manager.NamespaceIndices.Pumps);
             Assert.That(measurements.Node.FindChild(m_fixture.Manager.SystemContext, name), Is.Null);
             var sample = new DataValue(Variant.From(12.5));
-            Assert.That(
-                () => m_fixture.Manager.Runtime.PublishValue(measurements, BrowseNames.MassFlow, sample),
-                Throws.TypeOf<ArgumentException>());
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
+                await m_fixture.Manager.Runtime.PublishValueAsync(measurements, BrowseNames.MassFlow, sample));
             Assert.That(measurements.Node.FindChild(m_fixture.Manager.SystemContext, name), Is.Null);
         }
 
@@ -219,9 +311,8 @@ namespace Opc.Ua.Pumps.Tests
             var variable = (BaseVariableState)measurements.Child(BrowseNames.MassFlow)!;
             var sample = new DataValue(Variant.From(12.5));
             await m_fixture.Manager.Runtime.DisposeAsync();
-            Assert.That(
-                () => m_fixture.Manager.Runtime.PublishValue(measurements, BrowseNames.MassFlow, sample),
-                Throws.TypeOf<ObjectDisposedException>());
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+                await m_fixture.Manager.Runtime.PublishValueAsync(measurements, BrowseNames.MassFlow, sample));
             Assert.That(variable.WrappedValue, Is.EqualTo(Variant.From(2d)));
         }
 
@@ -236,9 +327,8 @@ namespace Opc.Ua.Pumps.Tests
             await m_fixture.Manager.DeleteNodeAsync(
                 m_fixture.Manager.SystemContext, variable.NodeId, CancellationToken.None);
             var sample = new DataValue(Variant.From(12.5));
-            Assert.That(
-                () => m_fixture.Manager.Runtime.PublishValue(measurements, BrowseNames.MassFlow, sample),
-                Throws.TypeOf<ArgumentException>());
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
+                await m_fixture.Manager.Runtime.PublishValueAsync(measurements, BrowseNames.MassFlow, sample));
             Assert.That(variable.WrappedValue, Is.EqualTo(Variant.From(2d)));
         }
 

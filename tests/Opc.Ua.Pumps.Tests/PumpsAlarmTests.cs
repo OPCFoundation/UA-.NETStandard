@@ -316,6 +316,7 @@ namespace Opc.Ua.Pumps.Tests
             var failure = new InvalidOperationException("state notification failed");
             bool reported = false;
             binding.Alarm.OnStateChangedAsync = (_, _, _, _) => throw failure;
+            binding.Alarm.UpdateChangeMasks(NodeStateChangeMasks.Value);
             binding.Alarm.OnReportEventAsync = (_, _, _, _) =>
             {
                 reported = true;
@@ -335,6 +336,166 @@ namespace Opc.Ua.Pumps.Tests
             });
             await binding.DisposeAsync();
             await Assert.ThrowsAsync<ObjectDisposedException>(async () => await binding.EvaluateAsync());
+        }
+
+        /// <summary>
+        /// A failed notification leaves live mutations visible but does not suppress the next input evaluation.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task EvaluationRetriesIncompleteStateAfterNotificationFailureAsync(bool returnToNormal)
+        {
+            IPumpGroupBuilder group = m_pump.Supervision(BrowseNames.SupervisionMechanics);
+            group.SetDiscrete(BrowseNames.BearingFault, false);
+            var input = (BaseVariableState)group.Child(BrowseNames.BearingFault)!;
+            PumpAlarmBinding binding = await m_fixture.Manager.Runtime.AddDiagnosticAlarmAsync(
+                group, input, "RetryState", DeviceHealthEnumeration.FAILURE);
+            await binding.EvaluateAsync();
+            var failure = new InvalidOperationException("notification failed once");
+            int notifications = 0;
+            int reports = 0;
+            binding.Alarm.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            binding.Alarm.OnStateChangedAsync = (_, _, _, _) =>
+            {
+                if (++notifications == 1)
+                {
+                    throw failure;
+                }
+                return default;
+            };
+            binding.Alarm.OnReportEventAsync = (_, _, _, _) =>
+            {
+                reports++;
+                return default;
+            };
+            group.SetDiscrete(BrowseNames.BearingFault, true);
+            InvalidOperationException? observed = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await binding.EvaluateAsync());
+            Assert.That(observed, Is.SameAs(failure));
+            Assert.That(binding.Alarm.Severity!.Value, Is.EqualTo((ushort)EventSeverity.High));
+            Assert.That(binding.Alarm.ActiveState!.Id!.Value, Is.False);
+            Assert.That(reports, Is.Zero);
+            if (returnToNormal)
+            {
+                group.SetDiscrete(BrowseNames.BearingFault, false);
+            }
+            await binding.EvaluateAsync();
+            Assert.That(binding.Alarm.ActiveState!.Id!.Value, Is.EqualTo(!returnToNormal));
+            Assert.That(binding.Alarm.Severity!.Value,
+                Is.EqualTo((ushort)(returnToNormal ? EventSeverity.Min : EventSeverity.High)));
+            if (!returnToNormal)
+            {
+                Assert.That(binding.Alarm.AckedState!.Id!.Value, Is.False);
+            }
+            Assert.That(notifications, Is.GreaterThanOrEqualTo(2));
+            Assert.That(reports, Is.EqualTo(1));
+            await binding.EvaluateAsync();
+            Assert.That(reports, Is.EqualTo(1), "only a completed update may suppress duplicates");
+        }
+
+        /// <summary>
+        /// Failed or canceled delivery retries the same completed snapshot without rebuilding live condition state.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task EvaluationRetriesPendingReportWithoutChangingEventIdAsync(bool canceled)
+        {
+            IPumpGroupBuilder group = m_pump.Supervision(BrowseNames.SupervisionMechanics);
+            group.SetDiscrete(BrowseNames.BearingFault, false);
+            var input = (BaseVariableState)group.Child(BrowseNames.BearingFault)!;
+            PumpAlarmBinding binding = await m_fixture.Manager.Runtime.AddDiagnosticAlarmAsync(
+                group, input, "RetryReport", DeviceHealthEnumeration.FAILURE);
+            await binding.EvaluateAsync();
+            int attempts = 0;
+            IFilterTarget? firstSnapshot = null;
+            binding.Alarm.OnReportEventAsync = (_, _, snapshot, _) =>
+            {
+                attempts++;
+                if (attempts == 1)
+                {
+                    firstSnapshot = snapshot;
+                    if (canceled)
+                    {
+                        throw new OperationCanceledException();
+                    }
+                    throw new InvalidOperationException("report failed once");
+                }
+                Assert.That(snapshot, Is.SameAs(firstSnapshot));
+                return default;
+            };
+            group.SetDiscrete(BrowseNames.BearingFault, true);
+            if (canceled)
+            {
+                await Assert.ThrowsAsync<OperationCanceledException>(async () => await binding.EvaluateAsync());
+            }
+            else
+            {
+                await Assert.ThrowsAsync<InvalidOperationException>(async () => await binding.EvaluateAsync());
+            }
+            ByteString eventId = binding.Alarm.EventId!.Value;
+            Assert.That(binding.Alarm.ActiveState!.Id!.Value, Is.True);
+            await binding.EvaluateAsync();
+            Assert.That(attempts, Is.EqualTo(2));
+            Assert.That(binding.Alarm.EventId.Value, Is.EqualTo(eventId));
+            await binding.EvaluateAsync();
+            Assert.That(attempts, Is.EqualTo(2));
+        }
+
+        /// <summary>
+        /// A later condition update remains queued behind a failed report without holding the mutation gate.
+        /// </summary>
+        [Test]
+        public async Task EvaluationRetainsReportOrderAcrossConcurrentUpdateAndFailureAsync()
+        {
+            IPumpGroupBuilder group = m_pump.Supervision(BrowseNames.SupervisionMechanics);
+            group.SetDiscrete(BrowseNames.BearingFault, false);
+            var input = (BaseVariableState)group.Child(BrowseNames.BearingFault)!;
+            PumpAlarmBinding binding = await m_fixture.Manager.Runtime.AddDiagnosticAlarmAsync(
+                group, input, "OrderedRetry", DeviceHealthEnumeration.FAILURE);
+            await binding.EvaluateAsync();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            IFilterTarget? failedSnapshot = null;
+            binding.Alarm.OnReportEventAsync = async (_, _, snapshot, _) =>
+            {
+                failedSnapshot = snapshot;
+                entered.TrySetResult(true);
+                await release.Task.ConfigureAwait(false);
+                throw new InvalidOperationException("first delivery failed");
+            };
+            group.SetDiscrete(BrowseNames.BearingFault, true);
+            Task firstEvaluation = binding.EvaluateAsync().AsTask();
+            try
+            {
+                Task ready = await Task.WhenAny(entered.Task, Task.Delay(TimeSpan.FromSeconds(10)));
+                Assert.That(ready, Is.SameAs(entered.Task));
+                group.SetDiscrete(BrowseNames.BearingFault, false);
+                Task laterEvaluation = binding.EvaluateAsync().AsTask();
+                Task completed = await Task.WhenAny(laterEvaluation, Task.Delay(TimeSpan.FromSeconds(10)));
+                Assert.That(completed, Is.SameAs(laterEvaluation),
+                    "event delivery must not hold the mutation gate");
+                await laterEvaluation;
+                Assert.That(binding.Alarm.ActiveState!.Id!.Value, Is.False);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                Task drained = await Task.WhenAny(firstEvaluation, Task.Delay(TimeSpan.FromSeconds(10)));
+                Assert.That(drained, Is.SameAs(firstEvaluation));
+                await Assert.ThrowsAsync<InvalidOperationException>(async () => await firstEvaluation);
+            }
+            var reports = new List<IFilterTarget>();
+            binding.Alarm.OnReportEventAsync = (_, _, snapshot, _) =>
+            {
+                reports.Add(snapshot);
+                return default;
+            };
+            await binding.EvaluateAsync();
+            Assert.That(reports, Has.Count.EqualTo(2));
+            Assert.That(reports[0], Is.SameAs(failedSnapshot));
+            Assert.That(reports[1], Is.Not.SameAs(failedSnapshot));
+            await binding.EvaluateAsync();
+            Assert.That(reports, Has.Count.EqualTo(2));
         }
 
         /// <summary>
@@ -362,6 +523,7 @@ namespace Opc.Ua.Pumps.Tests
             }
             else
             {
+                binding.Alarm.UpdateChangeMasks(NodeStateChangeMasks.Value);
                 binding.Alarm.OnStateChangedAsync = async (_, _, _, _) =>
                 {
                     entered.TrySetResult(true);
