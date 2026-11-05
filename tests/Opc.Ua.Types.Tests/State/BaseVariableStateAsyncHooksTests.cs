@@ -467,10 +467,10 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         /// <summary>
-        /// Verifies the bound executor spans async dispatch and preserves copy and metadata semantics.
+        /// Verifies the bound executor preserves synchronous array and metadata semantics.
         /// </summary>
         [Test]
-        public async Task BoundWriteExecutorPreservesCopyAndTimestampSemanticsAsync()
+        public async Task BoundWriteExecutorPreservesSynchronousArrayAndTimestampSemanticsAsync()
         {
             SystemContext ctx = CreateSystemContext();
             var variable = new BaseDataVariableState(null)
@@ -514,6 +514,17 @@ namespace Opc.Ua.Types.Tests.State
 
             int[] input = [5, 6];
             var sourceTimestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 1);
+            BaseDataVariableState synchronousVariable = CreateReadableVariable();
+            synchronousVariable.DataType = DataTypeIds.Int32;
+            synchronousVariable.ValueRank = ValueRanks.OneDimension;
+            synchronousVariable.CopyPolicy = VariableCopyPolicy.CopyOnWrite;
+            synchronousVariable.AccessLevel |= AccessLevels.StatusWrite | AccessLevels.TimestampWrite;
+            synchronousVariable.UserAccessLevel |= AccessLevels.StatusWrite | AccessLevels.TimestampWrite;
+            Assert.That(ServiceResult.IsGood(synchronousVariable.WriteAttribute(
+                ctx,
+                Attributes.Value,
+                NumericRange.Null,
+                new DataValue(Variant.From(input), StatusCodes.Uncertain, sourceTimestamp))), Is.True);
             ServiceResult result = await variable.WriteAttributeAsync(
                 ctx,
                 Attributes.Value,
@@ -530,10 +541,11 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(asynchronousExecutions, Is.EqualTo(1));
             Assert.That(handlerCalls, Is.EqualTo(1));
             Assert.That(observedValue.TryGetValue(out ArrayOf<int> passedValue), Is.True);
-            Assert.That(passedValue[0], Is.EqualTo(5));
+            Assert.That(synchronousVariable.Value.TryGetValue(out ArrayOf<int> synchronousValue), Is.True);
+            Assert.That(passedValue[0], Is.EqualTo(synchronousValue[0]));
             Assert.That(passedValue[1], Is.EqualTo(6));
             Assert.That(variable.Value.TryGetValue(out ArrayOf<int> cachedValue), Is.True);
-            Assert.That(cachedValue[0], Is.EqualTo(5));
+            Assert.That(cachedValue[0], Is.EqualTo(synchronousValue[0]));
             Assert.That(cachedValue[1], Is.EqualTo(6));
             Assert.That(variable.StatusCode, Is.EqualTo(StatusCodes.Uncertain));
             Assert.That(variable.Timestamp, Is.EqualTo(sourceTimestamp));
@@ -831,7 +843,7 @@ namespace Opc.Ua.Types.Tests.State
                 cancellation.Token).ConfigureAwait(false);
 
             bool committed = scenario is "success" or "cancel" or "throw" or "external";
-            bool updatedDependentState = scenario is "success" or "cancel" or "throw";
+            bool updatedDependentState = scenario is "success" or "cancel" or "throw" or "external";
             Assert.That(variable.Value.GetDouble(), Is.EqualTo(committed ? 2.0 : 1.0));
             Assert.That(calls, Is.EqualTo(updatedDependentState ? 1 : 0));
             if (updatedDependentState)

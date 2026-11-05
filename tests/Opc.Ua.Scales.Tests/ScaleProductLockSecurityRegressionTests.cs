@@ -50,6 +50,43 @@ namespace Opc.Ua.Scales.Tests
     public sealed class ScaleProductLockSecurityRegressionTests
     {
         /// <summary>
+        /// Gets invalid indexed writes and their expected status codes.
+        /// </summary>
+        private static IEnumerable<TestCaseData> InvalidRangeCases =>
+        [
+            new("4:5", StatusCodes.BadIndexRangeNoData),
+            new("1:2", StatusCodes.BadIndexRangeDataMismatch),
+            new("0:1,0:1", StatusCodes.BadIndexRangeNoData)
+        ];
+
+        /// <summary>
+        /// Gets sparse and absent enumeration tables and their expected write results.
+        /// </summary>
+        private static IEnumerable<TestCaseData> EnumerationTableCases =>
+        [
+            new(false, "sparse", 4u, StatusCodes.Good, "four"),
+            new(true, "sparse", 4u, StatusCodes.Good, "four"),
+            new(false, "sparse", 3u, StatusCodes.BadOutOfRange, "initial"),
+            new(false, "empty", 4u, StatusCodes.BadOutOfRange, "initial"),
+            new(false, "missing", 99u, StatusCodes.Good, "initial"),
+            new(false, "null", 99u, StatusCodes.Good, "initial")
+        ];
+
+        /// <summary>
+        /// Gets validation failures that precede enumeration policy execution.
+        /// </summary>
+        private static IEnumerable<TestCaseData> EnumerationValidationCases =>
+        [
+            new("access", StatusCodes.BadNotWritable),
+            new("user", StatusCodes.BadUserAccessDenied),
+            new("type", StatusCodes.BadTypeMismatch),
+            new("status", StatusCodes.BadWriteNotSupported),
+            new("timestamp", StatusCodes.BadWriteNotSupported),
+            new("server", StatusCodes.BadWriteNotSupported),
+            new("range", StatusCodes.BadIndexRangeNoData)
+        ];
+
+        /// <summary>
         /// Direct and nested writes cannot change the filling calculation while another session owns the product.
         /// </summary>
         [Test]
@@ -382,10 +419,8 @@ namespace Opc.Ua.Scales.Tests
         /// <summary>
         /// Invalid indexed writes reject without cache, metadata, change-mask or source-array mutation.
         /// </summary>
-        [TestCase("4:5", StatusCodes.BadIndexRangeNoData)]
-        [TestCase("1:2", StatusCodes.BadIndexRangeDataMismatch)]
-        [TestCase("0:1,0:1", StatusCodes.BadIndexRangeNoData)]
-        public async Task NativeCachePolicyRejectsInvalidRangesWithoutMutationAsync(string range, uint expected)
+        [TestCaseSource(nameof(InvalidRangeCases))]
+        public async Task NativeCachePolicyRejectsInvalidRangesWithoutMutationAsync(string range, StatusCode expected)
         {
             using var harness = new Harness();
             ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
@@ -417,7 +452,7 @@ namespace Opc.Ua.Scales.Tests
                     StatusCodes.Good,
                     new DateTimeUtc(2026, 1, 1, 0, 0, 4))).ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)expected));
+            Assert.That(result.StatusCode, Is.EqualTo(expected));
             Assert.That(variable.Value.GetDoubleArray(), Is.EqualTo(new[] { 1.0, 2.0, 3.0 }.ToArrayOf()));
             Assert.That(original, Is.EqualTo(new[] { 1.0, 2.0, 3.0 }));
             Assert.That(variable.StatusCode, Is.EqualTo(StatusCodes.Uncertain));
@@ -494,14 +529,9 @@ namespace Opc.Ua.Scales.Tests
         /// <summary>
         /// Sparse enum validation and dependent text use the explicitly composed native policy.
         /// </summary>
-        [TestCase(false, "sparse", 4u, StatusCodes.Good, "four")]
-        [TestCase(true, "sparse", 4u, StatusCodes.Good, "four")]
-        [TestCase(false, "sparse", 3u, StatusCodes.BadOutOfRange, "initial")]
-        [TestCase(false, "empty", 4u, StatusCodes.BadOutOfRange, "initial")]
-        [TestCase(false, "missing", 99u, StatusCodes.Good, "initial")]
-        [TestCase(false, "null", 99u, StatusCodes.Good, "initial")]
+        [TestCaseSource(nameof(EnumerationTableCases))]
         public async Task NativeEnumerationPolicyPreservesSparseAndMissingTablesAsync(
-            bool generic, string table, uint input, uint expected, string expectedText)
+            bool generic, string table, uint input, StatusCode expected, string expectedText)
         {
             using var harness = new Harness();
             ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
@@ -525,7 +555,7 @@ namespace Opc.Ua.Scales.Tests
             ServiceResult result = await WriteAsync(harness.Owner, variable, Variant.From(input))
                 .ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)expected));
+            Assert.That(result.StatusCode, Is.EqualTo(expected));
             Assert.That(variable.Value.GetUInt32(), Is.EqualTo(expected == StatusCodes.Good ? input : 1u));
             Assert.That(variable.ValueAsText!.Value.Text, Is.EqualTo(expectedText));
             Assert.That(variable.StatusCode,
@@ -596,14 +626,9 @@ namespace Opc.Ua.Scales.Tests
         /// <summary>
         /// Access, metadata and type rejection precede sparse enum validation without dependent state updates.
         /// </summary>
-        [TestCase("access", StatusCodes.BadNotWritable)]
-        [TestCase("user", StatusCodes.BadUserAccessDenied)]
-        [TestCase("type", StatusCodes.BadTypeMismatch)]
-        [TestCase("status", StatusCodes.BadWriteNotSupported)]
-        [TestCase("timestamp", StatusCodes.BadWriteNotSupported)]
-        [TestCase("server", StatusCodes.BadWriteNotSupported)]
-        [TestCase("range", StatusCodes.BadIndexRangeNoData)]
-        public async Task NativeEnumerationPolicyPreservesValidationPrecedenceAsync(string scenario, uint expected)
+        [TestCaseSource(nameof(EnumerationValidationCases))]
+        public async Task NativeEnumerationPolicyPreservesValidationPrecedenceAsync(
+            string scenario, StatusCode expected)
         {
             using var harness = new Harness();
             ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
@@ -645,7 +670,7 @@ namespace Opc.Ua.Scales.Tests
                 scenario == "range" ? NumericRange.Parse("0") : NumericRange.Null,
                 value).ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)expected));
+            Assert.That(result.StatusCode, Is.EqualTo(expected));
             Assert.That(variable.Value.GetUInt32(), Is.EqualTo(1u));
             Assert.That(variable.StatusCode, Is.EqualTo(StatusCodes.Uncertain));
             Assert.That(variable.Timestamp, Is.EqualTo(originalTimestamp));
