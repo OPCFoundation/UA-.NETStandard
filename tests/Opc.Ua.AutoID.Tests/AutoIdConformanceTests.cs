@@ -155,6 +155,7 @@ namespace Opc.Ua.AutoID.Tests
             Assert.That(AutoIdProfilesOf(fixture).Contains(AutoIdProfiles.FullServer), Is.EqualTo(expected));
             Assert.That(fixture.Manager.ServerProfiles.ToArray()!.Contains(AutoIdProfiles.FullServer),
                 Is.EqualTo(expected));
+            Assert.That(reader.Device.ScanActive, Is.Null, "Table 82 makes variable scan control optional");
         }
 
         /// <summary>
@@ -166,7 +167,8 @@ namespace Opc.Ua.AutoID.Tests
             await using var fixture = new AutoIdManagerFixture();
             await fixture.StartAsync().ConfigureAwait(false);
             await using AutoIdReader scans = await fixture.Runtime.Reader(
-                fixture.Name("Scans"), new InMemoryRfidReaderProvider()).BuildAsync().ConfigureAwait(false);
+                fixture.Name("Scans"), new InMemoryRfidReaderProvider())
+                .OwnsProvider().BuildAsync().ConfigureAwait(false);
             await using AutoIdReader parameters = await fixture.Runtime.Reader(
                 fixture.Name("Parameters"), new AutoIdParameterControlTests.ParameterProvider())
                 .WithRuntimeParameters().BuildAsync().ConfigureAwait(false);
@@ -183,7 +185,7 @@ namespace Opc.Ua.AutoID.Tests
             await fixture.StartAsync().ConfigureAwait(false);
             await using AutoIdReader reader = await fixture.Runtime.Reader(
                 fixture.Name("RfidFull"), new InMemoryRfidReaderProvider())
-                .WithRuntimeParameters(true).BuildAsync().ConfigureAwait(false);
+                .OwnsProvider().WithRuntimeParameters(true).BuildAsync().ConfigureAwait(false);
             Assert.That(AutoIdProfilesOf(fixture), Does.Contain(AutoIdProfiles.FullServer));
             Assert.That(fixture.Manager.ServerProfiles.ToArray(), Does.Contain(AutoIdProfiles.FullServer));
         }

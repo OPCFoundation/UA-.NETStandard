@@ -965,7 +965,10 @@ readers. These cases are implementation evidence, not OPC certification.
 | Requirement | Test in `tests/Opc.Ua.AutoID.Tests` |
 |---|---|
 | Opt-in capability and legacy-provider compatibility | `CapabilityIsOptInAndExistingProvidersRemainCompatibleAsync` |
-| Runtime metadata and configured conformance units; Full withheld | `ParametersHavePublishedMetadataAndContributeOnlyConfiguredUnitsAsync` |
+| Runtime metadata and configured conformance units; async-only parameters do not qualify for Full | `ParametersHavePublishedMetadataAndContributeOnlyConfiguredUnitsAsync` |
+| Full-facet eligibility for all mandatory capability combinations, without optional ScanActive | `FullFacetRequiresAllMandatoryCapabilitiesOnOneReaderAsync` |
+| Separate readers cannot combine capabilities to qualify for Full | `FullFacetCannotCombineCapabilitiesOfSeparateReadersAsync` |
+| Parameter-enabled RFID provider contributes Full through the fluent API and owning manager | `ParameterEnabledRfidReaderAdvertisesFullFacetAsync` |
 | Validation and provider-commit failures preserve the old configuration | `InvalidCodeTypeAndIndexesAreRejectedWithoutChangingConfigurationAsync`, `ProviderCommitFailurePreservesPublishedAndProviderValuesAsync` |
 | Commit/start serialization and cancellation | `ParameterCommitSerializesStartAndCancelledCommitLeavesPreviousValuesAsync` |
 | Gate release and preservation of independent cleanup failures | `SerializedCleanupPreservesBothOperationFailuresAsync` |
