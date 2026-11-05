@@ -163,32 +163,43 @@ namespace Opc.Ua.AutoID.Server
         public async ValueTask SetFaultedAsync(bool faulted, CancellationToken cancellationToken = default)
         {
             ThrowIfDisposed();
-            bool stopAsync = false;
-            lock (m_lock)
+            if (!m_operations.TryEnter())
             {
-                if (m_faulted == faulted)
-                {
-                    return;
-                }
-                m_faulted = faulted;
-                if (faulted && m_activity == ScanActivity.Asynchronous)
-                {
-                    stopAsync = true;
-                }
-                else
-                {
-                    UpdateStatusLocked();
-                }
+                throw new ObjectDisposedException(nameof(AutoIdReader));
             }
-            await PublishStatusAsync().ConfigureAwait(false);
-            if (stopAsync)
+            try
             {
-                await StopAsynchronousScanAsync(NodeId.Null, cancellationToken).ConfigureAwait(false);
+                bool stopAsync = false;
                 lock (m_lock)
                 {
-                    UpdateStatusLocked();
+                    if (m_faulted == faulted)
+                    {
+                        return;
+                    }
+                    m_faulted = faulted;
+                    if (faulted && m_activity == ScanActivity.Asynchronous)
+                    {
+                        stopAsync = true;
+                    }
+                    else
+                    {
+                        UpdateStatusLocked();
+                    }
                 }
                 await PublishStatusAsync().ConfigureAwait(false);
+                if (stopAsync)
+                {
+                    await StopAsynchronousScanAsync(NodeId.Null, cancellationToken).ConfigureAwait(false);
+                    lock (m_lock)
+                    {
+                        UpdateStatusLocked();
+                    }
+                    await PublishStatusAsync().ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                m_operations.Exit();
             }
         }
 

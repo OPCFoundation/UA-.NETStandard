@@ -44,6 +44,121 @@ namespace Opc.Ua.AutoID.Tests
     internal static class AutoIdGatedTest
     {
         /// <summary>
+        /// Bounds two serialized operations, releases their gate and drains each before disposing the reader.
+        /// </summary>
+        public static async Task RunSerializedAsync<TFirst, TSecond>(
+            AutoIdReader reader,
+            Func<Task<TFirst>> first,
+            Func<Task<TSecond>> second,
+            Action release,
+            Func<Task<Task<TFirst>>, Func<Task<Task<TSecond>>>, Task> assertPending,
+            Func<TFirst, TSecond, Task> assertCompleted)
+        {
+            var failures = new List<Exception>();
+            Task<Task<TFirst>> invocation = Task.Factory.StartNew(
+                first, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
+            Task<Exception?> observer = ObserveAsync(async () =>
+            {
+                Task<TFirst> admitted = await invocation.ConfigureAwait(false);
+                await admitted.ConfigureAwait(false);
+            });
+            Task<Task<TSecond>>? next = null;
+            Task<Exception?>? nextObserver = null;
+
+            Task<Task<TSecond>> StartSecond()
+            {
+                if (next == null)
+                {
+                    Task<Task<TSecond>> scheduled = Task.Factory.StartNew(
+                        second, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
+                    next = scheduled;
+                    nextObserver = ObserveAsync(async () =>
+                    {
+                        Task<TSecond> admitted = await scheduled.ConfigureAwait(false);
+                        await admitted.ConfigureAwait(false);
+                    });
+                }
+                return next;
+            }
+
+            try
+            {
+                await assertPending(invocation, StartSecond).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                failures.Add(ex);
+            }
+            finally
+            {
+                await CaptureAsync(
+                    () =>
+                    {
+                        release();
+                        return Task.CompletedTask;
+                    }, "Releasing the serialization gate", failures).ConfigureAwait(false);
+            }
+
+            TFirst firstResult = default!;
+            TSecond secondResult = default!;
+            bool firstCompleted = false;
+            bool secondCompleted = false;
+            await CaptureAsync(async () =>
+            {
+                firstResult = await DrainAsync(invocation, observer).ConfigureAwait(false);
+                firstCompleted = true;
+            }, "Draining the first operation", failures).ConfigureAwait(false);
+            if (next != null && nextObserver != null)
+            {
+                await CaptureAsync(async () =>
+                {
+                    secondResult = await DrainAsync(next, nextObserver).ConfigureAwait(false);
+                    secondCompleted = true;
+                }, "Draining the second operation", failures).ConfigureAwait(false);
+            }
+            if (firstCompleted && secondCompleted)
+            {
+                Task<Task<bool>> assertions = Task.Factory.StartNew(async () =>
+                {
+                    await assertCompleted(firstResult, secondResult).ConfigureAwait(false);
+                    return true;
+                }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
+                Task<Exception?> assertionsObserver = ObserveAsync(async () =>
+                {
+                    Task<bool> admitted = await assertions.ConfigureAwait(false);
+                    await admitted.ConfigureAwait(false);
+                });
+                await CaptureAsync(async () =>
+                {
+                    await DrainAsync(assertions, assertionsObserver).ConfigureAwait(false);
+                }, "Checking serialized results", failures).ConfigureAwait(false);
+            }
+
+            Task<Task<bool>> disposal = Task.Factory.StartNew(async () =>
+            {
+                await reader.DisposeAsync().ConfigureAwait(false);
+                return true;
+            }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
+            Task<Exception?> disposalObserver = ObserveAsync(async () =>
+            {
+                Task<bool> admitted = await disposal.ConfigureAwait(false);
+                await admitted.ConfigureAwait(false);
+            });
+            await CaptureAsync(async () =>
+            {
+                await DrainAsync(disposal, disposalObserver).ConfigureAwait(false);
+            }, "Draining reader disposal", failures).ConfigureAwait(false);
+            if (failures.Count == 1)
+            {
+                ExceptionDispatchInfo.Capture(failures[0]).Throw();
+            }
+            if (failures.Count > 1)
+            {
+                throw new AggregateException("Serialized test and cleanup failures.", failures);
+            }
+        }
+
+        /// <summary>
         /// Releases the gate and drains the operation and reader disposal independently after the assertions.
         /// </summary>
         public static async Task RunAsync<T>(
@@ -158,6 +273,20 @@ namespace Opc.Ua.AutoID.Tests
             {
                 throw new AggregateException("Gated test and cleanup failures.", failures);
             }
+        }
+
+        /// <summary>
+        /// Bounds the invocation and its retained observer before reading a successful result.
+        /// </summary>
+        private static async Task<T> DrainAsync<T>(Task<Task<T>> invocation, Task<Exception?> observer)
+        {
+            Task<T> admitted = await invocation.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            Exception? failure = await observer.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            if (failure != null)
+            {
+                ExceptionDispatchInfo.Capture(failure).Throw();
+            }
+            return await admitted.ConfigureAwait(false);
         }
 
         /// <summary>

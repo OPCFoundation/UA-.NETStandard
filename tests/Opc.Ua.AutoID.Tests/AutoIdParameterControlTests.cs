@@ -222,24 +222,70 @@ namespace Opc.Ua.AutoID.Tests
         {
             (AutoIdReader reader, ParameterProvider provider) = await CreateAsync().ConfigureAwait(false);
             provider.CommitRelease = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            Task<ServiceResult> commit = WriteAsync(Parameter(reader, "Cycles"), Variant.From(7)).AsTask();
-            await provider.CommitEntered.Task.ConfigureAwait(false);
-            Task<ServiceResult> start = WriteAsync(reader.Device.ScanActive!, Variant.From(true)).AsTask();
-            Assert.That(start.IsCompleted, Is.False);
-            Assert.That(provider.Starts, Is.Zero);
-            provider.CommitRelease.SetResult(true);
-            Assert.That(ServiceResult.IsGood(await commit), Is.True);
-            Assert.That(ServiceResult.IsGood(await start), Is.True);
-            Assert.That(provider.StartSettings!.Cycles, Is.EqualTo(7));
-            await WriteAsync(reader.Device.ScanActive!, Variant.From(false));
+            await AutoIdGatedTest.RunSerializedAsync(
+                reader,
+                () => WriteAsync(Parameter(reader, "Cycles"), Variant.From(7)).AsTask(),
+                () => WriteAsync(reader.Device.ScanActive!, Variant.From(true)).AsTask(),
+                () => provider.CommitRelease.TrySetResult(true),
+                async (invocation, startSecond) =>
+                {
+                    await provider.CommitEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    Task<ServiceResult> commit = await invocation.WaitAsync(TimeSpan.FromSeconds(5))
+                        .ConfigureAwait(false);
+                    Task<ServiceResult> start = await startSecond().WaitAsync(TimeSpan.FromSeconds(5))
+                        .ConfigureAwait(false);
+                    Assert.That(commit.IsCompleted, Is.False);
+                    Assert.That(start.IsCompleted, Is.False);
+                    Assert.That(provider.Starts, Is.Zero);
+                },
+                async (commit, start) =>
+                {
+                    Assert.That(ServiceResult.IsGood(commit), Is.True);
+                    Assert.That(ServiceResult.IsGood(start), Is.True);
+                    Assert.That(provider.StartSettings!.Cycles, Is.EqualTo(7));
+                    await WriteAsync(reader.Device.ScanActive!, Variant.From(false));
+                    using var cancelled = new CancellationTokenSource();
+                    cancelled.Cancel();
+                    await Assert.ThatAsync(async () => await Parameter(reader, "Cycles").OnWriteValueAsync!(
+                        m_fixture.Context, Parameter(reader, "Cycles"), default, Variant.From(9), cancelled.Token),
+                        Throws.InstanceOf<OperationCanceledException>());
+                    Assert.That(provider.Parameters.Cycles, Is.EqualTo(7));
+                    Assert.That(Parameter(reader, "Cycles").WrappedValue, Is.EqualTo(Variant.From(7)));
+                }).ConfigureAwait(false);
+        }
 
-            using var cancelled = new CancellationTokenSource();
-            cancelled.Cancel();
-            await Assert.ThatAsync(async () => await Parameter(reader, "Cycles").OnWriteValueAsync!(
-                m_fixture.Context, Parameter(reader, "Cycles"), default, Variant.From(9), cancelled.Token),
-                Throws.InstanceOf<OperationCanceledException>());
-            Assert.That(provider.Parameters.Cycles, Is.EqualTo(7));
-            Assert.That(Parameter(reader, "Cycles").WrappedValue, Is.EqualTo(Variant.From(7)));
+        /// <summary>
+        /// Keeps the assertion and distinct operation failures while releasing the gate and disposing the reader.
+        /// </summary>
+        [Test]
+        public async Task SerializedCleanupPreservesBothOperationFailuresAsync()
+        {
+            (AutoIdReader reader, ParameterProvider provider) = await CreateAsync().ConfigureAwait(false);
+            var original = new AssertionException("Serialization assertion.");
+            var first = new InvalidOperationException("Commit failure.");
+            var second = new InvalidOperationException("Start failure.");
+            bool released = false;
+            AggregateException? failure = await Assert.ThrowsAsync<AggregateException>(async () =>
+                await AutoIdGatedTest.RunSerializedAsync(
+                    reader,
+                    () => Task.FromException<bool>(first),
+                    () => Task.FromException<bool>(second),
+                    () => released = true,
+                    async (_, startSecond) =>
+                    {
+                        await startSecond().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                        throw original;
+                    },
+                    (_, _) => Task.CompletedTask).ConfigureAwait(false));
+            Assert.Multiple(() =>
+            {
+                Assert.That(released, Is.True);
+                Assert.That(provider.Detached, Is.True);
+                Assert.That(failure!.InnerExceptions, Has.Count.EqualTo(3));
+                Assert.That(failure.InnerExceptions[0], Is.SameAs(original));
+                Assert.That(failure.InnerExceptions[1].InnerException, Is.SameAs(first));
+                Assert.That(failure.InnerExceptions[2].InnerException, Is.SameAs(second));
+            });
         }
 
         [Test]

@@ -33,6 +33,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.AutoID.Server;
 
@@ -51,7 +52,7 @@ namespace Opc.Ua.AutoID.Tests
         public async Task ReaderParametersMatchKindCapabilitiesAndPublishedMetadataAsync(AutoIdReaderKind kind)
         {
             ParameterProvider provider = SpecificProvider(kind);
-            await using AutoIdReader reader = await m_fixture.Runtime.Reader(Name(), provider)
+            await using AutoIdReader reader = await m_fixture.Runtime.Reader(Name(), ReaderProvider(provider))
                 .WithRuntimeParameters().WithScanWritePermissions([new RolePermissionType
                 {
                     RoleId = Opc.Ua.ObjectIds.WellKnownRole_Operator,
@@ -323,7 +324,7 @@ namespace Opc.Ua.AutoID.Tests
             provider.RejectWrites = false;
             using var cancelled = new CancellationTokenSource();
             cancelled.Cancel();
-            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
                 await template.OnWriteValueAsync!(
                     m_fixture.Context, template, default, Variant.From("B"), cancelled.Token).ConfigureAwait(false));
             await WriteAsync(reader.Device.ScanActive!, Variant.From(true));
@@ -354,7 +355,7 @@ namespace Opc.Ua.AutoID.Tests
                 Parameters = rfid.Parameters
             };
             ServiceResultException? rejected = await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_fixture.Runtime.Reader(Name(), invalid).WithRuntimeParameters().BuildAsync()
+                await m_fixture.Runtime.Reader(Name(), ReaderProvider(invalid)).WithRuntimeParameters().BuildAsync()
                     .ConfigureAwait(false));
             Assert.That(rejected!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
             uint[] initial = [0];
@@ -438,32 +439,87 @@ namespace Opc.Ua.AutoID.Tests
         {
             ParameterProvider provider = SpecificProvider(AutoIdReaderKind.Rfid);
             provider.CommitRelease = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            await using AutoIdReader reader = await m_fixture.Runtime.Reader(Name(), provider)
+            AutoIdReader reader = await m_fixture.Runtime.Reader(Name(), provider)
                 .WithRuntimeParameters(true).BuildAsync().ConfigureAwait(false);
             BaseVariableState power = ReaderParameter(reader, "RfPower");
             DateTimeUtc timestamp = power.Timestamp;
             using var cancellation = new CancellationTokenSource();
-            Task<AttributeWriteResult> write = power.OnWriteValueAsync!(
-                m_fixture.Context, power, default, Variant.From((sbyte)15), cancellation.Token).AsTask();
-            await provider.CommitEntered.Task.ConfigureAwait(false);
-            Task<ServiceResult> start = WriteAsync(reader.Device.ScanActive!, Variant.From(true)).AsTask();
-            Assert.That(provider.Starts, Is.Zero);
-            cancellation.Cancel();
-            provider.CommitRelease.SetResult(true);
-            await Assert.ThatAsync(() => write,
-                Throws.InstanceOf<OperationCanceledException>());
-            Assert.That(ServiceResult.IsGood(await start.ConfigureAwait(false)), Is.True);
-            Assert.Multiple(() =>
-            {
-                Assert.That(provider.Parameters.RfPower, Is.EqualTo((sbyte)10));
-                Assert.That(power.Value, Is.EqualTo(Variant.From((sbyte)10)));
-                Assert.That(power.Timestamp, Is.EqualTo(timestamp));
-                Assert.That(power.StatusCode, Is.EqualTo(StatusCodes.Good));
-                Assert.That(provider.Writes, Is.Zero);
-            });
-            await reader.DisposeAsync().ConfigureAwait(false);
+            await AutoIdGatedTest.RunSerializedAsync(
+                reader,
+                async () =>
+                {
+                    await Assert.ThatAsync(async () => await power.OnWriteValueAsync!(
+                        m_fixture.Context, power, default, Variant.From((sbyte)15), cancellation.Token),
+                        Throws.InstanceOf<OperationCanceledException>());
+                    return true;
+                },
+                () => WriteAsync(reader.Device.ScanActive!, Variant.From(true)).AsTask(),
+                () =>
+                {
+                    try
+                    {
+                        cancellation.Cancel();
+                    }
+                    finally
+                    {
+                        provider.CommitRelease.TrySetResult(true);
+                    }
+                },
+                async (invocation, startSecond) =>
+                {
+                    await provider.CommitEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    Task<bool> write = await invocation.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    Task<ServiceResult> start = await startSecond().WaitAsync(TimeSpan.FromSeconds(5))
+                        .ConfigureAwait(false);
+                    Assert.That(write.IsCompleted, Is.False);
+                    Assert.That(start.IsCompleted, Is.False);
+                    Assert.That(provider.Starts, Is.Zero);
+                },
+                (_, start) =>
+                {
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(ServiceResult.IsGood(start), Is.True);
+                        Assert.That(provider.Parameters.RfPower, Is.EqualTo((sbyte)10));
+                        Assert.That(power.Value, Is.EqualTo(Variant.From((sbyte)10)));
+                        Assert.That(power.Timestamp, Is.EqualTo(timestamp));
+                        Assert.That(power.StatusCode, Is.EqualTo(StatusCodes.Good));
+                        Assert.That(provider.Writes, Is.Zero);
+                    });
+                    return Task.CompletedTask;
+                }).ConfigureAwait(false);
             Assert.That((await WriteAsync(power, Variant.From((sbyte)15))).StatusCode,
                 Is.EqualTo(StatusCodes.BadInvalidState));
+        }
+
+        /// <summary>
+        /// Adds the required RTLS location contract to the shared parameter script for RTLS cases.
+        /// </summary>
+        internal static IAutoIdReaderProvider ReaderProvider(ParameterProvider provider)
+        {
+            if (provider.Kind != AutoIdReaderKind.Rtls)
+            {
+                return provider;
+            }
+            var rtls = new Mock<IAutoIdRtlsProvider>();
+            ArrayOf<LocationTypeEnumeration> types = [LocationTypeEnumeration.NAME];
+            rtls.SetupGet(value => value.Kind).Returns(AutoIdReaderKind.Rtls);
+            rtls.SetupGet(value => value.SupportedLocationTypes).Returns(types);
+            rtls.Setup(value => value.AttachAsync(It.IsAny<IAutoIdReaderSink>(), It.IsAny<CancellationToken>()))
+                .Returns((IAutoIdReaderSink sink, CancellationToken token) => provider.AttachAsync(sink, token));
+            rtls.Setup(value => value.DetachAsync(It.IsAny<CancellationToken>()))
+                .Returns((CancellationToken token) => provider.DetachAsync(token));
+            Mock<IAutoIdReaderParametersProvider> parameters = rtls.As<IAutoIdReaderParametersProvider>();
+            parameters.SetupGet(value => value.SupportedCodeTypes).Returns(provider.SupportedCodeTypes);
+            parameters.SetupGet(value => value.ReaderParameterCapabilities)
+                .Returns(provider.ReaderParameterCapabilities);
+            parameters.Setup(value => value.ReadParametersAsync(It.IsAny<CancellationToken>()))
+                .Returns((CancellationToken token) => provider.ReadParametersAsync(token));
+            parameters.Setup(value => value.WriteParametersAsync(
+                It.IsAny<AutoIdScanParameters>(), It.IsAny<CancellationToken>()))
+                .Returns((AutoIdScanParameters value, CancellationToken token) =>
+                    provider.WriteParametersAsync(value, token));
+            return rtls.Object;
         }
 
         /// <summary>

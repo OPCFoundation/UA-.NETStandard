@@ -411,7 +411,11 @@ namespace Opc.Ua.AutoID.Tests
                             "unselected" or "mutatedSelection" => new AutoIdRfidDiagnosticData(
                                 "RAW:STRING", new ScanData { SwitchField = ScanDataFields.String, String = "Wrong" }),
                             "nullValue" => new AutoIdRfidDiagnosticData(
-                                "RAW:BYTES", new ScanData { SwitchField = ScanDataFields.ByteString }),
+                                "RAW:BYTES", new ScanData
+                                {
+                                    SwitchField = ScanDataFields.ByteString,
+                                    ByteString = default
+                                }),
                             _ => new AutoIdRfidDiagnosticData(
                                 "RAW:BYTES", new ScanData { SwitchField = ScanDataFields.String, String = "Wrong" })
                         });

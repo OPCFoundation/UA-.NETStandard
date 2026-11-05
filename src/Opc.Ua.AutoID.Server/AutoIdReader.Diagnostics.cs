@@ -84,7 +84,7 @@ namespace Opc.Ua.AutoID.Server
                 BaseInstanceState node = pending.Dequeue();
                 if (node is BaseVariableState variable)
                 {
-                    variable.OnReadValueAsync = ReadDiagnosticAsync;
+                    variable.OnReadValueAsync = ReadCachedValueAsync;
                 }
                 var children = new List<BaseInstanceState>();
                 node.GetChildren(Runtime.SystemContext, children);
@@ -98,7 +98,7 @@ namespace Opc.Ua.AutoID.Server
         /// <summary>
         /// Reads a complete cached value under the same lock as its report update.
         /// </summary>
-        private ValueTask<AttributeReadResult> ReadDiagnosticAsync(
+        private ValueTask<AttributeReadResult> ReadCachedValueAsync(
             ISystemContext context,
             NodeState node,
             NumericRange range,
@@ -241,7 +241,7 @@ namespace Opc.Ua.AutoID.Server
                 client, command, result, tolerateDiagnosticCopyFailure, cancellationToken).ConfigureAwait(false);
             if (access != null)
             {
-                await access.ClearChangeMasksAsync(Runtime.SystemContext, true, CancellationToken.None)
+                await access.ClearChangeMasksAsync(Runtime.SystemContext, true, cancellationToken)
                     .ConfigureAwait(false);
             }
         }

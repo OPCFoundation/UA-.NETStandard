@@ -179,6 +179,128 @@ namespace Opc.Ua.AutoID.Tests
         }
 
         /// <summary>
+        /// Forwards report cancellation through acquisition, scan-event and access publication sinks.
+        /// </summary>
+        [TestCase("LastScanData")]
+        [TestCase("LastScanTimestamp")]
+        [TestCase("LastScanAntenna")]
+        [TestCase("LastScanRSSI")]
+        [TestCase("ScanEvent")]
+        [TestCase("LastAccess")]
+        [TestCase("AccessEvent")]
+        public async Task ScanReportCancellationReleasesEveryPublicationStageAsync(string stage)
+        {
+            await using var fixture = new AutoIdManagerFixture();
+            await fixture.StartAsync(new AutoIdServerOptions { PublishAccessEvents = true }).ConfigureAwait(false);
+            AutoIdReader reader = await fixture.Runtime.Reader(fixture.Name("Cancellation" + stage), new FakeProvider())
+                .WithDiagnostics().BuildAsync().ConfigureAwait(false);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var cancellation = new CancellationTokenSource();
+            CancellationToken observed = default;
+            if (stage is "ScanEvent" or "AccessEvent")
+            {
+                reader.Device.OnReportEventAsync = async (_, _, e, token) =>
+                {
+                    if ((stage == "ScanEvent" && e is RfidScanEventState) ||
+                        (stage == "AccessEvent" && e is RfidAccessEventState))
+                    {
+                        observed = token;
+                        entered.TrySetResult(true);
+                        await release.Task.WaitAsync(token).ConfigureAwait(false);
+                    }
+                };
+            }
+            else
+            {
+                ushort ns = fixture.Context.NamespaceUris.GetIndexOrAppend(AutoIdModel.NamespaceUri);
+                NodeState node = stage == "LastAccess"
+                    ? reader.Device.Diagnostics!.FindChildWithQualifiedName(fixture.Context,
+                        new QualifiedName("LastAccess", ns))!.FindChildWithQualifiedName(
+                            fixture.Context, new QualifiedName("Command", ns))! :
+                    reader.Device.FindChildWithQualifiedName(fixture.Context,
+                        new QualifiedName(stage, ns))!;
+                node.OnStateChangedAsync = async (_, _, _, token) =>
+                {
+                    observed = token;
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(token).ConfigureAwait(false);
+                };
+            }
+            await AutoIdGatedTest.RunAsync(
+                reader,
+                async () =>
+                {
+                    await Assert.ThatAsync(async () => await reader.ReportScanAsync(
+                        [AutoIdTestData.RfidResult(AutoIdTestData.Bytes(1))], cancellation.Token),
+                        Throws.InstanceOf<OperationCanceledException>());
+                    return true;
+                },
+                () => release.TrySetResult(true),
+                async (invocation, _) =>
+                {
+                    await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    Assert.That(observed, Is.EqualTo(cancellation.Token));
+                    Task<bool> report = await invocation.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    cancellation.Cancel();
+                    await report.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                }).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Retains fault and recovery admission until status callbacks finish, even after provider detachment.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task FaultStatusNotificationKeepsOwnedProviderAliveAsync(bool faulted)
+        {
+            var provider = new FakeProvider();
+            AutoIdReader reader = await m_fixture.Runtime.Reader(
+                m_fixture.Name("FaultLifetime" + Interlocked.Increment(ref m_sequence)), provider)
+                .OwnsProvider().BuildAsync().ConfigureAwait(false);
+            await reader.SetFaultedAsync(!faulted).ConfigureAwait(false);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var detached = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int notifications = 0;
+            provider.OnDetach = _ =>
+            {
+                detached.TrySetResult(true);
+                return default;
+            };
+            reader.Device.DeviceStatus!.OnStateChangedAsync = async (_, _, _, _) =>
+            {
+                if (Interlocked.Increment(ref notifications) == 1)
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.ConfigureAwait(false);
+                }
+            };
+            await AutoIdGatedTest.RunAsync(
+                reader,
+                async () =>
+                {
+                    await reader.SetFaultedAsync(faulted).ConfigureAwait(false);
+                    return true;
+                },
+                () => release.TrySetResult(true),
+                async (invocation, startDisposal) =>
+                {
+                    await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    Task<bool> change = await invocation.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    Task disposal = await startDisposal().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    await detached.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(change.IsCompleted, Is.False);
+                        Assert.That(disposal.IsCompleted, Is.False);
+                        Assert.That(provider.Disposed, Is.False);
+                    });
+                }).ConfigureAwait(false);
+            Assert.That(provider.Disposed, Is.True);
+        }
+
+        /// <summary>
         /// Preserves RFID values, uses one acquisition timestamp and clears every omitted field.
         /// </summary>
         [Test]
@@ -402,11 +524,11 @@ namespace Opc.Ua.AutoID.Tests
         }
 
         /// <summary>
-        /// Preserves the existing typed-null EPC representation without dereferencing a missing structure.
+        /// Preserves the generated union's default EPC value after a null assignment.
         /// </summary>
         [TestCase("Identifier")]
         [TestCase("RWData")]
-        public async Task AccessDiagnosticsPreserveNullEpcValuesAsync(string field)
+        public async Task AccessDiagnosticsPreserveDefaultEpcValuesAsync(string field)
         {
             await using AutoIdReader reader = await CreateAsync().ConfigureAwait(false);
             var data = new ScanData { SwitchField = ScanDataFields.Epc, Epc = null! };
@@ -422,7 +544,8 @@ namespace Opc.Ua.AutoID.Tests
             }
             await reader.ReportAccessAsync("ReadTag", "Controller", [report]).ConfigureAwait(false);
             BaseVariableState variable = Variable(reader, "LastAccess", field);
-            Assert.That(variable.Value, Is.EqualTo(Variant.From(ExtensionObject.Null)));
+            Assert.That(data.Epc, Is.Not.Null);
+            Assert.That(variable.Value, Is.EqualTo(Variant.FromStructure(data.Epc)));
             Assert.That(variable.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(variable.Timestamp, Is.EqualTo(report.Timestamp));
         }
@@ -871,9 +994,15 @@ namespace Opc.Ua.AutoID.Tests
         private async Task<AutoIdReader> CreateAsync(
             AutoIdReaderKind kind = AutoIdReaderKind.Rfid, bool diagnostics = true)
         {
+            IAutoIdReaderProvider provider = kind switch
+            {
+                AutoIdReaderKind.Rfid => new FakeProvider(),
+                AutoIdReaderKind.Rtls => new FakeRtlsProvider(kind, [LocationTypeEnumeration.NAME]),
+                _ => new MinimalProvider(kind)
+            };
             var builder = m_fixture.Runtime.Reader(
                 m_fixture.Name("Diagnostics" + Interlocked.Increment(ref m_sequence)),
-                new FakeProvider { Kind = kind });
+                provider);
             if (diagnostics)
             {
                 builder.WithDiagnostics();

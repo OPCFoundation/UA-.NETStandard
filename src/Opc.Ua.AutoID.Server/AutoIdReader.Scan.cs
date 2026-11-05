@@ -118,7 +118,7 @@ namespace Opc.Ua.AutoID.Server
                     ArrayOf<ScanResult> results = ValidateResults(outcome.Results);
                     if (results.Count > 0)
                     {
-                        await PublishLastScanAsync(results[0]).ConfigureAwait(false);
+                        await PublishLastScanAsync(results[0], CancellationToken.None).ConfigureAwait(false);
                         await TryRaiseAccessEventAsync(
                             ClientOf(context), "Scan", AccessResultsOf(results)).ConfigureAwait(false);
                     }
@@ -411,13 +411,14 @@ namespace Opc.Ua.AutoID.Server
             {
                 throw new ObjectDisposedException(nameof(AutoIdReader));
             }
-            return ReportScanCoreAsync(validated);
+            return ReportScanCoreAsync(validated, cancellationToken);
         }
 
         /// <summary>
         /// Publishes an acquired scan and keeps the reader operation active through all awaited sinks.
         /// </summary>
-        private async ValueTask ReportScanCoreAsync(ArrayOf<ScanResult> validated)
+        private async ValueTask ReportScanCoreAsync(
+            ArrayOf<ScanResult> validated, CancellationToken cancellationToken)
         {
             try
             {
@@ -428,13 +429,13 @@ namespace Opc.Ua.AutoID.Server
                 {
                     client = m_activity == ScanActivity.Asynchronous ? m_scanClient : DeviceClient;
                 }
-                await PublishLastScanAsync(validated[0]).ConfigureAwait(false);
-                await RaiseScanEventAsync(validated).ConfigureAwait(false);
+                await PublishLastScanAsync(validated[0], cancellationToken).ConfigureAwait(false);
+                await RaiseScanEventAsync(validated, cancellationToken).ConfigureAwait(false);
                 await RaiseAccessEventAsync(
                     client,
                     "Scan",
                     AccessResultsOf(validated),
-                    tolerateDiagnosticCopyFailure: true).ConfigureAwait(false);
+                    tolerateDiagnosticCopyFailure: true, cancellationToken: cancellationToken).ConfigureAwait(false);
             }
             finally
             {
@@ -592,7 +593,7 @@ namespace Opc.Ua.AutoID.Server
         /// <summary>
         /// Publishes the first result as <c>LastScanData</c> (OPC 30010 6.1.3.9 and 6.1.3.10).
         /// </summary>
-        private async ValueTask PublishLastScanAsync(ScanResult result)
+        private async ValueTask PublishLastScanAsync(ScanResult result, CancellationToken cancellationToken)
         {
             DateTimeUtc timestamp = result.Timestamp.IsNull ? DateTimeUtc.Now : result.Timestamp;
             lock (m_lock)
@@ -632,21 +633,25 @@ namespace Opc.Ua.AutoID.Server
             ISystemContext context = Runtime.SystemContext;
             if (Device.LastScanData != null)
             {
-                await Device.LastScanData.ClearChangeMasksAsync(context, false).ConfigureAwait(false);
+                await Device.LastScanData.ClearChangeMasksAsync(context, false, cancellationToken)
+                    .ConfigureAwait(false);
             }
             if (Device.LastScanTimestamp != null)
             {
-                await Device.LastScanTimestamp.ClearChangeMasksAsync(context, false).ConfigureAwait(false);
+                await Device.LastScanTimestamp.ClearChangeMasksAsync(context, false, cancellationToken)
+                    .ConfigureAwait(false);
             }
             if (Device is RfidReaderDeviceState rfidDevice)
             {
                 if (rfidDevice.LastScanAntenna != null)
                 {
-                    await rfidDevice.LastScanAntenna.ClearChangeMasksAsync(context, false).ConfigureAwait(false);
+                    await rfidDevice.LastScanAntenna.ClearChangeMasksAsync(context, false, cancellationToken)
+                        .ConfigureAwait(false);
                 }
                 if (rfidDevice.LastScanRSSI != null)
                 {
-                    await rfidDevice.LastScanRSSI.ClearChangeMasksAsync(context, false).ConfigureAwait(false);
+                    await rfidDevice.LastScanRSSI.ClearChangeMasksAsync(context, false, cancellationToken)
+                        .ConfigureAwait(false);
                 }
             }
         }

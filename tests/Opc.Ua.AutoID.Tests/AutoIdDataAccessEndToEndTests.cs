@@ -254,7 +254,8 @@ namespace Opc.Ua.AutoID.Tests
         {
             AutoIdParameterControlTests.ParameterProvider provider =
                 AutoIdParameterControlTests.SpecificProvider(kind);
-            await using AutoIdReader reader = await m_host.Runtime.Reader(Name(), provider)
+            await using AutoIdReader reader = await m_host.Runtime.Reader(
+                Name(), AutoIdParameterControlTests.ReaderProvider(provider))
                 .WithRuntimeParameters().BuildAsync().ConfigureAwait(false);
             var children = new List<BaseInstanceState>();
             reader.Device.RuntimeParameters!.GetChildren(m_host.Runtime.SystemContext, children);

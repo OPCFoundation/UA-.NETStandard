@@ -177,6 +177,8 @@ owns (`OwnsProvider()`), disposes it.
 The readers keep their scan state (`Idle_0`, `Scanning_2`, `Busy_3`, `Error_1`)
 in `DeviceStatus`. `AutoIdReader.SetFaultedAsync(true)` reports `Error_1`: new
 scans then return `DEVICE_NOT_READY_17` and an active asynchronous scan stops.
+Fault and recovery operations retain admission through status callbacks and the
+optional stop; disposal waits for them before disposing an owned provider.
 `SetDeviceLocation` moves the `DeviceLocation` of a mobile reader.
 
 ### Coexisting with a server that already owns DI
@@ -562,6 +564,11 @@ override is not called by that path. Cancellation before diagnostic publication
 propagates without updating part of the diagnostic group. Formatters must not
 await reader disposal or an operation waiting for their own callback.
 
+`ReportScanAsync` forwards its cancellation token through acquisition change
+notifications, scan events and access publication. Cancelling a provider's report
+loop can therefore release a cancellation-aware pending sink. Cancellation during
+notification does not roll back values already published to the cache.
+
 `InMemoryRfidReaderProvider` declares only `RAW:BYTES`, initially selected as
 index zero, and formats byte-valued user data. Additional formats require a
 provider that implements their actual conversion; the runtime does not infer
@@ -866,6 +873,9 @@ if good values still disagree. Bad per-value statuses remain visible instead
 of being reported as a successful coherent acquisition. A scan without an RFID
 sighting marks antenna/RSSI `BadNoData`, rather than retaining a previous scan's
 values. Ordinary refreshes retain one Read and no nested browse.
+The server reads each acquisition variable's value, status and source timestamp
+under the publication lock. Separate variable reads can still cross acquisitions,
+so clients retain the timestamp comparison and retry.
 
 ## MCP tools
 
@@ -917,6 +927,7 @@ readers. These cases are implementation evidence, not OPC certification.
 | Runtime metadata and configured conformance units; Full withheld | `ParametersHavePublishedMetadataAndContributeOnlyConfiguredUnitsAsync` |
 | Validation and provider-commit failures preserve the old configuration | `InvalidCodeTypeAndIndexesAreRejectedWithoutChangingConfigurationAsync`, `ProviderCommitFailurePreservesPublishedAndProviderValuesAsync` |
 | Commit/start serialization and cancellation | `ParameterCommitSerializesStartAndCancelledCommitLeavesPreviousValuesAsync` |
+| Gate release and preservation of independent cleanup failures | `SerializedCleanupPreservesBothOperationFailuresAsync` |
 | Reader-specific parameter composition and standard role metadata | `ReaderSpecificParameterBindingsAndConfiguredRolePermissionsArePreservedAsync` |
 | Standard reader-kind metadata, ranks and mandatory EnumStrings | `ReaderParametersMatchKindCapabilitiesAndPublishedMetadataAsync` |
 | Unsupported capabilities and invalid initial declarations | `UnsupportedReaderParametersRemainAbsentAsync`, `InvalidInitialReaderParameterDeclarationsAreRejectedAsync` |
@@ -933,6 +944,9 @@ readers. These cases are implementation evidence, not OPC certification.
 | Real-session parameter/control workflow without scan method calls | `ParametersControlAndCoherentResultsWorkWithoutScanMethodCallsAsync` |
 | Caller-owned ScanActive subscription and session lifetime | `ScanActiveObservationUsesTheSharedSubscriptionWithoutOwningItsSessionAsync` |
 | Mixed acquisition timestamps and bad RFID value statuses | `InconsistentAcquisitionTimestampsAreRejectedAndBadAntennaStatusIsPreservedAsync` |
+| Acquisition reads share the publication lock | `AcquisitionReadsKeepValueQualityAndTimestampTogetherAsync` |
+| Report cancellation reaches acquisition, scan and access sinks | `ScanReportCancellationReleasesEveryPublicationStageAsync` |
+| Fault and recovery callbacks retain owned-provider lifetime | `FaultStatusNotificationKeepsOwnedProviderAliveAsync` |
 | Opt-in Diagnostics metadata across all reader kinds | `DiagnosticsAreOptInReadOnlyAndUseStandardQualifiedMetadataAsync` |
 | Existing reports update variables without duplicate events or invented presence | `PresenceAndLogReportsUpdateValuesAndRetainSingleEventsAsync`, `ScanReportsShareAccessProjectionAndDoNotInventPresenceAsync` |
 | Timestamp consistency and removal of absent RFID values with events disabled | `AccessProjectionIsIndependentOfEventsAndClearsAbsentRfidFieldsAsync` |

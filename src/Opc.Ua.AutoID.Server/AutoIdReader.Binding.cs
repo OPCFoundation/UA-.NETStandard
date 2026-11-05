@@ -37,6 +37,7 @@ namespace Opc.Ua.AutoID.Server
         /// </summary>
         internal void Bind()
         {
+            BindAcquisitionValues();
             BindScanMethods();
             BindDeviceMethods();
             BindParameters();
@@ -49,6 +50,32 @@ namespace Opc.Ua.AutoID.Server
                 case RtlsDeviceState rtls:
                     BindRtls(rtls);
                     break;
+            }
+        }
+
+        /// <summary>
+        /// Reads each acquisition value, quality and timestamp under its publication lock.
+        /// </summary>
+        private void BindAcquisitionValues()
+        {
+            if (Device.LastScanData != null)
+            {
+                Device.LastScanData.OnReadValueAsync = ReadCachedValueAsync;
+            }
+            if (Device.LastScanTimestamp != null)
+            {
+                Device.LastScanTimestamp.OnReadValueAsync = ReadCachedValueAsync;
+            }
+            if (Device is RfidReaderDeviceState rfid)
+            {
+                if (rfid.LastScanAntenna != null)
+                {
+                    rfid.LastScanAntenna.OnReadValueAsync = ReadCachedValueAsync;
+                }
+                if (rfid.LastScanRSSI != null)
+                {
+                    rfid.LastScanRSSI.OnReadValueAsync = ReadCachedValueAsync;
+                }
             }
         }
 

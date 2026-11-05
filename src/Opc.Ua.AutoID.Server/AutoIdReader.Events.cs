@@ -170,7 +170,7 @@ namespace Opc.Ua.AutoID.Server
         /// Raises the scan event of the reader kind (OPC 30010 7.2 to 7.7).
         /// </summary>
         /// <exception cref="InvalidOperationException"></exception>
-        private async ValueTask RaiseScanEventAsync(ArrayOf<ScanResult> results)
+        private async ValueTask RaiseScanEventAsync(ArrayOf<ScanResult> results, CancellationToken cancellationToken)
         {
             ISystemContext context = Runtime.SystemContext;
             var message = new LocalizedText("Scan result");
@@ -216,7 +216,7 @@ namespace Opc.Ua.AutoID.Server
                 default:
                     throw new InvalidOperationException("Unknown reader kind.");
             }
-            await Device.ReportEventAsync(context, e).ConfigureAwait(false);
+            await Device.ReportEventAsync(context, e, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>

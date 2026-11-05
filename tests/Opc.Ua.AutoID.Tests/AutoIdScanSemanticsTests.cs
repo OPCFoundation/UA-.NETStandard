@@ -456,8 +456,11 @@ namespace Opc.Ua.AutoID.Tests
         [Test]
         public async Task CompletionStatusNotificationKeepsShutdownWaitingForTheOperationAsync()
         {
-            (RfidReaderDeviceState device, FakeProvider provider) = await CreateAsync().ConfigureAwait(false);
-            AutoIdReader reader = ReaderOf(device);
+            var provider = new FakeProvider();
+            AutoIdReader reader = await m_fixture.Runtime.Reader(
+                m_fixture.Name("OwnedCompletion" + Interlocked.Increment(ref s_counter)), provider)
+                .OwnsProvider().BuildAsync().ConfigureAwait(false);
+            var device = (RfidReaderDeviceState)reader.Device;
             await StartAsync(device, AutoIdTestData.Settings()).ConfigureAwait(false);
 
             var completionNotificationEntered = new TaskCompletionSource<bool>(
@@ -620,6 +623,67 @@ namespace Opc.Ua.AutoID.Tests
                 Assert.That(device.LastScanTimestamp!.Value, Is.EqualTo(result.Timestamp));
                 Assert.That(events.Of<RfidAccessEventState>().Single().Command!.Value, Is.EqualTo("Scan"));
             });
+        }
+
+        /// <summary>
+        /// Reads bound acquisition tuples while complete scans change their value, quality and source time.
+        /// </summary>
+        [Test]
+        public async Task AcquisitionReadsKeepValueQualityAndTimestampTogetherAsync()
+        {
+            (RfidReaderDeviceState device, FakeProvider provider) = await CreateAsync().ConfigureAwait(false);
+            BaseVariableState[] variables =
+                [device.LastScanData!, device.LastScanTimestamp!, device.LastScanAntenna!, device.LastScanRSSI!];
+            foreach (BaseVariableState variable in variables)
+            {
+                Assert.That(variable.OnReadValueAsync, Is.Not.Null, variable.BrowseName.Name);
+            }
+            RfidScanResult first = AutoIdTestData.RfidResult(AutoIdTestData.Bytes(1));
+            first.Timestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 0);
+            first.Sighting = [new RfidSighting { Antenna = 3, Strength = -61 }];
+            RfidScanResult second = AutoIdTestData.RfidResult(AutoIdTestData.Bytes(2));
+            second.Timestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 1);
+            second.Sighting = [];
+            await provider.Sink!.ReportScanAsync([first]).ConfigureAwait(false);
+            Task publish = Task.Run(async () =>
+            {
+                for (int i = 0; i < 128; i++)
+                {
+                    await provider.Sink.ReportScanAsync([i % 2 == 0 ? second : first]).ConfigureAwait(false);
+                }
+            });
+            try
+            {
+                for (int i = 0; i < 128; i++)
+                {
+                    foreach (BaseVariableState variable in variables)
+                    {
+                        AttributeReadResult read = await variable.OnReadValueAsync!(
+                            m_fixture.Context, variable, default, default, default).ConfigureAwait(false);
+                        bool isFirst = read.SourceTimestamp == first.Timestamp;
+                        RfidScanResult expected = isFirst ? first : second;
+                        Variant expectedValue = variable.BrowseName.Name switch
+                        {
+                            "LastScanData" => Variant.FromStructure(expected.ScanData.Epc),
+                            "LastScanTimestamp" => Variant.From(expected.Timestamp),
+                            "LastScanAntenna" => Variant.From(isFirst ? 3 : 0),
+                            _ => Variant.From(isFirst ? -61 : 0)
+                        };
+                        Assert.Multiple(() =>
+                        {
+                            Assert.That(read.SourceTimestamp, Is.EqualTo(expected.Timestamp));
+                            Assert.That(read.Value, Is.EqualTo(expectedValue), variable.BrowseName.Name);
+                            Assert.That(read.StatusCode, Is.EqualTo(
+                                !isFirst && (variable.BrowseName.Name is "LastScanAntenna" or "LastScanRSSI")
+                                    ? StatusCodes.BadNoData : StatusCodes.Good), variable.BrowseName.Name);
+                        });
+                    }
+                }
+            }
+            finally
+            {
+                await publish.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            }
         }
 
         [Test]
