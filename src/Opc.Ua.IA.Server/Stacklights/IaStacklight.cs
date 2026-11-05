@@ -453,7 +453,7 @@ namespace Opc.Ua.IA.Server
                     // The host's DI alarm implementation owns this subtree and its access policy.
                     if (deviceHealthNamespace >= 0 &&
                         child.BrowseName.NamespaceIndex == deviceHealthNamespace &&
-                        child.BrowseName.Name == DiBrowseNames.DeviceHealthAlarms)
+                        child.BrowseName.Name == Opc.Ua.Di.BrowseNames.DeviceHealthAlarms)
                     {
                         continue;
                     }
