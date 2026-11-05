@@ -184,6 +184,7 @@ namespace Opc.Ua
         /// <remarks>
         /// Deferred notifications are not supported for one-shot unshelving, which processes a separate
         /// state machine with its own transition callbacks.
+        /// Derived classes customizing calls with these options must override this overload.
         /// </remarks>
         public virtual async ValueTask SetActiveStateAsync(
             ISystemContext context,
@@ -193,10 +194,7 @@ namespace Opc.Ua
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (!clearChangeMasks && !active && ShelvingState != null && m_oneShot)
-            {
-                throw new InvalidOperationException("One-shot unshelving cannot defer its transition notifications.");
-            }
+            ValidateActiveStateUpdate(active, clearChangeMasks);
 
             TranslationInfo state;
             if (active)
@@ -283,14 +281,12 @@ namespace Opc.Ua
         /// <remarks>
         /// Deferred notifications are not supported for one-shot unshelving, which processes a separate
         /// state machine with its own transition callbacks.
+        /// Derived classes customizing calls with these options must override this overload.
         /// </remarks>
-        public void SetActiveState(
+        public virtual void SetActiveState(
             ISystemContext context, bool active, bool clearChangeMasks, bool updateRetainState)
         {
-            if (!clearChangeMasks && !active && ShelvingState != null && m_oneShot)
-            {
-                throw new InvalidOperationException("One-shot unshelving cannot defer its transition notifications.");
-            }
+            ValidateActiveStateUpdate(active, clearChangeMasks);
             TranslationInfo state;
             if (active)
             {
@@ -354,6 +350,19 @@ namespace Opc.Ua
             if (clearChangeMasks)
             {
                 ClearChangeMasks(context, includeChildren: true);
+            }
+        }
+
+        /// <summary>
+        /// Validates notification options before an active-state update changes any attributes.
+        /// </summary>
+        /// <param name="active">Whether the condition will be active.</param>
+        /// <param name="clearChangeMasks">Whether to notify state observers now.</param>
+        protected void ValidateActiveStateUpdate(bool active, bool clearChangeMasks)
+        {
+            if (!clearChangeMasks && !active && ShelvingState != null && m_oneShot)
+            {
+                throw new InvalidOperationException("One-shot unshelving cannot defer its transition notifications.");
             }
         }
 
