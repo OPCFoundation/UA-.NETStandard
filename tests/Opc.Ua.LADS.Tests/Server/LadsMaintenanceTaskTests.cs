@@ -846,8 +846,9 @@ namespace Opc.Ua.LADS.Tests.Server
             LadsMaintenanceCommand command,
             ConcurrentQueue<Task<Exception?>> queuedCommands)
         {
-            using var cancellation = new CancellationTokenSource();
-            // A delayed worker must not access the source after this helper disposes it.
+            var cancellation = new CancellationTokenSource();
+            var assertionsCompleted = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
             CancellationToken token = cancellation.Token;
             // The same command is invalid in the committed destination state. If the gate were
             // released early, Require would fault inline, before reaching any notification sink.
@@ -856,7 +857,8 @@ namespace Opc.Ua.LADS.Tests.Server
                 CancellationToken.None,
                 TaskCreationOptions.DenyChildAttach,
                 TaskScheduler.Default);
-            Task<Exception?> observer = ObserveMaintenanceCommandAsync(invocation);
+            Task<Exception?> observer = ObserveMaintenanceCommandAsync(
+                invocation, cancellation, assertionsCompleted.Task);
             queuedCommands.Enqueue(observer);
             ExceptionDispatchInfo? testFailure = null;
             bool cancellationObserved = false;
@@ -879,7 +881,14 @@ namespace Opc.Ua.LADS.Tests.Server
             }
             finally
             {
-                cancellation.Cancel();
+                try
+                {
+                    cancellation.Cancel();
+                }
+                finally
+                {
+                    assertionsCompleted.TrySetResult(true);
+                }
             }
             if (!cancellationObserved && testFailure == null)
             {
@@ -889,7 +898,8 @@ namespace Opc.Ua.LADS.Tests.Server
             testFailure?.Throw();
         }
 
-        private static async Task<Exception?> ObserveMaintenanceCommandAsync(Task<Task> invocation)
+        private static async Task<Exception?> ObserveMaintenanceCommandAsync(
+            Task<Task> invocation, CancellationTokenSource cancellation, Task assertionsCompleted)
         {
             try
             {
@@ -900,6 +910,11 @@ namespace Opc.Ua.LADS.Tests.Server
             catch (Exception failure)
             {
                 return failure;
+            }
+            finally
+            {
+                await assertionsCompleted.ConfigureAwait(false);
+                cancellation.Dispose();
             }
         }
 

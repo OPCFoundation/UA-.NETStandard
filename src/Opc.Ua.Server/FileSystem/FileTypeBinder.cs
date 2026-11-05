@@ -357,6 +357,7 @@ namespace Opc.Ua.Server.FileSystem
                 {
                     bool committed = false;
                     Exception? commitError = null;
+                    Exception? shutdownCancellation = null;
                     try
                     {
                         // Application publication may refresh other bindings; do not hold a file gate across it.
@@ -365,9 +366,11 @@ namespace Opc.Ua.Server.FileSystem
                         committed = true;
                     }
                     catch (OperationCanceledException) when (
-                        m_lifetime.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+                        Volatile.Read(ref m_disposeStarted) != 0 && !cancellationToken.IsCancellationRequested)
                     {
-                        commitError = Error(StatusCodes.BadInvalidState, "The file binding is being disposed.");
+                        shutdownCancellation = Error(
+                            StatusCodes.BadInvalidState, "The file binding is being disposed.");
+                        commitError = shutdownCancellation;
                     }
                     catch (Exception exception)
                     {
@@ -383,6 +386,10 @@ namespace Opc.Ua.Server.FileSystem
                     }
                     if (commitError != null)
                     {
+                        if (ReferenceEquals(commitError, shutdownCancellation))
+                        {
+                            m_shutdownCommitCancellation = shutdownCancellation;
+                        }
                         completion.TrySetException(commitError);
                         _ = completion.Task.Exception;
                         ExceptionDispatchInfo.Capture(commitError).Throw();
@@ -436,7 +443,13 @@ namespace Opc.Ua.Server.FileSystem
                         await m_gate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
                         try
                         {
-                            m_commitCompletion = null;
+                            lock (m_openCountLock)
+                            {
+                                if (m_disposeStarted == 0)
+                                {
+                                    m_commitCompletion = null;
+                                }
+                            }
                             UpdateOpenCount();
                         }
                         finally
@@ -506,8 +519,9 @@ namespace Opc.Ua.Server.FileSystem
                 }
                 if (completion != null)
                 {
+                    Task lifetimeCancellation = m_lifetime.CancelAsync();
                     Task handleDisposal = m_handles.DisposeAsync().AsTask();
-                    _ = CompleteDisposalAsync(completion, handleDisposal);
+                    _ = CompleteDisposalAsync(completion, handleDisposal, lifetimeCancellation);
                 }
                 if (await Task.WhenAny(cleanup, Task.Delay(m_closeTimeout)).ConfigureAwait(false) == cleanup)
                 {
@@ -515,11 +529,12 @@ namespace Opc.Ua.Server.FileSystem
                 }
             }
 
-            private async Task CompleteDisposalAsync(TaskCompletionSource<bool> completion, Task handleDisposal)
+            private async Task CompleteDisposalAsync(
+                TaskCompletionSource<bool> completion, Task handleDisposal, Task lifetimeCancellation)
             {
                 try
                 {
-                    await DisposeBindingAsync(handleDisposal).ConfigureAwait(false);
+                    await DisposeBindingAsync(handleDisposal, lifetimeCancellation).ConfigureAwait(false);
                     completion.TrySetResult(true);
                 }
                 catch (Exception exception)
@@ -528,13 +543,13 @@ namespace Opc.Ua.Server.FileSystem
                 }
             }
 
-            private async Task DisposeBindingAsync(Task handleDisposal)
+            private async Task DisposeBindingAsync(Task handleDisposal, Task lifetimeCancellation)
             {
                 List<Exception> errors = [];
                 // Session close and disposal may interrupt a callback outside the global binding gate.
                 try
                 {
-                    await m_lifetime.CancelAsync().ConfigureAwait(false);
+                    await lifetimeCancellation.ConfigureAwait(false);
                 }
                 catch (Exception exception)
                 {
@@ -560,6 +575,11 @@ namespace Opc.Ua.Server.FileSystem
                     try
                     {
                         await commit.ConfigureAwait(false);
+                    }
+                    catch (ServiceResultException exception) when (
+                        ReferenceEquals(exception, m_shutdownCommitCancellation))
+                    {
+                        // The caller observes shutdown cancellation; it is not a cleanup failure.
                     }
                     catch (Exception exception)
                     {
@@ -751,6 +771,9 @@ namespace Opc.Ua.Server.FileSystem
             private readonly SessionEventHandler m_sessionClosingHandler;
             private ISessionManager? m_sessions;
             private TaskCompletionSource<bool>? m_commitCompletion;
+
+            /// <summary>The exact commit cancellation requested by this binding's shutdown.</summary>
+            private Exception? m_shutdownCommitCancellation;
 
             /// <summary>Identifies the handle whose publication Close must drain.</summary>
             private uint m_commitHandle;

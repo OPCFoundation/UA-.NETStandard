@@ -132,7 +132,8 @@ namespace Opc.Ua.LADS.Tests.Server
                 .ConfigureAwait(false);
             Opc.Ua.LADS.Client.LadsMaintenanceTask maintenance =
                 (await otherDevice.GetMaintenanceTasksAsync().ConfigureAwait(false))[0];
-            await LadsAssert.ThrowsStatusAsync(StatusCodes.BadLocked, () => maintenance.StartAsync())
+            await LadsAssert.ThrowsStatusAsync(StatusCodes.BadLocked,
+                () => other.StartMaintenanceTaskAsync(maintenance.NodeId))
                 .ConfigureAwait(false);
 
             ILadsFunctionalUnit unit = hardware.GetFunctionalUnit(LadsIncubator.UnitName);
@@ -348,7 +349,7 @@ namespace Opc.Ua.LADS.Tests.Server
         /// <summary>
         /// Writes through the actual UA service rather than directly invoking a node callback.
         /// </summary>
-        private static async Task<StatusCode> WriteAsync(Opc.Ua.Client.ISession session, NodeId node, Variant value)
+        private static async Task<StatusCode> WriteAsync(ManagedSession session, NodeId node, Variant value)
         {
             WriteResponse response = await session.WriteAsync(null,
             [

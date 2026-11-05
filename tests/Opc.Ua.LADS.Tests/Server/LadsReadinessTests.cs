@@ -29,6 +29,7 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.LADS.Server;
@@ -74,8 +75,8 @@ namespace Opc.Ua.LADS.Tests.Server
                 IAnalogControlFunction control = other.GetFunction<IAnalogControlFunction>("Control");
                 Assert.That(device.RequiresReadinessConfirmation, Is.True);
                 Assert.That(interrupted.Programs!.InterruptedRunId, Is.EqualTo(kRun));
-                await LadsAssert.ThrowsStatusAsync(StatusCodes.BadInvalidState, async () =>
-                    await other.Programs!.StartProgramAsync(kTemplate).ConfigureAwait(false)).ConfigureAwait(false);
+                await LadsAssert.ThrowsStatusAsync(StatusCodes.BadInvalidState,
+                    () => other.Programs!.StartProgramAsync(kTemplate)).ConfigureAwait(false);
                 await LadsAssert.ThrowsStatusAsync(StatusCodes.BadInvalidState, () => other.StartAsync())
                     .ConfigureAwait(false);
                 await LadsAssert.ThrowsStatusAsync(StatusCodes.BadInvalidState, () => control.StartAsync())
@@ -86,7 +87,7 @@ namespace Opc.Ua.LADS.Tests.Server
                 Assert.That(other.Programs!.ActiveRun, Is.Null);
                 Assert.That(other.State, Is.EqualTo(LadsFunctionalStateValue.Stopped));
                 Assert.That(control.State, Is.EqualTo(LadsFunctionalStateValue.Stopped));
-                Assert.That(control.TargetValue, Is.EqualTo(0));
+                Assert.That(control.TargetValue, Is.Zero);
                 LadsStoredDeviceData saved = (await store.LoadAsync(kIdentity).ConfigureAwait(false))!;
                 Assert.That(saved.FunctionalUnits[0].InterruptedRunId, Is.EqualTo(kRun));
             }
@@ -252,9 +253,8 @@ namespace Opc.Ua.LADS.Tests.Server
                 }), kDevice).ConfigureAwait(false);
             ILadsDevice device = await connection.Server.DeviceAsync(kDevice).ConfigureAwait(false);
             NodeId unitId = device.GetFunctionalUnit(kOther).NodeId;
-            await LadsAssert.ThrowsStatusAsync(StatusCodes.BadInvalidState, async () =>
-                await connection.Client.StartProgramAsync(unitId, LadsProgramRequest.For(kTemplate))
-                    .ConfigureAwait(false))
+            await LadsAssert.ThrowsStatusAsync(StatusCodes.BadInvalidState,
+                () => connection.Client.StartProgramAsync(unitId, LadsProgramRequest.For(kTemplate)))
                 .ConfigureAwait(false);
             Assert.That(device.RequiresReadinessConfirmation, Is.True);
             executor.Verify(value => value.ExecuteAsync(

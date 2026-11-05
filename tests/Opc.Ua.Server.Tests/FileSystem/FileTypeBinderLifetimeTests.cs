@@ -312,8 +312,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
         /// <summary>
         /// Binding disposal requests publication cancellation and drains its actual outcome before releasing state.
         /// </summary>
-        [Test]
-        public async Task BindingDisposalCancelsAndDrainsRunningCommitAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task BindingDisposalCancelsAndDrainsRunningCommitAsync(bool publishDespiteCancellation)
         {
             await using var harness = new Harness();
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -325,6 +326,10 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 using CancellationTokenRegistration registration = ct.Register(() => cancelled.TrySetResult(true));
                 entered.TrySetResult(true);
                 await release.Task.ConfigureAwait(false);
+                if (!publishDespiteCancellation)
+                {
+                    ct.ThrowIfCancellationRequested();
+                }
                 published = bytes;
             }).ConfigureAwait(false);
             uint id = await harness.Binding.OpenAsync(harness.Session.Object.Id, 7).ConfigureAwait(false);
@@ -343,13 +348,96 @@ namespace Opc.Ua.Server.Tests.FileSystem
             finally
             {
                 release.TrySetResult(true);
-                await commit.ConfigureAwait(false);
+                if (publishDespiteCancellation)
+                {
+                    await commit.ConfigureAwait(false);
+                }
+                else
+                {
+                    ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(
+                        async () => await commit.ConfigureAwait(false));
+                    Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                }
                 if (disposal != null)
                 {
                     await disposal.ConfigureAwait(false);
                 }
             }
-            Assert.That(published.ToArray(), Is.EqualTo(s_committedContent));
+            if (publishDespiteCancellation)
+            {
+                Assert.That(published.ToArray(), Is.EqualTo(s_committedContent));
+            }
+            else
+            {
+                Assert.That(published.IsNull, Is.True);
+            }
+            Assert.That(harness.File.Size!.Value, Is.Zero);
+            Assert.That(harness.File.OpenCount!.Value, Is.Zero);
+        }
+
+        /// <summary>
+        /// Shutdown retains callback failures, including a status identical to its own cancellation mapping.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task BindingDisposalReportsCommitProviderFailureAsync(bool statusFailure)
+        {
+            var harness = new Harness();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var cancelled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Exception publicationFailure = statusFailure
+                ? new ServiceResultException(StatusCodes.BadInvalidState, "The file binding is being disposed.")
+                : new IOException("Publication failed.");
+            Task? commit = null;
+            Task? disposal = null;
+            try
+            {
+                await harness.BindAsync(commit: async (_, ct) =>
+                {
+                    using CancellationTokenRegistration registration = ct.Register(() => cancelled.TrySetResult(true));
+                    entered.TrySetResult(true);
+                    await release.Task.ConfigureAwait(false);
+                    throw publicationFailure;
+                }).ConfigureAwait(false);
+                uint id = await harness.Binding.OpenAsync(harness.Session.Object.Id, 7).ConfigureAwait(false);
+                commit = harness.Binding.CommitAsync(harness.Session.Object.Id, id).AsTask();
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                disposal = harness.DisposeAsync().AsTask();
+                await cancelled.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.That(commit.IsCompleted, Is.False);
+                Assert.That(disposal.IsCompleted, Is.False);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                try
+                {
+                    if (commit != null)
+                    {
+                        Exception? failure = statusFailure
+                            ? await Assert.ThrowsAsync<ServiceResultException>(
+                                async () => await commit.ConfigureAwait(false))
+                            : await Assert.ThrowsAsync<IOException>(
+                                async () => await commit.ConfigureAwait(false));
+                        Assert.That(failure, Is.SameAs(publicationFailure));
+                    }
+                }
+                finally
+                {
+                    if (disposal != null)
+                    {
+                        AggregateException? failure = await Assert.ThrowsAsync<AggregateException>(
+                            async () => await disposal.ConfigureAwait(false));
+                        Assert.That(failure!.Flatten().InnerExceptions, Has.Count.EqualTo(1));
+                        Assert.That(failure.Flatten().InnerExceptions[0], Is.SameAs(publicationFailure));
+                    }
+                    else
+                    {
+                        await harness.DisposeAsync().ConfigureAwait(false);
+                    }
+                }
+            }
             Assert.That(harness.File.Size!.Value, Is.Zero);
             Assert.That(harness.File.OpenCount!.Value, Is.Zero);
         }
@@ -455,11 +543,17 @@ namespace Opc.Ua.Server.Tests.FileSystem
             /// <inheritdoc/>
             public async ValueTask DisposeAsync()
             {
-                if (Binding != null)
+                try
                 {
-                    await Binding.DisposeAsync().ConfigureAwait(false);
+                    if (Binding != null)
+                    {
+                        await Binding.DisposeAsync().ConfigureAwait(false);
+                    }
                 }
-                m_queues.Dispose();
+                finally
+                {
+                    m_queues.Dispose();
+                }
             }
 
             /// <summary>Owns the deterministic monitored-item queues.</summary>

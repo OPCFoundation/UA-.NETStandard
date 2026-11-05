@@ -37,6 +37,7 @@ using Opc.Ua.AMB;
 using Opc.Ua.AMB.Server.Assets;
 using Opc.Ua.AMB.Server.Configuration;
 using Opc.Ua.AMB.Server.Health;
+using Opc.Ua.Client;
 using Opc.Ua.Di;
 using Opc.Ua.LADS.Server;
 using Opc.Ua.LADS.Tests.Integration;
@@ -479,10 +480,8 @@ namespace Opc.Ua.LADS.Tests.Server
                     ((LadsDeviceBuilder)builder).Device.DeviceState.StateChangedAsync += (_, _) =>
                         throw new IOException("Device publication failed.");
                 }).ConfigureAwait(false));
-            Assert.That(failure!.Flatten().InnerExceptions.Select(error => error.Message), Is.EqualTo(new[]
-            {
-                "Device publication failed.", "Asset withdrawal failed.", "Asset withdrawal failed."
-            }));
+            Assert.That(failure!.Flatten().InnerExceptions.Select(error => error.Message),
+                Is.EqualTo(s_failedAssetCleanupMessages));
             await LadsAssert.ThrowsStatusAsync(StatusCodes.BadBrowseNameDuplicated, () =>
                 setup!.AddDeviceAsync("Candidate", _ => { })).ConfigureAwait(false);
             await LadsAssert.ThrowsStatusAsync(StatusCodes.BadConfigurationError, () =>
@@ -574,5 +573,11 @@ namespace Opc.Ua.LADS.Tests.Server
 
         /// <summary>The stable identity used by the opted-in device.</summary>
         private const string kProductInstanceUri = "urn:tests:lads:asset-management";
+
+        /// <summary>Publication and withdrawal failures retained by the cleanup regression.</summary>
+        private static readonly string[] s_failedAssetCleanupMessages =
+        [
+            "Device publication failed.", "Asset withdrawal failed.", "Asset withdrawal failed."
+        ];
     }
 }

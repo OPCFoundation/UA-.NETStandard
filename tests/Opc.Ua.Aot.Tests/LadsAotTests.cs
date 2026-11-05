@@ -71,8 +71,8 @@ namespace Opc.Ua.Aot.Tests
                     IAssetHandle? asset = null;
                     try
                     {
-                        ILadsDevice device = await provider.GetRequiredService<ILadsDeviceRegistry>()
-                            .WaitForDeviceAsync(kDevice, cancellationToken).ConfigureAwait(false);
+                        ILadsDevice device = await WaitForDeviceAsync(provider, host, cancellationToken)
+                            .ConfigureAwait(false);
                         await Assert.That(device.LockNodeId.IsNull).IsFalse();
                         asset = device.Asset ??
                             throw new InvalidOperationException("The configured LADS asset handle is missing.");
@@ -159,8 +159,8 @@ namespace Opc.Ua.Aot.Tests
                 await restoredHost.StartAsync(cancellationToken).ConfigureAwait(false);
                 try
                 {
-                    ILadsDevice device = await restoredProvider.GetRequiredService<ILadsDeviceRegistry>()
-                        .WaitForDeviceAsync(kDevice, cancellationToken).ConfigureAwait(false);
+                    ILadsDevice device = await WaitForDeviceAsync(restoredProvider, restoredHost, cancellationToken)
+                        .ConfigureAwait(false);
                     ILadsFunctionalUnit unit = device.GetFunctionalUnit(kUnit);
                     ILadsProgramManager programs = unit.Programs ??
                         throw new InvalidOperationException("The restored LADS program manager is missing.");
@@ -211,6 +211,28 @@ namespace Opc.Ua.Aot.Tests
             await using ServiceProvider provider = services.BuildServiceProvider();
             await Assert.That(provider.GetRequiredService<LadsClientFactory>()).IsNotNull();
             await Assert.That(provider.GetRequiredService<Func<CancellationToken, Task<LadsClient>>>()).IsNotNull();
+        }
+
+        /// <summary>
+        /// Reports a server startup failure instead of waiting for a device that cannot be published.
+        /// </summary>
+        private static async Task<ILadsDevice> WaitForDeviceAsync(
+            ServiceProvider provider,
+            IHostedService host,
+            CancellationToken cancellationToken)
+        {
+            Task startup = (host as BackgroundService)?.ExecuteTask ??
+                throw new InvalidOperationException("The LADS hosted service has not started.");
+            Task<ILadsDevice> publication = provider.GetRequiredService<ILadsDeviceRegistry>()
+                .WaitForDeviceAsync(kDevice, cancellationToken).AsTask();
+            Task completed = await Task.WhenAny(publication, startup).WaitAsync(cancellationToken)
+                .ConfigureAwait(false);
+            await completed.ConfigureAwait(false);
+            if (completed != publication)
+            {
+                throw new InvalidOperationException("The LADS server stopped before publishing its device.");
+            }
+            return await publication.ConfigureAwait(false);
         }
 
         /// <summary>
