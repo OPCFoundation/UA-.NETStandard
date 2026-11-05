@@ -34,6 +34,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
+using Opc.Ua.IA;
 using Opc.Ua.IA.Client;
 
 namespace Opc.Ua.ECM.Client

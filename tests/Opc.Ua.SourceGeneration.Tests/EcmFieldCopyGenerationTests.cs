@@ -263,7 +263,18 @@ namespace Opc.Ua.SourceGeneration
             };
             options.SyntaxOptions.Add(_ => new Dictionary<string, string>());
             CSharpCompilation compilation = OptimizationLevel.Release.CreateCompilation()
-                .AddCode(new Dictionary<string, string>().WithOpcUaGeneratedStack(), LanguageVersion.CSharp13);
+                .AddCode(new Dictionary<string, string>
+                {
+                    ["EcmStatusCodes.cs"] = """
+                        namespace Opc.Ua
+                        {
+                            public static partial class StatusCodes
+                            {
+                                public const uint BadNotSupported = 0x803D0000u;
+                            }
+                        }
+                        """
+                }.WithOpcUaGeneratedStack(), LanguageVersion.CSharp13);
             GeneratorDriver driver = CSharpGeneratorDriver.Create(new ModelSourceGenerator())
                 .WithUpdatedParseOptions(new CSharpParseOptions(LanguageVersion.CSharp13))
                 .AddAdditionalTexts([text]).WithUpdatedAnalyzerConfigOptions(options);
