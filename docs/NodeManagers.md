@@ -974,6 +974,37 @@ their materialization before accepting clients, so discovery by browsing sees th
 - Shutdown rejects new lifecycle operations and waits for active readiness work. After an orderly
   `StopAsync` the same server can be started again.
 
+#### Execution-context scopes
+
+Lifecycle execution-context scopes carry callback authority or reject re-entry into
+an operation that is waiting for that callback. They do not select request routes.
+Request routing remains owned by the explicit `OperationContext` view.
+
+| Scope | Purpose and expiration | Retained state |
+| --- | --- | --- |
+| `LifecycleWriter` decision scope | Rejects nested lifecycle operations during the durable decision, including spawned work. The decision's `finally` block revokes the scope before restoring its predecessor. | An active flag; no manager or generation |
+| `NodeManagerReadinessScope` | Allows initializer access only to its exact server and generation. Disposal revokes access and clears the server, generation and parent references before restoring the preceding scope. | Server and generation references only while active |
+| `MasterNodeManager` callback permit | Allows nested publication to reuse the capabilities currently held by a manager callback. Disposal revokes the permit; an escaped preparation must reacquire each missing capability. | Capability flags, the preceding permit and its execution-context slot; no manager or generation |
+| `MasterNodeManager` current decision | Rejects namespace and node-management writes from the callback whose decision they would otherwise wait for. Releasing the reservation completes its marker and clears the current slot. | A completion task with no manager or generation payload |
+| `MasterNodeManager` namespace publication | Rejects serving namespace changes from callbacks invoked before the durable decision. Releasing the namespace reservation completes its marker and restores the preceding slot, on success or failure. | A completion task with no manager or generation payload |
+
+Restoring an `AsyncLocal` value alone cannot revoke a scope copied into another
+execution context. Readers therefore check the shared active flag or completion
+task. A captured context may retain the expired marker, but that marker grants no
+authority. Application callbacks can still retain their own captured objects;
+scope expiration does not remove references from application closures.
+
+The direct `NodeManagerReadinessScopeTests` controls verify exact-generation
+authority and collection of the completed initializer's server and generation.
+`LifecycleWriterTests.DecisionRejectsSpawnedReentrancyAndExpiresInCapturedContextAsync`
+checks rejection and subsequent admission in the same spawned context.
+The hosted namespace-getter and durable-decision controls replay their captured
+contexts after publication, and
+`RevokedCallbackAdmissionReacquiresBothCapabilitiesAsync` holds an opposing
+admission while revoking a borrowed permit.
+
+#### Session binding and shutdown ordering
+
 Successfully reactivating a live session with a new effective identity refreshes each generation's binding
 through `SessionActivatedAsync`, without invoking `SessionClosingAsync`. Session-scoped state,
 including staged PushManagement transactions, survives reactivation. Closing, replacing, or
