@@ -77,11 +77,27 @@ namespace Opc.Ua.Server
             StandardServer server,
             TimeProvider timeProvider,
             Func<Func<bool>, LifecycleWriter>? writerFactory)
+            : this(server, timeProvider, writerFactory, server?.NodeManagerLifecycle as NodeManagerLifecycle)
+        {
+        }
+
+        /// <summary>
+        /// Creates a lifecycle owner bound to its server services before any preparation or publication.
+        /// </summary>
+        /// <param name="server">The server state and schema services.</param>
+        /// <param name="timeProvider">The server's clock.</param>
+        /// <param name="writerFactory">The factory receiving the owner's cleanup-completion policy.</param>
+        /// <param name="canonicalOwner">The canonical owner, or null when creating that owner.</param>
+        internal NodeManagerLifecycle(
+            INodeManagerLifecycleHost server,
+            TimeProvider timeProvider,
+            Func<Func<bool>, LifecycleWriter>? writerFactory,
+            NodeManagerLifecycle? canonicalOwner = null)
         {
             m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
             m_reclaimer = new GenerationReclaimer(m_timeProvider);
-            m_canonicalOwner = server.NodeManagerLifecycle as NodeManagerLifecycle;
+            m_canonicalOwner = canonicalOwner;
             bool CanDispose() => m_reclaimer.Count == 0 && m_registrations.Count == 0;
 
             if (writerFactory is null)
@@ -2008,8 +2024,8 @@ namespace Opc.Ua.Server
                                         .ConfigureAwait(false)
                                 ];
                             }
-                            resolver = await m_server.RefreshComplexTypesAsync(
-                                stagingServer, entry.Manager, publishResolver: false, cancellationToken: cancellationToken)
+                            resolver = await m_server.PrepareComplexTypesAsync(
+                                stagingServer, entry.Manager, cancellationToken)
                                 .ConfigureAwait(false) ??
                                 resolver;
                             var registration = new NodeManagerRegistration(
@@ -2669,7 +2685,7 @@ namespace Opc.Ua.Server
                 }
                 if (m_batch.Resolver is not null)
                 {
-                    m_owner.m_server.ComplexTypeResolverHolder?.SetResolver(m_batch.Resolver);
+                    m_owner.m_server.PublishComplexTypeResolver(m_batch.Resolver);
                 }
                 m_reconciler.SupersedeReconciliations();
             }
@@ -3362,7 +3378,8 @@ namespace Opc.Ua.Server
         }
 
 
-        private readonly StandardServer m_server;
+        /// <summary>The construction-bound server state and schema publication services.</summary>
+        private readonly INodeManagerLifecycleHost m_server;
 
         /// <summary>The clock used for lifecycle wait diagnostics and retry delays.</summary>
         private readonly TimeProvider m_timeProvider;

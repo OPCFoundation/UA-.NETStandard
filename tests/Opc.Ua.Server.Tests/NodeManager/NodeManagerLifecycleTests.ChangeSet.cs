@@ -34,6 +34,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Schema;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
@@ -1118,7 +1119,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 namespace Opc.Ua.Server.Tests.NodeManager
 {
     /// <summary>
-    /// Exercises change-set cleanup on a real, unstarted server facade without opening listeners.
+    /// Exercises the real lifecycle and writer over server internals without starting runtime workers.
     /// </summary>
     [TestFixture]
     [Category("NodeManagerLifecycle")]
@@ -1133,7 +1134,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task SlotChangeSetStaleCommitDisposesCandidateAndDrainsOperationBeforeCallerDisposalAsync()
         {
             await using var harness = new ChangeSetCleanupHarness();
-            INodeManagerLifecycle lifecycle = harness.Server.NodeManagerLifecycle;
+            NodeManagerLifecycle lifecycle = harness.Lifecycle;
             LifecycleResult added = await lifecycle.ApplyAsync(
                 [LifecycleChange.Add(CreateFactory(CreateManager(kNamespaceUri)))])
                 .ConfigureAwait(false);
@@ -1215,7 +1216,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task SlotChangeSetFailedDecisionDisposesCandidateAndDrainsOperationBeforeCallerDisposalAsync()
         {
             await using var harness = new ChangeSetCleanupHarness();
-            INodeManagerLifecycle lifecycle = harness.Server.NodeManagerLifecycle;
+            NodeManagerLifecycle lifecycle = harness.Lifecycle;
             LifecycleResult added = await lifecycle.ApplyAsync(
                 [LifecycleChange.Add(CreateFactory(CreateManager(kNamespaceUri)))])
                 .ConfigureAwait(false);
@@ -1320,10 +1321,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// Creates the actual server lifecycle and master manager without starting the server or binding ports.
+        /// Creates the actual lifecycle, writer and master manager without listeners or background workers.
         /// </summary>
         private sealed class ChangeSetCleanupHarness : IAsyncDisposable
         {
+            /// <summary>
+            /// Creates the serving metadata and captures the lifecycle's actual writer.
+            /// </summary>
             public ChangeSetCleanupHarness()
             {
                 ITelemetryContext telemetry = Opc.Ua.Tests.NUnitTelemetryContext.Create();
@@ -1332,31 +1336,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     ApplicationUri = "urn:test:change-set-cleanup:server",
                     ServerConfiguration = new ServerConfiguration()
                 };
-                LifecycleWriter? writer = null;
-                Server = new StandardServer(telemetry, null, null, canDispose =>
-                {
-                    writer = new LifecycleWriter(canDispose);
-                    return writer;
-                })
-                {
-                    LoadComplexTypes = false
-                };
-                Writer = writer ?? throw new InvalidOperationException("The lifecycle writer was not constructed.");
+                var status = new ServerStatusValue(new ServerStatusState(null),
+                    new ServerStatusDataType { State = ServerState.Running }, new Lock());
                 Data = new ServerInternalData(new ServerProperties(), configuration,
-                    new ServiceMessageContext(telemetry, EncodeableFactory.Create()));
+                    new ServiceMessageContext(telemetry, EncodeableFactory.Create()), null, null, status);
                 Data.NamespaceUris.GetIndexOrAppend(DeterministicServerMock.TestNamespaceUri);
                 Data.TypeTree.AddSubtype(DataTypeIds.BaseDataType, NodeId.Null);
                 Data.TypeTree.AddSubtype(DataTypeIds.Structure, DataTypeIds.BaseDataType);
-                var status = new ServerStatusValue(new ServerStatusState(null),
-                    new ServerStatusDataType { State = ServerState.Running }, new Lock());
-                typeof(ServerInternalData).GetProperty("NonThreadSafeStatus",
-                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.SetValue(Data, status);
-                typeof(ServerBase).GetProperty("Configuration",
-                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
-                    .SetValue(Server, configuration);
-                typeof(StandardServer).GetField("m_serverInternal",
-                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
-                    .SetValue(Server, Data);
                 var mainFactory = new Mock<IMainNodeManagerFactory>();
                 var configurationNodeManager = new Mock<IConfigurationNodeManager>();
                 configurationNodeManager.As<IDiagnosticsNodeManager>()
@@ -1370,11 +1356,27 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 ServingManager = CreateManager(DeterministicServerMock.TestNamespaceUri);
                 Master = new MasterNodeManager(Data, configuration, null, [ServingManager.Object], null);
                 Data.SetNodeManager(Master);
+                var host = new Mock<INodeManagerLifecycleHost>(MockBehavior.Strict);
+                host.SetupGet(value => value.CurrentInstance).Returns(Data);
+                host.SetupGet(value => value.CurrentConfiguration).Returns(configuration);
+                host.Setup(value => value.PrepareComplexTypesAsync(
+                        It.IsAny<IServerInternal>(), It.IsAny<IAsyncNodeManager>(), It.IsAny<CancellationToken>()))
+                    .Returns(default(ValueTask<IDataTypeDefinitionResolver?>));
+                LifecycleWriter? writer = null;
+                Lifecycle = new NodeManagerLifecycle(host.Object, TimeProvider.System, canDispose =>
+                {
+                    writer = new LifecycleWriter(canDispose);
+                    return writer;
+                });
+                Writer = writer ?? throw new InvalidOperationException("The lifecycle writer was not constructed.");
                 Assert.That(Data.IsRunning, Is.True);
                 Assert.That(Master.AsyncNodeManagers, Does.Contain(ServingManager.Object));
             }
 
-            public StandardServer Server { get; }
+            /// <summary>
+            /// Gets the lifecycle owning this harness's publication and cleanup state.
+            /// </summary>
+            public NodeManagerLifecycle Lifecycle { get; }
 
             /// <summary>
             /// Gets the actual writer constructed for this server's lifecycle.
@@ -1387,13 +1389,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             public async ValueTask DisposeAsync()
             {
-                // This facade was never started, so the harness owns no listeners or background server work.
-                ((NodeManagerLifecycle)Server.NodeManagerLifecycle).Dispose();
-                typeof(StandardServer).GetField("m_serverInternal",
-                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
-                    .SetValue(Server, null);
+                Lifecycle.Dispose();
                 await Data.DisposeAsync().ConfigureAwait(false);
-                Server.Dispose();
             }
         }
     }
