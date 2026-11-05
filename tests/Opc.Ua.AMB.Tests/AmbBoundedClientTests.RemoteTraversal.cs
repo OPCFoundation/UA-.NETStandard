@@ -723,14 +723,14 @@ namespace Opc.Ua.AMB.Tests
                 .Returns<IServiceRequest, CancellationToken>((request, cancellationToken) =>
                     new ValueTask<IServiceResponse>(DispatchRemoteRequest(
                         request,
-                        cancellationToken,
                         browseRequests,
                         closeRequests,
                         byProductInstance,
                         byAssetId,
                         alias,
                         discoveredAssets,
-                        graph)));
+                        graph,
+                        cancellationToken)));
 
             var factory = new Mock<ISessionFactory>();
             factory.SetupGet(value => value.Telemetry).Returns(telemetry);
@@ -759,14 +759,14 @@ namespace Opc.Ua.AMB.Tests
 
         private static IServiceResponse DispatchRemoteRequest(
             IServiceRequest request,
-            CancellationToken cancellationToken,
             List<BrowseDescription> browseRequests,
             List<CloseSessionRequest> closeRequests,
             NodeId byProductInstance,
             NodeId byAssetId,
             NodeId alias,
             IReadOnlyList<NodeId> discoveredAssets,
-            Func<NodeId, IEnumerable<ReferenceDescription>> graph)
+            Func<NodeId, IEnumerable<ReferenceDescription>> graph,
+            CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (request is BrowseRequest browse)
@@ -932,7 +932,7 @@ namespace Opc.Ua.AMB.Tests
                 {
                     return Session.DisposeAsync();
                 }
-                return ValueTask.CompletedTask;
+                return default;
             }
 
             private int m_disposed;

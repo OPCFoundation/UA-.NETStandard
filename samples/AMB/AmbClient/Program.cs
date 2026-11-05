@@ -55,8 +55,9 @@ Console.CancelKeyPress += (_, eventArgs) =>
 CancellationToken ct = cancellation.Token;
 
 SampleSession connection = await SampleSession.ConnectAsync(options, telemetry, ct).ConfigureAwait(false);
-await using ConfiguredAsyncDisposable _ = connection.ConfigureAwait(false);
-await using var remoteSessionResolver = new SampleRemoteSessionResolver(options, telemetry);
+await using ConfiguredAsyncDisposable connectionLifetime = connection.ConfigureAwait(false);
+var remoteSessionResolver = new SampleRemoteSessionResolver(options, telemetry);
+await using ConfiguredAsyncDisposable remoteSessionLifetime = remoteSessionResolver.ConfigureAwait(false);
 
 // session.AssetManagement(...) also teaches the session the AMB structures,
 // so root causes and maintenance details decode into their generated types.
