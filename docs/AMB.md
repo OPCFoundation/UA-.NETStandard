@@ -438,6 +438,18 @@ active state, root causes, and the AMB maintenance fields. Replanning a
 recurring condition retains earlier events and gives each new occurrence its
 own EventId. Historical reads never invoke condition refresh.
 
+History initialization awaits health notifications and condition event reporting.
+Provider reads and capture setup observe the registration cancellation token;
+notification dispatch uses `CancellationToken.None`, as the synchronous
+notification bridges do. A sink failure aborts registration and triggers binding
+cleanup; a failure while notifying a restored health timestamp restores its
+previous timestamp. The initial event snapshot is taken after condition change
+notifications complete and before the event is forwarded.
+Owner-defined conditions and notifier ancestors that customize synchronous
+`ReportEvent` must also override `ReportEventAsync` to customize initial history
+events. Async reporting does not invoke a synchronous override; existing
+synchronous reporting is unchanged.
+
 The provider controls retention and persistence. Configure health and event
 retention for the same period where the backend supports it (§9.6); AMB adds no
 retention default. The memory provider keeps event history for the server

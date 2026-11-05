@@ -76,7 +76,7 @@ namespace Opc.Ua.AMB.Server.Assets
                 await binding.BindAsync(options, cancellationToken).ConfigureAwait(false);
                 binding.RegisterMetadata();
                 await binding.StartCaptureAsync(options, cancellationToken).ConfigureAwait(false);
-                binding.ReportInitialState();
+                await binding.ReportInitialStateAsync().ConfigureAwait(false);
                 binding.m_created = true;
                 return binding;
             }
@@ -463,17 +463,20 @@ namespace Opc.Ua.AMB.Server.Assets
 
         /// <summary>
         /// Emits initial records only after capture setup and owner indexing have completed.
+        /// Notification dispatch is noncancellable, matching the existing synchronous publication path.
         /// </summary>
-        private void ReportInitialState()
+        private async ValueTask ReportInitialStateAsync()
         {
             if (m_health != null && !m_healthRestored)
             {
                 m_health.UpdateChangeMasks(NodeStateChangeMasks.Value);
-                m_health.ClearChangeMasks(m_handle.Context, false);
+                await m_health.ClearChangeMasksAsync(m_handle.Context, false, CancellationToken.None)
+                    .ConfigureAwait(false);
             }
             foreach (ConditionState condition in m_selectedConditions)
             {
-                AssetNodes.ReportEvent(m_handle.Context, condition);
+                await AssetNodes.ReportEventAsync(m_handle.Context, condition)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -754,7 +757,16 @@ namespace Opc.Ua.AMB.Server.Assets
                 !last.SourceTimestamp.IsNull)
             {
                 health.Timestamp = last.SourceTimestamp;
-                health.ClearChangeMasks(context, false);
+                try
+                {
+                    // The provider read has finished; dispatch uses the synchronous bridge's token semantics.
+                    await health.ClearChangeMasksAsync(context, false, CancellationToken.None).ConfigureAwait(false);
+                }
+                catch
+                {
+                    health.Timestamp = m_originalHealthTimestamp;
+                    throw;
+                }
                 return true;
             }
             return false;

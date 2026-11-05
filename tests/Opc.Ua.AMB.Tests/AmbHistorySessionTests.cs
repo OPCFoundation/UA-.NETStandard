@@ -1494,6 +1494,379 @@ namespace Opc.Ua.AMB.Tests
             Assert.That(second.Kinds, Is.EqualTo(AssetHistoryKinds.DeviceHealth));
         }
 
+        /// <summary>
+        /// Awaits initial and restored health notifications despite late cancellation, with rollback on sink failure.
+        /// </summary>
+        [TestCase(false, "success")]
+        [TestCase(true, "success")]
+        [TestCase(false, "cancel")]
+        [TestCase(true, "cancel")]
+        [TestCase(false, "fault")]
+        [TestCase(true, "fault")]
+        public async Task HistoryInitializationAwaitsHealthSinkWithoutBlockingAsync(bool restore, string outcome)
+        {
+            using var storage = new InMemoryHistorianProvider();
+            Mock<IHistorianProvider> provider = RetainedRawProvider(storage);
+            (AmbHostedServer server, IAssetHandle asset, DeviceState device) =
+                await HealthAlarmTests.StartWithSensorAsync(
+                    nameof(HistoryInitializationAwaitsHealthSinkWithoutBlockingAsync),
+                    builder => builder.WithDeviceHealth()).ConfigureAwait(false);
+            await using AmbHostedServer scope = server;
+            var handle = (AssetHandle)asset;
+            BaseVariableState health = device.DeviceHealth!;
+            DateTimeUtc originalTimestamp = health.Timestamp;
+            DateTimeUtc archivedTimestamp = DateTime.UtcNow.AddDays(-1);
+            if (restore)
+            {
+                storage.Register(health.NodeId);
+                using var operation = new OperationContext(
+                    new RequestHeader(), null, RequestType.HistoryUpdate, RequestLifetime.None);
+                await storage.InsertAsync(
+                    new HistorianOperationContext(
+                        (ServerSystemContext)handle.Context, operation, health, HistoryUpdateType.Insert),
+                    health.NodeId,
+                    [new DataValue(health.WrappedValue, StatusCodes.Good, archivedTimestamp)],
+                    CancellationToken.None).ConfigureAwait(false);
+                if (outcome == "cancel")
+                {
+                    await HistoricalDataConfigurationInstaller.EnsureInstalledAsync(
+                        handle.Context, health, provider.Object).ConfigureAwait(false);
+                }
+            }
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var allowed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var returned = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            using var cancellation = new CancellationTokenSource();
+            var failure = new InvalidOperationException("Health notification failed.");
+            CancellationToken observedToken = default;
+            health.OnStateChangedAsync = async (_, _, _, ct) =>
+            {
+                observedToken = ct;
+                entered.TrySetResult(true);
+                using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, deadline.Token);
+                await allowed.Task.WaitAsync(linked.Token).ConfigureAwait(false);
+                ct.ThrowIfCancellationRequested();
+                if (outcome == "fault")
+                {
+                    throw failure;
+                }
+            };
+            Task<AssetHistoryBinding?> creation = Task.Run(async () =>
+            {
+                ValueTask<AssetHistoryBinding?> pending = AssetHistoryBinding.CreateAsync(
+                    handle, server.Server,
+                    new AssetHistoryOptions(provider.Object, AssetHistoryKinds.DeviceHealth), cancellation.Token);
+                returned.TrySetResult(true);
+                return await pending.ConfigureAwait(false);
+            });
+            bool gatesObserved = false;
+            try
+            {
+                await entered.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
+                await returned.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
+                Assert.That(creation.IsCompleted, Is.False, "CreateAsync must return before the sink is released.");
+                Assert.That(observedToken, Is.EqualTo(CancellationToken.None));
+                Assert.That(health.Timestamp, Is.EqualTo(restore ? archivedTimestamp : originalTimestamp));
+                if (outcome == "cancel")
+                {
+                    cancellation.Cancel();
+                }
+                gatesObserved = true;
+            }
+            finally
+            {
+                allowed.TrySetResult(true);
+                if (!gatesObserved)
+                {
+                    health.OnStateChangedAsync = null;
+                    await using AssetHistoryBinding? abandoned =
+                        await creation.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
+            }
+            try
+            {
+                if (outcome != "fault")
+                {
+                    await using AssetHistoryBinding binding =
+                        (await creation.WaitAsync(deadline.Token).ConfigureAwait(false))!;
+                    Assert.That(binding.Kinds, Is.EqualTo(AssetHistoryKinds.DeviceHealth));
+                    Assert.That(health.Historizing, Is.True);
+                    using var operation = new OperationContext(
+                        new RequestHeader(), null, RequestType.HistoryRead, RequestLifetime.None);
+                    await WaitForAsync(async () =>
+                    {
+                        HistorianPage<HistoricalDataValue> page = await storage.ReadRawAsync(
+                            new HistorianOperationContext(
+                                (ServerSystemContext)handle.Context, operation, health, HistoryUpdateType.Insert),
+                            new HistorianRawReadRequest
+                            {
+                                NodeId = health.NodeId,
+                                StartTime = DateTimeUtc.MinValue,
+                                EndTime = DateTimeUtc.MaxValue,
+                                MaxValues = 10,
+                                PageLimit = 10
+                            },
+                            default, CancellationToken.None).ConfigureAwait(false);
+                        return page.Values.Count == 1 &&
+                            page.Values[0].Value.SourceTimestamp == (restore ? archivedTimestamp : originalTimestamp);
+                    }).ConfigureAwait(false);
+                }
+                else
+                {
+                    Exception? error = await Assert.CatchAsync<Exception>(
+                        async () => await creation.WaitAsync(deadline.Token).ConfigureAwait(false));
+                    if (outcome == "fault")
+                    {
+                        Assert.That(error, Is.SameAs(failure));
+                    }
+                    Assert.That(health.Timestamp, Is.EqualTo(originalTimestamp));
+                    Assert.That(health.Historizing, Is.False);
+                    Assert.That(
+                        ((IHistorianRegistryProvider)server.Server).HistorianRegistry.Resolve(health.NodeId), Is.Null);
+                    Assert.That(
+                        health.FindChild(handle.Context, new QualifiedName(Ua.BrowseNames.HAConfiguration)), Is.Null);
+                }
+            }
+            finally
+            {
+                health.OnStateChangedAsync = null;
+            }
+        }
+
+        /// <summary>
+        /// Orders awaited condition and event dispatch while preserving capture snapshots and rollback.
+        /// </summary>
+        [TestCase("success")]
+        [TestCase("cancel")]
+        [TestCase("fault")]
+        [TestCase("state-cancel")]
+        [TestCase("state-fault")]
+        public async Task HistoryInitializationAwaitsConditionThenEventSinksAsync(string outcome)
+        {
+            using var provider = new InMemoryHistorianProvider();
+            (AmbHostedServer server, IAssetHandle asset, _) =
+                await HealthAlarmTests.StartWithSensorAsync(
+                    nameof(HistoryInitializationAwaitsConditionThenEventSinksAsync),
+                    builder => builder.WithDeviceHealth().WithHealthAlarm(
+                        "Failure", AssetHealthAlarmKind.Failure, AmbConditionClass.ConnectionFailure))
+                    .ConfigureAwait(false);
+            await using AmbHostedServer scope = server;
+            var handle = (AssetHandle)asset;
+            Assert.That(asset.Health!.TryGetAlarm("Failure", out IAssetHealthAlarm? healthAlarm), Is.True);
+            AlarmConditionState condition = await server.FindNodeAsync<AlarmConditionState>(healthAlarm!.NodeId)
+                .ConfigureAwait(false);
+            var stateEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var stateAllowed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var eventEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var eventAllowed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var returned = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            using var cancellation = new CancellationTokenSource();
+            var failure = new InvalidOperationException("Event notification failed.");
+            condition.EventId!.OnStateChangedAsync = async (_, _, _, ct) =>
+            {
+                Assert.That(ct, Is.EqualTo(CancellationToken.None));
+                stateEntered.TrySetResult(true);
+                using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, deadline.Token);
+                await stateAllowed.Task.WaitAsync(linked.Token).ConfigureAwait(false);
+                ct.ThrowIfCancellationRequested();
+                if (outcome == "state-fault")
+                {
+                    throw failure;
+                }
+                condition.Message!.Value = new LocalizedText("after-awaited-state");
+            };
+            condition.OnReportEventAsync = async (_, _, _, ct) =>
+            {
+                Assert.That(ct, Is.EqualTo(CancellationToken.None));
+                eventEntered.TrySetResult(true);
+                using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, deadline.Token);
+                await eventAllowed.Task.WaitAsync(linked.Token).ConfigureAwait(false);
+                ct.ThrowIfCancellationRequested();
+                if (outcome == "fault")
+                {
+                    throw failure;
+                }
+                condition.Message!.Value = new LocalizedText("changed-after-snapshot");
+            };
+            Task<AssetHistoryBinding?> creation = Task.Run(async () =>
+            {
+                ValueTask<AssetHistoryBinding?> pending = AssetHistoryBinding.CreateAsync(
+                    handle, server.Server, new AssetHistoryOptions(provider, AssetHistoryKinds.HealthEvents),
+                    cancellation.Token);
+                returned.TrySetResult(true);
+                return await pending.ConfigureAwait(false);
+            });
+            bool gatesObserved = false;
+            try
+            {
+                await stateEntered.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
+                await returned.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
+                Assert.That(creation.IsCompleted, Is.False);
+                Assert.That(eventEntered.Task.IsCompleted, Is.False, "Snapshot reporting must follow state dispatch.");
+                if (outcome == "state-cancel")
+                {
+                    cancellation.Cancel();
+                }
+                stateAllowed.TrySetResult(true);
+                if (outcome != "state-fault")
+                {
+                    await eventEntered.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
+                    Assert.That(creation.IsCompleted, Is.False, "The event sink must also be awaited.");
+                    if (outcome == "cancel")
+                    {
+                        cancellation.Cancel();
+                    }
+                }
+                gatesObserved = true;
+            }
+            finally
+            {
+                stateAllowed.TrySetResult(true);
+                eventAllowed.TrySetResult(true);
+                if (!gatesObserved)
+                {
+                    condition.EventId.OnStateChangedAsync = null;
+                    condition.OnReportEventAsync = null;
+                    await using AssetHistoryBinding? abandoned =
+                        await creation.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
+            }
+            try
+            {
+                if (!outcome.EndsWith("fault", StringComparison.Ordinal))
+                {
+                    await using AssetHistoryBinding binding =
+                        (await creation.WaitAsync(deadline.Token).ConfigureAwait(false))!;
+                    await WaitForCapturedMessageAsync(provider, handle, "after-awaited-state").ConfigureAwait(false);
+                    Assert.That(binding.Kinds, Is.EqualTo(AssetHistoryKinds.HealthEvents));
+                }
+                else
+                {
+                    Exception? error = await Assert.CatchAsync<Exception>(
+                        async () => await creation.WaitAsync(deadline.Token).ConfigureAwait(false));
+                    if (outcome.EndsWith("fault", StringComparison.Ordinal))
+                    {
+                        Assert.That(error, Is.SameAs(failure));
+                    }
+                    Assert.That(handle.Asset.EventNotifier & EventNotifiers.HistoryRead, Is.Zero);
+                    Assert.That(
+                        ((IHistorianRegistryProvider)server.Server).HistorianRegistry.Resolve(handle.NodeId), Is.Null);
+                    Assert.That(
+                        handle.Asset.FindChild(handle.Context, new QualifiedName(Ua.BrowseNames.HAConfiguration)),
+                        Is.Null);
+                    if (outcome.StartsWith("state-", StringComparison.Ordinal))
+                    {
+                        Assert.That(eventEntered.Task.IsCompleted, Is.False);
+                    }
+                }
+            }
+            finally
+            {
+                condition.EventId.OnStateChangedAsync = null;
+                condition.OnReportEventAsync = null;
+            }
+        }
+
+        /// <summary>
+        /// Leaves a disabled condition untouched without dispatching an event.
+        /// </summary>
+        [Test]
+        public async Task AsyncInitialEventLeavesDisabledConditionsUnchangedAsync()
+        {
+            (AmbHostedServer server, IAssetHandle asset, _) =
+                await HealthAlarmTests.StartWithSensorAsync(
+                    nameof(AsyncInitialEventLeavesDisabledConditionsUnchangedAsync),
+                    builder => builder.WithDeviceHealth().WithHealthAlarm(
+                        "Failure", AssetHealthAlarmKind.Failure, AmbConditionClass.ConnectionFailure))
+                    .ConfigureAwait(false);
+            await using AmbHostedServer scope = server;
+            Assert.That(asset.Health!.TryGetAlarm("Failure", out IAssetHealthAlarm? healthAlarm), Is.True);
+            AlarmConditionState condition = await server.FindNodeAsync<AlarmConditionState>(healthAlarm!.NodeId)
+                .ConfigureAwait(false);
+            condition.EnabledState!.Id!.Value = false;
+            ByteString eventId = condition.EventId!.Value;
+            DateTimeUtc timestamp = condition.Time!.Value;
+            int reports = 0;
+            condition.OnReportEventAsync = (_, _, _, _) =>
+            {
+                reports++;
+                return default;
+            };
+            try
+            {
+                await AssetNodes.ReportEventAsync(((AssetHandle)asset).Context, condition)
+                    .ConfigureAwait(false);
+                Assert.That(reports, Is.Zero);
+                Assert.That(condition.EventId.Value, Is.EqualTo(eventId));
+                Assert.That(condition.Time.Value, Is.EqualTo(timestamp));
+            }
+            finally
+            {
+                condition.OnReportEventAsync = null;
+            }
+        }
+
+        /// <summary>
+        /// Dispatches synchronous and asynchronous owner customizations through their respective virtual methods.
+        /// </summary>
+        [Test]
+        public async Task InitialEventDispatchUsesTheMatchingConditionOverrideAsync()
+        {
+            (AmbHostedServer server, IAssetHandle asset, _) =
+                await HealthAlarmTests.StartWithSensorAsync(
+                    nameof(InitialEventDispatchUsesTheMatchingConditionOverrideAsync),
+                    builder => builder.WithDeviceHealth().WithHealthAlarm(
+                        "Failure", AssetHealthAlarmKind.Failure, AmbConditionClass.ConnectionFailure))
+                    .ConfigureAwait(false);
+            await using AmbHostedServer scope = server;
+            var handle = (AssetHandle)asset;
+            Assert.That(asset.Health!.TryGetAlarm("Failure", out IAssetHealthAlarm? healthAlarm), Is.True);
+            AlarmConditionState template = await server.FindNodeAsync<AlarmConditionState>(healthAlarm!.NodeId)
+                .ConfigureAwait(false);
+            var custom = new Mock<ConditionState>(handle.Asset) { CallBase = true };
+            ConditionState condition = custom.Object;
+            condition.EnabledState = template.EnabledState;
+            condition.EventId = template.EventId;
+            condition.Time = template.Time;
+            condition.ReceiveTime = template.ReceiveTime;
+            condition.TypeDefinitionId = template.TypeDefinitionId;
+            handle.Asset.AddChild(condition);
+            int synchronousReports = 0;
+            int asynchronousReports = 0;
+            custom.Setup(value => value.ReportEvent(It.IsAny<ISystemContext>(), It.IsAny<IFilterTarget>()))
+                .Callback(() => synchronousReports++);
+            var children = new List<BaseInstanceState>();
+            handle.Asset.GetChildren(handle.Context, children);
+            Assert.That(children, Does.Contain(condition), "History selection admits owner-provided conditions.");
+            try
+            {
+                AssetNodes.ReportEvent(handle.Context, condition);
+                Assert.That(synchronousReports, Is.EqualTo(1));
+                await AssetNodes.ReportEventAsync(handle.Context, condition).ConfigureAwait(false);
+                Assert.That(synchronousReports, Is.EqualTo(1),
+                    "The async virtual does not dispatch through a synchronous-only override.");
+                custom.Setup(value => value.ReportEventAsync(
+                        It.IsAny<ISystemContext>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
+                    .Returns(() =>
+                    {
+                        asynchronousReports++;
+                        return default(ValueTask);
+                    });
+                await AssetNodes.ReportEventAsync(handle.Context, condition).ConfigureAwait(false);
+                Assert.That(asynchronousReports, Is.EqualTo(1));
+                Assert.That(synchronousReports, Is.EqualTo(1));
+                AssetNodes.ReportEvent(handle.Context, condition);
+                Assert.That(synchronousReports, Is.EqualTo(2));
+                Assert.That(asynchronousReports, Is.EqualTo(1));
+            }
+            finally
+            {
+                handle.Asset.RemoveChild(condition);
+            }
+        }
+
         [Test]
         public async Task RestartKeepsTheArchivedStateEntryTimestampWithStableNodeIdsAsync()
         {
