@@ -200,10 +200,10 @@ namespace Opc.Ua.ECM.Server
             {
                 EcmMeasurementKind.Float => value.TryGetValue(out float _),
                 EcmMeasurementKind.Double => value.TryGetValue(out double _),
-                EcmMeasurementKind.AcPe => value.TryGetStructure<AcPeDataType>(out AcPeDataType phases) &&
-                    phases.GetType() == typeof(AcPeDataType),
-                _ => value.TryGetStructure<AcPpDataType>(out AcPpDataType lines) &&
-                    lines.GetType() == typeof(AcPpDataType)
+                EcmMeasurementKind.AcPe => value.TryGetStructure<AcPeDataType>(out AcPeDataType? phases) &&
+                    phases is not null && phases.GetType() == typeof(AcPeDataType),
+                _ => value.TryGetStructure<AcPpDataType>(out AcPpDataType? lines) &&
+                    lines is not null && lines.GetType() == typeof(AcPpDataType)
             };
         }
 

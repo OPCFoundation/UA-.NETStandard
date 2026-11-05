@@ -282,7 +282,7 @@ namespace Opc.Ua.ECM.Server
             Dictionary<string, EcmMeasurementReading> readings,
             CancellationToken cancellationToken)
         {
-            IReadOnlyList<EcmProfileDefinition> declaredProfiles = EcmMeasurementProfiles.Declared(readings.Keys);
+            List<EcmProfileDefinition> declaredProfiles = EcmMeasurementProfiles.Declared(readings.Keys);
             m_profileNames = new string[declaredProfiles.Count];
             for (int ii = 0; ii < declaredProfiles.Count; ii++)
             {

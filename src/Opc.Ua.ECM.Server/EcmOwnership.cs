@@ -129,7 +129,7 @@ namespace Opc.Ua.ECM.Server
             {
                 return value;
             }
-            if (value.TryGetStructure<AcPeDataType>(out AcPeDataType phases))
+            if (value.TryGetStructure<AcPeDataType>(out AcPeDataType? phases) && phases is not null)
             {
                 if (phases.GetType() != typeof(AcPeDataType))
                 {
@@ -137,7 +137,7 @@ namespace Opc.Ua.ECM.Server
                 }
                 return Variant.FromStructure(new AcPeDataType { L1 = phases.L1, L2 = phases.L2, L3 = phases.L3 });
             }
-            if (value.TryGetStructure<AcPpDataType>(out AcPpDataType lines))
+            if (value.TryGetStructure<AcPpDataType>(out AcPpDataType? lines) && lines is not null)
             {
                 if (lines.GetType() != typeof(AcPpDataType))
                 {
