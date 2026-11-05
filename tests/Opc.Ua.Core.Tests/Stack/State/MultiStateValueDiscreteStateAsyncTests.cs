@@ -453,20 +453,22 @@ namespace Opc.Ua.Core.Tests.Stack.State
         }
 
         /// <summary>
-        /// Suppressed writes derive metadata from the provider's committed cache rather than the request.
+        /// Suppressed writes retain the metadata published by the handler rather than the requested row.
         /// </summary>
         [Test]
-        public async Task AsyncSuppressedCacheUsesAuthoritativeAcquiredEnum()
+        public async Task AsyncSuppressedCachePreservesAuthoritativePublishedEnum()
         {
             MultiStateValueDiscreteState node = CreateNode(s_states);
             BaseDataVariableState entries = AddDictionary(node);
-            node.OnSimpleWriteValueAsync = (_, _, _, _) =>
+            node.OnSimpleWriteValueAsync = async (_, _, _, _) =>
             {
-                node.WrappedValue = Variant.From(8u);
-                return new ValueTask<AttributeWriteResult>(new AttributeWriteResult(ServiceResult.Good)
+                ServiceResult published = await node.UpdateEnumValueAsync(
+                    m_context, new DataValue(Variant.From(8u)));
+                Assert.That(ServiceResult.IsGood(published), Is.True);
+                return new AttributeWriteResult(ServiceResult.Good)
                 {
                     SuppressCacheUpdate = true
-                });
+                };
             };
             ServiceResult result = await node.WriteAttributeAsync(
                 m_context, Attributes.Value, NumericRange.Null, new DataValue(Variant.From(4u)));
@@ -481,10 +483,10 @@ namespace Opc.Ua.Core.Tests.Stack.State
         }
 
         /// <summary>
-        /// A provider cannot report a successful suppressed write with a good-quality null cache.
+        /// A suppressed write does not revalidate the handler-owned cache or replace its derived values.
         /// </summary>
         [Test]
-        public async Task AsyncSuppressedGoodNullCacheIsRejectedWithoutReplacingDerivedValues()
+        public async Task AsyncSuppressedWriteDoesNotRevalidatePublisherOwnedNullCache()
         {
             MultiStateValueDiscreteState node = CreateNode(s_states);
             BaseDataVariableState entries = AddDictionary(node);
@@ -503,7 +505,9 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             Assert.Multiple(() =>
             {
-                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                Assert.That(node.WrappedValue.IsNull, Is.True);
+                Assert.That(node.StatusCode, Is.EqualTo(StatusCodes.Good));
                 Assert.That(node.ValueAsText!.Value.Text, Is.EqualTo("initial"));
                 Assert.That(entries.WrappedValue, Is.EqualTo(
                     Variant.From((ArrayOf<NodeId>)[new NodeId("initial", 0), new NodeId("initial", 0)])));

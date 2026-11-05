@@ -140,7 +140,6 @@ namespace Opc.Ua.PADIM.Server
                 }
                 await alarm.ClearChangeMasksAsync(Context, includeChildren: true, CancellationToken.None)
                     .ConfigureAwait(false);
-                pending[ii] = false;
                 if (alarm.EnabledState!.Id!.Value)
                 {
                     var snapshot = new InstanceStateSnapshot();
@@ -148,6 +147,7 @@ namespace Opc.Ua.PADIM.Server
                     events.Add((alarm, snapshot));
                 }
             }
+            Array.Clear(pending, 0, pending.Length);
             foreach ((AlarmConditionState alarm, InstanceStateSnapshot snapshot) in events)
             {
                 await alarm.ReportEventAsync(Context, snapshot, cancellationToken).ConfigureAwait(false);

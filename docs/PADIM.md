@@ -216,12 +216,18 @@ cancellation before reporting prevents event-sink entry without reverting the
 published value or completed health updates. Notification errors propagate and
 do not roll back mutations that have already occurred. The next refresh retries
 incomplete alarm attributes and retained notification masks even if the category
-and quality are unchanged. Fully published unchanged samples do not emit another
-event; interrupted event delivery is not automatically replayed by acquisition.
+and quality are unchanged. If a later alarm's notification fails, the retry also
+captures the earlier alarms whose event snapshots were not yet reported.
+The pending markers clear only after the entire mutation and snapshot pass
+completes. Fully published unchanged samples do not emit another event;
+interrupted event delivery is not automatically replayed by acquisition.
 
 ## Simulation, damping and configuration
 
-Writes require both `IPadimWriteProvider` and `IPadimAuthorizer`. The authorizer
+Binding a device disables generated cache writes throughout its existing
+subtree, including nameplate parameters such as `AssetId`. Remote writes require
+an explicit provider-backed binding with both `IPadimWriteProvider` and
+`IPadimAuthorizer`; other device variables remain read-only. The authorizer
 receives the calling session context, target NodeId and stable provider key.
 When authorization is denied, the server returns `BadUserAccessDenied` without
 calling the write provider. A provider rejection leaves the published value

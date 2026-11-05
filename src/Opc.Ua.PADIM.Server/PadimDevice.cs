@@ -67,6 +67,7 @@ namespace Opc.Ua.PADIM.Server
             {
                 s_handles.Add(State, this);
                 added = true;
+                DisableUnboundWrites(State);
                 PrimeAcquisition(State.DeviceHealth!);
                 Manager.RegisterResource(this);
                 Manager.RegisterConformanceContributor(this);

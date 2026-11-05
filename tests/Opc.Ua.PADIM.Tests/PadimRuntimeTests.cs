@@ -115,6 +115,78 @@ namespace Opc.Ua.PADIM.Tests
         }
 
         /// <summary>
+        /// Disables generated cache writes for each device family until an authorized provider is bound.
+        /// </summary>
+        [Test]
+        public async Task DeviceInitializationRequiresAuthorizedBindingsForWrites(
+            [Values] PadimDeviceKind kind,
+            [Values] bool direct,
+            [Values] bool allowed)
+        {
+            var builder = await m_manager.CreatePadimDeviceAsync(
+                Name($"UnboundWrites{kind}{direct}{allowed}"), kind);
+            PadimDevice device = direct
+                ? new PadimDevice(m_manager, builder.Device)
+                : builder.BindPadim();
+            var nodes = new Queue<NodeState>();
+            nodes.Enqueue(device.State);
+            while (nodes.Count != 0)
+            {
+                NodeState node = nodes.Dequeue();
+                if (node is BaseVariableState variable)
+                {
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(variable.AccessLevel & AccessLevels.CurrentWrite,
+                            Is.Zero, variable.BrowseName.Name);
+                        Assert.That(variable.UserAccessLevel & AccessLevels.CurrentWrite,
+                            Is.Zero, variable.BrowseName.Name);
+                    });
+                }
+                var children = new List<BaseInstanceState>();
+                node.GetChildren(device.Context, children);
+                foreach (BaseInstanceState child in children)
+                {
+                    nodes.Enqueue(child);
+                }
+            }
+            var asset = device.State.AssetId!;
+            asset.Value = "original";
+            var requested = new DataValue(Variant.From("updated"));
+            ServiceResult unbound = await asset.WriteAttributeAsync(
+                device.Context, Attributes.Value, NumericRange.Null, requested);
+            Assert.Multiple(() =>
+            {
+                Assert.That(unbound.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
+                Assert.That(asset.Value, Is.EqualTo("original"));
+            });
+            var writer = new Mock<IPadimWriteProvider>(MockBehavior.Strict);
+            var authorizer = new Mock<IPadimAuthorizer>(MockBehavior.Strict);
+            authorizer.Setup(p => p.AuthorizeAsync(
+                device.Context, asset.NodeId, "asset", It.IsAny<CancellationToken>())).ReturnsAsync(allowed);
+            if (allowed)
+            {
+                writer.Setup(p => p.WriteAsync("asset", requested.WrappedValue, It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(StatusCodes.Good);
+            }
+            device.BindValue(asset, "asset", new Mock<IPadimValueProvider>(MockBehavior.Strict).Object)
+                .WithWrites(writer.Object, authorizer.Object);
+
+            ServiceResult bound = await asset.WriteAttributeAsync(
+                device.Context, Attributes.Value, NumericRange.Null, requested);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(bound.StatusCode, Is.EqualTo(allowed ? StatusCodes.Good : StatusCodes.BadUserAccessDenied));
+                Assert.That(asset.Value, Is.EqualTo(allowed ? "updated" : "original"));
+                Assert.That(device.State.SerialNumber!.AccessLevel & AccessLevels.CurrentWrite, Is.Zero);
+            });
+            authorizer.VerifyAll();
+            writer.VerifyAll();
+            writer.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
         /// Checks signal identity, acquisition defaults and the declared wire type for every family.
         /// </summary>
         [Test]
@@ -410,6 +482,13 @@ namespace Opc.Ua.PADIM.Tests
                 new EnumValueType { Value = 1, DisplayName = new LocalizedText("Stopped") },
                 new EnumValueType { Value = 2, DisplayName = new LocalizedText("Running") }
             ];
+            var dictionary = (BaseVariableState)value.FindChild(
+                device.Context, new QualifiedName(Opc.Ua.BrowseNames.EnumDictionaryEntries))!;
+            dictionary.WrappedValue = Variant.From((MatrixOf<NodeId>)new NodeId[,]
+            {
+                { new("stopped-entry", m_manager.InstanceNamespaceIndex) },
+                { new("running-entry", m_manager.InstanceNamespaceIndex) }
+            });
             var sample = new DataValue(Variant.From(2u), StatusCodes.Good);
             var provider = new Mock<IPadimValueProvider>(MockBehavior.Strict);
             provider.Setup(p => p.ReadAsync("mode", It.IsAny<CancellationToken>())).ReturnsAsync(sample);
@@ -812,6 +891,82 @@ namespace Opc.Ua.PADIM.Tests
             await AwaitWithinAsync(binding.RefreshAsync().AsTask());
             Assert.That(reports, Is.EqualTo(1), "A fully published unchanged sample must not emit another event.");
             provider.Verify(p => p.ReadAsync("health", It.IsAny<CancellationToken>()), Times.Exactly(3));
+        }
+
+        /// <summary>
+        /// Retries an earlier alarm's event when a later alarm interrupts the notification pass.
+        /// </summary>
+        [TestCase("acknowledged")]
+        [TestCase("active")]
+        [TestCase("severity")]
+        public async Task HealthRefreshRetriesEarlierEventsAfterLaterAlarmNotificationFailure(string failingMember)
+        {
+            PadimDevice device = await CreateDeviceAsync($"HealthLaterFailure{failingMember}");
+            var provider = new Mock<IPadimValueProvider>(MockBehavior.Strict);
+            provider.SetupSequence(p => p.ReadAsync("health", It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new DataValue(Variant.From(1), StatusCodes.Good))
+                .ReturnsAsync(new DataValue(Variant.From(3), StatusCodes.Good))
+                .ReturnsAsync(new DataValue(Variant.From(3), StatusCodes.Good))
+                .ReturnsAsync(new DataValue(Variant.From(3), StatusCodes.Good));
+            PadimValueBinding binding = device.WithHealthAlarms("health", provider.Object);
+            await device.RegisterAsync();
+            await AwaitWithinAsync(binding.RefreshAsync().AsTask());
+            var children = new List<BaseInstanceState>();
+            device.State.GetChildren(device.Context, children);
+            AlarmConditionState[] alarms = children.OfType<AlarmConditionState>().ToArray();
+            AlarmConditionState failure = alarms.Single(alarm => alarm.BrowseName.Name == "Failure");
+            AlarmConditionState offSpec = alarms.Single(alarm => alarm.BrowseName.Name == "OffSpec");
+            NodeState failingNode = failingMember switch
+            {
+                "acknowledged" => offSpec.AckedState!.Id!,
+                "active" => offSpec.ActiveState!.Id!,
+                _ => offSpec.Severity!
+            };
+            int attempts = 0;
+            failingNode.OnStateChangedAsync = (_, _, _, _) =>
+            {
+                if (++attempts == 1)
+                {
+                    throw new InvalidOperationException("Later alarm notification failed.");
+                }
+                return default;
+            };
+            var reports = new List<string>();
+            foreach (AlarmConditionState alarm in alarms)
+            {
+                alarm.OnReportEventAsync = (_, _, snapshot, _) =>
+                {
+                    Variant active = snapshot.GetAttributeValue(
+                        null!, NodeId.Null,
+                        [new QualifiedName(Opc.Ua.BrowseNames.ActiveState), new QualifiedName(Opc.Ua.BrowseNames.Id)],
+                        Attributes.Value, NumericRange.Null);
+                    Assert.That(active, Is.EqualTo(Variant.From(ReferenceEquals(alarm, offSpec))));
+                    reports.Add(alarm.BrowseName.Name!);
+                    return default;
+                };
+            }
+
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await AwaitWithinAsync(binding.RefreshAsync().AsTask()));
+            Assert.Multiple(() =>
+            {
+                Assert.That(failure.ActiveState!.Id!.Value, Is.False);
+                Assert.That(reports, Is.Empty, "No snapshot is reported before the mutation pass completes.");
+            });
+
+            await AwaitWithinAsync(binding.RefreshAsync().AsTask());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(string.Join(",", reports), Is.EqualTo("Failure,OffSpec"));
+                Assert.That(failure.ActiveState!.Id!.Value, Is.False);
+                Assert.That(offSpec.ActiveState!.Id!.Value, Is.True);
+                Assert.That(offSpec.Severity!.Value, Is.EqualTo((ushort)EventSeverity.High));
+                Assert.That(attempts, Is.EqualTo(2));
+            });
+            await AwaitWithinAsync(binding.RefreshAsync().AsTask());
+            Assert.That(reports.Count, Is.EqualTo(2), "The successful retry completes both pending events.");
+            provider.Verify(p => p.ReadAsync("health", It.IsAny<CancellationToken>()), Times.Exactly(4));
         }
 
         /// <summary>
