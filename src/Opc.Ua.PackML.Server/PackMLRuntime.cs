@@ -127,6 +127,10 @@ namespace Opc.Ua.PackML.Server
                 .ConfigureAwait(false);
             try
             {
+                lock (m_unitsLock)
+                {
+                    m_pendingUnits.Add(unit);
+                }
                 await m_manager.AddPredefinedNodeAsync(unit.ModeDataType, cancellationToken).ConfigureAwait(false);
                 await m_manager.Server.NodeManager.AddReferencesAsync(
                     Ua.DataTypeIds.Enumeration,
@@ -169,6 +173,7 @@ namespace Opc.Ua.PackML.Server
                 lock (m_unitsLock)
                 {
                     m_units.Add(unit);
+                    m_pendingUnits.Remove(unit);
                 }
                 return unit;
             }
@@ -211,6 +216,13 @@ namespace Opc.Ua.PackML.Server
                 }
                 throw;
             }
+            finally
+            {
+                lock (m_unitsLock)
+                {
+                    m_pendingUnits.Remove(unit);
+                }
+            }
         }
 
         /// <summary>
@@ -220,10 +232,16 @@ namespace Opc.Ua.PackML.Server
         public ValueTask DisposeAsync()
         {
             m_lifetime.RejectReentry();
-            ArrayOf<PackMLUnit> units = Units;
-            for (int index = 0; index < units.Count; index++)
+            lock (m_unitsLock)
             {
-                units[index].RejectShutdownReentry();
+                foreach (PackMLUnit unit in m_units)
+                {
+                    unit.RejectShutdownReentry();
+                }
+                foreach (PackMLUnit unit in m_pendingUnits)
+                {
+                    unit.RejectShutdownReentry();
+                }
             }
             return PackMLLifetime.CompleteShutdownAsync(DisposeCompositionAsync, DisposeUnitsAsync);
         }
@@ -265,11 +283,14 @@ namespace Opc.Ua.PackML.Server
         /// <summary>The borrowed address-space owner.</summary>
         private readonly AsyncCustomNodeManager m_manager;
 
-        /// <summary>Protects the committed-unit list.</summary>
+        /// <summary>Protects the committed and pending unit lists.</summary>
         private readonly System.Threading.Lock m_unitsLock = new();
 
         /// <summary>The committed units in creation order.</summary>
         private readonly List<PackMLUnit> m_units = [];
+
+        /// <summary>Units being published or rolled back.</summary>
+        private readonly List<PackMLUnit> m_pendingUnits = [];
 
         /// <summary>Serializes composition and drains it during shutdown.</summary>
         private readonly PackMLLifetime m_lifetime = new();

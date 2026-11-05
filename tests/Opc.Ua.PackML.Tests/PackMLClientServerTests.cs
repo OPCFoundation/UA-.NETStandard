@@ -984,6 +984,68 @@ namespace Opc.Ua.PackML.Tests
         }
 
         [Test]
+        public async Task RuntimeDisposeFromPendingUnitCallbackLeavesAdmissionOpen()
+        {
+            var parent = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("PendingDispose", m_manager.InstanceNamespaceIndex),
+                BrowseName = new QualifiedName("PendingDispose", m_manager.InstanceNamespaceIndex),
+                DisplayName = new LocalizedText("PendingDispose"),
+                TypeDefinitionId = Ua.ObjectTypeIds.BaseObjectType
+            };
+            await m_manager.AddPredefinedNodeAsync(parent);
+            var parentEntered = PackMLTestSupport.Signal();
+            var parentRelease = PackMLTestSupport.Signal();
+            parent.OnStateChangedAsync = async (_, _, _, _) =>
+            {
+                parentEntered.TrySetResult(true);
+                await parentRelease.Task.ConfigureAwait(false);
+            };
+            InvalidOperationException? rejection = null;
+            var provider = new EquipmentProvider
+            {
+                Execute = async (_, token) =>
+                {
+                    rejection = await Assert.ThrowsAsync<InvalidOperationException>(
+                        async () => await m_manager.Runtime.DisposeAsync().AsTask()
+                            .WaitAsync(TimeSpan.FromSeconds(30), CancellationToken.None));
+                    Assert.That(token.IsCancellationRequested, Is.False);
+                    return ServiceResult.Good;
+                }
+            };
+            Task<Unit> adding = m_manager.Runtime.AddUnitAsync(
+                new QualifiedName("PendingUnit", m_manager.InstanceNamespaceIndex), provider, parent: parent).AsTask();
+            try
+            {
+                await parentEntered.Task.WaitAsync(TimeSpan.FromSeconds(30));
+                var children = new List<BaseInstanceState>();
+                parent.GetChildren(m_manager.SystemContext, children);
+                PackMLBaseObjectState pending = children.OfType<PackMLBaseObjectState>().Single();
+                Assert.That(m_manager.Runtime.Units.ToList().Exists(unit => ReferenceEquals(unit.Node, pending)),
+                    Is.False);
+                ServiceResult result = await pending.SetMachSpeed.Required().CallAsync(
+                    m_manager.SystemContext, pending.NodeId, new[] { Variant.From(10f) }.ToArrayOf(),
+                    new List<ServiceResult>(), new List<Variant>()).AsTask().WaitAsync(TimeSpan.FromSeconds(30));
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                Assert.That(adding.IsCompleted, Is.False);
+            }
+            finally
+            {
+                parentRelease.TrySetResult(true);
+                parent.OnStateChangedAsync = null;
+            }
+
+            Unit added = await adding.WaitAsync(TimeSpan.FromSeconds(30));
+            Assert.That(rejection, Is.Not.Null);
+            Assert.That(m_manager.Runtime.Units.ToList(), Does.Contain(added));
+            var request = new PackMLRequest { Operation = PackMLOperation.SetMachSpeed, MachineSpeed = 5 };
+            Assert.That(ServiceResult.IsGood(await m_unit.RequestAsync(m_manager.SystemContext, request)), Is.True);
+            Unit next = await m_manager.Runtime.AddUnitAsync(
+                new QualifiedName("AfterPendingDispose", m_manager.InstanceNamespaceIndex), new EquipmentProvider());
+            Assert.That(m_manager.Runtime.Units.ToList(), Does.Contain(next));
+        }
+
+        [Test]
         public async Task RuntimeAdmitsWireCallsWhileParentNotificationIsPending(
             [Values(true, false)] bool published)
         {

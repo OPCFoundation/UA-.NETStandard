@@ -43,22 +43,6 @@ namespace Opc.Ua.PackML.Tests
         private static void Good(ServiceResult result) =>
             Assert.That(ServiceResult.IsGood(result), Is.True, result.ToString());
 
-        /// <summary>
-        /// Collects every instance below a node.
-        /// </summary>
-        private static List<BaseInstanceState> Descendants(ISystemContext context, NodeState root)
-        {
-            var result = new List<BaseInstanceState>();
-            var children = new List<BaseInstanceState>();
-            root.GetChildren(context, children);
-            foreach (BaseInstanceState child in children)
-            {
-                result.Add(child);
-                result.AddRange(Descendants(context, child));
-            }
-            return result;
-        }
-
         [Test]
         public async Task EveryCommandSeparatesAcceptanceFromCorrelatedCompletion()
         {
@@ -722,28 +706,118 @@ namespace Opc.Ua.PackML.Tests
             int notifications = 0;
             NodeStateChangedAsyncHandler sink = async (_, _, _, cancellationToken) =>
             {
-                if (Interlocked.Increment(ref notifications) == 1)
+                if (unit.CurrentState == PackMLStateNumbers.Resetting &&
+                    Interlocked.Increment(ref notifications) == 1)
                 {
                     entered.TrySetResult(true);
                     // Bounded so that a blocking regression fails instead of hanging.
                     await Task.WhenAny(release.Task, Task.Delay(TimeSpan.FromSeconds(5), cancellationToken));
                 }
             };
-            foreach (BaseInstanceState node in Descendants(context, unit.Node.BaseStateMachine.Required()))
-            {
-                node.OnStateChangedAsync = sink;
-            }
+            unit.Node.BaseStateMachine.Required().MachineState.Required().ExecuteState.Required()
+                .CurrentState.Required().OnStateChangedAsync = sink;
 
             ValueTask<ServiceResult> request = unit.RequestAsync(context, Command(PackMLCommand.Reset));
             bool returnedPending = !request.IsCompleted;
-            await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
-
-            Assert.That(returnedPending, Is.True);
-            Assert.That(unit.CurrentState, Is.EqualTo(PackMLStateNumbers.Resetting));
-            release.TrySetResult(true);
+            try
+            {
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+                Assert.That(returnedPending, Is.True);
+                Assert.That(unit.CurrentState, Is.EqualTo(PackMLStateNumbers.Resetting));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
             Good(await request.AsTask().WaitAsync(TimeSpan.FromSeconds(10)));
             Assert.That(unit.PendingRequestId, Is.EqualTo(provider.Executed[0].RequestId));
             Assert.That(unit.Node.Status.Required().StateChangeInProcess.Required().Value, Is.True);
+        }
+
+        [Test]
+        public async Task AcceptedCommandRetainsCompletionIdentityWhenTransitionNotificationFails()
+        {
+            SystemContext context = PackMLTestSupport.CreateContext();
+            var provider = new EquipmentProvider();
+            var store = new MemoryAdministrationStore();
+            await using Unit unit = await Unit.CreateAsync(
+                context, null, PackMLTestSupport.Name(context), provider,
+                new PackMLUnitOptions { AdministrationStore = store });
+            int previousSaves = store.Saves;
+            var machine = unit.Node.BaseStateMachine.Required().MachineState.Required();
+            machine.SetAreEventsMonitored(context, true, includeChildren: true);
+            var notificationError = new InvalidOperationException("The transition event failed.");
+            machine.OnReportEventAsync = (_, _, _, _) => throw notificationError;
+
+            InvalidOperationException failure = (await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await unit.RequestAsync(context, Command(PackMLCommand.Reset))))!;
+
+            Assert.That(failure, Is.SameAs(notificationError));
+            Assert.That(provider.Executed, Has.Count.EqualTo(1));
+            Assert.That(unit.CurrentState, Is.EqualTo(PackMLStateNumbers.Resetting));
+            Assert.That(unit.PendingRequestId, Is.EqualTo(provider.Executed[0].RequestId));
+            Assert.That(unit.Node.Status.Required().StateChangeInProcess.Required().Value, Is.True);
+            Assert.That(store.Saves, Is.EqualTo(previousSaves + 1));
+            machine.OnReportEventAsync = null;
+            Good(await unit.CompleteActingStateAsync(unit.PendingRequestId, PackMLStateNumbers.Resetting));
+            Assert.That(unit.PendingRequestId, Is.Zero);
+            Assert.That(unit.CurrentState, Is.EqualTo(PackMLStateNumbers.Idle));
+            Assert.That(provider.Executed, Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        public async Task CommittedCompletionPublishesFinalStatusWhenTransitionNotificationFails()
+        {
+            SystemContext context = PackMLTestSupport.CreateContext();
+            var provider = new EquipmentProvider();
+            var store = new MemoryAdministrationStore();
+            await using Unit unit = await Unit.CreateAsync(
+                context, null, PackMLTestSupport.Name(context), provider,
+                new PackMLUnitOptions { AdministrationStore = store });
+            Good(await unit.RequestAsync(context, Command(PackMLCommand.Reset)));
+            long requestId = unit.PendingRequestId;
+            int previousSaves = store.Saves;
+            var execute = unit.Node.BaseStateMachine.Required().MachineState.Required().ExecuteState.Required();
+            execute.SetAreEventsMonitored(context, true, includeChildren: true);
+            var notificationError = new InvalidOperationException("The transition event failed.");
+            execute.OnReportEventAsync = (_, _, _, _) => throw notificationError;
+
+            InvalidOperationException failure = (await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await unit.CompleteActingStateAsync(requestId, PackMLStateNumbers.Resetting)))!;
+
+            Assert.That(failure, Is.SameAs(notificationError));
+            Assert.That(unit.CurrentState, Is.EqualTo(PackMLStateNumbers.Idle));
+            Assert.That(unit.PendingRequestId, Is.Zero);
+            Assert.That(unit.Node.Status.Required().StateChangeInProcess.Required().Value, Is.False);
+            Assert.That(store.Saves, Is.EqualTo(previousSaves + 1));
+            Assert.That((await unit.CompleteActingStateAsync(requestId, PackMLStateNumbers.Resetting)).StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            Assert.That(provider.Executed, Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        public async Task AcceptedCommandReportsTransitionAndAdministrationStoreFailures()
+        {
+            SystemContext context = PackMLTestSupport.CreateContext();
+            var provider = new EquipmentProvider();
+            var store = new MemoryAdministrationStore();
+            await using Unit unit = await Unit.CreateAsync(
+                context, null, PackMLTestSupport.Name(context), provider,
+                new PackMLUnitOptions { AdministrationStore = store });
+            var notificationError = new InvalidOperationException("The transition event failed.");
+            var storeError = new InvalidOperationException("The administration store failed.");
+            var machine = unit.Node.BaseStateMachine.Required().MachineState.Required();
+            machine.SetAreEventsMonitored(context, true, includeChildren: true);
+            machine.OnReportEventAsync = (_, _, _, _) => throw notificationError;
+            store.SaveException = storeError;
+
+            AggregateException failure = (await Assert.ThrowsAsync<AggregateException>(
+                async () => await unit.RequestAsync(context, Command(PackMLCommand.Reset))))!;
+
+            Assert.That(failure.InnerExceptions, Is.EqualTo(new Exception[] { notificationError, storeError }));
+            Assert.That(unit.CurrentState, Is.EqualTo(PackMLStateNumbers.Resetting));
+            Assert.That(unit.PendingRequestId, Is.EqualTo(provider.Executed[0].RequestId));
+            Assert.That(provider.Executed, Has.Count.EqualTo(1));
         }
 
         [Test]
@@ -889,8 +963,10 @@ namespace Opc.Ua.PackML.Tests
         public async Task ConfiguredUnitAdvertisesEveryDefinedServerConformanceUnit()
         {
             SystemContext context = PackMLTestSupport.CreateContext();
+            var provider = new EquipmentProvider();
+            provider.Snapshot = provider.Snapshot with { MaterialReadiness = [true] };
             await using Unit unit = await Unit.CreateAsync(
-                context, null, PackMLTestSupport.Name(context), new EquipmentProvider(),
+                context, null, PackMLTestSupport.Name(context), provider,
                 new PackMLUnitOptions
                 {
                     TagId = "All capabilities",

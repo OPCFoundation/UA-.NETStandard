@@ -407,8 +407,20 @@ namespace Opc.Ua.PackML.Server
             {
                 return ServiceResult.Create(StatusCodes.BadInvalidState, "The equipment completion is stale.");
             }
-            ServiceResult result = await m_controller.CompleteActingStateAsync(CancellationToken.None)
-                .ConfigureAwait(false);
+            ServiceResult result;
+            try
+            {
+                result = await m_controller.CompleteActingStateAsync(CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception transitionError)
+            {
+                if (CurrentState != expectedState)
+                {
+                    await PublishStateAfterTransitionFailureAsync(transitionError).ConfigureAwait(false);
+                }
+                throw;
+            }
             await PublishStateAsync().ConfigureAwait(false);
             await SaveAdministrationAsync(cancellationToken).ConfigureAwait(false);
             return result;
@@ -632,11 +644,23 @@ namespace Opc.Ua.PackML.Server
             switch (request.Operation)
             {
                 case PackMLOperation.Command:
-                    ServiceResult result = await m_controller.ExecuteAsync(
-                        request.Command, request.Parameters, CancellationToken.None).ConfigureAwait(false);
-                    if (ServiceResult.IsBad(result))
+                    try
                     {
-                        throw new ServiceResultException(result);
+                        ServiceResult result = await m_controller.ExecuteAsync(
+                            request.Command, request.Parameters, CancellationToken.None).ConfigureAwait(false);
+                        if (ServiceResult.IsBad(result))
+                        {
+                            throw new ServiceResultException(result);
+                        }
+                    }
+                    catch (Exception transitionError)
+                    {
+                        if (CurrentState != request.CurrentState)
+                        {
+                            m_pendingRequestId = request.RequestId;
+                            await PublishStateAfterTransitionFailureAsync(transitionError).ConfigureAwait(false);
+                        }
+                        throw;
                     }
                     m_pendingRequestId = request.RequestId;
                     await PublishStateAsync().ConfigureAwait(false);
@@ -775,6 +799,25 @@ namespace Opc.Ua.PackML.Server
             if (!acting)
             {
                 m_pendingRequestId = 0;
+            }
+        }
+
+        /// <summary>
+        /// Publishes and saves an applied state without losing the transition failure.
+        /// </summary>
+        private async ValueTask PublishStateAfterTransitionFailureAsync(Exception transitionError)
+        {
+            try
+            {
+                await PublishStateAsync().ConfigureAwait(false);
+                await SaveAdministrationAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception publicationError)
+            {
+                throw new AggregateException(
+                    "The PackML transition and its state publication or administration save both failed.",
+                    transitionError,
+                    publicationError);
             }
         }
 

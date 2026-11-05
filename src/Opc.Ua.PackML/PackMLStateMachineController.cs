@@ -642,7 +642,8 @@ namespace Opc.Ua.PackML
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>
         /// <c>Good</c>, or <c>Bad_InvalidState</c> when the command is not
-        /// allowed in the current state, or the guard's result.
+        /// allowed in the current state, the guard's result, or a transition
+        /// failure. A transition can commit before reporting a failure.
         /// </returns>
         public async ValueTask<ServiceResult> ExecuteAsync(
             PackMLCommand command,
@@ -673,8 +674,13 @@ namespace Opc.Ua.PackML
                         return guard;
                     }
                     token.ThrowIfCancellationRequested();
-                    ServiceResult result = await target.Value.Machine.DoCauseAsync(
-                        m_context, null, target.Value.Cause, default, [], token).ConfigureAwait(false);
+                    var (result, _) = await InvokeTransitionAsync(
+                        target.Value.Machine,
+                        previous,
+                        () => target.Value.Machine.DoCauseAsync(
+                            m_context, null, target.Value.Cause, default, [], token),
+                        command == PackMLCommand.Start ? () => m_startParameters = startParameters : null)
+                        .ConfigureAwait(false);
                     if (ServiceResult.IsBad(result))
                     {
                         return result;
@@ -687,8 +693,7 @@ namespace Opc.Ua.PackML
                         }
                         OnEntered(target.Value.Machine);
                     }
-                    await SettleAsync(previous).ConfigureAwait(false);
-                    return ServiceResult.Good;
+                    return await SettleAsync(previous).ConfigureAwait(false);
                 }, cancellationToken).ConfigureAwait(false);
             }
             finally
@@ -734,6 +739,8 @@ namespace Opc.Ua.PackML
         /// change. An applied change is always published, so the notification
         /// ignores the token. Synchronous writes are rejected while notifications
         /// are pending; callbacks must not await reentrant controller operations.
+        /// A transition can commit before a callback reports a failure; the
+        /// committed state is retained.
         /// </remarks>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>
@@ -756,7 +763,7 @@ namespace Opc.Ua.PackML
                     {
                         previous = CurrentStateCore();
                     }
-                    ServiceResult? result = await TryCompleteActingStateAsync().ConfigureAwait(false);
+                    var (result, _) = await TryCompleteActingStateAsync(previous).ConfigureAwait(false);
                     if (result == null)
                     {
                         return ServiceResult.Create(
@@ -767,8 +774,7 @@ namespace Opc.Ua.PackML
                     {
                         return result;
                     }
-                    await SettleAsync(previous).ConfigureAwait(false);
-                    return ServiceResult.Good;
+                    return await SettleAsync(previous).ConfigureAwait(false);
                 }, cancellationToken).ConfigureAwait(false);
             }
             finally
@@ -926,6 +932,82 @@ namespace Opc.Ua.PackML
             {
                 await StateMachine.PublishStateChangesAsync(
                     m_context, includeChildren: true, CancellationToken.None).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Reconciles a committed transition even if its asynchronous operation fails.
+        /// </summary>
+        private async ValueTask<(ServiceResult Result, bool Reconciled)> InvokeTransitionAsync(
+            FiniteStateMachineState machine,
+            uint previous,
+            Func<ValueTask<ServiceResult>> transition,
+            Action? onCommitted = null)
+        {
+            uint previousMachineState;
+            lock (m_lock)
+            {
+                previousMachineState = StateOf(machine);
+            }
+
+            ServiceResult result;
+            try
+            {
+                result = await transition().ConfigureAwait(false);
+            }
+            catch (Exception transitionError)
+            {
+                await ReconcileFailedTransitionAsync(
+                    machine, previousMachineState, previous, transitionError, onCommitted).ConfigureAwait(false);
+                throw;
+            }
+
+            if (ServiceResult.IsBad(result))
+            {
+                bool reconciled = await ReconcileFailedTransitionAsync(
+                    machine, previousMachineState, previous, new ServiceResultException(result), onCommitted)
+                    .ConfigureAwait(false);
+                return (result, reconciled);
+            }
+            return (result, false);
+        }
+
+        /// <summary>
+        /// Publishes nested state changes left by a transition that did not return Good.
+        /// </summary>
+        private async ValueTask<bool> ReconcileFailedTransitionAsync(
+            FiniteStateMachineState machine,
+            uint previousMachineState,
+            uint previous,
+            Exception transitionError,
+            Action? onCommitted)
+        {
+            try
+            {
+                bool changed;
+                lock (m_lock)
+                {
+                    changed = StateOf(machine) != previousMachineState;
+                    if (changed)
+                    {
+                        onCommitted?.Invoke();
+                        OnEntered(machine);
+                        UpdateExecutable();
+                        QueueChanged(previous);
+                    }
+                }
+                if (changed)
+                {
+                    await PublishChangesAsync(changed: true).ConfigureAwait(false);
+                }
+                return changed;
+            }
+            catch (Exception recoveryError)
+            {
+                throw new AggregateException(
+                    "The PackML transition and its recovery notifications both failed.",
+                    transitionError,
+                    recoveryError);
             }
         }
 
@@ -1123,15 +1205,23 @@ namespace Opc.Ua.PackML
         /// Completes and publishes each acting-state transition before the
         /// next mutation, then publishes the final composite state.
         /// </summary>
-        private async ValueTask SettleAsync(uint previous)
+        private async ValueTask<ServiceResult> SettleAsync(uint previous)
         {
             if (AutoCompleteActingStates)
             {
                 for (int ii = 0; ii < 16; ii++)
                 {
-                    ServiceResult? result = await TryCompleteActingStateAsync().ConfigureAwait(false);
-                    if (result == null || ServiceResult.IsBad(result))
+                    var (result, reconciled) = await TryCompleteActingStateAsync(previous).ConfigureAwait(false);
+                    if (result == null)
                     {
+                        break;
+                    }
+                    if (ServiceResult.IsBad(result))
+                    {
+                        if (reconciled)
+                        {
+                            return result;
+                        }
                         break;
                     }
                 }
@@ -1142,12 +1232,13 @@ namespace Opc.Ua.PackML
                 QueueChanged(previous);
             }
             await PublishChangesAsync(changed: true).ConfigureAwait(false);
+            return ServiceResult.Good;
         }
 
         /// <summary>
         /// Publishes a completion transition before applying nested entry rules.
         /// </summary>
-        private async ValueTask<ServiceResult?> TryCompleteActingStateAsync()
+        private async ValueTask<(ServiceResult? Result, bool Reconciled)> TryCompleteActingStateAsync(uint previous)
         {
             FiniteStateMachineState? target = null;
             uint transition = 0;
@@ -1162,7 +1253,7 @@ namespace Opc.Ua.PackML
                     transition = CompletionOf(StateOf(machine));
                     if (transition == 0 || !IsTransitionSupported(transition))
                     {
-                        return null;
+                        return (null, false);
                     }
                     target = machine;
                     break;
@@ -1170,10 +1261,13 @@ namespace Opc.Ua.PackML
             }
             if (target == null)
             {
-                return null;
+                return (null, false);
             }
-            ServiceResult result = await target.DoTransitionAsync(
-                m_context, transition, 0, default, [], CancellationToken.None).ConfigureAwait(false);
+            var (result, reconciled) = await InvokeTransitionAsync(
+                target,
+                previous,
+                () => target.DoTransitionAsync(
+                    m_context, transition, 0, default, [], CancellationToken.None)).ConfigureAwait(false);
             if (ServiceResult.IsGood(result))
             {
                 lock (m_lock)
@@ -1181,7 +1275,7 @@ namespace Opc.Ua.PackML
                     OnEntered(target);
                 }
             }
-            return result;
+            return (result, reconciled);
         }
 
         /// <summary>

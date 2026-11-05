@@ -69,6 +69,13 @@ namespace Opc.Ua.PackML.Tests
             }));
             Assert.That(machine.Paths, Is.EqualTo(s_expectedPaths));
             Assert.That(controller.CurrentState, Is.EqualTo(PackMLStateNumbers.Idle));
+
+            machine.RejectMapping = true;
+            Assert.That(controller.Execute(PackMLCommand.Abort).StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            Assert.That((await controller.ExecuteAsync(PackMLCommand.Abort)).StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            Assert.That(machine.Paths, Is.EqualTo(s_expectedPaths));
         }
 
         [Test]
@@ -97,11 +104,7 @@ namespace Opc.Ua.PackML.Tests
                     await release.Task.ConfigureAwait(false);
                 }
             };
-            // The transition event is reported by the machine that runs the
-            // cause; events do not propagate to the parent machine.
             machine.OnReportEventAsync = sink;
-            machine.MachineState.Required().OnReportEventAsync = sink;
-            machine.MachineState.Required().ExecuteState.Required().OnReportEventAsync = sink;
 
             Task<ServiceResult> start;
             bool pendingWhileGated;
@@ -232,6 +235,8 @@ namespace Opc.Ua.PackML.Tests
                 AutoCompleteActingStates = false
             };
             controller.Initialize(PackMLInitialState.Idle);
+            var changes = new List<(uint Previous, uint Current)>();
+            controller.StateChanged += (_, change) => changes.Add((change.PreviousState, change.CurrentState));
             machine.SetAreEventsMonitored(context, true, includeChildren: true);
             var events = new List<IFilterTarget>();
             machine.OnReportEventAsync = (_, _, e, _) =>
@@ -253,6 +258,174 @@ namespace Opc.Ua.PackML.Tests
             Assert.That(error, Is.SameAs(machine.Failure));
             Assert.That(events, Has.Count.EqualTo(1));
             Assert.That(events[0], Is.InstanceOf<TransitionEventState>());
+            Assert.That(controller.CurrentState, Is.EqualTo(PackMLStateNumbers.Aborting));
+            Assert.That(machine.MachineState.Required().CurrentState.Required().StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadStateNotActive));
+            Assert.That(machine.MachineState.Required().ExecuteState.Required().CurrentState.Required().StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadStateNotActive));
+            Assert.That(changes, Is.EqualTo(new[] { (PackMLStateNumbers.Idle, PackMLStateNumbers.Aborting) }));
+            machine.OnReportEventAsync = null;
+            Assert.That(ServiceResult.IsGood(await controller.CompleteActingStateAsync()), Is.True);
+            Assert.That(controller.CurrentState, Is.EqualTo(PackMLStateNumbers.Aborted));
+        }
+
+        [Test]
+        public async Task CommittedTransitionReturningBadReconcilesNestedStatesAsync()
+        {
+            SystemContext context = PackMLTestSupport.CreateContext();
+            PackMLBaseStateMachineState machine = context
+                .CreateInstanceOfPackMLBaseObjectType(browseName: PackMLTestSupport.Name(context))
+                .BaseStateMachine
+                .Required();
+            var controller = new PackMLStateMachineController(context, machine)
+            {
+                AutoCompleteActingStates = false
+            };
+            controller.Initialize(PackMLInitialState.Idle);
+            var changes = new List<(uint Previous, uint Current)>();
+            controller.StateChanged += (_, change) => changes.Add((change.PreviousState, change.CurrentState));
+            machine.OnAfterTransitionAsync = (_, _, _, _, _, _, _) =>
+                new ValueTask<ServiceResult>(
+                    ServiceResult.Create(StatusCodes.BadUnexpectedError, "After transition."));
+
+            ServiceResult result = await controller.ExecuteAsync(PackMLCommand.Abort);
+
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadUnexpectedError));
+            Assert.That(controller.CurrentState, Is.EqualTo(PackMLStateNumbers.Aborting));
+            Assert.That(machine.MachineState.Required().CurrentState.Required().StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadStateNotActive));
+            Assert.That(changes, Is.EqualTo(new[] { (PackMLStateNumbers.Idle, PackMLStateNumbers.Aborting) }));
+            machine.OnAfterTransitionAsync = null;
+            Assert.That(ServiceResult.IsGood(await controller.CompleteActingStateAsync()), Is.True);
+            Assert.That(controller.CurrentState, Is.EqualTo(PackMLStateNumbers.Aborted));
+        }
+
+        [Test]
+        public async Task CommittedCompletionReconcilesStateWhenNotificationThrowsAsync()
+        {
+            SystemContext context = PackMLTestSupport.CreateContext();
+            PackMLBaseStateMachineState machine = context
+                .CreateInstanceOfPackMLBaseObjectType(browseName: PackMLTestSupport.Name(context))
+                .BaseStateMachine
+                .Required();
+            var controller = new PackMLStateMachineController(context, machine)
+            {
+                AutoCompleteActingStates = false
+            };
+            controller.Initialize(PackMLInitialState.Aborted);
+            Assert.That(ServiceResult.IsGood(await controller.ExecuteAsync(PackMLCommand.Clear)), Is.True);
+            var nested = machine.MachineState.Required();
+            nested.SetAreEventsMonitored(context, true, includeChildren: true);
+            var failure = new InvalidOperationException("The transition event failed.");
+            nested.OnReportEventAsync = (_, _, _, _) => throw failure;
+            var changes = new List<(uint Previous, uint Current)>();
+            controller.StateChanged += (_, change) => changes.Add((change.PreviousState, change.CurrentState));
+
+            InvalidOperationException error = (await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await controller.CompleteActingStateAsync()))!;
+
+            Assert.That(error, Is.SameAs(failure));
+            Assert.That(controller.CurrentState, Is.EqualTo(PackMLStateNumbers.Stopped));
+            Assert.That(changes, Is.EqualTo(new[] { (PackMLStateNumbers.Clearing, PackMLStateNumbers.Stopped) }));
+            Assert.That(controller.CanExecute(PackMLCommand.Reset), Is.True);
+        }
+
+        [Test]
+        public async Task CommittedStartRetainsParametersWhenNotificationThrowsAsync()
+        {
+            SystemContext context = PackMLTestSupport.CreateContext();
+            PackMLBaseStateMachineState machine = context
+                .CreateInstanceOfPackMLBaseObjectType(browseName: PackMLTestSupport.Name(context))
+                .BaseStateMachine
+                .Required();
+            var controller = new PackMLStateMachineController(context, machine)
+            {
+                AutoCompleteActingStates = false
+            };
+            controller.Initialize(PackMLInitialState.Idle);
+            var execute = machine.MachineState.Required().ExecuteState.Required();
+            execute.SetAreEventsMonitored(context, true, includeChildren: true);
+            var failure = new InvalidOperationException("The transition event failed.");
+            execute.OnReportEventAsync = (_, _, _, _) => throw failure;
+            ArrayOf<PackMLDescriptorDataType> parameters =
+                [new PackMLDescriptorDataType { ID = 9, Name = "Temperature", Value = 23.5f }];
+
+            InvalidOperationException error = (await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await controller.ExecuteAsync(PackMLCommand.Start, parameters)))!;
+
+            Assert.That(error, Is.SameAs(failure));
+            Assert.That(controller.CurrentState, Is.EqualTo(PackMLStateNumbers.Starting));
+            Assert.That(controller.StartParameters.Count, Is.EqualTo(1));
+            Assert.That(controller.StartParameters[0].ID, Is.EqualTo(9));
+        }
+
+        [Test]
+        public async Task FailedAutoCompletionAfterCommitReportsOneStateChangeAsync()
+        {
+            SystemContext context = PackMLTestSupport.CreateContext();
+            PackMLBaseStateMachineState machine = context
+                .CreateInstanceOfPackMLBaseObjectType(browseName: PackMLTestSupport.Name(context))
+                .BaseStateMachine
+                .Required();
+            var controller = new PackMLStateMachineController(context, machine);
+            controller.Initialize(PackMLInitialState.Aborted);
+            machine.MachineState.Required().OnAfterTransitionAsync = (_, _, _, _, _, _, _) =>
+                new ValueTask<ServiceResult>(ServiceResult.Create(StatusCodes.BadUnexpectedError, "After completion."));
+            var changes = new List<(uint Previous, uint Current)>();
+            controller.StateChanged += (_, change) => changes.Add((change.PreviousState, change.CurrentState));
+
+            ServiceResult result = await controller.ExecuteAsync(PackMLCommand.Clear);
+
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadUnexpectedError));
+            Assert.That(controller.CurrentState, Is.EqualTo(PackMLStateNumbers.Stopped));
+            Assert.That(changes, Is.EqualTo(new[] { (PackMLStateNumbers.Aborted, PackMLStateNumbers.Stopped) }));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task TransitionAndRecoveryFailuresAreBothReportedAsync(bool returnBad)
+        {
+            SystemContext context = PackMLTestSupport.CreateContext();
+            PackMLBaseStateMachineState machine = context
+                .CreateInstanceOfPackMLBaseObjectType(browseName: PackMLTestSupport.Name(context))
+                .BaseStateMachine
+                .Required();
+            var controller = new PackMLStateMachineController(context, machine)
+            {
+                AutoCompleteActingStates = false
+            };
+            controller.Initialize(PackMLInitialState.Idle);
+            machine.SetAreEventsMonitored(context, true, includeChildren: true);
+            var transitionError = new InvalidOperationException("The transition event failed.");
+            var recoveryError = new InvalidOperationException("The nested state notification failed.");
+            if (returnBad)
+            {
+                machine.OnAfterTransitionAsync = (_, _, _, _, _, _, _) =>
+                    new ValueTask<ServiceResult>(
+                        ServiceResult.Create(StatusCodes.BadUnexpectedError, "After transition."));
+            }
+            else
+            {
+                machine.OnReportEventAsync = (_, _, _, _) => throw transitionError;
+            }
+            machine.MachineState.Required().CurrentState.Required().OnStateChangedAsync =
+                (_, _, _, _) => throw recoveryError;
+
+            AggregateException error = (await Assert.ThrowsAsync<AggregateException>(
+                async () => await controller.ExecuteAsync(PackMLCommand.Abort)))!;
+
+            Assert.That(error.InnerExceptions, Has.Count.EqualTo(2));
+            if (returnBad)
+            {
+                Assert.That(error.InnerExceptions[0], Is.InstanceOf<ServiceResultException>());
+                Assert.That(((ServiceResultException)error.InnerExceptions[0]).StatusCode,
+                    Is.EqualTo((StatusCode)StatusCodes.BadUnexpectedError));
+            }
+            else
+            {
+                Assert.That(error.InnerExceptions[0], Is.SameAs(transitionError));
+            }
+            Assert.That(error.InnerExceptions[1], Is.SameAs(recoveryError));
             Assert.That(controller.CurrentState, Is.EqualTo(PackMLStateNumbers.Aborting));
         }
 
@@ -284,7 +457,6 @@ namespace Opc.Ua.PackML.Tests
                 }
             };
             machine.OnReportEventAsync = sink;
-            machine.MachineState.Required().OnReportEventAsync = sink;
             Task<ServiceResult> clear = Task.Run(() => controller.ExecuteAsync(PackMLCommand.Clear).AsTask());
             try
             {
@@ -344,8 +516,9 @@ namespace Opc.Ua.PackML.Tests
                     PackMLCommand.Abort, cancellationToken: waiterCancellation.Token).AsTask();
                 Assert.That(waiter.IsCompleted, Is.False);
                 waiterCancellation.Cancel();
-                await Assert.ThrowsAsync<OperationCanceledException>(
-                    async () => await waiter.WaitAsync(s_timeout).ConfigureAwait(false));
+                await Assert.ThatAsync(
+                    () => waiter.WaitAsync(s_timeout),
+                    Throws.InstanceOf<OperationCanceledException>());
                 Assert.That(controller.CurrentState, Is.EqualTo(PackMLStateNumbers.Idle));
             }
             finally
@@ -498,6 +671,11 @@ namespace Opc.Ua.PackML.Tests
             /// </summary>
             public List<string> Paths { get; } = [];
 
+            /// <summary>
+            /// Gets or sets whether the cause mapping rejects Abort.
+            /// </summary>
+            public bool RejectMapping { get; set; }
+
             /// <inheritdoc/>
             public override ValueTask<ServiceResult> DoCauseAsync(
                 ISystemContext context,
@@ -509,6 +687,11 @@ namespace Opc.Ua.PackML.Tests
             {
                 Causes.Add(causeId);
                 Paths.Add("async");
+                if (causeId == Methods.PackMLBaseStateMachineType_Abort)
+                {
+                    return new ValueTask<ServiceResult>(
+                        ServiceResult.Create(StatusCodes.BadNotSupported, "Abort is rejected by the machine."));
+                }
                 return base.DoCauseAsync(
                     context, causeMethod, causeId, inputArguments, outputArguments, cancellationToken);
             }
@@ -523,6 +706,10 @@ namespace Opc.Ua.PackML.Tests
             {
                 Causes.Add(causeId);
                 Paths.Add("sync");
+                if (causeId == Methods.PackMLBaseStateMachineType_Abort)
+                {
+                    return ServiceResult.Create(StatusCodes.BadNotSupported, "Abort is rejected by the machine.");
+                }
                 return base.DoCause(
                     context, causeMethod, causeId, inputArguments, outputArguments);
             }
@@ -530,7 +717,7 @@ namespace Opc.Ua.PackML.Tests
             /// <inheritdoc/>
             protected override uint GetTransitionForCause(ISystemContext context, uint causeId)
             {
-                return causeId == Methods.PackMLBaseStateMachineType_Abort
+                return RejectMapping && causeId == Methods.PackMLBaseStateMachineType_Abort
                     ? 0
                     : base.GetTransitionForCause(context, causeId);
             }
