@@ -28,8 +28,12 @@ provider operation, or reset produces a nonzero exit code.
 since reset, while the rolling collection sums at most three samples.
 Reset commits the complete collection and its `StartTime`. The sample has no
 persistent store and therefore starts a new collection after process restart.
-The calibration provider publishes a reference value, capacity range, validation
-date, quality, and a certificate URI without retrieving it.
+The stacklight provider publishes an acoustic audio sample. The calibration
+provider publishes a reference value, capacity range, validation dates, quality,
+a certificate URI without retrieving it, and an application-defined
+`VendorGeometry` object feature. The client reads calibration metadata through
+generated target accessors and discovers the custom feature through the IA
+feature-inspection API.
 
 The DI container owns both the server resources and the client's cached managed
 session. The sample drains hosted services before disposing its bindings and

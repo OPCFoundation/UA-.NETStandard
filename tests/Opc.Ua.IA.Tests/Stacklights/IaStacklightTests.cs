@@ -681,7 +681,7 @@ namespace Opc.Ua.IA.Tests.Stacklights
             int diNamespace = fixture.Context.NamespaceUris.GetIndex(Opc.Ua.Di.Namespaces.OpcUaDi);
             var alarms = new FolderState(state)
             {
-                BrowseName = new QualifiedName(DiBrowseNames.DeviceHealthAlarms, (ushort)diNamespace),
+                BrowseName = new QualifiedName(Opc.Ua.Di.BrowseNames.DeviceHealthAlarms, (ushort)diNamespace),
                 ReferenceTypeId = ReferenceTypeIds.HasComponent
             };
             var variable = new BaseDataVariableState(alarms)

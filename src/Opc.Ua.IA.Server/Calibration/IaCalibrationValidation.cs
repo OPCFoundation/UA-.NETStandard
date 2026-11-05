@@ -54,7 +54,7 @@ namespace Opc.Ua.IA.Server
             {
                 throw new ArgumentException("The category, identification or selected properties are invalid.");
             }
-            if (configuration.Features.Count == 0)
+            if (configuration.Features.Count == 0 && configuration.ConfigureCustomFeatures == null)
             {
                 throw new ArgumentException("A calibration target requires at least one feature.");
             }

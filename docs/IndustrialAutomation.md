@@ -386,6 +386,28 @@ resolution. Numeric values retain their actual scalar, array, or matrix type.
 Operational conditions use the same typed metadata. Dynamic categories can
 reference the instruments that measured the individual target.
 
+Use `WithCustomFeatures` to add application-defined variables or objects under
+`CalibrationTargetFeatures`. The callback runs during binding construction,
+before registration, and the binding then makes every child read-only. Custom
+components remain application-owned: the calibration provider does not supply
+their values, and the binding does not refresh them. A custom-only target can
+omit typed `WithFeature` entries, but the callback must add at least one named
+component.
+
+```csharp
+IaCalibrationTargetConfiguration customTarget = new IaCalibrationTargetBuilder(
+    IaCalibrationTargetCategory.Dynamic, new IaCalibrationIdentification())
+    .WithCustomFeatures((context, folder) =>
+    {
+        var geometry = new BaseObjectState(folder);
+        geometry.Create(context, NodeId.Null,
+            new QualifiedName("VendorGeometry", instanceNamespace),
+            new LocalizedText("Target geometry"), true);
+        folder.AddChild(geometry);
+    })
+    .Build();
+```
+
 Construction detaches identification and engineering-unit translation dictionaries
 and formatting arguments, including operational-condition units, and copies
 opaque reference-instrument identifier bytes. Reusing the provider's metadata
@@ -438,6 +460,10 @@ Calibration feature inspection retains each returned `DataValue`, including Bad
 quality and source timestamps, for feature values, engineering units and range
 resolution. An absent optional property is `DataValue.Null`; service and
 transport failures still propagate to the caller.
+Generated target proxies also expose optional properties such as
+`LastValidationDate`, `NextValidationDate`, `Quality`, and `CertificateUri`.
+Read these properties directly when the target declares them; the fluent
+feature-inspection helper does not enumerate every target property.
 
 ```csharp
 await foreach (IaEntry entry in client.DiscoverAsync(
@@ -464,6 +490,8 @@ IaTargetCategory category =
 ArrayOf<Opc.Ua.IA.Client.IaCalibrationFeature> features =
     await client.ReadCalibrationFeaturesAsync(targetNode,
         cancellationToken: cancellationToken);
+CalibrationTargetTypeClient target = client.CalibrationTarget(targetNode);
+ClientRead<byte> quality = await target.QualityVariable().ReadAsync(cancellationToken);
 ```
 
 Discovery follows hierarchical references with cycle detection and a node limit.
@@ -479,12 +507,36 @@ Category handling distinguishes reusable devices from their reusable supertype.
 Feature inspection returns the original `DataValue`, units, resolution, type
 definition, and display name. Custom object features remain visible with their
 display name and `DataValue.Null`; the client does not invent a numeric
-interpretation for them.
+interpretation for them. Custom variable features retain their own `DataValue`
+and metadata. Clients can recognize application-defined features without
+treating their type as a standard calibration quantity.
 The client browses each feature once to resolve both metadata properties, then
 reads feature values and present metadata in one batch. Managed browsing and the
 session's read batching apply server operation limits; returned values retain
 their individual status codes and timestamps. An empty feature folder does not
 issue a value read.
+
+## Optional capability coverage
+
+Optional nodes are composed where the model permits them. Providers return
+complete snapshots for every configured observation, and generated client
+proxies expose the corresponding model members.
+
+- **Stacklights:** `StackLevel`, `StackRunning`, `ControlChannels`, direct signal color/mode/RGBW, light and acoustic
+  intensity, `DeviceHealth`, `AudioSample`, and `IsPartOfBase` are supported. `IaStacklight` validates configured
+  topology, ordering, ranges and source metadata. `DeviceHealthAlarms` is supported through the host's DI alarm
+  implementation, which retains ownership of that subtree and its access policy. See `IaStacklightTests`.
+- **Statistics:** `ResetCondition`, `WindowDuration`, and `WindowNumberOfValues` are supported; each binding exposes
+  `StartTime` and `ResetStatistics`. `IaStatisticsBuilder` selects aggregate or rolling semantics and at most one
+  window property. Providers own quantities, reset authorization and persistence. See `IaStatisticsTests`.
+- **Calibration targets:** optional DI identification fields, `OperationalConditions`, `LastValidationDate`,
+  `NextValidationDate`, `Quality`, `CertificateUri`, dynamic-target measurement-instrument references, and
+  application-defined variable or object features are supported. Reusable categories require
+  `LastValidationDate`. `IaCalibrationTargetBuilder` fixes topology before registration; its
+  `WithCustomFeatures` callback adds custom components, while the provider supplies standard calibration readings.
+  The generated client exposes target properties and reports custom feature names and values without assigning
+  standard calibration semantics. The binding publishes certificate URIs without retrieving them.
+  See `IaCalibrationTargetTests`.
 
 ## Ownership and support evidence
 

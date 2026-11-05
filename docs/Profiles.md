@@ -206,9 +206,10 @@ canonical URI string before claiming a facet):
   GlobalLocation, and Zones conformance units. See
   [Positioning](Positioning.md).
 - **Industrial Automation** (OPC 10000-200), **Partial** — shared `Opc.Ua.IA`
-  model with `Opc.Ua.IA.Server` provider bindings for stacklights, statistics
-  and calibration-target information, and `Opc.Ua.IA.Client` generated-proxy
-  access, discovery and feature inspection. Statistics copy exact
+  model with `Opc.Ua.IA.Server` bindings for stacklights, statistics and
+  calibration targets. Calibration targets expose optional properties and
+  application-defined feature variables or objects; `Opc.Ua.IA.Client` provides
+  generated-proxy access, discovery and feature inspection. Statistics copy exact
   `EnumValueType` and `Argument` bodies field by field; other decoded structures
   and `Argument` bodies with a non-null runtime-only `Value` are rejected with
   `Bad_NotSupported` before custom codec, equality, clone or activator calls.
@@ -276,7 +277,7 @@ support gap.
 | --- | --- | --- |
 | [Device Integration](DeviceIntegration.md), OPC 10000-100 | Partial | Device composition, locking and software updates; offline/online representations, some loading modes and `UpdateStatus` remain incomplete |
 | [Asset Management Basics](AMB.md), OPC 10000-110 | Partial | Identity, health, maintenance, documentation, locations and dictionary classification; asset-health and past-maintenance event history remain unimplemented |
-| [Industrial Automation](IndustrialAutomation.md), OPC 10000-200 | Partial | Stacklights, statistics and calibration targets with provider bindings, typed clients and a sample; §6.2.1.1 admits statistics of any kind, but only exact `EnumValueType` and `Argument` bodies have field-wise copies; other decoded structures, `Argument` bodies with non-null runtime-only `Value`, and nonempty arrays/matrices explicitly tagged `Number`, `Integer` or `UInteger` are rejected with `Bad_NotSupported`; concrete numeric types and supported `Variant` containers remain supported; physical drivers and calibration remain application-owned |
+| [Industrial Automation](IndustrialAutomation.md), OPC 10000-200 | Partial | Stacklights, statistics and calibration targets with provider bindings, typed clients and a sample; calibration supports optional target properties and application-defined variable/object features; §6.2.1.1 admits statistics of any kind, but only exact `EnumValueType` and `Argument` bodies have field-wise copies; other decoded structures, `Argument` bodies with non-null runtime-only `Value`, and nonempty arrays/matrices explicitly tagged `Number`, `Integer` or `UInteger` are rejected with `Bad_NotSupported`; concrete numeric types and supported `Variant` containers remain supported; physical drivers and calibration procedures remain application-owned |
 | [Machinery](Machinery.md), OPC 40001-1/-2/-3/-4/-101 | Full | Building blocks, process values, jobs, energy and result transfer; select capabilities and supply equipment/storage providers |
 | [MachineTool and WMTP](MachineTool.md), OPC 40501-1 and OPC 40505 | Full | Monitoring, tools, production, jobs, files, peripheral measurements/configuration/records and typed clients; physical CNC/Bluetooth behavior belongs to providers |
 | [GMS](GMS.md), OPC 40210 | Partial | Systems, sensors, calibration observations, jobs/parts and results; Production facet withheld because upstream leaves `GMS_ProductionStatisticsType` undefined |

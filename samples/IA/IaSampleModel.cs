@@ -115,8 +115,10 @@ namespace IndustrialAutomationSample
             stack.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent;
             m_stacklight = new IaStacklightBuilder(context, stack).WithModes()
                 .AddLight(new QualifiedName("Lamp", ns))
-                .AddAcoustic(new QualifiedName("Sound", ns), new QualifiedName("Warning", ns))
+                .AddAcoustic(new QualifiedName("Sound", ns), new QualifiedName("Warning", ns),
+                    configureSignal: signal => signal.AddAudioSample(context))
                 .Build(m_lightSource);
+            m_lightSource.AudioSignalName = new QualifiedName("Warning", ns);
             await m_stacklight.RefreshAsync(ct).ConfigureAwait(false);
             await setup.Manager.AddNodeAsync(setup.Manager.SystemContext, Device, stack, ct).ConfigureAwait(false);
 
@@ -136,10 +138,6 @@ namespace IndustrialAutomationSample
                 device.Device, new QualifiedName("ReferenceTarget", ns));
             target.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent;
             m_calibration = new IaCalibrationTarget(context, target, source);
-            var geometry = new BaseObjectState(target.CalibrationTargetFeatures);
-            geometry.Create(context, NodeId.Null, new QualifiedName("VendorGeometry", ns),
-                new LocalizedText("Target geometry definition"), true);
-            target.CalibrationTargetFeatures!.AddChild(geometry);
             await m_calibration.RefreshAsync(ct).ConfigureAwait(false);
             await setup.Manager.AddNodeAsync(setup.Manager.SystemContext, Device, target, ct).ConfigureAwait(false);
         }
@@ -227,6 +225,11 @@ namespace IndustrialAutomationSample
             /// </summary>
             public StacklightOperationMode Mode { get; set; }
 
+            /// <summary>
+            /// Gets or sets the configured acoustic signal that owns the audio sample.
+            /// </summary>
+            public QualifiedName AudioSignalName { get; set; }
+
             /// <inheritdoc/>
             public ValueTask<IaStacklightSnapshot> ReadSnapshotAsync(CancellationToken cancellationToken = default)
             {
@@ -242,6 +245,17 @@ namespace IndustrialAutomationSample
                         null, null, []),
                     new IaStacklightAcousticSnapshot(null,
                         new IaStacklightSample<uint>(0u, StatusCodes.Good, acquired), null)
+                    {
+                        AudioSamples =
+                        [
+                            new IaStacklightAudioSample(AudioSignalName,
+                                new IaStacklightSample<ByteString>(
+                                    ByteString.From(new byte[] { 0x49, 0x41, 0x2D, 0x53, 0x41, 0x4D, 0x50, 0x4C, 0x45 }
+                                        .AsSpan()),
+                                    StatusCodes.Good,
+                                    acquired))
+                        ]
+                    }
                 ],
                     Mode == StacklightOperationMode.Levelmeter
                         ? new IaStacklightSample<float>(65f, StatusCodes.Good, acquired) : null,
@@ -385,10 +399,21 @@ namespace IndustrialAutomationSample
                         Manufacturer = new LocalizedText("OPC Foundation"),
                         Model = new LocalizedText("Simulated reference"),
                         SerialNumber = "IA-REFERENCE-001"
-                    }).WithFeature(length).WithFeature(range)
-                    .WithOptionalFields(IaCalibrationTargetFields.Quality | IaCalibrationTargetFields.CertificateUri)
+                    })
+                    .WithFeature(length)
+                    .WithFeature(range)
+                    .WithCustomFeatures((context, folder) =>
+                    {
+                        var geometry = new BaseObjectState(folder);
+                        geometry.Create(context, NodeId.Null, new QualifiedName("VendorGeometry", ns),
+                            new LocalizedText("Target geometry definition"), true);
+                        folder.AddChild(geometry);
+                    })
+                    .WithOptionalFields(IaCalibrationTargetFields.NextValidationDate |
+                        IaCalibrationTargetFields.Quality | IaCalibrationTargetFields.CertificateUri)
                     .Build();
                 DateTimeUtc acquired = DateTime.UtcNow;
+                DateTime nextValidation = DateTime.UtcNow.AddDays(365);
                 m_snapshot = new IaCalibrationTargetSnapshot(
                 [
                     new IaCalibrationReading(length.BrowseName,
@@ -399,6 +424,8 @@ namespace IndustrialAutomationSample
                 ])
                 {
                     LastValidationDate = new IaCalibrationSample<DateTimeUtc>(acquired, StatusCodes.Good, acquired),
+                    NextValidationDate = new IaCalibrationSample<DateTimeUtc>(
+                        nextValidation, StatusCodes.Good, acquired),
                     Quality = new IaCalibrationSample<byte>(100, StatusCodes.Good, acquired),
                     CertificateUri = new IaCalibrationSample<string>(
                         "https://example.invalid/ia/reference-certificate", StatusCodes.Good, acquired)

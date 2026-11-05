@@ -58,6 +58,16 @@ namespace Opc.Ua.IA.Server
         }
 
         /// <summary>
+        /// Adds application-defined variables or objects to the CalibrationTargetFeatures folder.
+        /// </summary>
+        /// <param name="configure">Creates custom feature components before the target is registered.</param>
+        public IaCalibrationTargetBuilder WithCustomFeatures(Action<ISystemContext, BaseObjectState> configure)
+        {
+            m_customFeatureConfigurators.Add(configure ?? throw new ArgumentNullException(nameof(configure)));
+            return this;
+        }
+
+        /// <summary>
         /// Adds one vendor-defined operational condition using a typed value or range.
         /// </summary>
         public IaCalibrationTargetBuilder WithOperationalCondition(IaCalibrationFeature condition)
@@ -93,12 +103,18 @@ namespace Opc.Ua.IA.Server
         /// </summary>
         public IaCalibrationTargetConfiguration Build()
         {
+            Action<ISystemContext, BaseObjectState>? configureCustomFeatures = null;
+            foreach (Action<ISystemContext, BaseObjectState> configure in m_customFeatureConfigurators)
+            {
+                configureCustomFeatures += configure;
+            }
             var configuration = new IaCalibrationTargetConfiguration(
                 m_category,
                 m_identification,
                 m_features.ToArray())
             {
                 OptionalFields = m_fields,
+                ConfigureCustomFeatures = configureCustomFeatures,
                 OperationalConditions = m_conditions.ToArray(),
                 ReferenceMeasurementInstruments = m_instruments.ToArray()
             };
@@ -114,6 +130,9 @@ namespace Opc.Ua.IA.Server
 
         /// <summary>The selected calibration features.</summary>
         private readonly List<IaCalibrationFeature> m_features = [];
+
+        /// <summary>The application callbacks for custom feature components.</summary>
+        private readonly List<Action<ISystemContext, BaseObjectState>> m_customFeatureConfigurators = [];
 
         /// <summary>The selected operational conditions.</summary>
         private readonly List<IaCalibrationFeature> m_conditions = [];

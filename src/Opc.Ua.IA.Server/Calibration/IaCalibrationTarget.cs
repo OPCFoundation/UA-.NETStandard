@@ -99,6 +99,8 @@ namespace Opc.Ua.IA.Server
             ConfigureIdentification();
             ConfigureOptionalFields();
             ConfigureFeatures(state.CalibrationTargetFeatures, Configuration.Features, m_features);
+            Configuration.ConfigureCustomFeatures?.Invoke(context, state.CalibrationTargetFeatures);
+            ValidateFeatureComponents(state.CalibrationTargetFeatures);
             if (Configuration.OperationalConditions.Count > 0 ||
                 Configuration.Category is IaCalibrationTargetCategory.Reusable or
                     IaCalibrationTargetCategory.ReusableDevice)
@@ -346,6 +348,29 @@ namespace Opc.Ua.IA.Server
             if (children.Count != 0)
             {
                 throw new ArgumentException("Bind an initialized target with empty feature and condition folders.");
+            }
+        }
+
+        /// <summary>
+        /// Requires a nonempty feature folder with unique names across standard and custom components.
+        /// </summary>
+        private void ValidateFeatureComponents(NodeState folder)
+        {
+            var children = new List<BaseInstanceState>();
+            folder.GetChildren(m_context, children);
+            if (children.Count == 0)
+            {
+                throw new ArgumentException("A calibration target requires at least one feature component.");
+            }
+            var names = new HashSet<QualifiedName>();
+            foreach (BaseInstanceState child in children)
+            {
+                if (child.BrowseName.IsNull || string.IsNullOrWhiteSpace(child.BrowseName.Name) ||
+                    !names.Add(child.BrowseName))
+                {
+                    throw new ArgumentException(
+                        "Calibration feature components require unique, non-null browse names.");
+                }
             }
         }
 
