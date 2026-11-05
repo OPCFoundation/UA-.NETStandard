@@ -965,7 +965,7 @@ namespace Opc.Ua.PADIM.Tests
                 Assert.That(attempts, Is.EqualTo(2));
             });
             await AwaitWithinAsync(binding.RefreshAsync().AsTask());
-            Assert.That(reports.Count, Is.EqualTo(2), "The successful retry completes both pending events.");
+            Assert.That(reports, Has.Count.EqualTo(2), "The successful retry completes both pending events.");
             provider.Verify(p => p.ReadAsync("health", It.IsAny<CancellationToken>()), Times.Exactly(4));
         }
 
