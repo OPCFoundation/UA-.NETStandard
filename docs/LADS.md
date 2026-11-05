@@ -240,6 +240,42 @@ observed equipment state through `ICoverFunction.ReportStateAsync`; this does
 not send a hardware command. `Lockable = false` also rejects reports of locking,
 locked or unlocking state.
 
+All control-function options accept `Pid = new LadsPidOptions { ... }`.
+This creates a concrete `PidControllerParameterType`; each supplied `CtrlP`,
+`CtrlTi` or `CtrlTd` value exposes that writable member, and a null value omits
+it. The equipment provider owns the control algorithm. The runtime publishes
+tuning parameters without calculating a PID output.
+
+Use `ILadsControlFunction.SetParameterAsync` for a named parameter request.
+The provider receives `LadsFunctionCommandKind.SetParameter`, its value and
+the exact function-relative `ParameterPath`. Direct calls and UA writes use
+the same validation and provider callback; an invalid value or a bad provider
+result leaves the parameter unchanged. Values must be finite, and mode and
+composed targets must fall within the configured range.
+
+| Parameter | Path |
+| --- | --- |
+| Mode target | `ControllerModeSet/{escaped mode name}/TargetValue` |
+| Composed target member | `TargetValueSet/{escaped member name}` |
+| PID tuning member | `ControllerTuningParameter/CtrlP`, `ControllerTuningParameter/CtrlTi` or `ControllerTuningParameter/CtrlTd` |
+
+Escape dynamic names with `Uri.EscapeDataString`; a slash in a name is
+`%2F`, not a path separator. The client handle's `SetParameterAsync` uses the
+same paths, which also identify values in snapshots and subscriptions:
+
+```csharp
+await controller.SetParameterAsync(
+    LadsFunctionMembers.CtrlP, 1.5, cancellationToken);
+await multiMode.SetTargetValueAsync("Cool", 15.0, cancellationToken);
+await composed.SetComposedTargetValueAsync("Amplitude", 2.0, cancellationToken);
+```
+
+Changing a mode's target does not select that mode. Changing a composed member
+does not calculate an aggregate target. The equipment publishes its calculated,
+read-only aggregate through `ReportComputedTargetValueAsync`. The older
+synchronous per-mode and composed setters publish application values without
+calling the equipment provider; use the async setters for equipment requests.
+
 `LadsUnits` has the UNECE units used in the sample (`Celsius`,
 `RevolutionsPerMinute`, `Percent`, `Second`, `Millisecond`, `PartsPerMillion`)
 and `Create(code, symbol, description)` for others.

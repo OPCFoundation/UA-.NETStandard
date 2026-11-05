@@ -75,6 +75,14 @@ namespace Opc.Ua.Aot.Tests
                         await Assert.That(flow.TotalizedValue).IsEqualTo(12.5);
                         await flow.ResetTotalizerAsync(cancellationToken).ConfigureAwait(false);
                         await Assert.That(flow.TotalizedValue).IsEqualTo(0.0);
+                        await flow.SetParameterAsync(
+                            LadsFunctionMembers.CtrlP, 1.5, cancellationToken).ConfigureAwait(false);
+                        IAnalogControlFunction composed = unit.GetFunction<IAnalogControlFunction>("Composed");
+                        await composed.SetComposedTargetValueAsync("Amplitude", 2, cancellationToken)
+                            .ConfigureAwait(false);
+                        await Assert.That(composed.GetComposedTargetValue("Amplitude")).IsEqualTo(2.0);
+                        await composed.ReportComputedTargetValueAsync(8, cancellationToken).ConfigureAwait(false);
+                        await Assert.That(composed.TargetValue).IsEqualTo(8.0);
                         ICoverFunction cover = unit.GetFunction<ICoverFunction>("Guard");
                         await cover.ReportStateAsync(LadsCoverStateValue.Opened, cancellationToken)
                             .ConfigureAwait(false);
@@ -207,7 +215,16 @@ namespace Opc.Ua.Aot.Tests
                 .ConfigureLads(context => context.AddDevice(kDevice, device => device
                     .MaintenanceTask(kMaintenance)
                     .FunctionalUnit(kUnit, unit => unit
-                        .AnalogControl("Flow", options => options.Kind = LadsAnalogControlKind.Totalizer)
+                        .AnalogControl("Flow", options =>
+                        {
+                            options.Kind = LadsAnalogControlKind.Totalizer;
+                            options.Pid = new LadsPidOptions { CtrlP = 1, CtrlTi = 2, CtrlTd = 3 };
+                        })
+                        .AnalogControl("Composed", options =>
+                        {
+                            options.Kind = LadsAnalogControlKind.Composed;
+                            options.ComposedTargetValues = ["Amplitude"];
+                        })
                         .Cover("Guard", options =>
                         {
                             options.Controllable = false;

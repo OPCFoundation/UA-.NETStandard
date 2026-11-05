@@ -167,6 +167,10 @@ namespace LadsSample.Client
             }
 
             LadsFunction door = await chamber.GetFunctionAsync("Door", ct).ConfigureAwait(false);
+            LadsFunction temperature = await chamber.GetFunctionAsync("Temperature", ct).ConfigureAwait(false);
+            await temperature.SetParameterAsync(LadsFunctionMembers.CtrlP, 1.5, ct).ConfigureAwait(false);
+            LadsFunctionSnapshot tuning = await temperature.ReadAsync(ct).ConfigureAwait(false);
+            Console.WriteLine($"Temperature CtrlP: {tuning.ValueOf(LadsFunctionMembers.CtrlP)}");
             await door.LockAsync(ct).ConfigureAwait(false);
             Console.WriteLine($"Door: {(await door.ReadAsync(ct).ConfigureAwait(false)).State}");
 

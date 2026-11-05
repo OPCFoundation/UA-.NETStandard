@@ -37,6 +37,94 @@ namespace Opc.Ua.LADS.Client
     public sealed partial class LadsClient
     {
         /// <summary>
+        /// Writes a composed target, mode target or PID tuning member through its UA variable.
+        /// Dynamic browse-name segments in the function-relative path must be URI-escaped.
+        /// </summary>
+        /// <param name="functionId">The function instance.</param>
+        /// <param name="parameterPath">The function-relative parameter path.</param>
+        /// <param name="value">The parameter value.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        public async ValueTask SetParameterAsync(
+            NodeId functionId, string parameterPath, double value, CancellationToken cancellationToken = default)
+        {
+            ThrowIfNull(functionId, nameof(functionId));
+            if (parameterPath == null)
+            {
+                throw new ArgumentNullException(nameof(parameterPath));
+            }
+            string[] segments = parameterPath.Split('/');
+            NodeId parameter;
+            if (segments.Length == 2 && segments[0] == BrowseNames.ControllerTuningParameter &&
+                segments[1] is BrowseNames.CtrlP or BrowseNames.CtrlTi or BrowseNames.CtrlTd)
+            {
+                parameter = await RequireAsync(
+                    functionId, cancellationToken, Lads(segments[0]), Lads(segments[1])).ConfigureAwait(false);
+            }
+            else if ((segments.Length == 2 && segments[0] == BrowseNames.TargetValueSet) ||
+                (segments.Length == 3 && segments[0] == BrowseNames.ControllerModeSet &&
+                    segments[2] == BrowseNames.TargetValue))
+            {
+                string name = Uri.UnescapeDataString(segments[1]);
+                if (name.Length == 0 || Uri.EscapeDataString(name) != segments[1])
+                {
+                    throw new ArgumentException("The parameter name must be URI-escaped.", nameof(parameterPath));
+                }
+                NodeId set = await RequireAsync(functionId, cancellationToken, Lads(segments[0]))
+                    .ConfigureAwait(false);
+                List<ReferenceDescription> children = await BrowseAsync(
+                    set, Ua.ReferenceTypeIds.HasComponent,
+                    segments.Length == 2 ? NodeClass.Variable : NodeClass.Object, cancellationToken)
+                    .ConfigureAwait(false);
+                NodeId member = NodeId.Null;
+                foreach (ReferenceDescription child in children)
+                {
+                    if (!string.Equals(child.BrowseName.Name, name, StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+                    if (!member.IsNull)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadBrowseNameDuplicated);
+                    }
+                    member = ToNodeId(child.NodeId);
+                    if (member.IsNull)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadNodeIdUnknown, "The parameter has no local NodeId.");
+                    }
+                }
+                if (member.IsNull)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadNotFound, "The function has no parameter '{0}'.", parameterPath);
+                }
+                parameter = segments.Length == 2
+                    ? member
+                    : await RequireAsync(member, cancellationToken, Lads(BrowseNames.TargetValue))
+                        .ConfigureAwait(false);
+            }
+            else
+            {
+                throw new ArgumentException(
+                    "The parameter path is not a supported LADS member.", nameof(parameterPath));
+            }
+            WriteResponse response = await Session.WriteAsync(
+                null,
+                [new WriteValue
+                {
+                    NodeId = parameter,
+                    AttributeId = Attributes.Value,
+                    Value = new DataValue(Variant.From(value))
+                }],
+                cancellationToken).ConfigureAwait(false);
+            ValidateResponse(response.ResponseHeader, response.Results.Count, 1);
+            if (StatusCode.IsBad(response.Results[0]))
+            {
+                throw new ServiceResultException(response.Results[0]);
+            }
+        }
+
+        /// <summary>
         /// Discovers optional running methods with current state and user executability.
         /// A missing optional method is omitted; a failed attribute read is reported to the caller.
         /// </summary>

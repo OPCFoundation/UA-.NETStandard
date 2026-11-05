@@ -74,6 +74,7 @@ namespace LadsSample.Server
                         options.Range = new Opc.Ua.Range(60, 4);
                         options.InitialTargetValue = AmbientTemperature;
                         options.InitialCurrentValue = AmbientTemperature;
+                        options.Pid = new LadsPidOptions { CtrlP = 1.5, CtrlTi = 10, CtrlTd = 0 };
                     })
                     .AnalogControl("ShakerSpeed", options =>
                     {

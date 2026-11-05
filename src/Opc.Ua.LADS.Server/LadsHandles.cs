@@ -474,6 +474,16 @@ namespace Opc.Ua.LADS.Server
         event Action<LadsFunctionalStateValue>? StateChanged;
 
         /// <summary>
+        /// Writes a configured numeric parameter after hardware acceptance.
+        /// Dynamic browse-name segments in the function-relative path are URI-escaped.
+        /// </summary>
+        /// <param name="parameterPath">The configured function-relative parameter path.</param>
+        /// <param name="value">The finite parameter value.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>A task that completes after accepted publication and notifications.</returns>
+        ValueTask SetParameterAsync(string parameterPath, double value, CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Starts the control function with its current target value.
         /// </summary>
         /// <param name="cancellationToken">The cancellation token.</param>
@@ -599,11 +609,37 @@ namespace Opc.Ua.LADS.Server
         ValueTask ResetTotalizerAsync(double value, CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Reads a published target member of a <see cref="LadsAnalogControlKind.Composed"/> function.
+        /// </summary>
+        /// <param name="name">The member name.</param>
+        /// <returns>The published member value.</returns>
+        double GetComposedTargetValue(string name);
+
+        /// <summary>
         /// Writes a part of the target value of a <see cref="LadsAnalogControlKind.Composed"/> function.
         /// </summary>
         /// <param name="name">The name of the composed target value.</param>
         /// <param name="value">The value.</param>
         void SetComposedTargetValue(string name, double value);
+
+        /// <summary>
+        /// Writes a composed target member through the function provider without computing an aggregate target.
+        /// </summary>
+        /// <param name="name">The member name.</param>
+        /// <param name="value">The member value.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>A task that completes after accepted publication.</returns>
+        ValueTask SetComposedTargetValueAsync(
+            string name, double value, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Publishes the aggregate target calculated by the equipment without invoking the function provider.
+        /// Clients cannot write the calculated target directly.
+        /// </summary>
+        /// <param name="value">The calculated target value.</param>
+        /// <param name="cancellationToken">The cancellation token, checked before publication.</param>
+        /// <returns>A task that completes after publication and notifications.</returns>
+        ValueTask ReportComputedTargetValueAsync(double value, CancellationToken cancellationToken = default);
     }
 
     /// <summary>
@@ -642,6 +678,15 @@ namespace Opc.Ua.LADS.Server
         /// <param name="mode">The mode name.</param>
         /// <param name="value">The target value.</param>
         void SetTargetValue(string mode, double value);
+
+        /// <summary>
+        /// Writes the named mode's target through the function provider without selecting that mode.
+        /// </summary>
+        /// <param name="mode">The mode name.</param>
+        /// <param name="value">The target value.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>A task that completes after accepted publication.</returns>
+        ValueTask SetTargetValueAsync(string mode, double value, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Publishes the measured value of a controller parameter.

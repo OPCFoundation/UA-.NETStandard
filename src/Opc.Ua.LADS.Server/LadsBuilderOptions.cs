@@ -114,6 +114,11 @@ namespace Opc.Ua.LADS.Server
     public sealed class LadsAnalogControlOptions
     {
         /// <summary>
+        /// Gets or sets optional PID tuning parameters. Null omits the tuning object.
+        /// </summary>
+        public LadsPidOptions? Pid { get; set; }
+
+        /// <summary>
         /// Gets or sets whether to add the optional running state machine and its operations.
         /// The function provider must implement <see cref="ILadsControlFunctionRunningProvider"/>.
         /// </summary>
@@ -166,6 +171,11 @@ namespace Opc.Ua.LADS.Server
     public sealed class LadsMultiModeAnalogControlOptions
     {
         /// <summary>
+        /// Gets or sets optional PID tuning parameters. Null omits the tuning object.
+        /// </summary>
+        public LadsPidOptions? Pid { get; set; }
+
+        /// <summary>
         /// Gets or sets whether to add the optional running state machine and its operations.
         /// The function provider must implement <see cref="ILadsControlFunctionRunningProvider"/>.
         /// </summary>
@@ -198,6 +208,12 @@ namespace Opc.Ua.LADS.Server
     public sealed class LadsTwoStateDiscreteOptions
     {
         /// <summary>
+        /// Gets or sets optional PID tuning parameters for a control function.
+        /// Sensor functions do not expose controller tuning.
+        /// </summary>
+        public LadsPidOptions? Pid { get; set; }
+
+        /// <summary>
         /// Gets or sets whether to add the optional running state machine and its operations.
         /// The function provider must implement <see cref="ILadsControlFunctionRunningProvider"/>.
         /// </summary>
@@ -225,6 +241,12 @@ namespace Opc.Ua.LADS.Server
     public sealed class LadsMultiStateDiscreteOptions
     {
         /// <summary>
+        /// Gets or sets optional PID tuning parameters for a control function.
+        /// Sensor functions do not expose controller tuning.
+        /// </summary>
+        public LadsPidOptions? Pid { get; set; }
+
+        /// <summary>
         /// Gets or sets whether to add the optional running state machine and its operations.
         /// The function provider must implement <see cref="ILadsControlFunctionRunningProvider"/>.
         /// </summary>
@@ -247,6 +269,11 @@ namespace Opc.Ua.LADS.Server
     public sealed class LadsTimerOptions
     {
         /// <summary>
+        /// Gets or sets optional PID tuning parameters. Null omits the tuning object.
+        /// </summary>
+        public LadsPidOptions? Pid { get; set; }
+
+        /// <summary>
         /// Gets or sets whether to add the optional running state machine and its operations.
         /// The function provider must implement <see cref="ILadsControlFunctionRunningProvider"/>.
         /// </summary>
@@ -266,6 +293,27 @@ namespace Opc.Ua.LADS.Server
         /// Gets or sets the initial target duration in milliseconds.
         /// </summary>
         public double InitialTargetValue { get; set; }
+    }
+
+    /// <summary>
+    /// Selects the published PID tuning members without prescribing a controller algorithm.
+    /// </summary>
+    public sealed class LadsPidOptions
+    {
+        /// <summary>
+        /// Gets or sets the initial CtrlP value. Null omits this optional member.
+        /// </summary>
+        public double? CtrlP { get; set; }
+
+        /// <summary>
+        /// Gets or sets the initial CtrlTi value. Null omits this optional member.
+        /// </summary>
+        public double? CtrlTi { get; set; }
+
+        /// <summary>
+        /// Gets or sets the initial CtrlTd value. Null omits this optional member.
+        /// </summary>
+        public double? CtrlTd { get; set; }
     }
 
     /// <summary>

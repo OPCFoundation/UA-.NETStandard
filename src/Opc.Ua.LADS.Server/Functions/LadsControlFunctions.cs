@@ -282,10 +282,11 @@ namespace Opc.Ua.LADS.Server
         protected async ValueTask InvokeProviderAsync(
             LadsFunctionCommandKind kind,
             Variant value,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            string? parameterPath = null)
         {
             ServiceResult result = await Unit.FunctionProvider
-                .OnCommandAsync(new LadsFunctionCommand(this, kind, value), cancellationToken)
+                .OnCommandAsync(new LadsFunctionCommand(this, kind, value, parameterPath), cancellationToken)
                 .ConfigureAwait(false);
             Unit.Device.RequireStorageHealthy();
             if (ServiceResult.IsBad(result))
@@ -363,10 +364,40 @@ namespace Opc.Ua.LADS.Server
             LadsFunctionalUnit unit,
             BaseControlFunctionState node,
             string path,
-            bool enableRunningOperations = false)
+            bool enableRunningOperations = false,
+            LadsPidOptions? pid = null)
             : base(unit, node, path)
         {
             ISystemContext context = Runtime.Context;
+            if (pid != null)
+            {
+                PidControllerParameterState tuning = LadsRuntime.Named(
+                    context.CreateInstanceOfPidControllerParameterType(
+                        node, new QualifiedName(BrowseNames.ControllerTuningParameter, Runtime.LadsNamespaceIndex)),
+                    global::Opc.Ua.ReferenceTypeIds.HasComponent);
+                node.ControllerTuningParameter = tuning;
+                if (pid.CtrlP is double proportional)
+                {
+                    CheckRange(null, proportional);
+                    tuning.AddCtrlP(context);
+                    Runtime.Update(tuning.CtrlP, Variant.From(proportional));
+                    RegisterParameter(BrowseNames.ControllerTuningParameter + "/" + BrowseNames.CtrlP, tuning.CtrlP!);
+                }
+                if (pid.CtrlTi is double integral)
+                {
+                    CheckRange(null, integral);
+                    tuning.AddCtrlTi(context);
+                    Runtime.Update(tuning.CtrlTi, Variant.From(integral));
+                    RegisterParameter(BrowseNames.ControllerTuningParameter + "/" + BrowseNames.CtrlTi, tuning.CtrlTi!);
+                }
+                if (pid.CtrlTd is double derivative)
+                {
+                    CheckRange(null, derivative);
+                    tuning.AddCtrlTd(context);
+                    Runtime.Update(tuning.CtrlTd, Variant.From(derivative));
+                    RegisterParameter(BrowseNames.ControllerTuningParameter + "/" + BrowseNames.CtrlTd, tuning.CtrlTd!);
+                }
+            }
             ControlFunctionStateMachineState stateMachine = node.ControlFunctionState ??
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,
@@ -446,6 +477,32 @@ namespace Opc.Ua.LADS.Server
         /// Gets the optional running substate.
         /// </summary>
         public LadsRunningStateValue? RunningState => m_running?.Current;
+
+        /// <inheritdoc/>
+        public ValueTask SetParameterAsync(
+            string parameterPath, double value, CancellationToken cancellationToken = default)
+        {
+            if (parameterPath == null)
+            {
+                throw new ArgumentNullException(nameof(parameterPath));
+            }
+            return ExclusiveAsync(
+                async () =>
+                {
+                    if (!m_writableParameters.TryGetValue(parameterPath, out var parameter))
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadNotFound, "The function has no writable parameter '{0}'.", parameterPath);
+                    }
+                    CheckRange(parameter.Range, value);
+                    Variant argument = Variant.From(value);
+                    await InvokeProviderAsync(
+                        LadsFunctionCommandKind.SetParameter, argument, cancellationToken, parameterPath)
+                        .ConfigureAwait(false);
+                    await Unit.Device.SetFunctionParameterAsync(parameter.Node, argument).ConfigureAwait(false);
+                },
+                cancellationToken);
+        }
 
         /// <inheritdoc/>
         public override async ValueTask DisposeAsync()
@@ -760,6 +817,15 @@ namespace Opc.Ua.LADS.Server
         protected abstract Variant NormalizeTarget(Variant value);
 
         /// <summary>
+        /// Registers one named numeric parameter before publication and routes UA writes through its provider.
+        /// </summary>
+        protected void RegisterParameter(string parameterPath, BaseVariableState variable, Range? range = null)
+        {
+            m_writableParameters.Add(parameterPath, (variable, range));
+            LadsRuntime.BindWrite(variable, (value, ct) => SetParameterAsync(parameterPath, ToDouble(value), ct));
+        }
+
+        /// <summary>
         /// Writes an accepted target value.
         /// </summary>
         protected void ApplyTarget(Variant value)
@@ -988,6 +1054,10 @@ namespace Opc.Ua.LADS.Server
         }
 
         private readonly LadsStateMachine<LadsFunctionalStateValue> m_machine;
+
+        /// <summary>Writable named parameters configured before the function is published.</summary>
+        private readonly Dictionary<string, (BaseVariableState Node, Range? Range)> m_writableParameters =
+            new(StringComparer.Ordinal);
         private readonly LadsStateMachine<LadsRunningStateValue>? m_running;
         private readonly Lock m_runningLock = new();
         private readonly SemaphoreSlim m_runningGate = new(1, 1);
@@ -1010,7 +1080,7 @@ namespace Opc.Ua.LADS.Server
             AnalogControlFunctionState node,
             string path,
             LadsAnalogControlOptions options)
-            : base(unit, node, path, options.EnableRunningOperations)
+            : base(unit, node, path, options.EnableRunningOperations, options.Pid)
         {
             m_node = node;
             m_options = options;
@@ -1025,6 +1095,11 @@ namespace Opc.Ua.LADS.Server
             if (options.Kind != LadsAnalogControlKind.Composed)
             {
                 LadsRuntime.BindWrite(node.TargetValue, SetTargetCoreAsync);
+            }
+            else if (node.TargetValue is { } computedTarget)
+            {
+                computedTarget.AccessLevel &= unchecked((byte)~AccessLevels.CurrentWrite);
+                computedTarget.UserAccessLevel &= unchecked((byte)~AccessLevels.CurrentWrite);
             }
             m_lastUpdate = Runtime.TimeProvider.GetTimestamp();
             switch (node)
@@ -1079,6 +1154,8 @@ namespace Opc.Ua.LADS.Server
                         variable.Value = 0.0;
                         variable.NodeId = context.NodeIdFactory!.New(context, variable);
                         set.AddChild(variable);
+                        RegisterParameter(
+                            $"{BrowseNames.TargetValueSet}/{Uri.EscapeDataString(name)}", variable, options.Range);
                     }
                     break;
             }
@@ -1190,6 +1267,21 @@ namespace Opc.Ua.LADS.Server
         }
 
         /// <inheritdoc/>
+        public double GetComposedTargetValue(string name)
+        {
+            RequireKind(LadsAnalogControlKind.Composed);
+            if (name == null)
+            {
+                throw new ArgumentNullException(nameof(name));
+            }
+            var composed = (AnalogControlFunctionWithComposedTargetValueState)m_node;
+            BaseDataVariableState<double> variable =
+                Runtime.FindChild<BaseDataVariableState<double>>(composed.TargetValueSet!, name) ??
+                    throw ServiceResultException.Create(StatusCodes.BadNotFound, "No target value '{0}'.", name);
+            return variable.Value;
+        }
+
+        /// <inheritdoc/>
         public void SetComposedTargetValue(string name, double value)
         {
             Unit.Device.RequireStorageHealthy();
@@ -1207,8 +1299,36 @@ namespace Opc.Ua.LADS.Server
         }
 
         /// <inheritdoc/>
+        public ValueTask SetComposedTargetValueAsync(
+            string name, double value, CancellationToken cancellationToken = default)
+        {
+            RequireKind(LadsAnalogControlKind.Composed);
+            if (name == null)
+            {
+                throw new ArgumentNullException(nameof(name));
+            }
+            return SetParameterAsync(
+                $"{BrowseNames.TargetValueSet}/{Uri.EscapeDataString(name)}", value, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask ReportComputedTargetValueAsync(
+            double value, CancellationToken cancellationToken = default)
+        {
+            RequireKind(LadsAnalogControlKind.Composed);
+            CheckRange(m_options.Range, value);
+            cancellationToken.ThrowIfCancellationRequested();
+            return ApplyTargetAsync(Variant.From(value), CancellationToken.None);
+        }
+
+        /// <inheritdoc/>
         protected override Variant NormalizeTarget(Variant value)
         {
+            if (Kind == LadsAnalogControlKind.Composed)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNotSupported, "The composed target is calculated by the equipment.");
+            }
             double target = ToDouble(value);
             CheckRange(m_options.Range, target);
             return Variant.From(target);
@@ -1306,7 +1426,7 @@ namespace Opc.Ua.LADS.Server
             MultiModeAnalogControlFunctionState node,
             string path,
             LadsMultiModeAnalogControlOptions options)
-            : base(unit, node, path, options.EnableRunningOperations)
+            : base(unit, node, path, options.EnableRunningOperations, options.Pid)
         {
             if (options.Modes.Count == 0)
             {
@@ -1350,6 +1470,11 @@ namespace Opc.Ua.LADS.Server
                 Runtime.Update(parameter.TargetValue, Variant.From(0.0));
                 set.AddChild(parameter);
                 m_parameters[ii] = parameter;
+                RegisterParameter(
+                    $"{BrowseNames.ControllerModeSet}/{Uri.EscapeDataString(options.Modes[ii])}/" +
+                    BrowseNames.TargetValue,
+                    parameter.TargetValue!,
+                    options.Range);
             }
         }
 
@@ -1397,6 +1522,20 @@ namespace Opc.Ua.LADS.Server
             Unit.Device.RequireStorageHealthy();
             CheckRange(m_options.Range, value);
             Unit.Device.SetFunctionParameter(Find(mode).TargetValue, Variant.From(value));
+        }
+
+        /// <inheritdoc/>
+        public ValueTask SetTargetValueAsync(
+            string mode, double value, CancellationToken cancellationToken = default)
+        {
+            if (mode == null)
+            {
+                throw new ArgumentNullException(nameof(mode));
+            }
+            return SetParameterAsync(
+                $"{BrowseNames.ControllerModeSet}/{Uri.EscapeDataString(mode)}/{BrowseNames.TargetValue}",
+                value,
+                cancellationToken);
         }
 
         /// <inheritdoc/>
@@ -1477,7 +1616,7 @@ namespace Opc.Ua.LADS.Server
             TwoStateDiscreteControlFunctionState node,
             string path,
             LadsTwoStateDiscreteOptions options)
-            : base(unit, node, path, options.EnableRunningOperations)
+            : base(unit, node, path, options.EnableRunningOperations, options.Pid)
         {
             m_current = Configure(node.CurrentValue, options);
             m_target = Configure(node.TargetValue, options);
@@ -1584,7 +1723,7 @@ namespace Opc.Ua.LADS.Server
             MultiStateDiscreteControlFunctionState node,
             string path,
             LadsMultiStateDiscreteOptions options)
-            : base(unit, node, path, options.EnableRunningOperations)
+            : base(unit, node, path, options.EnableRunningOperations, options.Pid)
         {
             m_states = Validate(options);
             m_current = Configure(Runtime, node.CurrentValue, options);
@@ -1722,7 +1861,7 @@ namespace Opc.Ua.LADS.Server
             TimerControlFunctionState node,
             string path,
             LadsTimerOptions options)
-            : base(unit, node, path, options.EnableRunningOperations)
+            : base(unit, node, path, options.EnableRunningOperations, options.Pid)
         {
             m_node = node;
             m_options = options;

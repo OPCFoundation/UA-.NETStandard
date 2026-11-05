@@ -199,6 +199,18 @@ namespace Opc.Ua.LADS.Client
         }
 
         /// <summary>
+        /// Writes a configured composed target, mode target or PID tuning parameter.
+        /// </summary>
+        /// <param name="parameterPath">The function-relative path with URI-escaped dynamic browse names.</param>
+        /// <param name="value">The parameter value.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        public ValueTask SetParameterAsync(
+            string parameterPath, double value, CancellationToken cancellationToken = default)
+        {
+            return Client.SetParameterAsync(NodeId, parameterPath, value, cancellationToken);
+        }
+
+        /// <summary>
         /// Resets the totalizer of an analog control function with a totalizer.
         /// </summary>
         /// <param name="value">The value to reset the totalizer to.</param>

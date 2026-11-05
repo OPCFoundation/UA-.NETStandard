@@ -107,7 +107,12 @@ namespace Opc.Ua.LADS.Server
         /// <summary>
         /// Resets a cover in the error state.
         /// </summary>
-        Reset
+        Reset,
+
+        /// <summary>
+        /// Writes the member identified by <see cref="LadsFunctionCommand.ParameterPath"/>.
+        /// </summary>
+        SetParameter
     }
 
     /// <summary>
@@ -145,10 +150,35 @@ namespace Opc.Ua.LADS.Server
         /// <param name="value">The argument of the command, if it has one.</param>
         /// <exception cref="ArgumentNullException"><paramref name="function"/> is <c>null</c>.</exception>
         public LadsFunctionCommand(ILadsFunction function, LadsFunctionCommandKind kind, Variant value = default)
+            : this(function, kind, value, null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a command with an explicit parameter identity for a named parameter write.
+        /// </summary>
+        /// <param name="function">The function the command is issued to.</param>
+        /// <param name="kind">The command kind.</param>
+        /// <param name="value">The command value.</param>
+        /// <param name="parameterPath">The function-relative path, required only for SetParameter.</param>
+        public LadsFunctionCommand(
+            ILadsFunction function, LadsFunctionCommandKind kind, Variant value, string? parameterPath)
         {
             Function = function ?? throw new ArgumentNullException(nameof(function));
+            if (kind == LadsFunctionCommandKind.SetParameter)
+            {
+                if (string.IsNullOrWhiteSpace(parameterPath))
+                {
+                    throw new ArgumentException("A named parameter path is required.", nameof(parameterPath));
+                }
+            }
+            else if (parameterPath != null)
+            {
+                throw new ArgumentException("Only SetParameter carries a parameter path.", nameof(parameterPath));
+            }
             Kind = kind;
             Value = value;
+            ParameterPath = parameterPath;
         }
 
         /// <summary>
@@ -165,6 +195,12 @@ namespace Opc.Ua.LADS.Server
         /// The argument of the command: the target value, the modification or the mode index.
         /// </summary>
         public Variant Value { get; }
+
+        /// <summary>
+        /// Gets the function-relative parameter path for SetParameter; other commands carry null.
+        /// Dynamic browse-name segments are URI-escaped.
+        /// </summary>
+        public string? ParameterPath { get; }
     }
 
     /// <summary>
