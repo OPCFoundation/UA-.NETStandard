@@ -26,6 +26,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client.Subscriptions.Fakes;
@@ -34,6 +35,69 @@ namespace Opc.Ua.Client.Subscriptions
 {
     public sealed partial class SubscriptionTests
     {
+        /// <summary>
+        /// With pooled notifications the data change and event memory passed to the handler is
+        /// rented and returned (cleared) once the handler returned; without pooling the handler
+        /// may keep it. Values the handler copied stay valid in both modes.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [CancelAfter(10_000)]
+        public async Task PooledNotificationMemoryIsReturnedAfterHandlerAsync(bool pooled, CancellationToken ct)
+        {
+            ReadOnlyMemory<DataValueChange> keptChanges = default;
+            ReadOnlyMemory<EventNotification> keptEvents = default;
+            var copiedChanges = new List<DataValueChange>();
+            var copiedEvents = new List<EventNotification>();
+            m_mockNotificationDataHandler.Setup(value => value.OnDataChangeNotificationAsync(
+                    It.IsAny<ISubscription>(), It.IsAny<uint>(), It.IsAny<DateTime>(),
+                    It.IsAny<ReadOnlyMemory<DataValueChange>>(), It.IsAny<PublishState>(),
+                    It.IsAny<IReadOnlyList<string>>()))
+                .Callback((ISubscription _, uint _, DateTime _, ReadOnlyMemory<DataValueChange> changes,
+                    PublishState _, IReadOnlyList<string> _) =>
+                {
+                    keptChanges = changes;
+                    copiedChanges.AddRange(changes.ToArray());
+                })
+                .Returns(default(ValueTask));
+            m_mockNotificationDataHandler.Setup(value => value.OnEventDataNotificationAsync(
+                    It.IsAny<ISubscription>(), It.IsAny<uint>(), It.IsAny<DateTime>(),
+                    It.IsAny<ReadOnlyMemory<EventNotification>>(), It.IsAny<PublishState>(),
+                    It.IsAny<IReadOnlyList<string>>()))
+                .Callback((ISubscription _, uint _, DateTime _, ReadOnlyMemory<EventNotification> events,
+                    PublishState _, IReadOnlyList<string> _) =>
+                {
+                    keptEvents = events;
+                    copiedEvents.AddRange(events.ToArray());
+                })
+                .Returns(default(ValueTask));
+            m_completion.PoolNotifications = pooled;
+            await using var subscription = new TestSubscription(
+                m_session, m_mockNotificationDataHandler.Object, m_completion, m_options, m_telemetry, 7);
+
+            await subscription.OnPublishReceivedAsync(CreateMixedMessage(), [3], []).ConfigureAwait(false);
+            await m_completion.WaitForQueuedAckAsync(1).WaitAsync(ct).ConfigureAwait(false);
+
+            Assert.That(copiedChanges.Select(change => change.ClientHandle), Is.EqualTo(new uint[] { 11, 13 }));
+            Assert.That(copiedEvents, Has.Count.EqualTo(1));
+            Assert.That(copiedEvents[0].ClientHandle, Is.EqualTo(12));
+            Assert.That(copiedEvents[0].Fields[0], Is.EqualTo(Variant.From("event")));
+            Assert.That(keptChanges.Length, Is.EqualTo(1));
+            Assert.That(keptEvents.Length, Is.EqualTo(1));
+            if (pooled)
+            {
+                // returned to the pool with its references cleared.
+                Assert.That(keptChanges.Span[0].ClientHandle, Is.Zero);
+                Assert.That(keptEvents.Span[0].ClientHandle, Is.Zero);
+                Assert.That(keptEvents.Span[0].Fields.IsNull, Is.True);
+            }
+            else
+            {
+                Assert.That(keptChanges.Span[0].ClientHandle, Is.EqualTo(13));
+                Assert.That(keptEvents.Span[0].ClientHandle, Is.EqualTo(12));
+            }
+        }
+
         /// <summary>
         /// Every partition must begin shutdown before retirement waits for a sibling whose
         /// keep-alive is queued behind the active whole-message handler's forwarding gate.
