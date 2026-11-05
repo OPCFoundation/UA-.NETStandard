@@ -513,7 +513,7 @@ namespace Opc.Ua.Wot
                     expanded.Add(unit);
                 }
             }
-            string projectionsUnit = "2:" + WotProjection.ConformanceUnitName;
+            const string projectionsUnit = "2:" + WotProjection.ConformanceUnitName;
             if (units.Contains(projectionsUnit))
             {
                 expanded.Add(projectionsUnit);
@@ -734,6 +734,8 @@ namespace Opc.Ua.Wot
                 // Section 4.1 - revision and conformance claims.
                 BindingVersionTerm,
                 ProfileTerm,
+                "uav:minVersion",
+                "uav:compatibilityLine",
                 // Section 5 - identity, names, paths and type annotations.
                 "uav:id",
                 "uav:browsePath",

@@ -33,6 +33,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Server.Registry;
 
 namespace Opc.Ua.WotCon.Server.Materialization
@@ -196,13 +197,17 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// </summary>
         /// <param name="resource">The WoT resource.</param>
         /// <param name="version">The WoT resource version.</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         public ByteString GetContent(WotResource resource, WotResourceVersion version)
         {
             _ = resource ?? throw new ArgumentNullException(nameof(resource));
             _ = version ?? throw new ArgumentNullException(nameof(version));
             WotResourceVersion? captured = Registry.FindResource(resource.GroupId, resource.ResourceId)?.DefaultVersion;
-            if (captured is null || captured.IncarnationId != version.IncarnationId ||
-                captured.Epoch != version.Epoch || !WotContentDigest.Equal(captured.Digest, version.Digest) ||
+            if (captured is null ||
+                captured.IncarnationId != version.IncarnationId ||
+                captured.Epoch != version.Epoch ||
+                !WotContentDigest.Equal(captured.Digest, version.Digest) ||
                 !Contents.TryGetValue(version.DigestHex, out ByteString content))
             {
                 throw new ServiceResultException(
@@ -246,11 +251,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Resolves selector identity and requested dependents from metadata before acquiring
         /// any document. The caller owns the returned exact-Version leases.
         /// </summary>
-        /// <param name="cancellationToken">The cancellation token passed to the asynchronous operation.</param>
         /// <param name="registry">The WoT registry service.</param>
         /// <param name="selectors">The resource selectors identifying the resources to capture.</param>
         /// <param name="includeDependents">The include-dependents flag supplied by the caller.</param>
         /// <param name="maxJsonDepth">The max JSON depth.</param>
+        /// <param name="cancellationToken">The cancellation token passed to the asynchronous operation.</param>
         public static ValueTask<WotMaterializationSnapshot> CaptureAsync(
             IWotRegistryService registry,
             ArrayOf<WoTResourceSelectorDataType> selectors,
@@ -273,6 +278,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         /// <param name="committedInputs">The committed-inputs flag supplied by the caller.</param>
         /// <param name="mutation">The WoT registry mutation image.</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         internal static async ValueTask<WotMaterializationSnapshot> CapturePublicationAsync(
             IWotRegistryService registry,
             ArrayOf<WoTResourceSelectorDataType> selectors,
@@ -321,7 +328,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             WotResourceVersion retained = previous.Versions[0];
                             WotResourceVersion candidate = input.Versions[0];
                             // Reloaded records have independent process-local incarnation IDs.
-                            if (previous.Kind != input.Kind || previous.SourceId != input.SourceId ||
+                            if (previous.Kind != input.Kind ||
+                                previous.SourceId != input.SourceId ||
                                 previous.MetaCreatedAt != input.MetaCreatedAt ||
                                 !SameCommittedInputVersion(retained, candidate))
                             {
@@ -359,7 +367,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 foreach (WotResource input in retainedInputs.Values)
                 {
                     WotResource? current = original.FindResource(input.GroupId, input.ResourceId);
-                    if (current is null || current.Kind != input.Kind || current.SourceId != input.SourceId ||
+                    if (current is null ||
+                        current.Kind != input.Kind ||
+                        current.SourceId != input.SourceId ||
                         current.MetaCreatedAt != input.MetaCreatedAt)
                     {
                         throw new ServiceResultException(
@@ -425,10 +435,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         group.Resources.SetItem(resource.ResourceId, resource), group.Epoch), pinned.Generation);
                 }
             }
-            var roots = selection.ToList()
+            WotResource[] roots = selection.ToList()
                 .Where(selected => selected.Resource.Enabled && selected.Version?.HasContent == true)
                 .Select(selected => PinVersion(selected.Resource, selected.Version!)).ToArray();
-            var content = ImmutableDictionary.CreateBuilder<string, ByteString>(StringComparer.Ordinal);
+            ImmutableDictionary<string, ByteString>.Builder content =
+                ImmutableDictionary.CreateBuilder<string, ByteString>(StringComparer.Ordinal);
             var leases = new List<IWotRegistryVersionLease>();
             var acquired = new HashSet<Guid>();
             bool transferred = false;
@@ -456,13 +467,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         }
                     }
                     ByteString bytes = await registry.ReadContentAsync(version, token).ConfigureAwait(false);
-                    if (bytes.IsNull || bytes.Length != version.ContentLength ||
+                    if (bytes.IsNull ||
+                        bytes.Length != version.ContentLength ||
                         !WotContentDigest.Equal(WotContentDigest.Compute(bytes), version.Digest))
                     {
                         throw new ServiceResultException(
                             StatusCodes.BadDecodingError, "Acquired bytes do not match the captured exact Version.");
                     }
-                    ByteString captured = ByteString.From(bytes.Span.ToArray());
+                    var captured = ByteString.From(bytes.Span.ToArray());
                     content[version.DigestHex] = captured;
                     return captured;
                 }
@@ -470,7 +482,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 ImmutableArray<WotDependencyClosure> closures = await BuildClosuresAsync(
                     pinned, roots, maxJsonDepth, ReadAsync, replacementClosures, cancellationToken)
                     .ConfigureAwait(false);
-                var groups = ImmutableDictionary.CreateBuilder<string, WotResourceGroup>(StringComparer.Ordinal);
+                ImmutableDictionary<string, WotResourceGroup>.Builder groups =
+                    ImmutableDictionary.CreateBuilder<string, WotResourceGroup>(StringComparer.Ordinal);
                 foreach (WotResource resource in closures.SelectMany(closure => closure.Members))
                 {
                     if (!groups.TryGetValue(resource.GroupId, out WotResourceGroup? group))
@@ -509,6 +522,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <param name="snapshot">The WoT registry snapshot.</param>
         /// <param name="selectors">The resource selectors identifying the resources to select.</param>
         /// <param name="includeDependents">The include-dependents flag supplied by the caller.</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         public static ArrayOf<WotSelectedResource> SelectResources(
             WotRegistrySnapshot snapshot,
             ArrayOf<WoTResourceSelectorDataType> selectors,
@@ -531,8 +546,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 foreach (WoTResourceSelectorDataType selector in selectors)
                 {
-                    if (selector is null || selector.Kind is not (WoTDocumentKindEnum.ThingDescription or
-                        WoTDocumentKindEnum.ThingModel or WoTDocumentKindEnum.All))
+                    if (selector is null ||
+                        selector.Kind is not (WoTDocumentKindEnum.ThingDescription or
+                            WoTDocumentKindEnum.ThingModel or WoTDocumentKindEnum.All))
                     {
                         throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Invalid selector Kind.");
                     }
@@ -602,13 +618,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     changed = false;
                     foreach (WotResource resource in snapshot.AllResources())
                     {
-                        if (selected.ContainsKey(resource.Xid) || !resource.Enabled ||
+                        if (selected.ContainsKey(resource.Xid) ||
+                            !resource.Enabled ||
                             resource.DefaultVersion?.Dependencies is not { } metadata)
                         {
                             continue;
                         }
                         if (metadata.References.Contains(reference =>
-                            ResolveReference(snapshot, resource, reference) is { } target &&
+                            ResolveReferenceTarget(snapshot, resource, reference) is { } target &&
                             selected.ContainsKey(target.Xid)))
                         {
                             selected.Add(resource.Xid, new WotSelectedResource(
@@ -634,28 +651,71 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         private static bool SameCommittedInputVersion(WotResourceVersion left, WotResourceVersion right)
         {
-            return left.VersionId == right.VersionId && left.CreatedAt == right.CreatedAt &&
-                left.Epoch == right.Epoch && left.ContentLength == right.ContentLength &&
-                left.Format == right.Format && left.ContentType == right.ContentType &&
+            return left.VersionId == right.VersionId &&
+                left.CreatedAt == right.CreatedAt &&
+                left.Epoch == right.Epoch &&
+                left.ContentLength == right.ContentLength &&
+                left.Format == right.Format &&
+                left.ContentType == right.ContentType &&
                 WotContentDigest.Equal(left.Digest, right.Digest);
         }
 
         private static WotResource PinVersion(WotResource resource, WotResourceVersion version)
         {
-            return resource.With(defaultVersionId: version.VersionId, desiredVersionId: version.VersionId);
+            return resource.With(defaultVersionId: version.VersionId, desiredVersionId: version.VersionId)
+                .WithDefaultVersionSticky(true);
         }
 
-        private static WotResource? ResolveReference(
+        internal static WotResourceSnapshot VersionSnapshot(WotResource resource)
+        {
+            return new WotResourceSnapshot(resource.SourceId ?? resource.Xid,
+                resource.DefaultVersionSticky, resource.DefaultVersionId,
+                resource.Versions.Select(version => new WotVersionSnapshot(version.VersionId,
+                    resource.Kind == WoTDocumentKindEnum.ThingDescription
+                        ? version.InstanceVersion == version.VersionId ? "authored" : "generated"
+                        : version.ModelVersion == version.VersionId ? "authored" : "generated",
+                    "sha256:" + version.DigestHex, version.ModelVersion, version.InstanceVersion)).ToArrayOf());
+        }
+
+        /// <summary>
+        /// Finds the Resource a stored reference names, without selecting a Version of it.
+        /// </summary>
+        /// <remarks>
+        /// Dependency walks ask which Resource an edge points at. Whether a Version of that
+        /// Resource satisfies the edge's floor is a separate question, and a floor that no
+        /// stored Version meets does not change which Resource the edge names.
+        /// </remarks>
+        private static WotResource? ResolveReferenceTarget(
             WotRegistrySnapshot snapshot, WotResource source, WotResourceReference reference,
             HashSet<string>? excluded = null)
         {
+            return ResolveReference(snapshot, source, reference, out _, excluded, selectVersion: false);
+        }
+
+        /// <summary>
+        /// Resolves a stored reference to a Resource pinned to the Version that satisfies it.
+        /// </summary>
+        /// <param name="snapshot">The registry snapshot.</param>
+        /// <param name="source">The Resource that carries the reference.</param>
+        /// <param name="reference">The stored reference.</param>
+        /// <param name="versionError">
+        /// Receives the version-domain error code when the Resource is found but no Version of
+        /// it satisfies the reference; the method then returns <c>null</c>.
+        /// </param>
+        /// <param name="excluded">Resources treated as absent.</param>
+        /// <param name="selectVersion">Whether to apply floors and select a Version.</param>
+        private static WotResource? ResolveReference(
+            WotRegistrySnapshot snapshot, WotResource source, WotResourceReference reference,
+            out string? versionError, HashSet<string>? excluded = null, bool selectVersion = true)
+        {
+            versionError = null;
             string raw = TrimFragment(reference.TargetUri);
             WotResource? target;
             if (reference.Lookup != WotResourceReferenceLookup.Document)
             {
-                WotResource[] owners = snapshot.AllResources().Where(resource =>
+                WotResource[] owners = [.. snapshot.AllResources().Where(resource =>
                     excluded?.Contains(resource.Xid) != true &&
-                    DefinesReferencedNode(resource, reference)).ToArray();
+                    DefinesReferencedNode(resource, reference))];
                 target = owners.Length == 1 ? owners[0] : null;
             }
             else if (reference.RefType is "uav:dataTypeDefinition" or "uav:fieldDataTypeDefinition" or
@@ -665,7 +725,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
             else
             {
-                target = raw.IndexOfAny([':', '/', '\\']) < 0
+                target = reference.TargetUri.StartsWith('#') ? source : raw.IndexOfAny([':', '/', '\\']) < 0
                     ? snapshot.FindResource(source.GroupId, raw)
                     : null;
                 if (target is not null && excluded?.Contains(target.Xid) == true)
@@ -682,6 +742,90 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 if (exact is not null)
                 {
                     return PinVersion(target, exact);
+                }
+                if (!selectVersion)
+                {
+                    return target;
+                }
+                if (!target.Enabled && source.DefaultVersion is { } selectedSource &&
+                    source.CommittedVersion is { } committedSource &&
+                    SameCommittedInputVersion(selectedSource, committedSource))
+                {
+                    WotResource? retained = source.CommittedInputs.ToList().FirstOrDefault(input =>
+                        input.Xid == target.Xid);
+                    if (retained is not null)
+                    {
+                        if (retained.Kind != target.Kind || retained.SourceId != target.SourceId ||
+                            retained.MetaCreatedAt != target.MetaCreatedAt ||
+                            target.FindVersion(retained.Versions[0].VersionId) is not { } retainedVersion ||
+                            !SameCommittedInputVersion(retainedVersion, retained.Versions[0]))
+                        {
+                            versionError = "pin-mismatch";
+                            return null;
+                        }
+                        target = PinVersion(target, retainedVersion);
+                    }
+                }
+                if (IsLocalFragmentReference(source, reference.TargetUri, reference.RefType, target))
+                {
+                    WotResourceVersion? containing = source.DefaultVersion;
+                    if (containing is null)
+                    {
+                        versionError = "not-found";
+                        return null;
+                    }
+                    try
+                    {
+                        WotResourceSnapshot localResource = VersionSnapshot(source);
+                        _ = WotVersionResolver.Resolve([localResource],
+                            new WotReferenceRequest(reference.RefType == "td:ref" ? "td-ref" : "ref",
+                                localResource.WotId, reference.RequiredVersion)
+                            {
+                                Local = true
+                            }, "urn:opcua:registry-snapshot",
+                            new WotDocumentVersionContext(containing.ModelVersion, [])
+                            {
+                                VersionId = containing.VersionId,
+                                InstanceVersion = containing.InstanceVersion
+                            });
+                        return PinVersion(source, containing);
+                    }
+                    catch (WotVersionException exception)
+                    {
+                        versionError = exception.Code;
+                        return null;
+                    }
+                }
+                bool isThingModelReference = target.Kind == WoTDocumentKindEnum.ThingModel &&
+                    (reference.RequiredVersion is not null ||
+                        reference.RefType is "tm:extends" or "tm:submodel" or "tm:ref" or "type" or "uav:projects");
+                bool isThingDescriptionReference = target.Kind == WoTDocumentKindEnum.ThingDescription &&
+                    reference.RefType is "td:extends" or "td:subthing" or "td:ref" or "uav:projects";
+                if ((isThingModelReference || isThingDescriptionReference) &&
+                    (reference.RequiredVersion is not null ||
+                        target.Versions.All(version => WotSemanticVersion.TryParse(version.VersionId, out _))))
+                {
+                    WotResourceSnapshot resource = VersionSnapshot(target);
+                    try
+                    {
+                        WotResolutionResult selected = WotVersionResolver.Resolve([resource],
+                            new WotReferenceRequest(
+                                reference.RefType == "uav:projects"
+                                    ? isThingDescriptionReference ? "td-ref" : "ref"
+                                    : reference.RefType,
+                                resource.WotId,
+                                reference.RequiredVersion,
+                                reference.RequiredVersion is null
+                                    ? null
+                                    : isThingDescriptionReference ? "td:minVersion" : "tm:minVersion"),
+                            "urn:opcua:registry-snapshot");
+                        return PinVersion(target, target.FindVersion(selected.VersionId)!);
+                    }
+                    catch (WotVersionException exception)
+                    {
+                        versionError = exception.Code;
+                        return null;
+                    }
                 }
             }
             return target;

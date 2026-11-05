@@ -1,0 +1,101 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+      "tm": "https://www.w3.org/2019/wot/tm#"
+    },
+    "../opc-ua-wot-binding.context.jsonld"
+  ],
+  "@type": ["Thing"],
+  "id": "urn:example:view:spindle-monitoring",
+  "title": "Spindle monitoring view",
+  "description": "A spindle-monitoring view combining the flattened spindle 1 feed overwrite of machine tools 07 and 08. Name prefixes keep the identical source names apart, and each selected schema keeps the semantic path it has relative to its own source Thing.",
+  "uav:scenario": "http://example.com/scenario/SpindleMonitoring",
+  "securityDefinitions": {
+    "q:p:nosec_sc": { "scheme": "nosec" },
+    "q:s:tool07:opcua_channel_sc": {
+      "@context": [{"@base": "./29-flattened-monitoring-payload.jsonld", "ex": {"@id": "https://example.com/model/", "@prefix": true}}],
+      "scheme": "uav:channelsec",
+      "uav:securityMode": "SignAndEncrypt",
+      "uav:securityPolicy": "Aes256_Sha256_RsaPss"
+    },
+    "q:s:tool08:opcua_channel_sc": {
+      "@context": [{"@base": "./30-flattened-monitoring-payload-tool08.jsonld", "ex": {"@id": "https://example.com/model/", "@prefix": true}}],
+      "scheme": "uav:channelsec",
+      "uav:securityMode": "SignAndEncrypt",
+      "uav:securityPolicy": "Aes256_Sha256_RsaPss"
+    }
+  },
+  "security": ["q:p:nosec_sc"],
+  "properties": {
+    "tool07Monitoring.Channel_Spindle1.FeedOverwrite": {
+      "@context": [{
+        "@base": "./29-flattened-monitoring-payload.jsonld",
+        "ex": { "@id": "https://example.com/model/", "@prefix": true }
+      }],
+      "@type": "uav:variable",
+      "title": "Spindle 1 feed overwrite",
+      "uav:browseName": "ex:AtomicMonitoringDataset",
+      "type": "object",
+      "readOnly": true,
+      "observable": true,
+      "uav:semanticPath": [
+        { "name": "Monitoring", "@type": "ex:MonitoringType" },
+        {
+          "name": "Channel_Spindle1",
+          "@type": "ex:ChannelMonitoringType",
+          "tm:ref": "./28-channel-monitoring-type.jsonld#"
+        },
+        { "name": "FeedOverwrite", "@id": "urn:example:machine-tool:07:feed-overwrite" }
+      ],
+      "properties": {
+        "SourceTimestamp": { "type": "string", "format": "date-time" },
+        "Value": { "type": "number" }
+      },
+      "forms": [
+        {
+          "href": "opc.tcp://example.com:4840/?id=nsu%3Dhttps%3A%2F%2Fexample.com%2Fmodel%2F%3Bs%3DAtomicMonitoringDataset",
+          "contentType": "application/json",
+          "op": ["readproperty", "observeproperty"],
+          "security": ["q:s:tool07:opcua_channel_sc"]
+        }
+      ],
+      "uav:resolvedFrom": "./29-flattened-monitoring-payload.jsonld#/properties/Monitoring.Channel_Spindle1.FeedOverwrite"
+    },
+    "tool08Monitoring.Channel_Spindle1.FeedOverwrite": {
+      "@context": [{
+        "@base": "./30-flattened-monitoring-payload-tool08.jsonld",
+        "ex": { "@id": "https://example.com/model/", "@prefix": true }
+      }],
+      "@type": "uav:variable",
+      "title": "Spindle 1 feed overwrite",
+      "uav:browseName": "ex:AtomicMonitoringDataset",
+      "type": "object",
+      "readOnly": true,
+      "observable": true,
+      "uav:semanticPath": [
+        { "name": "Monitoring", "@type": "ex:MonitoringType" },
+        {
+          "name": "Channel_Spindle1",
+          "@type": "ex:ChannelMonitoringType",
+          "tm:ref": "./28-channel-monitoring-type.jsonld#"
+        },
+        { "name": "FeedOverwrite", "@id": "urn:example:machine-tool:08:feed-overwrite" }
+      ],
+      "properties": {
+        "SourceTimestamp": { "type": "string", "format": "date-time" },
+        "Value": { "type": "number" }
+      },
+      "forms": [
+        {
+          "href": "opc.tcp://example.com:4841/?id=nsu%3Dhttps%3A%2F%2Fexample.com%2Fmodel%2F%3Bs%3DAtomicMonitoringDataset",
+          "contentType": "application/json",
+          "op": ["readproperty", "observeproperty"],
+          "security": ["q:s:tool08:opcua_channel_sc"]
+        }
+      ],
+      "uav:resolvedFrom": "./30-flattened-monitoring-payload-tool08.jsonld#/properties/Monitoring.Channel_Spindle1.FeedOverwrite"
+    }
+  }
+}

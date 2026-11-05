@@ -7,10 +7,9 @@
     },
     "../opc-ua-wot-binding.context.jsonld"
   ],
-  "@type": "uav:object",
   "id": "urn:dev:opcua:pump-01",
   "title": "Pump 01",
-  "description": "A Thing Description of a single OPC UA Object using only the preserved OPC 10101 vocabulary: Read, Write, Observe (Monitor) and Call, plus the explicit OPC UA security schemes.",
+  "description": "A Thing Description of a single OPC UA Object whose root omits a NodeClass annotation and therefore uses the default Object mapping. It uses only the preserved OPC 10101 vocabulary: Read, Write, Observe (Monitor) and Call, plus the explicit OPC UA security schemes.",
   "uav:browseName": "pump:Pump",
   "uav:id": "nsu=http://example.com/demo/pump;s=Pump",
   "links": [

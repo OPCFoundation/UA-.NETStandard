@@ -88,7 +88,9 @@ namespace Opc.Ua.Types.Tests.Wot
             "uav:argumentLayout",
             "uav:declaration",
             "uav:defaultEncodings",
-            "uav:eventIdentityMode"
+            "uav:eventIdentityMode",
+            "uav:minVersion",
+            "uav:compatibilityLine"
         ];
 
         [Test]
@@ -514,7 +516,7 @@ namespace Opc.Ua.Types.Tests.Wot
                     WotBindingConformance.VocabularyTerms.Count,
                     Is.EqualTo(113 + s_additionalTerms.Length),
                     "The implementation retains the 113 revision 1.1 IRIs and recognizes the published " +
-                    "Call, projection, declaration, encoding, and event-identity terms.");
+                    "Call, projection, declaration, encoding, event-identity, and version-requirement terms.");
                 foreach (string term in s_additionalTerms)
                 {
                     Assert.That(WotBindingConformance.IsKnownTerm(term), Is.True, term);

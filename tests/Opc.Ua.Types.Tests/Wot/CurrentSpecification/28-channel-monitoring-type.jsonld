@@ -1,0 +1,27 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+      "ex": "https://example.com/model/"
+    },
+    "../opc-ua-wot-binding.context.jsonld"
+  ],
+  "@type": ["tm:ThingModel", "uav:objectType", "ex:ChannelMonitoringType"],
+  "id": "urn:example:model:ChannelMonitoringType",
+  "title": "ChannelMonitoringType",
+  "description": "A reusable type definition for one machine-tool monitoring channel.",
+  "uav:bindingVersion": "1.1",
+  "uav:profile": ["WoT-Modeller"],
+  "uav:browseName": "ex:ChannelMonitoringType",
+  "uav:id": "nsu=https://example.com/model/;s=ChannelMonitoringType",
+  "properties": {
+    "FeedOverwrite": {
+      "@type": "uav:variable",
+      "title": "Feed overwrite",
+      "uav:browseName": "ex:FeedOverwrite",
+      "type": "number",
+      "readOnly": true
+    }
+  }
+}

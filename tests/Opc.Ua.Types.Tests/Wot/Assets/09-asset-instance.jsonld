@@ -8,11 +8,10 @@
     },
     "../opc-ua-wot-binding.context.jsonld"
   ],
-  "@type": "uav:projection",
-  "uav:projectionKind": "ThingDescription",
+  "@type": ["Thing", "uav:projection"],
   "id": "urn:dev:opcua:asset:pump-01",
   "title": "Pump 01 asset",
-  "description": "An asset authored as projections. It selects its own identity and organizes four groups, each of which is a projection that selects its members from the pump Thing Description. Nothing is copied and the pump is unaware that it is grouped.",
+  "description": "An asset view combining device identity with process, condition, alarm and management groups. The groups select their affordances from the pump Thing Description without changing that source.",
   "uav:scenario": "http://example.com/scenario/AssetManagement",
   "securityDefinitions": { "nosec_sc": { "scheme": "nosec" } },
   "security": "nosec_sc",
@@ -30,25 +29,25 @@
       "rel": "ua:Organizes",
       "href": "./10-group-process-data.jsonld",
       "uav:refName": "ProcessData",
-      "type": "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.1/projection\""
+      "type": "application/td+json"
     },
     {
       "rel": "ua:Organizes",
       "href": "./11-group-condition-data.jsonld",
       "uav:refName": "ConditionData",
-      "type": "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.1/projection\""
+      "type": "application/td+json"
     },
     {
       "rel": "ua:Organizes",
       "href": "./12-group-alarms.jsonld",
       "uav:refName": "Alarms",
-      "type": "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.1/projection\""
+      "type": "application/td+json"
     },
     {
       "rel": "ua:Organizes",
       "href": "./13-group-management.jsonld",
       "uav:refName": "Management",
-      "type": "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.1/projection\""
+      "type": "application/td+json"
     }
   ]
 }

@@ -1,0 +1,26 @@
+{
+  "repository": "https://github.com/xregistry/spec",
+  "commit": "76e084ec2149481a5d8e73a4fefc4a724e404937",
+  "files": [
+    {
+      "name": "README.md",
+      "bytes": 11401,
+      "sha256": "b039fa76bc2fb93b623492c5ac8359474817d4391d0422595d3a053b04ad35f7"
+    },
+    {
+      "name": "check_vectors.py",
+      "bytes": 12159,
+      "sha256": "a4dd0a2ab62bffcdf133e8216c90f50124d1ccc9ea3f975dde8468240a2657fe"
+    },
+    {
+      "name": "schema.json",
+      "bytes": 11387,
+      "sha256": "2ab6524103b867c790ee5377335f2484d6d501ee73ab62a2673779326fff2f8c"
+    },
+    {
+      "name": "vectors.json",
+      "bytes": 36031,
+      "sha256": "115f7fa97b2aa33fbae2441ff4c672153512a18cf99c695460d238437d6c8f0c"
+    }
+  ]
+}

@@ -54,6 +54,55 @@ namespace Opc.Ua.Types.Tests.Wot
     public class WotProjectionResolverTests
     {
         /// <summary>
+        /// Verifies manifest-source floors against the target document kind rather than a selector's spelling.
+        /// </summary>
+        [TestCase("application/tm+json", "1.2.0", true)]
+        [TestCase("application/tm+json", "2.0.0-beta", true)]
+        [TestCase("application/tm+json", "1.0.0", false)]
+        [TestCase("application/td+json", "1.2.0", true)]
+        [TestCase("application/td+json", "2.0.0-beta", false)]
+        [TestCase("application/td+json", "1.0.0", false)]
+        public async Task ManifestSourceFloorUsesTargetDocumentKindAsync(
+            string mediaType, string authored, bool success)
+        {
+            string version = mediaType == "application/td+json"
+                ? "\"model\":\"99.0.0\",\"instance\":\"" + authored + "\""
+                : "\"model\":\"" + authored + "\",\"instance\":\"99.0.0\"";
+            const string common = "\"securityDefinitions\":{\"none\":{\"scheme\":\"nosec\"}},\"security\":[\"none\"],";
+            string role = mediaType == "application/td+json" ? "Thing" : "tm:ThingModel";
+            string source = "{\"@type\":\"" +
+                role +
+                "\",\"id\":\"urn:source\"," +
+                common +
+                "\"version\":{" +
+                version +
+                "},\"properties\":{\"p\":{\"type\":\"number\"," +
+                "\"forms\":[{\"href\":\"https://source.example/p\",\"op\":\"readproperty\"}]}}}";
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(
+                "{\"@context\":{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"}," +
+                "\"@type\":[\"Thing\",\"uav:projection\"],\"id\":\"urn:view\"," +
+                common +
+                "\"uav:scenario\":\"urn:scenario\",\"uav:projects\":[{\"uav:sourceName\":\"source\"," +
+                "\"href\":\"urn:source\",\"type\":\"" +
+                mediaType +
+                "\",\"uav:selectAll\":true," +
+                "\"uav:minVersion\":\"1.1.0-beta\"}]}"));
+            WotConversionResult<WotDocument> result = await Resolver(("urn:source", source))
+                .ResolveAsync(document).ConfigureAwait(false);
+            using WotDocument? view = result.Value;
+            Assert.That(result.Success, Is.EqualTo(success), string.Join("; ", result.Diagnostics));
+            if (success)
+            {
+                Assert.That(view!.Properties.ContainsKey("p"), Is.True);
+            }
+            else
+            {
+                Assert.That(result.Diagnostics.Any(diagnostic =>
+                    diagnostic.Message.Contains("unsatisfied", StringComparison.Ordinal)), Is.True);
+            }
+        }
+
+        /// <summary>
         /// Verifies that resolves predictive maintenance projection to expected view.
         /// </summary>
         [Test]
@@ -2337,7 +2386,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public async Task RejectsMissingRootRoleBeforeResolvingSourcesAsync()
         {
-            JsonObject root = (JsonObject)JsonNode.Parse(SelfProjectionJson)!;
+            var root = (JsonObject)JsonNode.Parse(SelfProjectionJson)!;
             root["@type"] = new JsonArray("uav:projection");
             using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(root.ToJsonString()));
             var source = new Moq.Mock<IWotThingResolver>(Moq.MockBehavior.Strict);

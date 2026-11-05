@@ -1,0 +1,36 @@
+{
+  "description": "Prerelease floor makes prereleases eligible.",
+  "registry": [
+    {
+      "wotid": "urn:example:pump:v1",
+      "defaultversionsticky": false,
+      "defaultversionid": "1.2.0-rc.1",
+      "versions": [
+        {
+          "versionid": "1.1.0",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+          "version.model": "1.1.0"
+        },
+        {
+          "versionid": "1.2.0-rc.1",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000003",
+          "version.model": "1.2.0-rc.1"
+        }
+      ]
+    }
+  ],
+  "reference": {
+    "kind": "submodel",
+    "target": "urn:example:pump:v1",
+    "minVersion": "1.2.0-rc.1"
+  },
+  "expect": {
+    "result": {
+      "wotid": "urn:example:pump:v1",
+      "versionid": "1.2.0-rc.1",
+      "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000003"
+    }
+  }
+}

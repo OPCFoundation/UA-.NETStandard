@@ -49,13 +49,17 @@ namespace Opc.Ua.WotCon.Tests
         /// <param name="fileName">The file name used by this test case.</param>
         /// <param name="digest">The expected digest of the input file.</param>
         [TestCase(RegistryNodeSet, "4440d08f46039108a3c8a67bdd22727f189f7c1a28b7473100c4be28249ee660")]
-        [TestCase(ConnectivityNodeSet, "5013519a6cb0b047459f23aaf95fbf4ca3ac2d2d8e9351ba50c853b94b5ed2cc")]
-        [TestCase(ConnectivityCsv, "66603011dbb48b0be6b160ed423a98a6eeb5aa57ed690a9f6529a34f52cbd2b1")]
+        [TestCase(ConnectivityNodeSet, "716513dcec8442e16c3a4d41daa862e8353be8237030fa8f9cacd3e9d56ae038")]
+        [TestCase(ConnectivityCsv, "4ae99df717224da660114804cc74351d0f044cf3ee52b57ba8e858ea34af2bff")]
         public void TheSuccessorInputsMatchTheReviewedGeneratedArtifacts(string fileName, string digest)
         {
-            string text = System.IO.File.ReadAllText(FindModel(fileName))
-                .Replace("\r\n", "\n", StringComparison.Ordinal);
-            ByteString hash = WotContentDigest.Compute(System.Text.Encoding.UTF8.GetBytes(text));
+            byte[] bytes = System.IO.File.ReadAllBytes(FindModel(fileName));
+            if (fileName == RegistryNodeSet)
+            {
+                bytes = System.Text.Encoding.UTF8.GetBytes(System.Text.Encoding.UTF8.GetString(bytes)
+                    .Replace("\r\n", "\n", StringComparison.Ordinal));
+            }
+            ByteString hash = WotContentDigest.Compute(bytes);
             Assert.That(WotContentDigest.ToHex(hash), Is.EqualTo(digest));
         }
 
@@ -72,7 +76,7 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(model.Version, Is.EqualTo("1.1"));
             Assert.That(DateTimeOffset.Parse(
                 model.PublicationDate!, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal),
-                Is.EqualTo(new DateTimeOffset(2026, 9, 21, 0, 0, 0, TimeSpan.Zero)));
+                Is.EqualTo(new DateTimeOffset(2026, 11, 2, 0, 0, 0, TimeSpan.Zero)));
         }
 
         /// <summary>
@@ -218,6 +222,7 @@ namespace Opc.Ua.WotCon.Tests
         /// <param name="inputTypes">The input types used by this test case.</param>
         /// <param name="outputNames">The output names used by this test case.</param>
         /// <param name="outputTypes">The output types used by this test case.</param>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         [TestCase("createGroup", "Kind,CatalogUri", "64020,23751", "GroupNodeId,AssignedGroupId", "17,12")]
         [TestCase("getGroup", "Kind,CatalogUri", "64020,23751", "GroupNodeId,AssignedGroupId,Created", "17,12,1")]
         [TestCase("createTd", "ThingId,VersionId,RequestFileOpen", "23751,12,1",

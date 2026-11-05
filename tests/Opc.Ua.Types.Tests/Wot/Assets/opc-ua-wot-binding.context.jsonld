@@ -4,6 +4,7 @@
     "@version": 1.1,
     "uav": "http://opcfoundation.org/UA/WoT-Binding/",
     "ua": "http://opcfoundation.org/UA/",
+    "0": { "@id": "http://opcfoundation.org/UA/", "@prefix": true },
     "xsd": "http://www.w3.org/2001/XMLSchema#",
     "di": "http://opcfoundation.org/UA/DI/",
     "qudt": "http://qudt.org/schema/qudt/",

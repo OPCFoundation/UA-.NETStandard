@@ -1,0 +1,74 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+      "di": "http://opcfoundation.org/UA/DI/",
+      "pump": "http://example.com/demo/pump"
+    },
+    "../opc-ua-wot-binding.context.jsonld"
+  ],
+  "@type": ["Thing", "uav:object"],
+  "id": "urn:dev:opcua:pump-07",
+  "title": "Pump 07",
+  "description": "An anchored Thing Description with an endpoint resource path, id/path agreement for two properties and a path-only Manufacturer form. Device-identification facts use the Device Integration model.",
+  "uav:browseName": "pump:Pump",
+  "uav:id": "nsu=http://example.com/demo/pump;s=Pump07",
+  "uav:browsePathAnchor": "nsu=http://example.com/demo/pump;s=Pump07",
+  "securityDefinitions": {
+    "opcua_channel_sc": {
+      "scheme": "uav:channelsec",
+      "uav:securityMode": "SignAndEncrypt",
+      "uav:securityPolicy": "Aes256_Sha256_RsaPss"
+    }
+  },
+  "security": "opcua_channel_sc",
+  "base": "opc.tcp://opcuademo.com:4840/UA/Factory",
+  "properties": {
+    "serialNumber": {
+      "@type": "uav:variable",
+      "title": "Serial Number",
+      "uav:browseName": "di:SerialNumber",
+      "uav:browsePath": "di:Identification/di:SerialNumber",
+      "type": "string",
+      "readOnly": true,
+      "forms": [
+        {
+          "href": "?id=nsu%3Dhttp%3A%2F%2Fexample.com%2Fdemo%2Fpump%3Bs%3DPump07.SerialNumber",
+          "contentType": "application/octet-stream",
+          "op": ["readproperty"]
+        }
+      ]
+    },
+    "manufacturer": {
+      "@type": "uav:variable",
+      "title": "Manufacturer",
+      "uav:browseName": "di:Manufacturer",
+      "uav:browsePath": "di:Identification/di:Manufacturer",
+      "type": "string",
+      "readOnly": true,
+      "forms": [
+        {
+          "href": "opc.tcp://opcuademo.com:4840/UA/Factory",
+          "contentType": "application/octet-stream",
+          "op": ["readproperty"]
+        }
+      ]
+    },
+    "manual": {
+      "@type": "uav:variable",
+      "title": "Device Manual",
+      "uav:browseName": "di:DeviceManual",
+      "uav:browsePath": "di:Identification/di:DeviceManual",
+      "type": "string",
+      "readOnly": true,
+      "forms": [
+        {
+          "href": "?id=nsu%3Dhttp%3A%2F%2Fexample.com%2Fdemo%2Fpump%3Bs%3DPump07.DeviceManual",
+          "contentType": "application/octet-stream",
+          "op": ["readproperty"]
+        }
+      ]
+    }
+  }
+}

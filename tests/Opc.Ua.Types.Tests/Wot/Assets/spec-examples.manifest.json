@@ -1,8 +1,8 @@
 {
-  "$comment": "Local regression fixtures only; they are not authoritative specification examples or conformance evidence.",
+  "$comment": "Canonical WoT Binding examples mirrored byte-for-byte; UA-only regression fixtures are retained separately.",
   "baseline": {
     "repository": "https://github.com/OPCF-Members/OPC10100-WoT.git",
-    "commit": "40125acd1b65cdf291a92a67a5c6565656358e6e",
+    "commit": "0b06c3e3b5d6a427193a17321abb6d1da4a2bae0",
     "bindingRevision": "1.1"
   },
   "encoding": {
@@ -14,8 +14,8 @@
   "files": [
     {
       "name": "01-opcua-td-pump.jsonld",
-      "bytes": 6831,
-      "sha256": "76c67b53f85ad86934bb532f07bc2a9eccaa6238af2b9904f662fc851c45ff42"
+      "bytes": 6895,
+      "sha256": "da52d049f9e140abf8bc4bda399319fbdb29cadbc57928f2223bfea7a98c9cc3"
     },
     {
       "name": "02-thing-model-pump.jsonld",
@@ -44,73 +44,73 @@
     },
     {
       "name": "07-projection-predictive-maintenance.jsonld",
-      "bytes": 1725,
-      "sha256": "4b01f4b10a15b235209a679133d380a3a909e07439d4548e5dfabc0f16703887"
+      "bytes": 1595,
+      "sha256": "2ec27f605f4ade39423ec77f699244530f91eb33ac7701bd167b47fc6472b3d7"
     },
     {
       "name": "08-projection-resolved.jsonld",
-      "bytes": 8461,
-      "sha256": "a969c2896c86aeb8d7f80cc6050714e861e51daa8738245cef54e5a8d475c700"
+      "bytes": 8261,
+      "sha256": "8719ec7d184296e037fb81ee9e8c25eac392e9a700d6a167f033f4ec2eed094d"
     },
     {
       "name": "09-asset-instance.jsonld",
-      "bytes": 1988,
-      "sha256": "5cca938ca78b82eb1bde72f4863d912a6712db29dd78c40aed9ad95eb2751daa"
+      "bytes": 1632,
+      "sha256": "98da4228624d961a10424c482e3a4f75d5b71e1f06fce968fbf83fc51db6b14b"
     },
     {
       "name": "10-group-process-data.jsonld",
-      "bytes": 1125,
-      "sha256": "7020617c8f981685e4b2168dd743841f687535421de42664b8a087fdc326d5be"
+      "bytes": 1227,
+      "sha256": "e8250d83612f6f99f3f1da46cb38d04898a579fd807327f8bdff2739d2101ea1"
     },
     {
       "name": "11-group-condition-data.jsonld",
-      "bytes": 1276,
-      "sha256": "5ebef5983ded2094af2f3ca59e3afc514051c6fc1feedcf27918b053f7fca9c8"
+      "bytes": 1243,
+      "sha256": "b1830ffe652a1523a94601a379b03019a8410319c278c01aa337d0aaee91d593"
     },
     {
       "name": "12-group-alarms.jsonld",
-      "bytes": 1012,
-      "sha256": "b39ce49a09a5f1599c483606eb6a7ab4ec21e2018a3dd0b4b0d278cf860e75ab"
+      "bytes": 979,
+      "sha256": "aad3c15f315af4d4e0b39e1af6b729ef0ed623bcd78c4ec16143c962bec11495"
     },
     {
       "name": "13-group-management.jsonld",
-      "bytes": 957,
-      "sha256": "5cda0318bf307af53c107dd399f561dac8165da02fc4b00001529fa989260607"
+      "bytes": 924,
+      "sha256": "6c6063af54bcd1629eecd57a2dad87d9d823ce19e945c548e5133ebc82b42da0"
     },
     {
       "name": "14-asset-instance-resolved.jsonld",
-      "bytes": 4930,
-      "sha256": "0e23f5c8d510d62d899dad97fbac481ba9d711db6cfe498cb5e300a54f081be7"
+      "bytes": 4565,
+      "sha256": "0b36621d6fad309504d6f2b07fce429908ff2a2f45a517d6918e19baabf776a9"
     },
     {
       "name": "15-asset-model.jsonld",
-      "bytes": 2012,
-      "sha256": "8e2b7e5a90185043596f4b513250b2e34bae905f6addb4d9682b20f261bf33df"
+      "bytes": 1717,
+      "sha256": "dd6b860a760f8287ba167bedf0448f3c14e64070d0467c8a873ea6d717a9761e"
     },
     {
       "name": "16-model-group-process-data.jsonld",
-      "bytes": 1064,
-      "sha256": "c3995fe0117dd04d8bea62f81fb315d60ac7a55c86f91b05ba3c553923220930"
+      "bytes": 1045,
+      "sha256": "d5f6efaf52265cca1c0c6f338407f27b089f6b163f34c712683dfee1b267b796"
     },
     {
       "name": "17-model-group-condition-data.jsonld",
-      "bytes": 1205,
-      "sha256": "60b7d4ef45cc6b36a658973595d1fc74cfa2e8c6e01cada14808bc6daa4a7c74"
+      "bytes": 1186,
+      "sha256": "4ff4ff05c25dd492dbb3d537b396e85a9dcb3c02bc5099bca93cd96c102bc5c1"
     },
     {
       "name": "18-model-group-alarms.jsonld",
-      "bytes": 929,
-      "sha256": "84bcaf601452f3aaa7607bb226b2fa77cdd0980d81233c668e991783c731ac5d"
+      "bytes": 910,
+      "sha256": "9d9c7c7d99f14b945bcb479641421f1b953be0f6dc7b10065663d59354163be9"
     },
     {
       "name": "19-model-group-management.jsonld",
-      "bytes": 940,
-      "sha256": "0e176063430c9d8e09c0eb369a6aaf02969d8b68335873c218abf8ad7f2e09d7"
+      "bytes": 921,
+      "sha256": "947a459e342c7c1daea18e15221244009bc2f9d898449ebaad7796eab8f2137e"
     },
     {
       "name": "20-asset-model-resolved.jsonld",
-      "bytes": 2136,
-      "sha256": "56d32b0f297469b624d626040cfd45bed34f0a3fa7f10e36b4044c1d05ae952a"
+      "bytes": 1860,
+      "sha256": "1334a6505e127b5899269901aa75e47730b4bb174688716f90aefb2f5cbbfc1a"
     },
     {
       "name": "21-condition-limit-alarm.jsonld",
@@ -147,5 +147,10 @@
       "bytes": 11443,
       "sha256": "033dbf8065b2595ca7329b6667bc89fe4b2ff2371acc80b6b5cf9a22b11c8b6e"
     }
-  ]
+  ],
+  "context": {
+    "name": "opc-ua-wot-binding.context.jsonld",
+    "bytes": 8781,
+    "sha256": "f044a7f376570e34d3919fac346926c2ed7f802343f5634bcf8efed47c8bd65c"
+  }
 }

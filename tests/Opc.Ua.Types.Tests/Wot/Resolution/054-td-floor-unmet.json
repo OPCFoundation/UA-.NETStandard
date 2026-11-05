@@ -1,0 +1,26 @@
+{
+  "description": "A TD floor above every available candidate is unsatisfied.",
+  "registry": [
+    {
+      "wotid": "urn:example:thing:meter",
+      "defaultversionsticky": false,
+      "defaultversionid": "1.5.0",
+      "versions": [
+        {
+          "versionid": "1.5.0",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:000000000000000000000000000000000000000000000000000000000000003b",
+          "version.instance": "1.5.0"
+        }
+      ]
+    }
+  ],
+  "reference": {
+    "kind": "td-extends",
+    "target": "urn:example:thing:meter",
+    "minVersion": "1.6.0"
+  },
+  "expect": {
+    "error": "unsatisfied"
+  }
+}

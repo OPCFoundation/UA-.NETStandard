@@ -150,7 +150,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 ""","links":[{"rel":"ua:Organizes","href":"urn:r30:native-predecessor"}]""";
             WotRegistryMutationResult definition = await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
-                GroupId = WotRegistryGroups.ThingModels, ResourceId = "native-types", VersionId = "v1",
+                GroupId = WotRegistryGroups.ThingModels,
+                ResourceId = "native-types",
+                VersionId = "1.0.0",
                 Kind = WoTDocumentKindEnum.ThingModel,
                 Content = ByteString.From(Encoding.UTF8.GetBytes("""
                     {
@@ -159,6 +161,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                         "types": "urn:r30:native-types"
                       },
                       "@type": ["tm:ThingModel","uav:dataType"],
+                      "version": {"model": "1.0.0"},
                       "id": "urn:r30:native-types-document",
                       "title": "Reading",
                       "uav:id": "nsu=urn:r30:native-types;i=3000",
@@ -192,7 +195,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 : string.Empty;
             WotRegistryMutationResult source = await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
-                GroupId = WotRegistryGroups.ThingDescriptions, ResourceId = "native-sensor", VersionId = "v1",
+                GroupId = WotRegistryGroups.ThingDescriptions,
+                ResourceId = "native-sensor",
+                VersionId = "1.0.0",
                 Kind = WoTDocumentKindEnum.ThingDescription,
                 Content = ByteString.From(Encoding.UTF8.GetBytes($$$"""
                     {
@@ -240,7 +245,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 ByteString original = await m_registry.ReadContentAsync(consumer.DefaultVersion!).ConfigureAwait(false);
                 WotRegistryMutationResult added = await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
                 {
-                    GroupId = consumer.GroupId, ResourceId = "native-peer", VersionId = "v1", Kind = consumer.Kind,
+                    GroupId = consumer.GroupId,
+                    ResourceId = "native-peer",
+                    VersionId = "1.0.0",
+                    Kind = consumer.Kind,
                     Content = ByteString.From(Encoding.UTF8.GetBytes(
                         Encoding.UTF8.GetString(original.Span.ToArray())
                             .Replace("native-sensor", "native-peer", StringComparison.Ordinal)))
@@ -249,7 +257,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 peer = added.Resource!;
                 request.Selection = request.Selection.Add(new WoTResourceSelectorDataType
                 {
-                    Kind = peer.Kind, Xid = peer.Xid
+                    Kind = peer.Kind,
+                    Xid = peer.Xid
                 });
             }
 
@@ -259,7 +268,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             if (native is not null)
             {
                 Assert.That(converted.IndexOf(native.Xid), Is.LessThan(converted.IndexOf(consumer.Xid)));
-                Assert.That(m_registry.Current.FindResourceByXid(native.Xid)!.ActiveVersionId, Is.EqualTo("v1"));
+                Assert.That(m_registry.Current.FindResourceByXid(native.Xid)!.ActiveVersionId, Is.EqualTo("1.0.0"));
                 Assert.That(await m_registry.ReadContentAsync(native.DefaultVersion!).ConfigureAwait(false),
                     Is.EqualTo(nativeContent));
             }
@@ -283,7 +292,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             WotResource active = m_registry.Current.FindResourceByXid(consumer.Xid)!;
             WotResource retained = m_registry.Current.FindResourceByXid(model.Xid)!;
             Assert.That(retained.Enabled, Is.EqualTo(activeDefinition));
-            Assert.That(retained.ActiveVersionId, activeDefinition ? Is.EqualTo("v1") : Is.Null);
+            Assert.That(retained.ActiveVersionId, activeDefinition ? Is.EqualTo("1.0.0") : Is.Null);
             Assert.That(retained.RootNodeId.IsNull, Is.EqualTo(!activeDefinition));
             WotResourceVersion captured = activeDefinition ? retained.ActiveVersion! :
                 active.CommittedInputs.ToList().Single(input => input.Xid == model.Xid).DefaultVersion!;
@@ -313,7 +322,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(nodeClass, Is.EqualTo((int)NodeClass.DataType));
             if (peer is not null)
             {
-                Assert.That(m_registry.Current.FindResourceByXid(peer.Xid)!.ActiveVersionId, Is.EqualTo("v1"));
+                Assert.That(m_registry.Current.FindResourceByXid(peer.Xid)!.ActiveVersionId, Is.EqualTo("1.0.0"));
                 NodeId peerProperty = ExpandedNodeId.ToNodeId(
                     ExpandedNodeId.Parse("nsu=urn:r30:native-peer;s=Reading"), m_session.NamespaceUris);
                 ReadResponse peerRead = await m_session.ReadAsync(null, 0, TimestampsToReturn.Neither,
@@ -374,10 +383,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(document.TryGetEnvelope(out _), Is.True);
             JsonObject json = JsonNode.Parse(document.Utf8Json.Span)!.AsObject();
             json["id"] = "urn:r30:native-predecessor";
+            json["version"] = new JsonObject { ["model"] = "1.0.0" };
             WotRegistryMutationResult added = await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
-                GroupId = WotRegistryGroups.ThingModels, ResourceId = "a-native-predecessor",
-                Kind = WoTDocumentKindEnum.ThingModel, VersionId = "v1",
+                GroupId = WotRegistryGroups.ThingModels,
+                ResourceId = "a-native-predecessor",
+                Kind = WoTDocumentKindEnum.ThingModel,
+                VersionId = "1.0.0",
                 Content = ByteString.From(Encoding.UTF8.GetBytes(json.ToJsonString()))
             }).ConfigureAwait(false);
             Assert.That(added.Changed, Is.True, added.Message);
@@ -388,10 +400,15 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             WotResource model, WotResource consumer, bool legacyIndex)
         {
             ByteString original = await m_registry.ReadContentAsync(model.DefaultVersion!).ConfigureAwait(false);
+            JsonObject update = JsonNode.Parse(original.Span)!.AsObject();
+            update["version"] = new JsonObject { ["model"] = "2.0.0" };
             WotRegistryMutationResult updated = await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
-                GroupId = model.GroupId, ResourceId = model.ResourceId, Kind = model.Kind, VersionId = "v2",
-                Content = ByteString.From(Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(original.Span.ToArray())
+                GroupId = model.GroupId,
+                ResourceId = model.ResourceId,
+                Kind = model.Kind,
+                VersionId = "2.0.0",
+                Content = ByteString.From(Encoding.UTF8.GetBytes(update.ToJsonString()
                     .Replace("i=3000", "i=3001", StringComparison.Ordinal)))
             }).ConfigureAwait(false);
             Assert.That(updated.Changed, Is.True, updated.Message);
@@ -442,7 +459,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             Assert.That(registry.Current.Generation, Is.EqualTo(previous.Generation + (legacyIndex ? 1 : 0)));
             Assert.That(registry.Current.RefreshGeneration, Is.EqualTo(1u));
-            Assert.That(registry.Current.FindResourceByXid(model.Xid)!.DefaultVersionId, Is.EqualTo("v2"));
+            Assert.That(registry.Current.FindResourceByXid(model.Xid)!.DefaultVersionId, Is.EqualTo("2.0.0"));
             Assert.That(registry.Current.FindResourceByXid(consumer.Xid)!.CommittedInputs.ToList()
                 .Single(input => input.Xid == model.Xid).DefaultVersion!.Digest, Is.EqualTo(model.DefaultVersion!.Digest));
             Assert.That(events, Is.Empty);

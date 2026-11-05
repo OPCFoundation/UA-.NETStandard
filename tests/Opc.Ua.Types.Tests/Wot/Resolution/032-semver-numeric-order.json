@@ -1,0 +1,35 @@
+{
+  "description": "SemVer compares minor numbers numerically, not lexicographically.",
+  "registry": [
+    {
+      "wotid": "urn:example:pump:v1",
+      "defaultversionsticky": false,
+      "defaultversionid": "1.10.0",
+      "versions": [
+        {
+          "versionid": "1.9.0",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+          "version.model": "1.9.0"
+        },
+        {
+          "versionid": "1.10.0",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000003",
+          "version.model": "1.10.0"
+        }
+      ]
+    }
+  ],
+  "reference": {
+    "kind": "extends",
+    "target": "urn:example:pump:v1"
+  },
+  "expect": {
+    "result": {
+      "wotid": "urn:example:pump:v1",
+      "versionid": "1.10.0",
+      "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000003"
+    }
+  }
+}

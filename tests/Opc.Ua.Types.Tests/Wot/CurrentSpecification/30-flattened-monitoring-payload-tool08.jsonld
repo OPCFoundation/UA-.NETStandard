@@ -1,0 +1,55 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+      "ex": "https://example.com/model/"
+    },
+    "../opc-ua-wot-binding.context.jsonld"
+  ],
+  "@type": ["Thing", "uav:object", "ex:MachineToolType"],
+  "id": "urn:example:machine-tool:08",
+  "title": "Machine tool 08 atomic monitoring dataset",
+  "description": "Machine tool 08 publishes the same opaque member name as machine tool 07. Its semantic path starts below this Thing and identifies a different feed-overwrite resource.",
+  "uav:bindingVersion": "1.1",
+  "uav:profile": ["WoT-Reader"],
+  "uav:browseName": "ex:MachineTool",
+  "uav:id": "nsu=https://example.com/model/;s=MachineTool08",
+  "securityDefinitions": {
+    "opcua_channel_sc": {
+      "scheme": "uav:channelsec",
+      "uav:securityMode": "SignAndEncrypt",
+      "uav:securityPolicy": "Aes256_Sha256_RsaPss"
+    }
+  },
+  "security": "opcua_channel_sc",
+  "base": "opc.tcp://example.com:4841",
+  "properties": {
+    "Monitoring.Channel_Spindle1.FeedOverwrite": {
+      "@type": "uav:variable",
+      "title": "Spindle 1 feed overwrite",
+      "uav:browseName": "ex:AtomicMonitoringDataset",
+      "type": "object",
+      "readOnly": true,
+      "observable": true,
+      "uav:semanticPath": [
+        { "name": "Monitoring", "@type": "ex:MonitoringType" },
+        {
+          "name": "Channel_Spindle1",
+          "@type": "ex:ChannelMonitoringType",
+          "tm:ref": "./28-channel-monitoring-type.jsonld#"
+        },
+        { "name": "FeedOverwrite", "@id": "urn:example:machine-tool:08:feed-overwrite" }
+      ],
+      "properties": {
+        "SourceTimestamp": { "type": "string", "format": "date-time" },
+        "Value": { "type": "number" }
+      },
+      "forms": [{
+        "href": "/?id=nsu%3Dhttps%3A%2F%2Fexample.com%2Fmodel%2F%3Bs%3DAtomicMonitoringDataset",
+        "contentType": "application/json",
+        "op": ["readproperty", "observeproperty"]
+      }]
+    }
+  }
+}

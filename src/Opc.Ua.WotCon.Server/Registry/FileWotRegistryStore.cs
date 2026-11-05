@@ -270,10 +270,11 @@ namespace Opc.Ua.WotCon.Server.Registry
             PreparedFileCommit? prepared = null)
         {
             snapshot ??= WotRegistrySnapshot.Empty;
-            ValidatedCommit intended = prepared?.Validated ?? await ValidateIntendedSnapshotAsync(
+            ValidatedCommit intended = prepared?.Validated ??
+                await ValidateIntendedSnapshotAsync(
                     snapshot,
                     cancellationToken)
-                .ConfigureAwait(false);
+                    .ConfigureAwait(false);
             using StorageLock storageLock = await AcquireStorageLockAsync(cancellationToken)
                 .ConfigureAwait(false);
             if (m_expectedManifest is not { } expected ||
@@ -978,7 +979,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                 version.DocumentId is not null ||
                 version.Title is not null ||
                 version.BaseUri is not null ||
-                version.ModelVersion is not null) == true;
+                version.ModelVersion is not null ||
+                version.InstanceVersion is not null) == true;
             WotResourceVersion? committedVersion = null;
             if (dto.Versions is not null || dto.CommittedVersion is not null)
             {
@@ -1087,6 +1089,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                             : dto.Title,
                         BaseUri = version.BaseUri,
                         ModelVersion = version.ModelVersion,
+                        InstanceVersion = version.InstanceVersion,
                         Dependencies = FromDto(version.Dependencies, digestHex),
                         DependencySnapshot = FromDto(
                             version.DependencySnapshot, version.VersionId, committed: true, dependencyGraphs),
@@ -1095,7 +1098,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                     };
                     if (committed)
                     {
-                        if (version.VersionId != dto.ActiveVersionId || !restoredVersion.HasContent ||
+                        if (version.VersionId != dto.ActiveVersionId ||
+                            !restoredVersion.HasContent ||
                             !versionIds.Contains(version.VersionId))
                         {
                             throw new InvalidDataException("The committed input has no matching active Version.");
@@ -1173,6 +1177,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 title: selectedVersion?.Title ?? dto.Title,
                 labels: ToLabels(dto.Labels))
             {
+                DefaultVersionSticky = dto.DefaultVersionSticky,
                 MetaCreatedAt = string.IsNullOrEmpty(dto.MetaCreatedAt)
                     ? derivedMetaCreatedAt
                     : ParseDate(dto.MetaCreatedAt),
@@ -1185,8 +1190,12 @@ namespace Opc.Ua.WotCon.Server.Registry
                 var inputs = new List<WotResource>(dto.CommittedInputs.Length);
                 foreach (ResourceDto input in dto.CommittedInputs)
                 {
-                    if (input is null || input.CommittedInputs is not null || input.CommittedVersion is not null ||
-                        input.ActiveVersionId is not null || input.Enabled || input.Versions?.Length != 1)
+                    if (input is null ||
+                        input.CommittedInputs is not null ||
+                        input.CommittedVersion is not null ||
+                        input.ActiveVersionId is not null ||
+                        input.Enabled ||
+                        input.Versions?.Length != 1)
                     {
                         throw new InvalidDataException(
                             "A retained resolution input is not a flat exact-Version record.");
@@ -1275,6 +1284,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 Name = resource.Name,
                 Description = resource.Description,
                 DefaultVersionId = resource.DefaultVersionId,
+                DefaultVersionSticky = resource.DefaultVersionSticky,
                 DesiredVersionId = resource.DesiredVersionId,
                 ActiveVersionId = resource.ActiveVersionId,
                 CommittedVersion = resource.CommittedVersion is null
@@ -1320,6 +1330,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 Title = version.Title,
                 BaseUri = version.BaseUri,
                 ModelVersion = version.ModelVersion,
+                InstanceVersion = version.InstanceVersion,
                 Dependencies = ToDto(version.Dependencies),
                 DependencySnapshot = ToDto(version.DependencySnapshot, dependencyGraphs),
                 LastDependencyAttempt = ToDto(version.LastDependencyAttempt, dependencyGraphs)
@@ -1362,6 +1373,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     TargetUri = reference.TargetUri,
                     LookupUri = reference.LookupUri,
                     RefType = reference.RefType,
+                    RequiredVersion = reference.RequiredVersion,
                     RequiresOrdering = reference.RequiresOrdering,
                     Lookup = reference.Lookup
                 }).ToArray(),
@@ -1380,18 +1392,23 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 return null;
             }
-            if (dto.ContentDigest != digestHex || dto.References is null ||
-                dto.OwnedModelUris is null || dto.RequiredModelUris is null || dto.DefinedNodeIds is null ||
+            if (dto.ContentDigest != digestHex ||
+                dto.References is null ||
+                dto.OwnedModelUris is null ||
+                dto.RequiredModelUris is null ||
+                dto.DefinedNodeIds is null ||
                 dto.Error is null)
             {
                 throw new InvalidDataException("Dependency metadata does not identify the exact Version content.");
             }
-            if (dto.IndexVersion == 0)
+            if (dto.IndexVersion is 0 or 2)
             {
                 return null;
             }
-            if (dto.IndexVersion != WotResourceDependencies.CurrentIndexVersion || dto.DataTypeDefinitionIds is null ||
-                dto.DataTypeDefinitionNames is null || dto.References.Any(reference =>
+            if (dto.IndexVersion != WotResourceDependencies.CurrentIndexVersion ||
+                dto.DataTypeDefinitionIds is null ||
+                dto.DataTypeDefinitionNames is null ||
+                dto.References.Any(reference =>
                     reference.Lookup is not (WotResourceReferenceLookup.Document or
                         WotResourceReferenceLookup.DataTypeName or WotResourceReferenceLookup.DataTypeNodeId)))
             {
@@ -1404,7 +1421,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                     reference.LookupUri ?? throw new InvalidDataException("Missing contextual dependency identity."),
                     reference.RefType ?? throw new InvalidDataException("Missing dependency relation."),
                     reference.RequiresOrdering,
-                    reference.Lookup)).ToArrayOf(),
+                    reference.Lookup)
+                { RequiredVersion = reference.RequiredVersion }).ToArrayOf(),
                 dto.OwnedModelUris.ToArrayOf(),
                 dto.RequiredModelUris.ToArrayOf(),
                 dto.DefinedNodeIds.ToArrayOf(),
@@ -1439,6 +1457,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     TargetHref = edge.TargetHref,
                     TargetXid = edge.TargetXid,
                     RefType = edge.RefType,
+                    RequiredVersion = edge.RequiredVersion,
                     Resolved = edge.Resolved
                 }).ToArray(),
                 Targets = snapshot.Graph.Targets.ToList().Select(target => new DependencyTargetDto
@@ -1454,7 +1473,10 @@ namespace Opc.Ua.WotCon.Server.Registry
                     VersionXid = target.VersionXid,
                     DocumentUri = target.DocumentUri,
                     VersionNodeId = target.VersionNodeId.IsNull ? null : target.VersionNodeId.ToString(),
-                    ContentDigest = WotContentDigest.ToHex(target.ContentDigest)
+                    ContentDigest = WotContentDigest.ToHex(target.ContentDigest),
+                    WotId = target.WotId,
+                    VersionId = target.VersionId,
+                    Origin = target.Origin
                 }).ToArray()
             };
         }
@@ -1466,8 +1488,10 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 return null;
             }
-            if (dto.SourceVersionId != versionId || dto.RequestId is null ||
-                string.IsNullOrEmpty(dto.ResolvedAt) || dto.IsCommitted != committed ||
+            if (dto.SourceVersionId != versionId ||
+                dto.RequestId is null ||
+                string.IsNullOrEmpty(dto.ResolvedAt) ||
+                dto.IsCommitted != committed ||
                 dto.EffectiveInputDigest is null ||
                 ((committed || dto.EffectiveInputDigest.Length != 0) && !IsSha256Hex(dto.EffectiveInputDigest)))
             {
@@ -1489,8 +1513,10 @@ namespace Opc.Ua.WotCon.Server.Registry
 
         private static WotDependencyTargetPin FromDto(DependencyTargetDto dto)
         {
-            if (dto.VersionXid is null || dto.DocumentUri is null ||
-                dto.ContentDigest is null || !IsSha256Hex(dto.ContentDigest))
+            if (dto.VersionXid is null ||
+                dto.DocumentUri is null ||
+                dto.ContentDigest is null ||
+                !IsSha256Hex(dto.ContentDigest))
             {
                 throw new InvalidDataException("A dependency target is missing its exact content pin.");
             }
@@ -1506,7 +1532,12 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
             return new WotDependencyTargetPin(
                 dto.EdgeIndex, origin, dto.VersionXid, dto.DocumentUri,
-                ParseDependencyNodeId(dto.VersionNodeId), FromHexDigest(dto.ContentDigest));
+                ParseDependencyNodeId(dto.VersionNodeId), FromHexDigest(dto.ContentDigest))
+            {
+                WotId = dto.WotId,
+                VersionId = dto.VersionId,
+                Origin = dto.Origin
+            };
         }
 
         private static ExpandedNodeId ParseDependencyNodeId(string? value)
@@ -3153,6 +3184,11 @@ namespace Opc.Ua.WotCon.Server.Registry
             public string? ModelVersion { get; set; }
 
             /// <summary>
+            /// Gets or sets the Thing Description <c>version.instance</c> value.
+            /// </summary>
+            public string? InstanceVersion { get; set; }
+
+            /// <summary>
             /// Gets or sets the exact content's dependency metadata.
             /// </summary>
             public DependenciesDto? Dependencies { get; set; }
@@ -3245,6 +3281,11 @@ namespace Opc.Ua.WotCon.Server.Registry
             public string? RefType { get; set; }
 
             /// <summary>
+            /// Gets or sets the minimum target version.
+            /// </summary>
+            public string? RequiredVersion { get; set; }
+
+            /// <summary>
             /// Gets or sets the resolved for <c>DependencyEdgeDto</c>.
             /// </summary>
             public bool Resolved { get; set; }
@@ -3284,6 +3325,24 @@ namespace Opc.Ua.WotCon.Server.Registry
             /// Gets or sets the content digest for <c>DependencyTargetDto</c>.
             /// </summary>
             public string? ContentDigest { get; set; }
+
+            /// <summary>
+            /// Gets or sets the captured stable WoT identifier.
+            /// </summary>
+            [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+            public string? WotId { get; set; }
+
+            /// <summary>
+            /// Gets or sets the captured exact revision identifier.
+            /// </summary>
+            [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+            public string? VersionId { get; set; }
+
+            /// <summary>
+            /// Gets or sets the captured resolver origin.
+            /// </summary>
+            [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+            public string? Origin { get; set; }
         }
 
         /// <summary>
@@ -3377,6 +3436,11 @@ namespace Opc.Ua.WotCon.Server.Registry
             /// Gets or sets the ref type for <c>DependencyReferenceDto</c>.
             /// </summary>
             public string? RefType { get; set; }
+
+            /// <summary>
+            /// Gets or sets the minimum target version.
+            /// </summary>
+            public string? RequiredVersion { get; set; }
 
             /// <summary>
             /// Gets or sets the requires ordering for <c>DependencyReferenceDto</c>.
@@ -3474,6 +3538,11 @@ namespace Opc.Ua.WotCon.Server.Registry
             /// Gets or sets the default version identifier for clients that do not request one.
             /// </summary>
             public string? DefaultVersionId { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether the default is operator-pinned.
+            /// </summary>
+            public bool DefaultVersionSticky { get; set; }
 
             /// <summary>
             /// Gets or sets the desired version identifier selected by management operations.

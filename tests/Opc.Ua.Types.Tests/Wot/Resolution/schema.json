@@ -1,0 +1,423 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/xregistry/wot/resolution-vector.schema.json",
+  "title": "WoT Registry canonical resolution vector",
+  "type": "object",
+  "properties": {
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "registry": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/resource"
+      }
+    },
+    "reference": {
+      "$ref": "#/$defs/reference"
+    },
+    "document": {
+      "$ref": "#/$defs/document"
+    },
+    "publish": {
+      "$ref": "#/$defs/publish"
+    },
+    "pin": {
+      "$ref": "#/$defs/pin"
+    },
+    "allowPrerelease": {
+      "type": "boolean"
+    },
+    "expect": {}
+  },
+  "required": [
+    "description",
+    "registry",
+    "expect"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "version": {
+      "type": "object",
+      "properties": {
+        "versionid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?$"
+        },
+        "versionorigin": {
+          "enum": [
+            "authored",
+            "generated"
+          ]
+        },
+        "contentdigest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "version.model": {
+          "type": "string"
+        },
+        "version.instance": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "versionid",
+        "versionorigin",
+        "contentdigest"
+      ],
+      "additionalProperties": false
+    },
+    "resource": {
+      "type": "object",
+      "properties": {
+        "wotid": {
+          "type": "string"
+        },
+        "defaultversionsticky": {
+          "type": "boolean"
+        },
+        "defaultversionid": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "versions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/version"
+          }
+        },
+        "deprecated": {
+          "type": "object",
+          "properties": {
+            "alternative": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          "required": [
+            "alternative"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "wotid",
+        "defaultversionsticky",
+        "defaultversionid",
+        "versions"
+      ],
+      "additionalProperties": false
+    },
+    "reference": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "enum": [
+            "extends",
+            "submodel",
+            "ref",
+            "type",
+            "td-extends",
+            "td-subthing",
+            "td-ref"
+          ]
+        },
+        "target": {
+          "type": "string"
+        },
+        "minVersion": {
+          "type": "string"
+        },
+        "floorTerm": {
+          "enum": [
+            "tm:minVersion",
+            "td:minVersion"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "target"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "floorTerm"
+            ]
+          },
+          "then": {
+            "required": [
+              "minVersion"
+            ]
+          }
+        }
+      ]
+    },
+    "document": {
+      "type": "object",
+      "properties": {
+        "version.model": {
+          "type": "string"
+        },
+        "typeLinks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "target": {
+                "type": "string"
+              },
+              "minVersion": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "target"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "typeLinks"
+      ],
+      "additionalProperties": false
+    },
+    "pin": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "digest": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            }
+          },
+          "required": [
+            "digest"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "versionid": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "versionid"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "publish": {
+      "type": "object",
+      "properties": {
+        "target": {
+          "type": "string"
+        },
+        "versionid": {
+          "type": "string"
+        },
+        "version.model": {
+          "type": "string"
+        },
+        "targetKind": {
+          "enum": [
+            "tm",
+            "td"
+          ]
+        },
+        "version.instance": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "target"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "type": "object",
+      "properties": {
+        "wotid": {
+          "type": "string"
+        },
+        "versionid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?$"
+        },
+        "contentdigest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "wotid",
+        "versionid",
+        "contentdigest"
+      ],
+      "additionalProperties": false
+    },
+    "assigned": {
+      "type": "object",
+      "properties": {
+        "versionid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?$"
+        },
+        "versionorigin": {
+          "enum": [
+            "authored",
+            "generated"
+          ]
+        },
+        "defaultversionid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?$"
+        }
+      },
+      "required": [
+        "versionid",
+        "versionorigin",
+        "defaultversionid"
+      ],
+      "additionalProperties": false
+    },
+    "resolutionExpect": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "result": {
+              "$ref": "#/$defs/result"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "error": {
+              "enum": [
+                "not-found",
+                "pin-mismatch",
+                "unsatisfied",
+                "ambiguous-floor",
+                "invalid-version",
+                "invalid-floor"
+              ]
+            }
+          },
+          "required": [
+            "error"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "publishExpect": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "assigned": {
+              "$ref": "#/$defs/assigned"
+            }
+          },
+          "required": [
+            "assigned"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "error": {
+              "enum": [
+                "version-mismatch",
+                "invalid-version",
+                "not-found"
+              ]
+            }
+          },
+          "required": [
+            "error"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "oneOf": [
+    {
+      "required": [
+        "reference"
+      ],
+      "not": {
+        "required": [
+          "publish"
+        ]
+      },
+      "properties": {
+        "expect": {
+          "$ref": "#/$defs/resolutionExpect"
+        }
+      }
+    },
+    {
+      "required": [
+        "publish"
+      ],
+      "not": {
+        "anyOf": [
+          {
+            "required": [
+              "reference"
+            ]
+          },
+          {
+            "required": [
+              "document"
+            ]
+          },
+          {
+            "required": [
+              "pin"
+            ]
+          },
+          {
+            "required": [
+              "allowPrerelease"
+            ]
+          }
+        ]
+      },
+      "properties": {
+        "expect": {
+          "$ref": "#/$defs/publishExpect"
+        }
+      }
+    }
+  ]
+}

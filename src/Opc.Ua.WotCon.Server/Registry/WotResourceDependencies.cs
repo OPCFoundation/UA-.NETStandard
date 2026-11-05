@@ -87,6 +87,11 @@ namespace Opc.Ua.WotCon.Server.Registry
         public string RefType { get; }
 
         /// <summary>
+        /// Gets the authored or implicit minimum target version.
+        /// </summary>
+        public string? RequiredVersion { get; init; }
+
+        /// <summary>
         /// Gets whether this edge imposes dependency-first ordering.
         /// </summary>
         public bool RequiresOrdering { get; }
@@ -199,7 +204,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <summary>
         /// The current index version used by <c>WotResourceDependencies</c>.
         /// </summary>
-        internal const int CurrentIndexVersion = 2;
+        internal const int CurrentIndexVersion = 3;
     }
 
     /// <summary>

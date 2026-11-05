@@ -241,7 +241,8 @@ namespace Opc.Ua.WotCon.Server
                     m_manager.Server.NamespaceUris);
             }
 
-            document.AddDesiredVersionId(m_manager.SystemContext)
+            document.AddDocumentVersion(m_manager.SystemContext)
+                .AddDesiredVersionId(m_manager.SystemContext)
                 .AddActiveVersionId(m_manager.SystemContext)
                 .AddIsDefault(m_manager.SystemContext)
                 .AddContentDigest(m_manager.SystemContext)
@@ -637,6 +638,15 @@ namespace Opc.Ua.WotCon.Server
             XRegistryProjectionEngine.SetValue(node.RootNodeId, resource.RootNodeId);
             XRegistryProjectionEngine.SetValue(node.RefreshGeneration, resource.RefreshGeneration);
             XRegistryProjectionEngine.SetValue(node.LastRefreshTime, (DateTimeUtc)resource.LastRefreshTime);
+
+            if (node is WoTDocumentState versionedDocument)
+            {
+                XRegistryProjectionEngine.SetValue(versionedDocument.DocumentVersion,
+                    version?.ModelVersion ?? string.Empty);
+                XRegistryProjectionEngine.SetValue(versionedDocument.VersionOrigin,
+                    resource.Kind == WoTDocumentKindEnum.ThingModel && version?.ModelVersion != version?.VersionId
+                        ? "generated" : "authored");
+            }
 
             if (node is ThingDescriptionFileState td)
             {

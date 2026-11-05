@@ -12,7 +12,7 @@ This repository implements the OPC UA **WoT Connectivity** companion specificati
 | `Opc.Ua.WotCon.Tests`            | NUnit tests covering the TD parser, mappers, simulated provider, discovery facade |
 
 The model namespace URI is `http://opcfoundation.org/UA/WoT-Con/`,
-combined model version `1.1`, publication 2026-09-21 (`1.1-draft8`).
+combined model version `1.1`, publication 2026-11-02 (`1.1-draft10`).
 It incorporates the unchanged published `1.02.0` asset model.
 
 For current protocol-runtime architecture and the contributor guide for adding a protocol see [WoT protocol bindings](WotBindings.md), and the runnable end-to-end topology is documented in the [WoT aggregation sample](../samples/WotCon/README.md).
@@ -842,6 +842,10 @@ selectors do no work. Exact-Version selections do not follow a new default.
 `IncludeDependents` adds the reverse closure. Capture retains original bytes,
 contextual references, and Version leases; disabled dependencies may supply
 definitions without executing.
+An unchanged committed owner retains its exact definition input when that
+dependency is retired. The private resolution image verifies the retained
+identity and Version state and still applies the reference's requirements;
+it does not reactivate the dependency or change the registry's default policy.
 
 PerResource, PerGroup, PerClosure, and PerRegistry apply to selected/required work;
 dependency safety may coarsen the requested boundary. Inspect `Summary.Atomicity`
@@ -852,11 +856,27 @@ the whole invocation including admission/capture; zero disables it.
 Dry runs prepare private candidates without changing observations, plans, caches,
 generations, View tokens, or events.
 
+The runtime implements SemVer selection. A present, true `AllowPrerelease`
+refresh option is rejected with `BadNotSupported`; omission and present false
+retain the supported default. A present `PublicationContext` is also rejected
+with `BadNotSupported`, because this runtime does not open publication channels
+or compose retained snapshots. Generated Incremental and publication declarations
+describe the model contract, not implemented allocator or snapshot capabilities.
+
 `DependencySnapshot` records successful exact-Version activation;
 `LastDependencyAttempt` records a completed actual attempt. Initially absent
 observations report `BadWaitingForInitialData`. Logical reads follow the default;
 exact-Version reads do not. Decode `WoTDependencySnapshotDataType` through the
-Session's registered factory/message context. Remote observation reads require the
+Session's registered factory/message context.
+
+An authoritative wire target requires a captured stable WoT identifier, exact
+SemVer revision and actual resolver origin. Registry capture records those facts;
+it does not infer a provider origin or revision from `DocumentUri`. A raw pin
+without that metadata remains usable as a raw content pin, but wire snapshot
+export rejects it with `BadNotSupported`. Opaque native Version ids retain their
+native CRUD semantics and are not represented as SemVer revisions in that export.
+
+Remote observation reads require the
 management policy and native Read/Browse authorization on the source group and
 exact Version, and on every captured target's local registry origin, group and
 exact Version, including native channel access restrictions and namespace
@@ -1123,12 +1143,12 @@ adopted verbatim rather than maintained by hand.
 
 | Model | Version | PublicationDate |
 |---|---|---|
-| WoT Connectivity | `1.1` | 2026-09-21 |
+| WoT Connectivity | `1.1` | 2026-11-02 |
 | WoT Binding (OPC 10101-1) | `1.1` | 2026-07-29 |
 | xRegistry (`RequiredModel`) | `0.7.0` | 2026-09-12 |
 | OPC UA Core (`RequiredModel`) | `1.05.04` | 2025-01-08 |
 
-xRegistry contributes 131 nodes and the combined Connectivity model 349. The registry honours its
+xRegistry contributes 131 nodes and the combined Connectivity model 358. The registry honours its
 reverse-authority construction algorithm for `GroupId` and `ResourceId` (§ 11.4),
 `SignAndEncrypt` on every mutating operation, and optional generic event semantics.
 OPC 10101-2 (WoT Projections) defines the projection-plan conformance unit used
@@ -1139,7 +1159,7 @@ records the resolver/View behavior and the mandatory result-validation blocker.
 It does not claim full `WoT-Projection` conformance.
 
 Draft iterations are identified by the specification release label, for example
-`1.1-draft8`; they do not increment the information model version.
+`1.1-draft10`; they do not increment the information model version.
 
 ### 12.2 Conformance units and profiles
 

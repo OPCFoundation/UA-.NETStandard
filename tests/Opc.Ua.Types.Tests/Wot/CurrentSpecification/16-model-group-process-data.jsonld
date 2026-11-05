@@ -1,0 +1,31 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+      "tm": "https://www.w3.org/2019/wot/tm#"
+    },
+    "../opc-ua-wot-binding.context.jsonld"
+  ],
+  "@type": ["tm:ThingModel", "uav:projection"],
+  "id": "urn:example:model:pump-asset:process-data",
+  "title": "Process data",
+  "description": "A type-level data set selecting existing member declarations of the pump Thing Model. Its canonical View is independent of the occurrence Objects through which parent projections organize it.",
+  "uav:scenario": "http://example.com/scenario/AssetManagement",
+  "uav:projects": [
+    {
+      "uav:sourceName": "pumpType",
+      "href": "./02-thing-model-pump.jsonld",
+      "type": "application/tm+json",
+      "uav:routing": "source"
+    }
+  ],
+  "properties": {
+    "pumpSpeed": {
+      "tm:ref": "./02-thing-model-pump.jsonld#/properties/pumpSpeed"
+    },
+    "dischargePressure": {
+      "tm:ref": "./02-thing-model-pump.jsonld#/properties/dischargePressure"
+    }
+  }
+}

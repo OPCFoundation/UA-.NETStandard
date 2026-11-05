@@ -467,8 +467,8 @@ namespace Opc.Ua.WotCon.Tests.Registry
 
                 foreach ((string VersionId, string Title, string ModelVersion) version in new[]
                 {
-                    ("v1", "first", "1.0.0"),
-                    ("v2", "second", "2.0.0")
+                    ("1.0.0", "first", "1.0.0"),
+                    ("2.0.0", "second", "2.0.0")
                 })
                 {
                     await service.UpsertResourceAsync(new WotUpsertResourceRequest
@@ -490,7 +490,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 await service.SetDefaultVersionAsync(
                     WotRegistryGroups.ThingModels,
                     "model-metadata",
-                    "v2",
+                    "2.0.0",
                     modelBefore.MetaEpoch).ConfigureAwait(false);
             }
 
@@ -532,10 +532,10 @@ namespace Opc.Ua.WotCon.Tests.Registry
             {
                 Assert.That(restoredModel.Title, Is.EqualTo("urn:model-metadata-second"));
                 Assert.That(
-                    restoredModel.FindVersion("v1")!.ModelVersion,
+                    restoredModel.FindVersion("1.0.0")!.ModelVersion,
                     Is.EqualTo("1.0.0"));
                 Assert.That(
-                    restoredModel.FindVersion("v2")!.ModelVersion,
+                    restoredModel.FindVersion("2.0.0")!.ModelVersion,
                     Is.EqualTo("2.0.0"));
             });
 
@@ -2836,7 +2836,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         {
             return Encoding.UTF8.GetBytes(
                 "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\"," +
-                "\"@type\":\"tm:ThingModel\",\"id\":\"" +
+                "\"@type\":\"tm:ThingModel\",\"version\":{\"model\":\"1.0.0\"},\"id\":\"" +
                 id +
                 "\"," +
                 "\"title\":\"" +

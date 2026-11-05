@@ -1,0 +1,35 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+      "tm": "https://www.w3.org/2019/wot/tm#"
+    },
+    "../opc-ua-wot-binding.context.jsonld"
+  ],
+  "@type": ["Thing", "uav:projection"],
+  "id": "urn:example:view:spindle-monitoring",
+  "title": "Spindle monitoring view",
+  "description": "A spindle-monitoring view combining the flattened spindle 1 feed overwrite of machine tools 07 and 08. Name prefixes keep the identical source names apart, and each selected schema keeps the semantic path it has relative to its own source Thing.",
+  "uav:scenario": "http://example.com/scenario/SpindleMonitoring",
+  "securityDefinitions": { "nosec_sc": { "scheme": "nosec" } },
+  "security": "nosec_sc",
+  "uav:projects": [
+    {
+      "uav:sourceName": "tool07",
+      "href": "./29-flattened-monitoring-payload.jsonld",
+      "type": "application/td+json",
+      "uav:routing": "source",
+      "uav:selectAll": true,
+      "uav:namePrefix": "tool07"
+    },
+    {
+      "uav:sourceName": "tool08",
+      "href": "./30-flattened-monitoring-payload-tool08.jsonld",
+      "type": "application/td+json",
+      "uav:routing": "source",
+      "uav:selectAll": true,
+      "uav:namePrefix": "tool08"
+    }
+  ]
+}

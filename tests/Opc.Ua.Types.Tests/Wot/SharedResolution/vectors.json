@@ -1,0 +1,1191 @@
+{
+  "001-floor-met": {
+    "description": "Highest eligible release meets the minimum.",
+    "registry": [
+      {
+        "wotid": "urn:example:pump:v1",
+        "defaultversionsticky": false,
+        "defaultversionid": "1.1.0",
+        "versions": [
+          {
+            "versionid": "1.0.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000001",
+            "version.model": "1.0.0"
+          },
+          {
+            "versionid": "1.1.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+            "version.model": "1.1.0"
+          }
+        ]
+      }
+    ],
+    "reference": {
+      "kind": "extends",
+      "target": "urn:example:pump:v1",
+      "minVersion": "1.0.0"
+    },
+    "expect": {
+      "result": {
+        "wotid": "urn:example:pump:v1",
+        "versionid": "1.1.0",
+        "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000002"
+      }
+    }
+  },
+  "002-floor-unmet": {
+    "description": "No release meets the minimum; do not downgrade.",
+    "registry": [
+      {
+        "wotid": "urn:example:pump:v1",
+        "defaultversionsticky": false,
+        "defaultversionid": "1.1.0",
+        "versions": [
+          {
+            "versionid": "1.0.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000001",
+            "version.model": "1.0.0"
+          },
+          {
+            "versionid": "1.1.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+            "version.model": "1.1.0"
+          }
+        ]
+      }
+    ],
+    "reference": {
+      "kind": "extends",
+      "target": "urn:example:pump:v1",
+      "minVersion": "1.2.0"
+    },
+    "expect": {
+      "error": "unsatisfied"
+    }
+  },
+  "004-digest-pin": {
+    "description": "Caller digest selects exact older bytes.",
+    "registry": [
+      {
+        "wotid": "urn:example:pump:v1",
+        "defaultversionsticky": false,
+        "defaultversionid": "1.1.0",
+        "versions": [
+          {
+            "versionid": "1.0.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000001",
+            "version.model": "1.0.0"
+          },
+          {
+            "versionid": "1.1.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+            "version.model": "1.1.0"
+          }
+        ]
+      }
+    ],
+    "reference": {
+      "kind": "extends",
+      "target": "urn:example:pump:v1"
+    },
+    "pin": {
+      "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    "expect": {
+      "result": {
+        "wotid": "urn:example:pump:v1",
+        "versionid": "1.0.0",
+        "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000001"
+      }
+    }
+  },
+  "005-digest-pin-mismatch": {
+    "description": "Caller digest absent from target Resource fails.",
+    "registry": [
+      {
+        "wotid": "urn:example:pump:v1",
+        "defaultversionsticky": false,
+        "defaultversionid": "1.1.0",
+        "versions": [
+          {
+            "versionid": "1.0.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000001",
+            "version.model": "1.0.0"
+          },
+          {
+            "versionid": "1.1.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+            "version.model": "1.1.0"
+          }
+        ]
+      }
+    ],
+    "reference": {
+      "kind": "extends",
+      "target": "urn:example:pump:v1"
+    },
+    "pin": {
+      "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000063"
+    },
+    "expect": {
+      "error": "pin-mismatch"
+    }
+  },
+  "008-sticky-above-floor": {
+    "description": "Sticky default is honoured even when a newer eligible release exists.",
+    "registry": [
+      {
+        "wotid": "urn:example:pump:v1",
+        "defaultversionsticky": true,
+        "defaultversionid": "1.1.0",
+        "versions": [
+          {
+            "versionid": "1.0.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000001",
+            "version.model": "1.0.0"
+          },
+          {
+            "versionid": "1.1.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+            "version.model": "1.1.0"
+          },
+          {
+            "versionid": "1.2.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000003",
+            "version.model": "1.2.0"
+          }
+        ]
+      }
+    ],
+    "reference": {
+      "kind": "extends",
+      "target": "urn:example:pump:v1",
+      "minVersion": "1.0.0"
+    },
+    "expect": {
+      "result": {
+        "wotid": "urn:example:pump:v1",
+        "versionid": "1.1.0",
+        "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000002"
+      }
+    }
+  },
+  "009-prerelease-excluded": {
+    "description": "Non-sticky default may name a prerelease, but normal resolution excludes it.",
+    "registry": [
+      {
+        "wotid": "urn:example:pump:v1",
+        "defaultversionsticky": false,
+        "defaultversionid": "1.2.0-rc.1",
+        "versions": [
+          {
+            "versionid": "1.1.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+            "version.model": "1.1.0"
+          },
+          {
+            "versionid": "1.2.0-rc.1",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000003",
+            "version.model": "1.2.0-rc.1"
+          }
+        ]
+      }
+    ],
+    "reference": {
+      "kind": "extends",
+      "target": "urn:example:pump:v1"
+    },
+    "expect": {
+      "result": {
+        "wotid": "urn:example:pump:v1",
+        "versionid": "1.1.0",
+        "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000002"
+      }
+    }
+  },
+  "012-late-patch-default": {
+    "description": "Publishing a late patch does not replace the higher SemVer default.",
+    "registry": [
+      {
+        "wotid": "urn:example:pump:v1",
+        "defaultversionsticky": false,
+        "defaultversionid": "1.1.0",
+        "versions": [
+          {
+            "versionid": "1.0.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000001",
+            "version.model": "1.0.0"
+          },
+          {
+            "versionid": "1.1.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+            "version.model": "1.1.0"
+          }
+        ]
+      }
+    ],
+    "publish": {
+      "target": "urn:example:pump:v1",
+      "versionid": "1.0.1",
+      "version.model": "1.0.1"
+    },
+    "expect": {
+      "assigned": {
+        "versionid": "1.0.1",
+        "versionorigin": "authored",
+        "defaultversionid": "1.1.0"
+      }
+    }
+  },
+  "013-implicit-type-floor": {
+    "description": "Exactly one type link inherits TD version.model as its floor.",
+    "registry": [
+      {
+        "wotid": "urn:example:pump:v1",
+        "defaultversionsticky": false,
+        "defaultversionid": "1.1.0",
+        "versions": [
+          {
+            "versionid": "1.0.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000001",
+            "version.model": "1.0.0"
+          },
+          {
+            "versionid": "1.1.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+            "version.model": "1.1.0"
+          }
+        ]
+      }
+    ],
+    "reference": {
+      "kind": "type",
+      "target": "urn:example:pump:v1"
+    },
+    "document": {
+      "version.model": "1.1.0",
+      "typeLinks": [
+        {
+          "target": "urn:example:pump:v1"
+        }
+      ]
+    },
+    "expect": {
+      "result": {
+        "wotid": "urn:example:pump:v1",
+        "versionid": "1.1.0",
+        "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000002"
+      }
+    }
+  },
+  "015-multiple-types-partly-specified": {
+    "description": "Any missing type-link floor with document version.model is ambiguous, even for a specified target.",
+    "registry": [
+      {
+        "wotid": "urn:example:pump:v1",
+        "defaultversionsticky": false,
+        "defaultversionid": "1.1.0",
+        "versions": [
+          {
+            "versionid": "1.0.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000001",
+            "version.model": "1.0.0"
+          },
+          {
+            "versionid": "1.1.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+            "version.model": "1.1.0"
+          }
+        ]
+      }
+    ],
+    "reference": {
+      "kind": "type",
+      "target": "urn:example:pump:v1",
+      "minVersion": "1.0.0"
+    },
+    "document": {
+      "version.model": "1.1.0",
+      "typeLinks": [
+        {
+          "target": "urn:example:pump:v1",
+          "minVersion": "1.0.0"
+        },
+        {
+          "target": "urn:example:device:v1"
+        }
+      ]
+    },
+    "expect": {
+      "error": "ambiguous-floor"
+    }
+  },
+  "017-deprecated-successor": {
+    "description": "Deprecation does not redirect or disable the old Resource.",
+    "registry": [
+      {
+        "wotid": "urn:example:pump:v1",
+        "defaultversionsticky": false,
+        "defaultversionid": "1.1.0",
+        "versions": [
+          {
+            "versionid": "1.0.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000001",
+            "version.model": "1.0.0"
+          },
+          {
+            "versionid": "1.1.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+            "version.model": "1.1.0"
+          }
+        ],
+        "deprecated": {
+          "alternative": "https://registry.example/thingmodelgroups/vendor/thingmodels/pump-v2"
+        }
+      },
+      {
+        "wotid": "urn:example:pump:v2",
+        "defaultversionsticky": false,
+        "defaultversionid": "2.0.0",
+        "versions": [
+          {
+            "versionid": "2.0.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000004",
+            "version.model": "2.0.0"
+          }
+        ]
+      }
+    ],
+    "reference": {
+      "kind": "extends",
+      "target": "urn:example:pump:v1"
+    },
+    "expect": {
+      "result": {
+        "wotid": "urn:example:pump:v1",
+        "versionid": "1.1.0",
+        "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000002"
+      }
+    }
+  },
+  "019-generated-skip-occupied": {
+    "description": "Generated allocation skips occupied ids, including an authored prerelease, but uses the lowest hole.",
+    "registry": [
+      {
+        "wotid": "urn:example:pump:v1",
+        "defaultversionsticky": false,
+        "defaultversionid": "1.1.0",
+        "versions": [
+          {
+            "versionid": "0.0.0-1",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000005",
+            "version.model": "0.0.0-1"
+          },
+          {
+            "versionid": "0.0.0-3",
+            "versionorigin": "generated",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000006"
+          },
+          {
+            "versionid": "1.1.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+            "version.model": "1.1.0"
+          }
+        ]
+      }
+    ],
+    "publish": {
+      "target": "urn:example:pump:v1",
+      "version.model": "vendor-revision"
+    },
+    "expect": {
+      "assigned": {
+        "versionid": "0.0.0-2",
+        "versionorigin": "generated",
+        "defaultversionid": "1.1.0"
+      }
+    }
+  },
+  "020-generated-floor-rejected": {
+    "description": "A generated id cannot express a compatibility floor.",
+    "registry": [
+      {
+        "wotid": "urn:example:pump:v1",
+        "defaultversionsticky": false,
+        "defaultversionid": "1.1.0",
+        "versions": [
+          {
+            "versionid": "0.0.0-1",
+            "versionorigin": "generated",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000005"
+          },
+          {
+            "versionid": "1.1.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+            "version.model": "1.1.0"
+          }
+        ]
+      }
+    ],
+    "reference": {
+      "kind": "extends",
+      "target": "urn:example:pump:v1",
+      "minVersion": "0.0.0-1"
+    },
+    "expect": {
+      "error": "invalid-version"
+    }
+  },
+  "024-not-found": {
+    "description": "An absent target Resource fails before other processing.",
+    "registry": [],
+    "reference": {
+      "kind": "extends",
+      "target": "urn:example:pump:v1"
+    },
+    "expect": {
+      "error": "not-found"
+    }
+  },
+  "026-pin-overrides-floor-and-sticky": {
+    "description": "Caller pin overrides both the floor and the operator sticky default.",
+    "registry": [
+      {
+        "wotid": "urn:example:pump:v1",
+        "defaultversionsticky": true,
+        "defaultversionid": "1.1.0",
+        "versions": [
+          {
+            "versionid": "1.0.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000001",
+            "version.model": "1.0.0"
+          },
+          {
+            "versionid": "1.1.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+            "version.model": "1.1.0"
+          }
+        ]
+      }
+    ],
+    "reference": {
+      "kind": "extends",
+      "target": "urn:example:pump:v1",
+      "minVersion": "9.0.0"
+    },
+    "pin": {
+      "versionid": "1.0.0"
+    },
+    "expect": {
+      "result": {
+        "wotid": "urn:example:pump:v1",
+        "versionid": "1.0.0",
+        "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000001"
+      }
+    }
+  },
+  "027-generated-opt-in": {
+    "description": "Explicit opt-in permits generated Versions and compares numeric prerelease identifiers.",
+    "registry": [
+      {
+        "wotid": "urn:example:pump:v1",
+        "defaultversionsticky": false,
+        "defaultversionid": "0.0.0-10",
+        "versions": [
+          {
+            "versionid": "0.0.0-2",
+            "versionorigin": "generated",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000005"
+          },
+          {
+            "versionid": "0.0.0-10",
+            "versionorigin": "generated",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000006"
+          }
+        ]
+      }
+    ],
+    "reference": {
+      "kind": "extends",
+      "target": "urn:example:pump:v1"
+    },
+    "allowPrerelease": true,
+    "expect": {
+      "result": {
+        "wotid": "urn:example:pump:v1",
+        "versionid": "0.0.0-10",
+        "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000006"
+      }
+    }
+  },
+  "036-publish-authored-assignment": {
+    "description": "Omitting versionid assigns authored SemVer from version.model.",
+    "registry": [
+      {
+        "wotid": "urn:example:pump:v1",
+        "defaultversionsticky": false,
+        "defaultversionid": "1.1.0",
+        "versions": [
+          {
+            "versionid": "1.0.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000001",
+            "version.model": "1.0.0"
+          },
+          {
+            "versionid": "1.1.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+            "version.model": "1.1.0"
+          }
+        ]
+      }
+    ],
+    "publish": {
+      "target": "urn:example:pump:v1",
+      "version.model": "1.2.0"
+    },
+    "expect": {
+      "assigned": {
+        "versionid": "1.2.0",
+        "versionorigin": "authored",
+        "defaultversionid": "1.2.0"
+      }
+    }
+  },
+  "043-single-type-greater-floor-sticky": {
+    "description": "A sticky default meets the explicit floor but fails the greater implicit single-link floor.",
+    "registry": [
+      {
+        "wotid": "urn:example:pump:v1",
+        "defaultversionsticky": true,
+        "defaultversionid": "1.0.0",
+        "versions": [
+          {
+            "versionid": "1.0.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000001",
+            "version.model": "1.0.0"
+          },
+          {
+            "versionid": "1.1.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+            "version.model": "1.1.0"
+          }
+        ]
+      }
+    ],
+    "reference": {
+      "kind": "type",
+      "target": "urn:example:pump:v1",
+      "minVersion": "1.0.0"
+    },
+    "document": {
+      "version.model": "1.1.0",
+      "typeLinks": [
+        {
+          "target": "urn:example:pump:v1",
+          "minVersion": "1.0.0"
+        }
+      ]
+    },
+    "expect": {
+      "error": "unsatisfied"
+    }
+  },
+  "046-multiple-types-greater-model-floor": {
+    "description": "With several fully specified links version.model raises each link's explicit floor.",
+    "registry": [
+      {
+        "wotid": "urn:example:pump:v1",
+        "defaultversionsticky": false,
+        "defaultversionid": "1.1.0",
+        "versions": [
+          {
+            "versionid": "1.0.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000001",
+            "version.model": "1.0.0"
+          },
+          {
+            "versionid": "1.1.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+            "version.model": "1.1.0"
+          }
+        ]
+      }
+    ],
+    "reference": {
+      "kind": "type",
+      "target": "urn:example:pump:v1",
+      "minVersion": "1.0.0"
+    },
+    "document": {
+      "typeLinks": [
+        {
+          "target": "urn:example:pump:v1",
+          "minVersion": "1.0.0"
+        },
+        {
+          "target": "urn:example:device:v1",
+          "minVersion": "1.0.0"
+        }
+      ],
+      "version.model": "1.2.0"
+    },
+    "expect": {
+      "error": "unsatisfied"
+    }
+  },
+  "049-pin-bypasses-type-floor-derivation": {
+    "description": "A version pin bypasses multi-link floor ambiguity and invalid implicit floor syntax.",
+    "registry": [
+      {
+        "wotid": "urn:example:pump:v1",
+        "defaultversionsticky": false,
+        "defaultversionid": "1.1.0",
+        "versions": [
+          {
+            "versionid": "1.0.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000001",
+            "version.model": "1.0.0"
+          },
+          {
+            "versionid": "1.1.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+            "version.model": "1.1.0"
+          }
+        ]
+      }
+    ],
+    "reference": {
+      "kind": "type",
+      "target": "urn:example:pump:v1"
+    },
+    "document": {
+      "typeLinks": [
+        {
+          "target": "urn:example:pump:v1"
+        },
+        {
+          "target": "urn:example:device:v1"
+        }
+      ],
+      "version.model": "invalid"
+    },
+    "expect": {
+      "result": {
+        "wotid": "urn:example:pump:v1",
+        "versionid": "1.1.0",
+        "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000002"
+      }
+    },
+    "pin": {
+      "versionid": "1.1.0"
+    }
+  },
+  "050-td-caret-within-major": {
+    "description": "A TD floor selects the highest eligible version below the next major.",
+    "registry": [
+      {
+        "wotid": "urn:example:thing:lamp",
+        "defaultversionsticky": false,
+        "defaultversionid": "2.0.0",
+        "versions": [
+          {
+            "versionid": "1.2.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000032",
+            "version.instance": "1.2.0"
+          },
+          {
+            "versionid": "1.7.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000033",
+            "version.instance": "1.7.0"
+          },
+          {
+            "versionid": "2.0.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000034",
+            "version.instance": "2.0.0"
+          }
+        ]
+      }
+    ],
+    "reference": {
+      "kind": "td-extends",
+      "target": "urn:example:thing:lamp",
+      "minVersion": "1.2.0"
+    },
+    "expect": {
+      "result": {
+        "wotid": "urn:example:thing:lamp",
+        "versionid": "1.7.0",
+        "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000033"
+      }
+    }
+  },
+  "052-td-unfloored-crosses-majors": {
+    "description": "An unfloored TD reference selects the highest version across majors.",
+    "registry": [
+      {
+        "wotid": "urn:example:thing:valve",
+        "defaultversionsticky": false,
+        "defaultversionid": "2.1.0",
+        "versions": [
+          {
+            "versionid": "1.9.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000037",
+            "version.instance": "1.9.0"
+          },
+          {
+            "versionid": "2.1.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000038",
+            "version.instance": "2.1.0"
+          }
+        ]
+      }
+    ],
+    "reference": {
+      "kind": "td-extends",
+      "target": "urn:example:thing:valve"
+    },
+    "expect": {
+      "result": {
+        "wotid": "urn:example:thing:valve",
+        "versionid": "2.1.0",
+        "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000038"
+      }
+    }
+  },
+  "055-td-prerelease-floor": {
+    "description": "A prerelease TD floor admits in-range prereleases and excludes the next major.",
+    "registry": [
+      {
+        "wotid": "urn:example:thing:robot",
+        "defaultversionsticky": false,
+        "defaultversionid": "2.0.0-rc.1",
+        "versions": [
+          {
+            "versionid": "1.2.0-rc.2",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:000000000000000000000000000000000000000000000000000000000000003c",
+            "version.instance": "1.2.0-rc.2"
+          },
+          {
+            "versionid": "1.3.0-rc.1",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:000000000000000000000000000000000000000000000000000000000000003d",
+            "version.instance": "1.3.0-rc.1"
+          },
+          {
+            "versionid": "2.0.0-rc.1",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:000000000000000000000000000000000000000000000000000000000000003e",
+            "version.instance": "2.0.0-rc.1"
+          }
+        ]
+      }
+    ],
+    "reference": {
+      "kind": "td-extends",
+      "target": "urn:example:thing:robot",
+      "minVersion": "1.2.0-rc.1"
+    },
+    "expect": {
+      "result": {
+        "wotid": "urn:example:thing:robot",
+        "versionid": "1.3.0-rc.1",
+        "contentdigest": "sha256:000000000000000000000000000000000000000000000000000000000000003d"
+      }
+    }
+  },
+  "057-td-subthing-floor": {
+    "description": "A td:subthing floor in major zero caps below 1.0.0.",
+    "registry": [
+      {
+        "wotid": "urn:example:thing:lighting",
+        "defaultversionsticky": false,
+        "defaultversionid": "1.0.0",
+        "versions": [
+          {
+            "versionid": "0.9.4",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000041",
+            "version.instance": "0.9.4"
+          },
+          {
+            "versionid": "1.0.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000042",
+            "version.instance": "1.0.0"
+          }
+        ]
+      }
+    ],
+    "reference": {
+      "kind": "td-subthing",
+      "target": "urn:example:thing:lighting",
+      "minVersion": "0.8.0"
+    },
+    "expect": {
+      "result": {
+        "wotid": "urn:example:thing:lighting",
+        "versionid": "0.9.4",
+        "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000041"
+      }
+    }
+  },
+  "058-td-publish-authored-assignment": {
+    "description": "A TD publication assigns versionid from SemVer version.instance.",
+    "registry": [
+      {
+        "wotid": "urn:example:thing:lamp-publish",
+        "defaultversionsticky": false,
+        "defaultversionid": "1.2.0",
+        "versions": [
+          {
+            "versionid": "1.2.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000043",
+            "version.instance": "1.2.0"
+          }
+        ]
+      }
+    ],
+    "publish": {
+      "target": "urn:example:thing:lamp-publish",
+      "targetKind": "td",
+      "version.instance": "1.4.0"
+    },
+    "expect": {
+      "assigned": {
+        "versionid": "1.4.0",
+        "versionorigin": "authored",
+        "defaultversionid": "1.4.0"
+      }
+    }
+  },
+  "060-td-publish-version-mismatch": {
+    "description": "A supplied TD versionid that differs from version.instance is rejected.",
+    "registry": [
+      {
+        "wotid": "urn:example:thing:lamp-mismatch",
+        "defaultversionsticky": false,
+        "defaultversionid": "1.0.0",
+        "versions": [
+          {
+            "versionid": "1.0.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000045",
+            "version.instance": "1.0.0"
+          }
+        ]
+      }
+    ],
+    "publish": {
+      "target": "urn:example:thing:lamp-mismatch",
+      "targetKind": "td",
+      "versionid": "1.2.4",
+      "version.instance": "1.2.3"
+    },
+    "expect": {
+      "error": "version-mismatch"
+    }
+  },
+  "061-td-publish-build-metadata": {
+    "description": "Build metadata in a TD version.instance is rejected.",
+    "registry": [
+      {
+        "wotid": "urn:example:thing:lamp-build",
+        "defaultversionsticky": false,
+        "defaultversionid": "1.0.0",
+        "versions": [
+          {
+            "versionid": "1.0.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000046",
+            "version.instance": "1.0.0"
+          }
+        ]
+      }
+    ],
+    "publish": {
+      "target": "urn:example:thing:lamp-build",
+      "targetKind": "td",
+      "version.instance": "1.2.3+build.7"
+    },
+    "expect": {
+      "error": "invalid-version"
+    }
+  },
+  "063-tm-minversion-on-td-reference-invalid-floor": {
+    "description": "tm:minVersion is invalid on a TD-to-TD reference.",
+    "registry": [
+      {
+        "wotid": "urn:example:thing:oven",
+        "defaultversionsticky": false,
+        "defaultversionid": "1.2.0",
+        "versions": [
+          {
+            "versionid": "1.2.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000048",
+            "version.instance": "1.2.0"
+          }
+        ]
+      }
+    ],
+    "reference": {
+      "kind": "td-ref",
+      "target": "urn:example:thing:oven",
+      "minVersion": "1.2.0",
+      "floorTerm": "tm:minVersion"
+    },
+    "expect": {
+      "error": "invalid-floor"
+    }
+  },
+  "064-local-tm-ref-uses-containing-revision": {
+    "description": "A document-local tm:ref checks the containing TM and does not select the newer 1.5.0.",
+    "registry": [
+      {
+        "wotid": "urn:example:model:pump",
+        "defaultversionsticky": false,
+        "defaultversionid": "1.5.0",
+        "versions": [
+          {
+            "versionid": "1.2.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000064",
+            "version.model": "1.2.0"
+          },
+          {
+            "versionid": "1.5.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000065",
+            "version.model": "1.5.0"
+          }
+        ]
+      }
+    ],
+    "reference": {
+      "kind": "ref",
+      "target": "urn:example:model:pump",
+      "minVersion": "1.2.0",
+      "local": true
+    },
+    "document": {
+      "versionid": "1.2.0",
+      "version.model": "1.2.0"
+    },
+    "expect": {
+      "result": {
+        "wotid": "urn:example:model:pump",
+        "versionid": "1.2.0",
+        "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000064"
+      }
+    }
+  },
+  "065-local-tm-ref-below-floor": {
+    "description": "A containing TM below a local floor fails rather than substituting 1.5.0.",
+    "registry": [
+      {
+        "wotid": "urn:example:model:pump",
+        "defaultversionsticky": false,
+        "defaultversionid": "1.5.0",
+        "versions": [
+          {
+            "versionid": "1.2.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000064",
+            "version.model": "1.2.0"
+          },
+          {
+            "versionid": "1.5.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000065",
+            "version.model": "1.5.0"
+          }
+        ]
+      }
+    ],
+    "reference": {
+      "kind": "ref",
+      "target": "urn:example:model:pump",
+      "minVersion": "1.3.0",
+      "local": true
+    },
+    "document": {
+      "versionid": "1.2.0",
+      "version.model": "1.2.0"
+    },
+    "expect": {
+      "error": "unsatisfied"
+    }
+  },
+  "066-local-td-ref-next-major": {
+    "description": "A local td:ref applies the TD major cap to the containing TD's version.instance.",
+    "registry": [
+      {
+        "wotid": "urn:example:thing:oven",
+        "defaultversionsticky": false,
+        "defaultversionid": "2.0.0",
+        "versions": [
+          {
+            "versionid": "2.0.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000066",
+            "version.instance": "2.0.0"
+          }
+        ]
+      }
+    ],
+    "reference": {
+      "kind": "td-ref",
+      "target": "urn:example:thing:oven",
+      "minVersion": "1.1.0",
+      "local": true
+    },
+    "document": {
+      "versionid": "2.0.0",
+      "version.instance": "2.0.0"
+    },
+    "expect": {
+      "error": "unsatisfied"
+    }
+  },
+  "067-digest-pin-duplicate-highest-version": {
+    "description": "A digest matching multiple Versions selects the highest SemVer.",
+    "registry": [
+      {
+        "wotid": "urn:example:model:pump",
+        "defaultversionsticky": false,
+        "defaultversionid": "1.2.0",
+        "versions": [
+          {
+            "versionid": "1.0.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000067",
+            "version.model": "1.0.0"
+          },
+          {
+            "versionid": "1.2.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000067",
+            "version.model": "1.2.0"
+          }
+        ]
+      }
+    ],
+    "reference": {
+      "kind": "ref",
+      "target": "urn:example:model:pump",
+      "minVersion": "1.1.0"
+    },
+    "pin": {
+      "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000067"
+    },
+    "expect": {
+      "result": {
+        "wotid": "urn:example:model:pump",
+        "versionid": "1.2.0",
+        "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000067"
+      }
+    }
+  },
+  "068-local-tm-ref-missing-authored-version": {
+    "description": "A local TM below a floor because its authored model version is missing fails.",
+    "registry": [
+      {
+        "wotid": "urn:example:model:pump",
+        "defaultversionsticky": false,
+        "defaultversionid": "1.2.0",
+        "versions": [
+          {
+            "versionid": "1.2.0",
+            "versionorigin": "authored",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000068"
+          }
+        ]
+      }
+    ],
+    "reference": {
+      "kind": "ref",
+      "target": "urn:example:model:pump",
+      "minVersion": "1.1.0",
+      "local": true
+    },
+    "document": {
+      "versionid": "1.2.0"
+    },
+    "expect": {
+      "error": "unsatisfied"
+    }
+  },
+  "069-local-tm-ref-invalid-authored-version": {
+    "description": "A malformed local TM model version fails before floor comparison.",
+    "registry": [
+      {
+        "wotid": "urn:example:model:pump",
+        "defaultversionsticky": false,
+        "defaultversionid": "0.0.0-1",
+        "versions": [
+          {
+            "versionid": "0.0.0-1",
+            "versionorigin": "generated",
+            "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000069",
+            "version.model": "v1.2"
+          }
+        ]
+      }
+    ],
+    "reference": {
+      "kind": "ref",
+      "target": "urn:example:model:pump",
+      "minVersion": "1.1.0",
+      "local": true
+    },
+    "document": {
+      "versionid": "0.0.0-1",
+      "version.model": "v1.2"
+    },
+    "expect": {
+      "error": "invalid-version"
+    }
+  }
+}

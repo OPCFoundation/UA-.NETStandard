@@ -1,0 +1,2276 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld",
+    {
+      "@language": "en",
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/"
+    },
+    {
+      "schemaOrg": {
+        "@id": "https://schema.org/",
+        "@prefix": true
+      }
+    },
+    {
+      "sosaOntology": {
+        "@id": "http://www.w3.org/ns/sosa/",
+        "@prefix": true
+      }
+    }
+  ],
+  "id": "urn:example:equipment:pump",
+  "@type": "uav:object",
+  "title": "Pump",
+  "uav:id": "nsu=urn:example:annotation:native:;i=1",
+  "uav:bindingVersion": "1.1",
+  "securityDefinitions": {
+    "nosec_sc": {
+      "scheme": "nosec"
+    }
+  },
+  "security": [
+    "nosec_sc"
+  ],
+  "properties": {
+    "serialNumber": {
+      "@id": "urn:example:equipment:pump:serial",
+      "type": "string",
+      "uav:id": "nsu=urn:example:annotation:native:;i=2",
+      "readOnly": true,
+      "uav:dataTypeId": "i=12",
+      "schemaOrg:serialNumber": {
+        "@value": "P-07",
+        "@type": "http://www.w3.org/2001/XMLSchema#string"
+      }
+    },
+    "speed": {
+      "@id": "urn:example:equipment:pump:speed",
+      "type": "number",
+      "uav:id": "nsu=urn:example:annotation:native:;i=3",
+      "readOnly": true,
+      "uav:dataTypeId": "i=11",
+      "sosaOntology:observedProperty": {
+        "@id": "urn:example:measurement:speed"
+      },
+      "urn:example:equipment:owner": {
+        "@id": "urn:example:equipment:pump"
+      },
+      "urn:example:equipment:calibration": {
+        "@value": {
+          "offset": 1,
+          "@context": {
+            "ignored": "urn:untrusted:"
+          }
+        },
+        "@type": "@json"
+      },
+      "urn:example:equipment:axisOrder": {
+        "@list": [
+          {
+            "@value": "z",
+            "@type": "http://www.w3.org/2001/XMLSchema#string"
+          },
+          {
+            "@value": "x",
+            "@type": "http://www.w3.org/2001/XMLSchema#string"
+          },
+          {
+            "@value": "z",
+            "@type": "http://www.w3.org/2001/XMLSchema#string"
+          }
+        ]
+      },
+      "urn:example:equipment:resolution": {
+        "@value": 16,
+        "@type": "http://www.w3.org/2001/XMLSchema#int"
+      }
+    }
+  },
+  "uav:nodes": {
+    "@type": "uav:NodeModel",
+    "profileVersion": "1.0",
+    "namespaceUris": [
+      "http://opcfoundation.org/UA/WoT-Binding/",
+      "urn:example:annotation:native:"
+    ],
+    "models": [
+      {
+        "modelUri": "urn:example:annotation:native:",
+        "version": "1.0.0",
+        "modelVersion": "1.0.0",
+        "publicationDate": "2026-09-21T00:00:00Z",
+        "requiredModels": [
+          {
+            "modelUri": "http://opcfoundation.org/UA/",
+            "version": "1.05.06",
+            "publicationDate": "2025-11-08T00:00:00Z"
+          },
+          {
+            "modelUri": "http://opcfoundation.org/UA/WoT-Binding/",
+            "version": "1.1",
+            "modelVersion": "1.1.0",
+            "publicationDate": "2026-09-21T00:00:00Z"
+          }
+        ]
+      }
+    ],
+    "nodes": [
+      {
+        "nodeClass": "Object",
+        "nodeId": "ns=2;i=1",
+        "browseName": "2:Pump",
+        "displayName": [
+          {
+            "value": "Pump"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=58",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=2",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=47",
+            "target": "ns=2;i=3",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=12",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=13",
+            "isForward": true
+          },
+          {
+            "referenceType": "ns=1;i=1002",
+            "target": "ns=2;i=120",
+            "isForward": true
+          }
+        ]
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=2",
+        "browseName": "2:SerialNumber",
+        "displayName": [
+          {
+            "value": "SerialNumber"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          },
+          {
+            "referenceType": "ns=1;i=1002",
+            "target": "ns=2;i=100",
+            "isForward": true
+          }
+        ],
+        "dataType": "i=12",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:String xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">P-07</ns0:String>"
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=3",
+        "browseName": "2:Speed",
+        "displayName": [
+          {
+            "value": "Speed"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=63",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=80",
+            "isForward": true
+          },
+          {
+            "referenceType": "ns=1;i=1002",
+            "target": "ns=2;i=110",
+            "isForward": true
+          },
+          {
+            "referenceType": "ns=1;i=1002",
+            "target": "ns=2;i=130",
+            "isForward": true
+          },
+          {
+            "referenceType": "ns=1;i=1002",
+            "target": "ns=2;i=140",
+            "isForward": true
+          },
+          {
+            "referenceType": "ns=1;i=1002",
+            "target": "ns=2;i=150",
+            "isForward": true
+          },
+          {
+            "referenceType": "ns=1;i=1002",
+            "target": "ns=2;i=160",
+            "isForward": true
+          }
+        ],
+        "dataType": "i=11",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:Double xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">1500</ns0:Double>"
+      },
+      {
+        "nodeClass": "Object",
+        "nodeId": "ns=2;i=10",
+        "browseName": "2:WriterA",
+        "displayName": [
+          {
+            "value": "WriterA"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=15298",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=14",
+            "isForward": true
+          }
+        ]
+      },
+      {
+        "nodeClass": "Object",
+        "nodeId": "ns=2;i=11",
+        "browseName": "2:WriterB",
+        "displayName": [
+          {
+            "value": "WriterB"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=15298",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=15",
+            "isForward": true
+          }
+        ]
+      },
+      {
+        "nodeClass": "Object",
+        "nodeId": "ns=2;i=20",
+        "browseName": "2:ConnectionA",
+        "displayName": [
+          {
+            "value": "ConnectionA"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=14209",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=47",
+            "target": "ns=2;i=21",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=24",
+            "isForward": true
+          }
+        ]
+      },
+      {
+        "nodeClass": "Object",
+        "nodeId": "ns=2;i=21",
+        "browseName": "2:WriterGroupA",
+        "displayName": [
+          {
+            "value": "WriterGroupA"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=17725",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=47",
+            "target": "ns=2;i=10",
+            "isForward": true
+          }
+        ]
+      },
+      {
+        "nodeClass": "Object",
+        "nodeId": "ns=2;i=22",
+        "browseName": "2:ConnectionB",
+        "displayName": [
+          {
+            "value": "ConnectionB"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=14209",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=47",
+            "target": "ns=2;i=23",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=25",
+            "isForward": true
+          }
+        ]
+      },
+      {
+        "nodeClass": "Object",
+        "nodeId": "ns=2;i=23",
+        "browseName": "2:WriterGroupB",
+        "displayName": [
+          {
+            "value": "WriterGroupB"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=17725",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=47",
+            "target": "ns=2;i=11",
+            "isForward": true
+          }
+        ]
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=12",
+        "browseName": "2:TargetA",
+        "displayName": [
+          {
+            "value": "TargetA"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          }
+        ],
+        "dataType": "i=12",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:String xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">/display/A</ns0:String>"
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=13",
+        "browseName": "2:TargetB",
+        "displayName": [
+          {
+            "value": "TargetB"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          }
+        ],
+        "dataType": "i=12",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:String xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">/display/B</ns0:String>"
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=14",
+        "browseName": "0:DataSetWriterId",
+        "displayName": [
+          {
+            "value": "DataSetWriterId"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "i=5",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:UInt16 xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">10</ns0:UInt16>"
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=15",
+        "browseName": "0:DataSetWriterId",
+        "displayName": [
+          {
+            "value": "DataSetWriterId"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "i=5",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:UInt16 xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">11</ns0:UInt16>"
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=24",
+        "browseName": "0:PublisherId",
+        "displayName": [
+          {
+            "value": "PublisherId"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "i=5",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:UInt16 xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">7</ns0:UInt16>"
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=25",
+        "browseName": "0:PublisherId",
+        "displayName": [
+          {
+            "value": "PublisherId"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "i=5",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:UInt16 xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">8</ns0:UInt16>"
+      },
+      {
+        "nodeClass": "Object",
+        "nodeId": "i=2253",
+        "browseName": "0:Server",
+        "displayName": [
+          {
+            "value": "Server"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=47",
+            "target": "ns=1;i=1500",
+            "isForward": true
+          }
+        ]
+      },
+      {
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=1500",
+        "browseName": "1:Vocabularies",
+        "displayName": [
+          {
+            "value": "Vocabularies"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "ns=1;i=1007",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=47",
+            "target": "i=2253",
+            "isForward": false
+          },
+          {
+            "referenceType": "i=47",
+            "target": "ns=2;i=300",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=47",
+            "target": "ns=2;i=310",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=47",
+            "target": "ns=2;i=320",
+            "isForward": true
+          }
+        ]
+      },
+      {
+        "nodeClass": "Object",
+        "nodeId": "ns=2;i=30",
+        "browseName": "2:NamespaceMetadata",
+        "displayName": [
+          {
+            "value": "NamespaceMetadata"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=11616",
+            "isForward": true
+          },
+          {
+            "referenceType": "ns=1;i=1009",
+            "target": "ns=2;i=300",
+            "isForward": true
+          },
+          {
+            "referenceType": "ns=1;i=1009",
+            "target": "ns=2;i=310",
+            "isForward": true
+          }
+        ]
+      },
+      {
+        "nodeClass": "Object",
+        "nodeId": "ns=2;i=300",
+        "browseName": "2:VocabularyPrefix300",
+        "displayName": [
+          {
+            "value": "VocabularyPrefix300"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "ns=1;i=1008",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=301",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=302",
+            "isForward": true
+          }
+        ]
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=301",
+        "browseName": "1:VocabularyNamespace",
+        "displayName": [
+          {
+            "value": "VocabularyNamespace"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "i=12",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:String xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">https://schema.org/</ns0:String>"
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=302",
+        "browseName": "1:DefaultPrefix",
+        "displayName": [
+          {
+            "value": "DefaultPrefix"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "i=12",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:String xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">schemaDefault</ns0:String>"
+      },
+      {
+        "nodeClass": "Object",
+        "nodeId": "ns=2;i=310",
+        "browseName": "2:VocabularyPrefix310",
+        "displayName": [
+          {
+            "value": "VocabularyPrefix310"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "ns=1;i=1008",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=311",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=312",
+            "isForward": true
+          }
+        ]
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=311",
+        "browseName": "1:VocabularyNamespace",
+        "displayName": [
+          {
+            "value": "VocabularyNamespace"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "i=12",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:String xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">http://www.w3.org/ns/sosa/</ns0:String>"
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=312",
+        "browseName": "1:DefaultPrefix",
+        "displayName": [
+          {
+            "value": "DefaultPrefix"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "i=12",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:String xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">sosaOntology</ns0:String>"
+      },
+      {
+        "nodeClass": "Object",
+        "nodeId": "ns=2;i=320",
+        "browseName": "2:VocabularyPrefix320",
+        "displayName": [
+          {
+            "value": "VocabularyPrefix320"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "ns=1;i=1008",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=321",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=322",
+            "isForward": true
+          }
+        ]
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=321",
+        "browseName": "1:VocabularyNamespace",
+        "displayName": [
+          {
+            "value": "VocabularyNamespace"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "i=12",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:String xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">https://schema.org/</ns0:String>"
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=322",
+        "browseName": "1:OverridePrefix",
+        "displayName": [
+          {
+            "value": "OverridePrefix"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "i=12",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:String xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">schemaOrg</ns0:String>"
+      },
+      {
+        "nodeClass": "Object",
+        "nodeId": "ns=2;i=100",
+        "browseName": "2:Annotation100",
+        "displayName": [
+          {
+            "value": "Annotation100"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "ns=1;i=1001",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=101",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=102",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=103",
+            "isForward": true
+          },
+          {
+            "referenceType": "ns=1;i=1003",
+            "target": "ns=2;i=2",
+            "isForward": true
+          }
+        ]
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=101",
+        "browseName": "1:Predicate",
+        "displayName": [
+          {
+            "value": "Predicate"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "i=12",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:String xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">https://schema.org/serialNumber</ns0:String>"
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=102",
+        "browseName": "1:ValueKind",
+        "displayName": [
+          {
+            "value": "ValueKind"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "ns=1;i=1004",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:Int32 xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</ns0:Int32>"
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=103",
+        "browseName": "1:CollectionKind",
+        "displayName": [
+          {
+            "value": "CollectionKind"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "ns=1;i=1005",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:Int32 xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</ns0:Int32>"
+      },
+      {
+        "nodeClass": "Object",
+        "nodeId": "ns=2;i=110",
+        "browseName": "2:Annotation110",
+        "displayName": [
+          {
+            "value": "Annotation110"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "ns=1;i=1001",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=111",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=112",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=113",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=114",
+            "isForward": true
+          }
+        ]
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=111",
+        "browseName": "1:Predicate",
+        "displayName": [
+          {
+            "value": "Predicate"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "i=12",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:String xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">http://www.w3.org/ns/sosa/observedProperty</ns0:String>"
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=112",
+        "browseName": "1:ValueKind",
+        "displayName": [
+          {
+            "value": "ValueKind"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "ns=1;i=1004",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:Int32 xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">1</ns0:Int32>"
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=113",
+        "browseName": "1:CollectionKind",
+        "displayName": [
+          {
+            "value": "CollectionKind"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "ns=1;i=1005",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:Int32 xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</ns0:Int32>"
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=114",
+        "browseName": "1:Value",
+        "displayName": [
+          {
+            "value": "Value"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=80",
+            "isForward": true
+          }
+        ],
+        "dataType": "i=12",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:String xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">urn:example:measurement:speed</ns0:String>"
+      },
+      {
+        "nodeClass": "Object",
+        "nodeId": "ns=2;i=120",
+        "browseName": "2:Annotation120",
+        "displayName": [
+          {
+            "value": "Annotation120"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "ns=1;i=1001",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=121",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=122",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=123",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=124",
+            "isForward": true
+          }
+        ]
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=121",
+        "browseName": "1:Predicate",
+        "displayName": [
+          {
+            "value": "Predicate"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "i=12",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:String xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">https://schema.org/name</ns0:String>"
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=122",
+        "browseName": "1:ValueKind",
+        "displayName": [
+          {
+            "value": "ValueKind"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "ns=1;i=1004",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:Int32 xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</ns0:Int32>"
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=123",
+        "browseName": "1:CollectionKind",
+        "displayName": [
+          {
+            "value": "CollectionKind"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "ns=1;i=1005",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:Int32 xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</ns0:Int32>"
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=124",
+        "browseName": "1:Value",
+        "displayName": [
+          {
+            "value": "Value"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=80",
+            "isForward": true
+          }
+        ],
+        "dataType": "i=21",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:LocalizedText xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\"><ns0:Locale>de</ns0:Locale><ns0:Text>Pumpe</ns0:Text></ns0:LocalizedText>"
+      },
+      {
+        "nodeClass": "Object",
+        "nodeId": "ns=2;i=130",
+        "browseName": "2:Annotation130",
+        "displayName": [
+          {
+            "value": "Annotation130"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "ns=1;i=1001",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=131",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=132",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=133",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=134",
+            "isForward": true
+          }
+        ]
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=131",
+        "browseName": "1:Predicate",
+        "displayName": [
+          {
+            "value": "Predicate"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "i=12",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:String xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">urn:example:equipment:owner</ns0:String>"
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=132",
+        "browseName": "1:ValueKind",
+        "displayName": [
+          {
+            "value": "ValueKind"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "ns=1;i=1004",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:Int32 xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">2</ns0:Int32>"
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=133",
+        "browseName": "1:CollectionKind",
+        "displayName": [
+          {
+            "value": "CollectionKind"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "ns=1;i=1005",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:Int32 xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</ns0:Int32>"
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=134",
+        "browseName": "1:Value",
+        "displayName": [
+          {
+            "value": "Value"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=80",
+            "isForward": true
+          }
+        ],
+        "dataType": "i=17",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:NodeId xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\"><ns0:Identifier>ns=2;i=1</ns0:Identifier></ns0:NodeId>"
+      },
+      {
+        "nodeClass": "Object",
+        "nodeId": "ns=2;i=140",
+        "browseName": "2:Annotation140",
+        "displayName": [
+          {
+            "value": "Annotation140"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "ns=1;i=1001",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=141",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=142",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=143",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=144",
+            "isForward": true
+          }
+        ]
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=141",
+        "browseName": "1:Predicate",
+        "displayName": [
+          {
+            "value": "Predicate"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "i=12",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:String xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">urn:example:equipment:calibration</ns0:String>"
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=142",
+        "browseName": "1:ValueKind",
+        "displayName": [
+          {
+            "value": "ValueKind"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "ns=1;i=1004",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:Int32 xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">3</ns0:Int32>"
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=143",
+        "browseName": "1:CollectionKind",
+        "displayName": [
+          {
+            "value": "CollectionKind"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "ns=1;i=1005",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:Int32 xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</ns0:Int32>"
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=144",
+        "browseName": "1:Value",
+        "displayName": [
+          {
+            "value": "Value"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=80",
+            "isForward": true
+          }
+        ],
+        "dataType": "i=12",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:String xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">{\"offset\":1,\"@context\":{\"ignored\":\"urn:untrusted:\"}}</ns0:String>"
+      },
+      {
+        "nodeClass": "Object",
+        "nodeId": "ns=2;i=150",
+        "browseName": "2:Annotation150",
+        "displayName": [
+          {
+            "value": "Annotation150"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "ns=1;i=1001",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=151",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=152",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=153",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=154",
+            "isForward": true
+          }
+        ]
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=151",
+        "browseName": "1:Predicate",
+        "displayName": [
+          {
+            "value": "Predicate"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "i=12",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:String xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">urn:example:equipment:axisOrder</ns0:String>"
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=152",
+        "browseName": "1:ValueKind",
+        "displayName": [
+          {
+            "value": "ValueKind"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "ns=1;i=1004",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:Int32 xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</ns0:Int32>"
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=153",
+        "browseName": "1:CollectionKind",
+        "displayName": [
+          {
+            "value": "CollectionKind"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "ns=1;i=1005",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:Int32 xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">1</ns0:Int32>"
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=154",
+        "browseName": "1:Value",
+        "displayName": [
+          {
+            "value": "Value"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=80",
+            "isForward": true
+          }
+        ],
+        "dataType": "i=12",
+        "valueRank": 1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:ListOfString xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\"><ns0:String>z</ns0:String><ns0:String>x</ns0:String><ns0:String>z</ns0:String></ns0:ListOfString>"
+      },
+      {
+        "nodeClass": "Object",
+        "nodeId": "ns=2;i=160",
+        "browseName": "2:Annotation160",
+        "displayName": [
+          {
+            "value": "Annotation160"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "ns=1;i=1001",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=161",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=162",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=163",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=164",
+            "isForward": true
+          }
+        ]
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=161",
+        "browseName": "1:Predicate",
+        "displayName": [
+          {
+            "value": "Predicate"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "i=12",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:String xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">urn:example:equipment:resolution</ns0:String>"
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=162",
+        "browseName": "1:ValueKind",
+        "displayName": [
+          {
+            "value": "ValueKind"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "ns=1;i=1004",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:Int32 xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</ns0:Int32>"
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=163",
+        "browseName": "1:CollectionKind",
+        "displayName": [
+          {
+            "value": "CollectionKind"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "ns=1;i=1005",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:Int32 xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</ns0:Int32>"
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=164",
+        "browseName": "1:Value",
+        "displayName": [
+          {
+            "value": "Value"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=80",
+            "isForward": true
+          }
+        ],
+        "dataType": "i=6",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:Int32 xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">16</ns0:Int32>"
+      },
+      {
+        "nodeClass": "Object",
+        "nodeId": "ns=2;i=200",
+        "browseName": "2:Membership200",
+        "displayName": [
+          {
+            "value": "Membership200"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "ns=1;i=1006",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=201",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=202",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=203",
+            "isForward": true
+          },
+          {
+            "referenceType": "ns=1;i=1002",
+            "target": "ns=2;i=210",
+            "isForward": true
+          }
+        ]
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=201",
+        "browseName": "1:Publication",
+        "displayName": [
+          {
+            "value": "Publication"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "i=18",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:ExpandedNodeId xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\"><ns0:Identifier>ns=2;i=10</ns0:Identifier></ns0:ExpandedNodeId>"
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=202",
+        "browseName": "1:DataSetFieldId",
+        "displayName": [
+          {
+            "value": "DataSetFieldId"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "i=14",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:Guid xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\"><ns0:String>12345678-1234-1234-1234-123456789abc</ns0:String></ns0:Guid>"
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=203",
+        "browseName": "1:SourceNode",
+        "displayName": [
+          {
+            "value": "SourceNode"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "i=18",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:ExpandedNodeId xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\"><ns0:Identifier>ns=2;i=3</ns0:Identifier></ns0:ExpandedNodeId>"
+      },
+      {
+        "nodeClass": "Object",
+        "nodeId": "ns=2;i=210",
+        "browseName": "2:Annotation210",
+        "displayName": [
+          {
+            "value": "Annotation210"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "ns=1;i=1001",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=211",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=212",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=213",
+            "isForward": true
+          },
+          {
+            "referenceType": "ns=1;i=1003",
+            "target": "ns=2;i=12",
+            "isForward": true
+          }
+        ]
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=211",
+        "browseName": "1:Predicate",
+        "displayName": [
+          {
+            "value": "Predicate"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "i=12",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:String xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">urn:example:visual:target</ns0:String>"
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=212",
+        "browseName": "1:ValueKind",
+        "displayName": [
+          {
+            "value": "ValueKind"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "ns=1;i=1004",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:Int32 xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</ns0:Int32>"
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=213",
+        "browseName": "1:CollectionKind",
+        "displayName": [
+          {
+            "value": "CollectionKind"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "ns=1;i=1005",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:Int32 xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</ns0:Int32>"
+      },
+      {
+        "nodeClass": "Object",
+        "nodeId": "ns=2;i=220",
+        "browseName": "2:Membership220",
+        "displayName": [
+          {
+            "value": "Membership220"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "ns=1;i=1006",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=221",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=222",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=223",
+            "isForward": true
+          },
+          {
+            "referenceType": "ns=1;i=1002",
+            "target": "ns=2;i=230",
+            "isForward": true
+          }
+        ]
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=221",
+        "browseName": "1:Publication",
+        "displayName": [
+          {
+            "value": "Publication"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "i=18",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:ExpandedNodeId xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\"><ns0:Identifier>ns=2;i=11</ns0:Identifier></ns0:ExpandedNodeId>"
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=222",
+        "browseName": "1:DataSetFieldId",
+        "displayName": [
+          {
+            "value": "DataSetFieldId"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "i=14",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:Guid xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\"><ns0:String>12345678-1234-1234-1234-123456789abc</ns0:String></ns0:Guid>"
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=223",
+        "browseName": "1:SourceNode",
+        "displayName": [
+          {
+            "value": "SourceNode"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "i=18",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:ExpandedNodeId xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\"><ns0:Identifier>ns=2;i=3</ns0:Identifier></ns0:ExpandedNodeId>"
+      },
+      {
+        "nodeClass": "Object",
+        "nodeId": "ns=2;i=230",
+        "browseName": "2:Annotation230",
+        "displayName": [
+          {
+            "value": "Annotation230"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "ns=1;i=1001",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=231",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=232",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=46",
+            "target": "ns=2;i=233",
+            "isForward": true
+          },
+          {
+            "referenceType": "ns=1;i=1003",
+            "target": "ns=2;i=13",
+            "isForward": true
+          }
+        ]
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=231",
+        "browseName": "1:Predicate",
+        "displayName": [
+          {
+            "value": "Predicate"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "i=12",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:String xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">urn:example:visual:target</ns0:String>"
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=232",
+        "browseName": "1:ValueKind",
+        "displayName": [
+          {
+            "value": "ValueKind"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "ns=1;i=1004",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:Int32 xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</ns0:Int32>"
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=2;i=233",
+        "browseName": "1:CollectionKind",
+        "displayName": [
+          {
+            "value": "CollectionKind"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "i=40",
+            "target": "i=68",
+            "isForward": true
+          },
+          {
+            "referenceType": "i=37",
+            "target": "i=78",
+            "isForward": true
+          }
+        ],
+        "dataType": "ns=1;i=1005",
+        "valueRank": -1,
+        "accessLevel": 1,
+        "valueXml": "<ns0:Int32 xmlns:ns0=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</ns0:Int32>"
+      }
+    ]
+  },
+  "schemaOrg:name": {
+    "@value": "Pumpe",
+    "@language": "de"
+  }
+}

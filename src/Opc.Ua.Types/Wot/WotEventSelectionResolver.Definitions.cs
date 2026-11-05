@@ -265,6 +265,9 @@ namespace Opc.Ua.Wot
                     string.Equals(
                         candidates[ii].Pointer, candidate.Pointer, StringComparison.Ordinal))
                 {
+                    // The same location loaded again under another floor may be
+                    // a different Version; the later selection replaces it.
+                    candidates[ii] = candidate;
                     return;
                 }
             }
@@ -286,9 +289,9 @@ namespace Opc.Ua.Wot
         /// make the same document mean different things to different readers.
         /// </remarks>
         /// <param name="document">The WoT document.</param>
-        /// <param name="carryingNode">The carrying node.</param>
         /// <param name="value">The authored identifier text to expand.</param>
         /// <param name="expanded">Receives the expanded IRI when the value is an identifier.</param>
+        /// <param name="carryingNode">The carrying node.</param>
         internal static bool TryExpandLogicalId(
             WotDocument document, string value, out string expanded, JsonElement carryingNode = default)
         {
@@ -352,6 +355,10 @@ namespace Opc.Ua.Wot
             CollectReferencedLocations(document, locations);
             foreach ((JsonElement carrier, string reference) in locations)
             {
+                if (WotVersionedReference.IsDocumentLocalReference(document, reference))
+                {
+                    continue;
+                }
                 string location = ResolveLocationReference(document, carrier, string.Empty, reference);
                 if (!WotEventSelectClauses.TrySplitEventTypeReference(
                         location, out string documentUri, out _) ||
@@ -359,8 +366,20 @@ namespace Opc.Ua.Wot
                 {
                     continue;
                 }
+                // The document is loaded under the floor the reference states,
+                // so the Version indexed here is one the reference accepts.
+                // A floor that is itself invalid is reported by the reference.
+                string? requiredVersion;
+                try
+                {
+                    requiredVersion = WotVersionedReference.GetRequiredVersion(document, carrier, "ref");
+                }
+                catch (WotVersionException)
+                {
+                    continue;
+                }
                 WotDocument? sibling = await LoadAsync(
-                        documentUri, scope, cancellationToken)
+                        documentUri, scope, cancellationToken, requiredVersion, speculative: true)
                     .ConfigureAwait(false);
                 if (sibling is not null)
                 {
@@ -474,6 +493,29 @@ namespace Opc.Ua.Wot
             CancellationToken cancellationToken)
         {
             List<WotDiagnostic> diagnostics = scope.Diagnostics;
+            bool documentLocal = WotVersionedReference.IsDocumentLocalReference(document, reference, origin);
+            if (documentLocal)
+            {
+                reference = reference[reference.IndexOf('#', StringComparison.Ordinal)..];
+            }
+
+            string? requiredVersion;
+            string? heldFloorMiss = null;
+            try
+            {
+                requiredVersion = WotVersionedReference.GetRequiredVersion(document, carryingNode, "ref");
+                if (documentLocal)
+                {
+                    WotVersionedReference.ValidateSelectedVersion(document, requiredVersion);
+                }
+            }
+            catch (WotVersionException exception)
+            {
+                AddError(diagnostics,
+                    $"The minimum version of the EventType reference '{reference}' is not valid: {exception.Code}.",
+                    where);
+                return default;
+            }
 
             if (reference.StartsWith("#/", StringComparison.Ordinal) &&
                 WotEventSelectClauses.IsEventTypeReference(reference) &&
@@ -484,14 +526,24 @@ namespace Opc.Ua.Wot
             }
 
             // Held documents, by logical identifier, expanded in the active
-            // context of the node that wrote the reference.
+            // context of the node that wrote the reference. A definition held
+            // from a Version below this reference's floor is not taken: the
+            // document is asked for again under the floor.
             if (TryLookupHeld(
-                    document, reference, where, scope, out DefinitionCandidate held, out bool ambiguous, carryingNode))
+                    document, reference, where, scope, out DefinitionCandidate held, out bool ambiguous, carryingNode) &&
+                SatisfiesFloor(held, requiredVersion, out heldFloorMiss))
             {
                 return held;
             }
             if (ambiguous)
             {
+                return default;
+            }
+            if (heldFloorMiss is not null && ReferenceEquals(held.Document, document))
+            {
+                AddError(diagnostics,
+                    $"The containing EventType document does not satisfy the reference floor: {heldFloorMiss}.",
+                    where);
                 return default;
             }
 
@@ -517,7 +569,7 @@ namespace Opc.Ua.Wot
             if (validReference)
             {
                 WotDocument? resolved = await LoadAsync(
-                        documentUri, scope, cancellationToken)
+                        documentUri, scope, cancellationToken, requiredVersion)
                     .ConfigureAwait(false);
                 if (resolved is null)
                 {
@@ -541,7 +593,15 @@ namespace Opc.Ua.Wot
                             out bool nowAmbiguous,
                             carryingNode))
                     {
-                        return identified;
+                        if (SatisfiesFloor(identified, requiredVersion, out string? code))
+                        {
+                            return identified;
+                        }
+                        AddError(diagnostics,
+                            $"The EventType reference '{reference}' with minimum version " +
+                            $"'{requiredVersion}' selects no Version: {code}.",
+                            where);
+                        return default;
                     }
                     if (nowAmbiguous)
                     {
@@ -580,6 +640,14 @@ namespace Opc.Ua.Wot
             if (located)
             {
                 return locationTarget;
+            }
+            if (heldFloorMiss is not null)
+            {
+                AddError(diagnostics,
+                    $"The EventType reference '{reference}' with minimum version " +
+                    $"'{requiredVersion}' selects no Version: {heldFloorMiss}.",
+                    where);
+                return default;
             }
 
             // The well-known catalog, last: a definition this library carries
@@ -626,6 +694,29 @@ namespace Opc.Ua.Wot
                 "over the network (WoT Binding Sections 5.1.5 and 6.1).",
                 where);
             return default;
+        }
+
+        /// <summary>
+        /// Gets whether a held definition comes from a Version the reference's
+        /// floor accepts, including definitions in the containing document.
+        /// </summary>
+        private static bool SatisfiesFloor(DefinitionCandidate candidate, string? requiredVersion, out string? code)
+        {
+            code = null;
+            if (requiredVersion is null)
+            {
+                return true;
+            }
+            try
+            {
+                WotVersionedReference.ValidateSelectedVersion(candidate.Document, requiredVersion);
+                return true;
+            }
+            catch (WotVersionException exception)
+            {
+                code = exception.Code;
+                return false;
+            }
         }
 
         /// <summary>

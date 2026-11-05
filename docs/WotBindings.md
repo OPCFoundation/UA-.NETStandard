@@ -1777,18 +1777,145 @@ round-trip guarantees.
 
 ### How this is checked
 
-The documents under `tests/Opc.Ua.Types.Tests/Wot/Assets` are retained as
-local regression fixtures. They exercise parsing, conversion, import, and
-projection behavior, including validation of projection root roles.
-They are not authoritative copies of the current specification examples and
-must not be treated as evidence of current WoT conformance.
-
-The normative baseline is the official
+The numbered `.jsonld` examples under
+`tests/Opc.Ua.Types.Tests/Wot/CurrentSpecification` are byte-for-byte copies of
+the current examples in the
 [OPCF-Members/OPC10100-WoT](https://github.com/OPCF-Members/OPC10100-WoT)
-repository, merged at commit `40125acd1b65cdf291a92a67a5c6565656358e6e`.
-The local fixture manifest records those baseline coordinates separately from
-the fixture hashes; it does not assert that the fixture files were copied from
-that repository. Tests verify the checked-in fixture set and hashes offline.
+Binding specification. `source-manifest.json` records the source commit,
+SHA-256 and length of every example and the context. The tests verify those
+bytes offline and run standalone mapping examples through conversion and
+NodeSet import. Byte parity and parsing do not establish support for every
+operation described by an example. Conversion tests supply the mirrored
+Binding context locally rather than fetching it or treating an unacquired
+context as authoritative; retained fixture bytes are unchanged.
+
+| Current examples | Pipeline disposition |
+| --- | --- |
+| 03–06, 08, 14, 20, 23–28, 36, 39 | Standalone conversion and NodeSet import. |
+| 01, 02, 21, 22, 35 | Require local event/type context; standalone conversion reports the missing context. |
+| 07, 09–13, 15–19, 31, 33 | Projection plans require the asynchronous projection resolver before ordinary conversion. |
+| 29, 30, 32 | `uav:semanticPath` is not implemented by this converter. |
+| 34 | The additional PubSub vocabulary and `uav:resolvedSource` mapping are not implemented. |
+| 37, 38 | `uav:instanceOfDeclaration` is not implemented. |
+
+`Wot/Assets` retains the frozen numbered implementation fixtures and UA-only
+regressions. Its separate `spec-examples.manifest.json` identifies that
+baseline. Those tests retain their conversion, projection and rejection
+expectations independently of the current examples.
+
+`Wot/SharedResolution` mirrors the current representative xRegistry resolution
+cases, schema, README and checker without transforming their bytes.
+`WotVersionResolverTests.SharedVectorMatches` runs their independently authored
+expected results through the C# resolver and publication assignment API.
+`Wot/Resolution` retains the earlier 64-case implementation regression corpus;
+`LegacyRegressionVectorMatches` continues to execute every case. Each corpus
+has its own hash manifest. `.gitattributes` pins LF for these source copies.
+
+### Versioned document references
+
+A WoT reference names a Thing Model, but a registry can hold several versions
+of it. `WotVersionResolver` decides which version a reference resolves to,
+using resource snapshots the caller supplies. The order of precedence is:
+
+1. A pin by content digest or version id selects that version and overrides
+   floors and defaults.
+2. Without a pin, an operator's sticky default is authoritative.
+3. Otherwise the highest eligible SemVer version is selected.
+
+A prerelease, including a generated `0.0.0-N` id, is eligible only when the
+caller opts in or the floor is itself a prerelease. If the selected version is
+below the floor, resolution fails as `unsatisfied`; it never falls back to an
+older version. The result identifies the version by registry origin and
+content digest, so a consumer can tell which bytes it received.
+
+The floor of a TD `rel:type` link comes from two places: the link's explicit
+`tm:minVersion` and the TD's own `version.model`, which states the model
+version the TD was written against. A single type link uses the greater of
+the two by SemVer precedence, or whichever one is present. With several type
+links, `version.model` cannot say which link it belongs to. When the TD has
+`version.model`, every link therefore needs an explicit floor; otherwise
+unpinned resolution fails as `ambiguous-floor`. When every link has a floor,
+each uses the greater of its own floor and `version.model`. Without
+`version.model`, each link uses its explicit floor if it has one and is
+otherwise unconstrained.
+
+`AssignPublishedVersion` assigns the version id on publication. An authored
+Thing Model takes its id from `version.model`; build metadata and a mismatch
+between the requested id and `version.model` are rejected. A Thing Model with
+no `version.model`, or one that is not SemVer, gets the lowest free
+`0.0.0-N`. A Thing Description's instance revision comes from
+`version.instance`: a valid SemVer value without build metadata becomes its
+`versionid`; a missing or non-SemVer value gets the lowest free `0.0.0-N`.
+Supplied mismatches and build metadata are rejected. `version.model` remains
+the TD's model version and is used only as the implicit floor for its
+`rel: "type"` link.
+
+TD-to-TD `td:extends`, `td:subthing` and `td:ref` references use
+`td:minVersion`. A floor `X.Y.Z` selects a target version at or above that
+floor and with the same major version, including for a `0.y.z` floor.
+Next-major prereleases are outside the range. Without a floor,
+the highest eligible target version can be selected across major versions.
+The referencing TD's `version.instance` and `version.model` do not supply an
+implicit floor for these references. A major-version change is a breaking
+revision under the same TD `id`.
+
+A native FileType writer allocates an authored Thing Model Version from its
+`version.model` before opening the file, while a TM Version without content
+gets a generated id. Because generated ids are prereleases, a deployment of
+unversioned models can select one explicitly as the sticky default with
+`SetDefaultVersionAsync`.
+
+A document-local `tm:ref` or `td:ref` addresses the exact containing revision,
+not the Resource's current default or highest stored version. A local floor
+checks that revision's authored `version.model` for a TM reference or
+`version.instance` for a TD reference. Missing authored versions cannot satisfy
+a floor; malformed authored versions are rejected. A TD floor also excludes
+every next-major version, including prereleases. No floor means no version
+check, but still does not select another revision.
+
+Callers of `WotVersionResolver` mark normalized local references with
+`WotReferenceRequest.Local` and supply the containing `VersionId` and authored
+version in `WotDocumentVersionContext`. Document acquisition can instead pass
+the containing `WotDocument` to `WotVersionedReference.ResolveAsync`; local
+fragments then return those exact bytes without calling the provider.
+The registry refresh runtime does not support caller-enabled prerelease
+selection and rejects a present, true `AllowPrerelease` option with
+`BadNotSupported`. The standalone version resolver supports that option.
+A present `PublicationContext` is also rejected with `BadNotSupported`;
+refresh does not implement channel or snapshot composition.
+
+`uav:minVersion` is the kind-neutral alternative to the applicable legacy
+`tm:minVersion` or `td:minVersion`, including on a projection manifest source.
+Authored requirements cannot combine the common and legacy terms. A
+compatibility-line requirement on a SemVer dependency is rejected as
+`invalid-line`; Incremental selection is not implemented. Authored annotation
+validity is checked even when an exact registry URI skips floor derivation.
+Raw replay through `WotVersionResolver` remains a separate operation: a caller
+pin selects exact bytes without establishing composition compatibility.
+SemVer floors are not subject to the 128-character stored `VersionId` limit;
+the limit still applies to stored and assigned identifiers.
+
+Native registry CRUD and FileType writes retain an explicitly allocated Version
+id when the document has no `version.model` (TM) or `version.instance` (TD).
+Resources with opaque native Version ids also retain these controls on
+implicit updates. These writes use the native default/desired-version controls rather than
+reassigning the Version on close. An authored document version still has to
+match the requested Version id; implicit publication uses the assignment rules
+above.
+
+`IWotVersionedThingResolver` extends `IWotThingResolver` for stores that hold
+several versions; existing implementations of `IWotThingResolver` are
+unaffected. The converter passes `tm:minVersion` from `extends` and submodel
+links and from beside `tm:ref`, and passes `td:minVersion` from TD composition
+links and beside `td:ref`. It derives the implicit floor of a TD type link
+from `version.model`. A provider that implements only
+`IWotThingResolver` returns one document regardless of floor.
+`WotVersionedReference` checks that document against the floor, so an older
+document cannot satisfy a newer floor unnoticed. Registry dependency metadata
+keeps each floor and projects it to `WoTDependencyDataType.RequiredVersion`.
+
+The model source is OPC 10100 WoT Connectivity 1.1 (1.1-draft10, 2026-11-02).
+The existing Roslyn model source generator consumes it during the build.
 
 ### Resolving a type binding: the local context
 

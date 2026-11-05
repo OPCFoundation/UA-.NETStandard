@@ -1,0 +1,26 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+      "tm": "https://www.w3.org/2019/wot/tm#"
+    },
+    "../opc-ua-wot-binding.context.jsonld"
+  ],
+  "@type": ["tm:ThingModel", "uav:projection"],
+  "id": "urn:example:model:pump-asset:management",
+  "title": "Management",
+  "description": "A type-level action group selecting three existing Method declarations. One canonical View retains its identity, and each parent reaches its members through a separate organizational occurrence with a ProjectionRoot Property.",
+  "uav:scenario": "http://example.com/scenario/AssetManagement",
+  "uav:projects": [
+    {
+      "uav:sourceName": "pumpType",
+      "href": "./02-thing-model-pump.jsonld",
+      "type": "application/tm+json",
+      "uav:routing": "source",
+      "uav:select": [
+        { "uav:affordanceKind": "action" }
+      ]
+    }
+  ]
+}

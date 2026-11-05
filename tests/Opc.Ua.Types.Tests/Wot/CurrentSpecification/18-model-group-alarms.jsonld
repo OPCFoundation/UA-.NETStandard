@@ -1,0 +1,26 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+      "tm": "https://www.w3.org/2019/wot/tm#"
+    },
+    "../opc-ua-wot-binding.context.jsonld"
+  ],
+  "@type": ["tm:ThingModel", "uav:projection"],
+  "id": "urn:example:model:pump-asset:alarms",
+  "title": "Alarms",
+  "description": "A type-level event group selected by predicate. A newly selected event declaration changes the canonical View membership without requiring another canonical View for each organizational occurrence.",
+  "uav:scenario": "http://example.com/scenario/AssetManagement",
+  "uav:projects": [
+    {
+      "uav:sourceName": "pumpType",
+      "href": "./02-thing-model-pump.jsonld",
+      "type": "application/tm+json",
+      "uav:routing": "source",
+      "uav:select": [
+        { "uav:affordanceKind": "event", "@type": "uav:eventType" }
+      ]
+    }
+  ]
+}

@@ -59,12 +59,16 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             WotResource placeholder = registry.Current.FindResource("models", "unwritten")!;
             WotRegistryMutationResult failed = await registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
-                GroupId = "things", ResourceId = "dependent", VersionId = "v1",
+                GroupId = "things",
+                ResourceId = "dependent",
+                VersionId = "v1",
                 Content = ByteString.From(TestMaterialization.Td("urn:dependent", extendsHrefs: placeholder.Xid))
             });
             WotRegistryMutationResult independent = await registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
-                GroupId = "things", ResourceId = "independent", VersionId = "v1",
+                GroupId = "things",
+                ResourceId = "independent",
+                VersionId = "v1",
                 Content = ByteString.From(TestMaterialization.Td("urn:independent"))
             });
             using WotMaterializationCoordinator coordinator = Coordinator(registry, runtime);
@@ -104,10 +108,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     await registry.InitializeAsync();
                     (_, source) = await RegisterPairAsync(registry);
                     WotRegistrySnapshot before = registry.Current;
-                    var groups = before.Groups;
+                    ImmutableDictionary<string, WotResourceGroup> groups = before.Groups;
                     foreach (WotResourceGroup group in before.Groups.Values)
                     {
-                        var resources = group.Resources;
+                        ImmutableDictionary<string, WotResource> resources = group.Resources;
                         foreach (WotResource resource in group.Resources.Values)
                         {
                             var versions = resource.Versions.Select(version => new WotResourceVersion(
@@ -177,8 +181,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Assert.That(edge.Resolved, Is.True);
                 Assert.That(target.EdgeIndex, Is.Zero);
                 Assert.That(target.OriginRegistry!.OriginUri, Is.EqualTo("urn:registry:b2"));
-                Assert.That(target.VersionXid, Is.EqualTo(model.Xid + "/versions/v1"));
+                Assert.That(target.VersionXid, Is.EqualTo(model.Xid + "/versions/1.0.0"));
                 Assert.That(target.DocumentUri, Is.EqualTo("urn:snapshot:model"));
+                Assert.That(target.WotId, Is.EqualTo("urn:snapshot:model"));
+                Assert.That(target.VersionId, Is.EqualTo("1.0.0"));
+                Assert.That(target.Origin, Is.EqualTo("urn:registry:b2"));
                 Assert.That(target.ContentDigest, Is.EqualTo(model.DefaultVersion!.Digest));
                 Assert.That(target.VersionNodeId.IsNull, Is.True, "This direct provider has no OPC UA endpoint.");
             });
@@ -312,6 +319,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 await reloaded.InitializeAsync();
 
                 WotDependencySnapshot restored = Observation(reloaded, source);
+                WoTResolvedDependencyTargetDataType restoredTarget = restored.ToDataType().Targets[0];
                 ArrayOf<WotSelectedResource> dependents = WotDependencyGraph.SelectResources(
                     reloaded.Current, [Selector(model)], includeDependents: true);
                 string[] expectedResources = ["model", "source"];
@@ -321,7 +329,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     Assert.That(restored.RequestId, Is.EqualTo("persisted"));
                     Assert.That(restored.EffectiveInputDigest, Is.EqualTo(committed.EffectiveInputDigest));
                     Assert.That(restored.Targets[0].OriginRegistry!.OriginUri, Is.EqualTo("urn:registry:b2"));
-                    Assert.That(restored.Targets[0].VersionXid, Is.EqualTo(model.Xid + "/versions/v1"));
+                    Assert.That(restored.Targets[0].VersionXid, Is.EqualTo(model.Xid + "/versions/1.0.0"));
+                    Assert.That(restoredTarget.WoTId, Is.EqualTo("urn:snapshot:model"));
+                    Assert.That(restoredTarget.VersionId, Is.EqualTo("1.0.0"));
+                    Assert.That(restoredTarget.Origin, Is.EqualTo("urn:registry:b2"));
+                    Assert.That(restoredTarget.VersionProfile, Is.EqualTo(WoTVersionProfileEnum.SemVer));
                     Assert.That(dependents.ToList().Select(selected => selected.Resource.ResourceId),
                         Is.EquivalentTo(expectedResources));
                 });
@@ -342,16 +354,21 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         public async Task CaptureRetainsBytesAndSemanticSccAcrossStoreChanges()
         {
             using var registry = new WotRegistryService();
-            ByteString original = ByteString.From(Encoding.UTF8.GetBytes("""
+            var original = ByteString.From(Encoding.UTF8.GetBytes("""
                 {"id":"urn:a","title":"A","links":[{"rel":"ua:ConnectedTo","href":"urn:b"}]}
                 """));
             WotRegistryMutationResult a = await registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
-                GroupId = "things", ResourceId = "a", VersionId = "v1", Content = original
+                GroupId = "things",
+                ResourceId = "a",
+                VersionId = "v1",
+                Content = original
             });
             WotRegistryMutationResult b = await registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
-                GroupId = "things", ResourceId = "b", VersionId = "v1",
+                GroupId = "things",
+                ResourceId = "b",
+                VersionId = "v1",
                 Content = ByteString.From(Encoding.UTF8.GetBytes("""
                     {"id":"urn:b","title":"B","links":[{"rel":"ua:ConnectedTo","href":"urn:a"}]}
                     """))
@@ -363,7 +380,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             await registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
-                GroupId = "things", ResourceId = "a", VersionId = "v2",
+                GroupId = "things",
+                ResourceId = "a",
+                VersionId = "v2",
                 Content = ByteString.From(TestMaterialization.Td("urn:a", "changed"))
             });
             await registry.InitializeAsync();
@@ -396,19 +415,30 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "v1", 1, "immutable", new DateTime(2026, 9, 16, 0, 0, 0, DateTimeKind.Utc), true, digest,
                 [new WotDependency("/a", "urn:b", "/b", "tm:extends", true)],
                 [new WotDependencyTargetPin(0, new WotRegistryOrigin("urn:registry:b2"),
-                    "/b/versions/v1", "urn:b", ExpandedNodeId.Null, digest)]);
+                    "/b/versions/1.0.0", "urn:b", ExpandedNodeId.Null, digest)
+                {
+                    WotId = "urn:b",
+                    VersionId = "1.0.0",
+                    Origin = "urn:registry:b2"
+                }]);
             WoTDependencySnapshotDataType mutable = snapshot.ToDataType();
             mutable.Edges[0].TargetUri = "urn:tampered";
             mutable.Targets[0].VersionXid = "/b/versions/v2";
             mutable.Targets[0].OriginRegistry.OriginUri = "urn:other";
+            mutable.Targets[0].WoTId = "urn:other";
+            mutable.Targets[0].VersionId = "9.0.0";
+            mutable.Targets[0].Origin = "urn:other";
 
             WoTDependencySnapshotDataType reread = snapshot.ToDataType();
 
             Assert.Multiple(() =>
             {
                 Assert.That(reread.Edges[0].TargetUri, Is.EqualTo("urn:b"));
-                Assert.That(reread.Targets[0].VersionXid, Is.EqualTo("/b/versions/v1"));
+                Assert.That(reread.Targets[0].VersionXid, Is.EqualTo("/b/versions/1.0.0"));
                 Assert.That(reread.Targets[0].OriginRegistry.OriginUri, Is.EqualTo("urn:registry:b2"));
+                Assert.That(reread.Targets[0].WoTId, Is.EqualTo("urn:b"));
+                Assert.That(reread.Targets[0].VersionId, Is.EqualTo("1.0.0"));
+                Assert.That(reread.Targets[0].Origin, Is.EqualTo("urn:registry:b2"));
             });
         }
 
@@ -461,12 +491,17 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         {
             WotRegistryMutationResult model = await registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
-                GroupId = "models", ResourceId = "model", VersionId = "v1", Kind = WoTDocumentKindEnum.ThingModel,
+                GroupId = "models",
+                ResourceId = "model",
+                VersionId = "1.0.0",
+                Kind = WoTDocumentKindEnum.ThingModel,
                 Content = ByteString.From(TestMaterialization.Tm("urn:snapshot:model"))
             });
             WotRegistryMutationResult source = await registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
-                GroupId = "things", ResourceId = "source", VersionId = "v1",
+                GroupId = "things",
+                ResourceId = "source",
+                VersionId = "v1",
                 Content = ByteString.From(TestMaterialization.Td(
                     "urn:snapshot:source", extendsHrefs: "urn:snapshot:model"))
             });
@@ -479,7 +514,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         {
             return new WoTResourceSelectorDataType
             {
-                Kind = resource.Kind, GroupId = resource.GroupId, ResourceId = resource.ResourceId, VersionId = "v1"
+                Kind = resource.Kind,
+                GroupId = resource.GroupId,
+                ResourceId = resource.ResourceId,
+                VersionId = resource.Kind == WoTDocumentKindEnum.ThingModel ? "1.0.0" : "v1"
             };
         }
 

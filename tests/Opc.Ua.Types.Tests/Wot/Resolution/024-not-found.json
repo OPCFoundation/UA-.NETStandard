@@ -1,0 +1,11 @@
+{
+  "description": "An absent target Resource fails before other processing.",
+  "registry": [],
+  "reference": {
+    "kind": "extends",
+    "target": "urn:example:pump:v1"
+  },
+  "expect": {
+    "error": "not-found"
+  }
+}

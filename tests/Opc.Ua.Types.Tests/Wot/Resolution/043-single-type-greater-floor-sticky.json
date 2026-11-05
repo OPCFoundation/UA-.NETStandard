@@ -1,0 +1,41 @@
+{
+  "description": "A sticky default meets the explicit floor but fails the greater implicit single-link floor.",
+  "registry": [
+    {
+      "wotid": "urn:example:pump:v1",
+      "defaultversionsticky": true,
+      "defaultversionid": "1.0.0",
+      "versions": [
+        {
+          "versionid": "1.0.0",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000001",
+          "version.model": "1.0.0"
+        },
+        {
+          "versionid": "1.1.0",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+          "version.model": "1.1.0"
+        }
+      ]
+    }
+  ],
+  "reference": {
+    "kind": "type",
+    "target": "urn:example:pump:v1",
+    "minVersion": "1.0.0"
+  },
+  "document": {
+    "version.model": "1.1.0",
+    "typeLinks": [
+      {
+        "target": "urn:example:pump:v1",
+        "minVersion": "1.0.0"
+      }
+    ]
+  },
+  "expect": {
+    "error": "unsatisfied"
+  }
+}

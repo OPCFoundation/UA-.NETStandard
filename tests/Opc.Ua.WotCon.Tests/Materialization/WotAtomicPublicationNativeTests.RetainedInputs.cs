@@ -233,24 +233,25 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Assert.That(observation, Is.Null);
             }
             Assert.That(m_registry.Current.FindResourceByXid(model.Xid)!.ActiveVersionId,
-                activeInput ? Is.EqualTo("v1") : Is.Null);
+                activeInput ? Is.EqualTo("1.0.0") : Is.Null);
 
             WotRegistryMutationResult edited = await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
                 GroupId = model.GroupId,
                 ResourceId = model.ResourceId,
                 Kind = WoTDocumentKindEnum.ThingModel,
-                VersionId = overwriteVersion ? "v1" : "v2",
-                Content = ByteString.From(TestMaterialization.Tm("urn:retained-input", "2"))
+                VersionId = overwriteVersion ? "1.0.0" : "2.0.0",
+                Content = ByteString.From(TestMaterialization.WithModelVersion(
+                    TestMaterialization.Tm("urn:retained-input", "2"), overwriteVersion ? "1.0.0" : "2.0.0"))
             }).ConfigureAwait(false);
             Assert.That(edited.Changed, Is.True, edited.Message);
             Assert.That(edited.Resource!.Enabled, Is.False);
             if (evictVersion)
             {
                 WotRegistryMutationResult removed = await m_registry.DeleteVersionAsync(
-                    model.GroupId, model.ResourceId, "v1").ConfigureAwait(false);
+                    model.GroupId, model.ResourceId, "1.0.0").ConfigureAwait(false);
                 Assert.That(removed.Changed, Is.True, removed.Message);
-                Assert.That(m_registry.Current.FindResourceByXid(model.Xid)!.FindVersion("v1"), Is.Null);
+                Assert.That(m_registry.Current.FindResourceByXid(model.Xid)!.FindVersion("1.0.0"), Is.Null);
             }
             if (enableInput)
             {
@@ -338,10 +339,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     "Recovery must not rebuild the committed source using newer resolution-only input bytes.");
                 Assert.That(consumed, Is.EqualTo(new[] { committedInput }));
                 Assert.That(registry.Current.FindResourceByXid(model.Xid)!.ActiveVersionId,
-                    activeInput ? Is.EqualTo("v1") : Is.Null);
+                    activeInput ? Is.EqualTo("1.0.0") : Is.Null);
                 Assert.That(registry.Current.FindResourceByXid(model.Xid)!.Enabled, Is.EqualTo(enableInput));
                 Assert.That(registry.Current.FindResourceByXid(model.Xid)!.DefaultVersionId,
-                    Is.EqualTo(overwriteVersion ? "v1" : "v2"));
+                    Is.EqualTo(overwriteVersion ? "1.0.0" : "2.0.0"));
                 Assert.That(registry.Current.FindResourceByXid(model.Xid)!.RefreshGeneration,
                     Is.EqualTo(activeInput ? 1u : 0u));
                 Assert.That(registry.Current.Generation, Is.EqualTo(decided.Generation));

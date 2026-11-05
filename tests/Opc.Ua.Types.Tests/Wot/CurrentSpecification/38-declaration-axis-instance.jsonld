@@ -1,0 +1,28 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    "../opc-ua-wot-binding.context.jsonld",
+    { "uav": "http://opcfoundation.org/UA/WoT-Binding/" }
+  ],
+  "id": "urn:example:declaration:machine:01:axis:1",
+  "title": "Axis member correspondence",
+  "uav:bindingVersion": "1.1",
+  "securityDefinitions": { "nosec_sc": { "scheme": "nosec" } },
+  "security": ["nosec_sc"],
+  "links": [
+    {
+      "rel": "type",
+      "href": "./36-declaration-axis-model.jsonld",
+      "type": "application/tm+json"
+    }
+  ],
+  "properties": {
+    "position": {
+      "type": "number",
+      "uav:instanceOfDeclaration": [
+        "./36-declaration-axis-model.jsonld#/properties/position"
+      ],
+      "forms": [{ "href": "https://machine.example/01/axis1/position" }]
+    }
+  }
+}

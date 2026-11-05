@@ -1,0 +1,109 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    "../opc-ua-wot-binding.context.jsonld",
+    {
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+      "ex": "https://example.com/UA/Declaration/"
+    }
+  ],
+  "id": "urn:example:declaration:machine:01",
+  "title": "Machine declaration correspondence",
+  "uav:bindingVersion": "1.1",
+  "securityDefinitions": { "nosec_sc": { "scheme": "nosec" } },
+  "security": ["nosec_sc"],
+  "links": [
+    {
+      "rel": "type",
+      "href": "./35-declaration-machine-model.jsonld",
+      "type": "application/tm+json"
+    },
+    {
+      "rel": "ua:HasComponent",
+      "href": "./38-declaration-axis-instance.jsonld",
+      "uav:instanceOfDeclaration": [
+        "./35-declaration-machine-model.jsonld#/links/0/uav:declaration"
+      ]
+    }
+  ],
+  "properties": {
+    "ovenTemperature": {
+      "type": "number",
+      "uav:instanceOfDeclaration": [
+        "./35-declaration-machine-model.jsonld#/properties/processTemperature"
+      ],
+      "forms": [{ "href": "https://machine.example/01/oven/temperature" }]
+    },
+    "coolantTemperature": {
+      "type": "number",
+      "uav:instanceOfDeclaration": [
+        "./35-declaration-machine-model.jsonld#/properties/processTemperature"
+      ],
+      "forms": [{ "href": "https://machine.example/01/coolant/temperature" }]
+    },
+    "roomTemperature": {
+      "type": "number",
+      "uav:instanceOfDeclaration": [
+        "./35-declaration-machine-model.jsonld#/properties/ambientTemperature"
+      ],
+      "forms": [{ "href": "https://machine.example/01/room/temperature" }]
+    },
+    "diagnosticCounter": {
+      "type": "integer",
+      "uav:instanceOfDeclaration": [],
+      "forms": [{ "href": "https://machine.example/01/diagnostics/count" }]
+    },
+    "legacyTemperature": {
+      "type": "number",
+      "forms": [{ "href": "https://machine.example/01/legacy/temperature" }]
+    },
+    "Axis1.Position": {
+      "type": "number",
+      "uav:semanticPath": [
+        {
+          "name": "Axis1",
+          "@id": "urn:example:declaration:machine:01:axis:1",
+          "@type": "ex:AxisType",
+          "tm:ref": "./36-declaration-axis-model.jsonld#",
+          "uav:instanceOfDeclaration": [
+            "./35-declaration-machine-model.jsonld#/links/0/uav:declaration"
+          ]
+        },
+        {
+          "name": "Position",
+          "uav:instanceOfDeclaration": [
+            "./36-declaration-axis-model.jsonld#/properties/position"
+          ]
+        }
+      ],
+      "forms": [{ "href": "https://machine.example/01/axis1/position" }]
+    }
+  },
+  "actions": {
+    "calibrate": {
+      "uav:browseName": "ex:Calibrate",
+      "uav:instanceOfDeclaration": [
+        "./35-declaration-machine-model.jsonld#/actions/calibrate"
+      ],
+      "input": { "type": "number" },
+      "output": { "type": "boolean" },
+      "forms": [{
+        "href": "https://machine.example/01/calibrate",
+        "op": "invokeaction"
+      }]
+    }
+  },
+  "events": {
+    "overheated": {
+      "uav:instanceOfDeclaration": [
+        "./35-declaration-machine-model.jsonld#/events/overheated"
+      ],
+      "tm:ref": "./27-event-type-models.jsonld#/events/temperatureExceeded",
+      "forms": [{
+        "href": "https://machine.example/01/overheated",
+        "op": "subscribeevent",
+        "subprotocol": "longpoll"
+      }]
+    }
+  }
+}

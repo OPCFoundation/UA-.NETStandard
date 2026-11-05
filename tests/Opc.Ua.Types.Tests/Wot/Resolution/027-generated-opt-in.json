@@ -1,0 +1,34 @@
+{
+  "description": "Explicit opt-in permits generated Versions and compares numeric prerelease identifiers.",
+  "registry": [
+    {
+      "wotid": "urn:example:pump:v1",
+      "defaultversionsticky": false,
+      "defaultversionid": "0.0.0-10",
+      "versions": [
+        {
+          "versionid": "0.0.0-2",
+          "versionorigin": "generated",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000005"
+        },
+        {
+          "versionid": "0.0.0-10",
+          "versionorigin": "generated",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000006"
+        }
+      ]
+    }
+  ],
+  "reference": {
+    "kind": "extends",
+    "target": "urn:example:pump:v1"
+  },
+  "allowPrerelease": true,
+  "expect": {
+    "result": {
+      "wotid": "urn:example:pump:v1",
+      "versionid": "0.0.0-10",
+      "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000006"
+    }
+  }
+}

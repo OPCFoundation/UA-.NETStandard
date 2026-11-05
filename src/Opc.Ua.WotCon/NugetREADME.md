@@ -14,11 +14,13 @@ useful for asset onboarding pipelines, MQTT bridges, and connectivity
 configuration servers.
 
 The generated input is the unpublished **WoT Connectivity 1.1 draft** dated
-2026-09-21, corresponding to specification document **1.1-draft8**, and paired
+2026-11-02, corresponding to specification document **1.1-draft10**, and paired
 with the **xRegistry 0.7.0 draft** dated 2026-09-12. The incorporated
 OPC 10100-1 v1.02 ModelDesign and existing identities remain intact. Generated
 successor declarations do not by themselves establish server capability support;
 clients must discover the applicable runtime contract.
+The current server implements SemVer selection, not the Incremental allocator or
+publication channel/snapshot runtime described by the additional declarations.
 
 ## Target frameworks
 

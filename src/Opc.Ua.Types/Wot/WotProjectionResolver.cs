@@ -214,6 +214,24 @@ namespace Opc.Ua.Wot
                 for (int ii = 0; ii < count; ii++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
+                    string? floor = projection.Sources[ii].RequiredVersion;
+                    foreach (WotProjectionReference reference in projection.References)
+                    {
+                        if (FindSourceIndex(projection.Sources, SplitDocumentPart(reference.Reference), projectionBase) != ii)
+                        {
+                            continue;
+                        }
+                        string? candidate = WotVersionedReference.GetRequiredVersion(
+                            projectionDocument, reference.Annotations,
+                            projection.Sources[ii].MediaType == "application/td+json" ? "td-ref" : "ref");
+                        if (candidate is not null &&
+                            (floor is null ||
+                                WotVersionResolver.ParseFloor(candidate)
+                                    .CompareTo(WotVersionResolver.ParseFloor(floor)) > 0))
+                        {
+                            floor = candidate;
+                        }
+                    }
                     sources[ii] = await ResolveSourceAsync(
                         projection.Sources[ii],
                         ResolveHref(projectionBase, projection.Sources[ii].Href),
@@ -221,6 +239,7 @@ namespace Opc.Ua.Wot
                         context,
                         diagnostics,
                         openDocuments,
+                        floor,
                         cancellationToken).ConfigureAwait(false);
                 }
 
@@ -423,6 +442,11 @@ namespace Opc.Ua.Wot
                 }
                 return Serialize(root);
             }
+            catch (WotVersionException exception)
+            {
+                AddError(diagnostics, WotDiagnosticCode.ProjectionSourceUnresolved, exception.Code);
+                return null;
+            }
             finally
             {
                 for (int ii = 0; ii < openDocuments.Count; ii++)
@@ -497,6 +521,7 @@ namespace Opc.Ua.Wot
             WotResolutionContext context,
             List<WotDiagnostic> diagnostics,
             List<WotDocument> openDocuments,
+            string? requiredVersion,
             CancellationToken cancellationToken)
         {
             // Every source counts against the conversion's own bounds, not only
@@ -517,7 +542,7 @@ namespace Opc.Ua.Wot
             try
             {
                 return await ResolveSourceBoundedAsync(
-                    source, href, resolving, context, diagnostics, openDocuments, cancellationToken)
+                    source, href, resolving, context, diagnostics, openDocuments, requiredVersion, cancellationToken)
                     .ConfigureAwait(false);
             }
             finally
@@ -533,10 +558,13 @@ namespace Opc.Ua.Wot
             WotResolutionContext context,
             List<WotDiagnostic> diagnostics,
             List<WotDocument> openDocuments,
+            string? requiredVersion,
             CancellationToken cancellationToken)
         {
-            WotResolverResult result = await m_thingResolver.ResolveThingAsync(
-                href, context, cancellationToken).ConfigureAwait(false);
+            WotResolverResult result = await WotVersionedReference.ResolveAsync(
+                m_thingResolver, new WotReferenceRequest(
+                    source.MediaType == "application/td+json" ? "td-ref" : "ref", href, requiredVersion),
+                context, cancellationToken).ConfigureAwait(false);
             if (!result.Found)
             {
                 AddError(
@@ -686,16 +714,12 @@ namespace Opc.Ua.Wot
             };
         }
 
-        private bool MatchesSourceMediaType(WotProjectionManifestSource source, WotDocument document)
+        private static bool MatchesSourceMediaType(WotProjectionManifestSource source, WotDocument document)
         {
             string ordinaryMediaType = document.Kind == WotDocumentKind.ThingModel
                 ? "application/tm+json"
                 : "application/td+json";
-            if (string.Equals(source.MediaType, ordinaryMediaType, StringComparison.Ordinal))
-            {
-                return true;
-            }
-            return false;
+            return string.Equals(source.MediaType, ordinaryMediaType, StringComparison.Ordinal);
         }
 
         private async ValueTask CheckOrganizingAcyclicAsync(
@@ -1220,7 +1244,7 @@ namespace Opc.Ua.Wot
             }
             foreach (JsonProperty member in annotations.EnumerateObject())
             {
-                if (string.Equals(member.Name, "tm:ref", StringComparison.Ordinal) ||
+                if (member.Name is "tm:ref" or "tm:minVersion" ||
                     !WotProjection.IsPermittedAnnotation(member.Name))
                 {
                     continue;
@@ -2388,17 +2412,17 @@ namespace Opc.Ua.Wot
             var encoded = new StringBuilder();
             foreach (byte value in Encoding.UTF8.GetBytes(name))
             {
-                if (value is >= (byte)'A' and <= (byte)'Z' or
-                    >= (byte)'a' and <= (byte)'z' or
-                    >= (byte)'0' and <= (byte)'9' or
+                if (value is (>= (byte)'A' and <= (byte)'Z') or
+                    (>= (byte)'a' and <= (byte)'z') or
+                    (>= (byte)'0' and <= (byte)'9') or
                     (byte)'-' or (byte)'.' or (byte)'_' or (byte)'~')
                 {
                     encoded.Append((char)value);
                 }
                 else
                 {
-                    encoded.Append('%');
-                    encoded.Append(value.ToString("X2", CultureInfo.InvariantCulture));
+                    encoded.Append('%')
+                        .Append(value.ToString("X2", CultureInfo.InvariantCulture));
                 }
             }
             return encoded.ToString();
@@ -2826,13 +2850,13 @@ namespace Opc.Ua.Wot
             /// Adds an affordance and claims its name.
             /// </summary>
             /// <param name="kind">The WoT affordance kind.</param>
+            /// <param name="name">The unique affordance name within its kind.</param>
             /// <param name="value">The JSON object.</param>
             /// <param name="source">The resolved source.</param>
             /// <param name="sourceName">The source name.</param>
             /// <param name="definition">The JSON element.</param>
             /// <param name="supporting">The supporting flag supplied by the caller.</param>
             /// <param name="enumerated">The enumerated flag supplied by the caller.</param>
-            /// <param name="name">The unique affordance name within its kind.</param>
             public ResolvedAffordance Add(
                 WotAffordanceKind kind, string name, JsonObject value,
                 ResolvedSource source, string sourceName, JsonElement definition,
@@ -2860,8 +2884,8 @@ namespace Opc.Ua.Wot
             /// Attempts to locate the affordance resolved for a source pointer.
             /// </summary>
             /// <param name="source">The resolved source.</param>
-            /// <param name="member">The resolved affordance.</param>
             /// <param name="pointer">The JSON pointer that identifies the affordance within the source.</param>
+            /// <param name="member">The resolved affordance.</param>
             public bool TryLocate(ResolvedSource source, string pointer, out ResolvedAffordance? member)
             {
                 return m_locations.TryGetValue((source.DocumentHref, pointer), out member);
@@ -2882,7 +2906,9 @@ namespace Opc.Ua.Wot
                     return name;
                 }
                 string stem = "q:d:" +
-                    EncodeDependencyName(source.Source.SourceName) + ":" + EncodeDependencyName(pointer);
+                    EncodeDependencyName(source.Source.SourceName) +
+                    ":" +
+                    EncodeDependencyName(pointer);
                 string candidate = stem;
                 for (int suffix = 1; !Claim(kind, candidate); suffix++)
                 {

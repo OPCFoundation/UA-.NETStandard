@@ -1,0 +1,50 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+      "tm": "https://www.w3.org/2019/wot/tm#",
+      "acme": {
+        "@id": "https://example.com/vocab/opcua-wot#",
+        "@prefix": true
+      }
+    },
+    "../opc-ua-wot-binding.context.jsonld"
+  ],
+  "@type": ["Thing", "uav:projection"],
+  "id": "urn:dev:opcua:view:pump-predictive-maintenance",
+  "title": "Pump condition view",
+  "description": "A predictive-maintenance view combining the pump's process signals with its device identity. The selected affordances retain source interaction and security definitions with maintenance annotations.",
+  "uav:scenario": "http://example.com/scenario/PredictiveMaintenance",
+  "acme:publishingIntervalMs": 1000,
+  "securityDefinitions": { "nosec_sc": { "scheme": "nosec" } },
+  "security": "nosec_sc",
+  "uav:projects": [
+    {
+      "uav:sourceName": "pump",
+      "href": "./01-opcua-td-pump.jsonld",
+      "type": "application/td+json",
+      "uav:routing": "source",
+      "uav:select": [
+        { "uav:affordanceKind": "property" }
+      ]
+    },
+    {
+      "uav:sourceName": "identity",
+      "href": "./06-anchored-paths-and-device-identity.jsonld",
+      "type": "application/td+json",
+      "uav:routing": "source",
+      "uav:selectAll": true,
+      "uav:namePrefix": "device"
+    }
+  ],
+  "properties": {
+    "pumpSpeed": {
+      "tm:ref": "./01-opcua-td-pump.jsonld#/properties/pumpSpeed",
+      "title": "Pump speed (condition signal)",
+      "description": "The speed reading interpreted as a condition signal for the predictive-maintenance model.",
+      "@type": "http://example.com/ontology/maintenance/ConditionSignal",
+      "acme:samplingIntervalMs": 250
+    }
+  }
+}

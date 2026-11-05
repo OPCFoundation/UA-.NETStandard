@@ -79,6 +79,19 @@ namespace Opc.Ua.WotCon.Server.Materialization
             DeletePolicy = options?.DeletePolicy ?? WoTDeletePolicyEnum.Reject;
             MaxParallelism = options?.MaxParallelism ?? 0;
             Timeout = options?.Timeout ?? 0;
+            if (options is not null &&
+                (options.EncodingMask & (uint)WoTRefreshOptionsDataTypeFields.PublicationContext) != 0)
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported,
+                    "Refresh does not support publication channel or snapshot composition.");
+            }
+            if (options is not null &&
+                (options.EncodingMask & (uint)WoTRefreshOptionsDataTypeFields.AllowPrerelease) != 0 &&
+                options.AllowPrerelease)
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported,
+                    "Refresh does not support prerelease dependency selection.");
+            }
             if (Atomicity is not (WoTAtomicityEnum.PerResource or WoTAtomicityEnum.PerGroup or
                 WoTAtomicityEnum.PerClosure or WoTAtomicityEnum.PerRegistry))
             {
@@ -155,6 +168,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Copies one request without resolving selection or acquiring content.
         /// </summary>
         /// <param name="request">The WoT refresh request.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public static WotCapturedRefreshRequest Capture(WotRefreshRequest request)
         {
             _ = request ?? throw new ArgumentNullException(nameof(request));
@@ -225,7 +239,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             BinderRevision = binderRevision;
             StrictBindings = strictBindings;
             RetirementPolicy = retirementPolicy;
-            var nodeIds = ImmutableDictionary.CreateBuilder<string, ExpandedNodeId>(StringComparer.Ordinal);
+            ImmutableDictionary<string, ExpandedNodeId>.Builder nodeIds =
+                ImmutableDictionary.CreateBuilder<string, ExpandedNodeId>(StringComparer.Ordinal);
             if (supportsDependencySnapshots && versionNodeIdResolver is not null)
             {
                 foreach (WotResource resource in inputs.Resources)
@@ -296,6 +311,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// registry metadata, a changed origin, or a later Version NodeId resolver.
         /// </summary>
         /// <param name="closure">The WoT dependency closure.</param>
+        /// <exception cref="ServiceResultException"></exception>
         public ArrayOf<WotDependencyTargetPin> GetDependencyTargets(WotDependencyClosure closure)
         {
             RequireClosure(closure);
@@ -304,7 +320,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 throw new ServiceResultException(
                     StatusCodes.BadNotSupported, "Authoritative origin pins are unavailable.");
             }
-            var targets = ImmutableArray.CreateBuilder<WotDependencyTargetPin>();
+            ImmutableArray<WotDependencyTargetPin>.Builder targets =
+                ImmutableArray.CreateBuilder<WotDependencyTargetPin>();
             for (int i = 0; i < closure.Dependencies.Length; i++)
             {
                 WotDependency edge = closure.Dependencies[i];
@@ -320,7 +337,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 targets.Add(new WotDependencyTargetPin(
                     (uint)i, RegistryOrigin, versionXid, version.DocumentId ?? string.Empty,
                     m_versionNodeIds.TryGetValue(versionXid, out ExpandedNodeId nodeId) ? nodeId : ExpandedNodeId.Null,
-                    version.Digest));
+                    version.Digest)
+                {
+                    WotId = target.SourceId,
+                    VersionId = version.VersionId,
+                    Origin = RegistryOrigin.OriginUri.Length == 0 ? RegistryOrigin.ServerUri : RegistryOrigin.OriginUri
+                });
             }
             return targets.ToImmutable().ToArrayOf();
         }
@@ -331,6 +353,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// have been captured or rechecked by an atomic publication owner.
         /// </summary>
         /// <param name="closure">The WoT dependency closure.</param>
+        /// <exception cref="ServiceResultException"></exception>
         public ByteString GetRegistryInputDigest(WotDependencyClosure closure)
         {
             RequireClosure(closure);
@@ -369,6 +392,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// </summary>
         /// <param name="appliedAtomicity">The applied atomicity.</param>
         /// <param name="unitCount">The unit count.</param>
+        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public WoTRefreshPlanDataType CreateRefreshPlan(WoTAtomicityEnum appliedAtomicity, uint unitCount)
         {
             if (Request.DryRun)

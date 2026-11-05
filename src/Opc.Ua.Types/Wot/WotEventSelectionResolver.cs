@@ -1065,14 +1065,19 @@ namespace Opc.Ua.Wot
         private async System.Threading.Tasks.ValueTask<WotDocument?> LoadAsync(
             string documentUri,
             ResolutionScope scope,
-            System.Threading.CancellationToken cancellationToken)
+            System.Threading.CancellationToken cancellationToken,
+            string? requiredVersion = null,
+            bool speculative = false)
         {
             List<WotDiagnostic> diagnostics = scope.Diagnostics;
-            if (scope.TryGetLoaded(documentUri, out WotDocument? cached))
+            // A document is cached per floor: a later reference with a different floor may
+            // select a different Version of the same document, so it is asked again.
+            string cacheKey = requiredVersion is null ? documentUri : documentUri + "\n" + requiredVersion;
+            if (scope.TryGetLoaded(cacheKey, out WotDocument? cached))
             {
                 return cached;
             }
-            if (scope.IsUnresolvable(documentUri))
+            if (scope.IsUnresolvable(cacheKey))
             {
                 return null;
             }
@@ -1081,13 +1086,14 @@ namespace Opc.Ua.Wot
                 WotResolutionKind.Thing, documentUri, out WotDiagnostic? blocked))
             {
                 diagnostics.Add(blocked!);
-                scope.MarkUnresolvable(documentUri);
+                scope.MarkUnresolvable(cacheKey);
                 return null;
             }
             try
             {
-                WotResolverResult result = await m_thingResolver
-                    .ResolveThingAsync(documentUri, context, cancellationToken)
+                WotResolverResult result = await WotVersionedReference.ResolveAsync(
+                    m_thingResolver, new WotReferenceRequest("ref", documentUri, requiredVersion),
+                    context, cancellationToken)
                     .ConfigureAwait(false);
                 if (!result.Found)
                 {
@@ -1096,14 +1102,14 @@ namespace Opc.Ua.Wot
                     // and only the caller knows whether anything actually
                     // needed it. Reporting here would fail a document over a
                     // reference nothing followed.
-                    scope.MarkUnresolvable(documentUri);
+                    scope.MarkUnresolvable(cacheKey);
                     return null;
                 }
                 if (!context.TryAddBytes(
                     documentUri, result.Content.Length, out WotDiagnostic? limit))
                 {
                     diagnostics.Add(limit!);
-                    scope.MarkUnresolvable(documentUri);
+                    scope.MarkUnresolvable(cacheKey);
                     return null;
                 }
                 WotDocument parsed;
@@ -1119,11 +1125,27 @@ namespace Opc.Ua.Wot
                     // Same reason as above: a document that cannot be parsed
                     // resolves to nothing, and the caller reports the reference
                     // that needed it.
-                    scope.MarkUnresolvable(documentUri);
+                    scope.MarkUnresolvable(cacheKey);
                     return null;
                 }
-                scope.AddLoaded(documentUri, parsed);
+                scope.AddLoaded(cacheKey, parsed);
                 return parsed;
+            }
+            catch (WotVersionException exception)
+            {
+                // A speculative load while indexing reports nothing: the
+                // reference that needs this document asks again and reports
+                // the failure itself.
+                if (!speculative)
+                {
+                    AddError(
+                        diagnostics,
+                        $"The reference to '{documentUri}'" +
+                        (requiredVersion is null ? string.Empty : $" with minimum version '{requiredVersion}'") +
+                        $" selects no Version: {exception.Code}.",
+                        string.Empty);
+                }
+                return null;
             }
             finally
             {

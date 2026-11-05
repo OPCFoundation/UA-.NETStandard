@@ -1,0 +1,29 @@
+{
+  "description": "A TD without a SemVer version.instance receives the lowest free generated id.",
+  "registry": [
+    {
+      "wotid": "urn:example:thing:legacy-lamp",
+      "defaultversionsticky": false,
+      "defaultversionid": "0.0.0-1",
+      "versions": [
+        {
+          "versionid": "0.0.0-1",
+          "versionorigin": "generated",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000044"
+        }
+      ]
+    }
+  ],
+  "publish": {
+    "target": "urn:example:thing:legacy-lamp",
+    "targetKind": "td",
+    "version.instance": "2026-10-24T"
+  },
+  "expect": {
+    "assigned": {
+      "versionid": "0.0.0-2",
+      "versionorigin": "generated",
+      "defaultversionid": "0.0.0-2"
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "description": "Only generated Versions without caller opt-in gives no eligible Version.",
+  "registry": [
+    {
+      "wotid": "urn:example:pump:v1",
+      "defaultversionsticky": false,
+      "defaultversionid": "0.0.0-1",
+      "versions": [
+        {
+          "versionid": "0.0.0-1",
+          "versionorigin": "generated",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000005"
+        }
+      ]
+    }
+  ],
+  "reference": {
+    "kind": "extends",
+    "target": "urn:example:pump:v1"
+  },
+  "expect": {
+    "error": "unsatisfied"
+  }
+}

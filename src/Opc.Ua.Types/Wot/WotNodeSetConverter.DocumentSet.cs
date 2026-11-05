@@ -184,6 +184,7 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Generates one bounded candidate while observing cancellation between documents and graph nodes.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         private static WotConversionResult<WotDocumentSet> FromNodeSetDocumentsCore(
             UANodeSet nodeSet,
             string rootHref,
@@ -866,6 +867,7 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Shares set reconstruction and merging across local-only and resolver-enabled callers.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         private static async ValueTask<WotConversionResult<UANodeSet>> ToNodeSetCoreAsync(
             WotDocumentSet documents,
             WotNodeSetConverterOptions? options,
@@ -971,7 +973,7 @@ namespace Opc.Ua.Wot
         /// path, so a nested document's <c>uav:componentOf</c> href resolves
         /// without reaching outside the set.
         /// </summary>
-        private sealed class DocumentSetThingResolver : IWotThingResolver
+        private sealed class DocumentSetThingResolver : IWotVersionedThingResolver
         {
             public DocumentSetThingResolver(WotDocumentSet documents, IWotThingResolver? fallback = null)
             {
@@ -1016,6 +1018,20 @@ namespace Opc.Ua.Wot
                 }
                 return m_fallback?.ResolveThingAsync(reference, context, cancellationToken) ??
                     new ValueTask<WotResolverResult>(WotResolverResult.NotFound);
+            }
+
+            public ValueTask<WotResolverResult> ResolveThingAsync(
+                WotReferenceRequest reference,
+                WotResolutionContext context,
+                CancellationToken cancellationToken)
+            {
+                if (m_documents.TryGetDocument(reference.Target, out WotDocument document))
+                {
+                    WotVersionedReference.ValidateSelectedVersion(document, reference.MinimumVersion, reference.Kind);
+                    return new ValueTask<WotResolverResult>(WotResolverResult.FromBytes(document.Utf8Json.ToArray()));
+                }
+                return m_fallback is null ? new ValueTask<WotResolverResult>(WotResolverResult.NotFound) :
+                    WotVersionedReference.ResolveAsync(m_fallback, reference, context, cancellationToken);
             }
 
             private readonly WotDocumentSet m_documents;

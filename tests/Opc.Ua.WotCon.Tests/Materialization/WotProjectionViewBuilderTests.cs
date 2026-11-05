@@ -962,6 +962,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             { "uav": "http://opcfoundation.org/UA/WoT-Binding/", "tm": "https://www.w3.org/2019/wot/tm#" }
           ],
           "@type": ["tm:ThingModel", "uav:projection"],
+          "version": {"model": "1.0.0"},
           "id": "urn:view:type",
           "title": "Type view",
           "uav:scenario": "http://example.com/scenario/Type",

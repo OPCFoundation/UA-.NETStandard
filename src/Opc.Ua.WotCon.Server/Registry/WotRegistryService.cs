@@ -483,7 +483,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 return new VersionCreateResult(existing, resolved, false);
             }
             string assignedVersionId = explicitVersionId is null
-                ? NextVersionId(existing)
+                ? NextVersionId(existing, kind == WoTDocumentKindEnum.ThingModel)
                 : ValidateExplicitVersionId(explicitVersionId, nameof(versionId));
             if (existing?.Versions.Any(version => string.Equals(
                     version.VersionId, assignedVersionId, StringComparison.OrdinalIgnoreCase)) == true)
@@ -1009,6 +1009,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             string? title = null;
             string? baseUri = null;
             string? modelVersion = null;
+            string? instanceVersion = null;
             WoTValidationOutcomeDataType? validation = null;
             ImmutableArray<string>.Builder diagnostics = ImmutableArray.CreateBuilder<string>();
             bool parseFailed = false;
@@ -1046,6 +1047,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     versionElement.ValueKind == JsonValueKind.Object)
                 {
                     modelVersion = ReadString(versionElement, "model");
+                    instanceVersion = ReadString(versionElement, "instance");
                 }
             }
             catch (Exception ex) when (ex is JsonException or FormatException)
@@ -1141,7 +1143,58 @@ namespace Opc.Ua.WotCon.Server.Registry
                 ByteString digest = WotContentDigest.Compute(content);
                 WotResourceVersion? current;
                 string versionId;
-                if (explicitVersionId is null)
+                WotPublicationAssignment? assignment = null;
+                // Native CRUD and FileType writes retain their allocated identity and
+                // selection controls when no document version is declared.
+                bool nativeVersionWrite =
+                    (request.Kind == WoTDocumentKindEnum.ThingDescription ? instanceVersion : modelVersion) is null &&
+                    (explicitVersionId is not null ||
+                        existing?.Versions.Any(version =>
+                            !WotSemanticVersion.TryParse(version.VersionId, out _)) == true);
+                if (!nativeVersionWrite && ((request.Kind == WoTDocumentKindEnum.ThingModel &&
+                        parsedKind == WotDocumentKind.ThingModel) ||
+                    (request.Kind == WoTDocumentKindEnum.ThingDescription &&
+                        parsedKind == WotDocumentKind.ThingDescription)))
+                {
+                    string targetKind = request.Kind == WoTDocumentKindEnum.ThingDescription ? "td" : "tm";
+                    string? authoredVersion = targetKind == "td" ? instanceVersion : modelVersion;
+                    string identity = documentId ?? resourceId;
+                    WotResourceSnapshot resourceVersions = existing is null
+                        ? new WotResourceSnapshot(identity, false, null, [])
+                        : WotDependencyGraph.VersionSnapshot(existing) with { WotId = identity };
+                    if (explicitVersionId is not null)
+                    {
+                        resourceVersions = resourceVersions with
+                        {
+                            Versions = resourceVersions.Versions.ToList().Where(candidate =>
+                                candidate.VersionId != explicitVersionId ||
+                                existing?.FindVersion(candidate.VersionId)?.HasContent == true).ToArrayOf()
+                        };
+                    }
+                    WotResourceVersion? unchanged = existing?.Versions.FirstOrDefault(candidate =>
+                        candidate.HasContent && WotContentDigest.Equal(candidate.Digest, digest) &&
+                        (explicitVersionId is null || candidate.VersionId == explicitVersionId));
+                    try
+                    {
+                        assignment = unchanged is null
+                            ? WotVersionResolver.AssignPublishedVersion([resourceVersions], identity,
+                                explicitVersionId, modelVersion, targetKind, instanceVersion)
+                            : new WotPublicationAssignment(unchanged.VersionId,
+                                unchanged.VersionId == authoredVersion ? "authored" : "generated",
+                                existing!.DefaultVersionId);
+                    }
+                    catch (WotVersionException exception)
+                    {
+                        return Rejected(snapshot.Generation, exception.Code);
+                    }
+                    versionId = assignment.VersionId;
+                    current = existing?.FindVersion(versionId);
+                    if (current is null)
+                    {
+                        RejectCaseVariantVersionId(existing, versionId);
+                    }
+                }
+                else if (explicitVersionId is null)
                 {
                     WotResourceVersion? defaultVersion = existing?.FindVersion(
                         existing.DefaultVersionId);
@@ -1158,16 +1211,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     if (current is null)
                     {
                         ValidateExplicitVersionId(versionId, nameof(request.VersionId));
-                        if (existing?.Versions.Any(version => string.Equals(
-                                version.VersionId,
-                                versionId,
-                                StringComparison.OrdinalIgnoreCase)) == true)
-                        {
-                            throw new ServiceResultException(
-                                StatusCodes.BadNodeIdExists,
-                                $"Version '{versionId}' differs only by case from an " +
-                                "existing sibling Version.");
-                        }
+                        RejectCaseVariantVersionId(existing, versionId);
                     }
                 }
                 if (request.ExpectedVersionIncarnation is { } expectedIncarnation &&
@@ -1188,10 +1232,10 @@ namespace Opc.Ua.WotCon.Server.Registry
                         "The committed Version changed while the writer was open.");
                 }
 
-                string defaultVersionId = request.SetAsDefault
+                string defaultVersionId = assignment?.DefaultVersionId ?? (request.SetAsDefault
                     ? versionId
-                    : existing?.DefaultVersionId ?? versionId;
-                string desiredVersionId = request.SetAsDefault
+                    : existing?.DefaultVersionId ?? versionId);
+                string desiredVersionId = assignment is not null ? defaultVersionId : request.SetAsDefault
                     ? versionId
                     : existing?.DesiredVersionId ?? defaultVersionId;
                 string selectedVersionId = desiredVersionId;
@@ -1238,7 +1282,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                     !string.Equals(current.DocumentId, documentId, StringComparison.Ordinal) ||
                     !string.Equals(current.Title, title, StringComparison.Ordinal) ||
                     !string.Equals(current.BaseUri, baseUri, StringComparison.Ordinal) ||
-                    !string.Equals(current.ModelVersion, modelVersion, StringComparison.Ordinal);
+                    !string.Equals(current.ModelVersion, modelVersion, StringComparison.Ordinal) ||
+                    !string.Equals(current.InstanceVersion, instanceVersion, StringComparison.Ordinal);
                 bool defaultChanged = existing is null ||
                     !string.Equals(
                         existing.DefaultVersionId,
@@ -1291,6 +1336,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                         Title = title,
                         BaseUri = baseUri,
                         ModelVersion = modelVersion,
+                        InstanceVersion = instanceVersion,
                         Dependencies = dependencies
                     };
                 }
@@ -1310,7 +1356,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                             title,
                             baseUri,
                             modelVersion,
-                            dependencies);
+                            dependencies,
+                            instanceVersion);
                 }
                 else
                 {
@@ -2011,7 +2058,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     if (string.Equals(
                             resource.DefaultVersionId,
                             versionId,
-                            StringComparison.Ordinal))
+                            StringComparison.Ordinal) && resource.DefaultVersionSticky)
                     {
                         return (resource, null);
                     }
@@ -2021,6 +2068,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                         validation: selected.Validation,
                         epoch: resource.MetaEpoch + 1,
                         clearValidation: selected.Validation is null)
+                        .WithDefaultVersionSticky(true)
                         .WithSelectedVersionMetadata(
                             selected.DocumentId,
                             selected.Title)
@@ -3146,9 +3194,37 @@ namespace Opc.Ua.WotCon.Server.Registry
             return protectedCommittedCount + 1 <= max;
         }
 
-        private static string NextVersionId(WotResource? existing)
+        /// <summary>
+        /// Rejects a new Version id that differs only by case from a sibling, because Version
+        /// ids are unique case-insensitively within their Resource.
+        /// </summary>
+        private static void RejectCaseVariantVersionId(WotResource? existing, string versionId)
+        {
+            if (existing?.Versions.Any(version => string.Equals(
+                    version.VersionId,
+                    versionId,
+                    StringComparison.OrdinalIgnoreCase)) == true)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNodeIdExists,
+                    $"Version '{versionId}' differs only by case from an " +
+                    "existing sibling Version.");
+            }
+        }
+
+        private static string NextVersionId(WotResource? existing, bool generated = false)
         {
             long next = 1;
+            if (generated)
+            {
+                var occupied = new HashSet<string>(existing?.Versions.Select(version => version.VersionId) ?? [],
+                    StringComparer.OrdinalIgnoreCase);
+                while (occupied.Contains($"0.0.0-{next}"))
+                {
+                    next++;
+                }
+                return $"0.0.0-{next}";
+            }
             if (existing is not null)
             {
                 foreach (WotResourceVersion version in existing.Versions)

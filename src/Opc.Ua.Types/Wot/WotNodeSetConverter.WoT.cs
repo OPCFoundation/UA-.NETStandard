@@ -60,6 +60,7 @@ namespace Opc.Ua.Wot
         /// <param name="nodeResolver">The local node context used by conversion.</param>
         /// <param name="cancellationToken">A cancellation token.</param>
         /// <returns>Whether the document requires native mapping admission.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static async ValueTask<bool> RequiresNativeMappingAsync(
             WotDocument document,
             IWotNodeResolver? nodeResolver = null,
@@ -471,7 +472,8 @@ namespace Opc.Ua.Wot
             {
                 capturedBytes = checked(capturedBytes + owner.Utf8Json.Length);
             }
-            if (documents.Count > options.MaxResolverDocuments || captured.Count > options.MaxNodeCount ||
+            if (documents.Count > options.MaxResolverDocuments ||
+                captured.Count > options.MaxNodeCount ||
                 capturedBytes > options.MaxResolverTotalBytes)
             {
                 Report(document.Id ?? string.Empty, "The captured DataType definitions exceed the configured limits.");
@@ -1956,8 +1958,11 @@ namespace Opc.Ua.Wot
             }
             foreach (UANode node in items)
             {
-                if (node.NodeId is { } nodeId && NodeId.TryParse(nodeId, out NodeId identity) && identity.NamespaceIndex > 0 &&
-                    nodeSet.NamespaceUris is { } namespaces && identity.NamespaceIndex <= namespaces.Length)
+                if (node.NodeId is { } nodeId &&
+                    NodeId.TryParse(nodeId, out NodeId identity) &&
+                    identity.NamespaceIndex > 0 &&
+                    nodeSet.NamespaceUris is { } namespaces &&
+                    identity.NamespaceIndex <= namespaces.Length)
                 {
                     string namespaceUri = namespaces[identity.NamespaceIndex - 1];
                     if (ownedNamespaces.Add(namespaceUri))
@@ -2300,9 +2305,9 @@ namespace Opc.Ua.Wot
             /// Adds the forward Reference from <paramref name="owner"/> to
             /// <paramref name="nodeId"/>, if a Node with that NodeId exists.
             /// </summary>
+            /// <param name="owner">The NodeId of the Node that owns the Reference.</param>
             /// <param name="nodeId">The node ID.</param>
             /// <param name="referenceType">The reference type.</param>
-            /// <param name="owner">The NodeId of the Node that owns the Reference.</param>
             public void Add(string owner, string nodeId, string? referenceType)
             {
                 for (; m_indexed < m_items.Count; m_indexed++)
@@ -2346,8 +2351,10 @@ namespace Opc.Ua.Wot
 
             private readonly List<UANode> m_items;
             private readonly Dictionary<string, UANode> m_byId = new(StringComparer.Ordinal);
+
             private readonly Dictionary<string, List<Reference>> m_pending =
                 new(StringComparer.Ordinal);
+
             private readonly List<KeyValuePair<UANode, List<Reference>>> m_owners = [];
             private int m_indexed;
         }
@@ -2691,8 +2698,11 @@ namespace Opc.Ua.Wot
                     diagnostics.Add(new WotDiagnostic(
                         WotDiagnosticSeverity.Error,
                         WotDiagnosticCode.ValidationError,
-                        "Two actions name the Condition Method '" + conditionAction +
-                        "' on event '" + actsOn + "'.",
+                        "Two actions name the Condition Method '" +
+                        conditionAction +
+                        "' on event '" +
+                        actsOn +
+                        "'.",
                         WotLocation.FromPointer(
                             "/actions/" + EscapeJsonPointerToken(key))));
                     return;
@@ -2892,12 +2902,13 @@ namespace Opc.Ua.Wot
             carrier.NodeId = GenerateNodeId(nodeSet, new ArrayOf<WotBrowsePathElement>(
                 [new WotBrowsePathElement(modelUri, typeLocal)]));
             carrier.BrowseName = GetOrAppendNamespaceUri(nodeSet, modelUri)
-                .ToString(CultureInfo.InvariantCulture) + ":" + typeLocal;
+                .ToString(CultureInfo.InvariantCulture) +
+                ":" +
+                typeLocal;
             carrier.DisplayName = MakeText(typeLocal);
             var references = new List<Reference>(undeclared.Count + 1)
             {
-                new Reference
-                {
+                new() {
                     ReferenceType = "HasSubtype",
                     IsForward = false,
                     Value = typeDefinition.Value
@@ -3702,7 +3713,7 @@ namespace Opc.Ua.Wot
                 if (uris.Count >= ushort.MaxValue)
                 {
                     // The model's namespace displaces the last bound prefix.
-                    diagnostics?.Add(NamespaceTableFull(uris[uris.Count - 1], uris.Count));
+                    diagnostics?.Add(NamespaceTableFull(uris[^1], uris.Count));
                     uris.RemoveAt(uris.Count - 1);
                 }
                 uris.Insert(0, modelUri);
@@ -3846,7 +3857,9 @@ namespace Opc.Ua.Wot
                     context,
                     options,
                     diagnostics,
-                    cancellationToken).ConfigureAwait(false);
+                    cancellationToken,
+                    document,
+                    thingReference.SourceLink).ConfigureAwait(false);
                 thingCatalog.AddTarget(reference, target);
                 if (lookup != reference)
                 {
@@ -3869,7 +3882,8 @@ namespace Opc.Ua.Wot
                         continue;
                     }
                     WotResolvedNode? target = await ResolveTargetAsync(
-                        lookup, resolver, context, options, diagnostics, cancellationToken).ConfigureAwait(false);
+                        lookup, resolver, context, options, diagnostics, cancellationToken,
+                        document, link).ConfigureAwait(false);
                     thingCatalog.AddTarget(lookup, target);
                 }
             }
@@ -3998,7 +4012,9 @@ namespace Opc.Ua.Wot
             WotResolutionContext context,
             WotNodeSetConverterOptions options,
             List<WotDiagnostic> diagnostics,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            WotDocument? sourceDocument = null,
+            JsonElement sourceNode = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (!context.TryEnter(WotResolutionKind.Thing, reference, out WotDiagnostic? blocking))
@@ -4009,10 +4025,13 @@ namespace Opc.Ua.Wot
 
             try
             {
-                WotResolverResult result = await resolver.ResolveThingAsync(
-                    reference,
-                    context,
-                    cancellationToken).ConfigureAwait(false);
+                string kind = sourceNode.ValueKind == JsonValueKind.Object
+                    ? GetElementString(sourceNode, "rel") ?? "ref" : "ref";
+                string? floor = sourceDocument is null ? null :
+                    WotVersionedReference.GetRequiredVersion(sourceDocument, sourceNode, kind);
+                WotResolverResult result = await WotVersionedReference.ResolveAsync(
+                    resolver, new WotReferenceRequest(kind, reference, floor),
+                    context, sourceDocument, cancellationToken).ConfigureAwait(false);
                 if (!result.Found)
                 {
                     diagnostics.Add(new WotDiagnostic(
@@ -4057,6 +4076,12 @@ namespace Opc.Ua.Wot
                     WotDiagnosticCode.UnresolvedReference,
                     $"The referenced document '{reference}' does not declare a uav:id.",
                     new WotLocation(reference: reference)));
+                return null;
+            }
+            catch (WotVersionException exception)
+            {
+                diagnostics.Add(new WotDiagnostic(WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.UnresolvedReference, exception.Code, new WotLocation(reference: reference)));
                 return null;
             }
             finally
@@ -5630,6 +5655,11 @@ namespace Opc.Ua.Wot
         private readonly record struct WotParentPlacement(string ParentNodeId);
 
         private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<UANodeSet, NamespaceIndex>
-            s_namespaceIndexes = new();
+            s_namespaceIndexes =
+#if NET8_0_OR_GREATER
+            [];
+#else
+            new();
+#endif
     }
 }
