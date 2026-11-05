@@ -59,6 +59,14 @@ namespace Opc.Ua.Server.Tests.Network
         [SetUp]
         public async Task SetUpAsync()
         {
+            await StartServerAsync(prependNamespace: false).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Starts the scenario with an optional namespace registered ahead of the network manager.
+        /// </summary>
+        private async Task StartServerAsync(bool prependNamespace)
+        {
             m_pkiRoot = Path.Combine(Path.GetTempPath(), "OpcUaNetworkTests", Guid.NewGuid().ToString("N")[..8]);
             m_provider = NetworkScenario.Create();
             m_providerBoundary = new FaultInjectingProvider(m_provider);
@@ -66,6 +74,10 @@ namespace Opc.Ua.Server.Tests.Network
             m_server = new ServerFixture<StandardServer>(telemetry =>
             {
                 var server = new StandardServer(telemetry);
+                if (prependNamespace)
+                {
+                    server.AddNodeManager(new StartupProbeFactory(_ => { }));
+                }
                 server.AddNodeManager(new NetworkModelNodeManagerFactory(
                     m_providerBoundary, _ => Volatile.Read(ref m_permitMappingEdits) != 0));
                 return server;
@@ -83,6 +95,86 @@ namespace Opc.Ua.Server.Tests.Network
                 SecurityPolicies.None).ConfigureAwait(false);
             m_session = await m_clientFixture.ConnectAsync(endpoint).ConfigureAwait(false);
             m_client = new NetworkModelClient(m_session, NUnitTelemetryContext.Create());
+        }
+
+        /// <summary>
+        /// URI-qualified variable, method and argument identifiers survive a namespace registration order change.
+        /// </summary>
+        [Test]
+        [CancelAfter(60_000)]
+        public async Task DescendantIdentifiersSurviveNamespaceRegistrationOrderChanges(
+            CancellationToken cancellationToken)
+        {
+            ushort originalNamespace = m_session.NamespaceUris.GetIndexOrAppend(NetworkModelNodeManager.NamespaceUri);
+            Dictionary<NodeId, NodeClass> original = await ReadNetworkIdentifiersAsync(cancellationToken)
+                .ConfigureAwait(false);
+            Assert.That(original.Values, Does.Contain(NodeClass.Variable));
+            Assert.That(original.Values, Does.Contain(NodeClass.Method));
+            Assert.That(original.Keys.Any(id => id.ToString().Contains(BrowseNames.InputArguments)), Is.True);
+
+            await TearDownAsync().ConfigureAwait(false);
+            await StartServerAsync(prependNamespace: true).ConfigureAwait(false);
+            ushort reorderedNamespace = m_session.NamespaceUris.GetIndexOrAppend(NetworkModelNodeManager.NamespaceUri);
+            Assert.That(reorderedNamespace, Is.Not.EqualTo(originalNamespace));
+            Dictionary<NodeId, NodeClass> reordered = await ReadNetworkIdentifiersAsync(cancellationToken)
+                .ConfigureAwait(false);
+            Assert.That(reordered, Is.EquivalentTo(original));
+
+            ReadResponse persisted = await m_session.ReadAsync(null, 0, TimestampsToReturn.Neither,
+                ArrayOf.Wrapped(original.Keys.Select(id => new ReadValueId
+                {
+                    NodeId = id.WithNamespaceIndex(reorderedNamespace),
+                    AttributeId = Attributes.NodeClass
+                }).ToArray()), cancellationToken).ConfigureAwait(false);
+            Assert.That(persisted.Results.Count, Is.EqualTo(original.Count));
+            Assert.That(persisted.Results.ToList().All(value => StatusCode.IsGood(value.StatusCode)), Is.True);
+        }
+
+        /// <summary>
+        /// Reads all application-owned descendants below Resources with namespace-independent dictionary keys.
+        /// </summary>
+        private async Task<Dictionary<NodeId, NodeClass>> ReadNetworkIdentifiersAsync(
+            CancellationToken cancellationToken)
+        {
+            ushort networkNamespace = m_session.NamespaceUris.GetIndexOrAppend(NetworkModelNodeManager.NamespaceUri);
+            var identifiers = new Dictionary<NodeId, NodeClass>();
+            var pending = new Queue<NodeId>();
+            var visited = new HashSet<NodeId>();
+            pending.Enqueue(ObjectIds.Resources);
+            while (pending.Count != 0)
+            {
+                NodeId current = pending.Dequeue();
+                if (!visited.Add(current))
+                {
+                    continue;
+                }
+                BrowseResponse response = await m_session.BrowseAsync(null, null, 0,
+                    [
+                        new BrowseDescription
+                        {
+                            NodeId = current,
+                            ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
+                            BrowseDirection = BrowseDirection.Forward,
+                            IncludeSubtypes = true,
+                            ResultMask = (uint)BrowseResultMask.All
+                        }
+                    ], cancellationToken).ConfigureAwait(false);
+                Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(response.Results[0].ContinuationPoint.IsEmpty, Is.True);
+                foreach (ReferenceDescription child in response.Results[0].References.ToList())
+                {
+                    NodeId id = ExpandedNodeId.ToNodeId(child.NodeId, m_session.NamespaceUris);
+                    if (id.NamespaceIndex == networkNamespace)
+                    {
+                        identifiers[id.WithNamespaceIndex(0)] = child.NodeClass;
+                    }
+                    if (id.NamespaceIndex == 0 || id.NamespaceIndex == networkNamespace)
+                    {
+                        pending.Enqueue(id);
+                    }
+                }
+            }
+            return identifiers;
         }
 
         /// <summary>

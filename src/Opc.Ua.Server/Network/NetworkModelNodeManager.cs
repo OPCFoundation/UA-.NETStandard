@@ -872,7 +872,7 @@ namespace Opc.Ua.Server.Network
                     ? generated
                     : throw new ServiceResultException(StatusCodes.BadConfigurationError,
                         "The generated priority-mapping method is missing.");
-            method.NodeId = NodeIdFor(tableNode.NodeId.ToString(), name);
+            method.NodeId = NodeIdFor(tableNode.NodeId.WithNamespaceIndex(0).ToString(), name);
             method.BrowseName = new QualifiedName(name, 0);
             method.DisplayName = new LocalizedText(name);
             method.ReferenceTypeId = ReferenceTypeIds.HasComponent;
@@ -953,7 +953,8 @@ namespace Opc.Ua.Server.Network
                     }
                 ];
             var argumentsProperty = PropertyState<ArrayOf<Argument>>.With<StructureBuilder<Argument>>(method);
-            argumentsProperty.NodeId = NodeIdFor(method.NodeId.ToString(), BrowseNames.InputArguments);
+            argumentsProperty.NodeId = NodeIdFor(
+                method.NodeId.WithNamespaceIndex(0).ToString(), BrowseNames.InputArguments);
             argumentsProperty.BrowseName = new QualifiedName(BrowseNames.InputArguments, 0);
             argumentsProperty.DisplayName = new LocalizedText(BrowseNames.InputArguments);
             argumentsProperty.ReferenceTypeId = ReferenceTypeIds.HasProperty;
@@ -1018,7 +1019,7 @@ namespace Opc.Ua.Server.Network
                     is BaseVariableState typed ? typed : null;
             BaseVariableState variable = generated ??
                 (property ? new PropertyState(parent) : new BaseDataVariableState(parent));
-            variable.NodeId = NodeIdFor(parent.NodeId.ToString(), name);
+            variable.NodeId = NodeIdFor(parent.NodeId.WithNamespaceIndex(0).ToString(), name);
             variable.BrowseName = new QualifiedName(name, 0);
             variable.DisplayName = new LocalizedText(name);
             variable.ReferenceTypeId = property
