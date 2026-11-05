@@ -542,7 +542,12 @@ namespace Opc.Ua
                 {
                     utf8StringLength--;
                 }
-                return Encoding.UTF8.GetString(bytes[..utf8StringLength]);
+
+                // short strings repeat across the values of a message (event source names,
+                // messages, locales, string node ids): reuse the instance decoded last.
+                return utf8StringLength <= DecodedStringCache.MaxUtf8Length
+                    ? DecodedStringCache.GetOrAdd(bytes[..utf8StringLength])
+                    : Encoding.UTF8.GetString(bytes[..utf8StringLength]);
             }
             finally
             {
