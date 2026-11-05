@@ -101,9 +101,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(fixture.Proofs.Certificates, Is.EqualTo(new[] { issued.Certificate }));
             Assert.That(fixture.Proofs.OperatorPins, Is.EqualTo(new[] { fixture.InitialManagedCertificate }));
             Assert.That(fixture.Bridge.Mutations, Is.EqualTo(mutations));
-            Assert.That(fixture.DcaMutations.Count, Is.EqualTo(dcaMutations));
+            Assert.That(fixture.DcaMutations, Has.Count.EqualTo(dcaMutations));
             Assert.That(fixture.SigningCalls, Is.EqualTo(signingCalls));
-            Assert.That(fixture.Database.CertificateRequests.Count, Is.EqualTo(requests));
+            Assert.That(fixture.Database.CertificateRequests, Has.Count.EqualTo(requests));
             Assert.That(await fixture.CheckpointsAsync().ConfigureAwait(false), Is.EqualTo(checkpoints));
             Assert.That(fixture.CheckpointPublications, Is.EqualTo(publications));
             Assert.That(await fixture.Enrollments.FindRequestAsync(
@@ -147,9 +147,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Is.EqualTo(StatusCodes.BadCertificateInvalid));
             Assert.That(fixture.Proofs.Certificates, Is.Empty);
             Assert.That(fixture.Bridge.Mutations, Is.EqualTo(mutations));
-            Assert.That(fixture.DcaMutations.Count, Is.EqualTo(dcaMutations));
+            Assert.That(fixture.DcaMutations, Has.Count.EqualTo(dcaMutations));
             Assert.That(fixture.SigningCalls, Is.EqualTo(signingCalls));
-            Assert.That(fixture.Database.CertificateRequests.Count, Is.EqualTo(requests));
+            Assert.That(fixture.Database.CertificateRequests, Has.Count.EqualTo(requests));
             Assert.That(await fixture.CheckpointsAsync().ConfigureAwait(false), Is.EqualTo(checkpoints));
             Assert.That(fixture.CheckpointPublications, Is.EqualTo(publications));
             Assert.That(await fixture.RegistrarStateAsync().ConfigureAwait(false), Is.EqualTo(registrarState));
@@ -479,7 +479,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     m_telemetry);
                 var (types, certificates) =
                     await configuration.GetCertificatesAsync(NodeId.Null).ConfigureAwait(false);
-                Assert.That(types, Does.Contain(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType));
+                Assert.That(types.Contains(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType), Is.True);
                 return certificates[types.ToList().IndexOf(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)];
             }
 
@@ -580,8 +580,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             private async Task OpenProvidersAsync(bool interrupt)
             {
                 var fileSystem = new Mock<IFileSystem>(MockBehavior.Strict);
-                IFileSystem local = LocalFileSystem.Instance;
-                fileSystem.Setup(value => value.Exists(It.IsAny<string>())).Returns<string>(local.Exists);
+                LocalFileSystem local = LocalFileSystem.Instance;
+                fileSystem.Setup(value => value.Exists(It.IsAny<string>(), It.IsAny<bool>()))
+                    .Returns<string, bool>(local.Exists);
                 fileSystem.Setup(value => value.GetLength(It.IsAny<string>())).Returns<string>(local.GetLength);
                 fileSystem.Setup(value => value.OpenRead(It.IsAny<string>())).Returns<string>(local.OpenRead);
                 fileSystem.Setup(value => value.OpenWrite(It.IsAny<string>())).Returns<string>(local.OpenWrite);
@@ -785,7 +786,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             /// <summary>
             /// Uses only the generated fixture credential on encrypted sessions.
             /// </summary>
-            private IUserIdentity Administrator()
+            private UserIdentity Administrator()
             {
                 return new UserIdentity(m_userName, m_password);
             }

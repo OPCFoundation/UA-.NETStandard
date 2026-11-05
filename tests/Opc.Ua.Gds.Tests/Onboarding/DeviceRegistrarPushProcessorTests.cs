@@ -388,8 +388,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Is.EqualTo(StatusCodes.BadRequestNotAllowed));
             Assert.That(authorizedRecord, Is.Not.Null);
             Assert.That(authorizedRecord!.DiscoveryUrls.ToArray(),
-                Is.EqualTo(new[] { "opc.tcp://blocked.example.test:4840" }));
-            Assert.That(authorizedRecord.ServerCapabilities.ToArray(), Is.EqualTo(new[] { "DA", "AC" }));
+                Is.EqualTo(s_blockedDiscoveryUrls));
+            Assert.That(authorizedRecord.ServerCapabilities.ToArray(), Is.EqualTo(s_authorizedCapabilities));
             Assert.That(harness.ManagedApplicationProofs, Is.Empty);
             Assert.That(server.Calls, Is.Empty);
             Assert.That(harness.RegisteredName(server), Is.Null);
@@ -592,8 +592,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             ApplicationRecordDataType record = harness.RegisteredRecord(server);
             Assert.That(record.ApplicationUri, Is.EqualTo(ManagedUriA));
-            Assert.That(record.DiscoveryUrls.ToArray(), Is.EqualTo(new[] { "https://discovery.example.test/managed" }));
-            Assert.That(record.ServerCapabilities.ToArray(), Is.EqualTo(new[] { "DA" }));
+            Assert.That(record.DiscoveryUrls.ToArray(), Is.EqualTo(s_managedDiscoveryUrls));
+            Assert.That(record.ServerCapabilities.ToArray(), Is.EqualTo(s_serverCapabilities));
             Assert.That(harness.ManagedApplicationProofs, Is.EqualTo(new[] { server.Certificate, server.Certificate }));
         }
 
@@ -3351,6 +3351,26 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         /// <summary>The message context used to encode scripted TrustList files.</summary>
         private static readonly ServiceMessageContext s_context =
             ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
+
+        /// <summary>
+        /// Expected discovery URLs retained for rejected authorization.
+        /// </summary>
+        private static readonly string[] s_blockedDiscoveryUrls = ["opc.tcp://blocked.example.test:4840"];
+
+        /// <summary>
+        /// Expected capabilities retained for authorization.
+        /// </summary>
+        private static readonly string[] s_authorizedCapabilities = ["DA", "AC"];
+
+        /// <summary>
+        /// Expected discovery URLs retained across asynchronous endpoint proof.
+        /// </summary>
+        private static readonly string[] s_managedDiscoveryUrls = ["https://discovery.example.test/managed"];
+
+        /// <summary>
+        /// Expected capabilities of the managed server.
+        /// </summary>
+        private static readonly string[] s_serverCapabilities = ["DA"];
 
         /// <summary>The fixture-owned bootstrap identity.</summary>
         private Certificate m_bootstrap = null!;

@@ -902,8 +902,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     Assert.That(rejectedFactory.ChannelCreationFailed, Is.True);
                     Assert.That(rejectedFactory.SessionConstructionCount, Is.Zero);
                     Assert.That(rejectedFactory.RejectionMessages.ToList(), Has.Some.Matches<string>(message =>
-                        message.IndexOf(chain[0].Thumbprint, StringComparison.OrdinalIgnoreCase) >= 0 &&
-                        message.IndexOf("BadCertificateUntrusted", StringComparison.Ordinal) >= 0));
+                        message != null &&
+                        message.Contains(chain[0].Thumbprint, StringComparison.OrdinalIgnoreCase) &&
+                        message.Contains("BadCertificateUntrusted", StringComparison.Ordinal)));
                 }
                 forwardingFactory.Verify(value => value.CreateChannelAsync(
                     It.IsAny<ApplicationConfiguration>(), It.IsAny<ITransportWaitingConnection>(),
