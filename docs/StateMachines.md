@@ -715,6 +715,11 @@ Callers that passed the state machine's `ObjectId` to
   to arm one timer on entry into `fromStateId`, including the initial
   state. Re-arming disposes the previous timer. A queued callback
   cannot transition after reset, replacement, or exit/re-entry.
+  If the timeout expires during an awaited notification, the callback
+  waits for admission and rechecks its state, revision and registration
+  before transitioning. Timers armed by async entry or initial-state
+  synchronization use native async transitions; timers armed synchronously
+  retain synchronous overrides and lifecycle callbacks after waiting.
   `StopTimedTransitions()` permanently stops that builder's automatic
   transitions without removing the machine or its lifecycle observers.
   Timer-only causes emit transition events, not fabricated Method audit

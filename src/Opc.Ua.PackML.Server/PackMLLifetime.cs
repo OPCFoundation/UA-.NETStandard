@@ -256,7 +256,7 @@ namespace Opc.Ua.PackML.Server
         /// <summary>
         /// Rejects calls from an operation's asynchronous callback chain before admission.
         /// </summary>
-        private void RejectReentry()
+        internal void RejectReentry()
         {
             if (m_execution.Value is { Active: true })
             {

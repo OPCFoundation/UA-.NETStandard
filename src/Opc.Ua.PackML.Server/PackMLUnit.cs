@@ -496,6 +496,14 @@ namespace Opc.Ua.PackML.Server
         }
 
         /// <summary>
+        /// Rejects shutdown of the owning runtime from this unit's callback context.
+        /// </summary>
+        internal void RejectShutdownReentry()
+        {
+            m_lifetime.RejectReentry();
+        }
+
+        /// <summary>
         /// Projects a coherent administration sample obtained from the existing
         /// alarm/equipment owner and its configured history storage.
         /// Throws InvalidOperationException if application provider work prevents admission.

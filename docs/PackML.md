@@ -140,6 +140,9 @@ Direct `DisposeAsync` throws `InvalidOperationException` while an application
 callback is active; it does not report successful disposal or close admission.
 The host-owned runtime has a separate internal shutdown path that cancels active
 and admitted work and waits for it to finish before address-space deletion.
+Runtime disposal from its own composition callback or any committed unit's
+equipment, persistence or notification callback is rejected before closing
+runtime admission or starting cleanup on any unit.
 Equipment providers do not receive that shutdown authority. A direct unit owner
 must cancel its operation through the supplied cancellation token and await it
 before disposing the idle unit. Providers must observe cancellation. Idle direct

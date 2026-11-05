@@ -42,12 +42,8 @@ builder.Logging.ClearProviders();
 builder.Logging.EnableOpcUaRedaction();
 builder.Logging.AddConsole();
 builder.Logging.SetMinimumLevel(LogLevel.Warning);
-string endpoint = builder.Configuration["endpoint"] ?? "opc.tcp://localhost:62563/PackML";
-if (!Uri.TryCreate(endpoint, UriKind.Absolute, out Uri? address) || address.Scheme != "opc.tcp" ||
-    !address.IsLoopback)
-{
-    throw new ArgumentException("The simulated sample requires an absolute loopback opc.tcp endpoint.");
-}
+string endpoint = SampleEndpoint.Normalize(
+    builder.Configuration["endpoint"] ?? "opc.tcp://127.0.0.1:62563/PackML");
 string pkiRoot = builder.Configuration["pki-root"] ??
     throw new ArgumentException("Supply --pki-root with an absolute writable certificate-store directory.");
 if (!Path.IsPathFullyQualified(pkiRoot))

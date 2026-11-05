@@ -925,6 +925,61 @@ namespace Opc.Ua.PackML.Tests
         }
 
         [Test]
+        public async Task RuntimeDisposeFromOwnedCallbackLeavesEveryUnitAndAdmissionOpen(
+            [Values(0, 1, 2, 3, 4)] int callbackPhase)
+        {
+            var provider = new EquipmentProvider { CallbackPhase = callbackPhase };
+            var store = new MemoryAdministrationStore();
+            Unit owned = await m_manager.Runtime.AddUnitAsync(
+                new QualifiedName("OwnedCallback", m_manager.InstanceNamespaceIndex), provider,
+                options => options.AdministrationStore = store);
+            InvalidOperationException? rejection = null;
+            async ValueTask AttemptDisposalAsync(CancellationToken token)
+            {
+                rejection = await Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await m_manager.Runtime.DisposeAsync().AsTask()
+                        .WaitAsync(TimeSpan.FromSeconds(30), token));
+                Assert.That(token.IsCancellationRequested, Is.False);
+            }
+            provider.Callback = AttemptDisposalAsync;
+            store.SaveCallback = AttemptDisposalAsync;
+            BaseVariableState setpoint = owned.Node.Status.Required().MachSpeed.Required();
+            if (callbackPhase == 4)
+            {
+                setpoint.OnStateChangedAsync = (_, _, _, token) => AttemptDisposalAsync(token);
+            }
+            var request = new PackMLRequest { Operation = PackMLOperation.SetMachSpeed, MachineSpeed = 5 };
+            try
+            {
+                if (callbackPhase == 3)
+                {
+                    await owned.CheckpointAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(30));
+                }
+                else if (callbackPhase == 2)
+                {
+                    await owned.RefreshAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(30));
+                }
+                else
+                {
+                    Assert.That(ServiceResult.IsGood(await owned.RequestAsync(
+                        m_manager.SystemContext, request).AsTask().WaitAsync(TimeSpan.FromSeconds(30))), Is.True);
+                }
+            }
+            finally
+            {
+                provider.Callback = null;
+                store.SaveCallback = null;
+                setpoint.OnStateChangedAsync = null;
+            }
+            Assert.That(rejection, Is.Not.Null);
+            Assert.That(ServiceResult.IsGood(await owned.RequestAsync(m_manager.SystemContext, request)), Is.True);
+            Assert.That(ServiceResult.IsGood(await m_unit.RequestAsync(m_manager.SystemContext, request)), Is.True);
+            Unit next = await m_manager.Runtime.AddUnitAsync(
+                new QualifiedName("AfterOwnedCallback", m_manager.InstanceNamespaceIndex), new EquipmentProvider());
+            Assert.That(m_manager.Runtime.Units.ToList(), Does.Contain(next));
+        }
+
+        [Test]
         public async Task RuntimeAdmitsWireCallsWhileParentNotificationIsPending(
             [Values(true, false)] bool published)
         {

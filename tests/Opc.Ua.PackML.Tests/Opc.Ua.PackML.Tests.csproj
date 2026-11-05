@@ -19,6 +19,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Common\Main.cs" />
+    <Compile Include="..\..\samples\PackML\PackMLSample\SampleEndpoint.cs" Link="SampleEndpoint.cs" />
     <ProjectReference Include="..\..\src\Opc.Ua.PackML.Server\Opc.Ua.PackML.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.PackML.Client\Opc.Ua.PackML.Client.csproj" />
     <ProjectReference Include="..\Opc.Ua.Client.TestFramework\Opc.Ua.Client.TestFramework.csproj" />

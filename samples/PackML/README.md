@@ -12,8 +12,11 @@ dotnet run --project samples\PackML\PackMLSample -f net10.0 `
     -p:CustomTestTarget=net10.0 -- --pki-root D:\temp\packml-sample-pki
 ```
 
-The default endpoint is `opc.tcp://localhost:62563/PackML`. Change it with
-`--endpoint`; only loopback endpoints are accepted. Server and client stores
+The default endpoint is `opc.tcp://127.0.0.1:62563/PackML`. Change it with
+`--endpoint`; only loopback endpoints are accepted. Accepted loopback DNS names,
+including `localhost`, are converted to `127.0.0.1` before registering the
+shared server/client endpoint, so the transport binds a numeric loopback
+address rather than a wildcard listener. Server and client stores
 are separate subdirectories of `--pki-root`. The sample automatically accepts
 untrusted application certificates for this local simulation; production
 applications must configure explicit trust and user authorization.

@@ -219,7 +219,13 @@ namespace Opc.Ua.PackML.Server
         /// </summary>
         public ValueTask DisposeAsync()
         {
-            return m_lifetime.StopAsync(DisposeUnitsAsync);
+            m_lifetime.RejectReentry();
+            ArrayOf<PackMLUnit> units = Units;
+            for (int index = 0; index < units.Count; index++)
+            {
+                units[index].RejectShutdownReentry();
+            }
+            return PackMLLifetime.CompleteShutdownAsync(() => m_lifetime.DisposeAsync(), DisposeUnitsAsync);
         }
 
         /// <summary>

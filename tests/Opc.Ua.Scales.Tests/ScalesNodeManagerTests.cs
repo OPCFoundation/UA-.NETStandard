@@ -993,7 +993,7 @@ namespace Opc.Ua.Scales.Tests
             FiniteStateVariableState currentState = scale.Scale.State!.CurrentState!;
             var notificationError = new InvalidOperationException("Notification failed.");
             var handlerError = new InvalidOperationException("StateChanged handler failed.");
-            var finalPublication = new BaseDataVariableState<uint>(currentState)
+            var finalPublication = new PropertyState<uint>(currentState)
             {
                 BrowseName = new QualifiedName("FinalPublication", currentState.BrowseName.NamespaceIndex)
             };
@@ -1002,7 +1002,7 @@ namespace Opc.Ua.Scales.Tests
             currentState.OnStateChangedAsync = (_, _, _, _) =>
             {
                 if (packMl.StateMachine.GetStateId(currentState.Id!.Value) ==
-                    Objects.PackMLBaseStateMachineType_Aborted)
+                    Opc.Ua.PackML.Objects.PackMLBaseStateMachineType_Aborted)
                 {
                     // This child was visited before its owner's sink; retain its
                     // mask for the final composite publication after QueueChanged.

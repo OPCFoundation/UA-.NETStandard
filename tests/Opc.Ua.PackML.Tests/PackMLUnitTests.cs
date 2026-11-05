@@ -122,6 +122,33 @@ namespace Opc.Ua.PackML.Tests
             Assert.That(provider.Executed, Is.Empty);
         }
 
+        [TestCase("opc.tcp://localhost:62563/PackML", UriHostNameType.IPv4, "127.0.0.1")]
+        [TestCase("opc.tcp://LOCALHOST:62563/PackML", UriHostNameType.IPv4, "127.0.0.1")]
+        [TestCase("opc.tcp://127.0.0.1:62563/PackML", UriHostNameType.IPv4, "127.0.0.1")]
+        [TestCase("opc.tcp://[::1]:62563/PackML", UriHostNameType.IPv6, "[::1]")]
+        public void SampleEndpointUsesNumericLoopback(
+            string endpoint, UriHostNameType expectedType, string expectedHost)
+        {
+            var normalized = new Uri(global::PackMLSample.SampleEndpoint.Normalize(endpoint));
+
+            Assert.That(normalized.IsLoopback, Is.True);
+            Assert.That(normalized.HostNameType, Is.EqualTo(expectedType));
+            Assert.That(normalized.Host, Is.EqualTo(expectedHost));
+            Assert.That(normalized.Port, Is.EqualTo(62563));
+            Assert.That(normalized.AbsolutePath, Is.EqualTo("/PackML"));
+        }
+
+        [TestCase("opc.tcp://0.0.0.0:62563/PackML")]
+        [TestCase("opc.tcp://[::]:62563/PackML")]
+        [TestCase("opc.tcp://192.0.2.1:62563/PackML")]
+        [TestCase("opc.tcp://example.com:62563/PackML")]
+        [TestCase("https://localhost:62563/PackML")]
+        [TestCase("/PackML")]
+        public void SampleEndpointRejectsNonLoopbackOrInvalidEndpoints(string endpoint)
+        {
+            Assert.Throws<ArgumentException>(() => global::PackMLSample.SampleEndpoint.Normalize(endpoint));
+        }
+
         [Test]
         public async Task NestedMachinesActivateAndDeactivateWithTheirParents()
         {
