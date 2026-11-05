@@ -2096,7 +2096,7 @@ namespace Opc.Ua.Server.Tests.Network
                         }
                     }
                 }
-                Assert.That(children.ToList().Count(value => value.BrowseName.Name == BrowseNames.VlanTag),
+                Assert.That(children.ToList().Count(value => value.BrowseName.Name == "VlanTag"),
                     Is.EqualTo(1));
                 Assert.That(children.ToList().Any(value => value.BrowseName.Name == "Interface-removed"),
                     Is.EqualTo(phase == 0));
