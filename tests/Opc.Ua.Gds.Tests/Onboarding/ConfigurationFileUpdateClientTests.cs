@@ -235,7 +235,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     {
                         Assert.That(identity, Is.SameAs(First.InnerSession.Identity));
                         Assert.That(endpoint.Description.EndpointUrl,
-                            Is.EqualTo("opc.tcp://managed.example.test:4840"));
+                            Is.EqualTo("opc.tcp://managed.example.test:4840/"));
                         Assert.That(endpoint.Description.Server.ApplicationUri,
                             Is.EqualTo("urn:managed:configuration"));
                         ConnectionCount++;

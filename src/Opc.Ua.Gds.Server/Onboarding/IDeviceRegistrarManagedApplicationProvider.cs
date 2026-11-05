@@ -70,7 +70,14 @@ namespace Opc.Ua.Gds.Server.Onboarding
         ByteString InstalledCertificate,
         ConfiguredEndpoint Endpoint,
         IUserIdentity UserIdentity,
-        ArrayOf<string> ServerCapabilities);
+        ArrayOf<string> ServerCapabilities)
+    {
+        /// <summary>
+        /// Gets the operator-selected certificate type for this managed application.
+        /// A null identifier uses the registrar connection's configured certificate type.
+        /// </summary>
+        public ExpandedNodeId CertificateTypeId { get; init; }
+    }
 
     /// <summary>
     /// Verifies a managed application's installed certificate on a fresh encrypted session.

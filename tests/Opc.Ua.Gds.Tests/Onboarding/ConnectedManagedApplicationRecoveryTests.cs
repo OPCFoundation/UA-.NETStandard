@@ -308,6 +308,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     m_client.Config.SecurityConfiguration, m_client.Config.ApplicationUri).ConfigureAwait(false);
                 await m_managed.LoadConfigurationAsync(Path.Combine(m_root, "managed")).ConfigureAwait(false);
                 m_managed.Config.ApplicationUri = "urn:localhost:connected:managed";
+                m_managed.Config.ServerConfiguration!.UserTokenPolicies =
+                    [new UserTokenPolicy(UserTokenType.UserName)];
                 await TrustRegistrarAsync(m_managed.Config).ConfigureAwait(false);
                 await m_managed.StartAsync().ConfigureAwait(false);
                 m_managedStarted = true;

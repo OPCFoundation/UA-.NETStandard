@@ -860,8 +860,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         private string EncodeTicketPayload(IEncodeable ticket)
         {
             using var encoder = new JsonEncoder(m_messageContext);
-            encoder.WriteEncodeable(null, ticket, default);
-            return encoder.CloseAndReturnText();
+            encoder.WriteEncodeable("ticket", ticket, ticket.TypeId);
+            using JsonDocument document = JsonDocument.Parse(encoder.CloseAndReturnText());
+            return document.RootElement.GetProperty("ticket").GetRawText();
         }
 
         private static string ProtectedHeader(

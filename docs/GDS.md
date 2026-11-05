@@ -35,7 +35,7 @@ control.
   - [GDS Roles (OPC 10000-12 §7.2)](#gds-roles-opc-10000-12-72)
   - [ApplicationSelfAdmin Privilege](#applicationselfadmin-privilege)
   - [ApplicationAdmin Privilege](#applicationadmin-privilege)
-  - [Security: Fail-Closed Channel Validation](#security-fail-closed-channel-validation)
+  - [Security: Authenticated SecureChannel Validation](#security-authenticated-securechannel-validation)
 - [5. End-to-End Example](#5-end-to-end-example)
 - [Conformance Matrix](#conformance-matrix)
   - [Applicable Part 12 profiles and conformance units](#applicable-part-12-profiles-and-conformance-units)
@@ -679,6 +679,15 @@ nonempty `ServerCapabilities`. Capability identifiers come from the application
 owner, not discovery; a missing or blank value rejects provisioning before
 registration. The host must select the standard unknown-capability identifier
 explicitly if it cannot identify any supported capability.
+The host can also set `CertificateTypeId` for that application. If it leaves
+the identifier null, push uses the registrar connection's configured type.
+Before creating a signing request, push checks that the selected type appears
+in the application's `DefaultApplicationGroup.CertificateTypes`; it does not
+silently choose another type. A host can therefore provision applications
+that support different certificate types while keeping the selection under
+operator policy. The OnboardingRegistrar sample accepts an optional
+`--managedApplicationCertificateTypeId` expanded NodeId for its configured
+managed application.
 The processor uses the model's application identity and type; it does not let
 the provider replace them. Discovery URLs identify DiscoveryEndpoints; the
 selected connection endpoint URL can differ from them (Part 4 §7.2 and
@@ -819,9 +828,8 @@ group, which Part 12 assigns to `DefaultApplicationGroup`.
 
 Before it creates the signing request, the processor reads that group's
 `CertificateTypes` and rejects the application with `BadNotSupported` when the
-registrar's configured certificate type is absent. The registrar issues one
-certificate type for every application of a device, so a device whose
-applications support different types is rejected rather than served.
+host-selected type—or the registrar's configured default when no type was
+selected—is absent.
 
 Part 21 §4.3.3 defines application setup as both the certificate and the
 TrustList, so the processor checks each separately. It calls `GetCertificates`
@@ -904,8 +912,9 @@ by a managed Server.
 register it before `AddDeviceRegistrarRuntime`. Queue acceptance remains
 process-local. A durable deployment must also retain accepted work or arrange
 for an explicit retry after restart. The device-side installer below supplies
-local credential activation and reset; standard push-method integration and
-connected recovery evidence remain incomplete.
+local credential activation and reset, and the standard push methods bind the
+security transition and transaction-completion providers. Connected recovery
+fixtures are present; their execution status is tracked separately.
 
 The processor also serializes direct calls through installed-certificate proof,
 so a second call cannot replace the first attempt's pending device key or trust
@@ -997,8 +1006,10 @@ unrelated group's TrustList through an administrator-role fallback. The
 Read and Close; installing it disables those methods' synchronous dispatch.
 Write access retains the existing GDS policy, so DCA read authorization cannot
 modify a shared group's trust material. Both device-management workflows still
-need connected host providers and restart/reset support.
-`MemoryDeviceRegistrarLifecycle` retains state only within the current process.
+require host-configured connection and trust providers. Select
+`FileSystemDeviceRegistrarLifecycle` for single-host registrar restart
+persistence; `MemoryDeviceRegistrarLifecycle` retains state only within the
+current process.
 
 `PullDcaWorkflow` borrows a container-owned `ManagedSession` and uses generated
 registrar and certificate-directory proxies. Its identity and credential
@@ -1018,7 +1029,8 @@ expected registrar application URI and resolved registrar/directory node identif
 It rejects missing or ambiguous matches before a connection is opened. Selection
 does not validate the remote certificate or grant trust; the managed session must
 still enforce the host's registrar certificate policy. The connected device sample
-stores candidates but does not yet initiate this pull operation.
+can initiate this pull operation when its endpoint and expected registrar
+ApplicationUri are configured.
 
 Certificate polling is bounded by `MaximumFinishAttempts`. When approval remains
 pending, `PullDcaCertificatePendingException` retains the application and request
@@ -1093,10 +1105,17 @@ output. The provider must match the retained registrar/request binding, prove
 the original private key, and validate the application URI, certificate validity
 and trust. It must also reject stale assignments: an old certificate with a reused
 public key is not proof that the original request completed. Missing evidence
-must reject recovery. No provider is registered implicitly, and the sample does
-not yet supply retained request evidence. Without this provider,
-`Bad_InvalidArgument` remains visible to the caller; signing-response recovery
-is therefore not complete for the sample.
+must reject recovery. No provider is registered implicitly. The
+`OnboardingClient` sample opts in when `--signingJournal` and
+`--signingKeyStore` are both configured with `--pull true`; it registers its
+device credential provider for recovery and request observation. The journal
+retains the registrar, application, request, group, type, CSR and public key
+certificate, while the separate signing store retains the private key. The
+sample resumes a `Started` request after restart and validates a certificate
+read through `GetCertificates` against that binding and the retained key.
+Without the journal options, `Bad_InvalidArgument` remains visible; the
+separate `--resume*` path does not recover an accepted response whose completion
+reply was lost.
 
 `ProvisionableDeviceRuntime` supplies the device-side ticket and registrar
 configuration methods without creating a Resources hierarchy. `RequestTickets`
@@ -1116,7 +1135,7 @@ services.AddFileSystemProvisionableDeviceRegistrarStore(candidateCheckpointPath,
 services.AddProvisionableDeviceRuntime(isSingleton, ticketIds);
 ```
 
-`IProvisionableDeviceRegistrarStore.ReadAsync` returns the persisted candidates
+``IProvisionableDeviceRegistrarStore.ReadAsync` returns the persisted candidates
 as detached descriptions for the host's discovery process. The filesystem
 adapter uses the standard UA binary codec, stages and flushes a complete
 checkpoint, then publishes it through `IFileSystem.Replace`. Checkpoints are
@@ -1134,8 +1153,9 @@ Register these services with
 ticket and persistent registrar-store providers. The owning node manager binds
 an existing `ProvisionableDeviceState` through `BindToRuntime`; singleton binding rejects separate
 `ApplicationConfiguration` components. This registration does not expose a
-device resource. Shared Part 22 Resources integration and connected device
-recovery/reset remain incomplete.
+device resource. Shared Part 22 Resources integration remains a source gap;
+connected recovery/reset fixtures are present, with execution status tracked
+separately.
 
 `ProvisionableDeviceSecurity` supplies device-side installation and reset
 orchestration with an explicit `IProvisionableDeviceSecurityInstaller`. Its
@@ -1349,9 +1369,10 @@ being erased. The connected `OnboardingDevice` sample selects the concrete
 installer and retained factory identity, with public-only security checkpoints,
 standard network reset and an explicit local reset option. Its factory adds a
 Part 22 `Resources` parent reference to the singleton device, but shared Base
-Network integration and connected validation remain pending. Source composition
-does not establish successful endpoint switching, restart or reset over real
-connections; connected execution evidence remains required. See the
+Network integration remains a source gap. Connected recovery/reset fixtures
+are present; their execution status is tracked separately, and source
+composition alone does not establish successful endpoint switching, restart or
+reset over real connections. See the
 [device host procedure](../samples/Gds/README.md#host-the-connected-device).
 
 For a single-host registrar, `FileSystemDeviceRegistrarLifecycle` retains
@@ -1401,28 +1422,32 @@ registrar/client round trip.
 
 ### Part 21 requirements and implementation boundaries
 
-Part 21 support remains partial. The following map uses
+Part 21 support remains partial because the provisionable-device factory adds
+the Part 22 `Resources` reference without integrating the shared `Resources`
+manager. Registrar push uses the configured certificate type by default, and
+the host can select a different advertised type for each managed application.
+The following map uses
 [OPC 10000-21 v1.05.04](https://reference.opcfoundation.org/specs/OPC-10000-21/v1.05.04/)
-and distinguishes implementation sources from completed interoperability evidence.
-The named regression fixtures contain tests for these components; their presence
-does not establish that the complete onboarding workflow or a conformance unit
-has passed.
+and separates those implementation gaps from optional Part 12
+`ConfigurationFile` behavior and test execution status. A test that has not run
+reports an unknown validation result; it does not identify an implementation
+gap.
 
 | Requirement | Implementation | Regression sources and remaining boundary |
 |---|---|---|
 | §§4.2.2, 4.3.2: software approval before operational provisioning | `DeviceRegistrarRuntime`, lifecycle providers, `IPullDcaSoftwareUpdateProvider` | `ProvideIdentitiesRuntimeTests`, `PullDcaWorkflowTests`, `PullRegistrarIntegrationTests`; the connected fixture exercises approval roles and issuance gates, not software-manager execution or a device endpoint gate; remote execution remains required |
 | §§4.3.3, 7.2: DCA and managed-application credentials | `PullDcaWorkflow`, generated certificate-directory proxies, application-specific authorization | `PullDcaWorkflowTests`, `ApplicationsNodeManagerOnboardingTests`, `PullRegistrarIntegrationTests`; the connected fixture exercises one DCA's issuance, local installation and new-channel proof; connected multi-application setup and remote execution remain required |
-| §§4.3.6, 7.3: security reset and return to onboarding | `ProvisionableDeviceSecurity`, retained configuration owner, concrete installer and existing `IServerConfigurationResetProvider` path | unit fixtures plus `ProvisionableDevicePushChannelTests.ConcretePushActivatesCertificateAndRecoversAcrossHostRestartAndFactoryReset` authored for local/network reset, restored factory trust and a replacement registrar after fresh-host recovery; remote execution remains required |
+| §§4.3.6, 7.3: security reset and return to onboarding | `ProvisionableDeviceSecurity`, retained configuration owner, concrete installer and existing `IServerConfigurationResetProvider` path | `ProvisionableDevicePushChannelTests.ConcretePushActivatesCertificateAndRecoversAcrossHostRestartAndFactoryReset` covers installed-certificate recovery, factory reset and a replacement registrar; the test's presence does not assert a passing run |
 | §§5.1-5.3, 7.1: exact device/composite identity and private-key proof | `OnboardingIdentitySelector`, scoped identity trust, actual-channel registrar authorization, `OnboardingPushIdentityValidator` | `OnboardingIdentitySelectorTests`, `OnboardingIdentityTrustProviderTests`, `DeviceRegistrarRuntimeTests`, `OnboardingPushIdentityValidatorTests`; discovery alone never proves possession |
 | §6.4: source-dependent ticket authority trust | `OnboardingTicketValidator`, `OnboardingTicketTrustProvider` | `OnboardingTicketValidatorTests`, `OnboardingTicketTrustProviderTests`; online authority-revocation services are not supplied by these adapters |
 | §7.2 and Part 12 §§7.9.5, 7.9.8: request retry and certificate recovery | issuance receipts, client receipts, `IPullDcaSigningRecoveryProvider`, sample signing journal with one fresh retained key per request | issuance-store, receipt-store, pull-workflow and `OnboardingSigningJournalTests` fixtures; remote execution and connected response-loss evidence remain required |
-| §7.3: push provisioning, first registrar and installed trust | device security transition provider, standard push authorization and transaction completion, generated-client processor with separate trust/certificate apply connections, secret-store enrollment journal, retained singleton scope and connected registrar/device samples | processor, device-security, connection-provider, application-manager and lifecycle fixtures authored; real-channel fixtures cover roles, ownership and concrete certificate activation across a fresh host, and `DeviceSecurityCheckpointStoreTests` covers sample journal boundaries; processor fixtures cover managed Client, Server and ClientAndServer paths, with Server paths requiring host-authoritative endpoint metadata and two fresh-channel certificate proofs; the sample can configure one managed Server or ClientAndServer application, while process-durable connected recovery and executed push integration evidence remain incomplete |
+| §7.3: push provisioning, first registrar and installed trust | device security transition provider, standard push authorization and transaction completion, generated-client processor with separate trust/certificate apply connections, secret-store enrollment journal, retained singleton scope and connected registrar/device samples | processor fixtures cover managed Client, Server and ClientAndServer paths; Server paths require host-authoritative endpoint metadata and two fresh-channel certificate proofs. `ConnectedManagedApplicationRecoveryTests.InterruptedManagedRotationReopensFilesAndResumesOnlyRetainedCertificate` covers process-durable recovery through two live servers, and `ProvisionableDevicePushChannelTests.ConcretePushActivatesCertificateAndRecoversAcrossHostRestartAndFactoryReset` covers DCA restart/reset. These fixtures are authored; this map does not assert their execution results. |
 | §7.4: alternate authentication/FDO | OPC UA ticket/identity authentication is implemented; no FDO protocol or external-authentication handoff is supplied | §7.4 describes an alternate authentication path, not a prerequisite for ticket-based pull/push; no FDO interoperability evidence |
 | §§8.1-8.2: signed JSON tickets and String-subtype `EncodedTicket` | `OnboardingTicketWriter`, ticket validator, standard model and strict-UTF-8 compatibility wrappers | writer, validator, onboarding-client and stack-generation fixtures; vendor-specific unprotected metadata is not interpreted and cannot extend signing-certificate validity |
 | §§9.2.2-9.2.8: registrar methods and application ownership | registrar runtime, async bindings, shared GDS database and certificate authorization | `DeviceRegistrarRuntimeTests`, `ProvideIdentitiesRuntimeTests`, `ApplicationsNodeManagerOnboardingTests`; database/lifecycle publication is not a distributed transaction |
 | §§9.2.9-9.2.15: administration, managed authorities and restricted audit delivery | ticket administration bindings, managed authority file services, `DeviceRegistrarAuditReporter` | administration, authority-list and audit-reporter fixtures; connected authorized/unauthorized event delivery still needs remote execution |
 | §§6.4, 9.2.11-9.2.12: accepted ticket retention across restart | `FileSystemTicketStore`, `AddFileSystemOnboardingTicketStore` | `FileSystemTicketStoreTests`; one instance owns the path, and remote execution remains required |
-| §§9.3.1-9.3.5: provisionable resource, singleton layout, tickets and registrar endpoints | `ProvisionableDeviceRuntime`, `ProvisionableDeviceNodeManagerFactory`, `AddProvisionableDeviceApplications` and generated node bindings | `ProvisionableDeviceRuntimeTests` and direct binding cases in `ManagedApplicationPushTests`; provider-backed hosting, shared Part 22 Resources integration and connected execution remain unvalidated |
+| §§9.3.1-9.3.5: provisionable resource, singleton layout, tickets and registrar endpoints | `ProvisionableDeviceRuntime`, `ProvisionableDeviceNodeManagerFactory`, `AddProvisionableDeviceApplications` and generated node bindings | `ProvisionableDeviceRuntimeTests` cover fluent registration; `ManagedApplicationPushTests` exercise the provider-backed node manager and bindings. The full hosted address-space composition test is not present, and shared Part 22 `Resources` integration remains a source gap. |
 
 [Section 8.1](https://reference.opcfoundation.org/specs/OPC-10000-21/v1.05.04/8.1)
 permits vendor-specific unprotected metadata, including an RFC 3161
@@ -1459,9 +1484,10 @@ These are coverage targets, not declarations of conformance. The catalog's
 including-profile queries currently return no entries for these six records,
 so they do not supply a released parent profile whose mandatory dependencies
 can be expanded. This does not waive any requirements in Part 21 or the Part 12
-certificate-management services it uses. Passing interoperability evidence is
-still required before declaring the selected capabilities supported. No FDO
-integration is established by the native pull/push components.
+certificate-management services it uses. Pending test execution is a validation
+status, not proof of a missing behavior; the source gaps identified above remain
+the reason for the Partial rating. No FDO integration is established by the
+native pull/push components.
 
 ---
 
@@ -1770,12 +1796,12 @@ userDb.CreateUser("app-admin", passwordBytes,
     [registeredAppId1, registeredAppId2]);
 ```
 
-### Security: Fail-Closed Channel Validation
+### Security: Authenticated SecureChannel Validation
 
 `AuthorizationHelper.HasAuthenticatedSecureChannel()` enforces that
 all GDS methods are called over a signed (or encrypted) secure
-channel. The check **fails closed** — if the system context cannot
-be validated, the method throws `BadSecurityModeInsufficient`.
+channel. If the system context cannot be validated, the method throws
+`BadSecurityModeInsufficient`.
 
 ---
 
@@ -2092,10 +2118,10 @@ conformance units separately.
 |----------|--------|-------|
 | `ServerConfiguration.AuthorizationServices` folder (§9.6.2 / *Authorization Service Configuration Server* CU) | ❌ not exposed | A push Server does not expose the configuration folder listing trusted Authorization Services. Client access-token validation is instead handled by the pluggable [Identity Providers](IdentityProviders.md). |
 | `ConfigurationFile` transfer and FileType open handles (§7.8.5.1; Part 20 §4.2.2) | ⚠️ partial | The client does not read the existing content or rewind before writing; this server starts a Read + Write stream empty, while Read-only opens load provider content. The server replaces an existing handle on each successful new open instead of retaining multiple readers or rejecting incompatible opens with `Bad_NotWritable` / `Bad_NotReadable`. Replacement behavior for shorter content on other servers is not established. |
-| `ManagedApplications` / `ApplicationConfigurationType` proxy (§7.10.14–§7.10.16) | ⚠️ partial | `ServerPushConfigurationClient` updates only the connected server's own `ServerConfiguration`; it does not target individual managed applications. `DefaultManagedApplicationsNodeManager` creates metadata-backed nodes from `IConfigurationDataStore` without push handlers, while runtime providers bind independent in-process certificate and trust management. Per-entry remote `ConfigurationFile` update/confirm remains unimplemented; connected multiapplication lifecycle evidence is incomplete. |
+| `ManagedApplications` / `ApplicationConfigurationType` proxy (§7.10.14–§7.10.16) | ⚠️ partial | `ServerPushConfigurationClient` updates only the connected server's own `ServerConfiguration`; it does not target individual managed applications. `DefaultManagedApplicationsNodeManager` creates metadata-backed nodes using metadata supplied by `IConfigurationDataStore`; those nodes have no push handlers. Runtime providers bind independent in-process certificate and trust management. Per-entry remote `ConfigurationFile` update/confirm remains unimplemented. Connected recovery fixtures are present; their execution result is tracked separately. |
 | KeyCredential authentication `ProfileUris` — AMQP SASL Plain / MQTT UserName / UA transport UserName (§8, optional CUs) | 🔲 provider-defined | The push binding is implemented; the concrete ProfileUri set advertised is defined by the credential provider, not fixed by the stack. |
 | A & C CertificateExpiration optional CUs — *Comment* / *Confirm* / *Shelving* | 🔲 inherited | Available through the standard OPC 10000-9 condition model on the alarm instances; not separately exercised by the certificate-alarm tests. |
-| Onboarding / OPC 10000-21 device setup interplay with `ResetToServerDefaults` / `InApplicationSetup` (§7.10.13, Annex G) | ⚠️ partial | Ticket administration, signing, ticket-scoped identity trust, composite-aware selection, and registrar runtime bindings are implemented. GDS issuance receipts are integrated, and a file-backed lifecycle provider retains registrar state across restart for a single-host deployment. Push queue acceptance remains process-local; complete pull/push workflows and connected recovery/interoperability evidence remain incomplete. |
+| Onboarding / OPC 10000-21 device setup interplay with `ResetToServerDefaults` / `InApplicationSetup` (§7.10.13, Annex G) | ⚠️ partial | Ticket administration, signing, ticket-scoped identity trust, composite-aware selection and registrar runtime bindings are implemented. GDS issuance receipts and the file-backed registrar lifecycle provider retain state across restart for a single-host deployment. Push queue acceptance remains process-local, so a deployment must retry or reconcile accepted work after restart. Connected recovery fixtures are present; their execution and interoperability results are not asserted here. |
 
 ## LDS / LDS-ME (§4–5)
 

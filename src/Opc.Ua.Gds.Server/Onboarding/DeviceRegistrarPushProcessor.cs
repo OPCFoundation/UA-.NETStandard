@@ -505,6 +505,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             ByteString managedInstalledCertificate = ByteString.Empty;
             NodeId managedGroup = NodeId.Null;
             NodeId managedTrustListId = NodeId.Null;
+            NodeId certificateTypeId = connection.CertificateTypeId;
             ServerConfigurationTypeClient? managedConfiguration = null;
             Func<CancellationToken, ValueTask>? prepareAuthorizationRecord = null;
             Func<CancellationToken, ValueTask>? beforeRegistration = null;
@@ -527,6 +528,17 @@ namespace Opc.Ua.Gds.Server.Onboarding
                         await managedApplications.GetTargetAsync(applicationUri, metadataToken)
                             .ConfigureAwait(false);
                     managedTarget = SnapshotManagedApplicationTarget(target);
+                    if (!managedTarget.CertificateTypeId.IsNull)
+                    {
+                        certificateTypeId = ExpandedNodeId.ToNodeId(
+                            managedTarget.CertificateTypeId, session.NamespaceUris);
+                        if (certificateTypeId.IsNull)
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadConfigurationError,
+                                "The managed application's certificate type is not a local node.");
+                        }
+                    }
                     record.DiscoveryUrls = managedTarget.DiscoveryUrls;
                     record.ServerCapabilities = managedTarget.ServerCapabilities;
                 };
@@ -543,17 +555,17 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     managedTrustListId = await RequireChildAsync(
                         session, managedGroup, Ua.BrowseNames.TrustList, verificationToken).ConfigureAwait(false);
                     await RequireSupportedCertificateTypeAsync(
-                        session, managedGroup, connection.CertificateTypeId, verificationToken).ConfigureAwait(false);
+                        session, managedGroup, certificateTypeId, verificationToken).ConfigureAwait(false);
                     managedConfiguration = new ServerConfigurationTypeClient(session, node, m_telemetry);
                     managedInstalledCertificate = await ReadInstalledCertificateAsync(
-                        managedConfiguration, managedGroup, connection.CertificateTypeId, verificationToken)
+                        managedConfiguration, managedGroup, certificateTypeId, verificationToken)
                         .ConfigureAwait(false);
                     ByteString expectedCertificate = await ResolveManagedApplicationProofCertificateAsync(
                         identity,
                         record,
                         managedTarget,
                         managedInstalledCertificate,
-                        connection.CertificateTypeId,
+                        certificateTypeId,
                         verificationToken).ConfigureAwait(false);
                     await managedApplicationChannels.VerifyAsync(
                         description,
@@ -604,7 +616,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             }
             if (isManagedServer &&
                 !await HoldsCertificateAsync(
-                    configuration, group, connection.CertificateTypeId, managedInstalledCertificate, ct)
+                    configuration, group, certificateTypeId, managedInstalledCertificate, ct)
                     .ConfigureAwait(false))
             {
                 throw new ServiceResultException(
@@ -624,7 +636,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     await RequireManagedApprovalAsync(identity, dcaApplicationId, applicationId, factoryCt)
                         .ConfigureAwait(false);
                     ByteString csr = await configuration.CreateSigningRequestAsync(
-                        NodeId.Null, connection.CertificateTypeId, string.Empty,
+                        NodeId.Null, certificateTypeId, string.Empty,
                         true, Nonce.CreateRandomNonceData(32).ToByteString(), factoryCt).ConfigureAwait(false);
                     if (csr.IsEmpty)
                     {
@@ -640,10 +652,10 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     StatusCodes.BadSecurityChecksFailed, "The retained CSR differs from the application's response.");
             }
             CertificateRequestIssuance issuance = await ReadIssuanceAsync(retained, ct).ConfigureAwait(false);
-            RequireSigningResult(retained, issuance, record.ApplicationUri!, connection.CertificateTypeId);
+            RequireSigningResult(retained, issuance, record.ApplicationUri!, certificateTypeId);
             // Application setup is the certificate and the TrustList; each is replaced only when it differs.
             bool holdsCertificate = await HoldsCertificateAsync(
-                configuration, group, connection.CertificateTypeId, issuance.Certificate, ct).ConfigureAwait(false);
+                configuration, group, certificateTypeId, issuance.Certificate, ct).ConfigureAwait(false);
             bool holdsTrustList = await HoldsTrustListAsync(session, trustListId, retained.TrustList, ct)
                 .ConfigureAwait(false);
             if (holdsCertificate && holdsTrustList)
@@ -677,7 +689,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 RequirePeer(dispatch, peer);
                 bool applyCertificate = await StageChangesAsync(configuration,
                     () => configuration.UpdateCertificateAsync(
-                        NodeId.Null, connection.CertificateTypeId, issuance.Certificate, issuers, string.Empty,
+                        NodeId.Null, certificateTypeId, issuance.Certificate, issuers, string.Empty,
                         default, ct),
                     retireSession).ConfigureAwait(false);
                 if (applyCertificate)
@@ -691,7 +703,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     }, retireSession, ct).ConfigureAwait(false);
                 }
                 if (!await HoldsCertificateAsync(
-                    configuration, group, connection.CertificateTypeId, issuance.Certificate, ct).ConfigureAwait(false))
+                    configuration, group, certificateTypeId, issuance.Certificate, ct).ConfigureAwait(false))
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadInvalidState,
@@ -774,7 +786,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
             if (target.DiscoveryUrls.IsNull || target.DiscoveryUrls.IsEmpty ||
                 target.InstalledCertificate.IsEmpty ||
                 target.Endpoint == null ||
-                target.UserIdentity == null)
+                target.UserIdentity == null ||
+                (!target.CertificateTypeId.IsNull && target.CertificateTypeId.ServerIndex != 0))
             {
                 throw new ServiceResultException(StatusCodes.BadConfigurationError);
             }
@@ -1616,6 +1629,18 @@ namespace Opc.Ua.Gds.Server.Onboarding
             string applicationUri,
             NodeId certificateType)
         {
+            if (!ApplicationsNodeManager.TryGetCertificateTypeName(
+                    certificateType, out string? expectedCertificateTypeId) ||
+                !string.Equals(
+                    enrollment.CertificateTypeId, expectedCertificateTypeId, StringComparison.Ordinal) ||
+                !string.Equals(
+                    issuance.CertificateTypeId, expectedCertificateTypeId, StringComparison.Ordinal))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The retained issuance does not match the currently selected certificate type.");
+            }
+
             try
             {
                 var framing = new AsnReader(enrollment.CertificateRequest.Memory, AsnEncodingRules.DER);

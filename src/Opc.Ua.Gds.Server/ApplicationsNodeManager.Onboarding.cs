@@ -121,7 +121,7 @@ namespace Opc.Ua.Gds.Server
             for (int i = 0; i < bindings.Count; i++)
             {
                 DeviceRegistrarApplicationBinding binding = bindings[i];
-                foreach (string certificateType in m_certTypeMap.Values)
+                foreach (string certificateType in s_certificateTypeMap.Values)
                 {
                     if (m_database.GetApplicationTrustLists(
                         binding.ApplicationId, certificateType, out string? storePath) &&

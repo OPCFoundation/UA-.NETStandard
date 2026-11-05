@@ -119,6 +119,9 @@ namespace Opc.Ua.Gds.Server.Onboarding
             }
             cancellationToken.ThrowIfCancellationRequested();
             ApplicationDescription snapshot = CoreUtils.Clone(application)!;
+            snapshot.DiscoveryUrls = application.DiscoveryUrls.IsNull
+                ? default
+                : application.DiscoveryUrls.Span.ToArray().ToArrayOf();
             if (!Uri.TryCreate(snapshot.ApplicationUri, UriKind.Absolute, out _) ||
                 snapshot.DiscoveryUrls.IsEmpty ||
                 (snapshot.ApplicationType != ApplicationType.Server &&

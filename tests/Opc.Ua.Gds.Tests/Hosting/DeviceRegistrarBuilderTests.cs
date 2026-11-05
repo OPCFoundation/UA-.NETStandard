@@ -537,6 +537,10 @@ namespace Opc.Ua.Gds.Tests.Hosting
             var applicationId = new NodeId("shared", 2);
             database.Setup(d => d.RegisterApplication(It.IsAny<ApplicationRecordDataType>())).Returns(applicationId);
             var lifecycle = new Mock<IDeviceRegistrarLifecycle>();
+            lifecycle.As<IDeviceRegistrarApplicationScopeLifecycle>()
+                .Setup(l => l.RequireManagedApplicationAllowedAsync(
+                    It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
             services.AddSingleton(authorization.Object);
             services.AddSingleton(database.Object);
             services.AddSingleton(lifecycle.Object);

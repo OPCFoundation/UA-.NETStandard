@@ -912,7 +912,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         private ServerSystemContext CreateContext(Role role)
         {
             var identity = new GdsRoleBasedIdentity(
-                new UserIdentity(), [role], default, null, ReferenceServer.CurrentInstance.NamespaceUris);
+                new UserIdentity(new UserNameIdentityToken { UserName = "onboarding-test" }),
+                [role], default, null, ReferenceServer.CurrentInstance.NamespaceUris);
             var channel = new SecureChannelContext(
                 "onboarding-directory-tests",
                 new EndpointDescription

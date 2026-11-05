@@ -96,6 +96,11 @@ namespace OnboardingRegistrar
                     ArgumentException.ThrowIfNullOrWhiteSpace(identifiers[index]);
                 }
                 m_managedApplicationServerCapabilities = identifiers.ToArrayOf();
+                if (!string.IsNullOrWhiteSpace(configuration["managedApplicationCertificateTypeId"]))
+                {
+                    m_managedApplicationCertificateTypeId =
+                        ReadAddress(configuration, "managedApplicationCertificateTypeId");
+                }
                 if (!Path.IsPathFullyQualified(m_managedApplicationCertificatePath))
                 {
                     throw new ArgumentException(
@@ -105,7 +110,8 @@ namespace OnboardingRegistrar
             else if (configuration["managedApplicationEndpoint"] != null ||
                 configuration["managedApplicationSecurityPolicyUri"] != null ||
                 configuration["managedApplicationCertificatePath"] != null ||
-                configuration["managedApplicationServerCapabilities"] != null)
+                configuration["managedApplicationServerCapabilities"] != null ||
+                configuration["managedApplicationCertificateTypeId"] != null)
             {
                 throw new ArgumentException(
                     "Managed application endpoint, security policy and certificate settings " +
@@ -188,6 +194,7 @@ namespace OnboardingRegistrar
                         managedApplicationSecurityPolicyUri,
                         managedApplicationCertificatePath,
                         sample.m_managedApplicationServerCapabilities,
+                        sample.m_managedApplicationCertificateTypeId,
                         managedIdentity,
                         () => provider.GetRequiredService<IOpcUaApplicationConfigurationProvider>().Configuration));
                 builder.Services.AddDeviceRegistrarManagedApplicationChannelVerifier(
@@ -476,6 +483,9 @@ namespace OnboardingRegistrar
 
         /// <summary>The explicit managed server capability identifiers selected by the operator.</summary>
         private readonly ArrayOf<string> m_managedApplicationServerCapabilities;
+
+        /// <summary>The optional managed application certificate type selected by the operator.</summary>
+        private readonly ExpandedNodeId m_managedApplicationCertificateTypeId;
 
         /// <summary>The existing software manager; this sample does not implement a firmware engine.</summary>
         private readonly ManagerDescription? m_softwareManager;

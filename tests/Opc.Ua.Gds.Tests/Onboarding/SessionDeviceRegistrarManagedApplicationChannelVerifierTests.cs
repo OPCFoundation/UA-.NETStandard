@@ -1228,6 +1228,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             {
                 Extensions = nullArray ? default : ArrayOf<XmlElement>.Empty
             };
+            endpoint.Description.Server.DiscoveryUrls = nullArray ? default : ArrayOf<string>.Empty;
 
             ConfiguredEndpoint captured =
                 SessionDeviceRegistrarManagedApplicationChannelVerifier.SnapshotEndpoint(endpoint);

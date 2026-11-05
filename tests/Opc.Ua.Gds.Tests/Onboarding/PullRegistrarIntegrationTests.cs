@@ -132,6 +132,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 new ExpandedNodeId(CoreObjectIds.WellKnownRole_SecurityAdmin, CoreNamespaces.OpcUa));
             m_endpoint = new Uri("opc.tcp://localhost:" +
                 ServerFixtureUtils.GetNextFreeIPPort().ToString(CultureInfo.InvariantCulture) + "/PullRegistrar");
+            var serverStarted = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
             string trustedTickets = Path.Combine(m_root, "ticket-trusted");
             await TrustSignerAsync(trustedTickets).ConfigureAwait(false);
             services.AddOpcUa()
@@ -146,6 +148,12 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     options.IncludeUnsecurePolicyNone = false;
                     options.AutoApprove = true;
                     options.EndpointUrls.Add(m_endpoint.AbsoluteUri);
+                })
+                .AddStartupTask((_, _, cancellationToken) =>
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    serverStarted.TrySetResult(true);
+                    return default;
                 })
                 .AddInMemoryStores()
                 .AddDefaultIdentityAuthenticators(options =>
@@ -169,6 +177,19 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 .OfType<GdsServerHostedService>()
                 .Single();
             await host.StartAsync(CancellationToken.None).ConfigureAwait(false);
+            Task serverStartedTask = serverStarted.Task;
+            Task hostExecution = host.ExecuteTask ??
+                throw new InvalidOperationException("The GDS hosted service did not start.");
+            Task startupResult = await Task.WhenAny(
+                serverStartedTask,
+                hostExecution,
+                Task.Delay(TimeSpan.FromSeconds(30))).ConfigureAwait(false);
+            if (startupResult == hostExecution)
+            {
+                await hostExecution.ConfigureAwait(false);
+            }
+            Assert.That(startupResult, Is.SameAs(serverStartedTask),
+                "The GDS server must finish startup before the test connects.");
             m_session = await ConnectAsync(m_device).ConfigureAwait(false);
             m_otherSession = await ConnectAsync(m_other).ConfigureAwait(false);
         }

@@ -92,8 +92,10 @@ namespace Opc.Ua.Onboarding
             string payload;
             using (var encoder = new JsonEncoder(m_messageContext, JsonEncoderOptions.Compact))
             {
-                encoder.WriteEncodeable(null, ticket);
-                payload = EncodeBase64Url(Encoding.UTF8.GetBytes(encoder.CloseAndReturnText()));
+                encoder.WriteEncodeable("ticket", ticket, ticket.TypeId);
+                using JsonDocument document = JsonDocument.Parse(encoder.CloseAndReturnText());
+                string ticketJson = document.RootElement.GetProperty("ticket").GetRawText();
+                payload = EncodeBase64Url(Encoding.UTF8.GetBytes(ticketJson));
             }
             return SignEnvelopeAsync(
                 payload, contentType, signingCertificate, issuerCertificates, compositeInstanceUri, null, ct);

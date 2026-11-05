@@ -1134,6 +1134,77 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
+        /// A host-selected per-application certificate type is used for CSR, receipt validation and installation.
+        /// </summary>
+        [Test]
+        public async Task ManagedApplicationUsesItsSelectedCertificateType()
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued);
+            ManagedApplication application = harness.AddManaged("managed-a", ManagedUriA, m_managedA);
+            application.SelectedCertificateTypeId = Ua.ObjectTypeIds.RsaMinApplicationCertificateType;
+            application.CertificateTypes = [application.SelectedCertificateTypeId];
+            harness.ConfigureManagedTarget(application);
+
+            await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false);
+
+            Assert.That(application.RequestedCertificateTypeId,
+                Is.EqualTo(Ua.ObjectTypeIds.RsaMinApplicationCertificateType));
+            Assert.That(application.UpdatedCertificateTypeId,
+                Is.EqualTo(Ua.ObjectTypeIds.RsaMinApplicationCertificateType));
+            Assert.That(application.Installed, Is.True);
+            Assert.That(application.HasPendingChanges, Is.False);
+        }
+
+        /// <summary>
+        /// A selected type absent from the managed application's group is rejected before creating a CSR.
+        /// </summary>
+        [Test]
+        public async Task ManagedApplicationRejectsUnsupportedSelectedCertificateTypeBeforeCsr()
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued);
+            ManagedApplication application = harness.AddManaged("managed-a", ManagedUriA, m_managedA);
+            application.SelectedCertificateTypeId = Ua.ObjectTypeIds.RsaMinApplicationCertificateType;
+            application.CertificateTypes = [Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType];
+            harness.ConfigureManagedTarget(application);
+
+            AggregateException? error = await Assert.ThrowsAsync<AggregateException>(async () =>
+                await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false));
+
+            Assert.That(error!.InnerExceptions, Has.Count.EqualTo(1));
+            Assert.That(((ServiceResultException)error.InnerExceptions[0]).StatusCode,
+                Is.EqualTo(StatusCodes.BadNotSupported));
+            Assert.That(application.CsrCalls, Is.Zero);
+            Assert.That(application.Installed, Is.False);
+        }
+
+        /// <summary>
+        /// A recovered enrollment cannot use a retained receipt issued under the previous host-selected type.
+        /// </summary>
+        [Test]
+        public async Task ManagedApplicationRejectsRecoveryWithChangedCertificateType()
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued);
+            ManagedApplication application = harness.AddManaged("managed-a", ManagedUriA, m_managedA);
+            application.SelectedCertificateTypeId = Ua.ObjectTypeIds.RsaMinApplicationCertificateType;
+            application.CertificateTypes =
+            [
+                Ua.ObjectTypeIds.RsaMinApplicationCertificateType,
+                Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType
+            ];
+            application.RetainedCertificateTypeId = nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType);
+            harness.ConfigureManagedTarget(application);
+
+            AggregateException? error = await Assert.ThrowsAsync<AggregateException>(async () =>
+                await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false));
+
+            Assert.That(error!.InnerExceptions, Has.Count.EqualTo(1));
+            Assert.That(((ServiceResultException)error.InnerExceptions[0]).StatusCode,
+                Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            Assert.That(application.CsrCalls, Is.Zero);
+            Assert.That(application.Installed, Is.False);
+        }
+
+        /// <summary>
         /// Existing managed relations cannot be retained as singleton DCA privileges.
         /// </summary>
         [Test]
@@ -2428,10 +2499,23 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                             {
                                 return retained;
                             }
+                            if (application.RetainedCertificateTypeId is { } retainedCertificateTypeId)
+                            {
+                                retained = new DeviceRegistrarPushEnrollment(
+                                    Identity,
+                                    application.Id,
+                                    application.RequestId,
+                                    "DefaultApplicationGroup",
+                                    retainedCertificateTypeId,
+                                    application.CreateTrustList(),
+                                    application.Csr);
+                                return retained;
+                            }
                             ByteString csr = await create(ct).ConfigureAwait(false);
                             Assert.That(csr, Is.EqualTo(application.Csr));
                             retained = new DeviceRegistrarPushEnrollment(Identity, application.Id,
-                                application.RequestId, "DefaultApplicationGroup", "RsaSha256",
+                                application.RequestId, "DefaultApplicationGroup",
+                                GetCertificateTypeName(application.EffectiveCertificateTypeId),
                                 application.CreateTrustList(), csr);
                             return retained;
                         });
@@ -2443,8 +2527,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     application.Id, application.RequestId,
                     It.IsAny<Func<CancellationToken, ValueTask<CertificateRequestIssuance>>>(),
                     It.IsAny<CancellationToken>()))
-                    .Returns(new ValueTask<CertificateRequestIssuance>(
-                        new CertificateRequestIssuance("DefaultApplicationGroup", "RsaSha256",
+                    .Returns(() => new ValueTask<CertificateRequestIssuance>(
+                        new CertificateRequestIssuance(
+                            "DefaultApplicationGroup",
+                            application.RetainedCertificateTypeId ??
+                                GetCertificateTypeName(application.EffectiveCertificateTypeId),
                             application.Certificate, default, [application.Certificate])));
                 return application;
             }
@@ -2467,11 +2554,30 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     application.CurrentCertificate,
                     new ConfiguredEndpoint(null, endpoint, EndpointConfiguration.Create()),
                     new UserIdentity(),
-                    ["DA"]);
+                    ["DA"])
+                {
+                    CertificateTypeId = new ExpandedNodeId(application.SelectedCertificateTypeId)
+                };
                 ManagedApplications.Setup(provider => provider.GetTargetAsync(
                     application.ApplicationUri, It.IsAny<CancellationToken>()))
                     .Returns(new ValueTask<DeviceRegistrarManagedApplicationTarget>(target));
                 return target;
+            }
+
+            /// <summary>
+            /// Gets the issuance-store browse name for the RSA certificate types used by this scripted server.
+            /// </summary>
+            private static string GetCertificateTypeName(NodeId certificateTypeId)
+            {
+                if (certificateTypeId == Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)
+                {
+                    return nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType);
+                }
+                if (certificateTypeId == Ua.ObjectTypeIds.RsaMinApplicationCertificateType)
+                {
+                    return nameof(Ua.ObjectTypeIds.RsaMinApplicationCertificateType);
+                }
+                throw new ArgumentOutOfRangeException(nameof(certificateTypeId));
             }
 
             /// <summary>
@@ -3038,6 +3144,27 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 [Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType];
 
             /// <summary>
+            /// Gets or sets the optional certificate type selected by the host for this application.
+            /// </summary>
+            public NodeId SelectedCertificateTypeId { get; set; }
+
+            /// <summary>
+            /// Gets or sets a retained issuance type to simulate a recovery after the host selection changed.
+            /// </summary>
+            public string? RetainedCertificateTypeId { get; set; }
+
+            /// <summary>Gets the certificate type used by the scripted server when no host override is set.</summary>
+            public NodeId EffectiveCertificateTypeId => SelectedCertificateTypeId.IsNull
+                ? Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType
+                : SelectedCertificateTypeId;
+
+            /// <summary>Gets the certificate type requested by the processor's CSR call.</summary>
+            public NodeId RequestedCertificateTypeId { get; private set; }
+
+            /// <summary>Gets the certificate type submitted to UpdateCertificate.</summary>
+            public NodeId UpdatedCertificateTypeId { get; private set; }
+
+            /// <summary>
             /// Gets or sets whether GetCertificates rejects a null CertificateGroupId.
             /// </summary>
             public bool RejectNullGroup { get; set; }
@@ -3218,6 +3345,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 if (method.MethodId == Ua.MethodIds.ServerConfigurationType_CreateSigningRequest)
                 {
                     CsrCalls++;
+                    Assert.That(method.InputArguments[1].TryGetValue(out NodeId requestedType), Is.True);
+                    RequestedCertificateTypeId = requestedType;
                     return [Variant.From(Csr)];
                 }
                 if (method.MethodId == Ua.MethodIds.ServerConfigurationType_GetCertificates)
@@ -3239,7 +3368,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                         Type is ApplicationType.Server or ApplicationType.ClientAndServer;
                     for (int index = 0; reportsCertificate && index < ReportedTypeCount; index++)
                     {
-                        reported.Add(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType);
+                        reported.Add(EffectiveCertificateTypeId);
                     }
                     ArrayOf<NodeId> types = reported.ToArrayOf();
                     ArrayOf<ByteString> certificates = reportsCertificate ? [CurrentCertificate] :
@@ -3295,6 +3424,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                         throw new ServiceResultException(StatusCodes.BadCertificateChainIncomplete);
                     }
                     m_certificatePending = true;
+                    Assert.That(method.InputArguments[1].TryGetValue(out NodeId updatedType), Is.True);
+                    UpdatedCertificateTypeId = updatedType;
                     Assert.That(method.InputArguments[2].TryGetValue(out m_pendingCertificate), Is.True);
                     if (OnUpdateCertificate != null)
                     {

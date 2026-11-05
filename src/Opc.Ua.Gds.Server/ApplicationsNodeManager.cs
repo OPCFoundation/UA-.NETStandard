@@ -262,7 +262,7 @@ namespace Opc.Ua.Gds.Server
                 throw new ArgumentNullException(nameof(builder));
             }
 
-            m_certTypeMap = CreateCertificateTypeMap();
+            m_certTypeMap = s_certificateTypeMap;
             m_database.NamespaceIndex = ApplicationsNamespaceIndex;
             m_request.NamespaceIndex = ApplicationsNamespaceIndex;
 
@@ -1029,6 +1029,14 @@ namespace Opc.Ua.Gds.Server
 #endif
                 }
             };
+        }
+
+        /// <summary>
+        /// Gets the GDS certificate type identifier associated with a supported certificate type node.
+        /// </summary>
+        internal static bool TryGetCertificateTypeName(NodeId certificateTypeId, out string? certificateTypeName)
+        {
+            return s_certificateTypeMap.TryGetValue(certificateTypeId, out certificateTypeName);
         }
 
         /// <summary>
@@ -3504,6 +3512,7 @@ namespace Opc.Ua.Gds.Server
         private readonly Dictionary<NodeId, ICertificateGroup> m_certificateGroups;
         private Dictionary<NodeId, string> m_certTypeMap = [];
         private IKeyCredentialRequestStore? m_keyCredentialStore;
+        private static readonly Dictionary<NodeId, string> s_certificateTypeMap = CreateCertificateTypeMap();
 
         /// <summary>
         /// Gets or sets the key-credential request store used by

@@ -216,7 +216,8 @@ To authorize one managed application, replace the final
   --managedApplicationEndpoint "<actual encrypted opc.tcp endpoint URL>" `
   --managedApplicationSecurityPolicyUri "<endpoint security policy URI>" `
   --managedApplicationServerCapabilities "<comma-separated capability identifiers>" `
-  --managedApplicationCertificatePath "D:\temp\managed-server.der"
+  --managedApplicationCertificatePath "D:\temp\managed-server.der" `
+  --managedApplicationCertificateTypeId "i=12560"
 ```
 
 This sample uses the endpoint URL as the discovery URL recorded in the GDS
@@ -235,6 +236,10 @@ attempt. The credential registry is separate from the public enrollment and
 issuance checkpoints and does not write passwords to them.
 The sample allowlists only that URI for the configured product
 instance.
+`--managedApplicationCertificateTypeId` is optional. When omitted, the
+registrar uses `--pushCertificateTypeId`; when supplied, it selects that
+expanded NodeId for this managed application and rejects provisioning unless
+the application's default application group advertises the type.
 
 `--managedApplicationServerCapabilities` is required with managed application
 configuration. Supply the capability identifiers selected by the application

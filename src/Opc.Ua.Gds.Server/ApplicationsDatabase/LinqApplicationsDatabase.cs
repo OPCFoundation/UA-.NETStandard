@@ -992,6 +992,12 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                 switch (request.State)
                 {
                     case (int)CertificateRequestState.New:
+                        certificateGroupId = request.CertificateGroupId;
+                        certificateTypeId = request.CertificateTypeId;
+                        if (request.CertificateSigningRequest != null)
+                        {
+                            certificateRequest = request.CertificateSigningRequest.ToByteString();
+                        }
                         return CertificateRequestState.New;
                     case (int)CertificateRequestState.Rejected:
                         return CertificateRequestState.Rejected;

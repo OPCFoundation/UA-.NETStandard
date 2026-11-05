@@ -367,7 +367,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 occurrence.Initialize(
                     context, null, EventSeverity.Min, LocalizedText.From("Registration changed."));
                 occurrence.EventType!.Value = expectedType;
-                occurrence.SourceNode!.Value = source.NodeId;
+                occurrence.SetChildValue(context, BrowseNames.SourceNode, source.NodeId, false);
                 await server.Object.ReportEventAsync(context, occurrence).ConfigureAwait(false);
             }
             Assert.That(reported, Is.Not.Null);

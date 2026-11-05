@@ -286,6 +286,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                         await hosted.StartAsync(CancellationToken.None).ConfigureAwait(false);
                         var security = provider.GetRequiredService<ProvisionableDeviceSecurity>();
                         ICertificateManager certificates = provider.GetRequiredService<ICertificateManager>();
+                        Assert.That(observed.CertificateManager, Is.SameAs(certificates));
                         using CertificateEntry active = certificates.AcquireApplicationCertificateByType(
                             Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType) ??
                             throw new AssertionException("The device has no active application certificate.");
@@ -587,12 +588,19 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             /// </summary>
             public ConfigurationNodeManager Manager { get; private set; } = null!;
 
+            /// <summary>
+            /// Gets the certificate manager used by the running server.
+            /// </summary>
+            public CertificateManager CertificateManager { get; private set; } = null!;
+
             /// <inheritdoc/>
             public ValueTask OnServerStartedAsync(
                 IServerContext server,
                 CancellationToken cancellationToken = default)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                CertificateManager = (server as ServerBase)?.CertificateManager ??
+                    throw new InvalidOperationException("The server certificate manager was not initialized.");
                 Manager = server.FindNodeManagers<ConfigurationNodeManager>().Single();
                 return default;
             }

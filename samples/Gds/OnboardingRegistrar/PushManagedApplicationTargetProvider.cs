@@ -48,6 +48,7 @@ namespace OnboardingRegistrar
             string securityPolicyUri,
             string certificatePath,
             ArrayOf<string> serverCapabilities,
+            ExpandedNodeId certificateTypeId,
             IClientIdentityProvider identityProvider,
             Func<ApplicationConfiguration> configurationFactory)
         {
@@ -59,6 +60,7 @@ namespace OnboardingRegistrar
             m_endpointUrl = endpointUrl;
             m_securityPolicyUri = securityPolicyUri;
             m_certificatePath = certificatePath;
+            m_certificateTypeId = certificateTypeId;
             if (serverCapabilities.IsEmpty)
             {
                 throw new ArgumentException(
@@ -149,7 +151,10 @@ namespace OnboardingRegistrar
                 new ConfiguredEndpoint(null, selected, endpointConfiguration),
                 await m_identityProvider.AcquireIdentityAsync(
                     selected, configuration.CreateMessageContext(), cancellationToken).ConfigureAwait(false),
-                m_serverCapabilities);
+                m_serverCapabilities)
+            {
+                CertificateTypeId = m_certificateTypeId
+            };
         }
 
         /// <summary>
@@ -173,6 +178,9 @@ namespace OnboardingRegistrar
 
         /// <summary>The operator-supplied public certificate file for the currently installed credential.</summary>
         private readonly string m_certificatePath;
+
+        /// <summary>The optional operator-selected certificate type for this managed application.</summary>
+        private readonly ExpandedNodeId m_certificateTypeId;
 
         /// <summary>The operator-selected server capability identifiers.</summary>
         private readonly ArrayOf<string> m_serverCapabilities;

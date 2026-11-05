@@ -430,8 +430,8 @@ namespace Opc.Ua.Server.Hosting
                     m_options.MinCertificateKeySize);
             }
 
-            ApplyDependencyInjectedCertificateManager(certificateManager);
             await securityOptions.CreateAsync(ct).ConfigureAwait(false);
+            ApplyDependencyInjectedCertificateManager(certificateManager);
         }
 
         /// <summary>
