@@ -686,6 +686,12 @@ committed a mutation, it completes nested state updates and change-mask
 notifications without observing caller cancellation, so cancellation cannot
 leave a compound active-state update partly applied.
 
+`ExclusiveLimitAlarmState` keeps its active and limit states consistent when
+notifications or Retain evaluation are deferred. Subclasses customizing these
+updates must override the overload that accepts `clearChangeMasks` and
+`updateRetainState`; overloads with both options enabled retain dispatch through
+the existing synchronous or asynchronous setter override.
+
 <a id="ua0029"></a>
 
 ## Migrating callers of the SecurityPolicies lookup and cryptography statics
