@@ -435,8 +435,11 @@ and the existing response-size calculation. Bindings allow at most 64 open
 handles, one writer, and independent reader snapshots. Temporary writers commit
 through `CommitAsync`; `commitOnClose` selects the ordinary FileType close lifecycle.
 Application commit callbacks run without holding the binding's operation gate, so
-publication can refresh other file bindings. Disposal cancels and drains an active
-commit before releasing its handles. [Machine Vision](Vision.md) uses this
+publication can refresh other file bindings. Session closure and disposal request
+cancellation of a running commit and retain its writer reservation until the
+callback and stream cleanup finish. A successful callback remains published even
+if it ignored cancellation. Session closure discards a buffer whose commit has
+not started; it does not invoke `commitOnClose`. [Machine Vision](Vision.md) uses this
 surface for its specialized transfers and recipe files.
 
 Both lazy `FileSystemNodeManager` nodes and materialized
@@ -477,9 +480,42 @@ synchronous delegates remain available.
 
 File opens reserve compatible access before invoking the provider. This
 prevents a rejected erase request from truncating a file held by another
-opener. Failed or cancelled opens release their reservations. If a provider
-returns a stream after session closure or disposal, the system closes it
-instead of publishing it.
+opener. Failed or cancelled opens release their reservations after stream
+cleanup. If a provider returns a stream after session closure or disposal, the
+system closes it instead of publishing it.
+
+Providers can opt into combined Read and Write mode through the additive
+`IFileSystemReadWriteProvider.OpenReadWriteAsync` capability. Existing providers
+need no changes: a combined request returns `BadNotSupported` before either
+provider open method is called. The physical provider and writable bounded-content
+bindings support combined access. A bounded binding without a commit callback
+remains read-only.
+
+A combined handle owns one seekable stream and one cursor, exclusively for its
+session. Read and Write permissions come from the accepted mode bits, not the
+stream's `CanRead` or `CanWrite` properties. Append sets the initial position to
+EOF; later `SetPosition` calls can seek backwards. Erase truncates before the
+handle is published. The physical provider uses `FileAccess.ReadWrite` and
+`FileShare.None` for combined access, with `Create` for erase and `OpenOrCreate`
+otherwise.
+
+Each handle serializes Read, Write, GetPosition, and SetPosition. Explicit Close
+stops admission, drains operations already admitted, then closes the stream.
+Session closure and server shutdown also request cancellation of active provider
+requests. `FileSystemNodeManager.CloseTimeout`, `FileTypeBinder.CloseTimeout`,
+and `FileDirectoryBindingOptions.CloseTimeout` bound lifecycle waits; the default
+is ten seconds. An expired deadline does not prove that provider I/O stopped:
+unfinished I/O retains its stream and writer reservation through actual cleanup.
+Disposal can be awaited again to observe retained cleanup and any errors. Cleanup
+attempts every stream before surfacing failures. If stream cleanup fails, the
+reservation remains held: a thrown disposal does not establish that the provider
+released the file. Repeated lifecycle waits report the retained failure rather
+than reopening the file or silently retrying provider cleanup. Each repeated
+disposal wait uses the configured deadline. Applications that require an
+unbounded cleanup wait can configure `Timeout.InfiniteTimeSpan` before binding.
+Resources used by an unfinished provider operation or commit callback must remain
+available until that operation actually finishes.
+
 Materialized `FileDirectoryBinder` bindings supplied with a `ServerSystemContext`
 attach to that server's session lifecycle on the first open. Explicit session
 closure and expiry release only that session's handles and pending reservations;

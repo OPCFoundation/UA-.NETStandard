@@ -64,7 +64,7 @@ namespace Opc.Ua.Server.FileSystem
     /// calling thread for I/O.
     /// </para>
     /// </remarks>
-    public sealed class PhysicalFileSystemProvider : IFileSystemProvider, IFileSystemPathIdentityProvider
+    public sealed class PhysicalFileSystemProvider : IFileSystemReadWriteProvider, IFileSystemPathIdentityProvider
     {
         /// <summary>
         /// Mounts a single physical directory as the root of an
@@ -212,6 +212,7 @@ namespace Opc.Ua.Server.FileSystem
         /// <inheritdoc/>
         public ValueTask<Stream> OpenReadAsync(string path, CancellationToken ct)
         {
+            ct.ThrowIfCancellationRequested();
             string full = ResolveAbsolute(path);
             if (!File.Exists(full))
             {
@@ -228,16 +229,19 @@ namespace Opc.Ua.Server.FileSystem
             FileWriteMode mode,
             CancellationToken ct)
         {
+            ct.ThrowIfCancellationRequested();
             EnsureWritable();
             string full = ResolveAbsolute(path);
-            FileMode fileMode = mode switch
-            {
-                FileWriteMode.Truncate => FileMode.Create,
-                FileWriteMode.Append => FileMode.Append,
-                _ => FileMode.OpenOrCreate
-            };
-            return new ValueTask<Stream>(
-                new FileStream(full, fileMode, FileAccess.Write, FileShare.None));
+            return new ValueTask<Stream>(OpenWritableFile(full, mode, FileAccess.Write));
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<Stream> OpenReadWriteAsync(string path, FileWriteMode mode, CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            EnsureWritable();
+            string full = ResolveAbsolute(path);
+            return new ValueTask<Stream>(OpenWritableFile(full, mode, FileAccess.ReadWrite));
         }
 
         /// <inheritdoc/>
@@ -366,6 +370,29 @@ namespace Opc.Ua.Server.FileSystem
             }
             throw new FileNotFoundException(
                 $"Nothing to copy at '{source}'.", sourceFull);
+        }
+
+        /// <summary>
+        /// Opens an exclusive stream and sets its initial append position without restricting subsequent seeks.
+        /// </summary>
+        private static Stream OpenWritableFile(string full, FileWriteMode mode, FileAccess access)
+        {
+            var stream = new FileStream(full,
+                mode == FileWriteMode.Truncate ? FileMode.Create : FileMode.OpenOrCreate,
+                access, FileShare.None);
+            try
+            {
+                if (mode == FileWriteMode.Append)
+                {
+                    stream.Position = stream.Length;
+                }
+                return stream;
+            }
+            catch
+            {
+                stream.Dispose();
+                throw;
+            }
         }
 
         private void EnsureWritable()

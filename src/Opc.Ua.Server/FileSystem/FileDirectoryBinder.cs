@@ -66,7 +66,19 @@ namespace Opc.Ua.Server.FileSystem
         /// </summary>
         public int MaxDepth { get; set; } = 8;
 
+        /// <summary>
+        /// Gets or sets the lifecycle wait limit. Active provider operations and their reservations remain
+        /// owned after this limit; a subsequent disposal can observe their eventual cleanup outcome.
+        /// </summary>
+        public TimeSpan CloseTimeout
+        {
+            get => m_closeTimeout;
+            set => m_closeTimeout = FileHandle.ValidateCloseTimeout(value);
+        }
+
         internal const int DefaultMaxEntries = 1024;
+        /// <summary>Bounds lifecycle waiting without shortening provider operation ownership.</summary>
+        private TimeSpan m_closeTimeout = TimeSpan.FromSeconds(10);
     }
 
     /// <summary>
@@ -253,7 +265,49 @@ namespace Opc.Ua.Server.FileSystem
             /// </summary>
             public async ValueTask DisposeAsync()
             {
-                if (!TryTrackOperation())
+                Task cleanup;
+                FileHandle[] handles = [];
+                TaskCompletionSource<bool>? completion = null;
+                lock (m_lock)
+                {
+                    if (m_disposal == null)
+                    {
+                        completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                        m_disposal = completion.Task;
+                        handles = [.. m_handles.Values];
+                    }
+                    cleanup = m_disposal;
+                }
+                if (completion != null)
+                {
+                    foreach (FileHandle handle in handles)
+                    {
+                        _ = handle.RequestShutdown();
+                    }
+                    _ = CompleteDisposalAsync(completion);
+                }
+                if (await Task.WhenAny(cleanup, Task.Delay(m_options.CloseTimeout)).ConfigureAwait(false) == cleanup)
+                {
+                    await cleanup.ConfigureAwait(false);
+                }
+            }
+
+            private async Task CompleteDisposalAsync(TaskCompletionSource<bool> completion)
+            {
+                try
+                {
+                    await DisposeCoreAsync().ConfigureAwait(false);
+                    completion.TrySetResult(true);
+                }
+                catch (Exception exception)
+                {
+                    completion.TrySetException(exception);
+                }
+            }
+
+            private async ValueTask DisposeCoreAsync()
+            {
+                if (!TryTrackOperation(disposing: true))
                 {
                     return;
                 }
@@ -282,11 +336,26 @@ namespace Opc.Ua.Server.FileSystem
                     {
                         DetachCallbacks(entry.Node);
                     }
+                    List<Task> cleanup = [];
                     foreach (FileHandle handle in handles)
                     {
-                        handle.Dispose();
+                        cleanup.Add(handle.RequestShutdown());
+                    }
+                    Task all = Task.WhenAll(cleanup);
+                    Exception? cleanupError = null;
+                    try
+                    {
+                        await all.ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        cleanupError = all.Exception ?? new AggregateException("File cleanup failed.");
                     }
                     await RemoveStaleNodesAsync([], CancellationToken.None).ConfigureAwait(false);
+                    if (cleanupError != null)
+                    {
+                        throw cleanupError;
+                    }
                 }
                 finally
                 {
@@ -341,7 +410,7 @@ namespace Opc.Ua.Server.FileSystem
                 string identity = FileSystemDirectoryOperations.GetPathIdentity(Provider, providerPath);
                 lock (m_lock)
                 {
-                    if (m_disposed)
+                    if (m_disposed || m_disposal != null)
                     {
                         return null;
                     }
@@ -350,7 +419,10 @@ namespace Opc.Ua.Server.FileSystem
                         return handle;
                     }
 
-                    handle = new FileHandle(Provider, providerPath, IsSessionTerminated);
+                    handle = new FileHandle(Provider, providerPath, IsSessionTerminated)
+                    {
+                        CloseTimeout = m_options.CloseTimeout
+                    };
                     FileSystemDirectoryOperations.BlockForRunningMutations(Provider, m_mutations, handle);
                     m_handles.Add(identity, handle);
                     return handle;
@@ -363,7 +435,8 @@ namespace Opc.Ua.Server.FileSystem
                 string identity = FileSystemDirectoryOperations.GetPathIdentity(Provider, providerPath);
                 lock (m_lock)
                 {
-                    return !m_disposed && m_handles.TryGetValue(identity, out FileHandle? handle) ? handle : null;
+                    return !m_disposed && m_disposal == null &&
+                        m_handles.TryGetValue(identity, out FileHandle? handle) ? handle : null;
                 }
             }
 
@@ -595,11 +668,13 @@ namespace Opc.Ua.Server.FileSystem
                 }
             }
 
-            private bool TryTrackOperation()
+            private Task? m_disposal;
+
+            private bool TryTrackOperation(bool disposing = false)
             {
                 lock (m_lock)
                 {
-                    if (m_disposed)
+                    if (m_disposed || (!disposing && m_disposal != null))
                     {
                         return false;
                     }
