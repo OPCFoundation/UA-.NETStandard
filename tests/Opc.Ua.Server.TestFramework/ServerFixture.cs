@@ -372,9 +372,7 @@ namespace Opc.Ua.Server.TestFramework
                     when (serverStartRetries > 0 && ServerFixtureUtils.IsPortUnavailable(ex))
                 {
                     serverStartRetries--;
-                    testPort = UnsecureRandom.Shared.Next(
-                        ServerFixtureUtils.MinTestPort,
-                        ServerFixtureUtils.MaxTestPort);
+                    testPort = ServerFixtureUtils.GetNextFreeIPPort();
                     retryStartServer = true;
                 }
                 catch (Exception ex)
@@ -386,9 +384,7 @@ namespace Opc.Ua.Server.TestFramework
                     // retry designed for exactly this case never runs and the whole
                     // fixture fails on a port race it was built to survive.
                     serverStartRetries--;
-                    testPort = UnsecureRandom.Shared.Next(
-                        ServerFixtureUtils.MinTestPort,
-                        ServerFixtureUtils.MaxTestPort);
+                    testPort = ServerFixtureUtils.GetNextFreeIPPort();
                     retryStartServer = true;
                 }
 

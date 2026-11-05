@@ -132,7 +132,7 @@ namespace Opc.Ua.Server.Tests
         public void GetNameForStandardAggregateReturnsDefaultForUnknownId()
         {
             QualifiedName name = Aggregators.GetNameForStandardAggregate(new NodeId(999999));
-            Assert.That(name, Is.Default);
+            Assert.That(name.IsNull, Is.True);
         }
 
         [Test]

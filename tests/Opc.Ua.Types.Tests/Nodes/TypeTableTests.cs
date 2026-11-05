@@ -577,7 +577,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void FindReferenceTypeNameReturnsDefaultForUnknownType()
         {
             QualifiedName result = m_typeTable.FindReferenceTypeName(s_unknownTypeId);
-            Assert.That(result, Is.Default);
+            Assert.That(result.IsNull, Is.True);
         }
 
         [Test]
