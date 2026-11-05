@@ -561,7 +561,7 @@ namespace Opc.Ua.AutoID.Tests
             var provider = new Mock<IAutoIdRfidDiagnosticFormatter>();
             provider.As<IDisposable>();
             provider.SetupGet(value => value.Kind).Returns(AutoIdReaderKind.Rfid);
-            provider.SetupGet(value => value.SupportedCodeTypes).Returns(new[] { "RAW:BYTES" }.ToArrayOf());
+            provider.SetupGet(value => value.SupportedCodeTypes).Returns(s_rawByteDiagnosticFormats.ToArrayOf());
             provider.SetupGet(value => value.ReaderParameterCapabilities).Returns(new AutoIdReaderParameterCapabilities
             {
                 CodeTypesRWData = catalogue
