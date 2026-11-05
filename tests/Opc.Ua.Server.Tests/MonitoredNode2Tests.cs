@@ -369,6 +369,10 @@ namespace Opc.Ua.Server.Tests
                 var configuration = new Mock<IConfigurationNodeManager>();
                 server.SetupGet(value => value.ConfigurationNodeManager).Returns(configuration.Object);
                 var node = new BaseObjectState(null) { NodeId = ObjectIds.Server };
+                Mock.Get(server.Object.NodeManager)
+                    .Setup(value => value.FindNodeInAddressSpaceAsync(
+                        ObjectIds.Server, It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<NodeState?>(node));
                 var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                 var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                 int calls = 0;
@@ -420,6 +424,134 @@ namespace Opc.Ua.Server.Tests
                     await monitored.DisposeAsync().ConfigureAwait(false);
                 }
                 Assert.That(calls, Is.EqualTo(2));
+                item.Verify(value => value.QueueEvent(It.IsAny<IFilterTarget>()), Times.Never);
+            }
+        }
+
+        /// <summary>
+        /// Replacing the source node under the same NodeId must not reuse its previous event permission verdict.
+        /// </summary>
+        [Test]
+        public async Task ReplacedEventSourceNodeDoesNotReusePermissionVerdictAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var master = Mock.Get(server.Object.NodeManager);
+                NodeId sourceNodeId = new(10, 1);
+                NodeState firstSource = new BaseObjectState(null) { NodeId = sourceNodeId };
+                NodeState currentSource = firstSource;
+                master.Setup(value => value.FindNodeInAddressSpaceAsync(
+                        sourceNodeId, It.IsAny<CancellationToken>()))
+                    .Returns(() => new ValueTask<NodeState?>(currentSource));
+
+                int validationCalls = 0;
+                var nodeManager = new Mock<IAsyncNodeManager>();
+                nodeManager.Setup(value => value.ValidateEventRolePermissionsAsync(
+                        It.IsAny<IEventMonitoredItem>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
+                    .Returns(() => new ValueTask<ServiceResult>(
+                        Interlocked.Increment(ref validationCalls) == 1
+                            ? ServiceResult.Good
+                            : new ServiceResult(StatusCodes.BadUserAccessDenied)));
+
+                var node = new BaseObjectState(null) { NodeId = ObjectIds.Server };
+                Mock<IEventMonitoredItem> item = CreateEventMonitoredItemMock(1);
+                await using var monitored = new MonitoredNode2(nodeManager.Object, server.Object, node);
+                monitored.Add(item.Object);
+
+                var firstEvent = new BaseEventState(null);
+                firstEvent.EventType = new PropertyState<NodeId>.Implementation<VariantBuilder>(firstEvent)
+                {
+                    Value = ObjectTypeIds.BaseEventType
+                };
+                firstEvent.SourceNode = new PropertyState<NodeId>.Implementation<VariantBuilder>(firstEvent)
+                {
+                    Value = sourceNodeId
+                };
+
+                await monitored.OnReportEventAsync(
+                    server.Object.DefaultSystemContext, node, firstEvent).ConfigureAwait(false);
+                await monitored.WaitForPendingNotificationsAsync(CancellationToken.None).ConfigureAwait(false);
+
+                currentSource = new BaseObjectState(null) { NodeId = sourceNodeId };
+                var secondEvent = new BaseEventState(null);
+                secondEvent.EventType = new PropertyState<NodeId>.Implementation<VariantBuilder>(secondEvent)
+                {
+                    Value = ObjectTypeIds.BaseEventType
+                };
+                secondEvent.SourceNode = new PropertyState<NodeId>.Implementation<VariantBuilder>(secondEvent)
+                {
+                    Value = sourceNodeId
+                };
+
+                await monitored.OnReportEventAsync(
+                    server.Object.DefaultSystemContext, node, secondEvent).ConfigureAwait(false);
+                await monitored.WaitForPendingNotificationsAsync(CancellationToken.None).ConfigureAwait(false);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(validationCalls, Is.EqualTo(2));
+                    item.Verify(value => value.QueueEvent(It.IsAny<IFilterTarget>()), Times.Once);
+                });
+            }
+        }
+
+        /// <summary>
+        /// A notifier restriction tightened during permission validation must be applied before event delivery.
+        /// </summary>
+        [Test]
+        public async Task EventRestrictionsAreRecheckedAfterPermissionValidationSuspendsAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var permissionEntered = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                var releasePermission = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                var nodeManager = new Mock<IAsyncNodeManager>();
+                nodeManager.Setup(value => value.ValidateEventRolePermissionsAsync(
+                        It.IsAny<IEventMonitoredItem>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
+                    .Returns(async () =>
+                    {
+                        permissionEntered.TrySetResult(true);
+                        await releasePermission.Task.ConfigureAwait(false);
+                        return ServiceResult.Good;
+                    });
+
+                var notifier = new BaseObjectState(null)
+                {
+                    NodeId = ObjectIds.Server,
+                    AccessRestrictions = AccessRestrictionType.None
+                };
+                Mock<IEventMonitoredItem> item = CreateEventMonitoredItemMock(1);
+                await using var monitored = new MonitoredNode2(nodeManager.Object, server.Object, notifier);
+                monitored.Add(item.Object);
+
+                var notification = new BaseEventState(null);
+                notification.EventType = new PropertyState<NodeId>.Implementation<VariantBuilder>(notification)
+                {
+                    Value = ObjectTypeIds.BaseEventType
+                };
+                notification.SourceNode = new PropertyState<NodeId>.Implementation<VariantBuilder>(notification)
+                {
+                    Value = new NodeId("event-source", 1)
+                };
+
+                try
+                {
+                    await monitored.OnReportEventAsync(
+                        server.Object.DefaultSystemContext, notifier, notification).ConfigureAwait(false);
+                    await permissionEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    notifier.AccessRestrictions = AccessRestrictionType.EncryptionRequired;
+                }
+                finally
+                {
+                    releasePermission.TrySetResult(true);
+                }
+
+                await monitored.WaitForPendingNotificationsAsync(CancellationToken.None).ConfigureAwait(false);
+
                 item.Verify(value => value.QueueEvent(It.IsAny<IFilterTarget>()), Times.Never);
             }
         }
@@ -2369,6 +2501,11 @@ namespace Opc.Ua.Server.Tests
 
             var serverMock = new Mock<IServerInternal>();
             serverMock.Setup(s => s.Auditing).Returns(false);
+            var masterNodeManager = new Mock<IMasterNodeManager>();
+            masterNodeManager.Setup(m => m.FindNodeInAddressSpaceAsync(
+                    ObjectIds.Server, It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<NodeState?>(node));
+            serverMock.Setup(s => s.NodeManager).Returns(masterNodeManager.Object);
 
             Mock<IEventMonitoredItem> eventItemMock = CreateEventMonitoredItemMock(1u);
 
@@ -2432,6 +2569,11 @@ namespace Opc.Ua.Server.Tests
 
             var serverMock = new Mock<IServerInternal>();
             serverMock.Setup(s => s.Auditing).Returns(false);
+            var masterNodeManager = new Mock<IMasterNodeManager>();
+            masterNodeManager.Setup(m => m.FindNodeInAddressSpaceAsync(
+                    ObjectIds.Server, It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<NodeState?>(node));
+            serverMock.Setup(s => s.NodeManager).Returns(masterNodeManager.Object);
 
             Mock<IEventMonitoredItem> eventItemMock = CreateEventMonitoredItemMock(7u);
             eventItemMock

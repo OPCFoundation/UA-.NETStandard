@@ -850,6 +850,27 @@ namespace Opc.Ua.History.Tests
     [Category("Historian")]
     public sealed class HistorianBugRegressionSocketFreeTests
     {
+        /// <summary>
+        /// A fluent manager can use an unowned server historian default without joining readiness publication.
+        /// </summary>
+        [Test]
+        public async Task HistorizeBorrowedUnownedDefaultDoesNotRequireReadinessAsync()
+        {
+            await using var harness = new SocketFreeHistorianHarness();
+            using var provider = new InMemoryHistorianProvider();
+            var registry = (HistorianProviderRegistry)harness.Data.HistorianRegistry;
+            registry.RegisterDefault(provider, ownsProvider: false);
+            var state = new FluentHistorianManagerState();
+
+            LifecycleResult added = await harness.Server.NodeManagerLifecycle.ApplyAsync(
+                [LifecycleChange.Add(new PlainFluentHistorianRegressionNodeManagerFactory(
+                    "urn:opcfoundation:history-tests:plain-fluent", state))]).ConfigureAwait(false);
+
+            Assert.That(state.NodeId.IsNull, Is.False);
+            Assert.That(registry.Resolve(state.NodeId), Is.SameAs(provider));
+            await added.Retired.ConfigureAwait(false);
+        }
+
         [Test]
         public async Task HistorizeBorrowedDefaultSurvivesOwnerReloadAndServesHistoryAsync()
         {
@@ -1049,6 +1070,43 @@ namespace Opc.Ua.History.Tests
                 cancellationToken.ThrowIfCancellationRequested();
                 return new ValueTask<IAsyncNodeManager>(
                     new FluentHistorianRegressionNodeManager(server, configuration, namespaceUri, state));
+            }
+        }
+
+        private sealed class PlainFluentHistorianRegressionNodeManagerFactory(
+            string namespaceUri,
+            FluentHistorianManagerState state) : IAsyncNodeManagerFactory
+        {
+            public ArrayOf<string> NamespacesUris => [namespaceUri];
+
+            public ValueTask<IAsyncNodeManager> CreateAsync(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return new ValueTask<IAsyncNodeManager>(
+                    new PlainFluentHistorianRegressionNodeManager(
+                        server, configuration, namespaceUri, state));
+            }
+        }
+
+        private sealed class PlainFluentHistorianRegressionNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            string namespaceUri,
+            FluentHistorianManagerState state)
+            : FluentNodeManagerBase(server, configuration, namespaceUri)
+        {
+            protected override ValueTask ConfigureAsync(
+                INodeManagerBuilder builder,
+                CancellationToken cancellationToken)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                IVariableBuilder<int> variable = builder.AddVariable<int>("Historized");
+                variable.Historize();
+                state.NodeId = variable.Node.NodeId;
+                return default;
             }
         }
 

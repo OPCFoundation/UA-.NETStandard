@@ -89,6 +89,25 @@ namespace Opc.Ua.Server.Historian
         bool OwnsProvider(IHistorianProvider provider);
 
         /// <summary>
+        /// Gets whether the specified effective binding belongs to a lifecycle owner.
+        /// </summary>
+        bool IsOwnedBinding(
+            HistorianProviderRegistrationKind kind,
+            NodeId nodeId,
+            string? namespaceUri,
+            IHistorianProvider provider);
+
+        /// <summary>
+        /// Records a staged candidate that owns a provider not yet registered in the serving registry.
+        /// </summary>
+        void RetainStagedProviderOwnership(object owner, IHistorianProvider provider);
+
+        /// <summary>
+        /// Releases one staged provider claim and returns whether another candidate still claims the provider.
+        /// </summary>
+        bool ReleaseStagedProviderOwnership(object owner, IHistorianProvider provider);
+
+        /// <summary>
         /// Replaces all registrations currently contributed by <paramref name="owner"/>.
         /// </summary>
         void ReplaceOwnedRegistrations(object owner, HistorianProviderRegistration[] registrations);
@@ -585,15 +604,108 @@ namespace Opc.Ua.Server.Historian
             }
         }
 
+        /// <inheritdoc/>
+        bool IHistorianOwnedProviderRegistry.IsOwnedBinding(
+            HistorianProviderRegistrationKind kind,
+            NodeId nodeId,
+            string? namespaceUri,
+            IHistorianProvider provider)
+        {
+            lock (m_lock)
+            {
+                return kind switch
+                {
+                    HistorianProviderRegistrationKind.Node =>
+                        !nodeId.IsNull &&
+                        TryGetLatestOwnedBinding(m_ownedNodes, nodeId, out IHistorianProvider? ownedNode,
+                            out long ownedNodeOrder) &&
+                        ReferenceEquals(ownedNode, provider) &&
+                        (!m_nodeRegistrationOrder.TryGetValue(nodeId, out long nodeOrder) ||
+                            ownedNodeOrder > nodeOrder),
+                    HistorianProviderRegistrationKind.Namespace =>
+                        !string.IsNullOrEmpty(namespaceUri) &&
+                        TryGetLatestOwnedBinding(m_ownedNamespaces, namespaceUri, out IHistorianProvider? ownedNamespace,
+                            out long ownedNamespaceOrder) &&
+                        ReferenceEquals(ownedNamespace, provider) &&
+                        (!m_namespaceRegistrationOrder.TryGetValue(namespaceUri, out long namespaceOrder) ||
+                            ownedNamespaceOrder > namespaceOrder),
+                    HistorianProviderRegistrationKind.Default =>
+                        TryGetOwnedDefault(out IHistorianProvider? ownedDefault, out long ownedDefaultOrder) &&
+                        ReferenceEquals(ownedDefault, provider) &&
+                        (m_default == null || ownedDefaultOrder > m_defaultRegistrationOrder),
+                    _ => false
+                };
+            }
+        }
+
+        /// <inheritdoc/>
+        void IHistorianOwnedProviderRegistry.RetainStagedProviderOwnership(
+            object owner,
+            IHistorianProvider provider)
+        {
+            if (owner == null)
+            {
+                throw new ArgumentNullException(nameof(owner));
+            }
+            if (provider == null)
+            {
+                throw new ArgumentNullException(nameof(provider));
+            }
+            lock (m_lock)
+            {
+                if (!m_stagedProviderOwners.TryGetValue(provider, out HashSet<object>? owners))
+                {
+                    m_stagedProviderOwners.Add(provider, owners = new HashSet<object>(RefEqualityComparer.Default));
+                }
+                owners.Add(owner);
+            }
+        }
+
+        /// <inheritdoc/>
+        bool IHistorianOwnedProviderRegistry.ReleaseStagedProviderOwnership(
+            object owner,
+            IHistorianProvider provider)
+        {
+            if (owner == null)
+            {
+                throw new ArgumentNullException(nameof(owner));
+            }
+            if (provider == null)
+            {
+                throw new ArgumentNullException(nameof(provider));
+            }
+            lock (m_lock)
+            {
+                if (!m_stagedProviderOwners.TryGetValue(provider, out HashSet<object>? owners))
+                {
+                    return false;
+                }
+                owners.Remove(owner);
+                if (owners.Count != 0)
+                {
+                    return true;
+                }
+                m_stagedProviderOwners.Remove(provider);
+                return false;
+            }
+        }
+
         /// <summary>
         /// Relinquishes providers whose disposal lifetime belongs to the serving registry.
         /// </summary>
         /// <param name="sharedRegistry">The serving registry that may retain candidate providers.</param>
-        internal void ExcludeSharedProviderOwnership(IHistorianProviderRegistry sharedRegistry)
+        /// <param name="owner">The candidate owner releasing its staged provider claims.</param>
+        internal void ExcludeSharedProviderOwnership(
+            IHistorianProviderRegistry sharedRegistry,
+            object owner)
         {
             if (sharedRegistry is null)
             {
                 throw new ArgumentNullException(nameof(sharedRegistry));
+            }
+            if (owner is null)
+            {
+                throw new ArgumentNullException(nameof(owner));
             }
             var sharedProviders = new HashSet<IHistorianProvider>();
             ArrayOf<IHistorianProvider> registeredProviders = sharedRegistry.Providers;
@@ -612,6 +724,10 @@ namespace Opc.Ua.Server.Historian
                 foreach (IHistorianProvider provider in ownedProviders)
                 {
                     if (sharedOwner.OwnsProvider(provider))
+                    {
+                        sharedProviders.Add(provider);
+                    }
+                    if (sharedOwner.ReleaseStagedProviderOwnership(owner, provider))
                     {
                         sharedProviders.Add(provider);
                     }
@@ -908,6 +1024,8 @@ namespace Opc.Ua.Server.Historian
             new(StringComparer.Ordinal);
         private readonly List<OwnedProviderBinding> m_ownedDefaults = [];
         private readonly Dictionary<object, OwnedRegistrationSet> m_ownedRegistrations =
+            new(RefEqualityComparer.Default);
+        private readonly Dictionary<IHistorianProvider, HashSet<object>> m_stagedProviderOwners =
             new(RefEqualityComparer.Default);
         private readonly HashSet<IHistorianProvider> m_providers = [];
         private readonly HashSet<IHistorianProvider> m_ownedProviders = [];

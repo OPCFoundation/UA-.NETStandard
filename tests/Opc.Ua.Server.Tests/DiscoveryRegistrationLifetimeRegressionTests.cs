@@ -126,6 +126,28 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Verifies that a stopped server instance can register with discovery again after it restarts.
+        /// </summary>
+        [Test]
+        public async Task SameServerInstanceRearmsRegistrationAfterRestartAsync()
+        {
+            await using RegistrationHarness harness = await RegistrationHarness.StartAsync(succeeds: true)
+                .ConfigureAwait(false);
+            StandardServer server = harness.Server;
+
+            await server.StopAsync(CancellationToken.None).AsTask()
+                .WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+
+            Assert.That(GetRegistrationTimer(server), Is.Null);
+
+            await harness.Application.Application.StartAsync(server)
+                .WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+            Assert.That(harness.Server, Is.SameAs(server));
+            Assert.That(GetRegistrationTimer(server), Is.Not.Null);
+            Assert.That(GetRegistrationTimer(server), Is.Not.Null);
+        }
+
+        /// <summary>
         /// Verifies that initial discovery registration cannot start before NodeManager readiness completes.
         /// </summary>
         [Test]

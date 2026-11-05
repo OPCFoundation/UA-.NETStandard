@@ -62,7 +62,6 @@ namespace Opc.Ua.Server.Historian
                     "The supplied IServerInternal does not implement IHistorianRegistryProvider; " +
                     "the fluent HistorianBuilder requires the standard ServerInternalData host.");
             }
-            (server as IHistorianBuilderRegistry)?.RegisterHistorianBuilder(this);
         }
 
         /// <summary>
@@ -350,6 +349,8 @@ namespace Opc.Ua.Server.Historian
                 }
             }
 
+            EnsureRegisteredWithLifecycle();
+
             // Ownership transfers to m_eventCaptureHandlers and is released
             // by DisposeAsync.
 #pragma warning disable CA2000
@@ -409,6 +410,7 @@ namespace Opc.Ua.Server.Historian
                     "Historize(autoCapture: false) to disable.");
             }
 
+            EnsureRegisteredWithLifecycle();
             HistorianCaptureSink sink = GetOrCreateCaptureSink(serverContext, captureOptions);
             // The handler is a per-instance closure so the same NodeId
             // routes to its sink across multiple captures; detach when
@@ -454,6 +456,22 @@ namespace Opc.Ua.Server.Historian
                 m_captureSink ??= new HistorianCaptureSink(Provider!, serverContext, options);
 #pragma warning restore CA1508
                 return m_captureSink;
+            }
+        }
+
+        private void EnsureRegisteredWithLifecycle()
+        {
+            lock (m_captureSinkLock)
+            {
+                if (m_registeredWithLifecycle)
+                {
+                    return;
+                }
+                if (m_server is IHistorianBuilderRegistry registry)
+                {
+                    registry.RegisterHistorianBuilder(this);
+                    m_registeredWithLifecycle = true;
+                }
             }
         }
 
@@ -533,6 +551,7 @@ namespace Opc.Ua.Server.Historian
         private readonly List<EventCaptureHandlerRegistration> m_eventCaptureHandlers = [];
         private HistorianCaptureSink? m_captureSink;
         private readonly Lock m_captureSinkLock = new();
+        private bool m_registeredWithLifecycle;
 
         /// <summary>
         /// Ensures that <paramref name="variable"/> has an <c>Annotations</c>

@@ -1442,8 +1442,9 @@ namespace Opc.Ua.Server
         /// Returns the cached permission verdict for the
         /// (item, eventType, sourceNode) tuple, computing and caching it
         /// on miss. A verdict is bound to the subscriber's current session,
-        /// effective identity, identity generation, and node permission version.
-        /// Falls back to an uncached lookup when either NodeId is null.
+        /// effective identity, identity generation, node permission version,
+        /// and the resolved source-node instance. Falls back to an uncached
+        /// lookup when either NodeId is null or the source node cannot be resolved.
         /// </summary>
         private async ValueTask<(ServiceResult Result, ISession? Session, NotificationAuthorization? Authorization)>
             GetOrAddEventPermissionAsync(
@@ -1477,10 +1478,31 @@ namespace Opc.Ua.Server
                 {
                     return (restrictions, authorization.Session, notificationAuthorization);
                 }
+                NodeState? sourceNode = null;
+                IMasterNodeManager? masterNodeManager = m_server.NodeManager;
+                if (cacheable && masterNodeManager != null)
+                {
+                    sourceNode = await masterNodeManager.FindNodeInAddressSpaceAsync(
+                        sourceNodeId, cancellationToken).ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (!authorization.Matches(CapturePermissionContext(monitoredItem)))
+                    {
+                        continue;
+                    }
+                    cacheable = sourceNode != null;
+                }
+                else
+                {
+                    cacheable = false;
+                }
                 if (cacheable &&
                     m_eventPermissionCache.TryGetValue(
-                        key, out (MonitoredItemPermissionContext Context, ServiceResult Result) cached) &&
-                    cached.Context.Matches(authorization))
+                        key,
+                        out (MonitoredItemPermissionContext Context, WeakReference<NodeState> SourceNode,
+                            ServiceResult Result) cached) &&
+                    cached.Context.Matches(authorization) &&
+                    cached.SourceNode.TryGetTarget(out NodeState? cachedSourceNode) &&
+                    ReferenceEquals(cachedSourceNode, sourceNode))
                 {
                     result = cached.Result;
                 }
@@ -1491,7 +1513,17 @@ namespace Opc.Ua.Server
                     cancellationToken.ThrowIfCancellationRequested();
                     if (cacheable)
                     {
-                        m_eventPermissionCache[key] = (authorization, result);
+                        m_eventPermissionCache[key] = (authorization, new WeakReference<NodeState>(sourceNode!), result);
+                    }
+                }
+                if (!ServiceResult.IsBad(result))
+                {
+                    ServiceResult currentRestrictions = await ValidateEventRestrictionsAsync(
+                        monitoredItem, cancellationToken).ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (ServiceResult.IsBad(currentRestrictions))
+                    {
+                        return (currentRestrictions, authorization.Session, notificationAuthorization);
                     }
                 }
                 if (authorization.Matches(CapturePermissionContext(monitoredItem)))
@@ -1532,7 +1564,10 @@ namespace Opc.Ua.Server
                 slot = m_eventRestrictionVerdicts.GetValue(endpoint, static _ => new EventRestrictionVerdictSlot());
                 EventRestrictionVerdict? verdict = Volatile.Read(ref slot.Current);
                 if (verdict != null &&
-                    verdict.Matches(generation, defaultsGeneration, defaults, endpoint, restrictions))
+                    verdict.Matches(generation, defaultsGeneration, defaults, endpoint, restrictions) &&
+                    generation == Volatile.Read(ref m_permissionGeneration) &&
+                    defaultsGeneration == NamespaceDefaultPermissionReader.Generation &&
+                    restrictions == Node.AccessRestrictions)
                 {
                     return ServiceResult.Good;
                 }
@@ -1544,7 +1579,9 @@ namespace Opc.Ua.Server
             if (slot != null &&
                 ServiceResult.IsGood(result) &&
                 ReferenceEquals(context.ChannelContext?.EndpointDescription, endpoint) &&
+                generation == Volatile.Read(ref m_permissionGeneration) &&
                 defaultsGeneration == NamespaceDefaultPermissionReader.Generation &&
+                restrictions == Node.AccessRestrictions &&
                 NamespaceDefaultPermissionReader.AreDefaultsStatic(defaults))
             {
                 Volatile.Write(
@@ -2133,8 +2170,8 @@ namespace Opc.Ua.Server
         /// </summary>
         private void DropEventPermissionCacheEntries(uint monitoredItemId)
         {
-            foreach (KeyValuePair<EventPermissionCacheKey, (MonitoredItemPermissionContext Context, ServiceResult Result)>
-                entry
+            foreach (KeyValuePair<EventPermissionCacheKey,
+                (MonitoredItemPermissionContext Context, WeakReference<NodeState> SourceNode, ServiceResult Result)> entry
                 in m_eventPermissionCache)
             {
                 if (entry.Key.MonitoredItemId == monitoredItemId)
@@ -2151,7 +2188,8 @@ namespace Opc.Ua.Server
             m_permissionCache = new();
 
         private readonly ConcurrentDictionary<
-            EventPermissionCacheKey, (MonitoredItemPermissionContext Context, ServiceResult Result)>
+            EventPermissionCacheKey,
+            (MonitoredItemPermissionContext Context, WeakReference<NodeState> SourceNode, ServiceResult Result)>
             m_eventPermissionCache = new();
 
         /// <summary>

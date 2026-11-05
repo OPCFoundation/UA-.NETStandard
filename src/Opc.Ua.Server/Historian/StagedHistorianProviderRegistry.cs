@@ -32,7 +32,7 @@ using System.Threading;
 namespace Opc.Ua.Server.Historian
 {
     /// <summary>
-    /// Buffers one candidate's historian registrations until its readiness callback succeeds.
+    /// Stages candidate historian registrations and retains serving bindings during replacement readiness.
     /// </summary>
     internal sealed class StagedHistorianProviderRegistry : IHistorianProviderRegistry, IDisposable
     {
@@ -72,9 +72,10 @@ namespace Opc.Ua.Server.Historian
             {
                 EnsureMutable();
                 EnsureOwnerSupportForMutation();
+                RemoveRetainedNodeBinding(nodeId);
                 m_candidateRegistry.RegisterForNode(
                     nodeId, provider, OwnsProviderForCandidate(provider), rejectDuplicate: true);
-                PublishIfReady();
+                UpdateServingRegistrations();
             }
         }
 
@@ -85,9 +86,10 @@ namespace Opc.Ua.Server.Historian
             {
                 EnsureMutable();
                 EnsureOwnerSupportForMutation();
+                RemoveRetainedNamespaceBinding(namespaceUri);
                 m_candidateRegistry.RegisterForNamespace(
                     namespaceUri, provider, OwnsProviderForCandidate(provider), rejectDuplicate: true);
-                PublishIfReady();
+                UpdateServingRegistrations();
             }
         }
 
@@ -98,9 +100,10 @@ namespace Opc.Ua.Server.Historian
             {
                 EnsureMutable();
                 EnsureOwnerSupportForMutation();
+                RemoveRetainedDefaultBinding();
                 m_candidateRegistry.RegisterDefault(
                     provider, OwnsProviderForCandidate(provider), rejectDuplicate: true);
-                PublishIfReady();
+                UpdateServingRegistrations();
             }
         }
 
@@ -112,7 +115,8 @@ namespace Opc.Ua.Server.Historian
                 EnsureMutable();
                 EnsureOwnerSupportForMutation();
                 bool removed = m_candidateRegistry.UnregisterForNode(nodeId);
-                PublishIfReady();
+                m_retainedNodeIds.Remove(nodeId);
+                UpdateServingRegistrations();
                 return removed;
             }
         }
@@ -125,7 +129,8 @@ namespace Opc.Ua.Server.Historian
                 EnsureMutable();
                 EnsureOwnerSupportForMutation();
                 bool removed = m_candidateRegistry.UnregisterForNamespace(namespaceUri);
-                PublishIfReady();
+                m_retainedNamespaceUris.Remove(namespaceUri);
+                UpdateServingRegistrations();
                 return removed;
             }
         }
@@ -138,7 +143,8 @@ namespace Opc.Ua.Server.Historian
                 EnsureMutable();
                 EnsureOwnerSupportForMutation();
                 m_candidateRegistry.ClearDefault();
-                PublishIfReady();
+                m_retainedDefault = false;
+                UpdateServingRegistrations();
             }
         }
 
@@ -269,7 +275,7 @@ namespace Opc.Ua.Server.Historian
                 EnsureMutable();
                 HistorianProviderRegistration[] registrations =
                     m_candidateRegistry.CaptureRegistrations();
-                if (registrations.Length != 0)
+                if (registrations.Length != 0 || m_servingHasRegistrations)
                 {
                     PublishOwnedRegistrations(registrations);
                 }
@@ -316,13 +322,13 @@ namespace Opc.Ua.Server.Historian
                 }
                 m_published = false;
                 m_retired = true;
-                m_candidateRegistry.ExcludeSharedProviderOwnership(m_servingRegistry);
+                m_candidateRegistry.ExcludeSharedProviderOwnership(m_servingRegistry, m_owner);
                 m_candidateRegistry.Dispose();
                 m_disposed = true;
             }
         }
 
-        private void PublishIfReady()
+        private void UpdateServingRegistrations()
         {
             if (m_published)
             {
@@ -332,16 +338,58 @@ namespace Opc.Ua.Server.Historian
                 {
                     PublishOwnedRegistrations(registrations);
                 }
+                return;
             }
+
+            if (m_servingHasRegistrations ||
+                m_retainedDefault ||
+                m_retainedNodeIds.Count != 0 ||
+                m_retainedNamespaceUris.Count != 0)
+            {
+                PublishOwnedRegistrations(CaptureRetainedRegistrations());
+            }
+        }
+
+        private HistorianProviderRegistration[] CaptureRetainedRegistrations()
+        {
+            HistorianProviderRegistration[] registrations =
+                m_candidateRegistry.CaptureRegistrations();
+            var retained = new List<HistorianProviderRegistration>(registrations.Length);
+            foreach (HistorianProviderRegistration registration in registrations)
+            {
+                bool isRetained = registration.Kind switch
+                {
+                    HistorianProviderRegistrationKind.Node =>
+                        m_retainedNodeIds.Contains(registration.NodeId),
+                    HistorianProviderRegistrationKind.Namespace =>
+                        m_retainedNamespaceUris.Contains(registration.NamespaceUri!),
+                    HistorianProviderRegistrationKind.Default => m_retainedDefault,
+                    _ => false
+                };
+                if (isRetained)
+                {
+                    retained.Add(registration);
+                }
+            }
+            return [.. retained];
         }
 
         private void PublishOwnedRegistrations(HistorianProviderRegistration[] registrations)
         {
-            GetOwnedRegistry().ReplaceOwnedRegistrations(m_owner, registrations);
+            IHistorianOwnedProviderRegistry servingRegistry = GetOwnedRegistry();
+            servingRegistry.ReplaceOwnedRegistrations(m_owner, registrations);
             m_servingHasRegistrations = registrations.Length != 0;
             if (registrations.Length != 0)
             {
                 m_candidateRegistry.TransferProviderOwnership(registrations);
+                var transferredProviders = new HashSet<IHistorianProvider>();
+                foreach (HistorianProviderRegistration registration in registrations)
+                {
+                    if (registration.OwnsProvider && transferredProviders.Add(registration.Provider))
+                    {
+                        servingRegistry.ReleaseStagedProviderOwnership(m_owner, registration.Provider);
+                    }
+                }
             }
         }
 
@@ -367,8 +415,11 @@ namespace Opc.Ua.Server.Historian
             {
                 return true;
             }
-            if (m_servingRegistry is IHistorianOwnedProviderRegistry servingOwner &&
-                servingOwner.OwnsProvider(provider))
+            if (m_servingRegistry is not IHistorianOwnedProviderRegistry servingOwner)
+            {
+                return false;
+            }
+            if (servingOwner.OwnsProvider(provider))
             {
                 return false;
             }
@@ -381,29 +432,69 @@ namespace Opc.Ua.Server.Historian
                     return false;
                 }
             }
+            servingOwner.RetainStagedProviderOwnership(m_owner, provider);
             return true;
         }
 
         private void RetainForCandidate(IHistorianProvider provider, NodeId nodeId, string? namespaceUri)
         {
+            IHistorianOwnedProviderRegistry servingRegistry =
+                (IHistorianOwnedProviderRegistry)m_servingRegistry;
+            HistorianProviderRegistrationKind kind = !nodeId.IsNull
+                ? HistorianProviderRegistrationKind.Node
+                : namespaceUri is not null
+                    ? HistorianProviderRegistrationKind.Namespace
+                    : HistorianProviderRegistrationKind.Default;
+            if (!servingRegistry.IsOwnedBinding(kind, nodeId, namespaceUri, provider))
+            {
+                return;
+            }
             EnsureMutable();
             EnsureOwnerSupportForMutation();
             if (!nodeId.IsNull)
             {
                 m_candidateRegistry.RegisterForNode(
                     nodeId, provider, ownsProvider: false, rejectDuplicate: true);
+                m_retainedNodeIds.Add(nodeId);
             }
             else if (namespaceUri is not null)
             {
                 m_candidateRegistry.RegisterForNamespace(
                     namespaceUri, provider, ownsProvider: false, rejectDuplicate: true);
+                m_retainedNamespaceUris.Add(namespaceUri);
             }
             else
             {
                 m_candidateRegistry.RegisterDefault(
                     provider, ownsProvider: false, rejectDuplicate: true);
+                m_retainedDefault = true;
             }
-            PublishIfReady();
+            UpdateServingRegistrations();
+        }
+
+        private void RemoveRetainedNodeBinding(NodeId nodeId)
+        {
+            if (m_retainedNodeIds.Remove(nodeId))
+            {
+                m_candidateRegistry.UnregisterForNode(nodeId);
+            }
+        }
+
+        private void RemoveRetainedNamespaceBinding(string namespaceUri)
+        {
+            if (m_retainedNamespaceUris.Remove(namespaceUri))
+            {
+                m_candidateRegistry.UnregisterForNamespace(namespaceUri);
+            }
+        }
+
+        private void RemoveRetainedDefaultBinding()
+        {
+            if (m_retainedDefault)
+            {
+                m_candidateRegistry.ClearDefault();
+                m_retainedDefault = false;
+            }
         }
 
         private void EnsureMutable()
@@ -419,8 +510,11 @@ namespace Opc.Ua.Server.Historian
         private readonly HistorianProviderRegistry m_candidateRegistry;
         private readonly IHistorianProviderRegistry m_servingRegistry;
         private readonly object m_owner;
+        private readonly HashSet<NodeId> m_retainedNodeIds = [];
+        private readonly HashSet<string> m_retainedNamespaceUris = new(StringComparer.Ordinal);
         private bool m_published;
         private bool m_servingHasRegistrations;
+        private bool m_retainedDefault;
         private bool m_retired;
         private bool m_disposed;
     }

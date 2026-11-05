@@ -32,7 +32,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -598,18 +597,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             const string unsupportedUri = kModelNamespaceUri + ":ReferencePublicationRetryUnsupported";
             const string candidateUri = kModelNamespaceUri + ":ReferencePublicationRetryCandidate";
 
-            var server = (ServerInternalData)m_server.CurrentInstance;
-            IMasterNodeManager master = server.NodeManager;
             bool failPublication = false;
             bool failAddReferences = true;
             bool failObserverNotification = true;
             var failure = new InvalidOperationException("The host failed after committing reference changes.");
-            Mock<IMasterNodeManager> proxy = CreatePostSwapPublicationFailureHost(
-                master, () => failPublication, notifyBeforeFailure: true, failure);
-            PropertyInfo nodeManagerProperty = typeof(ServerInternalData).GetProperty(
-                nameof(ServerInternalData.NodeManager)) ??
-                throw new AssertionException("The bound master NodeManager property was not found.");
-            nodeManagerProperty.SetValue(server, proxy.Object);
+            m_server.HostBoundary.Publication = CreatePostSwapPublicationFailure(
+                () => failPublication, notifyBeforeFailure: true, failure);
 
             try
             {
@@ -763,7 +756,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             finally
             {
-                nodeManagerProperty.SetValue(server, master);
+                m_server.HostBoundary.Publication = null;
             }
         }
 
@@ -7431,105 +7424,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
                 return references;
             };
-        }
-
-        /// <summary>
-        /// Injects a publication notification failure while preserving the real host's routing and cleanup.
-        /// </summary>
-        private static Mock<IMasterNodeManager> CreatePostSwapPublicationFailureHost(
-            IMasterNodeManager master,
-            Func<bool> shouldFail,
-            bool notifyBeforeFailure,
-            Exception failure,
-            Action? onAdmissionAttempt = null,
-            Action? onReferencePreparationAttempt = null)
-        {
-            var host = (IDynamicNodeManagerHost)master;
-            var batchHost = (IDynamicNodeManagerBatchHost)master;
-            var proxy = new Mock<IMasterNodeManager>();
-            Mock<IDynamicNodeManagerHost> dynamicProxy = proxy.As<IDynamicNodeManagerHost>();
-            Mock<IDynamicNodeManagerBatchHost> batchProxy = proxy.As<IDynamicNodeManagerBatchHost>();
-            proxy.SetupGet(value => value.AsyncNodeManagers).Returns(() => master.AsyncNodeManagers);
-            proxy.SetupGet(value => value.ConfigurationNodeManager).Returns(master.ConfigurationNodeManager);
-            proxy.SetupGet(value => value.DiagnosticsNodeManager).Returns(master.DiagnosticsNodeManager);
-            proxy.SetupGet(value => value.CoreNodeManager).Returns(master.CoreNodeManager);
-            dynamicProxy.SetupGet(value => value.GenerationReconciler).Returns(host.GenerationReconciler);
-            dynamicProxy.Setup(value => value.PrepareAsync(
-                It.IsAny<IAsyncNodeManager>(), It.IsAny<NodeManagerGeneration>(),
-                It.IsAny<IAsyncNodeManager?>(), It.IsAny<CancellationToken>()))
-                .Returns<IAsyncNodeManager, NodeManagerGeneration, IAsyncNodeManager?, CancellationToken>(
-                    host.PrepareAsync);
-            dynamicProxy.Setup(value => value.AbortAsync(
-                It.IsAny<PreparedNodeManager>(), It.IsAny<CancellationToken>()))
-                .Returns<PreparedNodeManager, CancellationToken>((prepared, ct) => host.AbortAsync(prepared, ct));
-            dynamicProxy.Setup(value => value.DestroyAddressSpaceAsync(
-                It.IsAny<IAsyncNodeManager>(), It.IsAny<CancellationToken>()))
-                .Returns<IAsyncNodeManager, CancellationToken>((manager, ct) => host.DestroyAddressSpaceAsync(manager, ct));
-            dynamicProxy.Setup(value => value.RemoveDestroyedExternalReferencesAsync(
-                It.IsAny<IAsyncNodeManager>(), It.IsAny<CancellationToken>()))
-                .Returns<IAsyncNodeManager, CancellationToken>(
-                    (manager, ct) => host.RemoveDestroyedExternalReferencesAsync(manager, ct));
-            dynamicProxy.Setup(value => value.FinalizeRetiredGenerationNotificationsAsync(
-                It.IsAny<IAsyncNodeManager>(), It.IsAny<CancellationToken>()))
-                .Returns<IAsyncNodeManager, CancellationToken>(
-                    (manager, ct) => host.FinalizeRetiredGenerationNotificationsAsync(manager, ct));
-            batchProxy.SetupGet(value => value.RoutingRevision).Returns(() => batchHost.RoutingRevision);
-            batchProxy.Setup(value => value.CaptureLifecycleCallbackPermit())
-                .Returns(() => batchHost.CaptureLifecycleCallbackPermit());
-            batchProxy.Setup(value => value.PrepareReferencesAsync(
-                It.IsAny<ArrayOf<PreparedNodeManager>>(), It.IsAny<ArrayOf<IAsyncNodeManager>>(),
-                It.IsAny<NodeManagerRoutingTable.RoutingSnapshot>(), It.IsAny<CancellationToken>(),
-                It.IsAny<NodeManagerCallbackPermit?>()))
-                .Returns<ArrayOf<PreparedNodeManager>, ArrayOf<IAsyncNodeManager>,
-                    NodeManagerRoutingTable.RoutingSnapshot, CancellationToken, NodeManagerCallbackPermit?>(
-                    (candidates, removed, view, token, callbackPermit) =>
-                    {
-                        ValueTask<PreparedAddressSpaceReferences> preparation =
-                            batchHost.PrepareReferencesAsync(candidates, removed, view, token, callbackPermit);
-                        onReferencePreparationAttempt?.Invoke();
-                        return preparation;
-                    });
-            batchProxy.Setup(value => value.AcquireCommitAdmissionAsync(
-                It.IsAny<NodeManagerCallbackPermit?>(), It.IsAny<CancellationToken>()))
-                .Returns<NodeManagerCallbackPermit?, CancellationToken>((callbackPermit, token) =>
-                {
-                    ValueTask<INodeManagerBatchAdmission> admission =
-                        batchHost.AcquireCommitAdmissionAsync(callbackPermit, token);
-                    onAdmissionAttempt?.Invoke();
-                    return admission;
-                });
-            batchProxy.Setup(value => value.ReleaseRetiringEventGeneration(It.IsAny<NodeManagerGeneration>()))
-                .Callback<NodeManagerGeneration>(batchHost.ReleaseRetiringEventGeneration);
-            batchProxy.Setup(value => value.CommitBatchAsync(It.IsAny<NodeManagerPublicationPlan>()))
-                .Returns<NodeManagerPublicationPlan>(async context =>
-                {
-                    bool fail = shouldFail();
-                    if (fail && !notifyBeforeFailure)
-                    {
-                        var commit = new Mock<INodeManagerPublicationCommit>();
-                        commit.SetupGet(value => value.HasDecision).Returns(() => context.Commit.HasDecision);
-                        commit.Setup(value => value.DecideAsync(It.IsAny<CancellationToken>()))
-                            .Returns<CancellationToken>(context.Commit.DecideAsync);
-                        commit.Setup(value => value.CaptureCommittedReferences(
-                            It.IsAny<PublishedReferenceChanges>()))
-                            .Callback<PublishedReferenceChanges>(context.Commit.CaptureCommittedReferences);
-                        commit.Setup(value => value.Publish(It.IsAny<bool>())).Callback<bool>(historianChanged =>
-                        {
-                            context.Commit.Publish(historianChanged);
-                            throw failure;
-                        });
-                        return await batchHost.CommitBatchAsync(
-                            context with { Commit = commit.Object }).ConfigureAwait(false);
-                    }
-                    PublishedReferenceChanges? references = await batchHost.CommitBatchAsync(context)
-                        .ConfigureAwait(false);
-                    if (fail)
-                    {
-                        throw failure;
-                    }
-                    return references;
-                });
-            return proxy;
         }
 
         private async Task FinishShutdownTestAsync()

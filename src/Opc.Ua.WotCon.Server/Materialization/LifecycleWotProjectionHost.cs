@@ -128,14 +128,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
             if (handle?.Registration is NodeManagerProjectionRegistration wrapper)
             {
                 RequireCurrent(wrapper.Registration);
-                IPreparedNodeManagerBatch prepared = await m_lifecycle
-                    .PrepareAsync([NodeManagerBatchChange.Remove(wrapper.Registration)], cancellationToken)
+                IPreparedChanges prepared = await m_lifecycle
+                    .PrepareAsync([LifecycleChange.Remove(wrapper.Registration.Slot)], cancellationToken)
                     .ConfigureAwait(false);
                 await using var preparedLifetime = prepared.ConfigureAwait(false);
                 RequireCurrent(wrapper.Registration);
-                NodeManagerBatchResult batchResult = await prepared.CommitAsync(
+                LifecycleResult result = await prepared.CommitAsync(
                     static _ => default, cancellationToken).ConfigureAwait(false);
-                LifecycleResult result = batchResult.CommittedResult;
                 if (result.CleanupFailure is { } failure)
                 {
                     throw new NodeManagerRemovalCommittedException(wrapper.Registration, result, failure);
@@ -168,37 +167,39 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 RequireCurrent(current);
             }
-            NodeManagerBatchChange change = current is null
-                ? NodeManagerBatchChange.Add(factory)
-                : NodeManagerBatchChange.Replace(current, factory, transitionMode);
-            IPreparedNodeManagerBatch prepared = await m_lifecycle.PrepareAsync(
+            LifecycleChange change = current is null
+                ? LifecycleChange.Add(factory)
+                : LifecycleChange.Reload(current.Slot, factory, transitionMode);
+            IPreparedChanges prepared = await m_lifecycle.PrepareAsync(
                 [change], cancellationToken).ConfigureAwait(false);
             await using var preparedLifetime = prepared.ConfigureAwait(false);
             if (current is not null)
             {
                 RequireCurrent(current);
             }
-            NodeManagerRegistration candidate = prepared.Registrations[0];
-            NodeManagerBatchResult batchResult = await prepared.CommitAsync(
+            if (!prepared.Registrations[0].TryGetRegistration(out NodeManagerRegistration? candidate) ||
+                candidate is null)
+            {
+                throw new InvalidOperationException("The prepared projection registration is no longer available.");
+            }
+            LifecycleResult result = await prepared.CommitAsync(
                 static _ => default,
                 () => publication.Publish(candidate.Generation),
                 cancellationToken).ConfigureAwait(false);
-            LifecycleResult result = batchResult.CommittedResult;
-            NodeManagerRegistration registration = batchResult.Registrations[0];
             string warning = string.Empty;
             if (result.CleanupFailure is { } failure)
             {
                 if (current is null)
                 {
                     throw new NodeManagerAddCommittedException(
-                        registration, result, "The WoT projection is live, but reconciliation failed.", failure);
+                        candidate, result, "The WoT projection is live, but reconciliation failed.", failure);
                 }
                 warning = "The replacement is active, but prior-generation cleanup is pending: " + failure.Message;
             }
             return new WotProjectionHandle(
                 document.ClosureKey,
-                registration.Generation,
-                new NodeManagerProjectionRegistration(registration),
+                candidate.Generation,
+                new NodeManagerProjectionRegistration(candidate),
                 [],
                 0,
                 warning);

@@ -123,11 +123,27 @@ namespace Opc.Ua.Server
             ITelemetryContext telemetry,
             TimeProvider? timeProvider,
             Func<CancellationToken, Task>? registrationWorkerFactory)
+            : this(telemetry, timeProvider, registrationWorkerFactory, null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the server with construction-bound registration and lifecycle writer factories.
+        /// </summary>
+        /// <param name="telemetry">The telemetry context.</param>
+        /// <param name="timeProvider">The server time provider.</param>
+        /// <param name="registrationWorkerFactory">The worker factory, or null for normal registration.</param>
+        /// <param name="lifecycleWriterFactory">The writer factory, or null for the server-owned default.</param>
+        internal StandardServer(
+            ITelemetryContext telemetry,
+            TimeProvider? timeProvider,
+            Func<CancellationToken, Task>? registrationWorkerFactory,
+            Func<Func<bool>, LifecycleWriter>? lifecycleWriterFactory)
             : base(telemetry)
         {
             TimeProvider = timeProvider ?? TimeProvider.System;
             m_registrationWorkerFactory = registrationWorkerFactory;
-            m_nodeManagerLifecycle = new NodeManagerLifecycle(this, TimeProvider);
+            m_nodeManagerLifecycle = new NodeManagerLifecycle(this, TimeProvider, lifecycleWriterFactory);
             m_eventLogger = telemetry.CreateLogger(
                 ServerCompatibilityEventIds.CategoryName);
         }
@@ -3875,6 +3891,10 @@ namespace Opc.Ua.Server
             m_semaphoreSlim.Wait();
             try
             {
+                lock (m_registrationLock)
+                {
+                    m_registrationShutdownRequested = false;
+                }
                 base.OnServerStarting(configuration);
                 InitializeResourceIsolation(configuration, MessageContext.Telemetry);
 

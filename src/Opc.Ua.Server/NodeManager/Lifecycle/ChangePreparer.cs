@@ -566,22 +566,9 @@ namespace Opc.Ua.Server
             internal bool IsDetached { get; private set; }
 
             /// <summary>
-            /// Gets whether preparation recorded historian state that requires a readiness participant.
+            /// Gets whether preparation recorded candidate-owned historian bindings that require readiness.
             /// </summary>
-            internal bool HasPendingHistorianState
-            {
-                get
-                {
-                    if (m_historianRegistry?.HasRegistrations == true)
-                    {
-                        return true;
-                    }
-                    lock (m_historianBuildersLock)
-                    {
-                        return m_historianBuilders.Count != 0;
-                    }
-                }
-            }
+            internal bool HasPendingHistorianState => m_historianRegistry?.HasRegistrations == true;
 
             /// <summary>
             /// Gets whether the serving historian registry supports owner-scoped publication.

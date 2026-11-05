@@ -552,10 +552,11 @@ type. The runner invokes each matching delegate after:
 - authored-node registration through `RegisterAuthoredNodesAsync`;
 - `CompleteConfigureAsync`.
 
-The configurators run during `OnServerReadyAsync`, after the initial application managers have
-been published, so services supplied by peer managers are available. They still run **before**
-`SealConfigurationAsync`; the base class then seals the builder and starts the manager's registries.
-Private preparation does not invoke callbacks that resolve shared serving services.
+The readiness callback runs after the initial application managers have been published, so services
+supplied by peer managers are available. When the callback returns successfully, the lifecycle runs
+the configurators and seals the builder before releasing readiness. A manager can call
+`CompletePublishedConfigurationAsync` from its callback when later callback work depends on those
+services. Private preparation does not invoke callbacks that resolve shared serving services.
 
 Configurator-type matching follows `Type.IsAssignableFrom`. A
 delegate targeting `DiNodeManager` runs against every Device Integration-derived
@@ -811,7 +812,8 @@ sequenceDiagram
     Base-->>Host: private preparation complete
     Note over Host: publish the initial application managers
     Host->>Base: OnServerReadyAsync(ct)
-    Base->>Sub: complete deferred shared-service authoring
+    Base-->>Host: readiness callback returns
+    Host->>Base: complete deferred shared-service authoring
     Note over Sub: register published additions and references;<br/>do not activate manager-wide behaviors yet
     Base->>Run: await RunAsync(this, ct)
     Note over Run: configurators still register simulation<br/>loops and event sources here

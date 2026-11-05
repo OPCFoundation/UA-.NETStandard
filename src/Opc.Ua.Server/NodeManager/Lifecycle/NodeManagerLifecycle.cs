@@ -33,6 +33,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Schema;
+using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.RuntimeNodeSet;
 using OperationLifetime = Opc.Ua.Server.LifecycleWriter.OperationLifetime;
 using RetiredGeneration = Opc.Ua.Server.GenerationReclaimer.RetiredGeneration;
@@ -62,12 +63,36 @@ namespace Opc.Ua.Server
         /// <param name="server">The directly constructed server.</param>
         /// <param name="timeProvider">The server's clock.</param>
         internal NodeManagerLifecycle(StandardServer server, TimeProvider timeProvider)
+            : this(server, timeProvider, null)
+        {
+        }
+
+        /// <summary>
+        /// Creates the server-owned lifecycle provider with a construction-bound writer factory.
+        /// </summary>
+        /// <param name="server">The directly constructed server.</param>
+        /// <param name="timeProvider">The server's clock.</param>
+        /// <param name="writerFactory">The factory receiving the owner's cleanup-completion policy.</param>
+        internal NodeManagerLifecycle(
+            StandardServer server,
+            TimeProvider timeProvider,
+            Func<Func<bool>, LifecycleWriter>? writerFactory)
         {
             m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
             m_reclaimer = new GenerationReclaimer(m_timeProvider);
             m_canonicalOwner = server.NodeManagerLifecycle as NodeManagerLifecycle;
-            m_writer = new LifecycleWriter(() => m_reclaimer.Count == 0 && m_registrations.Count == 0);
+            bool CanDispose() => m_reclaimer.Count == 0 && m_registrations.Count == 0;
+
+            if (writerFactory is null)
+            {
+                m_writer = new LifecycleWriter(CanDispose);
+            }
+            else
+            {
+                m_writer = writerFactory(CanDispose)
+                    ?? throw new InvalidOperationException("The lifecycle writer factory returned no writer.");
+            }
         }
 
         /// <inheritdoc/>
@@ -510,6 +535,12 @@ namespace Opc.Ua.Server
                                 readinessContext),
                         ct).ConfigureAwait(false);
                     ct.ThrowIfCancellationRequested();
+                    if (state.Prepared.NodeManager is FluentNodeManagerBase fluentNodeManager)
+                    {
+                        await fluentNodeManager.CompleteDeferredConfigurationForLifecycleAsync(ct)
+                        .ConfigureAwait(false);
+                    }
+                    ct.ThrowIfCancellationRequested();
 
                     EnsurePublicationServer(server, host, initial);
                     if (!IsCurrentRegistration(state.Registration))
@@ -525,6 +556,11 @@ namespace Opc.Ua.Server
                             state.HistorianRegistrationsPublished =
                                 ChangePreparer.PublishHistorianRegistrations(state.Prepared.NodeManager);
                         });
+                }
+                else
+                {
+                    state.HistorianRegistrationsPublished =
+                        ChangePreparer.PublishHistorianRegistrations(state.Prepared.NodeManager);
                 }
 
                 await LifecycleWaitDiagnostics.WaitAsync(
@@ -2317,6 +2353,15 @@ namespace Opc.Ua.Server
                         Admission: admission);
                     committedReferences = await batch.Host.CommitBatchAsync(context).ConfigureAwait(false);
                 }
+                catch (Exception failure) when (
+                    batch.DecisionCommitted && !batch.IsCommitted &&
+                    failure is not OutOfMemoryException)
+                {
+                    throw new InvalidOperationException(
+                        "The durable NodeManager decision succeeded, but routing publication failed before the " +
+                        "serving view changed. Candidate cleanup was skipped; restart the server to recover.",
+                        failure);
+                }
                 catch (Exception failure) when (batch.IsCommitted && failure is not OutOfMemoryException)
                 {
                     reconciliation.ReportOwnedFailure(NodeManagerReconciliationStage.Publication, failure);
@@ -2568,12 +2613,13 @@ namespace Opc.Ua.Server
             public PublishedReferenceChanges? CommittedReferences { get; private set; }
 
             /// <inheritdoc/>
-            public ValueTask DecideAsync(CancellationToken cancellationToken)
+            public async ValueTask DecideAsync(CancellationToken cancellationToken)
             {
                 m_batch.Publication?.ValidateRevision();
-                return m_mutation.DecideAsync(m_decideAsync ??
+                await m_mutation.DecideAsync(m_decideAsync ??
                     throw new InvalidOperationException("A validation unit has no durable decision."),
-                    cancellationToken);
+                    cancellationToken).ConfigureAwait(false);
+                m_batch.DecisionCommitted = true;
             }
 
             /// <inheritdoc/>
@@ -2892,6 +2938,11 @@ namespace Opc.Ua.Server
             public bool IsCommitted { get; set; }
 
             /// <summary>
+            /// Gets or sets whether the durable decision succeeded before routing publication.
+            /// </summary>
+            public bool DecisionCommitted { get; set; }
+
+            /// <summary>
             /// Gets whether the batch is a validation candidate that cannot be committed.
             /// </summary>
             public bool IsValidationOnly { get; }
@@ -3050,7 +3101,7 @@ namespace Opc.Ua.Server
                     {
                         return;
                     }
-                    if (!IsCommitted)
+                    if (!IsCommitted && !DecisionCommitted)
                     {
                         Exception? failure = await m_owner.AbortBatchEntriesAsync(
                             Host, Entries).ConfigureAwait(false);
@@ -3124,7 +3175,8 @@ namespace Opc.Ua.Server
                     }
                 }
                 catch (Exception failure) when (
-                    decideAsync is not null && !IsCommitted && failure is not OutOfMemoryException)
+                    decideAsync is not null && !IsCommitted && !DecisionCommitted &&
+                    failure is not OutOfMemoryException)
                 {
                     commitFailed = true;
                     Exception? cleanupFailure;
@@ -3147,7 +3199,7 @@ namespace Opc.Ua.Server
                 }
                 finally
                 {
-                    if (IsCommitted || commitFailed)
+                    if (IsCommitted || DecisionCommitted || commitFailed)
                     {
                         Interlocked.Exchange(ref m_operation, null)?.Dispose();
                     }

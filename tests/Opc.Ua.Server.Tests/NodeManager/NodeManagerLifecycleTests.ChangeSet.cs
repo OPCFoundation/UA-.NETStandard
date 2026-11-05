@@ -363,10 +363,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     committedRegistration, compatibilityResult, "add", originalFailure),
                 new NodeManagerReloadCommittedException(
                     committedRegistration, compatibilityResult, "reload", originalFailure),
+                new NodeManagerReloadCommittedException(
+                    committedRegistration, result, "reload", originalFailure),
                 new NodeManagerRemovalCommittedException(
                     committedRegistration, compatibilityResult, originalFailure)
             ];
             Assert.That(shims.All(shim => ReferenceEquals(shim.CommittedResult, result)), Is.True);
+            Assert.That(((NodeManagerReloadCommittedException)shims[2]).Result, Is.Null);
         }
 
         /// <summary>
@@ -542,10 +545,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             prepared.SetMetadata(candidate.Slot, candidateImage.Object);
             Assert.That(() => prepared.SetMetadata(stable.Slot, stableImage.Object), Throws.InvalidOperationException);
             var host = (IDynamicNodeManagerBatchHost)m_server.CurrentInstance.NodeManager;
-            NodeManagerRoutingTable routing = GetRoutingTable((MasterNodeManager)m_server.CurrentInstance.NodeManager);
             using var pinnedContext = new OperationContext(
                 new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
-            pinnedContext.PinRouting(routing);
+            ((IRequestRouting)m_server.CurrentInstance.NodeManager).PinRequest(pinnedContext);
             NodeManagerRoutingTable.RoutingSnapshot before = pinnedContext.RoutingSnapshot!;
             Assert.That(host.RoutingRevision.ReadImages.ContainsKey(stable.NodeManager), Is.False);
             Assert.That(Array.IndexOf(before.NodeManagers, candidate.NodeManager), Is.EqualTo(-1));
@@ -1136,7 +1138,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 [LifecycleChange.Add(CreateFactory(CreateManager(kNamespaceUri)))])
                 .ConfigureAwait(false);
             await added.Retired.ConfigureAwait(false);
-            LifecycleWriter writer = GetWriter(lifecycle);
+            LifecycleWriter writer = harness.Writer;
             Assert.That(writer.ActiveOperationCount, Is.Zero);
 
             Mock<IAsyncNodeManager> candidate = CreateManager(kNamespaceUri);
@@ -1218,7 +1220,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 [LifecycleChange.Add(CreateFactory(CreateManager(kNamespaceUri)))])
                 .ConfigureAwait(false);
             await added.Retired.ConfigureAwait(false);
-            LifecycleWriter writer = GetWriter(lifecycle);
+            LifecycleWriter writer = harness.Writer;
             Assert.That(writer.ActiveOperationCount, Is.Zero);
 
             Mock<IAsyncNodeManager> candidate = CreateManager(kNamespaceUri);
@@ -1317,14 +1319,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
             return factory.Object;
         }
 
-        private static LifecycleWriter GetWriter(INodeManagerLifecycle lifecycle)
-        {
-            return (LifecycleWriter)(typeof(NodeManagerLifecycle).GetField(
-                "m_writer",
-                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
-                .GetValue(lifecycle) ?? throw new InvalidOperationException("The lifecycle writer is unavailable."));
-        }
-
         /// <summary>
         /// Creates the actual server lifecycle and master manager without starting the server or binding ports.
         /// </summary>
@@ -1338,7 +1332,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     ApplicationUri = "urn:test:change-set-cleanup:server",
                     ServerConfiguration = new ServerConfiguration()
                 };
-                Server = new StandardServer(telemetry) { LoadComplexTypes = false };
+                LifecycleWriter? writer = null;
+                Server = new StandardServer(telemetry, null, null, canDispose =>
+                {
+                    writer = new LifecycleWriter(canDispose);
+                    return writer;
+                })
+                {
+                    LoadComplexTypes = false
+                };
+                Writer = writer ?? throw new InvalidOperationException("The lifecycle writer was not constructed.");
                 Data = new ServerInternalData(new ServerProperties(), configuration,
                     new ServiceMessageContext(telemetry, EncodeableFactory.Create()));
                 Data.NamespaceUris.GetIndexOrAppend(DeterministicServerMock.TestNamespaceUri);
@@ -1372,6 +1375,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
 
             public StandardServer Server { get; }
+
+            /// <summary>
+            /// Gets the actual writer constructed for this server's lifecycle.
+            /// </summary>
+            public LifecycleWriter Writer { get; }
+
             public ServerInternalData Data { get; }
             public MasterNodeManager Master { get; }
             public Mock<IAsyncNodeManager> ServingManager { get; }

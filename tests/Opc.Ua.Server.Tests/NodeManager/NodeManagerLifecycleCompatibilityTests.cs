@@ -50,6 +50,26 @@ namespace Opc.Ua.Server.Tests.NodeManager
     public sealed class NodeManagerLifecycleCompatibilityTests
     {
         /// <summary>
+        /// Adding a reconciliation stage preserves the numeric identities of existing stages.
+        /// </summary>
+        [TestCase(NodeManagerReconciliationStage.ApplicationState, 0)]
+        [TestCase(NodeManagerReconciliationStage.References, 1)]
+        [TestCase(NodeManagerReconciliationStage.Bindings, 2)]
+        [TestCase(NodeManagerReconciliationStage.MonitoredItems, 3)]
+        [TestCase(NodeManagerReconciliationStage.Readiness, 4)]
+        [TestCase(NodeManagerReconciliationStage.Identity, 5)]
+        [TestCase(NodeManagerReconciliationStage.Namespaces, 6)]
+        [TestCase(NodeManagerReconciliationStage.ModelChange, 7)]
+        [TestCase(NodeManagerReconciliationStage.SemanticChange, 8)]
+        [TestCase(NodeManagerReconciliationStage.Publication, 9)]
+        [TestCase(NodeManagerReconciliationStage.Retirement, 10)]
+        [TestCase(NodeManagerReconciliationStage.HistorianCapabilities, 11)]
+        public void ReconciliationStagePreservesNumericIdentity(NodeManagerReconciliationStage stage, int value)
+        {
+            Assert.That((int)stage, Is.EqualTo(value));
+        }
+
+        /// <summary>
         /// Factory/preparation exceptions are never mistaken for a commit-time routing conflict.
         /// </summary>
         [TestCase(false)]

@@ -501,9 +501,18 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         Throws.TypeOf<IOException>()).ConfigureAwait(false);
                 }
                 Task shutdown = lifecycle.BeginShutdownAsync(server, timeout.Token).AsTask();
-                Assert.That(shutdown.IsCompleted, Is.False,
-                    "The prepared batch must retain its lifecycle operation lease until it is asynchronously disposed.");
                 Assert.That(prepared.IsCommitted, Is.False);
+                if (rejectDecision)
+                {
+                    await shutdown.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    Assert.That(shutdown.IsCompleted, Is.True,
+                        "A rejected commit must release its operation lease before the prepared batch is disposed.");
+                }
+                else
+                {
+                    Assert.That(shutdown.IsCompleted, Is.False,
+                        "An uncommitted prepared batch must retain its operation lease until it is disposed.");
+                }
                 Assert.That(candidate.DeleteAddressSpaceCount, Is.EqualTo(rejectDecision ? 1 : 0));
                 Assert.That(candidate.DisposeCount, Is.EqualTo(rejectDecision ? 1 : 0));
                 await prepared.DisposeAsync().ConfigureAwait(false);
@@ -519,6 +528,67 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await m_server.ShutdownInternalsAsync(timeout.Token).ConfigureAwait(false);
                 AssertServerInternalsDisposed();
                 await FinishShutdownTestAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// A successful durable decision must not turn a pre-swap publication failure into candidate abort.
+        /// </summary>
+        [Test]
+        public async Task DurableDecisionBeforeRoutingFailureDoesNotAbortCandidateAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            TrackingLifecycleNodeManager? candidate = null;
+            var expected = new IOException("Injected failure after the durable decision.");
+            bool decisionCompleted = false;
+            IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
+                    kFirstRegistrationValue, value => candidate = value))], null, timeout.Token)
+                .ConfigureAwait(false);
+            AssertLifecycleValue(candidate);
+            m_server.HostBoundary.Publication = async (plan, _) =>
+            {
+                await plan.Commit.DecideAsync(timeout.Token).ConfigureAwait(false);
+                throw expected;
+            };
+
+            try
+            {
+                InvalidOperationException? failure = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                {
+                    await prepared.CommitAsync(
+                        _ =>
+                        {
+                            decisionCompleted = true;
+                            return default;
+                        },
+                        timeout.Token).ConfigureAwait(false);
+                }).ConfigureAwait(false);
+
+                Assert.That(failure!.Message, Does.Contain("durable NodeManager decision succeeded"));
+                Assert.That(failure.InnerException, Is.SameAs(expected));
+                Assert.That(decisionCompleted, Is.True);
+                Assert.That(prepared.IsCommitted, Is.False,
+                    "The serving routing view did not reach its publication commit point.");
+                Assert.That(candidate!.DeleteAddressSpaceCount, Is.Zero);
+                Assert.That(candidate.DisposeCount, Is.Zero);
+
+                await prepared.DisposeAsync().ConfigureAwait(false);
+
+                Assert.That(candidate.DeleteAddressSpaceCount, Is.Zero);
+                Assert.That(candidate.DisposeCount, Is.Zero,
+                    "A candidate covered by the successful durable decision must not be aborted.");
+            }
+            finally
+            {
+                m_server.HostBoundary.Publication = null;
+                await prepared.DisposeAsync().ConfigureAwait(false);
+                if (candidate is not null)
+                {
+                    await candidate.DeleteAddressSpaceAsync(timeout.Token).ConfigureAwait(false);
+                    await candidate.DisposeAsync().ConfigureAwait(false);
+                }
             }
         }
 

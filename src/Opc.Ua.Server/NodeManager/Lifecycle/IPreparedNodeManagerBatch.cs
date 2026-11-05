@@ -281,11 +281,6 @@ namespace Opc.Ua.Server
         Readiness,
 
         /// <summary>
-        /// Server-wide historian capability and event notifier refresh.
-        /// </summary>
-        HistorianCapabilities,
-
-        /// <summary>
         /// Identity policy notification.
         /// </summary>
         Identity,
@@ -313,7 +308,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Independently owned retired-generation cleanup.
         /// </summary>
-        Retirement
+        Retirement,
+
+        /// <summary>
+        /// Server-wide historian capability and event notifier refresh.
+        /// </summary>
+        HistorianCapabilities
     }
 
     /// <summary>

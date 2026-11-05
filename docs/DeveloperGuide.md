@@ -245,6 +245,14 @@ Use fully qualified fixture or method names to select a narrower regression.
 The `Server` and `NodeManagerLifecycle` categories include both component and
 hosted lifecycle tests.
 
+`NodeManagerLifecycleChangeSetCleanupTests` constructs an unstarted server and
+captures its actual lifecycle writer through the internal constructor factory.
+The factory must pass the lifecycle's cleanup-completion policy to the writer.
+Keep the exact active-operation counts and inspect the writer's shutdown-drain
+signal before disposing the caller's prepared unit; caller disposal could
+otherwise conceal an admission leak. Do not inspect private writer fields or
+replace the running server's master manager.
+
 ### Testing UaLens
 
 All four assemblies are registered in `UA.slnx` and use the normal NUnit runner:

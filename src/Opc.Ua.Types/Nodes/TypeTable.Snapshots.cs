@@ -87,6 +87,20 @@ namespace Opc.Ua
             return CaptureSnapshot(out _, out _, namespaceUris: null, copyNamespaceUris: true);
         }
 
+        /// <summary>
+        /// Gets whether another live storage handle currently shares the registration graph.
+        /// </summary>
+        internal bool HasSharedRegistrationGraph
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_storage.IsShared;
+                }
+            }
+        }
+
         private static RegistrationGraph CopyGraph(RegistrationGraph source)
         {
             var graph = new RegistrationGraph();
@@ -265,7 +279,6 @@ namespace Opc.Ua
                     target.Encodings = [.. target.Encodings, encoding.Key];
                 }
             }
-            merged.m_storage.MarkGraphShared();
             return merged;
         }
 
@@ -408,6 +421,7 @@ namespace Opc.Ua
             internal Storage()
             {
                 m_graph = new RegistrationGraph();
+                m_graph.Track(this);
             }
 
             /// <summary>
@@ -417,7 +431,7 @@ namespace Opc.Ua
             internal void ShareGraphFrom(Storage source)
             {
                 m_graph = source.m_graph;
-                m_graph.MarkShared();
+                m_graph.Track(this);
             }
 
             /// <summary>
@@ -425,19 +439,19 @@ namespace Opc.Ua
             /// </summary>
             internal void EnsureWritableGraph()
             {
-                if (m_graph.IsShared)
+                if (m_graph.HasOtherOwner(this))
                 {
                     m_graph = CopyGraph(m_graph);
+                    m_graph.Track(this);
                 }
             }
 
-            /// <summary>
-            /// Marks the graph immutable until all writer handles detach.
-            /// </summary>
-            internal void MarkGraphShared()
-            {
-                m_graph.MarkShared();
-            }
+            /// <summary>Indicates that another live storage handle shares the registration graph.</summary>
+            internal bool IsShared => m_graph.HasOtherOwner(this);
+
+            /// <summary>Checks whether this storage still uses the specified graph.</summary>
+            /// <param name="graph">The graph to check.</param>
+            internal bool UsesGraph(RegistrationGraph graph) => ReferenceEquals(m_graph, graph);
 
             /// <summary>Serializes access through every bound handle.</summary>
             internal readonly Lock Gate = new();
@@ -486,16 +500,54 @@ namespace Opc.Ua
             /// <summary>Indexes data type encoding ownership.</summary>
             internal NodeIdDictionary<TypeInfo> Encodings = [];
 
-            /// <summary>Indicates that a snapshot may still read this graph.</summary>
-            internal bool IsShared => Volatile.Read(ref m_shared) != 0;
-
-            /// <summary>Marks the graph immutable until a writer detaches it.</summary>
-            internal void MarkShared()
+            /// <summary>Checks whether another live storage handle references this graph.</summary>
+            /// <param name="storage">The storage handle making the check.</param>
+            internal bool HasOtherOwner(Storage storage)
             {
-                Interlocked.Exchange(ref m_shared, 1);
+                lock (m_ownerLock)
+                {
+                    for (int index = m_owners.Count - 1; index >= 0; index--)
+                    {
+                        if (!m_owners[index].TryGetTarget(out Storage? current) ||
+                            !current.UsesGraph(this))
+                        {
+                            m_owners.RemoveAt(index);
+                            continue;
+                        }
+                        if (!ReferenceEquals(current, storage))
+                        {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
             }
 
-            private int m_shared;
+            /// <summary>Tracks a storage handle that currently references this graph.</summary>
+            /// <param name="storage">The storage handle.</param>
+            internal void Track(Storage storage)
+            {
+                lock (m_ownerLock)
+                {
+                    for (int index = m_owners.Count - 1; index >= 0; index--)
+                    {
+                        if (!m_owners[index].TryGetTarget(out Storage? current) ||
+                            !current.UsesGraph(this))
+                        {
+                            m_owners.RemoveAt(index);
+                            continue;
+                        }
+                        if (ReferenceEquals(current, storage))
+                        {
+                            return;
+                        }
+                    }
+                    m_owners.Add(new WeakReference<Storage>(storage));
+                }
+            }
+
+            private readonly Lock m_ownerLock = new();
+            private readonly List<WeakReference<Storage>> m_owners = [];
         }
 
         /// <summary>

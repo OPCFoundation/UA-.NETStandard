@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -39,6 +40,32 @@ namespace Opc.Ua.Types.Tests.Nodes
     /// </summary>
     public partial class TypeTableTests
     {
+        /// <summary>
+        /// Verifies that a collected snapshot no longer forces the serving graph to be copied.
+        /// </summary>
+        [Test]
+        public void SharedRegistrationGraphIsReleasedAfterSnapshotCollection()
+        {
+            WeakReference snapshot = CaptureAndReleaseSnapshot(m_typeTable);
+
+            for (int attempt = 0; snapshot.IsAlive && attempt < 3; attempt++)
+            {
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+            }
+
+            Assert.That(snapshot.IsAlive, Is.False);
+            Assert.That(m_typeTable.HasSharedRegistrationGraph, Is.False);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static WeakReference CaptureAndReleaseSnapshot(TypeTable source)
+        {
+            TypeTable snapshot = source.CaptureSnapshot(out _, out _);
+            return new WeakReference(snapshot);
+        }
+
         /// <summary>
         /// Verifies that the unchanged-capture shortcut still produces independently owned hierarchy storage.
         /// </summary>

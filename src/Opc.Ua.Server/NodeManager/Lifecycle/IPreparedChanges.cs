@@ -290,7 +290,17 @@ namespace Opc.Ua.Server
                 .Select(static registration => new NodeManagerRegistrationSnapshot(registration))
                 .ToArrayOf();
             Slots = (images.ToArray() ?? [])
-                .Select(image => NodeManagerGenerationRegistry.GetOrCreate(image.Owner).Slot).ToArrayOf();
+                .Select(static image =>
+                {
+                    if (!NodeManagerGenerationRegistry.TryGet(
+                        image.Owner, out NodeManagerGeneration? generation) ||
+                        generation is null)
+                    {
+                        throw new InvalidOperationException(
+                            "A prepared read image owner has no registered NodeManager generation.");
+                    }
+                    return generation.Slot;
+                }).ToArrayOf();
             m_metadataBound = true;
         }
 

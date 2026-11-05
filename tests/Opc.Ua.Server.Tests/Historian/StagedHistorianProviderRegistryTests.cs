@@ -45,6 +45,26 @@ namespace Opc.Ua.Server.Tests.Historian
     {
         private const string kNamespaceUri = "urn:test:staged-historian";
 
+        /// <summary>
+        /// Fluent historization borrows a direct serving default without creating staged state.
+        /// </summary>
+        [Test]
+        public void PlainServingDefaultDoesNotCreateCandidateRegistration()
+        {
+            var namespaceTable = new NamespaceTable();
+            using var serving = new HistorianProviderRegistry(namespaceTable);
+            var provider = new TrackingProvider();
+            serving.RegisterDefault(provider);
+            using var candidate =
+                new StagedHistorianProviderRegistry(namespaceTable, serving, new object());
+
+            Assert.That(candidate.ResolveForHistorization(new NodeId("node", 0)), Is.SameAs(provider));
+            Assert.That(candidate.HasRegistrations, Is.False);
+
+            candidate.Dispose();
+            Assert.That(provider.DisposeCount, Is.Zero);
+        }
+
         [Test]
         public void CandidateRegistrationsRemainPrivateUntilPublishAndPreserveScopePrecedence()
         {
@@ -126,6 +146,137 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(legacyOtherNamespace.DisposeCount, Is.EqualTo(1));
             Assert.That(legacyDefault.DisposeCount, Is.EqualTo(1));
             Assert.That(servingExact.DisposeCount, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Explicit candidate scopes override bindings retained by fluent historization regardless of scope.
+        /// </summary>
+        [Test]
+        public void ExplicitCandidateRegistrationsOverrideRetainedHistorizationBindings()
+        {
+            var namespaceTable = new NamespaceTable();
+            namespaceTable.Append(kNamespaceUri);
+            using var serving = new HistorianProviderRegistry(namespaceTable);
+            var servingNodeProvider = new TrackingProvider();
+            var servingNamespaceProvider = new TrackingProvider();
+            var servingDefaultProvider = new TrackingProvider();
+            var explicitNodeProvider = new TrackingProvider();
+            var explicitNamespaceProvider = new TrackingProvider();
+            var explicitDefaultProvider = new TrackingProvider();
+            var nodeId = new NodeId("historized-node", 1);
+            var namespaceNodeId = new NodeId("historized-namespace-node", 1);
+            var defaultNodeId = new NodeId("historized-default-node", 0);
+            serving.RegisterForNode(nodeId, servingNodeProvider);
+            serving.RegisterForNamespace(kNamespaceUri, servingNamespaceProvider);
+            serving.RegisterDefault(servingDefaultProvider);
+            using var candidate =
+                new StagedHistorianProviderRegistry(namespaceTable, serving, new object());
+
+            Assert.That(candidate.ResolveForHistorization(nodeId), Is.SameAs(servingNodeProvider));
+            Assert.That(
+                candidate.ResolveForHistorization(namespaceNodeId),
+                Is.SameAs(servingNamespaceProvider));
+            Assert.That(
+                candidate.ResolveForHistorization(defaultNodeId),
+                Is.SameAs(servingDefaultProvider));
+
+            Assert.That(() => candidate.RegisterForNode(nodeId, explicitNodeProvider), Throws.Nothing);
+            Assert.That(
+                () => candidate.RegisterForNamespace(kNamespaceUri, explicitNamespaceProvider),
+                Throws.Nothing);
+            Assert.That(() => candidate.RegisterDefault(explicitDefaultProvider), Throws.Nothing);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(candidate.Resolve(nodeId), Is.SameAs(explicitNodeProvider));
+                Assert.That(candidate.Resolve(namespaceNodeId), Is.SameAs(explicitNamespaceProvider));
+                Assert.That(candidate.Resolve(defaultNodeId), Is.SameAs(explicitDefaultProvider));
+            }
+
+            candidate.Publish();
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(serving.Resolve(nodeId), Is.SameAs(explicitNodeProvider));
+                Assert.That(serving.Resolve(namespaceNodeId), Is.SameAs(explicitNamespaceProvider));
+                Assert.That(serving.Resolve(defaultNodeId), Is.SameAs(explicitDefaultProvider));
+            }
+        }
+
+        /// <summary>
+        /// Publishing an empty replacement removes a retained serving binding after its predecessor retires.
+        /// </summary>
+        [Test]
+        public void EmptyReplacementPublicationRemovesRetainedServingBinding()
+        {
+            var namespaceTable = new NamespaceTable();
+            using var serving = new HistorianProviderRegistry(namespaceTable);
+            var provider = new TrackingProvider();
+            using var predecessor =
+                new StagedHistorianProviderRegistry(namespaceTable, serving, new object());
+            using var replacement =
+                new StagedHistorianProviderRegistry(namespaceTable, serving, new object());
+            var nodeId = new NodeId("retained-default", 0);
+
+            predecessor.RegisterDefault(provider);
+            predecessor.Publish();
+            Assert.That(replacement.ResolveForHistorization(nodeId), Is.SameAs(provider));
+
+            replacement.ClearDefault();
+            replacement.Publish();
+            predecessor.Retire();
+
+            Assert.That(serving.Resolve(nodeId), Is.Null);
+        }
+
+        /// <summary>
+        /// A staged provider published by one candidate remains serving-owned when another candidate aborts.
+        /// </summary>
+        [Test]
+        public void PublishedProviderRemainsOwnedWhenAnotherCandidateAborts()
+        {
+            var namespaceTable = new NamespaceTable();
+            using var serving = new HistorianProviderRegistry(namespaceTable);
+            var sharedProvider = new TrackingProvider();
+            var publishedCandidate =
+                new StagedHistorianProviderRegistry(namespaceTable, serving, new object());
+            var abortedCandidate =
+                new StagedHistorianProviderRegistry(namespaceTable, serving, new object());
+            publishedCandidate.RegisterDefault(sharedProvider);
+            abortedCandidate.RegisterForNamespace(kNamespaceUri, sharedProvider);
+
+            publishedCandidate.Publish();
+            publishedCandidate.Dispose();
+            abortedCandidate.Dispose();
+
+            Assert.That(sharedProvider.DisposeCount, Is.Zero);
+
+            serving.Dispose();
+
+            Assert.That(sharedProvider.DisposeCount, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Shared providers held only by unpublished candidates are disposed after the last candidate releases them.
+        /// </summary>
+        [Test]
+        public void SharedProviderAcrossAbortedCandidatesIsDisposedOnce()
+        {
+            var namespaceTable = new NamespaceTable();
+            namespaceTable.Append(kNamespaceUri);
+            using var serving = new HistorianProviderRegistry(namespaceTable);
+            var sharedProvider = new TrackingProvider();
+            var first = new StagedHistorianProviderRegistry(namespaceTable, serving, new object());
+            var second = new StagedHistorianProviderRegistry(namespaceTable, serving, new object());
+            first.RegisterDefault(sharedProvider);
+            second.RegisterForNamespace(kNamespaceUri, sharedProvider);
+
+            first.Dispose();
+
+            Assert.That(sharedProvider.DisposeCount, Is.Zero);
+
+            second.Dispose();
+
+            Assert.That(sharedProvider.DisposeCount, Is.EqualTo(1));
         }
 
         [Test]

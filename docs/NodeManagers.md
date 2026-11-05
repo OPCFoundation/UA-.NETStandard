@@ -905,13 +905,20 @@ Readiness retries for dynamic registrations do not change the whole server's
 LDS status.
 
 `DeferConfigurationUntilReady` and `DeferPublishedAuthoringUntilReady` require
-a manager that implements `INodeManagerReadinessNotification` and forwards its
-callback to `CompletePublishedConfigurationAsync`. Configuration rejects a
-manager without that participation before its address space is published.
+a manager that implements `INodeManagerReadinessNotification`. A lifecycle-managed
+readiness operation completes deferred configuration after the callback returns and
+before releasing readiness. A manager can call `CompletePublishedConfigurationAsync`
+from its callback when later callback work depends on those services. Custom hosts
+that invoke readiness directly must include that call in the callback. Configuration
+rejects a manager without readiness participation before its address space is published.
 
-Historian bindings created during preparation belong to a candidate-owned overlay,
+New historian bindings created during preparation belong to a candidate-owned overlay,
 not the serving registry. They become visible after readiness succeeds; see
 [historian registration ownership](#historian-registration-ownership).
+When historization inherits a binding owned by the predecessor generation, the lifecycle
+retains that binding under the candidate owner while replacement readiness runs. Candidate
+changes can replace or remove it; successful readiness publishes the candidate's complete
+binding set.
 Alias-name contributors and other serving-service registrations belong in readiness.
 The reference model loads its nodes privately, then registers and seeds its historian
 during its awaited readiness callback and refreshes the server capability rollup. GDS alias aggregation likewise starts after
@@ -1270,8 +1277,13 @@ cannot be changed through `SetMetadata`.
 `StagingServer.HistorianRegistry` records NodeId, namespace and default
 bindings in a candidate-owned overlay. Resolution combines staged and serving
 bindings by scope: an exact NodeId takes precedence over a namespace binding,
-which takes precedence over the default. Repeated registrations at the same
-scope within a candidate use the last binding.
+which takes precedence over the default. A candidate rejects a second explicit
+registration for the same NodeId, namespace or default scope. To replace an
+explicit candidate binding, remove it before registering its replacement. A
+serving-owned binding borrowed by fluent historization is retained separately
+during replacement readiness; an explicit candidate binding at that scope
+replaces the retained binding regardless of call order. Candidate bindings
+remain private until readiness publishes the candidate's complete set.
 
 A manager that stages historian state must implement
 `INodeManagerReadinessNotification`; preparation rejects it otherwise.

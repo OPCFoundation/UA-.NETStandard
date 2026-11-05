@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -40,19 +39,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
 {
     public sealed partial class NodeManagerLifecycleTests
     {
-        /// <summary>
-        /// Gets the routing table owned by the supplied master node manager.
-        /// </summary>
-        private static NodeManagerRoutingTable GetRoutingTable(MasterNodeManager master)
-        {
-            FieldInfo field = typeof(MasterNodeManager).GetField(
-                "m_nodeManagers",
-                BindingFlags.Instance | BindingFlags.NonPublic) ??
-                throw new AssertionException("The master routing table field was not found.");
-            return (NodeManagerRoutingTable)(field.GetValue(master) ??
-                throw new AssertionException("The master routing table was not initialized."));
-        }
-
         private static T RequireLifecycleValue<T>([NotNull] T? value)
             where T : class
         {
@@ -118,9 +104,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await using INodeManagerPublication publication =
                 await lifecycle.CapturePublication().BeginAsync(null).ConfigureAwait(false);
             INodeManagerPublication validation = publication;
-            NodeManagerRoutingTable routing = GetRoutingTable(
-                (MasterNodeManager)m_server.CurrentInstance.NodeManager);
-            NodeManagerRoutingTable.RoutingSnapshot routingBeforeValidation = routing.Revision;
+            var host = (IDynamicNodeManagerBatchHost)m_server.CurrentInstance.NodeManager;
+            NodeManagerRoutingTable.RoutingSnapshot routingBeforeValidation = host.RoutingRevision;
             long lifecycleRevision = lifecycle.Revision;
             ArrayOf<string> namespaces = m_server.CurrentInstance.NamespaceUris.ToArrayOf();
             int decisions = 0;
@@ -143,8 +128,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(validatedManager.DisposeCount, Is.EqualTo(1));
             Assert.That(GetBranchRegistrations(lifecycle).IsEmpty, Is.True);
             Assert.That(lifecycle.Revision, Is.EqualTo(lifecycleRevision));
-            Assert.That(routing.Revision, Is.SameAs(routingBeforeValidation));
-            Assert.That(Array.IndexOf(routing.Revision.NodeManagers, validatedManager), Is.EqualTo(-1));
+            Assert.That(host.RoutingRevision, Is.SameAs(routingBeforeValidation));
+            Assert.That(Array.IndexOf(host.RoutingRevision.NodeManagers, validatedManager), Is.EqualTo(-1));
             Assert.That(m_server.CurrentInstance.NamespaceUris.ToArrayOf(), Is.EqualTo(namespaces));
             await using IPreparedNodeManagerBatch next = await publication.PrepareAsync(
                 [NodeManagerBatchChange.Add(factory)]).ConfigureAwait(false);

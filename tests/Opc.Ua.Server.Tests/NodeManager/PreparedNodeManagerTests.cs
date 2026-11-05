@@ -45,6 +45,25 @@ namespace Opc.Ua.Server.Tests.NodeManager
     public sealed class PreparedNodeManagerTests
     {
         /// <summary>
+        /// Capturing an already-bound image must not create a generation for an unregistered owner.
+        /// </summary>
+        [Test]
+        public void MetadataOnlyChangesRejectUnregisteredImageOwners()
+        {
+            IAsyncNodeManager owner = new Mock<IAsyncNodeManager>().Object;
+            var image = new Mock<INodeManagerReadImage>(MockBehavior.Strict);
+            image.SetupGet(value => value.Owner).Returns(owner);
+            var provider = new Mock<IPreparedNodeManagerBatch>(MockBehavior.Strict);
+            provider.SetupGet(value => value.Registrations).Returns([]);
+
+            Assert.That(NodeManagerGenerationRegistry.TryGet(owner, out _), Is.False);
+            Assert.That(
+                () => new PreparedLifecycleChanges(provider.Object, [image.Object]),
+                Throws.InvalidOperationException);
+            Assert.That(NodeManagerGenerationRegistry.TryGet(owner, out _), Is.False);
+        }
+
+        /// <summary>
         /// A retained disposed adapter keeps its exposed facts but releases its unpublished provider.
         /// </summary>
         [TestCase(false)]

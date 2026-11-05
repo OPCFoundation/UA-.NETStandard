@@ -971,9 +971,9 @@ namespace Opc.Ua.Server.Fluent
         /// <param name="builder">The builder that must stay open for the callback.</param>
         /// <param name="configure">The callback, which must support retry if it fails after performing side effects.</param>
         /// <remarks>
-        /// Lifecycle readiness serializes callback attempts. The manager must implement
-        /// <see cref="INodeManagerReadinessNotification"/> and forward it to
-        /// <see cref="CompletePublishedConfigurationAsync"/>.
+        /// Lifecycle readiness serializes callback attempts and completes this configuration after the callback
+        /// returns. A manager can call <see cref="CompletePublishedConfigurationAsync"/> from its callback when
+        /// later callback work depends on the configured services.
         /// Steps for the same original builder run in registration order; register them all before readiness starts.
         /// Registration fails during configuration when the manager does not participate in readiness.
         /// </remarks>
@@ -1029,8 +1029,7 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,
-                    "{0} requires {1} to implement INodeManagerReadinessNotification.OnServerReadyAsync and " +
-                    "forward it to CompletePublishedConfigurationAsync.",
+                    "{0} requires {1} to implement INodeManagerReadinessNotification.OnServerReadyAsync.",
                     feature,
                     builder.NodeManager.GetType().FullName ?? "(unknown)");
             }
@@ -1049,6 +1048,15 @@ namespace Opc.Ua.Server.Fluent
             await pending.RunAsync(cancellationToken).ConfigureAwait(false);
             await SealConfigurationAsync(pending.Builder, cancellationToken).ConfigureAwait(false);
             pending.CompleteSeal();
+        }
+
+        /// <summary>
+        /// Completes deferred configuration from the lifecycle readiness scope.
+        /// </summary>
+        /// <param name="cancellationToken">The readiness attempt's cancellation token.</param>
+        internal ValueTask CompleteDeferredConfigurationForLifecycleAsync(CancellationToken cancellationToken)
+        {
+            return CompletePublishedConfigurationAsync(cancellationToken);
         }
 
         /// <inheritdoc/>

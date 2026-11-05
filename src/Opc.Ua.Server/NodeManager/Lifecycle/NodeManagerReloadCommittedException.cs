@@ -77,6 +77,23 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Initializes an exception carrying the authoritative change-set result.
+        /// </summary>
+        /// <param name="registration">The committed replacement registration.</param>
+        /// <param name="result">The authoritative result.</param>
+        /// <param name="message">The post-commit failure message.</param>
+        /// <param name="innerException">The failure raised after publication.</param>
+        public NodeManagerReloadCommittedException(
+            NodeManagerRegistration registration,
+            LifecycleResult result,
+            string message,
+            Exception innerException)
+            : this(registration, message, innerException)
+        {
+            m_committedResult = result ?? throw new ArgumentNullException(nameof(result));
+        }
+
+        /// <summary>
         /// Gets the committed replacement registration that remains the active NodeManager generation.
         /// </summary>
         public NodeManagerRegistration Registration { get; }
@@ -87,6 +104,8 @@ namespace Opc.Ua.Server
         public NodeManagerBatchResult? Result { get; }
 
         /// <inheritdoc/>
-        public LifecycleResult? CommittedResult => Result?.CommittedResult;
+        public LifecycleResult? CommittedResult => m_committedResult ?? Result?.CommittedResult;
+
+        private readonly LifecycleResult? m_committedResult;
     }
 }
