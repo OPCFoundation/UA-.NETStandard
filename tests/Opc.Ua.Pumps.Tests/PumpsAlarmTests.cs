@@ -331,6 +331,84 @@ namespace Opc.Ua.Pumps.Tests
                 Assert.That(binding.Alarm.ActiveState!.Id!.Value, Is.False);
                 Assert.That(reported, Is.False);
             });
+            await binding.DisposeAsync();
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () => await binding.EvaluateAsync());
+        }
+
+        /// <summary>
+        /// Disposal drains notifications, queued evaluations and event reports before releasing the gate.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DisposalDrainsAdmittedEvaluationsAndRejectsNewEvaluationsAsync(bool gateEventReport)
+        {
+            IPumpGroupBuilder group = m_pump.Supervision(BrowseNames.SupervisionMechanics);
+            group.SetDiscrete(BrowseNames.BearingFault, false);
+            var input = (BaseVariableState)group.Child(BrowseNames.BearingFault)!;
+            PumpAlarmBinding binding = await m_fixture.Manager.Runtime.AddDiagnosticAlarmAsync(
+                group, input, "DisposalDrain", DeviceHealthEnumeration.FAILURE);
+            await binding.EvaluateAsync();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            if (gateEventReport)
+            {
+                binding.Alarm.OnReportEventAsync = async (_, _, _, _) =>
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.ConfigureAwait(false);
+                };
+            }
+            else
+            {
+                binding.Alarm.OnStateChangedAsync = async (_, _, _, _) =>
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.ConfigureAwait(false);
+                };
+            }
+            group.SetDiscrete(BrowseNames.BearingFault, true);
+            Task evaluation = binding.EvaluateAsync().AsTask();
+            Task queued = binding.EvaluateAsync().AsTask();
+            Task? disposal = null;
+            try
+            {
+                Task ready = await Task.WhenAny(entered.Task, Task.Delay(TimeSpan.FromSeconds(10)));
+                Assert.That(ready, Is.SameAs(entered.Task));
+                disposal = binding.DisposeAsync().AsTask();
+                Assert.That(disposal.IsCompleted, Is.False);
+                Assert.That(binding.DisposeAsync().AsTask(), Is.SameAs(disposal));
+                await Assert.ThrowsAsync<ObjectDisposedException>(async () => await binding.EvaluateAsync());
+                Assert.That(evaluation.IsCompleted, Is.False);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                Task drain = Task.WhenAll(evaluation, queued, disposal ?? binding.DisposeAsync().AsTask());
+                Task finished = await Task.WhenAny(drain, Task.Delay(TimeSpan.FromSeconds(10)));
+                Assert.That(finished, Is.SameAs(drain), "all admitted evaluations and disposal must finish");
+                await drain;
+            }
+            await binding.DisposeAsync();
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () => await binding.EvaluateAsync());
+        }
+
+        /// <summary>
+        /// The owning node manager releases alarm bindings without requiring sample or client cleanup.
+        /// </summary>
+        [Test]
+        public async Task NodeManagerDisposalReleasesAlarmBindingAsync()
+        {
+            await using var fixture = new PumpsServerFixture();
+            await fixture.StartAsync();
+            IPumpBuilder pump = await fixture.Manager.CreatePumpAsync(fixture.PumpName("DisposalOwner"));
+            IPumpGroupBuilder group = pump.Supervision(BrowseNames.SupervisionMechanics);
+            group.SetDiscrete(BrowseNames.BearingFault, false);
+            var input = (BaseVariableState)group.Child(BrowseNames.BearingFault)!;
+            PumpAlarmBinding binding = await fixture.Manager.Runtime.AddDiagnosticAlarmAsync(
+                group, input, "OwnedBinding", DeviceHealthEnumeration.FAILURE);
+            await fixture.Manager.DisposeAsync();
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () => await binding.EvaluateAsync());
+            await binding.DisposeAsync();
         }
 
         /// <summary>

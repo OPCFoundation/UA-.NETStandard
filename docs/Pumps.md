@@ -616,6 +616,12 @@ a high limit does not cross it.
 Bad-quality or non-finite samples update condition quality without inventing a
 normal measurement. Reported events retain the input source timestamp.
 
+The node manager owns each alarm binding and disposes it during shutdown.
+`DisposeAsync()` rejects new evaluations, waits for admitted evaluations and
+their event reports to finish, then releases the evaluation gate. Repeated
+disposal calls await the same completion. A notification callback must not
+await disposal of its own binding.
+
 The condition exposes standard enable/disable, acknowledgment and retained
 refresh behavior through the shared alarm service. `InputNode` and `SourceNode`
 identify the actual variable. The binding adds `HasCondition` and

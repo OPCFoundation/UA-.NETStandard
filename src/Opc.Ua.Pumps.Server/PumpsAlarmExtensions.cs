@@ -33,6 +33,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Di;
+using Opc.Ua.Machinery.Server;
 using Opc.Ua.Pumps.Server.Builders;
 using Opc.Ua.Server.Fluent;
 
@@ -118,7 +119,8 @@ namespace Opc.Ua.Pumps.Server
                 ConfigureSeverityAndShelving(runtime, alarm, options);
             }
             await builder.SealAsync(CancellationToken.None).ConfigureAwait(false);
-            return new PumpAlarmBinding(runtime.SystemContext, input, alarm, activeValue, null, options.ActiveSeverity);
+            return await RegisterBindingAsync(runtime, input, alarm, activeValue, null, options.ActiveSeverity)
+                .ConfigureAwait(false);
         }
 
         /// <summary>
@@ -206,7 +208,32 @@ namespace Opc.Ua.Pumps.Server
                 }
             }
             await builder.SealAsync(CancellationToken.None).ConfigureAwait(false);
-            return new PumpAlarmBinding(runtime.SystemContext, input, alarm, true, limits, options.ActiveSeverity);
+            return await RegisterBindingAsync(runtime, input, alarm, true, limits, options.ActiveSeverity)
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Gives the binding the node manager's lifetime and releases it if registration fails.
+        /// </summary>
+        private static async ValueTask<PumpAlarmBinding> RegisterBindingAsync(
+            PumpsRuntime runtime,
+            BaseVariableState input,
+            AlarmConditionState alarm,
+            bool activeValue,
+            PumpMeasurementLimits? limits,
+            EventSeverity activeSeverity)
+        {
+            var binding = new PumpAlarmBinding(runtime.SystemContext, input, alarm, activeValue, limits, activeSeverity);
+            try
+            {
+                runtime.Manager.RegisterMachineryResource(binding);
+                return binding;
+            }
+            catch
+            {
+                await binding.DisposeAsync().ConfigureAwait(false);
+                throw;
+            }
         }
 
         /// <summary>
@@ -447,7 +474,7 @@ namespace Opc.Ua.Pumps.Server
     /// <summary>
     /// Evaluates a pump input while delegating acknowledgement, enable/disable, retain and refresh to ConditionState.
     /// </summary>
-    public sealed class PumpAlarmBinding
+    public sealed class PumpAlarmBinding : IAsyncDisposable
     {
         /// <summary>
         /// Creates an evaluation binding for an initialized condition.
@@ -487,6 +514,67 @@ namespace Opc.Ua.Pumps.Server
         public async ValueTask EvaluateAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            lock (m_lifetimeGate)
+            {
+                if (m_disposeCompletion is not null)
+                {
+                    throw new ObjectDisposedException(nameof(PumpAlarmBinding));
+                }
+                m_evaluations++;
+            }
+            await EvaluateCoreAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Stops new evaluations and drains admitted evaluations, including event reports, before releasing the gate.
+        /// The node manager calls this automatically. Notification sinks must not await disposal of their binding.
+        /// </summary>
+        public ValueTask DisposeAsync()
+        {
+            lock (m_lifetimeGate)
+            {
+                if (m_disposeCompletion is null)
+                {
+                    m_disposeCompletion = new TaskCompletionSource<bool>(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
+                    if (m_evaluations == 0)
+                    {
+                        m_gate.Dispose();
+                        m_disposeCompletion.SetResult(true);
+                    }
+                }
+                return new ValueTask(m_disposeCompletion.Task);
+            }
+        }
+
+        /// <summary>
+        /// Releases the admitted evaluation's lifetime hold after state notifications and event reporting finish.
+        /// </summary>
+        private async ValueTask EvaluateCoreAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                await EvaluateStateAsync(cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                lock (m_lifetimeGate)
+                {
+                    m_evaluations--;
+                    if (m_evaluations == 0 && m_disposeCompletion is not null)
+                    {
+                        m_gate.Dispose();
+                        m_disposeCompletion.SetResult(true);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Serializes live state notifications and reports the resulting event outside the evaluation gate.
+        /// </summary>
+        private async ValueTask EvaluateStateAsync(CancellationToken cancellationToken)
+        {
             InstanceStateSnapshot? snapshot = null;
             await m_gate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
             try
@@ -598,6 +686,15 @@ namespace Opc.Ua.Pumps.Server
 
         /// <summary>Serializes evaluations, including their asynchronous state notifications.</summary>
         private readonly SemaphoreSlim m_gate = new(1, 1);
+
+        /// <summary>Serializes evaluation admission and disposal without holding across callbacks.</summary>
+        private readonly Lock m_lifetimeGate = new();
+
+        /// <summary>Completes once all admitted evaluations have drained and the gate has been disposed.</summary>
+        private TaskCompletionSource<bool>? m_disposeCompletion;
+
+        /// <summary>The number of admitted evaluations, including queued evaluations and event reports.</summary>
+        private int m_evaluations;
 
         /// <summary>The last evaluated limit or diagnostic state.</summary>
         private LimitAlarmStates m_lastState;
