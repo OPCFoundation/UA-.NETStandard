@@ -99,7 +99,7 @@ namespace Opc.Ua.AutoID.Tests
             Assert.That(Variable(reader, "Logbook", "LogColumns").Value, Is.EqualTo(Variant.From("Message")));
             var fields = new List<BaseInstanceState>();
             Group(reader, "LastAccess").GetChildren(m_fixture.Context, fields);
-            Assert.That(fields.Count, Is.EqualTo(kind == AutoIdReaderKind.Rfid ? 10 : 4));
+            Assert.That(fields, Has.Count.EqualTo(kind == AutoIdReaderKind.Rfid ? 10 : 4));
             if (kind == AutoIdReaderKind.Rfid)
             {
                 AssertVariable(Variable(reader, "LastAccess", "RWData"), Opc.Ua.DataTypeIds.BaseDataType,
@@ -136,7 +136,7 @@ namespace Opc.Ua.AutoID.Tests
                 Assert.That(events.Of<AutoIdPresenceEventState>().Single().Presence!.Value, Is.EqualTo(3));
                 Assert.That(events.Of<AutoIdLogEntryEventState>().Single().Message!.Value.Text,
                     Is.EqualTo("Reader ready"));
-                Assert.That(events.Events.Count, Is.EqualTo(2));
+                Assert.That(events.Events, Has.Count.EqualTo(2));
             });
             await reader.ReportPresenceAsync(0).ConfigureAwait(false);
             Assert.That(Variable(reader, "Presence").Value, Is.EqualTo(Variant.From((ushort)0)));
@@ -646,7 +646,7 @@ namespace Opc.Ua.AutoID.Tests
                 Assert.That(retained, Is.Not.SameAs(payload));
                 Assert.That(retained!.BinaryEncodingId, Is.EqualTo(payload.BinaryEncodingId));
                 Assert.That(stored.Value, Is.EqualTo(expected));
-                Assert.That(stored.Value.Equals(custom), Is.False);
+                Assert.That(stored.Value, Is.Not.EqualTo(custom));
                 Assert.That(stored.StatusCode, Is.EqualTo(StatusCodes.Good));
                 Assert.That(stored.Timestamp, Is.EqualTo(report.Timestamp));
             });
@@ -691,7 +691,7 @@ namespace Opc.Ua.AutoID.Tests
                 Assert.That(encoded.TypeId, Is.EqualTo(encodingId));
                 Assert.That(retained, Is.EqualTo(ByteString.From(1, 2, 3)));
                 Assert.That(stored.Value, Is.EqualTo(expected));
-                Assert.That(stored.Value.Equals(custom), Is.False);
+                Assert.That(stored.Value, Is.Not.EqualTo(custom));
                 Assert.That(stored.StatusCode, Is.EqualTo(StatusCodes.Good));
                 Assert.That(stored.Timestamp, Is.EqualTo(report.Timestamp));
             });
@@ -758,7 +758,7 @@ namespace Opc.Ua.AutoID.Tests
                 Assert.That(reader.Device.LastScanTimestamp!.Value, Is.EqualTo(scan.Timestamp));
                 Assert.That(events.Of<RfidScanEventState>().Count(), Is.EqualTo(command ? 0 : 1));
                 Assert.That(events.Of<RfidAccessEventState>().Count(), Is.EqualTo(1));
-                Assert.That(events.Events.Count, Is.EqualTo(command ? 1 : 2));
+                Assert.That(events.Events, Has.Count.EqualTo(command ? 1 : 2));
             });
             RfidAccessResult access = events.Of<RfidAccessEventState>().Single().AccessResult!.Value[0];
             Assert.That(access.Identifier.Custom, Is.EqualTo(scan.ScanData.Custom));

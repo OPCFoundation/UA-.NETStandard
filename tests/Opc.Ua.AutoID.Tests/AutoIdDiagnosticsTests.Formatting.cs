@@ -61,7 +61,7 @@ namespace Opc.Ua.AutoID.Tests
                     Assert.That(variable.AccessLevel, Is.EqualTo(AccessLevels.CurrentReadOrWrite));
                     Assert.That(variable.OnWriteValueAsync, Is.Not.Null);
                     Assert.That(variable.EnumStrings!.Value.ToArray()!.Select(value => value.Text),
-                        Is.EqualTo(new[] { "RAW:BYTES", "RAW:STRING" }));
+                        Is.EqualTo(s_rawDiagnosticFormats));
                     Assert.That(variable.EnumStrings.AccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
                 });
                 AutoIdScanParameters? committed = null;
@@ -144,7 +144,7 @@ namespace Opc.Ua.AutoID.Tests
                     It.IsAny<CancellationToken>()))
                     .Returns((ScanData data, string _, ArrayOf<string> selected, CancellationToken _) =>
                     {
-                        Assert.That(selected.ToArray(), Is.EquivalentTo(new[] { "RAW:BYTES", "RAW:STRING" }));
+                        Assert.That(selected.ToArray(), Is.EquivalentTo(s_rawDiagnosticFormats));
                         data.ByteString = ByteString.From(9);
                         return new ValueTask<AutoIdRfidDiagnosticData>(new AutoIdRfidDiagnosticData(
                             "RAW:STRING", new ScanData { SwitchField = ScanDataFields.String, String = "Product" }));
@@ -340,7 +340,7 @@ namespace Opc.Ua.AutoID.Tests
                 .OwnsProvider().WithRuntimeParameters().WithDiagnostics().BuildAsync().ConfigureAwait(false);
             var selection = (MultiStateDiscreteState)FormatSelection(reader);
             Assert.That(selection.EnumStrings!.Value.ToArray()!.Select(value => value.Text),
-                Is.EqualTo(new[] { "RAW:BYTES" }));
+                Is.EqualTo(s_rawByteDiagnosticFormats));
             AutoIdScanParameters snapshot = await provider.ReadParametersAsync().ConfigureAwait(false);
             snapshot.CodeTypesRWData.ToArray()![0] = 9;
             AutoIdScanParameters next = await provider.ReadParametersAsync().ConfigureAwait(false);
@@ -358,7 +358,7 @@ namespace Opc.Ua.AutoID.Tests
         {
             var provider = new Mock<IAutoIdReaderParametersProvider>();
             provider.SetupGet(value => value.Kind).Returns(AutoIdReaderKind.Rfid);
-            provider.SetupGet(value => value.SupportedCodeTypes).Returns(new[] { "RAW:BYTES" }.ToArrayOf());
+            provider.SetupGet(value => value.SupportedCodeTypes).Returns(s_rawByteDiagnosticFormats.ToArrayOf());
             provider.SetupGet(value => value.ReaderParameterCapabilities)
                 .Returns(new AutoIdReaderParameterCapabilities { CodeTypesRWData = ["RAW:BYTES"] });
             provider.Setup(value => value.ReadParametersAsync(It.IsAny<CancellationToken>()))
@@ -640,5 +640,15 @@ namespace Opc.Ua.AutoID.Tests
             };
             return report;
         }
+
+        /// <summary>
+        /// Expected raw diagnostic formats for the formatter test provider.
+        /// </summary>
+        private static readonly string[] s_rawDiagnosticFormats = ["RAW:BYTES", "RAW:STRING"];
+
+        /// <summary>
+        /// Expected diagnostic format for the simulated reader.
+        /// </summary>
+        private static readonly string[] s_rawByteDiagnosticFormats = ["RAW:BYTES"];
     }
 }

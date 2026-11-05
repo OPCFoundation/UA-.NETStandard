@@ -264,7 +264,7 @@ namespace Opc.Ua.AutoID.Tests
             }
             if (kind == AutoIdReaderKind.Rtls)
             {
-                Assert.That(children.Count, Is.EqualTo(2));
+                Assert.That(children, Has.Count.EqualTo(2));
                 return;
             }
             bool rfid = kind == AutoIdReaderKind.Rfid;
