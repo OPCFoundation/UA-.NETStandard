@@ -89,7 +89,7 @@ namespace LadsSample.Server
                     .Cover("Door")
                     .Timer("Timer")
                     .SupportedProperty("Volume")
-                    .Programs(programs => programs
+                    .Programs(LadsTemplateOperations.All, programs => programs
                         .Template("Incubation", template => template
                             .WithDescription(new LocalizedText("Warm up, shake and cool down a culture."))
                             .Step("WarmUp", Seconds(5), Setpoint("Temperature", 37), Setpoint("ShakerSpeed", 150))

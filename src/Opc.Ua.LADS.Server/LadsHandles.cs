@@ -874,7 +874,8 @@ namespace Opc.Ua.LADS.Server
         /// </summary>
         /// <remarks>
         /// Handlers run inline. <see cref="OpenAsync"/>, <see cref="CloseAsync"/>, <see cref="LockAsync"/>,
-        /// <see cref="UnlockAsync"/>, <see cref="ResetAsync"/>, and <see cref="ReportErrorAsync"/> raise this event
+        /// <see cref="UnlockAsync"/>, <see cref="ResetAsync"/>, <see cref="ReportStateAsync"/>, and
+        /// <see cref="ReportErrorAsync"/> raise this event
         /// while holding this cover's <c>ExclusiveAsync</c> command gate. A handler must not wait or synchronously
         /// block on an operation that needs that gate before returning.
         /// </remarks>
@@ -921,6 +922,14 @@ namespace Opc.Ua.LADS.Server
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>A task that completes when the cover is in the error state.</returns>
         ValueTask ReportErrorAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Publishes an observed hardware state without issuing a cover command.
+        /// </summary>
+        /// <param name="state">The state reported by the equipment.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>A task that completes after state publication and notifications.</returns>
+        ValueTask ReportStateAsync(LadsCoverStateValue state, CancellationToken cancellationToken = default);
     }
 
     /// <summary>

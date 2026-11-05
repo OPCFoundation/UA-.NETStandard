@@ -300,6 +300,38 @@ namespace Opc.Ua.LADS.Server
     }
 
     /// <summary>
+    /// Optional client template-transfer operations exposed by a program manager.
+    /// </summary>
+    [Flags]
+    public enum LadsTemplateOperations
+    {
+        /// <summary>
+        /// Templates are supplied by the application without client transfer methods.
+        /// </summary>
+        None = 0,
+
+        /// <summary>
+        /// Clients can download a published template.
+        /// </summary>
+        Download = 1,
+
+        /// <summary>
+        /// Clients can upload a template.
+        /// </summary>
+        Upload = 2,
+
+        /// <summary>
+        /// Clients can remove a template.
+        /// </summary>
+        Remove = 4,
+
+        /// <summary>
+        /// Exposes all template-transfer methods, preserving the default behavior.
+        /// </summary>
+        All = Download | Upload | Remove
+    }
+
+    /// <summary>
     /// The configuration of a cover function.
     /// </summary>
     public sealed class LadsCoverOptions
@@ -313,6 +345,11 @@ namespace Opc.Ua.LADS.Server
         /// Gets or sets whether the cover can be locked.
         /// </summary>
         public bool Lockable { get; set; } = true;
+
+        /// <summary>
+        /// Gets or sets whether to expose cover commands. A passive cover only reports hardware state.
+        /// </summary>
+        public bool Controllable { get; set; } = true;
     }
 
     /// <summary>

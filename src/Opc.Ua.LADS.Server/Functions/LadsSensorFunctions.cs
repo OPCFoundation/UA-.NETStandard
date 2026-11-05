@@ -319,6 +319,7 @@ namespace Opc.Ua.LADS.Server
             : base(unit, node, path)
         {
             m_lockable = options.Lockable;
+            m_controllable = options.Controllable;
             if (!m_lockable && options.InitialState is LadsCoverStateValue.Locked or
                 LadsCoverStateValue.Locking or LadsCoverStateValue.Unlocking)
             {
@@ -329,10 +330,13 @@ namespace Opc.Ua.LADS.Server
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,
                     "The cover state machine is missing.");
-            stateMachine.AddOpen(context).AddClose(context).AddReset(context);
-            if (m_lockable)
+            if (m_controllable)
             {
-                stateMachine.AddLock(context).AddUnlock(context);
+                stateMachine.AddOpen(context).AddClose(context).AddReset(context);
+                if (m_lockable)
+                {
+                    stateMachine.AddLock(context).AddUnlock(context);
+                }
             }
             m_machine = new LadsStateMachine<LadsCoverStateValue>(
                 stateMachine,
@@ -357,13 +361,16 @@ namespace Opc.Ua.LADS.Server
                 StateChanged?.Invoke(state);
                 return default;
             };
-            Runtime.Bind(stateMachine.Open, (_, ct) => OpenAsync(ct));
-            Runtime.Bind(stateMachine.Close, (_, ct) => CloseAsync(ct));
-            Runtime.Bind(stateMachine.Reset, (_, ct) => ResetAsync(ct));
-            if (m_lockable)
+            if (m_controllable)
             {
-                Runtime.Bind(stateMachine.Lock, (_, ct) => LockAsync(ct));
-                Runtime.Bind(stateMachine.Unlock, (_, ct) => UnlockAsync(ct));
+                Runtime.Bind(stateMachine.Open, (_, ct) => OpenAsync(ct));
+                Runtime.Bind(stateMachine.Close, (_, ct) => CloseAsync(ct));
+                Runtime.Bind(stateMachine.Reset, (_, ct) => ResetAsync(ct));
+                if (m_lockable)
+                {
+                    Runtime.Bind(stateMachine.Lock, (_, ct) => LockAsync(ct));
+                    Runtime.Bind(stateMachine.Unlock, (_, ct) => UnlockAsync(ct));
+                }
             }
         }
 
@@ -450,6 +457,24 @@ namespace Opc.Ua.LADS.Server
                 cancellationToken);
         }
 
+        /// <inheritdoc/>
+        public ValueTask ReportStateAsync(
+            LadsCoverStateValue state, CancellationToken cancellationToken = default)
+        {
+            if (state < LadsCoverStateValue.Opened || state > LadsCoverStateValue.Error)
+            {
+                throw new ArgumentOutOfRangeException(nameof(state));
+            }
+            if (!m_lockable && state is LadsCoverStateValue.Locked or
+                LadsCoverStateValue.Locking or LadsCoverStateValue.Unlocking)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNotSupported, "The cover '{0}' cannot be locked.", Path);
+            }
+            return ExclusiveAsync(
+                () => m_machine.SetStateAsync(state, cancellationToken), cancellationToken);
+        }
+
         /// <summary>
         /// Runs a command of the cover state machine.
         /// </summary>
@@ -459,6 +484,11 @@ namespace Opc.Ua.LADS.Server
             CancellationToken cancellationToken,
             params LadsCoverStateValue[] states)
         {
+            if (!m_controllable)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNotSupported, "The cover '{0}' only reports hardware state.", Path);
+            }
             return ExclusiveAsync(
                 async () =>
                 {
@@ -492,5 +522,8 @@ namespace Opc.Ua.LADS.Server
 
         private readonly LadsStateMachine<LadsCoverStateValue> m_machine;
         private readonly bool m_lockable;
+
+        /// <summary>Whether the application exposes cover commands.</summary>
+        private readonly bool m_controllable;
     }
 }

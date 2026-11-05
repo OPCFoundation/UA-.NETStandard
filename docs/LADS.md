@@ -232,7 +232,13 @@ returns the typed handle:
 | `TwoStateDiscreteSensor` | `ITwoStateDiscreteSensorFunction` | State names, initial value |
 | `MultiStateDiscreteSensor` | `IMultiStateDiscreteSensorFunction` | State names, initial value |
 | `MultiSensor` | `IMultiSensorFunction` | Nested sensors |
-| `Cover` | `ICoverFunction` | Initial state (default `Closed`), `Lockable` (default `true`) |
+| `Cover` | `ICoverFunction` | Initial state (default `Closed`), `Lockable` and `Controllable` (both default `true`) |
+
+A cover configured with `Controllable = false` publishes its state without
+`Open`, `Close`, `Reset`, `Lock` or `Unlock` methods. Its application reports
+observed equipment state through `ICoverFunction.ReportStateAsync`; this does
+not send a hardware command. `Lockable = false` also rejects reports of locking,
+locked or unlocking state.
 
 `LadsUnits` has the UNECE units used in the sample (`Celsius`,
 `RevolutionsPerMinute`, `Percent`, `Second`, `Millisecond`, `PartsPerMillion`)
@@ -261,8 +267,16 @@ unit.Programs(programs => programs
 The template content that clients download and upload is the serialized step
 list. `LadsProgramTemplate.ToContent()` writes it and
 `LadsProgramTemplate.Parse(id, content)` reads it. Clients can upload new
-templates through the `ProgramTemplateSet` `Upload` method. `Download` and
+templates through the `ProgramManager` `Upload` method. `Download` and
 `Remove` are also bound.
+
+`Programs(LadsTemplateOperations.None, configure)` keeps application-owned
+templates and result publication without exposing client `Download`, `Upload`
+or `Remove` methods. Individual flags select those methods independently.
+For a new manager, `Programs(configure)` exposes all three methods. Later calls
+without a selection retain the configured methods. Reconfiguring an existing
+manager with different flags is rejected rather than changing a published
+capability.
 
 ### Maintenance tasks
 

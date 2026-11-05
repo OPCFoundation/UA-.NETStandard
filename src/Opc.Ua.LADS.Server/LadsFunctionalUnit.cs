@@ -842,15 +842,25 @@ namespace Opc.Ua.LADS.Server
         /// <summary>
         /// Creates the program manager on first use.
         /// </summary>
-        internal LadsProgramManager EnsureProgramManager()
+        internal LadsProgramManager EnsureProgramManager(LadsTemplateOperations? operations = null)
         {
+            if (operations.HasValue && (operations.Value & ~LadsTemplateOperations.All) != 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(operations));
+            }
+            if (m_programs != null && operations.HasValue && m_programs.TemplateOperations != operations.Value)
+            {
+                throw new InvalidOperationException(
+                    "The program manager's template operations are already configured.");
+            }
             if (m_programs == null)
             {
                 ISystemContext context = Runtime.Context;
                 Node.AddProgramManager(context);
                 FunctionalUnitStateMachineState stateMachine = Node.FunctionalUnitState!;
                 stateMachine.AddStartProgram(context);
-                m_programs = new LadsProgramManager(this, Node.ProgramManager!);
+                m_programs = new LadsProgramManager(
+                    this, Node.ProgramManager!, operations ?? LadsTemplateOperations.All);
                 Runtime.Bind(stateMachine.StartProgram, m_programs.OnStartProgramAsync);
                 UpdateRunningExecutability();
             }

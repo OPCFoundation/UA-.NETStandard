@@ -331,6 +331,15 @@ namespace Opc.Ua.LADS.Server
         ILadsFunctionalUnitBuilder Programs(Action<ILadsProgramManagerBuilder>? configure = null);
 
         /// <summary>
+        /// Adds a program manager with selected optional client template-transfer methods.
+        /// Application template registration and result publication remain available.
+        /// </summary>
+        /// <param name="operations">The exposed client template-transfer operations.</param>
+        /// <param name="configure">Configures the program manager.</param>
+        ILadsFunctionalUnitBuilder Programs(
+            LadsTemplateOperations operations, Action<ILadsProgramManagerBuilder>? configure = null);
+
+        /// <summary>
         /// Enables the complete running lifecycle and the optional execution-control methods.
         /// Program executors must implement <see cref="ILadsControlledProgramExecutor"/>.
         /// </summary>

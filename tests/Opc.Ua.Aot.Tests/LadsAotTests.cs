@@ -75,6 +75,10 @@ namespace Opc.Ua.Aot.Tests
                         await Assert.That(flow.TotalizedValue).IsEqualTo(12.5);
                         await flow.ResetTotalizerAsync(cancellationToken).ConfigureAwait(false);
                         await Assert.That(flow.TotalizedValue).IsEqualTo(0.0);
+                        ICoverFunction cover = unit.GetFunction<ICoverFunction>("Guard");
+                        await cover.ReportStateAsync(LadsCoverStateValue.Opened, cancellationToken)
+                            .ConfigureAwait(false);
+                        await Assert.That(cover.State).IsEqualTo(LadsCoverStateValue.Opened);
                         ILadsProgramManager programs = unit.Programs ??
                             throw new InvalidOperationException("The configured LADS program manager is missing.");
                         ILadsRunningOperations running = unit.RunningOperations ??
@@ -204,8 +208,13 @@ namespace Opc.Ua.Aot.Tests
                     .MaintenanceTask(kMaintenance)
                     .FunctionalUnit(kUnit, unit => unit
                         .AnalogControl("Flow", options => options.Kind = LadsAnalogControlKind.Totalizer)
+                        .Cover("Guard", options =>
+                        {
+                            options.Controllable = false;
+                            options.Lockable = false;
+                        })
                         .RunningOperations()
-                        .Programs())));
+                        .Programs(LadsTemplateOperations.None))));
             return services.BuildServiceProvider();
         }
 

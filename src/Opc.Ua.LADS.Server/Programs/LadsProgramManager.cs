@@ -129,12 +129,28 @@ namespace Opc.Ua.LADS.Server
         /// <summary>
         /// Creates the program manager and binds its methods.
         /// </summary>
-        public LadsProgramManager(LadsFunctionalUnit unit, ProgramManagerState node)
+        public LadsProgramManager(
+            LadsFunctionalUnit unit, ProgramManagerState node, LadsTemplateOperations operations)
         {
             m_unit = unit;
             Node = node;
+            TemplateOperations = operations;
             ISystemContext context = Runtime.Context;
-            node.AddDownload(context).AddUpload(context).AddRemove(context);
+            if ((operations & LadsTemplateOperations.Download) != 0)
+            {
+                node.AddDownload(context);
+                Runtime.Bind(node.Download, OnDownloadAsync);
+            }
+            if ((operations & LadsTemplateOperations.Upload) != 0)
+            {
+                node.AddUpload(context);
+                Runtime.Bind(node.Upload, OnUploadAsync);
+            }
+            if ((operations & LadsTemplateOperations.Remove) != 0)
+            {
+                node.AddRemove(context);
+                Runtime.Bind(node.Remove, OnRemoveAsync);
+            }
             node.ProgramTemplateSet!.AddNodeVersion(context);
             node.ResultSet!.AddNodeVersion(context);
             ActiveProgramState active = node.ActiveProgram!;
@@ -148,9 +164,6 @@ namespace Opc.Ua.LADS.Server
                 .AddEstimatedStepRuntime(context)
                 .AddDeviceProgramRunId(context)
                 .AddCurrentProgramTemplate(context);
-            Runtime.Bind(node.Download, OnDownloadAsync);
-            Runtime.Bind(node.Upload, OnUploadAsync);
-            Runtime.Bind(node.Remove, OnRemoveAsync);
             ResetActiveProgram();
             active.CurrentRuntime!.OnSimpleReadValue = ReadCurrentRuntime;
             active.CurrentStepRuntime!.OnSimpleReadValue = ReadCurrentStepRuntime;
@@ -164,6 +177,11 @@ namespace Opc.Ua.LADS.Server
         /// Gets the node of the program manager.
         /// </summary>
         public ProgramManagerState Node { get; }
+
+        /// <summary>
+        /// Gets the optional client template-transfer operations selected during construction.
+        /// </summary>
+        internal LadsTemplateOperations TemplateOperations { get; }
 
         /// <summary>
         /// Gets or sets the executor of the program runs.
