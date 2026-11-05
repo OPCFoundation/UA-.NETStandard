@@ -382,6 +382,15 @@ namespace Opc.Ua.Di.Tests
                 await invocation.ConfigureAwait(false);
                 Assert.Fail("The asynchronous state notification did not start.");
             }
+
+            completed = await Task.WhenAny(invocation, Task.Delay(TimeSpan.FromSeconds(5)))
+                .ConfigureAwait(false);
+            if (completed != invocation)
+            {
+                release.TrySetResult(true);
+                await invocation.ConfigureAwait(false);
+                Assert.Fail("The operation blocked until its asynchronous state notification completed.");
+            }
         }
 
         /// <summary>

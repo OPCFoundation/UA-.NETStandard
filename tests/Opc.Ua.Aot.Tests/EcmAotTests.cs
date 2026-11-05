@@ -493,7 +493,7 @@ namespace Opc.Ua.Aot.Tests
                 return new EcmMeasurementReading(
                     name,
                     Variant.From(value),
-                    new ExpandedNodeId(new NodeId(Opc.Ua.DataTypeIds.Float)),
+                    Opc.Ua.DataTypeIds.Float,
                     StatusCodes.Good,
                     acquired);
             }

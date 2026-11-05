@@ -425,7 +425,8 @@ namespace Opc.Ua.ECM.IntegrationTests
             Assert.That(power.Value, Is.EqualTo(15.5f));
             var tag = await client.ApplicationTag.ReadAsync(timeout.Token).ConfigureAwait(false);
             Assert.That(tag.Value, Is.EqualTo("statistics/initial"));
-        } phase structures and high-precision statistics keep distinct values on a live session.
+        /// <summary>
+        /// Phase structures and high-precision statistics keep distinct values on a live session.
         /// </summary>
         [Test]
         public async Task E3TypedPhaseValuesReadThroughGeneratedProxy()
@@ -580,7 +581,7 @@ namespace Opc.Ua.ECM.IntegrationTests
         /// </summary>
         private static ExpandedNodeId FloatType()
         {
-            return new ExpandedNodeId(new NodeId(Opc.Ua.DataTypeIds.Float));
+            return Opc.Ua.DataTypeIds.Float;
         }
 
         /// <summary>
@@ -588,7 +589,7 @@ namespace Opc.Ua.ECM.IntegrationTests
         /// </summary>
         private static ExpandedNodeId DoubleType()
         {
-            return new ExpandedNodeId(new NodeId(Opc.Ua.DataTypeIds.Double));
+            return Opc.Ua.DataTypeIds.Double;
         }
 
         /// <summary>The measurement created by the current test.</summary>
@@ -657,13 +658,13 @@ namespace Opc.Ua.ECM.IntegrationTests
                             new(
                                 BrowseNames.AcActivePowerTotal,
                                 Variant.From(15.5f),
-                                new ExpandedNodeId(new NodeId(Opc.Ua.DataTypeIds.Float)),
+                                Opc.Ua.DataTypeIds.Float,
                                 StatusCodes.UncertainLastUsableValue,
                                 m_acquired),
                             new(
                                 BrowseNames.DcCurrent,
                                 Variant.From(24.75f),
-                                new ExpandedNodeId(new NodeId(Opc.Ua.DataTypeIds.Float)),
+                                Opc.Ua.DataTypeIds.Float,
                                 StatusCodes.Good,
                                 m_acquired)
                         ]));

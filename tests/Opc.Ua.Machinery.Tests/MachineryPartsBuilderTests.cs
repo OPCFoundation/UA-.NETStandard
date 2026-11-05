@@ -279,7 +279,9 @@ namespace Opc.Ua.Machinery.Tests
             Assert.That(phaseCurrent, Is.Not.Null);
             Assert.That(
                 phaseCurrent!.DataType,
-                Is.EqualTo(new NodeId(Opc.Ua.ECM.DataTypeIds.AcPeDataType, ecmNamespaceIndex)));
+                Is.EqualTo(ExpandedNodeId.ToNodeId(
+                    Opc.Ua.ECM.DataTypeIds.AcPeDataType,
+                    context.NamespaceUris)));
             Assert.That(
                 phaseCurrent.WrappedValue.TryGetStructure<Opc.Ua.ECM.AcPeDataType>(
                     out Opc.Ua.ECM.AcPeDataType currentValue),
@@ -293,7 +295,9 @@ namespace Opc.Ua.Machinery.Tests
             Assert.That(lineVoltage, Is.Not.Null);
             Assert.That(
                 lineVoltage!.DataType,
-                Is.EqualTo(new NodeId(Opc.Ua.ECM.DataTypeIds.AcPpDataType, ecmNamespaceIndex)));
+                Is.EqualTo(ExpandedNodeId.ToNodeId(
+                    Opc.Ua.ECM.DataTypeIds.AcPpDataType,
+                    context.NamespaceUris)));
             Assert.That(
                 lineVoltage.WrappedValue.TryGetStructure<Opc.Ua.ECM.AcPpDataType>(
                     out Opc.Ua.ECM.AcPpDataType voltageValue),
@@ -306,9 +310,9 @@ namespace Opc.Ua.Machinery.Tests
                 .OfType<BaseVariableState>()
                 .Single(child => child.BrowseName.Name == Opc.Ua.BrowseNames.EngineeringUnits);
             Assert.That(
-                engineeringUnits.WrappedValue.TryGetValue(out EUInformation actualUnits),
+                engineeringUnits.WrappedValue.TryGetStructure<EUInformation>(out EUInformation? actualUnits),
                 Is.True);
-            Assert.That(actualUnits.DisplayName.Text, Is.EqualTo("W"));
+            Assert.That(actualUnits!.DisplayName.Text, Is.EqualTo("W"));
             Assert.That(actualUnits.NamespaceUri, Is.EqualTo(
                 "http://www.opcfoundation.org/UA/units/un/cefact"));
             Assert.That(actualUnits.UnitId, Is.EqualTo(5_723_220));

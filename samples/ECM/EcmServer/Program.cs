@@ -320,7 +320,7 @@ internal sealed class SampleMeasurementProvider : IEcmMeasurementProvider
     public ValueTask WriteApplicationTagAsync(string applicationTag, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        ArgumentNullException.ThrowIfNull(applicationTag, nameof(applicationTag));
+        applicationTag.ThrowIfNull(nameof(applicationTag));
         lock (m_lock)
         {
             m_applicationTag = applicationTag;
@@ -427,7 +427,7 @@ internal sealed class SampleEnergyProvider : IEcmStatisticsProvider
     public ValueTask WriteApplicationTagAsync(string applicationTag, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        ArgumentNullException.ThrowIfNull(applicationTag, nameof(applicationTag));
+        applicationTag.ThrowIfNull(nameof(applicationTag));
         lock (m_lock)
         {
             m_applicationTag = applicationTag;
