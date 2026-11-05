@@ -31,6 +31,7 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Onboarding;
 using Opc.Ua.Server;
+using Ua = global::Opc.Ua;
 
 namespace Opc.Ua.Gds.Server.Onboarding
 {
@@ -134,7 +135,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             [
                 new RolePermissionType
                 {
-                    RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
+                    RoleId = Ua.ObjectIds.WellKnownRole_AuthenticatedUser,
                     Permissions = (uint)PermissionType.Browse
                 }
             ];
@@ -144,7 +145,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             [
                 new RolePermissionType
                 {
-                    RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
+                    RoleId = Ua.ObjectIds.WellKnownRole_AuthenticatedUser,
                     Permissions = (uint)(PermissionType.Browse | PermissionType.Read)
                 }
             ];
@@ -154,11 +155,11 @@ namespace Opc.Ua.Gds.Server.Onboarding
             [
                 new RolePermissionType
                 {
-                    RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
+                    RoleId = Ua.ObjectIds.WellKnownRole_AuthenticatedUser,
                     Permissions = (uint)(PermissionType.Browse | PermissionType.Call)
                 }
             ];
-            device.AddReference(ReferenceTypeIds.Organizes, true, ObjectIds.Resources);
+            device.AddReference(ReferenceTypeIds.Organizes, true, Ua.ObjectIds.Resources);
             return device;
         }
 
