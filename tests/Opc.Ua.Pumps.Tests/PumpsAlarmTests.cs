@@ -284,7 +284,9 @@ namespace Opc.Ua.Pumps.Tests
                 Task completed = await Task.WhenAny(readiness, Task.Delay(TimeSpan.FromSeconds(10)));
                 Assert.That(completed, Is.SameAs(readiness),
                     "the synchronous sink and gated async sink must run before EvaluateAsync returns");
-                Assert.That(notifications, Is.EqualTo(new[] { "sync", "async" }));
+                Assert.That(notifications, Has.Count.EqualTo(2));
+                Assert.That(notifications[0], Is.EqualTo("sync"));
+                Assert.That(notifications[1], Is.EqualTo("async"));
                 Assert.That(release.Task.IsCompleted, Is.False, "the state sink must still be gated");
                 Assert.That(evaluation.IsCompleted, Is.False, "evaluation must await the state sink");
             }

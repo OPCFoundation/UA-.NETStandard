@@ -146,7 +146,7 @@ namespace Opc.Ua.Pumps.Tests
                 Opc.Ua.Di.BrowseNames.ComponentName,
                 Opc.Ua.Machinery.BrowseNames.Location
             ];
-            var notifications = new System.Collections.Generic.List<string>();
+            var notifications = new System.Collections.Generic.List<string?>();
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var invocationReturned = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -234,7 +234,7 @@ namespace Opc.Ua.Pumps.Tests
                     It.IsAny<string>(), Opc.Ua.Di.BrowseNames.AssetId, It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<string?>("restored-asset"));
             var failure = new IOException("notification failed");
-            var notifications = new System.Collections.Generic.List<string>();
+            var notifications = new System.Collections.Generic.List<string?>();
             foreach (string fieldName in fieldNames)
             {
                 var variable = (BaseVariableState)pump.Identification.Child(fieldName)!;
@@ -253,7 +253,7 @@ namespace Opc.Ua.Pumps.Tests
             IOException? observed = await Assert.ThrowsAsync<IOException>(async () =>
                 await fixture.Manager.Runtime.WithRetainedIdentificationAsync(pump, store.Object, Permissions));
             Assert.That(observed, Is.SameAs(failure));
-            Assert.That(notifications, Is.EqualTo(fieldNames[..(failingField + 1)]));
+            Assert.That(notifications, Is.EqualTo(new ArraySegment<string>(fieldNames, 0, failingField + 1)));
             Assert.That(Value(pump, Opc.Ua.Di.BrowseNames.AssetId), Is.EqualTo(Variant.From("restored-asset")));
             for (int i = 0; i < fieldNames.Length; i++)
             {
