@@ -790,10 +790,21 @@ namespace Opc.Ua.PackML
                     StatusCodes.BadInvalidState,
                     "A PackML callback cannot await a reentrant controller write.");
             }
-            await m_asyncGate.WaitAsync(cancellationToken).ConfigureAwait(false);
-            lock (m_lock)
+            while (true)
             {
-                m_asyncWrite = true;
+                cancellationToken.ThrowIfCancellationRequested();
+                Task pending;
+                lock (m_lock)
+                {
+                    if (!m_asyncOperationActive)
+                    {
+                        m_asyncOperationActive = true;
+                        m_asyncWrite = true;
+                        return;
+                    }
+                    pending = m_asyncOperationCompleted.Task;
+                }
+                await pending.WaitAsync(cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -802,11 +813,15 @@ namespace Opc.Ua.PackML
         /// </summary>
         private void EndAsyncWrite()
         {
+            TaskCompletionSource<bool> completed;
             lock (m_lock)
             {
                 m_asyncWrite = false;
+                m_asyncOperationActive = false;
+                completed = m_asyncOperationCompleted;
+                m_asyncOperationCompleted = new(TaskCreationOptions.RunContinuationsAsynchronously);
             }
-            m_asyncGate.Release();
+            completed.TrySetResult(true);
         }
 
         /// <summary>
@@ -907,27 +922,10 @@ namespace Opc.Ua.PackML
         /// <param name="changed">Whether the operation changed the state machines.</param>
         private async ValueTask PublishChangesAsync(bool changed)
         {
-            Exception? notificationError = null;
             if (changed)
             {
-                try
-                {
-                    await StateMachine.PublishStateChangesAsync(
-                        m_context, includeChildren: true, CancellationToken.None).ConfigureAwait(false);
-                }
-                catch (Exception e)
-                {
-                    notificationError = notificationError == null
-                        ? e
-                        : new AggregateException(
-                            "Publishing the PackML state machines failed.",
-                            notificationError,
-                            e);
-                }
-            }
-            if (notificationError != null)
-            {
-                ExceptionDispatchInfo.Capture(notificationError).Throw();
+                await StateMachine.PublishStateChangesAsync(
+                    m_context, includeChildren: true, CancellationToken.None).ConfigureAwait(false);
             }
         }
 
@@ -1815,8 +1813,13 @@ namespace Opc.Ua.PackML
         private readonly PackMLExecuteStateMachineState m_execute;
         private readonly ushort m_namespaceIndex;
         private readonly Lock m_lock = new();
-        /// <summary>Serializes asynchronous composite operations through their notifications.</summary>
-        private readonly SemaphoreSlim m_asyncGate = new(1, 1);
+
+        /// <summary>Signals completion of the current asynchronous composite operation.</summary>
+        private TaskCompletionSource<bool> m_asyncOperationCompleted =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        /// <summary>Whether an asynchronous composite operation owns serialization.</summary>
+        private bool m_asyncOperationActive;
 
         /// <summary>Identifies reentry from an asynchronous operation's callback context.</summary>
         private readonly AsyncLocal<bool> m_asyncOwner = new();

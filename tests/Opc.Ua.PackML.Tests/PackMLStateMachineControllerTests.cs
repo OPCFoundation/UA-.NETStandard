@@ -339,6 +339,14 @@ namespace Opc.Ua.PackML.Tests
                 Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
                 Assert.That(configure.IsCompleted, Is.False);
                 Assert.That(controller.CurrentState, Is.EqualTo(PackMLStateNumbers.Idle));
+                using var waiterCancellation = new CancellationTokenSource();
+                Task<ServiceResult> waiter = controller.ExecuteAsync(
+                    PackMLCommand.Abort, cancellationToken: waiterCancellation.Token).AsTask();
+                Assert.That(waiter.IsCompleted, Is.False);
+                waiterCancellation.Cancel();
+                await Assert.ThrowsAsync<OperationCanceledException>(
+                    async () => await waiter.WaitAsync(s_timeout).ConfigureAwait(false));
+                Assert.That(controller.CurrentState, Is.EqualTo(PackMLStateNumbers.Idle));
             }
             finally
             {
