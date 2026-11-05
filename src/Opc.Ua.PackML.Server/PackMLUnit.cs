@@ -253,7 +253,7 @@ namespace Opc.Ua.PackML.Server
                 await unit.Administration.ApplyAsync(new PackMLAdministrationData
                 {
                     SourceTimestamp = captured.TimeProvider.GetUtcNow().UtcDateTime
-                }, captured.AdministrationExtents).ConfigureAwait(false);
+                }, captured.AdministrationExtents, CancellationToken.None).ConfigureAwait(false);
                 await unit.RefreshAsync(cancellationToken).ConfigureAwait(false);
                 return unit;
             }
