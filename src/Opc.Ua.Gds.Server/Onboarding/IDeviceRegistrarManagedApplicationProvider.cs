@@ -77,6 +77,13 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// A null identifier uses the registrar connection's configured certificate type.
         /// </summary>
         public ExpandedNodeId CertificateTypeId { get; init; }
+
+        /// <summary>
+        /// Gets the exact HTTPS TLS leaf certificate pin, independent of the installed OPC UA application certificate.
+        /// An empty value requires OS TLS trust. Hostname checks apply in either case on every TLS connection.
+        /// The TLS terminator is part of the trust boundary and can access transport and session data.
+        /// </summary>
+        public ByteString HttpsServerCertificate { get; init; }
     }
 
     /// <summary>
@@ -85,12 +92,13 @@ namespace Opc.Ua.Gds.Server.Onboarding
     public interface IDeviceRegistrarManagedApplicationChannelVerifier
     {
         /// <summary>
-        /// Opens a fresh session to the selected endpoint, verifies its actual secure-channel peer certificate
+        /// Opens a fresh session to the selected endpoint, verifies the application certificate and proof
         /// against <paramref name="expectedCertificate"/>, then closes and disposes that session before returning.
+        /// HTTPS authenticates its TLS terminator separately, on every connection, before sending credentials.
         /// </summary>
         /// <param name="application">The application identity being verified.</param>
         /// <param name="target">The host-authoritative endpoint, certificate and user identity.</param>
-        /// <param name="expectedCertificate">The public leaf certificate expected on the secure channel.</param>
+        /// <param name="expectedCertificate">The public leaf certificate expected for the application proof.</param>
         /// <param name="cancellationToken">A token that cancels session creation and verification.</param>
         /// <returns>A task that completes after peer verification and session cleanup.</returns>
         ValueTask VerifyAsync(

@@ -178,18 +178,15 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
-        /// The verifier rejects HTTPS endpoints before calling the session factory.
+        /// The verifier rejects HTTPS channels without an enforceable per-handshake TLS policy.
         /// </summary>
         [TestCase(Profiles.HttpsBinaryTransport, "https://managed:4840")]
         [TestCase(Profiles.HttpsJsonTransport, "opc.https://managed:4840")]
-        public async Task HttpsEndpointIsRejectedBeforeSessionFactory(
+        public async Task HttpsEndpointRequiresPerHandshakeTlsCapabilityBeforeSessionCreation(
             string transportProfile,
             string endpointUrl)
         {
             ByteString applicationCertificate = ByteString.From(m_certificate.RawData.AsSpan());
-            var factory = Factory(null);
-            var verifier = new SessionDeviceRegistrarManagedApplicationChannelVerifier(
-                Configuration(), factory.Object);
             var endpoint = new EndpointDescription
             {
                 EndpointUrl = endpointUrl,
@@ -199,6 +196,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 TransportProfileUri = transportProfile,
                 ServerCertificate = applicationCertificate
             };
+            using var channel = new Mock<ITransportChannel>().Object;
+            Mock.Get(channel).SetupGet(value => value.EndpointDescription).Returns(endpoint);
+            var factory = Factory(channel);
+            var verifier = new SessionDeviceRegistrarManagedApplicationChannelVerifier(
+                Configuration(), factory.Object);
 
             ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await verifier.VerifyAsync(
@@ -206,7 +208,230 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     .ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+            factory.Verify(value => value.CreateChannelAsync(
+                It.IsAny<ApplicationConfiguration>(), It.IsAny<ITransportWaitingConnection>(),
+                It.IsAny<ConfiguredEndpoint>(), false, true, It.IsAny<CancellationToken>()), Times.Once);
+            factory.Verify(value => value.Create(
+                It.IsAny<ITransportChannel>(), It.IsAny<ApplicationConfiguration>(),
+                It.IsAny<ConfiguredEndpoint>(), null, null, It.IsAny<ArrayOf<EndpointDescription>>(),
+                It.IsAny<ArrayOf<string>>()), Times.Never);
+            m_lastCreatedSession!.Verify(value => value.OpenAsync(
+                It.IsAny<string>(), It.IsAny<uint>(), It.IsAny<IUserIdentity>(), It.IsAny<ArrayOf<string>>(),
+                It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// HTTPS selects TLS trust or a separate TLS pin before the URI-bound session can receive credentials.
+        /// </summary>
+        [TestCase(Profiles.HttpsBinaryTransport, "https://localhost:4840", true)]
+        [TestCase(Profiles.HttpsBinaryTransport, "https://localhost:4840", false)]
+        [TestCase(Profiles.HttpsJsonTransport, "opc.https://localhost:4840", true)]
+        [TestCase(Profiles.HttpsJsonTransport, "opc.https://localhost:4840", false)]
+        public async Task HttpsSelectsIndependentTlsPolicyBeforeOpeningPinnedApplicationSession(
+            string transportProfile,
+            string endpointUrl,
+            bool pinTls)
+        {
+            ByteString applicationCertificate = ByteString.From(m_certificate.RawData.AsSpan());
+            using Certificate tlsCertificate = CertificateBuilder.Create("CN=TLS Terminator").CreateForRSA();
+            ByteString tlsPin = pinTls ? ByteString.From(tlsCertificate.RawData.AsSpan()) : default;
+            EndpointDescription endpoint = HttpsEndpoint(applicationCertificate);
+            endpoint.TransportProfileUri = transportProfile;
+            endpoint.EndpointUrl = endpointUrl;
+            var channel = new Mock<ITransportChannel>(MockBehavior.Strict);
+            bool tlsPolicySelected = false;
+            channel.As<IHttpsServerCertificateValidation>()
+                .Setup(value => value.RequireServerCertificateValidation(tlsPin))
+                .Callback(() => tlsPolicySelected = true);
+            channel.SetupGet(value => value.EndpointDescription).Returns(endpoint);
+            channel.Setup(value => value.Dispose());
+            var factory = Factory(channel.Object);
+            m_lastCreatedSession!.Setup(value => value.OpenAsync(
+                It.IsAny<string>(), 60000, It.IsAny<IUserIdentity>(), It.IsAny<ArrayOf<string>>(),
+                true, true, It.IsAny<CancellationToken>()))
+                .Callback(() => Assert.That(tlsPolicySelected, Is.True))
+                .Returns(Task.CompletedTask);
+            var verifier = new SessionDeviceRegistrarManagedApplicationChannelVerifier(
+                Configuration(), factory.Object);
+
+            await verifier.VerifyAsync(
+                Application(),
+                CreateTarget(endpoint, applicationCertificate) with { HttpsServerCertificate = tlsPin },
+                applicationCertificate).ConfigureAwait(false);
+
+            channel.As<IHttpsServerCertificateValidation>().Verify(
+                value => value.RequireServerCertificateValidation(tlsPin), Times.Once);
+            m_lastCreatedSession.As<IExpectedServerApplicationUriSession>().Verify(
+                value => value.RequireServerApplicationUri(ApplicationUri), Times.Once);
+            m_lastCreatedSession.Verify(value => value.CloseAsync(
+                5000, true, It.IsAny<CancellationToken>()), Times.Once);
+            channel.VerifyGet(value => value.ServerChannelCertificate, Times.Never);
+        }
+
+        /// <summary>
+        /// Non-None HTTPS requires Sign rather than UA-TCP's SignAndEncrypt or an unsecured session.
+        /// </summary>
+        [TestCase(MessageSecurityMode.None, SecurityPolicies.None)]
+        [TestCase(MessageSecurityMode.Sign, SecurityPolicies.None)]
+        [TestCase(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256)]
+        public async Task HttpsRejectsUnsecuredOrInvalidSecurityModeBeforeChannelCreation(
+            MessageSecurityMode mode,
+            string policy)
+        {
+            ByteString applicationCertificate = ByteString.From(m_certificate.RawData.AsSpan());
+            EndpointDescription endpoint = HttpsEndpoint(applicationCertificate);
+            endpoint.SecurityMode = mode;
+            endpoint.SecurityPolicyUri = policy;
+            var factory = Factory(null);
+            var verifier = new SessionDeviceRegistrarManagedApplicationChannelVerifier(
+                Configuration(), factory.Object);
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await verifier.VerifyAsync(
+                    Application(), CreateTarget(endpoint, applicationCertificate), applicationCertificate)
+                    .ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
             factory.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Real session proof validates the application independently of TLS before sending username credentials.
+        /// </summary>
+        [TestCase("valid", StatusCodes.Good)]
+        [TestCase("certificate", StatusCodes.BadCertificateInvalid)]
+        [TestCase("endpointUri", StatusCodes.BadSecurityChecksFailed)]
+        [TestCase("certificateUri", StatusCodes.BadCertificateUriInvalid)]
+        [TestCase("missingSignature", StatusCodes.BadApplicationSignatureInvalid)]
+        [TestCase("wrongSignature", StatusCodes.BadApplicationSignatureInvalid)]
+        public async Task HttpsRealSessionRequiresPinnedApplicationUriAndLegacyProofBeforeCredentials(
+            string proof,
+            uint expectedStatus)
+        {
+            using Certificate tlsCertificate = CertificateBuilder.Create("CN=TLS Terminator").CreateForRSA();
+            using Certificate wrongCertificate = CertificateBuilder.Create("CN=Other Application")
+                .AddExtension(new X509SubjectAltNameExtension("urn:other:application", ["localhost"]))
+                .SetRSAKeySize(2048).CreateForRSA();
+            Certificate applicationCertificate = proof == "certificateUri" ? wrongCertificate : m_certificate;
+            ByteString applicationPin = ByteString.From(applicationCertificate.RawData.AsSpan());
+            EndpointDescription endpoint = HttpsEndpoint(applicationPin);
+            var manager = new Mock<ICertificateManager>(MockBehavior.Strict);
+            manager.Setup(value => value.ValidateAsync(
+                It.IsAny<CertificateCollection>(), It.IsAny<TrustListIdentifier?>(),
+                It.IsAny<Security.Certificates.CertificateValidationOptions?>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(CertificateValidationResult.Success);
+            ApplicationConfiguration configuration = Configuration();
+            configuration.CertificateManager = manager.Object;
+            configuration.SecurityConfiguration.NonceLength = 32;
+            var channel = new Mock<ITransportChannel>();
+            bool tlsPolicySelected = false;
+            channel.As<IHttpsServerCertificateValidation>()
+                .Setup(value => value.RequireServerCertificateValidation(It.IsAny<ByteString>()))
+                .Callback(() => tlsPolicySelected = true);
+            channel.SetupGet(value => value.EndpointDescription).Returns(endpoint);
+            channel.SetupGet(value => value.EndpointConfiguration).Returns(EndpointConfiguration.Create());
+            channel.SetupGet(value => value.MessageContext)
+                .Returns(ServiceMessageContext.Create(NUnitTelemetryContext.Create()));
+            channel.SetupGet(value => value.ServerChannelCertificate).Returns(tlsCertificate.RawData);
+            channel.SetupGet(value => value.ClientChannelCertificate).Returns([]);
+            channel.SetupGet(value => value.ChannelThumbprint).Returns([]);
+            int createCount = 0;
+            int activationCount = 0;
+            channel.Setup(value => value.SendRequestAsync(
+                It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()))
+                .Returns<IServiceRequest, CancellationToken>((request, _) =>
+                {
+                    IServiceResponse response;
+                    switch (request)
+                    {
+                        case CreateSessionRequest create:
+                            createCount++;
+                            Assert.That(tlsPolicySelected, Is.True);
+                            byte[] serverNonce = Nonce.CreateRandomNonceData(32);
+                            byte[] signatureData = create.ClientCertificate.ToArray()
+                                .Concat(create.ClientNonce.ToArray()).ToArray();
+                            SignatureData signature = proof == "missingSignature"
+                                ? new SignatureData()
+                                : SecurityPolicies.Default.CreateSignatureData(
+                                    SecurityPolicies.Basic256Sha256,
+                                    proof == "wrongSignature" ? tlsCertificate : applicationCertificate,
+                                    signatureData);
+                            EndpointDescription authenticatedEndpoint = CoreUtils.Clone(endpoint)!;
+                            if (proof == "endpointUri")
+                            {
+                                authenticatedEndpoint.Server.ApplicationUri = "urn:other:application";
+                            }
+                            response = new CreateSessionResponse
+                            {
+                                SessionId = new NodeId("https-proof-session"),
+                                AuthenticationToken = new NodeId("https-proof-token"),
+                                RevisedSessionTimeout = 60000,
+                                ServerNonce = ByteString.From(serverNonce),
+                                ServerCertificate = proof == "certificate"
+                                    ? ByteString.From(wrongCertificate.RawData.AsSpan())
+                                    : applicationPin,
+                                ServerEndpoints = [authenticatedEndpoint],
+                                ServerSignature = signature
+                            };
+                            break;
+                        case ActivateSessionRequest activate:
+                            activationCount++;
+                            Assert.That(activate.UserIdentityToken.TryGetValue(
+                                out UserNameIdentityToken? token), Is.True);
+                            Assert.That(token!.UserName, Is.EqualTo("target-user"));
+                            Assert.That(token.Password.IsEmpty, Is.False);
+                            Assert.That(token.Password, Is.Not.EqualTo(ByteString.From("secret"u8)));
+                            response = new ActivateSessionResponse
+                            {
+                                ServerNonce = ByteString.From(Nonce.CreateRandomNonceData(32))
+                            };
+                            break;
+                        case ReadRequest read:
+                            response = new ReadResponse
+                            {
+                                Results = read.NodesToRead.ConvertAll(ReadHttpsProofValue)
+                            };
+                            break;
+                        default:
+                            response = new CloseSessionResponse();
+                            break;
+                    }
+                    return new ValueTask<IServiceResponse>(response);
+                });
+            var factory = PinnedFactory();
+            factory.Setup(value => value.CreateChannelAsync(
+                It.IsAny<ApplicationConfiguration>(), It.IsAny<ITransportWaitingConnection>(),
+                It.IsAny<ConfiguredEndpoint>(), false, true, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(channel.Object);
+            factory.Setup(value => value.Create(
+                It.IsAny<ITransportChannel>(), It.IsAny<ApplicationConfiguration>(),
+                It.IsAny<ConfiguredEndpoint>(), null, null, It.IsAny<ArrayOf<EndpointDescription>>(),
+                It.IsAny<ArrayOf<string>>()))
+                .Returns<ITransportChannel, ApplicationConfiguration, ConfiguredEndpoint, Certificate?,
+                    CertificateCollection?, ArrayOf<EndpointDescription>, ArrayOf<string>>(
+                    (transport, selectedConfiguration, selectedEndpoint, _, _, _, _) =>
+                        new Session(transport, selectedConfiguration, selectedEndpoint, m_certificate.AddRef()));
+            var verifier = new SessionDeviceRegistrarManagedApplicationChannelVerifier(configuration, factory.Object);
+            DeviceRegistrarManagedApplicationTarget target = CreateTarget(endpoint, applicationPin) with
+            {
+                UserIdentity = new UserIdentity("target-user", "secret"u8),
+                HttpsServerCertificate = ByteString.From(tlsCertificate.RawData.AsSpan())
+            };
+
+            if (expectedStatus == StatusCodes.Good)
+            {
+                await verifier.VerifyAsync(Application(), target, applicationPin).ConfigureAwait(false);
+            }
+            else
+            {
+                ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await verifier.VerifyAsync(Application(), target, applicationPin).ConfigureAwait(false));
+                Assert.That(error!.StatusCode, Is.EqualTo(expectedStatus));
+            }
+
+            Assert.That(createCount, Is.EqualTo(1));
+            Assert.That(activationCount, Is.EqualTo(expectedStatus == StatusCodes.Good ? 1 : 0));
+            Assert.That(applicationPin, Is.Not.EqualTo(ByteString.From(tlsCertificate.RawData.AsSpan())));
         }
 
         /// <summary>
@@ -1543,6 +1768,51 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             {
                 throw new AggregateException(message, cleanupErrors);
             }
+        }
+
+        /// <summary>
+        /// Returns a host-selected signed HTTPS endpoint with an independent application certificate.
+        /// </summary>
+        private static EndpointDescription HttpsEndpoint(ByteString applicationCertificate)
+        {
+            return new EndpointDescription
+            {
+                EndpointUrl = "https://localhost:4840",
+                Server = Application(),
+                SecurityMode = MessageSecurityMode.Sign,
+                SecurityPolicyUri = SecurityPolicies.Basic256Sha256,
+                TransportProfileUri = Profiles.HttpsBinaryTransport,
+                ServerCertificate = applicationCertificate,
+                UserIdentityTokens =
+                [
+                    new UserTokenPolicy
+                    {
+                        PolicyId = "username",
+                        TokenType = UserTokenType.UserName,
+                        SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+                    }
+                ]
+            };
+        }
+
+        /// <summary>
+        /// Supplies session metadata without unrelated server capability behavior.
+        /// </summary>
+        private static DataValue ReadHttpsProofValue(ReadValueId value)
+        {
+            if (value.NodeId == VariableIds.Server_NamespaceArray)
+            {
+                return new DataValue(ArrayOf.Create([Namespaces.OpcUa]));
+            }
+            if (value.NodeId == VariableIds.Server_ServerArray)
+            {
+                return new DataValue(ArrayOf.Create([ApplicationUri]));
+            }
+            if (value.NodeId == VariableIds.Server_ServerStatus_State)
+            {
+                return new DataValue(new Variant((int)ServerState.Running));
+            }
+            return new DataValue(Variant.Null, StatusCodes.BadNodeIdUnknown);
         }
 
         /// <summary>

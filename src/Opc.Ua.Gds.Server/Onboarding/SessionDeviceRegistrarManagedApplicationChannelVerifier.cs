@@ -114,6 +114,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             }
 
             expectedCertificate = ByteString.From(expectedCertificate.Span);
+            ByteString httpsServerCertificate = ByteString.From(target.HttpsServerCertificate.Span);
             ConfiguredEndpoint endpoint = SnapshotEndpoint(target.Endpoint);
             if (endpoint.ReverseConnect?.Enabled == true)
             {
@@ -132,18 +133,11 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 endpoint.Configuration?.UseBinaryEncoding ?? true);
             bool isUaTcp = transportProfile == Profiles.UaTcpTransport;
             bool isHttps = transportProfile is Profiles.HttpsBinaryTransport or Profiles.HttpsJsonTransport;
-            if (isHttps)
+            if (!isUaTcp && !isHttps)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadNotSupported,
-                    "Managed application proof does not support HTTPS until the TLS peer is bound to the " +
-                    "pinned application identity before user credentials are sent.");
-            }
-            if (!isUaTcp)
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadNotSupported,
-                    "Managed application proof requires a UA-TCP channel with certificate-bound peer identity.");
+                    "Managed application proof requires a UA-TCP or HTTPS channel with authenticated peer identity.");
             }
             if (string.IsNullOrEmpty(securityPolicyUri) ||
                 !IsSupportedSecurityPolicy(securityPolicyUri) ||
@@ -156,7 +150,9 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     StatusCodes.BadSecurityChecksFailed,
                     "The selected endpoint is not a valid encrypted endpoint for the managed application.");
             }
-            bool supportedSecurityMode = offered.SecurityMode == MessageSecurityMode.SignAndEncrypt;
+            bool supportedSecurityMode = isHttps
+                ? offered.SecurityMode == MessageSecurityMode.Sign
+                : offered.SecurityMode == MessageSecurityMode.SignAndEncrypt;
             if (!supportedSecurityMode)
             {
                 throw new ServiceResultException(
@@ -164,8 +160,9 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     "The selected endpoint uses a security mode that is not supported for its transport.");
             }
             Uri selectedEndpointUrl = new(endpointUrl, UriKind.Absolute);
-            bool supportedTransportUrl =
-                selectedEndpointUrl.Scheme == Utils.UriSchemeOpcTcp;
+            bool supportedTransportUrl = isHttps
+                ? selectedEndpointUrl.Scheme is Utils.UriSchemeHttps or Utils.UriSchemeOpcHttps
+                : selectedEndpointUrl.Scheme == Utils.UriSchemeOpcTcp;
             if (!supportedTransportUrl)
             {
                 throw new ServiceResultException(
@@ -203,7 +200,20 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     cancellationToken).ConfigureAwait(false) ??
                     throw new ServiceResultException(StatusCodes.BadNotConnected);
                 ValidateEndpoint(channel.EndpointDescription, selectedEndpoint);
-                ValidateChannelCertificate(channel.ServerChannelCertificate, expectedCertificate);
+                if (isHttps)
+                {
+                    if (channel is not IHttpsServerCertificateValidation httpsChannel)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadNotSupported,
+                            "The HTTPS channel cannot enforce TLS authentication on every connection.");
+                    }
+                    httpsChannel.RequireServerCertificateValidation(httpsServerCertificate);
+                }
+                else
+                {
+                    ValidateChannelCertificate(channel.ServerChannelCertificate, expectedCertificate);
+                }
 
                 session = m_sessionFactory.Create(channel, m_configuration, endpoint);
                 if (session == null)
@@ -227,7 +237,10 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 applicationUriSession.RequireServerApplicationUri(applicationUri);
                 ValidateEndpoint(session.ConfiguredEndpoint.Description, selectedEndpoint);
                 ValidateEndpoint(session.TransportChannel.EndpointDescription, selectedEndpoint);
-                ValidateChannelCertificate(session.TransportChannel.ServerChannelCertificate, expectedCertificate);
+                if (!isHttps)
+                {
+                    ValidateChannelCertificate(session.TransportChannel.ServerChannelCertificate, expectedCertificate);
+                }
 
                 await session.OpenAsync(
                     m_configuration.ApplicationName ??
@@ -241,7 +254,10 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 sessionOpened = true;
                 ValidateEndpoint(session.ConfiguredEndpoint.Description, selectedEndpoint);
                 ValidateEndpoint(session.TransportChannel.EndpointDescription, selectedEndpoint);
-                ValidateChannelCertificate(session.TransportChannel.ServerChannelCertificate, expectedCertificate);
+                if (!isHttps)
+                {
+                    ValidateChannelCertificate(session.TransportChannel.ServerChannelCertificate, expectedCertificate);
+                }
             }
             catch (Exception error)
             {
