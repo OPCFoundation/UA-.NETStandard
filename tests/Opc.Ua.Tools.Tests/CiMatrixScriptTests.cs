@@ -609,7 +609,11 @@ namespace Opc.Ua.Tools.Tests
                         "wot-other-core",
                         "wot-other-integration"
                     ]
-                    : ["wot-materialization", "wot-other"];
+                    : profile.First().Os == "macos" ? [
+                        "wot-materialization-core",
+                        "wot-materialization-integration",
+                        "wot-other"
+                    ] : ["wot-materialization", "wot-other"];
                 Assert.That(
                     profile.Select(entry => entry.Shard),
                     Is.EquivalentTo(expectedShards));
@@ -656,7 +660,7 @@ namespace Opc.Ua.Tools.Tests
                         ? profile.First().Framework != "net48"
                             ? "wot-other"
                             : integration ? "wot-other-integration" : "wot-other-core"
-                        : profile.First().Framework != "net48"
+                        : profile.First().Framework != "net48" && profile.First().Os != "macos"
                             ? "wot-materialization"
                             : integration ? "wot-materialization-integration" : "wot-materialization-core";
 

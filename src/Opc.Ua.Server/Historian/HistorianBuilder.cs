@@ -613,6 +613,7 @@ namespace Opc.Ua.Server.Historian
         public HistorianBuilder RegisterAsDefault()
         {
             EnsureProvider();
+            EnsureRegisteredWithLifecycle();
             Registry.RegisterDefault(Provider!);
             return this;
         }
@@ -624,6 +625,7 @@ namespace Opc.Ua.Server.Historian
         public HistorianBuilder RegisterForNamespace(string namespaceUri)
         {
             EnsureProvider();
+            EnsureRegisteredWithLifecycle();
             Registry.RegisterForNamespace(namespaceUri, Provider!);
             return this;
         }
@@ -635,6 +637,7 @@ namespace Opc.Ua.Server.Historian
         public HistorianBuilder RegisterForNode(NodeId nodeId)
         {
             EnsureProvider();
+            EnsureRegisteredWithLifecycle();
             Registry.RegisterForNode(nodeId, Provider!);
             return this;
         }

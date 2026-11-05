@@ -1029,7 +1029,8 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,
-                    "{0} requires {1} to implement INodeManagerReadinessNotification.OnServerReadyAsync.",
+                    "{0} requires {1} to implement INodeManagerReadinessNotification.OnServerReadyAsync " +
+                    "and call CompletePublishedConfigurationAsync from that callback.",
                     feature,
                     builder.NodeManager.GetType().FullName ?? "(unknown)");
             }

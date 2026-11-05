@@ -158,6 +158,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var preparation = new ChangePreparer(context.Server.Object);
             await using ChangePreparer.StagingServer stagingServer = preparation.CreateServer();
             stagingServer.Attach(retired.NodeManager);
+            Assert.That(ChangePreparer.GetServer(retired.NodeManager), Is.SameAs(stagingServer));
             _ = new HistorianBuilder(stagingServer)
                 .UseProvider(Mock.Of<IHistorianProvider>())
                 .RegisterAsDefault();

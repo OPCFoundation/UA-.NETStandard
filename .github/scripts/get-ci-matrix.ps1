@@ -476,12 +476,34 @@ function Get-TestProjectShards([string] $project, [string] $framework, [string] 
         }
         'Opc.Ua.WotCon.Tests' {
             $materialization = 'Opc.Ua.WotCon.Tests.Materialization.'
-            if ($framework -ne 'net48') {
+            if ($framework -ne 'net48' -and $os -ne 'macos') {
                 return @(
                     @{
                         id = 'wot-materialization'
                         name = 'wot-materialization'
                         filter = "FullyQualifiedName~${materialization}"
+                        hangTimeout = ''
+                    }
+                    @{
+                        id = 'wot-other'
+                        name = 'wot-other'
+                        filter = "FullyQualifiedName!~${materialization}"
+                        hangTimeout = ''
+                    }
+                )
+            }
+            if ($framework -ne 'net48') {
+                return @(
+                    @{
+                        id = 'wot-materialization-core'
+                        name = 'wot-materialization-core'
+                        filter = "FullyQualifiedName~${materialization}&TestCategory!=Integration"
+                        hangTimeout = ''
+                    }
+                    @{
+                        id = 'wot-materialization-integration'
+                        name = 'wot-materialization-integration'
+                        filter = "FullyQualifiedName~${materialization}&TestCategory=Integration"
                         hangTimeout = ''
                     }
                     @{
