@@ -501,8 +501,8 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         /// <summary>
-        /// Verifies that a cancelled waiter leaves the active refresh protected and queued disposal rejects late
-        /// mutation.
+        /// Verifies that a cancelled waiter leaves the active refresh protected and disposal rejects late mutation
+        /// without waiting for that refresh.
         /// </summary>
         [Test]
         public async Task CancelledWaiterAndQueuedDisposalDrainWithoutReleasingAnotherOperationsGateAsync()
@@ -531,7 +531,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 mutation = FileReadRegressionTests.CallAsync(
                     harness.Root.CreateFile!, harness.Context, harness.Root.NodeId, ["late", false]).AsTask();
                 Assert.That(disposing.IsCompleted, Is.False);
-                Assert.That(mutation.IsCompleted, Is.False);
+                Assert.That(mutation.IsCompleted, Is.True);
             }
             finally
             {

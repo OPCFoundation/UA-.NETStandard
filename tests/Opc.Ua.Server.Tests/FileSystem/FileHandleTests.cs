@@ -34,6 +34,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.FileSystem;
 
@@ -112,13 +113,14 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         /// <summary>
-        /// Spec gap Read|Write: Read and Write are independent valid mode bits (Part 20 4.2.2),
-        /// so an unsupported combined open is Bad_NotSupported, not an invalid mode.
+        /// A provider without combined stream support rejects Read|Write with BadNotSupported (Part 20 4.2.2).
         /// </summary>
         [Test]
         public void OpenWithReadAndWriteReturnsBadNotSupported()
         {
-            using var handle = new FileHandle(CreateProvider(), "f.txt");
+            var provider = new Mock<IFileSystemProvider>();
+            provider.SetupGet(value => value.IsWritable).Returns(true);
+            using var handle = new FileHandle(provider.Object, "f.txt");
 
             ServiceResult result = handle.Open(s_sessionId, ModeRead | ModeWrite, out uint fileHandle);
 
