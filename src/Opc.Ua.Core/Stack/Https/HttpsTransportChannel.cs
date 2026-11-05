@@ -851,12 +851,16 @@ namespace Opc.Ua.Bindings
         private TransportChannelSettings? m_settings;
         private ChannelQuotas? m_quotas;
         private HttpClient? m_client;
+
         /// <summary>Serializes selection of the immutable TLS policy with the first request.</summary>
         private readonly System.Threading.Lock m_certificatePolicyLock = new();
+
         /// <summary>Whether a request has started using the selected HTTP pipeline.</summary>
         private bool m_requestStarted;
+
         /// <summary>Whether independent per-handshake TLS authentication is required.</summary>
         private bool m_requireServerCertificateValidation;
+
         /// <summary>The independent TLS leaf pin, or empty for OS trust.</summary>
         private ByteString m_httpsServerCertificate;
 
