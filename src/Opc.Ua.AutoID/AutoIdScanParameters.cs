@@ -69,6 +69,11 @@ namespace Opc.Ua.AutoID
         public ArrayOf<uint> TagTypes { get; init; }
 
         /// <summary>
+        /// Gets the selected diagnostic RWData format indexes; null means unsupported and empty disables RWData.
+        /// </summary>
+        public ArrayOf<uint> CodeTypesRWData { get; init; }
+
+        /// <summary>
         /// Gets the provider's scalar RFID power setting, or null when unsupported.
         /// </summary>
         public sbyte? RfPower { get; init; }

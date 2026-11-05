@@ -44,7 +44,7 @@ namespace Opc.Ua.AutoID.Tests
     /// </summary>
     [TestFixture]
     [Category("AutoID")]
-    public sealed class AutoIdDiagnosticsTests
+    public sealed partial class AutoIdDiagnosticsTests
     {
         /// <summary>
         /// Starts a runtime with access events disabled independently of diagnostics.
@@ -140,6 +140,42 @@ namespace Opc.Ua.AutoID.Tests
             });
             await reader.ReportPresenceAsync(0).ConfigureAwait(false);
             Assert.That(Variable(reader, "Presence").Value, Is.EqualTo(Variant.From((ushort)0)));
+        }
+
+        /// <summary>
+        /// Awaits asynchronous event forwarding while keeping the reader operation alive.
+        /// </summary>
+        [Test]
+        public async Task ScanReportAwaitsAsyncEventSinkAndReaderShutdownAsync()
+        {
+            AutoIdReader reader = await CreateAsync().ConfigureAwait(false);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            reader.Device.OnReportEventAsync = async (_, _, e, cancellationToken) =>
+            {
+                if (e is RfidScanEventState)
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                }
+            };
+            await AutoIdGatedTest.RunAsync(
+                reader,
+                async () =>
+                {
+                    await reader.ReportScanAsync([AutoIdTestData.RfidResult(AutoIdTestData.Bytes(1))])
+                        .ConfigureAwait(false);
+                    return true;
+                },
+                () => release.TrySetResult(true),
+                async (invocation, startDisposal) =>
+                {
+                    await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    Task<bool> report = await invocation.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    Assert.That(report.IsCompleted, Is.False);
+                    Task dispose = await startDisposal().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    Assert.That(dispose.IsCompleted, Is.False);
+                }).ConfigureAwait(false);
         }
 
         /// <summary>

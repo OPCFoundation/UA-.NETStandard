@@ -199,7 +199,7 @@ namespace Opc.Ua.AutoID.Server
         /// <summary>
         /// Projects the existing presence report without deriving a count from scan results.
         /// </summary>
-        private void PublishPresence(ushort presence)
+        private async ValueTask PublishPresenceAsync(ushort presence)
         {
             if (Device.Diagnostics is not { } diagnostics)
             {
@@ -209,13 +209,13 @@ namespace Opc.Ua.AutoID.Server
             {
                 SetDiagnostic(diagnostics, "Presence", Variant.From(presence), DateTimeUtc.Now);
             }
-            diagnostics.ClearChangeMasks(Runtime.SystemContext, true);
+            await diagnostics.ClearChangeMasksAsync(Runtime.SystemContext, true).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Projects the sink's single message column without maintaining another log.
         /// </summary>
-        private void PublishLogEntry(string entry)
+        private async ValueTask PublishLogEntryAsync(string entry)
         {
             if (Device.Diagnostics == null)
             {
@@ -226,32 +226,60 @@ namespace Opc.Ua.AutoID.Server
             {
                 SetDiagnostic(logbook, "LastLogEntry", Variant.From(entry), DateTimeUtc.Now);
             }
-            logbook.ClearChangeMasks(Runtime.SystemContext, true);
+            await logbook.ClearChangeMasksAsync(Runtime.SystemContext, true).ConfigureAwait(false);
         }
 
         /// <summary>
-        /// Projects the first result of an access report, matching LastScanData's selection.
+        /// Publishes an access diagnostic update through asynchronous state-change sinks.
         /// </summary>
-        private void PublishLastAccess(
-            string client, string command, AccessResult result, bool tolerateDiagnosticCopyFailure = false)
+        private async ValueTask PublishLastAccessAsync(
+            string client, string command, AccessResult result, bool tolerateDiagnosticCopyFailure = false,
+            CancellationToken cancellationToken = default)
+        {
+            BaseObjectState? access = await PrepareLastAccessAsync(
+                client, command, result, tolerateDiagnosticCopyFailure, cancellationToken).ConfigureAwait(false);
+            if (access != null)
+            {
+                await access.ClearChangeMasksAsync(Runtime.SystemContext, true).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Updates the cached access diagnostics and returns their notification root.
+        /// </summary>
+        private async ValueTask<BaseObjectState?> PrepareLastAccessAsync(
+            string client, string command, AccessResult result, bool tolerateDiagnosticCopyFailure,
+            CancellationToken cancellationToken)
         {
             if (Device.Diagnostics == null)
             {
-                return;
+                return null;
             }
             BaseObjectState access = DiagnosticGroup("LastAccess");
+            DateTimeUtc acquired = result.Timestamp;
             bool hasTimestamp = (result.EncodingMask & (uint)AccessResultFields.Timestamp) != 0 &&
-                !result.Timestamp.IsNull;
-            DateTimeUtc timestamp = hasTimestamp ? result.Timestamp : DateTimeUtc.Now;
+                !acquired.IsNull;
+            DateTimeUtc timestamp = hasTimestamp ? acquired : DateTimeUtc.Now;
             bool hasIdentifier = (result.EncodingMask & (uint)AccessResultFields.Identifier) != 0;
+            RfidAccessResult? rfidSnapshot = result is RfidAccessResult rfid ? new RfidAccessResult
+            {
+                EncodingMask = rfid.EncodingMask,
+                RWData = rfid.RWData,
+                CodeTypeRWData = rfid.CodeTypeRWData,
+                Antenna = rfid.Antenna,
+                CurrentPowerLevel = rfid.CurrentPowerLevel,
+                PC = rfid.PC,
+                Polarization = rfid.Polarization,
+                Strength = rfid.Strength
+            } : null;
             Variant identifier;
             Variant data;
             try
             {
                 identifier = hasIdentifier ? SnapshotDiagnosticData(result.Identifier) : Variant.Null;
-                data = Kind == AutoIdReaderKind.Rfid && result is RfidAccessResult rfidData &&
-                    (rfidData.EncodingMask & (uint)RfidAccessResultFields.RWData) != 0
-                    ? SnapshotDiagnosticData(rfidData.RWData)
+                data = Kind == AutoIdReaderKind.Rfid && rfidSnapshot != null &&
+                    (rfidSnapshot.EncodingMask & (uint)RfidAccessResultFields.RWData) != 0
+                    ? await FormatDiagnosticDataAsync(rfidSnapshot, cancellationToken).ConfigureAwait(false)
                     : Variant.Null;
             }
             catch (ServiceResultException ex) when (tolerateDiagnosticCopyFailure &&
@@ -260,20 +288,153 @@ namespace Opc.Ua.AutoID.Server
                     ex.StatusCode == StatusCodes.BadEncodingLimitsExceeded))
             {
                 m_logger.ReaderShutdownStepFailed(ex, Name.Name, "copying the access diagnostics");
-                return;
+                return null;
             }
+            cancellationToken.ThrowIfCancellationRequested();
             lock (m_lock)
             {
                 SetDiagnostic(access, "Client", Variant.From(client), timestamp);
                 SetDiagnostic(access, "Command", Variant.From(command), timestamp);
                 SetDiagnostic(access, "Identifier", identifier, timestamp, hasIdentifier && !identifier.IsNull);
-                SetDiagnostic(access, "Timestamp", Variant.From(result.Timestamp), timestamp, hasTimestamp);
-                if (Kind == AutoIdReaderKind.Rfid && result is RfidAccessResult rfid)
+                SetDiagnostic(access, "Timestamp", Variant.From(acquired), timestamp, hasTimestamp);
+                if (Kind == AutoIdReaderKind.Rfid && rfidSnapshot != null)
                 {
-                    SetRfidDiagnostics(access, rfid, data, timestamp);
+                    SetRfidDiagnostics(access, rfidSnapshot, data, timestamp);
                 }
             }
-            access.ClearChangeMasks(Runtime.SystemContext, true);
+            return access;
+        }
+
+        /// <summary>
+        /// Formats a copied user-data value without changing the access report retained by event consumers.
+        /// </summary>
+        private async ValueTask<Variant> FormatDiagnosticDataAsync(
+            RfidAccessResult result, CancellationToken cancellationToken)
+        {
+            if (m_parameterCapabilities is not { CodeTypesRWData.IsNull: false })
+            {
+                return SnapshotDiagnosticData(result.RWData);
+            }
+            ArrayOf<string> selected;
+            lock (m_lock)
+            {
+                ArrayOf<uint> indexes = m_parameters!.CodeTypesRWData;
+                if (indexes.Count == 0)
+                {
+                    return Variant.Null;
+                }
+                var names = new string[indexes.Count];
+                for (int i = 0; i < names.Length; i++)
+                {
+                    names[i] = m_parameterCapabilities.CodeTypesRWData[(int)indexes[i]];
+                }
+                selected = names.ToArrayOf();
+            }
+            try
+            {
+                ScanData input = SnapshotDiagnosticScanData(result.RWData);
+                string source = (result.EncodingMask & (uint)RfidAccessResultFields.CodeTypeRWData) != 0
+                    ? result.CodeTypeRWData ?? string.Empty : string.Empty;
+                var formatter = (IAutoIdRfidDiagnosticFormatter)Provider;
+                AutoIdRfidDiagnosticData formatted = await formatter.FormatRWDataAsync(
+                    input, source, CopyParameterArray(selected), cancellationToken).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                ValidateFormattedDiagnostic(formatted, selected);
+                Variant snapshot = SnapshotDiagnosticData(formatted.Data);
+                if (snapshot.IsNull)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadEncodingError, "The formatter returned a null diagnostic value.");
+                }
+                return snapshot;
+            }
+            catch (Exception ex) when (
+                ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+            {
+                m_logger.DiagnosticFormattingFailed(
+                    ex is ServiceResultException service ? service.StatusCode : StatusCodes.BadUnexpectedError);
+                return Variant.Null;
+            }
+        }
+
+        /// <summary>
+        /// Copies ScanData storage without trusting an externally overridden Clone implementation.
+        /// </summary>
+        private ScanData SnapshotDiagnosticScanData(ScanData? data)
+        {
+            if (data == null)
+            {
+                throw new ServiceResultException(StatusCodes.BadEncodingError, "The reported user data is null.");
+            }
+            return data.SwitchField switch
+            {
+                ScanDataFields.ByteString => new ScanData
+                {
+                    SwitchField = ScanDataFields.ByteString,
+                    ByteString = SnapshotDiagnosticBytes(data.ByteString)
+                },
+                ScanDataFields.String => new ScanData { SwitchField = ScanDataFields.String, String = data.String },
+                ScanDataFields.Epc when data.Epc is { } epc => new ScanData
+                {
+                    SwitchField = ScanDataFields.Epc,
+                    Epc = new ScanDataEpc
+                    {
+                        PC = epc.PC,
+                        UId = SnapshotDiagnosticBytes(epc.UId),
+                        XPC_W1 = epc.XPC_W1,
+                        XPC_W2 = epc.XPC_W2
+                    }
+                },
+                ScanDataFields.Custom => new ScanData
+                {
+                    SwitchField = ScanDataFields.Custom,
+                    Custom = SnapshotDiagnosticData(data)
+                },
+                _ => throw new ServiceResultException(
+                    StatusCodes.BadEncodingError, "The reported diagnostic data has no valid union value.")
+            };
+        }
+
+        /// <summary>
+        /// Requires one selected code type and the union field defined by OPC 30010 Table 32.
+        /// </summary>
+        private static void ValidateFormattedDiagnostic(
+            AutoIdRfidDiagnosticData formatted, ArrayOf<string> selected)
+        {
+            bool found = false;
+            if (formatted != null)
+            {
+                foreach (string name in selected)
+                {
+                    found |= string.Equals(name, formatted.CodeType, StringComparison.Ordinal);
+                }
+            }
+            if (!found || formatted == null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadEncodingError, "The formatter returned an unselected diagnostic format.");
+            }
+            bool valid = formatted.CodeType switch
+            {
+                "RAW:BYTES" or "UID" or "GS1" or "ASC" =>
+                    formatted.Data.SwitchField == ScanDataFields.ByteString && !formatted.Data.ByteString.IsNull,
+                "RAW:STRING" or "URI" =>
+                    formatted.Data.SwitchField == ScanDataFields.String && formatted.Data.String != null,
+                "EPC" => formatted.Data.SwitchField == ScanDataFields.Epc && formatted.Data.Epc != null,
+                _ => formatted.CodeType.StartsWith("CUSTOM:", StringComparison.Ordinal) &&
+                    (formatted.Data.SwitchField switch
+                    {
+                        ScanDataFields.ByteString => !formatted.Data.ByteString.IsNull,
+                        ScanDataFields.String => formatted.Data.String != null,
+                        ScanDataFields.Custom => !formatted.Data.Custom.IsNull,
+                        _ => false
+                    })
+            };
+            if (!valid)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadEncodingError, "The formatter's code type does not match its union field.");
+            }
         }
 
         /// <summary>

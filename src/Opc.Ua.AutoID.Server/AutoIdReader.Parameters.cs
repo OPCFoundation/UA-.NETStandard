@@ -292,6 +292,8 @@ namespace Opc.Ua.AutoID.Server
                                 m_parameters! with { CodeTypes = codes },
                             "TagTypes" when value.TryGetValue(out ArrayOf<uint> tags) =>
                                 m_parameters! with { TagTypes = tags },
+                            "CodeTypesRWData" when value.TryGetValue(out ArrayOf<uint> formats) =>
+                                m_parameters! with { CodeTypesRWData = formats },
                             "RfPower" when value.TryGetValue(out sbyte power) =>
                                 m_parameters! with { RfPower = power },
                             "MinRssi" when value.TryGetValue(out int rssi) =>
@@ -319,11 +321,14 @@ namespace Opc.Ua.AutoID.Server
                         {
                             "CodeTypes" => Variant.From(CopyParameterArray(next.CodeTypes)),
                             "TagTypes" => Variant.From(CopyParameterArray(next.TagTypes)),
+                            "CodeTypesRWData" => Variant.From(CopyParameterArray(next.CodeTypesRWData)),
                             _ => value
                         };
                         variable.Timestamp = DateTimeUtc.Now;
                         variable.StatusCode = StatusCodes.Good;
-                        variable.ClearChangeMasks(Runtime.SystemContext, false);
+                        await variable
+                            .ClearChangeMasksAsync(Runtime.SystemContext, false)
+                            .ConfigureAwait(false);
                         return ServiceResult.Good;
                     }
                     catch (ServiceResultException ex)

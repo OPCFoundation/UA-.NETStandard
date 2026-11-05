@@ -102,9 +102,14 @@ bindings; OCR and optical readers, including verifiers, support configured
 `TemplateName` and `MatchCode`. Unsupported capabilities remain absent.
 `TagTypes` has a mandatory read-only `EnumStrings` property.
 `EnableAntennas` cannot exceed the provider's general configuration; a zero
-write has no effect. `CodeTypesRWData` remains absent because the existing
-method-report path has no selectable diagnostic formatting contract. No access-event
-payload behavior is changed. Provider-reported access results use the existing sink.
+write has no effect. An optional `IAutoIdRfidDiagnosticFormatter` implements
+`CodeTypesRWData` selection for diagnostic user data. The simulated RFID provider
+supports `RAW:BYTES`; other providers can declare formats they actually produce.
+Empty selection disables diagnostic RWData on subsequent reports; multiple
+selections let the provider return one selected representation. Invalid formatting
+is recorded and makes RWData unavailable without changing the completed command
+or its event payload. Provider-reported access results use the same diagnostic
+formatting boundary.
 See the guide for the scalar
 power boundary and complete provider contract.
 

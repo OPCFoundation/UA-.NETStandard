@@ -37,7 +37,7 @@ namespace Opc.Ua.AutoID.Server
     /// Capability declarations remain stable for the reader lifetime. The provider validates device-specific
     /// constraints and implements the selected tag types, templates and RF behavior; exposing a value alone
     /// is not an implementation of those behaviors. Unsupported values must remain absent.
-    /// CodeTypesRWData is not bound: the existing method-report path has no selectable formatting contract.
+    /// CodeTypesRWData additionally requires IAutoIdRfidDiagnosticFormatter to implement the diagnostic conversion.
     /// </remarks>
     public interface IAutoIdReaderParametersProvider : IAutoIdScanParametersProvider
     {
@@ -52,6 +52,11 @@ namespace Opc.Ua.AutoID.Server
     /// </summary>
     public sealed record AutoIdReaderParameterCapabilities
     {
+        /// <summary>
+        /// Gets the diagnostic RWData format names; a null array omits CodeTypesRWData.
+        /// </summary>
+        public ArrayOf<string> CodeTypesRWData { get; init; }
+
         /// <summary>
         /// Gets the RFID tag type names; a null array omits TagTypes.
         /// </summary>

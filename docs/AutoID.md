@@ -483,14 +483,14 @@ antenna names or diagnostic values. Existing providers remain unchanged.
 
 | Reader kind | Optional standard parameters |
 |---|---|
-| RFID | `TagTypes`, `RfPower`, `MinRssi`, `EnableAntennas` |
+| RFID | `CodeTypesRWData`, `TagTypes`, `RfPower`, `MinRssi`, `EnableAntennas` |
 | OCR, optical and optical verifier | `TemplateName`, `MatchCode` |
 | RTLS | No additions to the common runtime parameters |
 
 Table 15 and the pinned NodeSet declare both `CodeTypesRWData` and `TagTypes`
 as `UInt32` arrays with `MultiStateDiscreteType`, ValueRank 1,
 ArrayDimensions `[0]` and mandatory namespace-zero `EnumStrings` properties.
-The binder implements `TagTypes` with a read-only `EnumStrings` property.
+The binder implements both selections with read-only `EnumStrings` properties.
 The provider declares a stable tag-name catalogue and supplies the selected indexes in
 `AutoIdScanParameters`. Null arrays omit the capability; empty selected arrays
 select no entries. Invalid or duplicate indexes are rejected.
@@ -531,13 +531,59 @@ value, quality or timestamp, as required by OPC 30010 6.5.3.1. The SDK never
 derives this mask from `AntennaNames`. Capability catalogues and the general
 mask remain fixed for the reader lifetime; recreate the reader when they change.
 
-`CodeTypesRWData` remains absent. OPC 30010 6.5.3.1 makes it configure the
-diagnostic `RWData` format, but the existing tag-method reporting path constructs
-`RAW:BYTES` data without a selectable formatting contract. A provider configuration
-commit alone cannot change that SDK-owned projection. No formatter or
-empty-selection behavior is introduced; access-event payloads and credential
-exclusions remain unchanged. Providers can still report their existing access
-results through the reader sink.
+`CodeTypesRWData` configures diagnostic `RWData` as described in OPC 30010
+6.5.3.1. A provider implements `IAutoIdRfidDiagnosticFormatter`, declares its actual
+format catalogue in `AutoIdReaderParameterCapabilities.CodeTypesRWData`, and commits
+selected indexes in `AutoIdScanParameters.CodeTypesRWData`. Declaring that catalogue
+without implementing the formatter is a configuration error. The existing
+`WithRuntimeParameters()` and `WithDiagnostics()` builder options enable the
+selection and its diagnostic projection; providers without the capability retain
+their existing report projection.
+
+Empty selection disables diagnostic `RWData` on subsequent access reports:
+the value becomes null with `BadNoData`, while the other access fields continue
+to update. A selection write does not reformat historical diagnostics. Multiple
+selected indexes are accepted without defining an order of preference. The
+formatter receives the selected names and returns one selected code type with
+its corresponding `ScanData` value. The runtime validates membership and the
+union field defined in OPC 30010 Table 32. Clients can browse and write this
+reader-specific selection through standard OPC UA services.
+
+The formatter receives independent user-data storage, not credentials, and its
+output is copied before publication. If formatting fails or returns an invalid
+representation, the runtime records the failure and publishes `RWData` as
+unavailable; it does not change an already executed tag command's outcome or
+suppress its access event. Formatting changes neither byte-valued method outputs
+nor access-event payloads. Public `ReportAccessAsync` awaits formatting, change
+notifications and asynchronous event reporting, retaining operation admission
+through those callbacks. Providers must also override `ReportEventAsync` on
+custom node states if they customize asynchronous reporting; a synchronous-only
+override is not called by that path. Cancellation before diagnostic publication
+propagates without updating part of the diagnostic group. Formatters must not
+await reader disposal or an operation waiting for their own callback.
+
+`InMemoryRfidReaderProvider` declares only `RAW:BYTES`, initially selected as
+index zero, and formats byte-valued user data. Additional formats require a
+provider that implements their actual conversion; the runtime does not infer
+String, EPC or vendor representations from arbitrary bytes.
+
+For example, enable the simulated provider's raw diagnostic capability through
+the existing fluent builder:
+
+```csharp
+var provider = new InMemoryRfidReaderProvider();
+AutoIdReader reader = await runtime.Reader(new QualifiedName("DockDoor", instanceNamespace), provider)
+    .OwnsProvider()
+    .WithRuntimeParameters()
+    .WithDiagnostics()
+    .BuildAsync(cancellationToken);
+```
+
+An application provider implementing `IAutoIdRfidDiagnosticFormatter` uses the
+same builder path. Its `FormatRWDataAsync` implementation returns an
+`AutoIdRfidDiagnosticData` containing the selected code-type name and the
+converted union value; the catalogue must not advertise conversions it cannot
+perform.
 
 All optional writes use the same authorization, scan-idle check, cancellation
 and complete-snapshot provider commit as the common parameters. Rejected or
@@ -641,8 +687,8 @@ and actuator variables, without standard children. No such hardware points are
 defined by the simulated reader, so it does not publish that group.
 Standard reader-specific runtime parameters require the explicit provider
 capability described above; `WithDiagnostics()` alone does not publish writable
-configuration. The sample's in-memory RFID provider does not implement RF
-configuration, tag-type filtering or selectable diagnostic formats, so those
+configuration. The sample's in-memory RFID provider implements raw-byte diagnostic
+formatting but does not implement RF configuration or tag-type filtering, so those
 optional parameters remain absent rather than advertising simulated hardware
 capabilities it does not implement.
 

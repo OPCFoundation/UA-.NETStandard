@@ -54,6 +54,14 @@ namespace Opc.Ua.AutoID.Server
     /// and 6.1.3.5). State transitions happen under a lock; provider calls, node updates that
     /// notify subscribers and events are made after the lock is released.
     /// </para>
+    /// <para>
+    /// Reader operations await NodeState's asynchronous notification hooks. A custom
+    /// device or parent that overrides only <see cref="NodeState.ReportEvent"/> will not receive
+    /// events through that override; it must also override <see cref="NodeState.ReportEventAsync"/>.
+    /// The reader keeps an operation active until its state-change and event sinks finish. A sink
+    /// must not await this reader's <see cref="DisposeAsync"/> or another operation serialized behind
+    /// the current callback; those operations wait for the callback to return.
+    /// </para>
     /// </remarks>
     public sealed partial class AutoIdReader : IAutoIdReaderSink, IAsyncDisposable
     {
@@ -172,7 +180,7 @@ namespace Opc.Ua.AutoID.Server
                     UpdateStatusLocked();
                 }
             }
-            PublishStatus();
+            await PublishStatusAsync().ConfigureAwait(false);
             if (stopAsync)
             {
                 await StopAsynchronousScanAsync(NodeId.Null, cancellationToken).ConfigureAwait(false);
@@ -180,7 +188,7 @@ namespace Opc.Ua.AutoID.Server
                 {
                     UpdateStatusLocked();
                 }
-                PublishStatus();
+                await PublishStatusAsync().ConfigureAwait(false);
             }
         }
 
@@ -262,7 +270,7 @@ namespace Opc.Ua.AutoID.Server
                     m_generation++;
                     UpdateStatusLocked();
                 }
-                PublishStatus();
+                await PublishStatusAsync().ConfigureAwait(false);
                 if (stopScan && m_asyncProvider != null)
                 {
                     await TryAsync(
@@ -366,10 +374,20 @@ namespace Opc.Ua.AutoID.Server
         /// <summary>
         /// Notifies subscribers of the status; called after the lock is released.
         /// </summary>
-        private void PublishStatus()
+        private async ValueTask PublishStatusAsync()
         {
-            Device.DeviceStatus?.ClearChangeMasks(Runtime.SystemContext, false);
-            Device.ScanActive?.ClearChangeMasks(Runtime.SystemContext, false);
+            if (Device.DeviceStatus != null)
+            {
+                await Device.DeviceStatus
+                    .ClearChangeMasksAsync(Runtime.SystemContext, false)
+                    .ConfigureAwait(false);
+            }
+            if (Device.ScanActive != null)
+            {
+                await Device.ScanActive
+                    .ClearChangeMasksAsync(Runtime.SystemContext, false)
+                    .ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -446,5 +464,14 @@ namespace Opc.Ua.AutoID.Server
             string? name,
             string? type,
             string expected);
+
+        /// <summary>
+        /// Reports an unavailable formatted diagnostic without logging the user-data payload or exception text.
+        /// </summary>
+        [LoggerMessage(
+            EventId = AutoIdServerEventIds.AutoIdReader + 3,
+            Level = LogLevel.Error,
+            Message = "Diagnostic RWData formatting failed with status '{StatusCode}'; RWData is unavailable.")]
+        public static partial void DiagnosticFormattingFailed(this ILogger logger, StatusCode statusCode);
     }
 }

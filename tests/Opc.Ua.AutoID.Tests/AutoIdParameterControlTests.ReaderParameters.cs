@@ -187,6 +187,41 @@ namespace Opc.Ua.AutoID.Tests
         }
 
         /// <summary>
+        /// Keeps a parameter write pending until its asynchronous change notification completes.
+        /// </summary>
+        [Test]
+        public async Task ParameterWriteAwaitsAsyncChangeNotificationAsync()
+        {
+            (AutoIdReader reader, ParameterProvider provider) = await CreateAsync().ConfigureAwait(false);
+            BaseVariableState cycles = Parameter(reader, "Cycles");
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            cycles.OnStateChangedAsync = async (_, _, _, cancellationToken) =>
+            {
+                entered.TrySetResult(true);
+                await release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+            };
+
+            await AutoIdGatedTest.RunAsync(
+                reader,
+                () => WriteAsync(cycles, Variant.From(4)).AsTask(),
+                () => release.TrySetResult(true),
+                async (invocation, _) =>
+                {
+                    await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    Task<ServiceResult> write =
+                        await invocation.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(write.IsCompleted, Is.False);
+                        Assert.That(provider.Parameters.Cycles, Is.EqualTo(4));
+                        Assert.That(cycles.Value, Is.EqualTo(Variant.From(4)));
+                    });
+                },
+                result => Assert.That(ServiceResult.IsGood(result), Is.True)).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Zero has no observable effect and nonzero masks cannot extend the general device configuration.
         /// </summary>
         [Test]

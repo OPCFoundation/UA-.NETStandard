@@ -450,6 +450,71 @@ namespace Opc.Ua.AutoID.Tests
             });
         }
 
+        /// <summary>
+        /// Waits for completion notification before disposing the reader's provider.
+        /// </summary>
+        [Test]
+        public async Task CompletionStatusNotificationKeepsShutdownWaitingForTheOperationAsync()
+        {
+            (RfidReaderDeviceState device, FakeProvider provider) = await CreateAsync().ConfigureAwait(false);
+            AutoIdReader reader = ReaderOf(device);
+            await StartAsync(device, AutoIdTestData.Settings()).ConfigureAwait(false);
+
+            var completionNotificationEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseCompletionNotification = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var detachEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            int notifications = 0;
+            bool completionNotificationReleased = false;
+            bool disposedBeforeCompletionNotificationReleased = false;
+            device.DeviceStatus!.OnStateChangedAsync = async (_, _, _, cancellationToken) =>
+            {
+                if (Interlocked.Increment(ref notifications) == 1)
+                {
+                    completionNotificationEntered.TrySetResult(true);
+                    await releaseCompletionNotification.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    Volatile.Write(ref completionNotificationReleased, true);
+                }
+            };
+            provider.OnDetach = _ =>
+            {
+                detachEntered.TrySetResult(true);
+                return default;
+            };
+            provider.OnDispose = () =>
+                disposedBeforeCompletionNotificationReleased = !Volatile.Read(ref completionNotificationReleased);
+
+            await AutoIdGatedTest.RunAsync(
+                reader,
+                async () =>
+                {
+                    await provider.Sink!.CompleteScanAsync().ConfigureAwait(false);
+                    return true;
+                },
+                () => releaseCompletionNotification.TrySetResult(true),
+                async (invocation, startDisposal) =>
+                {
+                    await completionNotificationEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    Task<bool> completion = await invocation.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    Assert.That(reader.IsAsyncScanActive, Is.False);
+                    Task dispose = await startDisposal().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    await detachEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(dispose.IsCompleted, Is.False);
+                        Assert.That(provider.Disposed, Is.False);
+                        Assert.That(completion.IsCompleted, Is.False);
+                    });
+                }).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(provider.Disposed, Is.True);
+                Assert.That(disposedBeforeCompletionNotificationReleased, Is.False);
+            });
+        }
+
         [Test]
         public async Task ACompletionDuringStartDoesNotLeaveTheReaderStuckAsync()
         {

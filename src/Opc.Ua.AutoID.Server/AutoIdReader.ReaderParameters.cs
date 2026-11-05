@@ -42,7 +42,8 @@ namespace Opc.Ua.AutoID.Server
             return parameters with
             {
                 CodeTypes = CopyParameterArray(parameters.CodeTypes),
-                TagTypes = CopyParameterArray(parameters.TagTypes)
+                TagTypes = CopyParameterArray(parameters.TagTypes),
+                CodeTypesRWData = CopyParameterArray(parameters.CodeTypesRWData)
             };
         }
 
@@ -59,6 +60,7 @@ namespace Opc.Ua.AutoID.Server
             return capabilities with
             {
                 TagTypes = CopyParameterArray(capabilities.TagTypes),
+                CodeTypesRWData = CopyParameterArray(capabilities.CodeTypesRWData),
                 TemplateNames = CopyParameterArray(capabilities.TemplateNames)
             };
         }
@@ -75,7 +77,7 @@ namespace Opc.Ua.AutoID.Server
             bool rfid = kind == AutoIdReaderKind.Rfid;
             bool optical = kind is AutoIdReaderKind.Ocr or
                 AutoIdReaderKind.Optical or AutoIdReaderKind.OpticalVerifier;
-            if ((!rfid && (!supported.TagTypes.IsNull ||
+            if ((!rfid && (!supported.TagTypes.IsNull || !supported.CodeTypesRWData.IsNull ||
                 supported.SupportsRfPower || supported.SupportsMinRssi || supported.ConfiguredAntennas.HasValue)) ||
                 (!optical && (!supported.TemplateNames.IsNull || supported.SupportsMatchCode)) ||
                 parameters.RfPower.HasValue != supported.SupportsRfPower ||
@@ -89,6 +91,16 @@ namespace Opc.Ua.AutoID.Server
                     "Reader parameters must match the declared capabilities and kind.");
             }
             ValidateParameterSelection(parameters.TagTypes, supported.TagTypes);
+            ValidateParameterSelection(parameters.CodeTypesRWData, supported.CodeTypesRWData);
+            foreach (string codeType in supported.CodeTypesRWData)
+            {
+                if (codeType is not ("RAW:BYTES" or "RAW:STRING" or "EPC" or "UID" or "GS1" or "ASC" or "URI") &&
+                    !codeType.StartsWith("CUSTOM:", StringComparison.Ordinal))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConfigurationError, "Unknown diagnostic format name.");
+                }
+            }
             ValidateParameterNames(supported.TemplateNames);
             if (parameters.TemplateName != null)
             {
@@ -126,6 +138,11 @@ namespace Opc.Ua.AutoID.Server
             if (!capabilities.TagTypes.IsNull)
             {
                 AddParameterSelection(context, runtime, "TagTypes", capabilities.TagTypes, parameters.TagTypes);
+            }
+            if (!capabilities.CodeTypesRWData.IsNull)
+            {
+                AddParameterSelection(
+                    context, runtime, "CodeTypesRWData", capabilities.CodeTypesRWData, parameters.CodeTypesRWData);
             }
             if (parameters.RfPower is sbyte power)
             {
@@ -235,6 +252,7 @@ namespace Opc.Ua.AutoID.Server
             return m_parameterCapabilities != null && (name switch
             {
                 "TagTypes" => !m_parameterCapabilities.TagTypes.IsNull,
+                "CodeTypesRWData" => !m_parameterCapabilities.CodeTypesRWData.IsNull,
                 "RfPower" => m_parameterCapabilities.SupportsRfPower,
                 "MinRssi" => m_parameterCapabilities.SupportsMinRssi,
                 "EnableAntennas" => m_parameterCapabilities.ConfiguredAntennas.HasValue,

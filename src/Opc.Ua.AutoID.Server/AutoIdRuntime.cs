@@ -340,6 +340,13 @@ namespace Opc.Ua.AutoID.Server
                         : null;
                     AutoIdReader.ValidateReaderParameters(
                         parameters, builder.Provider.Kind, builder.ParameterCapabilities);
+                    if (builder.ParameterCapabilities is { CodeTypesRWData.IsNull: false } &&
+                        builder.Provider is not IAutoIdRfidDiagnosticFormatter)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadConfigurationError,
+                            "CodeTypesRWData requires a diagnostic formatter.");
+                    }
                     builder.Parameters = AutoIdReader.SnapshotParameters(parameters);
                 }
                 (device, applyIdentification) = await CreateDeviceOfKindAsync(builder, cancellationToken)
