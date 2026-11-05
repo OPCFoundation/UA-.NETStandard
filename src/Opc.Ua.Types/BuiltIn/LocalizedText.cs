@@ -38,6 +38,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Types;
 
 namespace Opc.Ua
 {
