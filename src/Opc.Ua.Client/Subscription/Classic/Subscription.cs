@@ -2357,6 +2357,7 @@ namespace Opc.Ua.Client
                     if (message.NotificationData.Count > 0 && !newEntry.Processed)
                     {
                         newEntry.Message = message;
+                        newEntry.IsRepublishResponse = !updateAvailableSequenceNumbers;
                         newEntry.SavedDuringTransfer = Volatile.Read(ref m_transfersInProgress) != 0;
                         newEntry.TransferGeneration = Volatile.Read(ref m_transferGeneration);
                         newEntry.AcknowledgementScope =
@@ -3362,7 +3363,7 @@ namespace Opc.Ua.Client
 
                 // list of new messages to process.
                 List<(NotificationMessage Message, bool SavedDuringTransfer, int TransferGeneration,
-                    AcknowledgementScope? AcknowledgementScope)>?
+                    AcknowledgementScope? AcknowledgementScope, bool IsRepublishResponse)>?
                     messagesToProcess = null;
 
                 // list of keep alive messages to process.
@@ -3391,7 +3392,7 @@ namespace Opc.Ua.Client
                         {
                             (messagesToProcess ??= []).Add(
                                 (ii.Value.Message, ii.Value.SavedDuringTransfer, ii.Value.TransferGeneration,
-                                    ii.Value.AcknowledgementScope));
+                                    ii.Value.AcknowledgementScope, ii.Value.IsRepublishResponse));
 
                             // remove the oldest items. The emptiness check keeps a
                             // negative MaxMessageCount from throwing on RemoveFirst.
@@ -3509,7 +3510,7 @@ namespace Opc.Ua.Client
                     }
 
                     foreach ((NotificationMessage message, bool savedDuringTransfer, int transferGeneration,
-                        AcknowledgementScope? acknowledgementScope) in messagesToProcess)
+                        AcknowledgementScope? acknowledgementScope, bool isRepublishResponse) in messagesToProcess)
                     {
                         noNotificationsReceived = 0;
                         try
@@ -3608,7 +3609,8 @@ namespace Opc.Ua.Client
                                 AcknowledgementScope scope = acknowledgementScope ?? GetAcknowledgementScope();
                                 var handle = new AcknowledgementHandle(scope, message.SequenceNumber);
                                 await messageHandler.OnNotificationMessageAsync(
-                                    Subscriptions.NotificationMessageDispatch.CreateClassic(message, handle), ct)
+                                    Subscriptions.NotificationMessageDispatch.CreateClassic(
+                                        message, handle, isRepublishResponse), ct)
                                     .ConfigureAwait(false);
                             }
                         }
@@ -4264,6 +4266,9 @@ namespace Opc.Ua.Client
             public NotificationMessage? Message;
             public bool Processed;
             public bool Republished;
+
+            /// <summary>Whether the message arrived via Republish, not merely a requested retry.</summary>
+            public bool IsRepublishResponse;
             public bool RepublishImmediately;
             public StatusCode RepublishStatus;
             public bool SavedDuringTransfer;

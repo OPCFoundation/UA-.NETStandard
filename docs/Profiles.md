@@ -276,7 +276,7 @@ support gap.
 | [Plastics and rubber common types](PlasticsRubber.md), OPC 40083 | Full | Common controls, monitoring, maintenance, materials, diagnostics and production datasets; independently authored 1.03 interface implementation on the licensed 1.02 basis |
 | [Granulate drying](PlasticsRubber.md#granulate-drying-devices-opc-40082-6), OPC 40082-6 | Full | Device construction, selectable conformance units, provider-backed commands, observations, events and typed clients |
 | [Extrusion](Extrusion.md), OPC 40084-1/-2/-3/-4/-5/-7/-8/-9/-10/-11/-12 | Full | General types and concrete device/line runtimes, jobs, datasets, events and clients; equipment authority remains with explicit providers |
-| [Extrusion Filter](Extrusion.md#filter-profile-discrepancy), OPC 40084-6 | Partial | Filter model/runtime implemented; profile withheld because the published table incorrectly requires the Part 5 Melt Pump profile |
+| [Extrusion Filter](Extrusion.md#filter-profile-discrepancy), OPC 40084-6 | Partial | Filter model/runtime implemented; profile withheld pending clarification of the published requirement for the Part 5 Melt Pump conformance unit |
 
 Implemented draft extensions are separate from the published-specification
 matrix:
@@ -909,7 +909,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 40084-3: Extrusion - Extruder](https://reference.opcfoundation.org/specs/OPC-40084-3) | 2.00 | Full | - |
 | [OPC 40084-4: Extrusion - Haul-off](https://reference.opcfoundation.org/specs/OPC-40084-4) | 2.00 | Full | - |
 | [OPC 40084-5: Extrusion - Melt Pump](https://reference.opcfoundation.org/specs/OPC-40084-5) | 2.00 | Full | - |
-| [OPC 40084-6: Extrusion - Filter](https://reference.opcfoundation.org/specs/OPC-40084-6) | 2.00 | Partial | Filter profile withheld: published table incorrectly requires Part 5 Melt Pump profile |
+| [OPC 40084-6: Extrusion - Filter](https://reference.opcfoundation.org/specs/OPC-40084-6) | 2.00 | Partial | Filter profile withheld pending clarification of the published requirement for the Part 5 Melt Pump conformance unit |
 | [OPC 40084-7: Extrusion - Die](https://reference.opcfoundation.org/specs/OPC-40084-7) | 2.00 | Full | - |
 | [OPC 40084-8: Extrusion - Pelletizer](https://reference.opcfoundation.org/specs/OPC-40084-8) | 2.00 | Full | - |
 | [OPC 40084-9: Extrusion - Cutter](https://reference.opcfoundation.org/specs/OPC-40084-9) | 2.00 | Full | - |
