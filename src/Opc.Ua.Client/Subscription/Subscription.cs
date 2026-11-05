@@ -963,7 +963,8 @@ namespace Opc.Ua.Client.Subscriptions
                 SubscriptionNotificationMessage projected = NotificationMessageDispatch.Create(
                     message, handle, [.. stringTable],
                     data => m_monitoredItems.CreateNotification(data, handle),
-                    events => m_monitoredItems.CreateNotification(events, handle));
+                    events => m_monitoredItems.CreateNotification(events, handle),
+                    republished: (publishStateMask & PublishState.Republish) != 0);
                 for (int i = 0; i < message.NotificationData.Count; i++)
                 {
                     ExtensionObject payload = message.NotificationData[i];
