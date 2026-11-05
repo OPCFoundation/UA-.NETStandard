@@ -753,6 +753,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                 {
                     return new ValueTask<ServiceResult>(veto);
                 }
+                ServiceResult committed;
                 lock (m_lock)
                 {
                     ScaleProductionPreset.ActiveProductReservation? reservation =
@@ -765,21 +766,28 @@ namespace Opc.Ua.Scales.Server.Runtime
                             ServiceResult access = ScaleValues.CheckLock(m_services, callContext, product.NodeId);
                             if (ServiceResult.IsBad(access))
                             {
-                                return new ValueTask<ServiceResult>(access);
+                                committed = access;
+                            }
+                            else
+                            {
+                                committed = RegisterWeightCore(product, out registered);
                             }
                         }
-                        ServiceResult committed = RegisterWeightCore(product, out registered);
+                        else
+                        {
+                            committed = RegisterWeightCore(product, out registered);
+                        }
                         if (ServiceResult.IsGood(committed))
                         {
                             PublishCore(product);
                         }
-                        return new ValueTask<ServiceResult>(committed);
                     }
                     finally
                     {
                         reservation?.Dispose();
                     }
                 }
+                return new ValueTask<ServiceResult>(committed);
             }, cancellationToken).ConfigureAwait(false);
             if (registered != null)
             {
@@ -1230,6 +1238,7 @@ namespace Opc.Ua.Scales.Server.Runtime
     /// <param name="PriceCalculator">The optional injected price calculator for price labelers.</param>
     /// <param name="CompletedFills">Whether completed totalizing-hopper fills are reported.</param>
     /// <param name="VehicleAggregation">The optional per-vehicle aggregation rule.</param>
+    /// <param name="PieceCountingTotals">Whether per-product piece-counting totals are enabled.</param>
     internal sealed record ScaleConfiguration(
         IReadOnlyList<WeighingRangeDefinition> Ranges,
         EUInformation Unit,
