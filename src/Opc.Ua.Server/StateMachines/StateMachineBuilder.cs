@@ -2363,7 +2363,7 @@ namespace Opc.Ua.Server.StateMachines
                         .ConfigureAwait(false);
                     return;
                 }
-                ServiceResult result = await m_stateMachine.ExecuteWithStateAdmissionAsync(
+                ServiceResult result = await m_stateMachine.ExecuteStateOperationAsync(
                     m_context,
                     async cancellationToken =>
                     {
@@ -2416,7 +2416,7 @@ namespace Opc.Ua.Server.StateMachines
                 m_stateMachine.StateRevision == revision &&
                 ReferenceEquals(Volatile.Read(ref entry.Active), registration))
             {
-                ServiceResult admitted = await m_stateMachine.ExecuteWithStateAdmissionAsync(
+                ServiceResult admitted = await m_stateMachine.ExecuteStateOperationAsync(
                     m_context,
                     cancellationToken =>
                     {

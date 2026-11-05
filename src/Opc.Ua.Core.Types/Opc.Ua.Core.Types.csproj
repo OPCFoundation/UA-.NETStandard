@@ -23,7 +23,6 @@
     <!-- Deterministic server regressions verify the internal state revision without exposing it as public API. -->
     <InternalsVisibleTo Include="Opc.Ua.Server.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Core.Tests" />
-    <InternalsVisibleTo Include="Opc.Ua.PackML" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Bcl.TimeProvider" />

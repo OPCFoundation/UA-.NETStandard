@@ -857,7 +857,7 @@ namespace Opc.Ua.PackML
             ServiceResult result = ServiceResult.Good;
             try
             {
-                result = await StateMachine.ExecuteWithStateAdmissionAsync(
+                result = await StateMachine.ExecuteStateOperationAsync(
                     m_context, operation, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception e)

@@ -216,7 +216,7 @@ namespace Opc.Ua.Server.Tests.StateMachines
             dispatcher.AddTimedTransition(1, TimeSpan.FromSeconds(10), 10, 0);
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            Task<ServiceResult> owner = machine.ExecuteWithStateAdmissionAsync(
+            Task<ServiceResult> owner = machine.ExecuteStateOperationAsync(
                 context,
                 async cancellationToken =>
                 {

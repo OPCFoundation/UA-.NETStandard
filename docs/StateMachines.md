@@ -783,6 +783,28 @@ synchronous callback remains available, but application code must not block it
 on an asynchronous sink. Synchronous wire Methods retain their synchronous
 behavior.
 
+For a controller that coordinates several machines, use
+`ExecuteStateOperationAsync(context, operation, cancellationToken)` on their
+common parent. The operation can await native causes and transitions and make
+non-transition state assignments between them. Other state operations wait
+until it returns; overlapping external synchronous writes are rejected.
+An already-active descendant rejects the composite operation with
+`ServiceResultException(BadInvalidState)` before its callback runs.
+Each native transition still delivers its live notifications before the next
+transition. To publish state assignments that do not perform a transition,
+await `PublishStateChangesAsync(context, includeChildren, cancellationToken)`
+inside the operation.
+
+The callback receives the caller's cancellation token and returns a
+`ServiceResult`. A bad result or exception does not undo changes already made.
+The controller must await its notification delivery before returning. A
+controller must perform its changes sequentially and must not schedule writes
+that outlive the operation. A
+notification callback must not start another composite operation on a
+participating machine; that reentry returns `BadInvalidState`.
+These APIs expose state operations and publication, not synchronization
+handles or ownership scopes.
+
 ## Tests
 
 * `tests/Opc.Ua.Server.Tests/StateMachines/StateMachineBuilderTests.cs`

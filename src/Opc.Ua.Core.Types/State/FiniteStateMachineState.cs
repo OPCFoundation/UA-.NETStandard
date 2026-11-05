@@ -700,13 +700,30 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Publishes composite state changes while rejecting direct state-machine writes until delivery finishes.
+        /// Publishes pending state changes and awaits their notifications before another state operation can run.
         /// </summary>
-        internal async ValueTask PublishStateChangesAsync(
+        /// <remarks>
+        /// Synchronous causes, transitions and state assignments are rejected during notification delivery.
+        /// Callbacks must not await another operation on this machine or its participating descendants.
+        /// Cancellation is checked before publication; delivery that has started finishes without the caller's token.
+        /// This method does not report transition events or roll back state changes when a notification fails.
+        /// </remarks>
+        /// <param name="context">The system context used to deliver notifications.</param>
+        /// <param name="includeChildren">Whether to publish changes on descendant nodes as well.</param>
+        /// <param name="cancellationToken">The cancellation token observed before publication starts.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is null.</exception>
+        /// <exception cref="ServiceResultException">
+        /// Reentry from a notification or an already-active descendant is rejected with <c>BadInvalidState</c>.
+        /// </exception>
+        public async ValueTask PublishStateChangesAsync(
             ISystemContext context,
             bool includeChildren,
             CancellationToken cancellationToken = default)
         {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
             AsyncTransitionAdmission? admission = await EnterAsyncTransitionAsync(cancellationToken)
                 .ConfigureAwait(false);
             if (admission == null)
@@ -735,9 +752,31 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Reserves this machine and every descendant for one composite operation without exposing admission management.
+        /// Executes a composite state operation on this machine and its descendants.
         /// </summary>
-        internal async ValueTask<ServiceResult> ExecuteWithStateAdmissionAsync(
+        /// <remarks>
+        /// Other state operations wait until the supplied operation and its awaited notifications finish.
+        /// Synchronous writes from outside the operation are rejected. The operation may invoke native asynchronous
+        /// causes and transitions, each of which publishes its live state before returning. Publish non-transition
+        /// changes with <see cref="PublishStateChangesAsync"/> before returning from the operation.
+        /// Await each state change before starting the next; do not schedule writes that outlive the operation.
+        /// Notification callbacks must not await another operation on any participating machine.
+        /// Cancellation is checked before invoking the operation and its token is passed to the operation.
+        /// The returned result and exceptions are propagated without rolling back changes already applied.
+        /// </remarks>
+        /// <param name="context">The system context used to discover descendant machines.</param>
+        /// <param name="operation">The operation to execute, including notification delivery.</param>
+        /// <param name="cancellationToken">The cancellation token passed to the operation.</param>
+        /// <returns>
+        /// The operation's result, or <c>BadInvalidState</c> when called reentrantly from an active operation.
+        /// </returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="context"/> or <paramref name="operation"/> is null.
+        /// </exception>
+        /// <exception cref="ServiceResultException">
+        /// An already-active descendant prevents the composite operation with <c>BadInvalidState</c>.
+        /// </exception>
+        public async ValueTask<ServiceResult> ExecuteStateOperationAsync(
             ISystemContext context,
             Func<CancellationToken, ValueTask<ServiceResult>> operation,
             CancellationToken cancellationToken = default)

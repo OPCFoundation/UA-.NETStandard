@@ -955,7 +955,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 callbackTransition = await suspended.DoTransitionAsync(
                     m_context, Objects.ProgramStateMachineType_ReadyToHalted, 0, default, [], CancellationToken.None)
                     .AsTask().WaitAsync(s_timeout, CancellationToken.None).ConfigureAwait(false);
-                callbackComposite = await root.ExecuteWithStateAdmissionAsync(
+                callbackComposite = await root.ExecuteStateOperationAsync(
                     m_context, _ => new ValueTask<ServiceResult>(ServiceResult.Good), CancellationToken.None)
                     .AsTask().WaitAsync(s_timeout, CancellationToken.None).ConfigureAwait(false);
                 callbackState = Assert.Throws<ServiceResultException>(
@@ -963,7 +963,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 entered.TrySetResult(true);
                 await release.Task.WaitAsync(s_timeout, CancellationToken.None).ConfigureAwait(false);
             };
-            Task<ServiceResult> operation = root.ExecuteWithStateAdmissionAsync(m_context, async ct =>
+            Task<ServiceResult> operation = root.ExecuteStateOperationAsync(m_context, async ct =>
             {
                 root.SetState(m_context, Objects.ProgramStateMachineType_Running);
                 ServiceResult result = await execute.DoCauseAsync(
@@ -1011,7 +1011,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             root.AddChild(child);
             var original = new InvalidOperationException("composite operation");
             InvalidOperationException? failure = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                await root.ExecuteWithStateAdmissionAsync(
+                await root.ExecuteStateOperationAsync(
                     m_context, _ => new ValueTask<ServiceResult>(Task.FromException<ServiceResult>(original)))
                     .AsTask().WaitAsync(s_timeout).ConfigureAwait(false));
             Assert.That(failure, Is.SameAs(original));
@@ -1019,6 +1019,94 @@ namespace Opc.Ua.Core.Tests.Stack.State
             child.SetState(m_context, Objects.ProgramStateMachineType_Running);
             Assert.That(CurrentStateId(root), Is.EqualTo(Objects.ProgramStateMachineType_Running));
             Assert.That(CurrentStateId(child), Is.EqualTo(Objects.ProgramStateMachineType_Running));
+        }
+
+        /// <summary>
+        /// Verifies the public operation requires a system context.
+        /// </summary>
+        [Test]
+        public async Task StateOperationRejectsNullContextAsync()
+        {
+            ProgramStateMachineState machine = CreateMachine(out _, out _);
+            ArgumentNullException? failure = await Assert.ThrowsAsync<ArgumentNullException>(async () =>
+                await machine.ExecuteStateOperationAsync(
+                    null!, _ => new ValueTask<ServiceResult>(ServiceResult.Good)).ConfigureAwait(false));
+            Assert.That(failure!.ParamName, Is.EqualTo("context"));
+        }
+
+        /// <summary>
+        /// Verifies the public operation requires an operation callback.
+        /// </summary>
+        [Test]
+        public async Task StateOperationRejectsNullOperationAsync()
+        {
+            ProgramStateMachineState machine = CreateMachine(out _, out _);
+            ArgumentNullException? failure = await Assert.ThrowsAsync<ArgumentNullException>(async () =>
+                await machine.ExecuteStateOperationAsync(m_context, null!).ConfigureAwait(false));
+            Assert.That(failure!.ParamName, Is.EqualTo("operation"));
+        }
+
+        /// <summary>
+        /// Verifies the public publication method requires a system context.
+        /// </summary>
+        [Test]
+        public async Task StatePublicationRejectsNullContextAsync()
+        {
+            ProgramStateMachineState machine = CreateMachine(out _, out _);
+            ArgumentNullException? failure = await Assert.ThrowsAsync<ArgumentNullException>(async () =>
+                await machine.PublishStateChangesAsync(null!, true).ConfigureAwait(false));
+            Assert.That(failure!.ParamName, Is.EqualTo("context"));
+        }
+
+        /// <summary>
+        /// Verifies cancellation before invocation leaves the state and subsequent operations available.
+        /// </summary>
+        [Test]
+        public async Task CancelledStateOperationDoesNotInvokeOperationOrChangeStateAsync()
+        {
+            ProgramStateMachineState machine = CreateMachine(out _, out _);
+            uint initial = CurrentStateId(machine);
+            bool invoked = false;
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+            OperationCanceledException? failure = await Assert.CatchAsync<OperationCanceledException>(async () =>
+                await machine.ExecuteStateOperationAsync(m_context, _ =>
+                {
+                    invoked = true;
+                    machine.SetState(m_context, Objects.ProgramStateMachineType_Running);
+                    return new ValueTask<ServiceResult>(ServiceResult.Good);
+                }, cancellation.Token).ConfigureAwait(false));
+            Assert.That(failure!.CancellationToken, Is.EqualTo(cancellation.Token));
+            Assert.That(invoked, Is.False);
+            Assert.That(CurrentStateId(machine), Is.EqualTo(initial));
+            ServiceResult result = await machine.ExecuteStateOperationAsync(m_context, _ =>
+            {
+                machine.SetState(m_context, Objects.ProgramStateMachineType_Running);
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            }).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(CurrentStateId(machine), Is.EqualTo(Objects.ProgramStateMachineType_Running));
+        }
+
+        /// <summary>
+        /// Verifies token and result forwarding without implicit rollback or retained ownership.
+        /// </summary>
+        [Test]
+        public async Task StateOperationForwardsTokenAndBadResultWithoutRevertingChangesAsync()
+        {
+            ProgramStateMachineState machine = CreateMachine(out _, out _);
+            using var cancellation = new CancellationTokenSource();
+            ServiceResult expected = ServiceResult.Create(StatusCodes.BadNotSupported, "equipment rejected completion");
+            ServiceResult result = await machine.ExecuteStateOperationAsync(m_context, ct =>
+            {
+                Assert.That(ct, Is.EqualTo(cancellation.Token));
+                machine.SetState(m_context, Objects.ProgramStateMachineType_Running);
+                return new ValueTask<ServiceResult>(expected);
+            }, cancellation.Token).ConfigureAwait(false);
+            Assert.That(result, Is.SameAs(expected));
+            Assert.That(CurrentStateId(machine), Is.EqualTo(Objects.ProgramStateMachineType_Running));
+            machine.SetState(m_context, Objects.ProgramStateMachineType_Halted);
+            Assert.That(CurrentStateId(machine), Is.EqualTo(Objects.ProgramStateMachineType_Halted));
         }
 
         private static readonly TimeSpan s_timeout = TimeSpan.FromSeconds(30);
