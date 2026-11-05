@@ -286,9 +286,12 @@ namespace Opc.Ua.AutoID.Tests
             AutoIdHostFixture host = m_host ?? throw new InvalidOperationException("The host is not initialized.");
             BaseDataVariableState? trigger = null;
             int writes = 0;
+            IAutoIdReaderProvider provider = kind == AutoIdReaderKind.Rtls
+                ? new FakeRtlsProvider(kind, [LocationTypeEnumeration.LOCAL])
+                : new MinimalProvider(kind);
             await using AutoIdReader reader = await host.Runtime
                 .Reader(new QualifiedName("IOData" + kind, host.Manager.InstanceNamespaceIndex),
-                    new MinimalProvider(kind))
+                    provider)
                 .WithIOData((context, group) =>
                 {
                     trigger = new BaseDataVariableState(group);
@@ -399,7 +402,12 @@ namespace Opc.Ua.AutoID.Tests
             ServiceResultException disposed = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await first.OpenAsync(NodeId.Null, (byte)UaFileMode.Read).ConfigureAwait(false)))!;
             Assert.That(disposed.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
-            await using AutoIdReader retried = await builder.BuildAsync().ConfigureAwait(false);
+            await using AutoIdReader retried = await fixture.Runtime.Reader(fixture.Name("Camera"), provider)
+                .WithImages(
+                [
+                    new AutoIdImageSlot(fixture.Name("First"), "image/png", ByteString.Empty),
+                    new AutoIdImageSlot(fixture.Name("Second"), "image/png", ByteString.Empty)
+                ]).BuildAsync().ConfigureAwait(false);
             Assert.That(retried.Name, Is.EqualTo(fixture.Name("Camera")));
             await retried.ReportImageAsync(fixture.Name("First"), ByteString.Empty).ConfigureAwait(false);
         }

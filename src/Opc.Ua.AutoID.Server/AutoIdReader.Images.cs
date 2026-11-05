@@ -164,8 +164,8 @@ namespace Opc.Ua.AutoID.Server
                 AutoIdImageSlot slot = slots[i];
                 FileState file = context.CreateInstanceOfFileType(images, slot.Name);
                 file.ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.Organizes;
-                file.CreateOrReplaceMimeType(context, null).Value = slot.MimeType;
-                file.CreateOrReplaceMaxByteStringLength(context, null);
+                file.AddMimeType(context).AddMaxByteStringLength(context);
+                file.MimeType!.Value = slot.MimeType;
                 images.AddChild(file);
             }
         }
