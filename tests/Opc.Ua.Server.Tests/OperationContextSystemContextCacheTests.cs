@@ -184,12 +184,12 @@ namespace Opc.Ua.Server.Tests
 
         /// <summary>
         /// A replacement template receives a new copy, and retired templates are not rooted by
-        /// the operation's cache.
+        /// the cache of a shared subscriber context, which sessions and monitored items retain.
         /// </summary>
         [Test]
-        public void ReplacedTemplateIsNotRetainedByOperationCache()
+        public void ReplacedTemplateIsNotRetainedBySubscriberContextCache()
         {
-            var retention = CreateReplacementReferences();
+            var retention = CreateReplacementReferences(weak: true);
             try
             {
                 CollectGarbage();
@@ -205,6 +205,27 @@ namespace Opc.Ua.Server.Tests
             {
                 retention.Operation.Dispose();
             }
+        }
+
+        /// <summary>
+        /// A request context keeps the copy of a replaced template until it is disposed, at the
+        /// end of its service request, and then releases it.
+        /// </summary>
+        [Test]
+        public void ReplacedTemplateIsReleasedWhenRequestContextIsDisposed()
+        {
+            var retention = CreateReplacementReferences(weak: false);
+            Assert.That(retention.RetiredCopy.IsAlive, Is.True);
+
+            retention.Operation.Dispose();
+            CollectGarbage();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(retention.RetiredTemplate.IsAlive, Is.False);
+                Assert.That(retention.RetiredCopy.IsAlive, Is.False);
+            });
+            GC.KeepAlive(retention.Operation);
         }
 
         /// <summary>
@@ -340,11 +361,15 @@ namespace Opc.Ua.Server.Tests
         private static (
             OperationContext Operation,
             WeakReference RetiredTemplate,
-            WeakReference RetiredCopy) CreateReplacementReferences()
+            WeakReference RetiredCopy) CreateReplacementReferences(bool weak)
         {
             ServerSystemContext firstTemplate = CreateTemplate(systemHandle: "first");
             ServerSystemContext retiredTemplate = CreateTemplate(systemHandle: "retired");
             OperationContext operation = CreateOperation();
+            if (weak)
+            {
+                operation.EnableWeakSystemContextCache();
+            }
             operation.GetSystemContext(firstTemplate);
             ServerSystemContext retiredCopy = operation.GetSystemContext(retiredTemplate);
             ServerSystemContext replacement = CreateTemplate(systemHandle: "replacement");
