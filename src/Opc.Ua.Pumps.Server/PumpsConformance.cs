@@ -110,11 +110,27 @@ namespace Opc.Ua.Pumps.Server
         }
 
         /// <inheritdoc/>
-        /// <remarks>
-        /// Native units do not prove the inherited core and Machinery facets. The published Advanced
-        /// profile also links its required Base profile to the CAS namespace instead of Pumps.
-        /// </remarks>
-        public ArrayOf<string> ServerProfiles => [];
+        public ArrayOf<string> ServerProfiles
+        {
+            get
+            {
+                if (!HasPumpBaseProfile())
+                {
+                    return [];
+                }
+
+                var profiles = new List<string>
+                {
+                    MachineryMachineIdentificationWritableProfile,
+                    PumpBaseServerProfile
+                };
+                if (HasAdvancedProfile())
+                {
+                    profiles.Add(PumpAdvancedServerProfile);
+                }
+                return profiles.ToArrayOf();
+            }
+        }
 
         /// <summary>
         /// Walks only live instance children, without creating optional model members.
@@ -225,6 +241,152 @@ namespace Opc.Ua.Pumps.Server
                 }
             }
             return true;
+        }
+
+        /// <summary>
+        /// Verifies the configured Pump Base requirements and every current pump's writable identification.
+        /// </summary>
+        private bool HasPumpBaseProfile()
+        {
+            ArrayOf<PumpState> pumps = m_runtime.Pumps;
+            if (m_runtime.IsDisposed || pumps.IsEmpty ||
+                !HasServerProfiles(PumpBaseServerProfilePrerequisites))
+            {
+                return false;
+            }
+
+            int registeredPumpCount = 0;
+            for (int i = 0; i < pumps.Count; i++)
+            {
+                PumpState pump = pumps[i];
+                if (!IsRegistered(pump))
+                {
+                    continue;
+                }
+                if (!IsPumpType(pump, ObjectTypes.PumpType) ||
+                    !IsComplete(pump) ||
+                    !HasWritableIdentification(pump))
+                {
+                    return false;
+                }
+                registeredPumpCount++;
+            }
+            return registeredPumpCount > 0;
+        }
+
+        /// <summary>
+        /// Requires the selected Pump Base interpretation and every mandatory inherited Advanced facet.
+        /// </summary>
+        private bool HasAdvancedProfile()
+        {
+            return HasPumpBaseProfile() &&
+                HasServerProfiles(PumpAdvancedServerProfilePrerequisites);
+        }
+
+        /// <summary>
+        /// Checks the current server profile array for each required independent server facet.
+        /// </summary>
+        private bool HasServerProfiles(ArrayOf<string> requiredProfiles)
+        {
+            BaseVariableState? profileArray =
+                m_runtime.Manager.Server.ServerObject.ServerCapabilities?.ServerProfileArray;
+            if (profileArray is null ||
+                !profileArray.Value.TryGetValue(out ArrayOf<string> advertisedProfiles) ||
+                advertisedProfiles.IsNull)
+            {
+                return false;
+            }
+
+            for (int requiredIndex = 0; requiredIndex < requiredProfiles.Count; requiredIndex++)
+            {
+                bool found = false;
+                for (int advertisedIndex = 0; advertisedIndex < advertisedProfiles.Count; advertisedIndex++)
+                {
+                    if (string.Equals(
+                        requiredProfiles[requiredIndex],
+                        advertisedProfiles[advertisedIndex],
+                        StringComparison.Ordinal))
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Checks Machinery type, direct AddIn reference, mandatory members, and writable fields.
+        /// </summary>
+        private bool HasWritableIdentification(PumpState pump)
+        {
+            PumpIdentificationState? identification = pump.Identification;
+            NodeId machineIdentificationType = ExpandedNodeId.ToNodeId(
+                Opc.Ua.Machinery.ObjectTypeIds.MachineIdentificationType,
+                m_runtime.SystemContext.NamespaceUris);
+            if (identification is null ||
+                !IsRegistered(identification) ||
+                !m_runtime.SystemContext.TypeTable.IsTypeOf(
+                    identification.TypeDefinitionId, machineIdentificationType) ||
+                identification.BrowseName != new QualifiedName(
+                    Opc.Ua.Di.BrowseNames.Identification, m_runtime.NamespaceIndices.Di) ||
+                identification.ReferenceTypeId != Opc.Ua.Types.ReferenceTypeIds.HasAddIn ||
+                !HasDirectAddInReference(pump, identification) ||
+                !IsComplete(identification) ||
+                !HasReadAccess(identification))
+            {
+                return false;
+            }
+
+            return IsWritableIdentityField(
+                    identification, Opc.Ua.Di.BrowseNames.AssetId, m_runtime.NamespaceIndices.Di) &&
+                IsWritableIdentityField(
+                    identification, Opc.Ua.Di.BrowseNames.ComponentName, m_runtime.NamespaceIndices.Di) &&
+                IsWritableIdentityField(
+                    identification, Opc.Ua.Machinery.BrowseNames.Location, m_runtime.NamespaceIndices.Machinery);
+        }
+
+        /// <summary>
+        /// Checks the machine's direct AddIn edge to its identification node.
+        /// </summary>
+        private bool HasDirectAddInReference(PumpState pump, PumpIdentificationState identification)
+        {
+            var references = new List<IReference>();
+            pump.GetReferences(
+                m_runtime.SystemContext,
+                references,
+                Opc.Ua.Types.ReferenceTypeIds.HasAddIn,
+                isInverse: false);
+            foreach (IReference reference in references)
+            {
+                if (!reference.TargetId.IsAbsolute &&
+                    ExpandedNodeId.ToNodeId(reference.TargetId, m_runtime.SystemContext.NamespaceUris) ==
+                        identification.NodeId)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Requires the Machinery writable member to be readable, writable, and backed by a write handler.
+        /// </summary>
+        private bool IsWritableIdentityField(NodeState parent, string browseName, ushort namespaceIndex)
+        {
+            return parent.FindChild(m_runtime.SystemContext, new QualifiedName(browseName, namespaceIndex))
+                is BaseVariableState variable &&
+                IsRegistered(variable) &&
+                (variable.AccessLevel & AccessLevels.CurrentWrite) != 0 &&
+                (variable.UserAccessLevel & AccessLevels.CurrentWrite) != 0 &&
+                (variable.OnSimpleWriteValueAsync is not null ||
+                    variable.OnSimpleWriteValue is not null ||
+                    variable.OnWriteValueAsync is not null ||
+                    variable.OnWriteValue is not null);
         }
 
         /// <summary>
@@ -352,5 +514,37 @@ namespace Opc.Ua.Pumps.Server
 
         /// <summary>The standalone or composed owner being evaluated.</summary>
         private readonly PumpsRuntime m_runtime;
+
+        /// <summary>The Pump Base URI defined by OPC 40223 Table 153.</summary>
+        private const string PumpBaseServerProfile =
+            "http://opcfoundation.org/UA-Profile/Pumps/Server/Base";
+
+        /// <summary>The Pump Advanced URI defined by OPC 40223 Table 153.</summary>
+        private const string PumpAdvancedServerProfile =
+            "http://opcfoundation.org/UA-Profile/Pumps/Server/Advanced";
+
+        /// <summary>The inherited Machinery writable identification profile.</summary>
+        private const string MachineryMachineIdentificationWritableProfile =
+            "http://opcfoundation.org/UA-Profile/Machinery/Server/MachineIdentificationWritable";
+
+        /// <summary>Independent profiles required by OPC 40223 Table 154.</summary>
+        private static readonly ArrayOf<string> PumpBaseServerProfilePrerequisites =
+        [
+            "http://opcfoundation.org/UA-Profile/Server/EmbeddedUA2017",
+            "http://opcfoundation.org/UA-Profile/Server/DataAccess",
+            "http://opcfoundation.org/UA-Profile/Server/ComplexTypes2017",
+            "http://opcfoundation.org/UA-Profile/Server/AggregateSubscription"
+        ];
+
+        /// <summary>Independent profiles required by OPC 40223 Table 155.</summary>
+        private static readonly ArrayOf<string> PumpAdvancedServerProfilePrerequisites =
+        [
+            "http://opcfoundation.org/UA-Profile/Server/AddressSpaceNotifier",
+            "http://opcfoundation.org/UA-Profile/Server/ACAddressSpaceInstance",
+            "http://opcfoundation.org/UA-Profile/Server/ACExclusiveAlarming",
+            "http://opcfoundation.org/UA-Profile/Server/BaseHistoricalEvent",
+            "http://opcfoundation.org/UA-Profile/Server/HistoricalRawData",
+            "http://opcfoundation.org/UA-Profile/Server/AggregateHistorical"
+        ];
     }
 }

@@ -7,12 +7,16 @@ OPC 40001-1 Machinery and OPC 10000-100 Device Integration. A server
 publishes pumps with a fluent builder; a client discovers them and reads
 them back into typed snapshots. Both sides share one set of contracts.
 
-Support remains Partial in the [specification support matrix](Profiles.md#published-specification-support-matrix).
+Pumps support is Full in the
+[specification support matrix](Profiles.md#published-specification-support-matrix).
 Retained identification, diagnostic and limit conditions, event notification
 and raw/processed/event history are available through explicit configuration.
-Neither profile URI is advertised: complete inherited-facet evidence and the
-published Base-profile URI discrepancy remain unresolved, as described under
-[profiles and conformance units](#profiles-and-conformance-units).
+At server conformance publication, the Pump Base and Advanced profile URIs are
+contributed only when their configured inherited profiles and live pump
+instances meet the requirements described under
+[profiles and conformance units](#profiles-and-conformance-units). The
+implementation uses the Pump Base URI defined in Table 153 for the Table 155
+dependency; the published CAS Base link remains a discrepancy.
 
 ## Contents
 
@@ -907,10 +911,13 @@ server profiles (§9.2, Tables 153–155). It defines no client facets.
 
 | Profile | URI | Status |
 | --- | --- | --- |
-| Pump Base Server Profile (Table 154) | `http://opcfoundation.org/UA-Profile/Pumps/Server/Base` | Partial: retained writable identification is opt-in; model loading alone does not configure storage or authorization |
-| Pump Advanced Server Profile (Table 155) | `http://opcfoundation.org/UA-Profile/Pumps/Server/Advanced` | Partial: explicit condition/history integration is available; complete inherited-facet evidence and the unresolved Base dependency prevent advertisement |
+| Pump Base Server Profile (Table 154) | `http://opcfoundation.org/UA-Profile/Pumps/Server/Base` | Advertised when every current pump has writable Machinery identification and the required inherited server profiles are present |
+| Pump Advanced Server Profile (Table 155) | `http://opcfoundation.org/UA-Profile/Pumps/Server/Advanced` | Advertised when Pump Base and every required inherited Advanced server profile are present |
 
-`PumpsNodeManager` therefore advertises neither profile URI.
+The owner computes these profiles from the current registered pumps and the
+server's `ServerProfileArray` when conformance is published. It does not infer
+a profile from loaded types, an enabled option, or an optional native
+conformance unit.
 
 Standalone and composed Pumps runtimes contribute native units through the
 owner's `IConformanceContributor` mechanism. Evaluation uses registered
@@ -928,7 +935,7 @@ and limit-alarm publication requires a registered bound condition as well as
 the four measurement-type declarations. History requires a quantity with
 history access and an active shared data-provider route. Removed nodes and
 routes no longer contribute, and a disposed runtime contributes no native
-units. These evaluations do not establish the inherited profile facets.
+units.
 
 The published profile tables define two different URIs. OPC 40223
 [Table 153](https://reference.opcfoundation.org/specs/OPC-40223/v1.0/9.2.1)
@@ -944,29 +951,37 @@ assigns it CAS-specific mandatory requirements. OPC 40223
 [Table 154](https://reference.opcfoundation.org/specs/OPC-40223/v1.0/9.2.2.2)
 specifies the Pump Base profile's own requirements; OPC 40223
 [Table 155](https://reference.opcfoundation.org/specs/OPC-40223/v1.0/9.2.2.3)
-is titled Pump Advanced Server Profile. These publications do not establish
-whether the Table 155 dependency intended the Pumps URI or the CAS URI. The
-implementation does not substitute one URI for the other or silently rewrite
-the dependency. The Advanced profile remains unadvertised.
+is titled Pump Advanced Server Profile. The implementation uses the Pump Base
+URI defined in Table 153 for Table 155's Pump Base dependency. The published
+CAS Base link remains a discrepancy; this interpretation does not advertise
+CAS Base or add its CAS-specific requirements.
+
+Pump Base requires the Embedded 2017 UA Server, Data Access, ComplexType 2017,
+and Aggregate Subscription profiles from Table 154. It also requires every
+current pump to have complete writable Machinery identification. The runtime
+keeps the Pumps NodeSet declaration unchanged and uses `HasAddIn` for the
+instance identification edge; `HasAddIn` is a subtype of the declared
+`HasComponent` reference and satisfies Machinery's identification relationship.
+The writable `AssetId`, `ComponentName` and `Location` members are enabled by
+`WithRetainedIdentificationAsync` after the application supplies a persistent
+store and explicit role permissions.
 
 Table 154 includes Aggregate Subscription among the Pump Base requirements.
 Shared-server tests in `AsyncCustomNodeManagerTests`, including
 `ValidateMonitoringFilterAsyncUsesHistorianCapabilitiesAsync`,
 `ValidateMonitoringFilterAsyncUsesSamplingIntervalWithHistorianAsync` and
 `ReadInitialValueAsyncPrimesAggregateFilterFromPagedRawHistoryAsync`, exercise
-aggregate-filter validation and history priming. They provide partial evidence
-for the shared Aggregate Subscription behavior; they do not prove Pump Base
-conformance or a Pumps-connected subscription. The priming test applies only
-to the async manager. These tests do not establish that Pump Base is inherited
-by Advanced: Table 155's profile-name/URI discrepancy remains unresolved.
+aggregate-filter validation and history priming. They provide evidence for
+shared Aggregate Subscription behavior; the Pumps profile evaluator separately
+requires the corresponding profile URI in the server's `ServerProfileArray`.
+The priming test applies only to the async manager.
 
 Advanced also requires the Address Space Notifier, A&C Address Space Instance,
 A&C Exclusive Alarming, Base Historical Event, Historical Raw Data and
-Historical Aggregate server facets. The optional status of the native
-Historizing, Limit Alarm Status and Supervision Health Status units does not
-remove those inherited requirements. A model loaded into the address space,
-a notifier flag, or a provider configured without working history services
-does not establish Advanced support.
+Historical Aggregate server profiles. The evaluator advertises Advanced only
+when each URI is present and Pump Base is eligible. The native optional units
+remain independent capabilities; enabling or omitting them does not alter
+eligibility for either profile.
 
 | Conformance unit (Table 152) | Status | Where |
 | --- | --- | --- |
@@ -1087,7 +1102,7 @@ dotnet test tests/Opc.Ua.Pumps.Tests
 | `PumpBuilderTests` | Every builder shape in-process |
 | `PumpValueSetTests` | Value-set and supervision evaluation |
 | `PumpsCompositionTests` | Stock Machinery owner, ordered providers, lazy groups, instance ownership, cancellation and runtime disposal |
-| `PumpsConformanceTests` | Native-unit evaluation for empty, partial and changed instances; condition/provider removal and runtime shutdown |
+| `PumpsConformanceTests` | Native-unit evaluation; Pump Base/Advanced eligibility across identity permissions, each inherited profile prerequisite, pump removal and runtime shutdown |
 | `PumpsIdentificationTests` | Restart, locale, commit and restore failures, stable identity, ordered notification failures |
 | `PumpsAlarmTests` | NE107 mappings, limit boundaries, condition lifecycle and awaited state-notification ordering |
 | `PumpsHistoryTests` | Provider selection/capabilities and real-session raw/aggregate/event history with retained-condition refresh |

@@ -27,9 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
+using Opc.Ua.AMB.Server.Configuration;
 using Opc.Ua.Pumps.Server;
 using Opc.Ua.Pumps.Server.Builders;
 using Opc.Ua.Server;
@@ -247,6 +250,93 @@ namespace Opc.Ua.Pumps.Tests
         }
 
         /// <summary>
+        /// Base and Advanced profiles follow live writable identity and each independent server facet.
+        /// </summary>
+        [Test]
+        public async Task ProfilesRequireConfiguredIdentityAndInheritedFacetsAsync()
+        {
+            SetServerProfiles(PumpBaseServerProfilePrerequisites);
+            IPumpBuilder pump = await CreateAsync("ProfileEligibility");
+            pump.Identification.Set(
+                Opc.Ua.Di.BrowseNames.ProductInstanceUri,
+                Variant.From("urn:example:pump:profile-eligibility"));
+            PumpIdentificationState identification = pump.Pump.Identification!;
+            Assert.That(identification.ReferenceTypeId, Is.EqualTo(Opc.Ua.Types.ReferenceTypeIds.HasAddIn));
+
+            var conformance = new PumpsConformance(m_fixture.Manager.Runtime);
+            Assert.That(Advertises(conformance.ServerProfiles, PumpBaseServerProfile), Is.False);
+            await m_fixture.Manager.Runtime.WithRetainedIdentificationAsync(
+                pump, PersistentStore(), WritableIdentityPermissions);
+            Assert.That(Advertises(conformance.ServerProfiles, PumpBaseServerProfile), Is.True);
+            Assert.That(Advertises(
+                conformance.ServerProfiles, MachineryMachineIdentificationWritableProfile), Is.True);
+            Assert.That(Advertises(conformance.ServerProfiles, PumpAdvancedServerProfile), Is.False);
+            Assert.That(Advertises(
+                conformance.ServerProfiles, "http://opcfoundation.org/UA-Profile/CAS/Server/Base"), Is.False);
+
+            IPumpBuilder secondPump = await CreateAsync("ProfileEligibilitySecond");
+            secondPump.Identification.Set(
+                Opc.Ua.Di.BrowseNames.ProductInstanceUri,
+                Variant.From("urn:example:pump:profile-eligibility-second"));
+            Assert.That(Advertises(conformance.ServerProfiles, PumpBaseServerProfile), Is.False);
+            await m_fixture.Manager.Runtime.WithRetainedIdentificationAsync(
+                secondPump, PersistentStore(), WritableIdentityPermissions);
+            Assert.That(Advertises(conformance.ServerProfiles, PumpBaseServerProfile), Is.True);
+            await m_fixture.Manager.DeleteNodeAsync(
+                m_fixture.Manager.SystemContext, secondPump.NodeId, CancellationToken.None);
+            Assert.That(Advertises(conformance.ServerProfiles, PumpBaseServerProfile), Is.True);
+
+            for (int i = 0; i < PumpBaseServerProfilePrerequisites.Count; i++)
+            {
+                string missingProfile = PumpBaseServerProfilePrerequisites[i];
+                SetServerProfiles(WithoutProfile(PumpBaseServerProfilePrerequisites, missingProfile));
+                Assert.That(
+                    Advertises(conformance.ServerProfiles, PumpBaseServerProfile),
+                    Is.False,
+                    $"Pump Base must require {missingProfile}.");
+            }
+
+            BaseVariableState location = (BaseVariableState)pump.Identification.Child(
+                Opc.Ua.Machinery.BrowseNames.Location)!;
+            byte originalAccessLevel = location.AccessLevel;
+            location.AccessLevel &= unchecked((byte)~AccessLevels.CurrentRead);
+            Assert.That(Advertises(conformance.ServerProfiles, PumpBaseServerProfile), Is.False);
+            location.AccessLevel = originalAccessLevel;
+
+            location.AccessLevel &= unchecked((byte)~AccessLevels.CurrentWrite);
+            Assert.That(Advertises(conformance.ServerProfiles, PumpBaseServerProfile), Is.False);
+            location.AccessLevel = originalAccessLevel;
+
+            var originalWriteHandler = location.OnSimpleWriteValueAsync;
+            location.OnSimpleWriteValueAsync = null;
+            Assert.That(Advertises(conformance.ServerProfiles, PumpBaseServerProfile), Is.False);
+            location.OnSimpleWriteValueAsync = originalWriteHandler;
+
+            location.UserAccessLevel &= unchecked((byte)~AccessLevels.CurrentWrite);
+            Assert.That(Advertises(conformance.ServerProfiles, PumpBaseServerProfile), Is.False);
+            Assert.That(Advertises(conformance.ServerProfiles, PumpAdvancedServerProfile), Is.False);
+            location.UserAccessLevel |= AccessLevels.CurrentWrite;
+
+            ArrayOf<string> allRequiredProfiles =
+                [.. PumpBaseServerProfilePrerequisites, .. PumpAdvancedServerProfilePrerequisites];
+            SetServerProfiles(allRequiredProfiles);
+            Assert.That(Advertises(conformance.ServerProfiles, PumpBaseServerProfile), Is.True);
+            Assert.That(Advertises(conformance.ServerProfiles, PumpAdvancedServerProfile), Is.True);
+            Assert.That(Has("Pump Control"), Is.False);
+
+            for (int i = 0; i < PumpAdvancedServerProfilePrerequisites.Count; i++)
+            {
+                string missingProfile = PumpAdvancedServerProfilePrerequisites[i];
+                SetServerProfiles(WithoutProfile(allRequiredProfiles, missingProfile));
+                Assert.That(Advertises(conformance.ServerProfiles, PumpBaseServerProfile), Is.True);
+                Assert.That(
+                    Advertises(conformance.ServerProfiles, PumpAdvancedServerProfile),
+                    Is.False,
+                    $"Pump Advanced must require {missingProfile}.");
+            }
+        }
+
+        /// <summary>
         /// Creates a pump without selecting optional groups or runtime services.
         /// </summary>
         private ValueTask<IPumpBuilder> CreateAsync(string name)
@@ -269,6 +359,101 @@ namespace Opc.Ua.Pumps.Tests
             }
             return false;
         }
+
+        /// <summary>
+        /// Replaces the server's independent profile evidence for a focused eligibility case.
+        /// </summary>
+        private void SetServerProfiles(ArrayOf<string> profiles)
+        {
+            m_fixture.Server.ServerObject.ServerCapabilities!.ServerProfileArray!.Value = Variant.From(profiles);
+        }
+
+        /// <summary>
+        /// Checks one URI in a server profile contribution.
+        /// </summary>
+        private static bool Advertises(ArrayOf<string> profiles, string expected)
+        {
+            for (int i = 0; i < profiles.Count; i++)
+            {
+                if (string.Equals(profiles[i], expected, System.StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Removes one URI while preserving the other profile evidence.
+        /// </summary>
+        private static ArrayOf<string> WithoutProfile(ArrayOf<string> profiles, string excluded)
+        {
+            var remaining = new List<string>();
+            for (int i = 0; i < profiles.Count; i++)
+            {
+                if (!string.Equals(profiles[i], excluded, System.StringComparison.Ordinal))
+                {
+                    remaining.Add(profiles[i]);
+                }
+            }
+            return [.. remaining];
+        }
+
+        /// <summary>
+        /// Creates a persistent store with no previously retained identity values.
+        /// </summary>
+        private static Mock<IAssetConfigurationStore> PersistentStore()
+        {
+            var store = new Mock<IAssetConfigurationStore>(MockBehavior.Strict);
+            store.SetupGet(value => value.IsPersistent).Returns(true);
+            store.Setup(value => value.GetValueAsync(
+                    It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((string?)null);
+            return store;
+        }
+
+        /// <summary>
+        /// Grants nameplate writes only to the standard configuration-administrator role.
+        /// </summary>
+        private static ArrayOf<RolePermissionType> WritableIdentityPermissions =>
+        [
+            new RolePermissionType
+            {
+                RoleId = ObjectIds.WellKnownRole_ConfigureAdmin,
+                Permissions = (uint)(PermissionType.Browse | PermissionType.Read | PermissionType.Write)
+            }
+        ];
+
+        /// <summary>The independent inherited profiles required by OPC 40223 Table 154.</summary>
+        private static readonly ArrayOf<string> PumpBaseServerProfilePrerequisites =
+        [
+            "http://opcfoundation.org/UA-Profile/Server/EmbeddedUA2017",
+            "http://opcfoundation.org/UA-Profile/Server/DataAccess",
+            "http://opcfoundation.org/UA-Profile/Server/ComplexTypes2017",
+            "http://opcfoundation.org/UA-Profile/Server/AggregateSubscription"
+        ];
+
+        /// <summary>The independent inherited profiles required by OPC 40223 Table 155.</summary>
+        private static readonly ArrayOf<string> PumpAdvancedServerProfilePrerequisites =
+        [
+            "http://opcfoundation.org/UA-Profile/Server/AddressSpaceNotifier",
+            "http://opcfoundation.org/UA-Profile/Server/ACAddressSpaceInstance",
+            "http://opcfoundation.org/UA-Profile/Server/ACExclusiveAlarming",
+            "http://opcfoundation.org/UA-Profile/Server/BaseHistoricalEvent",
+            "http://opcfoundation.org/UA-Profile/Server/HistoricalRawData",
+            "http://opcfoundation.org/UA-Profile/Server/AggregateHistorical"
+        ];
+
+        /// <summary>The Pump Base profile identifier from OPC 40223 Table 153.</summary>
+        private const string PumpBaseServerProfile = "http://opcfoundation.org/UA-Profile/Pumps/Server/Base";
+
+        /// <summary>The Pump Advanced profile identifier from OPC 40223 Table 153.</summary>
+        private const string PumpAdvancedServerProfile =
+            "http://opcfoundation.org/UA-Profile/Pumps/Server/Advanced";
+
+        /// <summary>The inherited Machinery writable identification profile.</summary>
+        private const string MachineryMachineIdentificationWritableProfile =
+            "http://opcfoundation.org/UA-Profile/Machinery/Server/MachineIdentificationWritable";
 
         /// <summary>The independent address-space owner.</summary>
         private PumpsServerFixture m_fixture = null!;

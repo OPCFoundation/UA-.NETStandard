@@ -224,6 +224,7 @@ namespace Opc.Ua.Pumps.Server
                 // children from the parent chain rather than reusing the
                 // type-level ones.
                 pump = SystemContext.CreateInstanceOfPumpType(deviceSet, browseName);
+                RefineIdentificationReference(pump);
                 pump.DisplayName = new LocalizedText(browseName.Name);
                 pump.ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.Organizes;
                 deviceSet.AddChild(pump);
@@ -273,6 +274,32 @@ namespace Opc.Ua.Pumps.Server
                 NamespaceIndices,
                 Register,
                 Manager.FindPredefinedNode);
+        }
+
+        /// <summary>
+        /// Uses the Machinery AddIn reference subtype required for machine identification.
+        /// </summary>
+        private static void RefineIdentificationReference(PumpState pump)
+        {
+            PumpIdentificationState identification = pump.Identification ??
+                throw new InvalidOperationException("The Pumps model must declare an identification node.");
+            NodeId hasComponent = Opc.Ua.Types.ReferenceTypeIds.HasComponent;
+            NodeId hasAddIn = Opc.Ua.Types.ReferenceTypeIds.HasAddIn;
+            if (identification.ReferenceTypeId == hasAddIn)
+            {
+                return;
+            }
+            if (identification.ReferenceTypeId != hasComponent)
+            {
+                throw new InvalidOperationException(
+                    "The Pumps identification declaration must use HasComponent or its HasAddIn subtype.");
+            }
+
+            pump.RemoveReference(hasComponent, false, identification.NodeId);
+            identification.RemoveReference(hasComponent, true, pump.NodeId);
+            identification.ReferenceTypeId = hasAddIn;
+            pump.AddReference(hasAddIn, false, identification.NodeId);
+            identification.AddReference(hasAddIn, true, pump.NodeId);
         }
 
         /// <summary>
