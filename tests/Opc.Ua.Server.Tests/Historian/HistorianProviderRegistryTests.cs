@@ -79,7 +79,7 @@ namespace Opc.Ua.Server.Tests.Historian
         {
             var provider = new DisposableHistorianProvider();
             using var registry = new HistorianProviderRegistry(new NamespaceTable());
-            IHistorianProviderRegistry routing = registry;
+            HistorianProviderRegistry routing = registry;
             var nodeId = new NodeId("borrowed-node", 1);
             routing.RegisterForNode(nodeId, provider, ownsProvider: false);
             Assert.That(routing.Resolve(nodeId), Is.SameAs(provider));

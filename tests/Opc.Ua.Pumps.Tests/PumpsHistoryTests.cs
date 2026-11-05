@@ -455,7 +455,7 @@ namespace Opc.Ua.Pumps.Tests
                     BrowseName = new QualifiedName(Opc.Ua.BrowseNames.Annotations),
                     ReferenceTypeId = ReferenceTypeIds.HasProperty,
                     TypeDefinitionId = VariableTypeIds.PropertyType,
-                    DataType = DataTypeIds.Annotation,
+                    DataType = Opc.Ua.DataTypeIds.Annotation,
                     ValueRank = ValueRanks.OneDimension,
                     AccessLevel = AccessLevels.CurrentRead,
                     UserAccessLevel = AccessLevels.CurrentWrite
