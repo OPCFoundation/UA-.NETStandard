@@ -17,6 +17,7 @@
     <ProjectReference Include="..\Opc.Ua.ECM\Opc.Ua.ECM.csproj" />
     <ProjectReference Include="..\Opc.Ua.Client\Opc.Ua.Client.csproj" />
     <ProjectReference Include="..\Opc.Ua.Di.Client\Opc.Ua.Di.Client.csproj" />
+    <ProjectReference Include="..\Opc.Ua.IA.Client\Opc.Ua.IA.Client.csproj" />
     <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj"
                       OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <AdditionalFiles Include="..\Opc.Ua.ECM\Model\Opc.Ua.ECM.NodeSet2.xml">

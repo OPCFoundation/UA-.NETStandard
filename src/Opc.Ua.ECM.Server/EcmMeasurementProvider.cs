@@ -69,6 +69,24 @@ namespace Opc.Ua.ECM.Server
     /// <param name="Measurements">The measurements represented by this snapshot.</param>
     public sealed record EcmMeasurementSnapshot(
         string ApplicationTag,
+        ArrayOf<EcmMeasurementReading> Measurements)
+    {
+        /// <summary>
+        /// Gets the beginning of the statistics collection for E2, E3 and D1 measurement points.
+        /// It is required when the snapshot contains statistic members and ignored otherwise.
+        /// </summary>
+        public DateTimeUtc StatisticsStartTime { get; init; }
+    }
+
+    /// <summary>
+    /// A committed statistics observation returned by a statistics reset.
+    /// </summary>
+    /// <param name="StartTime">The new beginning of the statistics collection.</param>
+    /// <param name="Measurements">
+    /// Exactly the statistic members of the published profiles, with unchanged metadata.
+    /// </param>
+    public sealed record EcmStatisticsSnapshot(
+        DateTimeUtc StartTime,
         ArrayOf<EcmMeasurementReading> Measurements);
 
     /// <summary>
@@ -88,5 +106,31 @@ namespace Opc.Ua.ECM.Server
         /// <param name="applicationTag">The new tag.</param>
         /// <param name="cancellationToken">Cancels the write.</param>
         ValueTask WriteApplicationTagAsync(string applicationTag, CancellationToken cancellationToken);
+    }
+
+    /// <summary>
+    /// Extends a measurement provider with the shared IA statistics collection used by E2, E3 and D1.
+    /// </summary>
+    /// <remarks>
+    /// The statistic members and the collection StartTime are published through the shared
+    /// <c>Opc.Ua.IA.Server</c> statistics runtime. Every statistic member of the selected profiles shares
+    /// one grouped reset. The binding serializes reset with refresh and application-tag writes.
+    /// </remarks>
+    public interface IEcmStatisticsProvider : IEcmMeasurementProvider
+    {
+        /// <summary>
+        /// Checks the requesting user's permission to reset every statistic of the measurement point.
+        /// </summary>
+        /// <param name="requestContext">The calling user's context.</param>
+        /// <param name="cancellationToken">Cancels the check.</param>
+        ValueTask<ServiceResult> AuthorizeStatisticsResetAsync(
+            ISystemContext requestContext,
+            CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Resets every statistic and returns the committed collection, including its new StartTime.
+        /// </summary>
+        /// <param name="cancellationToken">Cancels the reset before it commits.</param>
+        ValueTask<EcmStatisticsSnapshot> ResetStatisticsAsync(CancellationToken cancellationToken);
     }
 }

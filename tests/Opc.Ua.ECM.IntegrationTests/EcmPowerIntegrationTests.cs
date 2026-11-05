@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -388,6 +389,210 @@ namespace Opc.Ua.ECM.IntegrationTests
             Assert.That(applicationTag.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
         }
 
+        /// <summary>
+        /// E2 energy statistics, StartTime and the grouped reset cross a live UA session through generated proxies.
+        /// </summary>
+        [Test]
+        public async Task E2StatisticsReadAndResetThroughGeneratedProxy()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var started = new DateTime(2026, 8, 14, 8, 0, 0, DateTimeKind.Utc);
+            var restarted = new DateTime(2026, 8, 14, 10, 0, 0, DateTimeKind.Utc);
+            var provider = new StatisticsMeasurementProvider(
+                started,
+                restarted,
+                Reading(BrowseNames.AcActivePowerTotal, Variant.From(15.5f), FloatType(), started),
+                Reading(BrowseNames.AcActiveEnergyTotalExportLp, Variant.From(100f), FloatType(), started),
+                Reading(BrowseNames.AcActiveEnergyTotalImportLp, Variant.From(200f), FloatType(), started));
+            EcmMeasurementClient client = await CreateMeasurementAsync(provider, timeout.Token).ConfigureAwait(false);
+
+            var export = await client.AcActiveEnergyTotalExportLp.ReadAsync(timeout.Token).ConfigureAwait(false);
+            var import = await client.AcActiveEnergyTotalImportLp.ReadAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(export.HasValue, Is.True);
+            Assert.That(export.Value, Is.EqualTo(100f));
+            Assert.That(import.Value, Is.EqualTo(200f));
+            var start = await client.ReadStatisticsStartTimeAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(start.Value, Is.EqualTo((DateTimeUtc)started));
+
+            await client.ResetStatisticsAsync(timeout.Token).ConfigureAwait(false);
+
+            Assert.That(provider.ResetCount, Is.EqualTo(1));
+            start = await client.ReadStatisticsStartTimeAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(start.Value, Is.EqualTo((DateTimeUtc)restarted));
+            export = await client.AcActiveEnergyTotalExportLp.ReadAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(export.Value, Is.Zero);
+            var power = await client.AcActivePowerTotal.ReadAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(power.Value, Is.EqualTo(15.5f));
+            var tag = await client.ApplicationTag.ReadAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(tag.Value, Is.EqualTo("statistics/initial"));
+        } phase structures and high-precision statistics keep distinct values on a live session.
+        /// </summary>
+        [Test]
+        public async Task E3TypedPhaseValuesReadThroughGeneratedProxy()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var acquired = new DateTime(2026, 8, 14, 9, 0, 0, DateTimeKind.Utc);
+            ExpandedNodeId pe = DataTypeIds.AcPeDataType;
+            var provider = new StatisticsMeasurementProvider(
+                acquired,
+                acquired,
+                Reading(BrowseNames.AcActivePowerPe, Phase(1f, 2f, 3f), pe, acquired),
+                Reading(BrowseNames.AcCurrentPe, Phase(4f, 5f, 6f), pe, acquired),
+                Reading(BrowseNames.AcPowerFactorPe, Phase(0.7f, 0.8f, 0.9f), pe, acquired),
+                Reading(BrowseNames.AcReactivePowerPe, Phase(7f, 8f, 9f), pe, acquired),
+                Reading(BrowseNames.AcVoltagePe, Phase(230f, 231f, 232f), pe, acquired),
+                Reading(BrowseNames.AcVoltagePp,
+                    Variant.From(new AcPpDataType { L1L2 = 400f, L2L3 = 401f, L3L1 = 402f }),
+                    DataTypeIds.AcPpDataType, acquired),
+                Reading(BrowseNames.AcActiveEnergyTotalExportHp, Variant.From(1.0000001d), DoubleType(), acquired),
+                Reading(BrowseNames.AcActiveEnergyTotalImportHp, Variant.From(2.0000002d), DoubleType(), acquired),
+                Reading(BrowseNames.AcReactiveEnergyTotalExportHp, Variant.From(3.0000003d), DoubleType(), acquired),
+                Reading(BrowseNames.AcReactiveEnergyTotalImportHp, Variant.From(4.0000004d), DoubleType(), acquired));
+            EcmMeasurementClient client = await CreateMeasurementAsync(provider, timeout.Token).ConfigureAwait(false);
+
+            var voltage = await client.AcVoltagePe.ReadAsync(timeout.Token).ConfigureAwait(false);
+            var lines = await client.AcVoltagePp.ReadAsync(timeout.Token).ConfigureAwait(false);
+            var factor = await client.AcPowerFactorPe.ReadAsync(timeout.Token).ConfigureAwait(false);
+            var exported = await client.AcActiveEnergyTotalExportHp.ReadAsync(timeout.Token).ConfigureAwait(false);
+
+            Assert.That(voltage.Value.L1, Is.EqualTo(230f));
+            Assert.That(voltage.Value.L3, Is.EqualTo(232f));
+            Assert.That(lines.Value.L1L2, Is.EqualTo(400f));
+            Assert.That(lines.Value.L3L1, Is.EqualTo(402f));
+            Assert.That(factor.Value.L2, Is.EqualTo(0.8f));
+            Assert.That(exported.Value, Is.EqualTo(1.0000001d));
+        }
+
+        /// <summary>
+        /// D1 values and statistics read through generated proxies and the grouped reset zeroes every statistic.
+        /// </summary>
+        [Test]
+        public async Task D1ValuesReadAndResetThroughGeneratedProxy()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var started = new DateTime(2026, 8, 14, 8, 0, 0, DateTimeKind.Utc);
+            var restarted = new DateTime(2026, 8, 14, 11, 0, 0, DateTimeKind.Utc);
+            var provider = new StatisticsMeasurementProvider(
+                started,
+                restarted,
+                Reading(BrowseNames.DcActivePower, Variant.From(480f), FloatType(), started),
+                Reading(BrowseNames.DcCurrent, Variant.From(10f), FloatType(), started),
+                Reading(BrowseNames.DcVoltage, Variant.From(48f), FloatType(), started),
+                Reading(BrowseNames.DcElectricalCharge, Variant.From(5f), FloatType(), started),
+                Reading(BrowseNames.DcEnergyTotalExportLp, Variant.From(6f), FloatType(), started),
+                Reading(BrowseNames.DcEnergyTotalImportLp, Variant.From(7f), FloatType(), started),
+                Reading(BrowseNames.DcRelativeCharge, Variant.From(80f), FloatType(), started));
+            EcmMeasurementClient client = await CreateMeasurementAsync(provider, timeout.Token).ConfigureAwait(false);
+
+            var power = await client.DcActivePower.ReadAsync(timeout.Token).ConfigureAwait(false);
+            var charge = await client.DcRelativeCharge.ReadAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(power.Value, Is.EqualTo(480f));
+            Assert.That(charge.Value, Is.EqualTo(80f));
+
+            await client.ResetStatisticsAsync(timeout.Token).ConfigureAwait(false);
+
+            charge = await client.DcRelativeCharge.ReadAsync(timeout.Token).ConfigureAwait(false);
+            var imported = await client.DcEnergyTotalImportLp.ReadAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(charge.Value, Is.Zero);
+            Assert.That(imported.Value, Is.Zero);
+            power = await client.DcActivePower.ReadAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(power.Value, Is.EqualTo(480f));
+        }
+
+        /// <summary>
+        /// The measurement instance lives in a namespace that differs from the ECM model namespace, and the
+        /// client resolves type members through the session's own namespace table.
+        /// </summary>
+        [Test]
+        public async Task MeasurementInstanceNamespaceDiffersFromModelNamespace()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var acquired = new DateTime(2026, 8, 14, 9, 0, 0, DateTimeKind.Utc);
+            var provider = new StatisticsMeasurementProvider(
+                acquired,
+                acquired,
+                Reading(BrowseNames.DcActivePower, Variant.From(1f), FloatType(), acquired),
+                Reading(BrowseNames.DcCurrent, Variant.From(2f), FloatType(), acquired),
+                Reading(BrowseNames.DcVoltage, Variant.From(3f), FloatType(), acquired),
+                Reading(BrowseNames.DcElectricalCharge, Variant.From(0f), FloatType(), acquired),
+                Reading(BrowseNames.DcEnergyTotalExportLp, Variant.From(0f), FloatType(), acquired),
+                Reading(BrowseNames.DcEnergyTotalImportLp, Variant.From(0f), FloatType(), acquired),
+                Reading(BrowseNames.DcRelativeCharge, Variant.From(0f), FloatType(), acquired));
+            EcmMeasurementClient client = await CreateMeasurementAsync(provider, timeout.Token).ConfigureAwait(false);
+
+            int modelIndex = m_session.NamespaceUris.GetIndex(Namespaces.ECM);
+            Assert.That(modelIndex, Is.GreaterThanOrEqualTo(0));
+            Assert.That(client.MeasurementPoint.ObjectId.NamespaceIndex, Is.Not.EqualTo((ushort)modelIndex));
+            Assert.That(client.MeasurementPoint.ObjectId.NamespaceIndex, Is.EqualTo(m_manager.InstanceNamespaceIndex));
+            var voltage = await client.DcVoltage.ReadAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(voltage.Value, Is.EqualTo(3f));
+        }
+        /// <summary>
+        /// Creates and refreshes a statistics measurement, then discovers its typed client.
+        /// </summary>
+        private async Task<EcmMeasurementClient> CreateMeasurementAsync(
+            StatisticsMeasurementProvider provider,
+            CancellationToken cancellationToken)
+        {
+            m_measurement = await m_manager.CreateMeasurementAsync(
+                new QualifiedName("StatisticsMeter", m_manager.InstanceNamespaceIndex),
+                provider,
+                authorize: static (_, ct) =>
+                {
+                    ct.ThrowIfCancellationRequested();
+                    return new ValueTask<bool>(true);
+                },
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+            NodeId deviceSet = ExpandedNodeId.ToNodeId(Di.ObjectIds.DeviceSet, m_session.NamespaceUris);
+            await foreach (EcmMeasurementClient candidate in EcmMeasurementClient.DiscoverAsync(
+                m_session, deviceSet, NUnitTelemetryContext.Create(), cancellationToken).ConfigureAwait(false))
+            {
+                if (candidate.MeasurementPoint.ObjectId == m_measurement.MeasurementPoint.NodeId)
+                {
+                    return candidate;
+                }
+            }
+            throw new InvalidOperationException("The statistics measurement point was not discovered.");
+        }
+
+        /// <summary>
+        /// Creates a Good reading.
+        /// </summary>
+        private static EcmMeasurementReading Reading(
+            string name,
+            Variant value,
+            ExpandedNodeId dataType,
+            DateTime timestamp)
+        {
+            return new EcmMeasurementReading(name, value, dataType, StatusCodes.Good, timestamp);
+        }
+
+        /// <summary>
+        /// Creates a phase-structure value.
+        /// </summary>
+        private static Variant Phase(float l1, float l2, float l3)
+        {
+            return Variant.From(new AcPeDataType { L1 = l1, L2 = l2, L3 = l3 });
+        }
+
+        /// <summary>
+        /// Returns the Float DataType.
+        /// </summary>
+        private static ExpandedNodeId FloatType()
+        {
+            return new ExpandedNodeId(new NodeId(Opc.Ua.DataTypeIds.Float));
+        }
+
+        /// <summary>
+        /// Returns the Double DataType.
+        /// </summary>
+        private static ExpandedNodeId DoubleType()
+        {
+            return new ExpandedNodeId(new NodeId(Opc.Ua.DataTypeIds.Double));
+        }
+
+        /// <summary>The measurement created by the current test.</summary>
+        private EcmMeasurementBinding m_measurement = null!;
         /// <summary>The fixture's dedicated PKI directory.</summary>
         private string m_pkiRoot = string.Empty;
 
@@ -444,11 +649,11 @@ namespace Opc.Ua.ECM.IntegrationTests
                             new(
                                 BrowseNames.AcCurrentPe,
                                 Variant.From(new AcPeDataType { L1 = 1.25f, L2 = 2.5f, L3 = 3.75f }),
-                                new ExpandedNodeId(DataTypeIds.AcPeDataType, Namespaces.ECM),
+                                DataTypeIds.AcPeDataType,
                                 StatusCodes.Good,
                                 m_acquired,
-                                accuracyClass: 0,
-                                accuracyDomain: m_accuracyDomain),
+                                AccuracyClass: 0,
+                                AccuracyDomain: m_accuracyDomain),
                             new(
                                 BrowseNames.AcActivePowerTotal,
                                 Variant.From(15.5f),
@@ -473,7 +678,7 @@ namespace Opc.Ua.ECM.IntegrationTests
                 {
                     m_applicationTag = applicationTag;
                 }
-                return ValueTask.CompletedTask;
+                return default;
             }
 
             /// <summary>The synchronization gate for tag state.</summary>
@@ -489,6 +694,90 @@ namespace Opc.Ua.ECM.IntegrationTests
             private string m_applicationTag = "integration/initial";
         }
 
+        /// <summary>
+        /// Supplies fixed readings with a StartTime and resets every statistic member to zero.
+        /// </summary>
+        private sealed class StatisticsMeasurementProvider : IEcmStatisticsProvider
+        {
+            /// <summary>
+            /// Creates a provider with the initial readings, collection StartTime and reset StartTime.
+            /// </summary>
+            public StatisticsMeasurementProvider(
+                DateTime started,
+                DateTime restarted,
+                params EcmMeasurementReading[] readings)
+            {
+                m_started = started;
+                m_restarted = restarted;
+                m_readings = readings;
+            }
+
+            /// <summary>Gets the number of committed resets.</summary>
+            public int ResetCount { get; private set; }
+
+            /// <inheritdoc/>
+            public ValueTask<EcmMeasurementSnapshot> ReadAsync(CancellationToken cancellationToken)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return new ValueTask<EcmMeasurementSnapshot>(new EcmMeasurementSnapshot(
+                    "statistics/initial",
+                    m_readings.ToArrayOf())
+                {
+                    StatisticsStartTime = (DateTimeUtc)(ResetCount == 0 ? m_started : m_restarted)
+                });
+            }
+
+            /// <inheritdoc/>
+            public ValueTask WriteApplicationTagAsync(string applicationTag, CancellationToken cancellationToken)
+            {
+                return default;
+            }
+
+            /// <inheritdoc/>
+            public ValueTask<ServiceResult> AuthorizeStatisticsResetAsync(
+                ISystemContext requestContext,
+                CancellationToken cancellationToken)
+            {
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            }
+
+            /// <inheritdoc/>
+            public ValueTask<EcmStatisticsSnapshot> ResetStatisticsAsync(CancellationToken cancellationToken)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                EcmMeasurementReading[] zeroed = m_readings
+                    .Where(reading => IsStatistic(reading.BrowseName))
+                    .Select(reading => reading with
+                    {
+                        Value = reading.DataType.Equals(DoubleType()) ? Variant.From(0d) : Variant.From(0f)
+                    })
+                    .ToArray();
+                m_readings = m_readings
+                    .Select(reading => zeroed.FirstOrDefault(z => z.BrowseName == reading.BrowseName) ?? reading)
+                    .ToArray();
+                ResetCount++;
+                return new ValueTask<EcmStatisticsSnapshot>(
+                    new EcmStatisticsSnapshot((DateTimeUtc)m_restarted, zeroed.ToArrayOf()));
+            }
+
+            /// <summary>
+            /// Returns whether a member is a resettable statistic.
+            /// </summary>
+            private static bool IsStatistic(string name)
+            {
+                return name.Contains("Energy", StringComparison.Ordinal) ||
+                    name == BrowseNames.DcElectricalCharge || name == BrowseNames.DcRelativeCharge;
+            }
+
+            /// <summary>The StartTime before the first reset.</summary>
+            private readonly DateTime m_started;
+
+            /// <summary>The StartTime after a reset.</summary>
+            private readonly DateTime m_restarted;
+
+            /// <summary>The current readings.</summary>
+            private EcmMeasurementReading[] m_readings;
+        }
         /// <summary>
         /// Advances provider time without timing-dependent physical transitions.
         /// </summary>

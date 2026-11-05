@@ -30,10 +30,11 @@
 
 using System;
 using System.Collections.Generic;
-using System.Threading;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Di.Server.Locking;
+using Opc.Ua.IA.Server;
 using Opc.Ua.Redaction;
 
 namespace Opc.Ua.ECM.Server
@@ -41,6 +42,14 @@ namespace Opc.Ua.ECM.Server
     /// <summary>
     /// Binds an application-owned measurement provider to a generated ECM measurement point.
     /// </summary>
+    /// <remarks>
+    /// Refreshes and bound ApplicationTag writes remain serialized until their node-change notifications complete,
+    /// including notifications that mark measurements unavailable. Notification sinks on
+    /// <see cref="MeasurementPoint"/> or its descendants must not await or synchronously block on this binding's
+    /// <see cref="RefreshAsync"/>, a bound ApplicationTag write, or <see cref="DisposeAsync"/>.
+    /// Those operations cannot complete until the active operation and its notification sink finish.
+    /// Synchronous sinks run inline and may block the caller before an asynchronous operation returns.
+    /// </remarks>
     public sealed class EcmMeasurementBinding : IAsyncDisposable
     {
         /// <summary>
@@ -83,6 +92,10 @@ namespace Opc.Ua.ECM.Server
         /// <summary>
         /// Reads and publishes one provider snapshot.
         /// </summary>
+        /// <remarks>
+        /// Publication awaits notification sinks within the serialized operation.
+        /// Sinks must follow the same-binding operation restrictions documented on <see cref="EcmMeasurementBinding"/>.
+        /// </remarks>
         /// <param name="cancellationToken">Cancels the acquisition.</param>
         public async ValueTask RefreshAsync(CancellationToken cancellationToken = default)
         {
@@ -92,6 +105,10 @@ namespace Opc.Ua.ECM.Server
         /// <summary>
         /// Stops callbacks after admitted provider operations complete. The provider remains application-owned.
         /// </summary>
+        /// <remarks>
+        /// Notification sinks must not await or synchronously block on disposal of this binding.
+        /// Disposal waits for the active operation, including its notification sinks, to finish.
+        /// </remarks>
         public async ValueTask DisposeAsync()
         {
             try
@@ -124,7 +141,7 @@ namespace Opc.Ua.ECM.Server
                 {
                     m_logger.MeasurementProviderFailed(exception.ToString());
                 }
-                MarkUnavailable();
+                await MarkUnavailableAsync().ConfigureAwait(false);
                 throw;
             }
         }
@@ -136,31 +153,44 @@ namespace Opc.Ua.ECM.Server
         {
             EcmMeasurementSnapshot snapshot = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
             Dictionary<string, EcmMeasurementReading> readings = ValidateSnapshot(snapshot);
-
-            if (!m_initialized)
+            bool hasStatistics = false;
+            foreach (string name in readings.Keys)
             {
-                foreach (KeyValuePair<string, EcmMeasurementReading> pair in readings)
+                EcmMeasurementProfiles.TryGetMember(name, out EcmProfileMember? member);
+                hasStatistics |= member!.IsStatistic;
+            }
+            if (hasStatistics &&
+                (m_provider is not IEcmStatisticsProvider || snapshot.StatisticsStartTime.IsNull))
+            {
+                throw new InvalidOperationException(
+                    "Statistic members require an IEcmStatisticsProvider and a StatisticsStartTime.");
+            }
+
+            bool topologyBuiltNow = false;
+            if (!m_topologyBuilt)
+            {
+                if (m_topologyFaulted)
                 {
-                    EcmMeasurementReading reading = pair.Value;
-                    AddProfileReference(RequiredProfileType(pair.Key));
-                    EnergyMeasurementValueState node = EcmMeasurementNodeBuilder.AddMeasurement(
-                        m_context,
-                        MeasurementPoint,
-                        new QualifiedName(reading.BrowseName, m_ecmNamespace),
-                        reading.Value,
-                        ExpandedNodeId.ToNodeId(reading.DataType, m_context.NamespaceUris),
-                        Opc.Ua.ReferenceTypeIds.HasComponent,
-                        reading.EngineeringUnits,
-                        reading.MeasurementId,
-                        reading.AccuracyClass,
-                        reading.AccuracyDomain,
-                        reading.AccuracyRange,
-                        reading.StatusCode,
-                        reading.SourceTimestamp,
-                        publishQuality: true);
-                    m_measurements.Add(pair.Key, node);
-                    m_metadata.Add(pair.Key, MetadataOf(reading));
+                    throw new InvalidOperationException(
+                        "A previous topology cleanup failed; this binding cannot be initialized again.");
                 }
+                var existing = new List<BaseInstanceState>();
+                MeasurementPoint.GetChildren(m_context, existing);
+                var existingReferences = new List<IReference>();
+                MeasurementPoint.GetReferences(m_context, existingReferences);
+                try
+                {
+                    BuildTopology(readings, cancellationToken);
+                }
+                catch
+                {
+                    RollbackTopology(
+                        existing,
+                        [.. existingReferences.Select(r => (r.ReferenceTypeId, r.IsInverse, r.TargetId))]);
+                    throw;
+                }
+                m_topologyBuilt = true;
+                topologyBuiltNow = true;
             }
             else
             {
@@ -171,7 +201,7 @@ namespace Opc.Ua.ECM.Server
                 }
                 foreach (KeyValuePair<string, EcmMeasurementReading> pair in readings)
                 {
-                    if (!m_measurements.TryGetValue(pair.Key, out EnergyMeasurementValueState? node) ||
+                    if (!m_measurements.ContainsKey(pair.Key) ||
                         !m_metadata.TryGetValue(pair.Key, out EcmMeasurementMetadata? metadata) ||
                         metadata != MetadataOf(pair.Value))
                     {
@@ -179,28 +209,218 @@ namespace Opc.Ua.ECM.Server
                             "A provider cannot replace published profile measurements or their metadata.");
                     }
                 }
-                var values = new Dictionary<string, Variant>(StringComparer.Ordinal);
-                foreach (KeyValuePair<string, EcmMeasurementReading> pair in readings)
-                {
-                    values.Add(pair.Key, CoreUtils.Clone(pair.Value.Value));
-                }
-                foreach (KeyValuePair<string, EcmMeasurementReading> pair in readings)
-                {
-                    EnergyMeasurementValueState node = m_measurements[pair.Key];
-                    node.WrappedValue = values[pair.Key];
-                    SetQuality(node, pair.Value.StatusCode, pair.Value.SourceTimestamp);
-                }
             }
 
-            Required(MeasurementPoint.ApplicationTag).Value = snapshot.ApplicationTag;
-            Required(MeasurementPoint.ApplicationTag).StatusCode = StatusCodes.Good;
-            Required(MeasurementPoint.ApplicationTag).Timestamp = DateTime.UtcNow;
-            foreach (EnergyMeasurementValueState node in m_measurements.Values)
+            if (m_statistics != null && m_adapter != null)
             {
-                node.ClearChangeMasks(m_context, true);
+                m_adapter.Pending = CreateStatisticsSnapshot(
+                    snapshot.StatisticsStartTime,
+                    readings,
+                    CreateCompanionValues(readings, snapshot.ApplicationTag));
+                try
+                {
+                    await m_statistics.RefreshAsync(cancellationToken).ConfigureAwait(false);
+                }
+                finally
+                {
+                    m_adapter.Pending = null;
+                }
             }
-            MeasurementPoint.ClearChangeMasks(m_context, true);
+            if (m_statistics == null)
+            {
+                if (!topologyBuiltNow)
+                {
+                    foreach (KeyValuePair<string, EcmMeasurementReading> pair in readings)
+                    {
+                        EnergyMeasurementValueState node = m_measurements[pair.Key];
+                        node.WrappedValue = pair.Value.Value;
+                        SetQuality(node, pair.Value.StatusCode, pair.Value.SourceTimestamp);
+                    }
+                }
+
+                Required(MeasurementPoint.ApplicationTag).Value = snapshot.ApplicationTag;
+                Required(MeasurementPoint.ApplicationTag).StatusCode = StatusCodes.Good;
+                Required(MeasurementPoint.ApplicationTag).Timestamp = DateTime.UtcNow;
+            }
+            // The snapshot is committed; cancellation must not interrupt its notifications.
+            foreach (KeyValuePair<string, EnergyMeasurementValueState> pair in m_measurements)
+            {
+                if (!m_statisticNames.Contains(pair.Key))
+                {
+                    await pair.Value.ClearChangeMasksAsync(m_context, true, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+            }
+            await MeasurementPoint
+                .ClearChangeMasksAsync(m_context, true, CancellationToken.None)
+                .ConfigureAwait(false);
             m_initialized = true;
+        }
+
+        /// <summary>
+        /// Adds the profile references and measurement nodes and constructs the shared statistics runtime.
+        /// </summary>
+        private void BuildTopology(
+            Dictionary<string, EcmMeasurementReading> readings,
+            CancellationToken cancellationToken)
+        {
+            foreach (EcmProfileDefinition profile in EcmMeasurementProfiles.Declared(readings.Keys))
+            {
+                AddProfileReference(ProfileType(profile));
+            }
+            var components = new List<BaseVariableState>();
+            var companions = new List<BaseVariableState>();
+            foreach (string name in new SortedSet<string>(readings.Keys, StringComparer.Ordinal))
+            {
+                EcmMeasurementReading reading = readings[name];
+                EnergyMeasurementValueState node = EcmMeasurementNodeBuilder.AddMeasurement(
+                    m_context,
+                    MeasurementPoint,
+                    new QualifiedName(reading.BrowseName, m_ecmNamespace),
+                    reading.Value,
+                    ExpandedNodeId.ToNodeId(reading.DataType, m_context.NamespaceUris),
+                    Opc.Ua.ReferenceTypeIds.HasComponent,
+                    reading.EngineeringUnits,
+                    reading.MeasurementId,
+                    reading.AccuracyClass,
+                    reading.AccuracyDomain,
+                    reading.AccuracyRange,
+                    reading.StatusCode,
+                    reading.SourceTimestamp,
+                    publishQuality: true);
+                m_measurements.Add(name, node);
+                m_metadata.Add(name, MetadataOf(reading));
+                EcmMeasurementProfiles.TryGetMember(name, out EcmProfileMember? member);
+                if (member!.IsStatistic)
+                {
+                    m_statisticNames.Add(name);
+                    components.Add(node);
+                }
+                else
+                {
+                    m_companionNames.Add(name);
+                    companions.Add(node);
+                }
+            }
+            if (components.Count > 0)
+            {
+                companions.Add(Required(MeasurementPoint.ApplicationTag));
+                m_companionNodes = companions.ToArray();
+                m_adapter = new StatisticsAdapter(this, (IEcmStatisticsProvider)m_provider);
+                m_statistics = new IaStatistics(
+                    m_context,
+                    MeasurementPoint,
+                    components.ToArray(),
+                    m_adapter,
+                    new IaStatisticsOptions
+                    {
+                        Composition = new IaStatisticsComposition { Nodes = m_companionNodes }
+                    },
+                    cancellationToken: cancellationToken);
+                MethodState reset = m_statistics.ResetStatistics;
+                GenericMethodCalledEventHandler2Async? inner = reset.OnCallMethod2Async;
+                if (inner != null)
+                {
+                    reset.OnCallMethod2Async = (context, method, objectId, inputs, outputs, ct) =>
+                        m_operations.ExecuteAsync(
+                            innerToken => inner(context, method, objectId, inputs, outputs, innerToken), ct);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Removes the children and interface references added by a failed topology construction, including the
+        /// shared statistics children, so that a retry starts clean. Every step runs independently. When a step
+        /// fails, the bookkeeping is retained, the failure is logged and later initialization attempts are rejected
+        /// explicitly. The caller rethrows the original failure.
+        /// </summary>
+        private void RollbackTopology(
+            List<BaseInstanceState> existing,
+            HashSet<(NodeId, bool, ExpandedNodeId)> existingReferences)
+        {
+            bool clean = true;
+            clean &= TryCleanup(() =>
+            {
+                if (m_statistics != null)
+                {
+                    m_statistics.ResetStatistics.OnCallMethod2Async = null;
+                }
+            });
+            clean &= TryCleanup(() => m_statistics?.Dispose());
+            foreach (BaseInstanceState child in OwnedChildren(existing))
+            {
+                BaseInstanceState owned = child;
+                clean &= TryCleanup(() => MeasurementPoint.RemoveChild(owned));
+            }
+            foreach (IReference reference in OwnedReferences(existingReferences))
+            {
+                IReference owned = reference;
+                clean &= TryCleanup(() => MeasurementPoint.RemoveReference(
+                    owned.ReferenceTypeId, owned.IsInverse, owned.TargetId));
+            }
+            if (clean && (OwnedChildren(existing).Count > 0 || OwnedReferences(existingReferences).Count > 0))
+            {
+                clean = false;
+                if (m_logger.IsEnabled(LogLevel.Warning))
+                {
+                    m_logger.MeasurementTopologyCleanupFailed("Owned children or references remain after cleanup.");
+                }
+            }
+            if (!clean)
+            {
+                m_topologyFaulted = true;
+                return;
+            }
+            m_statistics = null;
+            m_adapter = null;
+            m_measurements.Clear();
+            m_metadata.Clear();
+            m_statisticNames.Clear();
+            m_companionNames.Clear();
+            m_companionNodes = [];
+        }
+
+        /// <summary>
+        /// Returns the current children that were not present before topology construction, by instance identity.
+        /// </summary>
+        private List<BaseInstanceState> OwnedChildren(List<BaseInstanceState> existing)
+        {
+            var children = new List<BaseInstanceState>();
+            MeasurementPoint.GetChildren(m_context, children);
+            children.RemoveAll(child => existing.Exists(known => ReferenceEquals(known, child)));
+            return children;
+        }
+
+        /// <summary>
+        /// Returns the current references that were not present before topology construction.
+        /// </summary>
+        private List<IReference> OwnedReferences(HashSet<(NodeId, bool, ExpandedNodeId)> existingReferences)
+        {
+            var references = new List<IReference>();
+            MeasurementPoint.GetReferences(m_context, references);
+            references.RemoveAll(reference => existingReferences.Contains(
+                (reference.ReferenceTypeId, reference.IsInverse, reference.TargetId)));
+            return references;
+        }
+
+        /// <summary>
+        /// Runs one cleanup step and logs a failure without letting it replace the original failure.
+        /// </summary>
+        private bool TryCleanup(Action step)
+        {
+            try
+            {
+                step();
+                return true;
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                if (m_logger.IsEnabled(LogLevel.Warning))
+                {
+                    m_logger.MeasurementTopologyCleanupFailed(exception.ToString());
+                }
+                return false;
+            }
         }
 
         /// <summary>
@@ -218,39 +438,76 @@ namespace Opc.Ua.ECM.Server
                 EcmMeasurementReading reading = snapshot.Measurements[ii] ??
                     throw new InvalidOperationException("The ECM measurement provider returned a null reading.");
                 string name = reading.BrowseName ?? string.Empty;
-                if (!IsSupportedMeasurement(name) || !readings.TryAdd(name, reading))
+                if (!EcmMeasurementProfiles.TryGetMember(name, out _) || readings.ContainsKey(name))
                 {
                     throw new InvalidOperationException(
                         "The ECM measurement provider returned an unsupported or duplicate profile.");
                 }
-                if (reading.DataType != RequiredDataType(name) ||
-                    reading.SourceTimestamp.Kind != DateTimeKind.Utc ||
-                    float.IsNaN(reading.AccuracyRange.GetValueOrDefault()) ||
-                    float.IsInfinity(reading.AccuracyRange.GetValueOrDefault()) ||
-                    reading.AccuracyRange < 0 ||
-                    !IsValidAccuracyMetadata(reading))
-                {
-                    throw new InvalidOperationException(
-                        "The ECM measurement provider returned invalid profile metadata.");
-                }
-                if (StatusCode.IsGood(reading.StatusCode) && !HasExpectedValue(name, reading.Value))
-                {
-                    throw new InvalidOperationException(
-                        "A good ECM measurement must contain its declared typed value.");
-                }
-                if (!StatusCode.IsGood(reading.StatusCode) &&
-                    !reading.Value.IsNull && !HasExpectedValue(name, reading.Value))
-                {
-                    throw new InvalidOperationException(
-                        "A non-good ECM measurement must contain its declared typed value or a null Variant.");
-                }
+                readings.Add(name, ValidateReading(reading, name));
             }
             if (readings.Count == 0)
             {
                 throw new InvalidOperationException(
                     "The ECM measurement provider returned no supported profile measurements.");
             }
+            var covered = new HashSet<string>(StringComparer.Ordinal);
+            foreach (EcmProfileDefinition profile in EcmMeasurementProfiles.Declared(readings.Keys))
+            {
+                foreach (EcmProfileMember member in profile.Members)
+                {
+                    covered.Add(member.Name);
+                }
+            }
+            foreach (string name in readings.Keys)
+            {
+                if (!covered.Contains(name))
+                {
+                    throw new InvalidOperationException(
+                        "Every provided measurement must belong to a complete E0, E1, E2, E3, D0 or D1 profile.");
+                }
+            }
             return readings;
+        }
+
+        /// <summary>
+        /// Validates one reading against its profile member and returns a detached copy of it.
+        /// </summary>
+        private EcmMeasurementReading ValidateReading(EcmMeasurementReading reading, string name)
+        {
+            if (!EcmMeasurementProfiles.TryGetMember(name, out EcmProfileMember? member))
+            {
+                throw new InvalidOperationException(
+                    "The ECM measurement provider returned an unsupported or duplicate profile.");
+            }
+            if (reading.DataType != EcmMeasurementProfiles.DataTypeOf(member.Kind) ||
+                reading.SourceTimestamp.Kind != DateTimeKind.Utc ||
+                float.IsNaN(reading.AccuracyRange.GetValueOrDefault()) ||
+                float.IsInfinity(reading.AccuracyRange.GetValueOrDefault()) ||
+                reading.AccuracyRange < 0 ||
+                (reading.AccuracyRange.HasValue && !member.AllowsRange) ||
+                (reading.EngineeringUnits is not null && !member.AllowsUnits) ||
+                !IsValidAccuracyMetadata(reading))
+            {
+                throw new InvalidOperationException(
+                    "The ECM measurement provider returned invalid profile metadata.");
+            }
+            if (StatusCode.IsGood(reading.StatusCode) &&
+                !EcmMeasurementProfiles.HasExpectedValue(member.Kind, reading.Value))
+            {
+                throw new InvalidOperationException(
+                    "A good ECM measurement must contain its declared typed value.");
+            }
+            if (!StatusCode.IsGood(reading.StatusCode) &&
+                !reading.Value.IsNull && !EcmMeasurementProfiles.HasExpectedValue(member.Kind, reading.Value))
+            {
+                throw new InvalidOperationException(
+                    "A non-good ECM measurement must contain its declared typed value or a null Variant.");
+            }
+            return reading with
+            {
+                Value = EcmOwnership.Own(reading.Value),
+                EngineeringUnits = EcmOwnership.Own(reading.EngineeringUnits, nameof(reading.EngineeringUnits))
+            };
         }
 
         /// <summary>
@@ -293,7 +550,9 @@ namespace Opc.Ua.ECM.Server
                     Required(MeasurementPoint.ApplicationTag).Value = applicationTag;
                     Required(MeasurementPoint.ApplicationTag).StatusCode = StatusCodes.Good;
                     Required(MeasurementPoint.ApplicationTag).Timestamp = DateTime.UtcNow;
-                    MeasurementPoint.ClearChangeMasks(m_context, true);
+                    // Persistence and node state are committed; finish notification if the caller cancels.
+                    await MeasurementPoint.ClearChangeMasksAsync(
+                        m_context, true, CancellationToken.None).ConfigureAwait(false);
                     return true;
                 }, cancellationToken).ConfigureAwait(false);
                 return persisted
@@ -320,20 +579,27 @@ namespace Opc.Ua.ECM.Server
         private void RemoveCallbacks()
         {
             Required(MeasurementPoint.ApplicationTag).OnSimpleWriteValueAsync = null;
+            if (m_statistics != null)
+            {
+                m_statistics.ResetStatistics.OnCallMethod2Async = null;
+                m_statistics.Dispose();
+            }
         }
 
         /// <summary>
         /// Marks published values unavailable while retaining their last values and timestamps.
         /// </summary>
-        private void MarkUnavailable()
+        private async ValueTask MarkUnavailableAsync()
         {
             foreach (EnergyMeasurementValueState node in m_measurements.Values)
             {
                 node.StatusCode = StatusCodes.BadNoCommunication;
-                node.ClearChangeMasks(m_context, true);
+                await node.ClearChangeMasksAsync(m_context, true, CancellationToken.None).ConfigureAwait(false);
             }
             Required(MeasurementPoint.ApplicationTag).StatusCode = StatusCodes.BadNoCommunication;
-            MeasurementPoint.ClearChangeMasks(m_context, true);
+            // Unavailable state is committed and must be reported before the triggering failure escapes.
+            await MeasurementPoint.ClearChangeMasksAsync(
+                m_context, true, CancellationToken.None).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -348,56 +614,99 @@ namespace Opc.Ua.ECM.Server
         }
 
         /// <summary>
-        /// Resolves the standardized profile type for one supported reading.
+        /// Resolves the profile interface NodeId.
         /// </summary>
-        private NodeId RequiredProfileType(string measurementName)
+        private NodeId ProfileType(EcmProfileDefinition profile)
         {
-            ExpandedNodeId identifier = measurementName switch
-            {
-                nameof(BrowseNames.AcCurrentPe) => ObjectTypeIds.IEnergyProfileE0Type,
-                nameof(BrowseNames.AcActivePowerTotal) => ObjectTypeIds.IEnergyProfileE1Type,
-                nameof(BrowseNames.DcCurrent) => ObjectTypeIds.IEnergyProfileD0Type,
-                _ => throw new InvalidOperationException("The measurement is not part of a supported ECM profile.")
-            };
-            return ExpandedNodeId.ToNodeId(identifier, m_context.NamespaceUris);
+            return ExpandedNodeId.ToNodeId(profile.TypeId, m_context.NamespaceUris);
         }
 
         /// <summary>
-        /// Resolves the exact DataType required by one supported profile measurement.
+        /// Converts committed reset readings into a shared statistics snapshot after validating them.
         /// </summary>
-        private static ExpandedNodeId RequiredDataType(string measurementName)
+        private IaStatisticsSnapshot ToStatisticsSnapshot(EcmStatisticsSnapshot reset)
         {
-            return measurementName switch
+            if (reset == null || reset.StartTime.IsNull || reset.Measurements.Count != m_statisticNames.Count)
             {
-                nameof(BrowseNames.AcCurrentPe) => DataTypeIds.AcPeDataType,
-                nameof(BrowseNames.AcActivePowerTotal) or nameof(BrowseNames.DcCurrent) =>
-                    new ExpandedNodeId(Opc.Ua.DataTypeIds.Float),
-                _ => ExpandedNodeId.Null
-            };
+                throw new InvalidOperationException("The ECM statistics reset returned an incomplete snapshot.");
+            }
+            var owned = new Dictionary<string, EcmMeasurementReading>(StringComparer.Ordinal);
+            for (int ii = 0; ii < reset.Measurements.Count; ii++)
+            {
+                EcmMeasurementReading reading = reset.Measurements[ii] ??
+                    throw new InvalidOperationException("The ECM statistics reset returned a null reading.");
+                string name = reading.BrowseName ?? string.Empty;
+                if (!m_statisticNames.Contains(name) || owned.ContainsKey(name))
+                {
+                    throw new InvalidOperationException(
+                        "The ECM statistics reset returned an unsupported or duplicate statistic.");
+                }
+                EcmMeasurementReading detached = ValidateReading(reading, name);
+                if (!m_metadata.TryGetValue(name, out EcmMeasurementMetadata? metadata) ||
+                    metadata != MetadataOf(detached))
+                {
+                    throw new InvalidOperationException(
+                        "A statistics reset cannot replace published profile measurements or their metadata.");
+                }
+                owned.Add(name, detached);
+            }
+            return CreateStatisticsSnapshot(reset.StartTime, owned, CaptureCompanionValues());
         }
 
         /// <summary>
-        /// Checks the runtime Variant type for a supported profile measurement.
+        /// Builds the companion readings of one refresh in the published companion order, ApplicationTag last.
         /// </summary>
-        private static bool HasExpectedValue(string measurementName, Variant value)
+        private DataValue[] CreateCompanionValues(
+            Dictionary<string, EcmMeasurementReading> readings,
+            string applicationTag)
         {
-            return measurementName switch
+            var values = new DataValue[m_companionNames.Count + 1];
+            for (int ii = 0; ii < m_companionNames.Count; ii++)
             {
-                nameof(BrowseNames.AcCurrentPe) => value.TryGetStructure(out AcPeDataType phases) &&
-                    phases is not null && phases.GetType() == typeof(AcPeDataType),
-                nameof(BrowseNames.AcActivePowerTotal) or nameof(BrowseNames.DcCurrent) =>
-                    value.TryGetValue(out float _),
-                _ => false
-            };
+                EcmMeasurementReading reading = readings[m_companionNames[ii]];
+                values[ii] = new DataValue(reading.Value, reading.StatusCode, reading.SourceTimestamp);
+            }
+            values[m_companionNames.Count] = new DataValue(
+                Variant.From(applicationTag),
+                StatusCodes.Good,
+                DateTime.UtcNow);
+            return values;
         }
 
         /// <summary>
-        /// Checks whether a browse name belongs to one of the independently supported profiles.
+        /// Captures the currently published companion readings, including timestamps, without provider I/O.
         /// </summary>
-        private static bool IsSupportedMeasurement(string measurementName)
+        private DataValue[] CaptureCompanionValues()
         {
-            return measurementName is nameof(BrowseNames.AcCurrentPe) or
-                nameof(BrowseNames.AcActivePowerTotal) or nameof(BrowseNames.DcCurrent);
+            var values = new DataValue[m_companionNodes.Length];
+            for (int ii = 0; ii < values.Length; ii++)
+            {
+                BaseVariableState node = m_companionNodes[ii];
+                values[ii] = new DataValue(node.WrappedValue, node.StatusCode, node.Timestamp);
+            }
+            return values;
+        }
+
+        /// <summary>
+        /// Builds the shared snapshot in published component order.
+        /// </summary>
+        private IaStatisticsSnapshot CreateStatisticsSnapshot(
+            DateTimeUtc startTime,
+            Dictionary<string, EcmMeasurementReading> readings,
+            DataValue[] companions)
+        {
+            var values = new DataValue[m_statisticNames.Count];
+            for (int ii = 0; ii < values.Length; ii++)
+            {
+                EcmMeasurementReading reading = readings[m_statisticNames[ii]];
+                values[ii] = new DataValue(reading.Value, reading.StatusCode, reading.SourceTimestamp);
+            }
+            return new IaStatisticsSnapshot
+            {
+                StartTime = startTime,
+                Values = values,
+                CompanionValues = companions
+            };
         }
 
         /// <summary>
@@ -466,10 +775,8 @@ namespace Opc.Ua.ECM.Server
                 : new EngineeringUnitsMetadata(
                     engineeringUnits.NamespaceUri,
                     engineeringUnits.UnitId,
-                    engineeringUnits.DisplayName.Locale,
-                    engineeringUnits.DisplayName.Text,
-                    engineeringUnits.Description.Locale,
-                    engineeringUnits.Description.Text);
+                    engineeringUnits.DisplayName,
+                    engineeringUnits.Description);
         }
 
         /// <summary>
@@ -513,6 +820,23 @@ namespace Opc.Ua.ECM.Server
 
         /// <summary>Whether the first provider snapshot has been published.</summary>
         private bool m_initialized;
+        private bool m_topologyBuilt;
+        private bool m_topologyFaulted;
+
+        /// <summary>Statistic member names in shared component order.</summary>
+        private readonly List<string> m_statisticNames = [];
+
+        /// <summary>The shared IA statistics runtime, present when statistic members are published.</summary>
+        private IaStatistics? m_statistics;
+
+        /// <summary>Non-statistic member names published with the statistics, in companion order.</summary>
+        private readonly List<string> m_companionNames = [];
+
+        /// <summary>The companion nodes in fixed publication order, ending with ApplicationTag.</summary>
+        private BaseVariableState[] m_companionNodes = [];
+
+        /// <summary>The adapter that feeds validated snapshots to the shared runtime.</summary>
+        private StatisticsAdapter? m_adapter;
 
         /// <summary>Stable measurement metadata after initial publication.</summary>
         private sealed record EcmMeasurementMetadata(
@@ -523,14 +847,69 @@ namespace Opc.Ua.ECM.Server
             NodeId AccuracyDomain,
             float? AccuracyRange);
 
-        /// <summary>Value snapshot of the fields that define engineering units.</summary>
+        /// <summary>Value snapshot of engineering units; it must only hold already detached text.</summary>
         private sealed record EngineeringUnitsMetadata(
             string? NamespaceUri,
             int UnitId,
-            string? DisplayNameLocale,
-            string? DisplayNameText,
-            string? DescriptionLocale,
-            string? DescriptionText);
+            LocalizedText DisplayName,
+            LocalizedText Description);
+
+        /// <summary>
+        /// Adapts the ECM statistics provider to the shared IA statistics runtime.
+        /// </summary>
+        private sealed class StatisticsAdapter : IIaStatisticsProvider
+        {
+            /// <summary>
+            /// Creates the adapter.
+            /// </summary>
+            internal StatisticsAdapter(EcmMeasurementBinding owner, IEcmStatisticsProvider provider)
+            {
+                m_owner = owner;
+                m_provider = provider;
+            }
+
+            /// <summary>
+            /// Gets or sets the validated snapshot that the next shared refresh publishes.
+            /// </summary>
+            internal IaStatisticsSnapshot? Pending { get; set; }
+
+            /// <inheritdoc/>
+            public ValueTask<IaStatisticsSnapshot> ReadAsync(CancellationToken cancellationToken = default)
+            {
+                IaStatisticsSnapshot snapshot = Pending ??
+                    throw new InvalidOperationException("No validated statistics snapshot is pending.");
+                return new ValueTask<IaStatisticsSnapshot>(snapshot);
+            }
+
+            /// <inheritdoc/>
+            public async ValueTask<ServiceResult> AuthorizeResetAsync(
+                ISystemContext requestContext,
+                CancellationToken cancellationToken = default)
+            {
+                if (!await EcmPowerAccess.IsAuthorizedAsync(
+                    requestContext,
+                    m_owner.MeasurementPoint.NodeId,
+                    m_owner.m_authorize,
+                    m_owner.m_exclusiveAccess,
+                    cancellationToken).ConfigureAwait(false))
+                {
+                    return new ServiceResult(StatusCodes.BadUserAccessDenied);
+                }
+                return await m_provider.AuthorizeStatisticsResetAsync(requestContext, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            /// <inheritdoc/>
+            public async ValueTask<IaStatisticsSnapshot> ResetAsync(CancellationToken cancellationToken = default)
+            {
+                EcmStatisticsSnapshot reset = await m_provider.ResetStatisticsAsync(cancellationToken)
+                    .ConfigureAwait(false);
+                return m_owner.ToStatisticsSnapshot(reset);
+            }
+
+            private readonly EcmMeasurementBinding m_owner;
+            private readonly IEcmStatisticsProvider m_provider;
+        }
     }
 
     /// <summary>
@@ -546,5 +925,16 @@ namespace Opc.Ua.ECM.Server
             Level = LogLevel.Error,
             Message = "The ECM measurement provider operation failed: {Error}")]
         public static partial void MeasurementProviderFailed(this ILogger logger, [SensitiveText] string error);
+
+        /// <summary>
+        /// Reports a cleanup failure after a failed topology construction; the original failure is rethrown.
+        /// </summary>
+        [LoggerMessage(
+            EventId = EcmServerEventIds.EcmMeasurementBinding + 1,
+            Level = LogLevel.Warning,
+            Message = "The ECM measurement topology cleanup failed: {Error}")]
+        public static partial void MeasurementTopologyCleanupFailed(
+            this ILogger logger,
+            [SensitiveText] string error);
     }
 }

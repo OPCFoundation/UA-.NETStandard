@@ -284,6 +284,211 @@ namespace Opc.Ua.ECM.Tests
         }
 
         /// <summary>
+        /// Refresh awaits gated notifications without blocking its caller and queues reentrant writes.
+        /// </summary>
+        [Test]
+        public async Task RefreshAwaitsGatedNotificationAndSerializesReentrantWrite()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queues = new MonitoredItemQueueFactory(telemetry);
+            await using EcmNodeManager manager = CreateManager(telemetry, queues);
+            ushort ecmNamespace = manager.SystemContext.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
+            var firstTime = new DateTime(2026, 8, 14, 9, 10, 11, DateTimeKind.Utc);
+            var secondTime = new DateTime(2026, 8, 14, 9, 10, 12, DateTimeKind.Utc);
+            var thirdTime = new DateTime(2026, 8, 14, 9, 10, 13, DateTimeKind.Utc);
+            var provider = new TestMeasurementProvider(
+                Snapshot("meter/initial",
+                    FloatReading(nameof(BrowseNames.DcCurrent), 10f, StatusCodes.Good, firstTime)),
+                Snapshot("meter/refreshed",
+                    FloatReading(nameof(BrowseNames.DcCurrent), 12f, StatusCodes.Good, secondTime)),
+                Snapshot("meter/reentrant",
+                    FloatReading(nameof(BrowseNames.DcCurrent), 15f, StatusCodes.Good, thirdTime)));
+            BaseObjectState parent = await AddParentAsync(manager, "AsyncRefreshDevice");
+            EcmMeasurementBinding binding = await manager.CreateMeasurementAsync(
+                new QualifiedName("AsyncRefreshMeter", manager.InstanceNamespaceIndex),
+                provider,
+                parent,
+                authorize: static (_, _) => new ValueTask<bool>(true));
+            EnergyMeasurementValueState measurement = RequiredMeasurement(
+                binding.MeasurementPoint,
+                manager.SystemContext,
+                nameof(BrowseNames.DcCurrent),
+                ecmNamespace);
+            PropertyState<string> applicationTag = binding.MeasurementPoint.ApplicationTag!;
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var cancellation = new CancellationTokenSource();
+            Task<AttributeWriteResult>? reentrantWrite = null;
+            int notifications = 0;
+            measurement.OnStateChangedAsync = async (_, _, _, notificationToken) =>
+            {
+                Assert.That(notificationToken.IsCancellationRequested, Is.False);
+                if (Interlocked.Increment(ref notifications) == 1)
+                {
+                    reentrantWrite = applicationTag.OnSimpleWriteValueAsync!(
+                        manager.SystemContext,
+                        applicationTag,
+                        Variant.From("meter/reentrant"),
+                        CancellationToken.None).AsTask();
+                    entered.TrySetResult(true);
+                    await release.Task.ConfigureAwait(false);
+                }
+            };
+
+            (bool returnedBeforeRelease, Task refresh) = await CompleteAfterGatedNotificationAsync(
+                () => binding.RefreshAsync(cancellation.Token).AsTask(),
+                entered,
+                release,
+                () =>
+                {
+                    Assert.That(measurement.WrappedValue.TryGetValue(out float value), Is.True);
+                    Assert.That(value, Is.EqualTo(12f));
+                    Assert.That(applicationTag.Value, Is.EqualTo("meter/initial"));
+                    Assert.That(provider.WriteCount, Is.Zero);
+                    Assert.That(reentrantWrite, Is.Not.Null);
+                    Assert.That(reentrantWrite!.IsCompleted, Is.False);
+                    cancellation.Cancel();
+                });
+
+            Assert.That(returnedBeforeRelease, Is.True);
+            await refresh.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            AttributeWriteResult write = await reentrantWrite!.WaitAsync(TimeSpan.FromSeconds(10))
+                .ConfigureAwait(false);
+            Assert.That(write.Result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(provider.PersistedApplicationTag, Is.EqualTo("meter/reentrant"));
+            Assert.That(provider.ReadCount, Is.EqualTo(3));
+            Assert.That(measurement.WrappedValue.TryGetValue(out float finalValue), Is.True);
+            Assert.That(finalValue, Is.EqualTo(15f));
+            Assert.That(measurement.Timestamp, Is.EqualTo((DateTimeUtc)thirdTime));
+        }
+
+        /// <summary>
+        /// Refresh awaits unavailable-state notifications and preserves the notification failure.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RefreshFailureAwaitsUnavailableNotification(bool notificationFails)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queues = new MonitoredItemQueueFactory(telemetry);
+            await using EcmNodeManager manager = CreateManager(telemetry, queues);
+            ushort ecmNamespace = manager.SystemContext.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
+            var acquired = new DateTime(2026, 8, 14, 9, 20, 0, DateTimeKind.Utc);
+            var provider = new TestMeasurementProvider(
+                Snapshot("meter/available",
+                    FloatReading(nameof(BrowseNames.DcCurrent), 6.25f, StatusCodes.Good, acquired)));
+            BaseObjectState parent = await AddParentAsync(manager, "AsyncFailureDevice");
+            EcmMeasurementBinding binding = await manager.CreateMeasurementAsync(
+                new QualifiedName("AsyncFailureMeter", manager.InstanceNamespaceIndex),
+                provider,
+                parent);
+            EnergyMeasurementValueState measurement = RequiredMeasurement(
+                binding.MeasurementPoint,
+                manager.SystemContext,
+                nameof(BrowseNames.DcCurrent),
+                ecmNamespace);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int notifications = 0;
+            measurement.OnStateChangedAsync = async (_, _, _, _) =>
+            {
+                if (Interlocked.Increment(ref notifications) == 1)
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.ConfigureAwait(false);
+                    if (notificationFails)
+                    {
+                        throw new InvalidOperationException("Notification failed.");
+                    }
+                }
+            };
+            provider.ReadFailure = new InvalidOperationException("Acquisition failed.");
+
+            (bool returnedBeforeRelease, Task refresh) = await CompleteAfterGatedNotificationAsync(
+                () => binding.RefreshAsync().AsTask(),
+                entered,
+                release,
+                () =>
+                {
+                    Assert.That(measurement.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
+                    Assert.That(measurement.WrappedValue.TryGetValue(out float value), Is.True);
+                    Assert.That(value, Is.EqualTo(6.25f));
+                    Assert.That(measurement.Timestamp, Is.EqualTo((DateTimeUtc)acquired));
+                });
+
+            Assert.That(returnedBeforeRelease, Is.True);
+            await Assert.ThatAsync(
+                () => refresh.WaitAsync(TimeSpan.FromSeconds(10)),
+                Throws.TypeOf<InvalidOperationException>().With.Message.EqualTo(notificationFails
+                    ? "Notification failed."
+                    : "Acquisition failed.")).ConfigureAwait(false);
+            Assert.That(measurement.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
+            Assert.That(provider.ReadCount, Is.EqualTo(2));
+        }
+
+        /// <summary>
+        /// A failed notification after refresh commit marks retained measurements unavailable before rethrowing.
+        /// </summary>
+        [Test]
+        public async Task RefreshNotificationFailureMarksCommittedMeasurementUnavailable()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queues = new MonitoredItemQueueFactory(telemetry);
+            await using EcmNodeManager manager = CreateManager(telemetry, queues);
+            ushort ecmNamespace = manager.SystemContext.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
+            var firstTime = new DateTime(2026, 8, 14, 9, 25, 0, DateTimeKind.Utc);
+            var secondTime = new DateTime(2026, 8, 14, 9, 25, 1, DateTimeKind.Utc);
+            var provider = new TestMeasurementProvider(
+                Snapshot("meter/initial",
+                    FloatReading(nameof(BrowseNames.DcCurrent), 3f, StatusCodes.Good, firstTime)),
+                Snapshot("meter/refreshed",
+                    FloatReading(nameof(BrowseNames.DcCurrent), 4f, StatusCodes.Good, secondTime)));
+            BaseObjectState parent = await AddParentAsync(manager, "FailedRefreshNotificationDevice");
+            EcmMeasurementBinding binding = await manager.CreateMeasurementAsync(
+                new QualifiedName("FailedRefreshNotificationMeter", manager.InstanceNamespaceIndex),
+                provider,
+                parent);
+            EnergyMeasurementValueState measurement = RequiredMeasurement(
+                binding.MeasurementPoint,
+                manager.SystemContext,
+                nameof(BrowseNames.DcCurrent),
+                ecmNamespace);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int notifications = 0;
+            measurement.OnStateChangedAsync = async (_, _, _, _) =>
+            {
+                if (Interlocked.Increment(ref notifications) == 1)
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.ConfigureAwait(false);
+                    throw new InvalidOperationException("Notification failed.");
+                }
+            };
+
+            (bool returnedBeforeRelease, Task refresh) = await CompleteAfterGatedNotificationAsync(
+                () => binding.RefreshAsync().AsTask(),
+                entered,
+                release,
+                () =>
+                {
+                    Assert.That(measurement.WrappedValue.TryGetValue(out float value), Is.True);
+                    Assert.That(value, Is.EqualTo(4f));
+                    Assert.That(measurement.StatusCode, Is.EqualTo(StatusCodes.Good));
+                });
+
+            Assert.That(returnedBeforeRelease, Is.True);
+            await Assert.ThatAsync(
+                () => refresh.WaitAsync(TimeSpan.FromSeconds(10)),
+                Throws.TypeOf<InvalidOperationException>().With.Message.EqualTo("Notification failed."))
+                .ConfigureAwait(false);
+            Assert.That(measurement.WrappedValue.TryGetValue(out float finalValue), Is.True);
+            Assert.That(finalValue, Is.EqualTo(4f));
+            Assert.That(measurement.Timestamp, Is.EqualTo((DateTimeUtc)secondTime));
+            Assert.That(measurement.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
+        }
+
+        /// <summary>
         /// Refresh accepts equivalent engineering-unit metadata from a newly allocated provider value.
         /// </summary>
         [Test]
@@ -939,6 +1144,237 @@ namespace Opc.Ua.ECM.Tests
         }
 
         /// <summary>
+        /// Published metadata must retain its acquired text and locale selection after provider storage changes.
+        /// </summary>
+        [Test]
+        public async Task PublishedMetadataDetachesLocalizedTextStorage(
+            [Values(false, true)] bool accuracyDomain,
+            [Values("dictionary", "array")] string mutationKind)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queues = new MonitoredItemQueueFactory(telemetry);
+            await using EcmNodeManager manager = CreateManager(telemetry, queues);
+            ISystemContext context = manager.SystemContext;
+            ushort ecmNamespace = context.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
+            var translations = new Dictionary<string, string>
+            {
+                ["en"] = "Class A",
+                ["de"] = "Klasse A"
+            };
+            object[] arguments = ["A"];
+            LocalizedText source = mutationKind == "array"
+                ? new LocalizedText("accuracy", "en", "Class {0}", arguments)
+                : new LocalizedText(translations);
+            LocalizedText published;
+            if (accuracyDomain)
+            {
+                await AddAccuracyDomainsFolderAsync(manager, ecmNamespace);
+                AccuracyDomainState domain = await manager.CreateAccuracyDomainAsync(
+                    new QualifiedName("LocalizedAccuracy", ecmNamespace),
+                    new[] { new EnumValueType { Value = 1, DisplayName = source } }.ToArrayOf());
+                published = domain.EnumValues!.Value[0].DisplayName;
+            }
+            else
+            {
+                BaseObjectState parent = await AddParentAsync(manager, "LocalizedUnitsDevice");
+                EcmMeasurementReading reading = FloatReading(
+                    nameof(BrowseNames.DcCurrent), 3f, StatusCodes.Good,
+                    new DateTime(2026, 8, 14, 10, 0, 0, DateTimeKind.Utc)) with
+                {
+                    EngineeringUnits = new EUInformation { UnitId = 1, DisplayName = source }
+                };
+                EcmMeasurementBinding binding = await manager.CreateMeasurementAsync(
+                    new QualifiedName("LocalizedUnitsMeter", manager.InstanceNamespaceIndex),
+                    new TestMeasurementProvider(Snapshot("meter/localized", reading)), parent);
+                published = RequiredMeasurement(
+                    binding.MeasurementPoint, context, nameof(BrowseNames.DcCurrent), ecmNamespace)
+                    .EngineeringUnits!.Value.DisplayName;
+            }
+
+            if (mutationKind == "array")
+            {
+                arguments[0] = "B";
+            }
+            else
+            {
+                translations["de"] = "Geaendert";
+            }
+
+            if (mutationKind == "array")
+            {
+                Assert.That(source.Text, Is.EqualTo("Class B"));
+                Assert.That(published.Text, Is.EqualTo("Class A"));
+                Assert.That(published.Locale, Is.EqualTo("en"));
+            }
+            else
+            {
+                ArrayOf<string> preferredLocales = new[] { "de" }.ToArrayOf();
+                Assert.That(source.FilterByPreferredLocales(preferredLocales).Text, Is.EqualTo("Geaendert"));
+                LocalizedText selected = published.FilterByPreferredLocales(preferredLocales);
+                Assert.That(selected.Text, Is.EqualTo("Klasse A"));
+                Assert.That(selected.Locale, Is.EqualTo("de"));
+            }
+        }
+
+        /// <summary>
+        /// Unsupported mutable translation arguments are rejected before metadata is published.
+        /// </summary>
+        [Test]
+        public async Task UnsupportedMutableLocalizedTextArgumentsAreRejectedBeforePublication(
+            [Values(false, true)] bool accuracyDomain)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queues = new MonitoredItemQueueFactory(telemetry);
+            await using EcmNodeManager manager = CreateManager(telemetry, queues);
+            ISystemContext context = manager.SystemContext;
+            ushort ecmNamespace = context.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
+            await AddAccuracyDomainsFolderAsync(manager, ecmNamespace);
+            object[] arguments = [new System.Text.StringBuilder("A")];
+            var displayName = new LocalizedText("accuracy", "en", "Class {0}", arguments);
+            var metadata = new EnumValueType { Value = 1, DisplayName = displayName };
+            if (accuracyDomain)
+            {
+                var browseName = new QualifiedName("UnsupportedLocalizedAccuracy", ecmNamespace);
+                await Assert.ThrowsAsync<ArgumentException>(async () =>
+                    await manager.CreateAccuracyDomainAsync(browseName, new[] { metadata }.ToArrayOf()));
+                NodeId folderId = NodeId.Create(Objects.AccuracyDomains, Namespaces.ECM, context.NamespaceUris);
+                NodeState folder = manager.FindPredefinedNode(folderId) ??
+                    throw new InvalidOperationException("The accuracy folder is missing.");
+                Assert.That(folder.FindChild(context, browseName), Is.Null);
+            }
+            else
+            {
+                BaseObjectState parent = await AddParentAsync(manager, "UnsupportedLocalizedUnitsDevice");
+                var browseName = new QualifiedName("UnsupportedLocalizedUnitsMeter", manager.InstanceNamespaceIndex);
+                EcmMeasurementReading reading = FloatReading(
+                    nameof(BrowseNames.DcCurrent), 3f, StatusCodes.Good,
+                    new DateTime(2026, 8, 14, 10, 0, 0, DateTimeKind.Utc)) with
+                {
+                    EngineeringUnits = new EUInformation { UnitId = 1, DisplayName = displayName }
+                };
+                await Assert.ThrowsAsync<ArgumentException>(async () =>
+                    await manager.CreateMeasurementAsync(
+                        browseName,
+                        new TestMeasurementProvider(Snapshot("meter/unsupported-localized", reading)),
+                        parent));
+                Assert.That(parent.FindChild(context, browseName), Is.Null);
+            }
+        }
+
+        /// <summary>
+        /// Refresh rejects unsupported localized arguments before formatting or publishing the new value.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RefreshRejectsUnsupportedLocalizedTextArgumentsBeforeFormatting(bool throwOnFormat)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queues = new MonitoredItemQueueFactory(telemetry);
+            await using EcmNodeManager manager = CreateManager(telemetry, queues);
+            ushort ecmNamespace = manager.SystemContext.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
+            var firstTimestamp = new DateTime(2026, 8, 14, 10, 0, 0, DateTimeKind.Utc);
+            var refreshedTimestamp = new DateTime(2026, 8, 14, 10, 0, 1, DateTimeKind.Utc);
+            var unsupportedArgument = new ObservableFormatArgument(throwOnFormat);
+            EcmMeasurementReading firstReading = FloatReading(
+                nameof(BrowseNames.DcCurrent), 3f, StatusCodes.Good, firstTimestamp) with
+            {
+                EngineeringUnits = new EUInformation
+                {
+                    UnitId = 1,
+                    DisplayName = new LocalizedText("unit", "en", "Class {0}", "A")
+                }
+            };
+            EcmMeasurementReading refreshedReading = FloatReading(
+                nameof(BrowseNames.DcCurrent), 4f, StatusCodes.Good, refreshedTimestamp) with
+            {
+                EngineeringUnits = new EUInformation
+                {
+                    UnitId = 1,
+                    DisplayName = new LocalizedText(
+                        "unit",
+                        "en",
+                        "Class {0}",
+                        unsupportedArgument)
+                }
+            };
+            var provider = new TestMeasurementProvider(
+                Snapshot("meter/initial", firstReading),
+                Snapshot("meter/refreshed", refreshedReading));
+            BaseObjectState parent = await AddParentAsync(manager, "LocalizedRefreshDevice");
+            EcmMeasurementBinding binding = await manager.CreateMeasurementAsync(
+                new QualifiedName("LocalizedRefreshMeter", manager.InstanceNamespaceIndex),
+                provider,
+                parent);
+            EnergyMeasurementValueState measurement = RequiredMeasurement(
+                binding.MeasurementPoint,
+                manager.SystemContext,
+                nameof(BrowseNames.DcCurrent),
+                ecmNamespace);
+
+            await Assert.ThrowsAsync<ArgumentException>(async () => await binding.RefreshAsync());
+
+            Assert.That(unsupportedArgument.ToStringCalls, Is.Zero);
+            Assert.That(measurement.WrappedValue.TryGetValue(out float value), Is.True);
+            Assert.That(value, Is.EqualTo(3f));
+            Assert.That(measurement.Timestamp, Is.EqualTo((DateTimeUtc)firstTimestamp));
+            Assert.That(measurement.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
+            Assert.That(binding.MeasurementPoint.ApplicationTag!.Value, Is.EqualTo("meter/initial"));
+            Assert.That(
+                binding.MeasurementPoint.ApplicationTag.StatusCode,
+                Is.EqualTo(StatusCodes.BadNoCommunication));
+            Assert.That(provider.ReadCount, Is.EqualTo(2));
+        }
+
+        /// <summary>
+        /// Successful refresh leaves published deferred formatting detached from supported provider arguments.
+        /// </summary>
+        [Test]
+        public async Task RefreshKeepsPublishedLocalizedTextDetachedFromSupportedArguments()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queues = new MonitoredItemQueueFactory(telemetry);
+            await using EcmNodeManager manager = CreateManager(telemetry, queues);
+            ushort ecmNamespace = manager.SystemContext.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
+            var firstTimestamp = new DateTime(2026, 8, 14, 10, 10, 0, DateTimeKind.Utc);
+            var refreshedTimestamp = new DateTime(2026, 8, 14, 10, 10, 1, DateTimeKind.Utc);
+            object[] arguments = ["A"];
+            LocalizedText displayName = new("unit", "en", "Class {0}", arguments);
+            EcmMeasurementReading firstReading = FloatReading(
+                nameof(BrowseNames.DcCurrent), 3f, StatusCodes.Good, firstTimestamp) with
+            {
+                EngineeringUnits = new EUInformation { UnitId = 1, DisplayName = displayName }
+            };
+            EcmMeasurementReading refreshedReading = FloatReading(
+                nameof(BrowseNames.DcCurrent), 4f, StatusCodes.Good, refreshedTimestamp) with
+            {
+                EngineeringUnits = new EUInformation { UnitId = 1, DisplayName = displayName }
+            };
+            var provider = new TestMeasurementProvider(
+                Snapshot("meter/initial", firstReading),
+                Snapshot("meter/refreshed", refreshedReading));
+            BaseObjectState parent = await AddParentAsync(manager, "DetachedLocalizedRefreshDevice");
+            EcmMeasurementBinding binding = await manager.CreateMeasurementAsync(
+                new QualifiedName("DetachedLocalizedRefreshMeter", manager.InstanceNamespaceIndex),
+                provider,
+                parent);
+            EnergyMeasurementValueState measurement = RequiredMeasurement(
+                binding.MeasurementPoint,
+                manager.SystemContext,
+                nameof(BrowseNames.DcCurrent),
+                ecmNamespace);
+
+            await binding.RefreshAsync();
+            arguments[0] = "changed";
+
+            Assert.That(measurement.WrappedValue.TryGetValue(out float value), Is.True);
+            Assert.That(value, Is.EqualTo(4f));
+            Assert.That(measurement.Timestamp, Is.EqualTo((DateTimeUtc)refreshedTimestamp));
+            Assert.That(measurement.EngineeringUnits!.Value.DisplayName.Text, Is.EqualTo("Class A"));
+            Assert.That(measurement.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(provider.ReadCount, Is.EqualTo(2));
+        }
+
+        /// <summary>
         /// Invalid accuracy entries never attach a partial domain to the published folder.
         /// </summary>
         [TestCase("null-entry")]
@@ -1170,6 +1606,133 @@ namespace Opc.Ua.ECM.Tests
             Assert.That(provider.PersistedApplicationTag, Is.EqualTo("meter/renamed"));
             Assert.That(applicationTag.Value, Is.EqualTo("meter/renamed"));
             Assert.That(provider.WriteCount, Is.EqualTo(2));
+        }
+
+        /// <summary>
+        /// A committed tag write awaits gated notifications and serializes a reentrant refresh.
+        /// </summary>
+        [Test]
+        public async Task ApplicationTagWriteAwaitsGatedNotificationAndSerializesReentrantRefresh()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queues = new MonitoredItemQueueFactory(telemetry);
+            await using EcmNodeManager manager = CreateManager(telemetry, queues);
+            ushort ecmNamespace = manager.SystemContext.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
+            var firstTime = new DateTime(2026, 8, 14, 11, 0, 0, DateTimeKind.Utc);
+            var secondTime = new DateTime(2026, 8, 14, 11, 0, 1, DateTimeKind.Utc);
+            var provider = new TestMeasurementProvider(
+                Snapshot("meter/original",
+                    FloatReading(nameof(BrowseNames.AcActivePowerTotal), 3f, StatusCodes.Good, firstTime)),
+                Snapshot("meter/refreshed",
+                    FloatReading(nameof(BrowseNames.AcActivePowerTotal), 4f, StatusCodes.Good, secondTime)));
+            BaseObjectState parent = await AddParentAsync(manager, "AsyncTagDevice");
+            EcmMeasurementBinding binding = await manager.CreateMeasurementAsync(
+                new QualifiedName("AsyncTagMeter", manager.InstanceNamespaceIndex),
+                provider,
+                parent,
+                authorize: static (_, _) => new ValueTask<bool>(true));
+            PropertyState<string> applicationTag = binding.MeasurementPoint.ApplicationTag!;
+            EnergyMeasurementValueState measurement = RequiredMeasurement(
+                binding.MeasurementPoint,
+                manager.SystemContext,
+                nameof(BrowseNames.AcActivePowerTotal),
+                ecmNamespace);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var cancellation = new CancellationTokenSource();
+            Task? reentrantRefresh = null;
+            int notifications = 0;
+            applicationTag.OnStateChangedAsync = async (_, _, _, notificationToken) =>
+            {
+                Assert.That(notificationToken.IsCancellationRequested, Is.False);
+                if (Interlocked.Increment(ref notifications) == 1)
+                {
+                    reentrantRefresh = binding.RefreshAsync().AsTask();
+                    entered.TrySetResult(true);
+                    await release.Task.ConfigureAwait(false);
+                }
+            };
+
+            (bool returnedBeforeRelease, Task<AttributeWriteResult> writeTask) =
+                await CompleteAfterGatedNotificationAsync(
+                    () => applicationTag.OnSimpleWriteValueAsync!(
+                        manager.SystemContext,
+                        applicationTag,
+                        Variant.From("meter/renamed"),
+                        cancellation.Token).AsTask(),
+                    entered,
+                    release,
+                    () =>
+                    {
+                        Assert.That(applicationTag.Value, Is.EqualTo("meter/renamed"));
+                        Assert.That(provider.PersistedApplicationTag, Is.EqualTo("meter/renamed"));
+                        Assert.That(provider.WriteCount, Is.EqualTo(1));
+                        Assert.That(provider.ReadCount, Is.EqualTo(1));
+                        Assert.That(reentrantRefresh, Is.Not.Null);
+                        Assert.That(reentrantRefresh!.IsCompleted, Is.False);
+                        cancellation.Cancel();
+                    });
+
+            AttributeWriteResult write = await writeTask.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            await reentrantRefresh!.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            Assert.That(returnedBeforeRelease, Is.True);
+            Assert.That(write.Result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(write.SuppressCacheUpdate, Is.True);
+            Assert.That(measurement.WrappedValue.TryGetValue(out float value), Is.True);
+            Assert.That(value, Is.EqualTo(4f));
+            Assert.That(provider.ReadCount, Is.EqualTo(2));
+        }
+
+        /// <summary>
+        /// A failed tag notification reports BadUnexpectedError without undoing the persisted value.
+        /// </summary>
+        [Test]
+        public async Task ApplicationTagNotificationFailureRetainsCommittedTag()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queues = new MonitoredItemQueueFactory(telemetry);
+            await using EcmNodeManager manager = CreateManager(telemetry, queues);
+            var provider = new TestMeasurementProvider(
+                Snapshot("meter/original",
+                    FloatReading(nameof(BrowseNames.DcCurrent), 3f, StatusCodes.Good,
+                        new DateTime(2026, 8, 14, 11, 0, 0, DateTimeKind.Utc))));
+            BaseObjectState parent = await AddParentAsync(manager, "FailedTagNotificationDevice");
+            EcmMeasurementBinding binding = await manager.CreateMeasurementAsync(
+                new QualifiedName("FailedTagNotificationMeter", manager.InstanceNamespaceIndex),
+                provider,
+                parent,
+                authorize: static (_, _) => new ValueTask<bool>(true));
+            PropertyState<string> applicationTag = binding.MeasurementPoint.ApplicationTag!;
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            applicationTag.OnStateChangedAsync = async (_, _, _, _) =>
+            {
+                entered.TrySetResult(true);
+                await release.Task.ConfigureAwait(false);
+                throw new InvalidOperationException("Notification failed.");
+            };
+
+            (bool returnedBeforeRelease, Task<AttributeWriteResult> writeTask) =
+                await CompleteAfterGatedNotificationAsync(
+                    () => applicationTag.OnSimpleWriteValueAsync!(
+                        manager.SystemContext,
+                        applicationTag,
+                        Variant.From("meter/committed"),
+                        CancellationToken.None).AsTask(),
+                    entered,
+                    release,
+                    () =>
+                    {
+                        Assert.That(applicationTag.Value, Is.EqualTo("meter/committed"));
+                        Assert.That(provider.PersistedApplicationTag, Is.EqualTo("meter/committed"));
+                    });
+
+            Assert.That(returnedBeforeRelease, Is.True);
+            AttributeWriteResult write = await writeTask.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            Assert.That(write.Result.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+            Assert.That(write.SuppressCacheUpdate, Is.True);
+            Assert.That(applicationTag.Value, Is.EqualTo("meter/committed"));
+            Assert.That(provider.PersistedApplicationTag, Is.EqualTo("meter/committed"));
         }
 
         /// <summary>
@@ -1488,6 +2051,111 @@ namespace Opc.Ua.ECM.Tests
         }
 
         /// <summary>
+        /// Starts an operation on another thread, verifies its notification await, then releases the sink.
+        /// </summary>
+        private static async Task<(bool ReturnedBeforeRelease, Task)> CompleteAfterGatedNotificationAsync(
+            Func<Task> startOperation,
+            TaskCompletionSource<bool> entered,
+            TaskCompletionSource<bool> release,
+            Action verifyCommittedState)
+        {
+            (bool returnedBeforeRelease, Task<bool> operation) = await CompleteAfterGatedNotificationAsync(
+                async () =>
+                {
+                    await startOperation().ConfigureAwait(false);
+                    return true;
+                },
+                entered,
+                release,
+                verifyCommittedState).ConfigureAwait(false);
+            return (returnedBeforeRelease, operation);
+        }
+
+        /// <summary>
+        /// Starts a typed operation and records whether it returns while the sink remains blocked.
+        /// </summary>
+        private static async Task<(bool ReturnedBeforeRelease, Task<T> Operation)>
+            CompleteAfterGatedNotificationAsync<T>(
+            Func<Task<T>> startOperation,
+            TaskCompletionSource<bool> entered,
+            TaskCompletionSource<bool> release,
+            Action verifyCommittedState)
+        {
+            var returned = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task<Task<T>> invocation = Task.Factory.StartNew(
+                () =>
+                {
+                    Task<T> operation = startOperation();
+                    returned.TrySetResult(true);
+                    return operation;
+                },
+                CancellationToken.None,
+                TaskCreationOptions.DenyChildAttach,
+                TaskScheduler.Default);
+            Task<Exception?> observation = ObserveOperationAsync(invocation);
+            bool returnedBeforeRelease = false;
+            try
+            {
+                try
+                {
+                    await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    Task finished = await Task.WhenAny(
+                        returned.Task,
+                        Task.Delay(TimeSpan.FromSeconds(10))).ConfigureAwait(false);
+                    returnedBeforeRelease = ReferenceEquals(finished, returned.Task);
+                    if (returnedBeforeRelease)
+                    {
+                        Task<T> operation = await invocation.WaitAsync(TimeSpan.FromSeconds(10))
+                            .ConfigureAwait(false);
+                        Assert.That(operation.IsCompleted, Is.False);
+                    }
+                    verifyCommittedState();
+                }
+                finally
+                {
+                    release.TrySetResult(true);
+                }
+
+                Task<T> completedOperation = await invocation.WaitAsync(TimeSpan.FromSeconds(10))
+                    .ConfigureAwait(false);
+                return (returnedBeforeRelease, completedOperation);
+            }
+            catch (Exception failure)
+            {
+                Exception? cleanupFailure;
+                try
+                {
+                    cleanupFailure = await observation.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
+                catch (TimeoutException timeout)
+                {
+                    cleanupFailure = timeout;
+                }
+                if (cleanupFailure is not null && !ReferenceEquals(cleanupFailure, failure))
+                {
+                    throw new AggregateException("Gated notification verification and cleanup failed.",
+                        failure, cleanupFailure);
+                }
+                throw;
+            }
+
+            static async Task<Exception?> ObserveOperationAsync(Task<Task<T>> pendingInvocation)
+            {
+                try
+                {
+                    Task<T> operation = await pendingInvocation.ConfigureAwait(false);
+                    await operation.ConfigureAwait(false);
+                    return null;
+                }
+                catch (Exception failure)
+                {
+                    // Retain faults for failure cleanup without preempting the caller's operation assertions.
+                    return failure;
+                }
+            }
+        }
+
+        /// <summary>
         /// Verifies the measurement point advertises the expected standardized interface.
         /// </summary>
         private static void AssertProfileReference(EnergyMeasurementState point, uint typeId, ushort ecmNamespace)
@@ -1641,6 +2309,30 @@ namespace Opc.Ua.ECM.Tests
             }
 
             private readonly Queue<EcmMeasurementSnapshot?> m_snapshots;
+        }
+
+        /// <summary>
+        /// Records or rejects formatting to verify localized metadata is validated before text evaluation.
+        /// </summary>
+        private sealed class ObservableFormatArgument(bool throwOnFormat)
+        {
+            /// <summary>
+            /// Gets the number of formatting attempts.
+            /// </summary>
+            public int ToStringCalls { get; private set; }
+
+            /// <summary>
+            /// Records a formatting attempt and optionally throws.
+            /// </summary>
+            public override string ToString()
+            {
+                ToStringCalls++;
+                if (throwOnFormat)
+                {
+                    throw new InvalidOperationException("Formatting an unsupported argument must not run.");
+                }
+                return "A";
+            }
         }
     }
 }

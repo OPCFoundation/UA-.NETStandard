@@ -42,6 +42,14 @@ namespace Opc.Ua.ECM.Server
     /// Binds generated ECM standby and optional WOL nodes to borrowed device providers.
     /// The address-space owner must register the configured graph and dispose the binding at shutdown.
     /// </summary>
+    /// <remarks>
+    /// Refreshes, bound PauseTime writes and bound StartPause, EndPause, SwitchToEnergySavingMode and SwitchOffWOL
+    /// controls remain serialized until their node-change notifications complete, including unavailable-state
+    /// notifications. Notification sinks on the bound graph must not await or synchronously block on this binding's
+    /// <see cref="RefreshAsync"/>, any of those writes or controls, or <see cref="DisposeAsync"/>.
+    /// Those operations cannot complete until the active operation and its notification sink finish.
+    /// Synchronous sinks run inline and may block the caller before an asynchronous operation returns.
+    /// </remarks>
     public sealed class EcmPowerBinding : IAsyncDisposable
     {
         /// <summary>
@@ -173,6 +181,10 @@ namespace Opc.Ua.ECM.Server
         /// Publishes a coherent provider snapshot, including dynamic mode characteristics.
         /// The owner schedules refreshes at its required acquisition rate.
         /// </summary>
+        /// <remarks>
+        /// Publication awaits notification sinks within the serialized operation.
+        /// Sinks must follow the same-binding operation restrictions documented on <see cref="EcmPowerBinding"/>.
+        /// </remarks>
         public async ValueTask RefreshAsync(CancellationToken cancellationToken = default)
         {
             await m_operations.ExecuteAsync(RefreshGuardedAsync, cancellationToken).ConfigureAwait(false);
@@ -181,6 +193,10 @@ namespace Opc.Ua.ECM.Server
         /// <summary>
         /// Stops operations and removes the handlers. Borrowed providers are not disposed.
         /// </summary>
+        /// <remarks>
+        /// Notification sinks must not await or synchronously block on disposal of this binding.
+        /// Disposal waits for the active operation, including its notification sinks, to finish.
+        /// </remarks>
         public async ValueTask DisposeAsync()
         {
             try
@@ -213,7 +229,7 @@ namespace Opc.Ua.ECM.Server
                 {
                     m_logger.ProviderFailed(exception.ToString());
                 }
-                MarkUnavailable();
+                await MarkUnavailableAsync().ConfigureAwait(false);
                 throw;
             }
         }
@@ -324,7 +340,7 @@ namespace Opc.Ua.ECM.Server
                 {
                     m_logger.ProviderFailed(exception.ToString());
                 }
-                MarkUnavailable();
+                await MarkUnavailableAsync().ConfigureAwait(false);
                 return new EcmControlResult(StatusCodes.BadUnexpectedError, null);
             }
         }
@@ -363,7 +379,9 @@ namespace Opc.Ua.ECM.Server
                 await Required(Standby.Lock).RefreshLockStateAsync(
                     m_exclusiveAccess, Standby.NodeId, m_context, cancellationToken).ConfigureAwait(false);
             }
-            Standby.ClearChangeMasks(m_context, true);
+            // The snapshot is committed; cancellation must not interrupt its notifications.
+            await Standby.ClearChangeMasksAsync(
+                m_context, true, CancellationToken.None).ConfigureAwait(false);
             m_initialized = true;
         }
 
@@ -500,10 +518,12 @@ namespace Opc.Ua.ECM.Server
         /// <summary>
         /// Preserves the last values and acquisition timestamps when a provider becomes unavailable.
         /// </summary>
-        private void MarkUnavailable()
+        private async ValueTask MarkUnavailableAsync()
         {
             SetAcquisitionQuality(StatusCodes.BadNoCommunication, null);
-            Standby.ClearChangeMasks(m_context, true);
+            // Unavailable state is committed and must be reported before the triggering failure escapes.
+            await Standby.ClearChangeMasksAsync(
+                m_context, true, CancellationToken.None).ConfigureAwait(false);
         }
 
         /// <summary>

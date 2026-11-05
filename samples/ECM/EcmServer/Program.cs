@@ -62,6 +62,7 @@ builder.Services.AddSingleton(static _ => new SimulatedEcmPowerProvider(
 builder.Services.AddSingleton(services => new SamplePower(
     services.GetRequiredService<SimulatedEcmPowerProvider>(), simulateWakeAfter));
 builder.Services.AddSingleton<SampleMeasurementProvider>();
+builder.Services.AddSingleton<SampleEnergyProvider>();
 builder.Services.AddSingleton<SampleMeasurements>();
 builder.Services.AddOpcUa().AddServer(options =>
 {
@@ -121,9 +122,24 @@ builder.Services.AddOpcUa().AddServer(options =>
             return new ValueTask<bool>(true);
         },
         cancellationToken: context.CancellationToken).ConfigureAwait(false);
-    context.GetRequiredService<SampleMeasurements>().SetBinding(measurementBinding);
+    context.GetRequiredService<SampleMeasurements>().AddBinding(measurementBinding);
     await Console.Out.WriteLineAsync(
         $"SIMULATED measurement NodeId: {measurementBinding.MeasurementPoint.NodeId}")
+        .ConfigureAwait(false);
+    SampleEnergyProvider energyProvider = context.GetRequiredService<SampleEnergyProvider>();
+    energyProvider.SetAccuracyDomain(accuracyDomain.NodeId);
+    EcmMeasurementBinding energyBinding = await manager.CreateMeasurementAsync(
+        new QualifiedName("SimulatedEnergy", manager.InstanceNamespaceIndex),
+        energyProvider,
+        authorize: static (_, ct) =>
+        {
+            ct.ThrowIfCancellationRequested();
+            return new ValueTask<bool>(true);
+        },
+        cancellationToken: context.CancellationToken).ConfigureAwait(false);
+    context.GetRequiredService<SampleMeasurements>().AddBinding(energyBinding);
+    await Console.Out.WriteLineAsync(
+        $"SIMULATED E2/D1 statistics measurement NodeId: {energyBinding.MeasurementPoint.NodeId}")
         .ConfigureAwait(false);
 });
 builder.Services.AddHostedService(static services => services.GetRequiredService<SamplePower>());
@@ -309,7 +325,7 @@ internal sealed class SampleMeasurementProvider : IEcmMeasurementProvider
         {
             m_applicationTag = applicationTag;
         }
-        return ValueTask.CompletedTask;
+        return default;
     }
 
     /// <summary>Protects the in-memory sample state.</summary>
@@ -328,11 +344,14 @@ internal sealed class SampleMeasurementProvider : IEcmMeasurementProvider
 internal sealed class SampleMeasurements : BackgroundService
 {
     /// <summary>
-    /// Supplies the manager-owned binding after startup.
+    /// Adds a manager-owned binding after startup.
     /// </summary>
-    public void SetBinding(EcmMeasurementBinding binding)
+    public void AddBinding(EcmMeasurementBinding binding)
     {
-        Volatile.Write(ref m_binding, binding);
+        lock (m_lock)
+        {
+            m_bindings = [.. m_bindings, binding];
+        }
     }
 
     /// <inheritdoc/>
@@ -342,8 +361,12 @@ internal sealed class SampleMeasurements : BackgroundService
         {
             while (!stoppingToken.IsCancellationRequested)
             {
-                EcmMeasurementBinding? binding = Volatile.Read(ref m_binding);
-                if (binding != null)
+                EcmMeasurementBinding[] bindings;
+                lock (m_lock)
+                {
+                    bindings = m_bindings;
+                }
+                foreach (EcmMeasurementBinding binding in bindings)
                 {
                     await binding.RefreshAsync(stoppingToken).ConfigureAwait(false);
                 }
@@ -355,6 +378,152 @@ internal sealed class SampleMeasurements : BackgroundService
         }
     }
 
-    /// <summary>The borrowed manager-owned binding.</summary>
-    private EcmMeasurementBinding? m_binding;
+    /// <summary>Protects the binding list.</summary>
+    private readonly System.Threading.Lock m_lock = new();
+
+    /// <summary>The borrowed manager-owned bindings.</summary>
+    private EcmMeasurementBinding[] m_bindings = [];
+}
+
+/// <summary>
+/// Supplies simulated E2 and D1 measurements with a grouped statistics reset.
+/// </summary>
+internal sealed class SampleEnergyProvider : IEcmStatisticsProvider
+{
+    /// <summary>
+    /// Publishes the domain created by the server before the first snapshot.
+    /// </summary>
+    public void SetAccuracyDomain(NodeId accuracyDomain)
+    {
+        if (accuracyDomain.IsNull)
+        {
+            throw new ArgumentException("A published accuracy domain is required.", nameof(accuracyDomain));
+        }
+        lock (m_lock)
+        {
+            m_accuracyDomain = accuracyDomain;
+        }
+    }
+
+    /// <inheritdoc/>
+    public ValueTask<EcmMeasurementSnapshot> ReadAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (m_lock)
+        {
+            m_energy += 0.01f;
+            return new ValueTask<EcmMeasurementSnapshot>(new EcmMeasurementSnapshot(
+                m_applicationTag,
+                [
+                    .. Readings(DateTime.UtcNow, includeStatistics: true)
+                ])
+            {
+                StatisticsStartTime = m_startTime
+            });
+        }
+    }
+
+    /// <inheritdoc/>
+    public ValueTask WriteApplicationTagAsync(string applicationTag, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(applicationTag, nameof(applicationTag));
+        lock (m_lock)
+        {
+            m_applicationTag = applicationTag;
+        }
+        return default;
+    }
+
+    /// <inheritdoc/>
+    public ValueTask<ServiceResult> AuthorizeStatisticsResetAsync(
+        ISystemContext requestContext,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return new ValueTask<ServiceResult>(ServiceResult.Good);
+    }
+
+    /// <inheritdoc/>
+    public ValueTask<EcmStatisticsSnapshot> ResetStatisticsAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (m_lock)
+        {
+            m_energy = 0;
+            m_startTime = DateTimeUtc.Now;
+            return new ValueTask<EcmStatisticsSnapshot>(new EcmStatisticsSnapshot(
+                m_startTime,
+                [
+                    .. Readings(DateTime.UtcNow, includeStatistics: true, statisticsOnly: true)
+                ]));
+        }
+    }
+
+    /// <summary>
+    /// Creates every E2 and D1 reading from the in-memory accumulators.
+    /// </summary>
+    private EcmMeasurementReading[] Readings(DateTime timestamp, bool includeStatistics, bool statisticsOnly = false)
+    {
+        var readings = new List<EcmMeasurementReading>();
+        if (!statisticsOnly)
+        {
+            readings.Add(Float(BrowseNames.AcActivePowerTotal, 4.2f, "kW", 0x4B5754, timestamp, true));
+            readings.Add(Float(BrowseNames.DcCurrent, 5.1f, "A", 0x414D50, timestamp, true));
+            readings.Add(Float(BrowseNames.DcActivePower, 0.12f, "kW", 0x4B5754, timestamp, false));
+            readings.Add(Float(BrowseNames.DcVoltage, 24f, "V", 0x564F4C, timestamp, false));
+        }
+        if (includeStatistics)
+        {
+            readings.Add(Float(BrowseNames.AcActiveEnergyTotalExportLp, m_energy, "kWh", 0x4B5748, timestamp, true));
+            readings.Add(Float(
+                BrowseNames.AcActiveEnergyTotalImportLp, m_energy / 2, "kWh", 0x4B5748, timestamp, true));
+            readings.Add(Float(BrowseNames.DcElectricalCharge, m_energy, "Ah", 0x414148, timestamp, false));
+            readings.Add(Float(BrowseNames.DcEnergyTotalExportLp, m_energy, "kWh", 0x4B5748, timestamp, false));
+            readings.Add(Float(BrowseNames.DcEnergyTotalImportLp, m_energy / 2, "kWh", 0x4B5748, timestamp, false));
+            readings.Add(Float(BrowseNames.DcRelativeCharge, 80f, "%", 0x50434E, timestamp, false));
+        }
+        return [.. readings];
+    }
+
+    /// <summary>
+    /// Creates one simulated Float reading with engineering units and accuracy metadata.
+    /// </summary>
+    private EcmMeasurementReading Float(
+        string name,
+        float value,
+        string unit,
+        int unitId,
+        DateTime timestamp,
+        bool range)
+    {
+        return new EcmMeasurementReading(
+            name,
+            Variant.From(value),
+            Opc.Ua.DataTypeIds.Float,
+            StatusCodes.Good,
+            timestamp,
+            new EUInformation(unit, unit, "http://www.opcfoundation.org/UA/units/un/cefact")
+            {
+                UnitId = unitId
+            },
+            accuracyClass: 0,
+            accuracyDomain: m_accuracyDomain,
+            accuracyRange: range ? 1f : null);
+    }
+
+    /// <summary>Protects the in-memory sample state.</summary>
+    private readonly System.Threading.Lock m_lock = new();
+
+    /// <summary>The persisted in-memory application tag.</summary>
+    private string m_applicationTag = "SimulatedEnergy";
+
+    /// <summary>The server-created accuracy domain.</summary>
+    private NodeId m_accuracyDomain = NodeId.Null;
+
+    /// <summary>The simulated accumulated energy.</summary>
+    private float m_energy;
+
+    /// <summary>The start of the current statistics collection.</summary>
+    private DateTimeUtc m_startTime = DateTimeUtc.Now;
 }

@@ -88,6 +88,9 @@ namespace Opc.Ua.ECM.Server
                 throw new ArgumentException("A measurement reference type is required.", nameof(referenceTypeId));
             }
 
+            Variant ownedValue = EcmOwnership.Own(value);
+            EUInformation? ownedUnits = EcmOwnership.Own(engineeringUnits, nameof(engineeringUnits));
+
             var children = new List<BaseInstanceState>();
             measurementPoint.GetChildren(context, children);
             EnergyMeasurementValueState? measurement = null;
@@ -113,18 +116,10 @@ namespace Opc.Ua.ECM.Server
                 measurement.ValueRank = ValueRanks.Scalar;
                 measurementPoint.AddChild(measurement);
             }
-            measurement.WrappedValue = CoreUtils.Clone(value);
-            if (engineeringUnits != null)
+            measurement.WrappedValue = ownedValue;
+            if (ownedUnits != null)
             {
-                measurement.AddEngineeringUnits(
-                    context,
-                    variable => variable.Value = new EUInformation
-                    {
-                        NamespaceUri = engineeringUnits.NamespaceUri,
-                        UnitId = engineeringUnits.UnitId,
-                        DisplayName = engineeringUnits.DisplayName,
-                        Description = engineeringUnits.Description
-                    });
+                measurement.AddEngineeringUnits(context, variable => variable.Value = ownedUnits);
             }
             if (measurementId.HasValue)
             {

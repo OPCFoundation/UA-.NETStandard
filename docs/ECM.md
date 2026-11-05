@@ -7,10 +7,11 @@ ECM model. The reference providers simulate values and transitions without
 changing host power or sending network packets.
 
 The specification-support rating remains **Partial**. The standalone runtime
-publishes E0, E1 and D0 measurements with accuracy metadata. E2, E3 and D1
-depend on the shared Industrial Automation statistics runtime reaching
-`master`; grouped reset and collection `StartTime` remain blocked by that
-dependency. Generated ECM declarations alone do not satisfy those requirements.
+publishes E0, E1, E2, E3, D0 and D1 measurements with accuracy metadata. The
+statistic members of E2, E3 and D1 reuse the shared Industrial Automation
+(IA) statistics runtime from pull request #4988, which is not yet on `master`.
+This change is prepared and reviewed against that exact prerequisite head only
+and has not been built, executed or validated.
 
 ## Capability and conformance boundary
 
@@ -19,7 +20,7 @@ requires at least one of measurement, standby or WOL for its base energy
 management support. The SDK's completion scope includes all three.
 `EcmPowerBinding` supplies standby with optional WOL; `EcmWolBinding`
 supplies WOL without a standby graph. `EcmMeasurementBinding` publishes
-provider-backed E0, E1 or D0 measurements without requiring a Machinery
+provider-backed E0, E1, E2, E3, D0 or D1 measurements without requiring a Machinery
 Consumption hierarchy.
 
 | Published conformance units | Runtime surface | Current boundary |
@@ -28,17 +29,75 @@ Consumption hierarchy.
 | ECM Standby Management Control | Generated method callbacks and the `PauseTime` write callback | Shared authorization, optional DI ownership and independent Call status/ReturnCode; validation is pending. |
 | ECM Sleep Mode WOL | `EcmWolBinding`, `IEcmWolProvider`, `EcmWolClient` and generated power-off nodes | Independent or standby-composed WOL with explicit sleep requests and six-byte MAC metadata. Validation is pending. |
 | ECM Energy Measurement | `EcmMeasurementBinding`, `IEcmMeasurementProvider`, generated measurement nodes | E0/E1/D0 acquisition, writable provider-backed ApplicationTag, quality/timestamps, engineering units and optional measurement IDs. |
-| ECM EnergyProfile E0, E1, E2, E3, D0 and D1 | Generated interfaces and standalone provider binding | E0/E1/D0 can be published independently. E2/E3/D1 require IA statistics integration and remain pending. |
-| ECM Energy Measurement Common DataTypes | Generated `AcPeDataType` and `AcPpDataType` | E0 preserves the typed `AcPeDataType`; E1/D0 preserve Float. E2/E3/D1 precision and period behavior remain pending with IA statistics. |
+| ECM EnergyProfile E0, E1, E2, E3, D0 and D1 | Generated interfaces and standalone provider binding | A snapshot declares every profile whose mandatory members are all present, with the published DataTypes. Partial member sets are rejected. E2/E3/D1 need an `IEcmStatisticsProvider`. Unexecuted. |
+| ECM Energy Measurement Common DataTypes | Generated `AcPeDataType` and `AcPpDataType` | E0 and E3 preserve the exact typed `AcPeDataType` and `AcPpDataType`; E1, E2, D0 and D1 use Float, and E3 energy statistics use Double. Custom `IEncodeable` values are rejected. |
 | ECM Accuracy Domain Percent full scale, Percent actual reading, IEC and EN | Generated domains and custom-domain creation | Bindings verify the referenced domain and declared `AccuracyClass`; applications can add custom `EnumValues`. This does not establish metrological certification. |
 | ECM Energy Management Support | Application-selected standby, WOL or measurement configuration | No blanket ECM profile advertisement or Full rating is established by generated declarations. |
 
 Section 11 lists `PauseTime` among methods, but section 7.2.1 and the
 published NodeSet define a writable variable. The runtime follows that
-variable contract. Grouped reset and `HasStatisticComponent` integration
-must reuse the IA statistics runtime after its exact prerequisite commit is
-present on `master`. The standalone binding does not create an alternate
-statistics or reset service.
+variable contract.
+
+### Statistics and metadata ownership
+
+E2, E3 and D1 declare statistic members that the profile exposes with
+`HasStatisticComponent`. `EcmMeasurementBinding` passes those members to the
+shared `IaStatistics` runtime, which adds the collection `StartTime` and one
+`ResetStatistics` method for the whole measurement point. The binding creates
+no alternate statistics or reset service. A provider for these profiles
+implements `IEcmStatisticsProvider`: it supplies `StatisticsStartTime` in each
+snapshot, authorizes a reset and returns the committed statistics after it.
+Reset runs inside the binding's serialized operation, so it cannot interleave
+with a refresh or an ApplicationTag write. Authorization failure leaves the
+provider and the published values unchanged.
+
+The binding owns everything it publishes. Provider values and metadata are
+detached before comparison or publication. `LocalizedText` keeps its deferred
+text and locale and drops its translation dictionary and supported format
+arguments. An unsupported mutable argument is rejected with `ArgumentException`
+before it is formatted, before any value is published, and before a refresh
+compares metadata; a failed refresh retains the last values and reports
+`BadNoCommunication`. Engineering units and accuracy-domain classes are copied
+field by field. Values are immutable scalars or the exact `AcPeDataType` and
+`AcPpDataType`; a custom `IEncodeable`, a subclass or an array is rejected
+because it cannot be detached safely. Statistic values are detached by the
+shared runtime. `IaValueCopy` is internal to the IA assembly, so the ECM
+binding detaches the exact AcPe and AcPp values field by field before it hands
+them over; the shared runtime then detaches them again.
+Who may reset statistics? The binding decides before the provider does. A reset
+passes the same check as an ApplicationTag write: the supplied authorization
+delegate, or the Operator, Engineer or Supervisor role when none is supplied,
+and ownership of the DI lock when one is configured. Only a caller that passes
+is offered to `AuthorizeStatisticsResetAsync`, so a provider cannot grant a
+reset that the binding denies. The check observes cancellation but never
+renews a lease or takes a lock.
+
+Which measurements carry a `MeasurementPeriod`? None of the members of the
+E0, E1, E2, E3, D0 and D1 profiles. The published MeasurementIDs catalogue
+(OPC 34100 version 1.0.1) lists "-" for the period of each of them, and the
+specification then requires that the property is omitted. The binding
+therefore creates no `MeasurementPeriod`. Catalogue entries with a fixed or
+user-defined period are not implemented.
+
+How does a refresh publish one coherent snapshot? The binding opts into the IA
+combined-publication option, so the statistics, `StartTime`, the instantaneous
+readings and the ApplicationTag of a snapshot are validated and committed
+together before any notification runs. A statistic sink therefore sees the new
+instantaneous values, and a failing sink leaves the whole snapshot committed
+while the measurements report `BadNoCommunication`. A reset supplies the
+current instantaneous readings and their timestamps without further provider
+I/O. The option also accepts a null value with Uncertain or Bad quality and
+still rejects one with Good quality. The binding promises no lock, no commit
+callback and no rollback of a provider reset.
+
+Which combinations carry an AcPe or AcPp value through the shared runtime?
+E3, and E2 together with E0, publish `AcPeDataType` or `AcPpDataType` as a
+statistic or companion. The IA composition detaches exactly these two
+generated structures through generated Float field copies; it accepts no other
+`IEncodeable`, no `Clone` or `Encode` call and no pre-owned bypass. The binding
+still rejects a subclass before the shared call, so a hostile override is never
+invoked. The ECM model enables `ModelSourceGeneratorEcmFieldCopies` for this
+path.
 
 ## Components and ownership
 
@@ -49,8 +108,9 @@ with an existing DI owner can load the ECM model there and attach an
 instances instead of creating another owner.
 `Opc.Ua.ECM.Client` provides generated-proxy controls and model-derived
 variable accessors over an existing session. `EcmMeasurementClient` discovers
-direct measurement-point children, including subtypes, and reads E0/E1/D0
-values without discarding quality or timestamps.
+direct measurement-point children, including subtypes, and reads E0-E3/D0/D1
+values without discarding quality or timestamps. It also reads the statistics
+`StartTime` and invokes the shared `ResetStatistics` method.
 
 `IEcmStandbyProvider` supplies a coherent state snapshot and accepts
 `StartPause`, `EndPause` and `SwitchToEnergySavingMode` requests.
@@ -113,6 +173,29 @@ disposal observes the same completion, including cancellation-observer failures.
 If creation fails, the manager attempts to dispose the staged binding, delete
 its registered nodes and detach it from its parent. A cleanup failure is logged;
 the caller still receives the original creation exception.
+
+### Change notifications and same-binding operations
+
+`EcmMeasurementBinding` serializes refreshes and bound `ApplicationTag`
+writes. `EcmPowerBinding` serializes refreshes, bound `PauseTime` writes and
+the bound `StartPause`, `EndPause`, `SwitchToEnergySavingMode` and
+`SwitchOffWOL` controls. Each operation retains its serialized slot while
+invoking synchronous node-change sinks and awaiting asynchronous sinks,
+including notifications that mark retained values unavailable after a failure.
+
+A notification sink on either binding's graph, including child nodes, must
+not await or synchronously block on a same-binding refresh, bound write or
+control, or disposal. Another operation cannot proceed until the active
+operation releases its slot; disposal waits for the active operation to
+finish. Waiting for either from the sink prevents that sink from completing.
+Schedule any required follow-up outside the sink and observe its completion
+and errors without making sink completion depend on it.
+
+Synchronous sinks run inline and may block the caller before an asynchronous
+binding operation returns. After node state is committed, notifications use
+a token that cannot be canceled; canceling the caller's token does not
+interrupt those notifications. A sink that does not return therefore also
+delays operation completion and disposal.
 
 ## Standby contract
 
@@ -249,7 +332,7 @@ EcmMeasurementBinding meter = await manager.CreateMeasurementAsync(
 await meter.RefreshAsync(ct);
 ```
 
-`measurementProvider` returns E0, E1 or D0 readings with namespace-qualified
+`measurementProvider` returns E0, E1, E2, E3, D0 or D1 readings with namespace-qualified
 DataTypes, UTC acquisition timestamps and optional engineering units,
 measurement IDs and accuracy metadata. It must retain successful
 `ApplicationTag` writes as its source of truth.
@@ -331,8 +414,8 @@ so a finite duration can extend beyond the clock's remaining calendar range.
 The simulator rejects mode configurations whose combined entry, minimum stay
 and recovery would produce an infinite estimate.
 
-The [sample](../samples/ECM/README.md) publishes simulated E0/E1/D0
-measurements and can demonstrate a complete sleep and recovery sequence with
+The [sample](../samples/ECM/README.md) publishes simulated E0-E3/D0/D1
+measurements, including a resettable statistics point, and can demonstrate a complete sleep and recovery sequence with
 the explicit `--simulate-wake-after-ms` server option. Without that option,
 the sample does not initiate simulated wake.
 

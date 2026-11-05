@@ -597,6 +597,269 @@ namespace Opc.Ua.ECM.Tests
         }
 
         /// <summary>
+        /// A successful refresh awaits its gated async sink without canceling committed publication.
+        /// </summary>
+        [Test]
+        public async Task RefreshAwaitsGatedNotificationAndPreservesCommittedStateOnCancellation()
+        {
+            SystemContext context = CreateContext();
+            EcmPowerSnapshot original = await CreateProvider().ReadAsync().ConfigureAwait(false);
+            EcmPowerSnapshot updated = original with
+            {
+                PauseTime = 1234,
+                SourceTimestamp = new DateTime(2026, 8, 14, 12, 0, 0, DateTimeKind.Utc)
+            };
+            EcmPowerSnapshot reentrant = updated with { PauseTime = 2345 };
+            var provider = new Mock<IEcmStandbyProvider>(MockBehavior.Strict);
+            provider.SetupSequence(service => service.ReadAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<EcmPowerSnapshot>(original))
+                .Returns(new ValueTask<EcmPowerSnapshot>(updated))
+                .Returns(new ValueTask<EcmPowerSnapshot>(reentrant));
+            await using EcmPowerBinding binding = CreateBinding(context, provider.Object);
+            await binding.RefreshAsync().ConfigureAwait(false);
+            var pauseTime = Required(binding.Standby.PauseTime);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var cancellation = new CancellationTokenSource();
+            bool notificationCancelled = true;
+            Task? reentrantRefresh = null;
+            int notifications = 0;
+            pauseTime.OnStateChangedAsync = async (_, _, _, notificationToken) =>
+            {
+                notificationCancelled = notificationToken.IsCancellationRequested;
+                if (Interlocked.Increment(ref notifications) == 1)
+                {
+                    reentrantRefresh = binding.RefreshAsync().AsTask();
+                    entered.TrySetResult(true);
+                    await release.Task.ConfigureAwait(false);
+                }
+            };
+
+            (bool returnedBeforeRelease, Task refresh) = await CompleteAfterGatedNotificationAsync(
+                () => binding.RefreshAsync(cancellation.Token).AsTask(),
+                entered,
+                release,
+                () =>
+                {
+                    Assert.That(pauseTime.Value, Is.EqualTo(1234));
+                    Assert.That(pauseTime.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(reentrantRefresh, Is.Not.Null);
+                    Assert.That(reentrantRefresh!.IsCompleted, Is.False);
+                    cancellation.Cancel();
+                });
+
+            Assert.That(returnedBeforeRelease, Is.True);
+            Assert.That(notificationCancelled, Is.False);
+            await refresh.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            await reentrantRefresh!.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            Assert.That(pauseTime.Value, Is.EqualTo(2345));
+            Assert.That(pauseTime.StatusCode, Is.EqualTo(StatusCodes.Good));
+        }
+
+        /// <summary>
+        /// Provider and notification failures both await unavailable-state publication without blocking.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RefreshFailureAwaitsUnavailableNotification(bool notificationFails)
+        {
+            SystemContext context = CreateContext();
+            EcmPowerSnapshot original = await CreateProvider().ReadAsync().ConfigureAwait(false);
+            var provider = new Mock<IEcmStandbyProvider>(MockBehavior.Strict);
+            provider.SetupSequence(service => service.ReadAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<EcmPowerSnapshot>(original))
+                .Throws(new InvalidOperationException("Acquisition failed."));
+            await using EcmPowerBinding binding = CreateBinding(context, provider.Object);
+            await binding.RefreshAsync().ConfigureAwait(false);
+            var pauseTime = Required(binding.Standby.PauseTime);
+            DateTimeUtc acquiredTimestamp = pauseTime.Timestamp;
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int notifications = 0;
+            pauseTime.OnStateChangedAsync = async (_, _, _, _) =>
+            {
+                if (Interlocked.Increment(ref notifications) == 1)
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.ConfigureAwait(false);
+                    if (notificationFails)
+                    {
+                        throw new InvalidOperationException("Notification failed.");
+                    }
+                }
+            };
+
+            (bool returnedBeforeRelease, Task refresh) = await CompleteAfterGatedNotificationAsync(
+                () => binding.RefreshAsync().AsTask(),
+                entered,
+                release,
+                () =>
+                {
+                    Assert.That(pauseTime.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
+                    Assert.That(pauseTime.Timestamp, Is.EqualTo(acquiredTimestamp));
+                    Assert.That(pauseTime.Value, Is.EqualTo(original.PauseTime));
+                });
+
+            Assert.That(returnedBeforeRelease, Is.True);
+            await Assert.ThatAsync(
+                () => refresh.WaitAsync(TimeSpan.FromSeconds(10)),
+                Throws.TypeOf<InvalidOperationException>().With.Message.EqualTo(notificationFails
+                    ? "Notification failed."
+                    : "Acquisition failed.")).ConfigureAwait(false);
+            Assert.That(pauseTime.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
+            Assert.That(pauseTime.Timestamp, Is.EqualTo(acquiredTimestamp));
+        }
+
+        /// <summary>
+        /// A failed notification after refresh commit marks retained standby values unavailable before rethrowing.
+        /// </summary>
+        [Test]
+        public async Task RefreshNotificationFailureMarksCommittedStandbyUnavailable()
+        {
+            SystemContext context = CreateContext();
+            EcmPowerSnapshot original = await CreateProvider().ReadAsync().ConfigureAwait(false);
+            EcmPowerSnapshot updated = original with { PauseTime = 1234 };
+            var provider = new Mock<IEcmStandbyProvider>(MockBehavior.Strict);
+            provider.SetupSequence(service => service.ReadAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<EcmPowerSnapshot>(original))
+                .Returns(new ValueTask<EcmPowerSnapshot>(updated));
+            await using EcmPowerBinding binding = CreateBinding(context, provider.Object);
+            await binding.RefreshAsync().ConfigureAwait(false);
+            var pauseTime = Required(binding.Standby.PauseTime);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int notifications = 0;
+            pauseTime.OnStateChangedAsync = async (_, _, _, _) =>
+            {
+                if (Interlocked.Increment(ref notifications) == 1)
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.ConfigureAwait(false);
+                    throw new InvalidOperationException("Notification failed.");
+                }
+            };
+
+            (bool returnedBeforeRelease, Task refresh) = await CompleteAfterGatedNotificationAsync(
+                () => binding.RefreshAsync().AsTask(),
+                entered,
+                release,
+                () =>
+                {
+                    Assert.That(pauseTime.Value, Is.EqualTo(1234));
+                    Assert.That(pauseTime.StatusCode, Is.EqualTo(StatusCodes.Good));
+                });
+
+            Assert.That(returnedBeforeRelease, Is.True);
+            await Assert.ThatAsync(
+                () => refresh.WaitAsync(TimeSpan.FromSeconds(10)),
+                Throws.TypeOf<InvalidOperationException>().With.Message.EqualTo("Notification failed."))
+                .ConfigureAwait(false);
+            Assert.That(pauseTime.Value, Is.EqualTo(1234));
+            Assert.That(pauseTime.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
+        }
+
+        /// <summary>
+        /// A command maps refresh-notification failure to BadUnexpectedError after publishing unavailable state.
+        /// </summary>
+        [Test]
+        public async Task CommandNotificationFailureReturnsUnexpectedErrorAfterUnavailablePublication()
+        {
+            SystemContext context = CreateContext();
+            EcmPowerSnapshot snapshot = await CreateProvider().ReadAsync().ConfigureAwait(false);
+            var provider = new Mock<IEcmStandbyProvider>(MockBehavior.Strict);
+            provider.SetupSequence(service => service.ReadAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<EcmPowerSnapshot>(snapshot))
+                .Returns(new ValueTask<EcmPowerSnapshot>(snapshot));
+            provider.Setup(service => service.StartPauseAsync(10000, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<EcmControlResult>(new EcmControlResult(StatusCodes.Good, 0)));
+            await using EcmPowerBinding binding = CreateBinding(context, provider.Object);
+            await binding.RefreshAsync().ConfigureAwait(false);
+            var pauseTime = Required(binding.Standby.PauseTime);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int notifications = 0;
+            pauseTime.OnStateChangedAsync = async (_, _, _, _) =>
+            {
+                if (Interlocked.Increment(ref notifications) == 1)
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.ConfigureAwait(false);
+                    throw new InvalidOperationException("Notification failed.");
+                }
+            };
+
+            (bool returnedBeforeRelease, Task<StartPauseMethodStateResult> command) =
+                await CompleteAfterGatedNotificationAsync(
+                    () => Required(binding.Standby.StartPause).OnCallAsync!(
+                        context,
+                        Required(binding.Standby.StartPause),
+                        binding.Standby.NodeId,
+                        10000,
+                        CancellationToken.None).AsTask(),
+                    entered,
+                    release,
+                    () => Assert.That(pauseTime.StatusCode, Is.EqualTo(StatusCodes.Good)));
+
+            Assert.That(returnedBeforeRelease, Is.True);
+            StartPauseMethodStateResult result = await command.WaitAsync(TimeSpan.FromSeconds(10))
+                .ConfigureAwait(false);
+            Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+            Assert.That(pauseTime.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
+            provider.Verify(service => service.StartPauseAsync(10000, It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
+        /// A provider command failure awaits unavailable-state notification before returning BadUnexpectedError.
+        /// </summary>
+        [Test]
+        public async Task CommandProviderFailureAwaitsUnavailableNotification()
+        {
+            SystemContext context = CreateContext();
+            EcmPowerSnapshot snapshot = await CreateProvider().ReadAsync().ConfigureAwait(false);
+            var provider = new Mock<IEcmStandbyProvider>(MockBehavior.Strict);
+            provider.Setup(service => service.ReadAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<EcmPowerSnapshot>(snapshot));
+            provider.Setup(service => service.StartPauseAsync(10000, It.IsAny<CancellationToken>()))
+                .Throws(new InvalidOperationException("Command failed."));
+            await using EcmPowerBinding binding = CreateBinding(context, provider.Object);
+            await binding.RefreshAsync().ConfigureAwait(false);
+            var pauseTime = Required(binding.Standby.PauseTime);
+            double acquiredPauseTime = pauseTime.Value;
+            DateTimeUtc acquiredTimestamp = pauseTime.Timestamp;
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            pauseTime.OnStateChangedAsync = async (_, _, _, _) =>
+            {
+                entered.TrySetResult(true);
+                await release.Task.ConfigureAwait(false);
+            };
+
+            (bool returnedBeforeRelease, Task<StartPauseMethodStateResult> command) =
+                await CompleteAfterGatedNotificationAsync(
+                    () => Required(binding.Standby.StartPause).OnCallAsync!(
+                        context,
+                        Required(binding.Standby.StartPause),
+                        binding.Standby.NodeId,
+                        10000,
+                        CancellationToken.None).AsTask(),
+                    entered,
+                    release,
+                    () =>
+                    {
+                        Assert.That(pauseTime.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
+                        Assert.That(pauseTime.Value, Is.EqualTo(acquiredPauseTime));
+                        Assert.That(pauseTime.Timestamp, Is.EqualTo(acquiredTimestamp));
+                    });
+
+            Assert.That(returnedBeforeRelease, Is.True);
+            StartPauseMethodStateResult result = await command.WaitAsync(TimeSpan.FromSeconds(10))
+                .ConfigureAwait(false);
+            Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+            Assert.That(pauseTime.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
+            provider.Verify(service => service.StartPauseAsync(10000, It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
         /// Proves shutdown cancels active provider work and queued acquisitions before releasing handlers.
         /// </summary>
         [Test]
@@ -663,6 +926,111 @@ namespace Opc.Ua.ECM.Tests
                     ct.ThrowIfCancellationRequested();
                     return new ValueTask<bool>(true);
                 });
+        }
+
+        /// <summary>
+        /// Starts an operation on another thread, verifies its notification await, then releases the sink.
+        /// </summary>
+        private static async Task<(bool ReturnedBeforeRelease, Task)> CompleteAfterGatedNotificationAsync(
+            Func<Task> startOperation,
+            TaskCompletionSource<bool> entered,
+            TaskCompletionSource<bool> release,
+            Action verifyCommittedState)
+        {
+            (bool returnedBeforeRelease, Task<bool> operation) = await CompleteAfterGatedNotificationAsync(
+                async () =>
+                {
+                    await startOperation().ConfigureAwait(false);
+                    return true;
+                },
+                entered,
+                release,
+                verifyCommittedState).ConfigureAwait(false);
+            return (returnedBeforeRelease, operation);
+        }
+
+        /// <summary>
+        /// Starts a typed operation and records whether it returns while the sink remains blocked.
+        /// </summary>
+        private static async Task<(bool ReturnedBeforeRelease, Task<T> Operation)>
+            CompleteAfterGatedNotificationAsync<T>(
+            Func<Task<T>> startOperation,
+            TaskCompletionSource<bool> entered,
+            TaskCompletionSource<bool> release,
+            Action verifyCommittedState)
+        {
+            var returned = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task<Task<T>> invocation = Task.Factory.StartNew(
+                () =>
+                {
+                    Task<T> operation = startOperation();
+                    returned.TrySetResult(true);
+                    return operation;
+                },
+                CancellationToken.None,
+                TaskCreationOptions.DenyChildAttach,
+                TaskScheduler.Default);
+            Task<Exception?> observation = ObserveOperationAsync(invocation);
+            bool returnedBeforeRelease = false;
+            try
+            {
+                try
+                {
+                    await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    Task finished = await Task.WhenAny(
+                        returned.Task,
+                        Task.Delay(TimeSpan.FromSeconds(10))).ConfigureAwait(false);
+                    returnedBeforeRelease = ReferenceEquals(finished, returned.Task);
+                    if (returnedBeforeRelease)
+                    {
+                        Task<T> operation = await invocation.WaitAsync(TimeSpan.FromSeconds(10))
+                            .ConfigureAwait(false);
+                        Assert.That(operation.IsCompleted, Is.False);
+                    }
+                    verifyCommittedState();
+                }
+                finally
+                {
+                    release.TrySetResult(true);
+                }
+
+                Task<T> completedOperation = await invocation.WaitAsync(TimeSpan.FromSeconds(10))
+                    .ConfigureAwait(false);
+                return (returnedBeforeRelease, completedOperation);
+            }
+            catch (Exception failure)
+            {
+                Exception? cleanupFailure;
+                try
+                {
+                    cleanupFailure = await observation.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
+                catch (TimeoutException timeout)
+                {
+                    cleanupFailure = timeout;
+                }
+                if (cleanupFailure is not null && !ReferenceEquals(cleanupFailure, failure))
+                {
+                    throw new AggregateException("Gated notification verification and cleanup failed.",
+                        failure, cleanupFailure);
+                }
+                throw;
+            }
+
+            static async Task<Exception?> ObserveOperationAsync(Task<Task<T>> pendingInvocation)
+            {
+                try
+                {
+                    Task<T> operation = await pendingInvocation.ConfigureAwait(false);
+                    await operation.ConfigureAwait(false);
+                    return null;
+                }
+                catch (Exception failure)
+                {
+                    // Retain faults for failure cleanup without preempting the caller's operation assertions.
+                    return failure;
+                }
+            }
         }
 
         /// <summary>

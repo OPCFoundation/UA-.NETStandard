@@ -23,7 +23,12 @@ The client never sends wake packets or automatically repeats a power
 command after a disconnect. Applications own any physical wake transport.
 
 `EcmMeasurementClient` discovers standalone measurement points and exposes
-generated typed accessors for `ApplicationTag`, E0 `AcCurrentPe`, E1
-`AcActivePowerTotal` and D0 `DcCurrent`. Reads return the value together with
-its original quality and source/server timestamps. E0 remains an `AcPeDataType`
-structure; it is not flattened into a scalar.
+generated typed accessors for `ApplicationTag` and every E0, E1, E2, E3, D0 and D1
+member, for example E0 `AcCurrentPe`, E1 `AcActivePowerTotal`, E2
+`AcActiveEnergyTotalExportLp`, E3 `AcVoltagePp` and D1 `DcElectricalCharge`.
+Reads return the value together with its original quality and source/server
+timestamps. `AcPeDataType` and `AcPpDataType` stay structures; they are not
+flattened into scalars. `ReadStatisticsStartTimeAsync` reads the collection
+`StartTime`, and `ResetStatisticsAsync` calls the single shared
+`ResetStatistics` method through the generated IA proxy. An authorization
+failure surfaces as the Call status and the client never retries it.

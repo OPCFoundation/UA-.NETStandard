@@ -191,6 +191,9 @@ models that each model depends on.
   model and job control.
 - [Positioning](Positioning.md) (OPC 10000-210 and OPC 10000-211; preview
   package) — relative frames and geographic positions.
+- [Industrial Automation](IndustrialAutomation.md) (OPC 10000-200) —
+  provider-backed stacklights, aggregate/rolling statistics, and
+  calibration-target information on an existing DI or companion owner.
 - [Machinery](Machinery.md) (OPC 40001-1, -2, -3, -4 and -101) —
   machines with identification, server-driven state machines,
   process values, job management, energy and result transfer, based on the
@@ -198,8 +201,10 @@ models that each model depends on.
 - [Pumps](Pumps.md) (OPC 40223) — pumps and vacuum pumps,
   published both as Device Integration devices and as Machinery machines.
 - [Energy Consumption Management](ECM.md) (OPC 34100) — provider-backed
-  standby and simulated WOL sleep, with standalone measurement integration
-  still pending.
+  standalone E0, E1, E2, E3, D0 and D1 measurements, standby and simulated
+  WOL sleep. Statistics reuse the shared Industrial Automation runtime from
+  #4988, which is not on `master`. Runtime validation is unexecuted and the
+  specification-support rating remains Partial.
 - [Composing DI companions](DeviceIntegration.md#composing-companion-models) — add several DI device
   families and their models to one server's `DeviceSet`.
 - [AutoID Devices](AutoID.md) (OPC 30010) — RFID, OCR, optical, optical

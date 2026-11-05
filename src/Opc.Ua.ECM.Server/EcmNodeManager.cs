@@ -109,7 +109,8 @@ namespace Opc.Ua.ECM.Server
         }
 
         /// <summary>
-        /// Creates a provider-backed standalone E0, E1 or D0 measurement point beneath a selected parent.
+        /// Creates a provider-backed standalone E0, E1, E2, E3, D0 or D1 measurement point beneath a selected
+        /// parent. Statistic profiles require an <see cref="IEcmStatisticsProvider"/>.
         /// The provider remains application-owned; the manager owns and releases the returned binding.
         /// </summary>
         /// <param name="browseName">The qualified measurement-point BrowseName.</param>
@@ -162,12 +163,7 @@ namespace Opc.Ua.ECM.Server
             {
                 EnumValueType value = enumValues[ii] ??
                     throw new ArgumentException("An accuracy domain cannot contain a null class.", nameof(enumValues));
-                detachedValues[ii] = new EnumValueType
-                {
-                    Value = value.Value,
-                    DisplayName = value.DisplayName,
-                    Description = value.Description
-                };
+                detachedValues[ii] = EcmOwnership.Own(value, nameof(enumValues));
             }
             ArrayOf<EnumValueType> detachedEnumValues = detachedValues.ToArrayOf();
             return ExecuteNodeManagerOperationAsync(

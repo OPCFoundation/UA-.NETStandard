@@ -59,6 +59,9 @@
     <ProjectReference Include="..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.ECM.Client\Opc.Ua.ECM.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.ECM.Server\Opc.Ua.ECM.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.IA.Client\Opc.Ua.IA.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.IA.Server\Opc.Ua.IA.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.ECM\Opc.Ua.ECM.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Positioning\Opc.Ua.Positioning.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Positioning.Client\Opc.Ua.Positioning.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Positioning.Server\Opc.Ua.Positioning.Server.csproj" />

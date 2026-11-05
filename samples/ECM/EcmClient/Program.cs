@@ -50,11 +50,15 @@ bool sleep = ReadFlag("sleep");
 bool endPause = ReadFlag("end-pause");
 bool wolOnly = ReadFlag("wol-only");
 bool measurements = ReadFlag("measurements");
+bool statistics = ReadFlag("statistics");
+bool resetStatistics = ReadFlag("reset-statistics");
 string? applicationTag = builder.Configuration["application-tag"];
-bool measurementAction = measurements || applicationTag != null;
+bool measurementAction = measurements || statistics || resetStatistics || applicationTag != null;
 if (measurementAction && (pause != null || sleep || endPause || wolOnly))
 {
-    throw new ArgumentException("--measurements and --application-tag cannot be combined with power commands.");
+    throw new ArgumentException(
+        "--measurements, --statistics, --reset-statistics and --application-tag cannot be combined " +
+        "with power commands.");
 }
 if (wolOnly && (pause != null || endPause))
 {
@@ -105,9 +109,42 @@ try
         await foreach (EcmMeasurementClient discovered in EcmMeasurementClient.DiscoverAsync(
             session, deviceSet, telemetry, ct).ConfigureAwait(false))
         {
-            found = true;
             EcmMeasurementClient client = await host.Services.GetRequiredService<EcmClientFactory>()
                 .CreateMeasurementAsync(discovered.MeasurementPoint.ObjectId, ct).ConfigureAwait(false);
+            if (statistics || resetStatistics)
+            {
+                NodeId startTimeId = await client.Statistics.StartTimeVariable().ResolveAsync(ct)
+                    .ConfigureAwait(false);
+                if (startTimeId.IsNull)
+                {
+                    continue;
+                }
+                if (resetStatistics)
+                {
+                    await client.ResetStatisticsAsync(ct).ConfigureAwait(false);
+                    Console.WriteLine("ResetStatistics completed for every statistic of the measurement point.");
+                }
+                var startTime = await client.ReadStatisticsStartTimeAsync(ct).ConfigureAwait(false);
+                Console.WriteLine(
+                    $"StatisticsStartTime={startTime.Value:O}, quality={startTime.DataValue.StatusCode}");
+                var exported = await client.AcActiveEnergyTotalExportLp.ReadAsync(ct).ConfigureAwait(false);
+                string exportedValue = exported.HasValue
+                    ? exported.Value.ToString(CultureInfo.InvariantCulture)
+                    : "<no value>";
+                Console.WriteLine(
+                    $"E2 AcActiveEnergyTotalExportLp={exportedValue}, " +
+                    $"quality={exported.DataValue.StatusCode}, source={exported.DataValue.SourceTimestamp:O}");
+                var charge = await client.DcElectricalCharge.ReadAsync(ct).ConfigureAwait(false);
+                string chargeValue = charge.HasValue
+                    ? charge.Value.ToString(CultureInfo.InvariantCulture)
+                    : "<no value>";
+                Console.WriteLine(
+                    $"D1 DcElectricalCharge={chargeValue}, " +
+                    $"quality={charge.DataValue.StatusCode}, source={charge.DataValue.SourceTimestamp:O}");
+                found = true;
+                break;
+            }
+            found = true;
             if (applicationTag != null)
             {
                 StatusCode status = await client.ApplicationTag

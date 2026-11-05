@@ -1,7 +1,7 @@
 # Simulated ECM server and typed client
 
-This server publishes OPC 34100 E0, E1 and D0 measurements plus standby and
-WOL objects. Power behavior is backed by `SimulatedEcmPowerProvider`;
+This server publishes OPC 34100 E0, E1, D0 measurements on one meter, a second
+`SimulatedEnergy` point with E2 and D1 statistics, plus standby and WOL objects. Power behavior is backed by `SimulatedEcmPowerProvider`;
 measurements and accuracy metadata come from an in-memory sample provider.
 Every sample value is simulated. The sample never powers down the host or
 sends wake packets.
@@ -61,6 +61,13 @@ later reads. Measurement options cannot be combined with power commands.
 The client uses the generated ECM measurement proxy and preserves
 `AcPeDataType` for E0 rather than converting it to a scalar.
 
+`--statistics true` reads the collection `StartTime`, the E2
+`AcActiveEnergyTotalExportLp` and the D1 `DcElectricalCharge` statistic of the
+first point that publishes statistics. `--reset-statistics true` first calls the
+single grouped `ResetStatistics` method, which zeroes the accumulators and
+assigns a new `StartTime`. These options also cannot be combined with power
+commands. This path is unexecuted.
+
 Use `--wol-only true` to discover the WOL-only object directly under DeviceSet
 and read its MAC metadata without discovering standby. Add `--sleep true`
 only when an explicit sleep request is intended. Standby controls cannot be
@@ -87,6 +94,7 @@ millisecond value; zero requests wake on the first sleep acquisition, while
 the provider still includes any remaining minimum stay in its recovery estimate.
 No wake packet is sent.
 
-E2/E3/D1 statistical measurements, grouped reset and collection `StartTime`
-remain outside the sample until the shared IA statistics runtime reaches
-`master`. See [ECM](../../docs/ECM.md) for the current integration boundary.
+The server sample publishes E2, E3 and D1 statistical measurements through the
+shared `Opc.Ua.IA.Server` runtime, which is part of the #4988 prerequisite and
+not yet on `master`. See [ECM](../../docs/ECM.md) for the current integration
+boundary.

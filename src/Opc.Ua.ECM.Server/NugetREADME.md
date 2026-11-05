@@ -15,9 +15,14 @@ WOL-only hosting does not require or publish a standby graph.
 `SimulatedEcmPowerProvider` changes only in-memory state. It never powers
 down the host, sends wake packets or disconnects the server.
 
-Standalone provider-backed E0/E1/D0 measurements, custom accuracy domains and
+Standalone provider-backed E0, E1, E2, E3, D0 and D1 measurements, custom accuracy domains and
 accuracy-class validation are available through `EcmNodeManager.CreateMeasurementAsync`
 and `CreateAccuracyDomainAsync`.
-E2/E3/D1 statistical measurements, grouped reset and collection `StartTime`
-remain dependent on IA.Server integration. This package does not establish
-metrological certification.
+E2, E3 and D1 providers implement `IEcmStatisticsProvider`. The binding publishes
+their statistic members, collection `StartTime` and one grouped `ResetStatistics`
+method through the shared `Opc.Ua.IA.Server` runtime. Provider metadata and
+values are detached before publication. The binding accepts the exact generated
+`AcPeDataType` and `AcPpDataType` structures, which the shared runtime copies
+field by field. It rejects unsupported mutable `LocalizedText` arguments and
+every other custom `IEncodeable` value, including subclasses of those two
+structures. This package does not establish metrological certification.

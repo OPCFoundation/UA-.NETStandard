@@ -218,6 +218,287 @@ namespace Opc.Ua.Aot.Tests
         }
 
         /// <summary>
+        /// Measurement profiles, shared statistics reset, detached localized metadata and rejection of unsupported
+        /// formatting arguments remain reachable without reflection-based discovery.
+        /// </summary>
+        [Test]
+        public async Task MeasurementStatisticsAndLocalizedCopyAreReachableAsync()
+        {
+            ITelemetryContext telemetry = DefaultTelemetry.Create(
+                logging => logging.SetMinimumLevel(LogLevel.Warning));
+            var message = ServiceMessageContext.Create(telemetry);
+            message.NamespaceUris.GetIndexOrAppend(Di.Namespaces.OpcUaDi);
+            message.NamespaceUris.GetIndexOrAppend(IA.Namespaces.IA);
+            ushort ecm = message.NamespaceUris.GetIndexOrAppend(ECM.Namespaces.ECM);
+            ushort instances = message.NamespaceUris.GetIndexOrAppend("urn:ecm-aot:instances");
+            message.Factory.Builder.AddOpcUaECM().Commit();
+            var context = new SystemContext(telemetry)
+            {
+                NamespaceUris = message.NamespaceUris,
+                EncodeableFactory = message.Factory,
+                NodeIdFactory = new DefaultNodeIdFactory(NodeIdAssignmentMode.String, instances)
+            };
+            var nodes = new NodeStateCollection();
+            nodes.AddOpcUaDi(context);
+            new EcmModelProvider().AddPredefinedNodes(nodes, context);
+            EnergyMeasurementState measurement = context.CreateInstanceOfEnergyMeasurementType(
+                null, new QualifiedName("Meter", instances));
+            var acquired = new DateTime(2026, 8, 14, 9, 10, 11, DateTimeKind.Utc);
+            var restarted = new DateTime(2026, 8, 14, 10, 0, 0, DateTimeKind.Utc);
+            var provider = new StatisticsProvider(acquired, restarted);
+            await using var binding = new EcmMeasurementBinding(
+                context, measurement, provider,
+                authorize: static (_, _) => new ValueTask<bool>(true));
+            await binding.RefreshAsync().ConfigureAwait(false);
+
+            var export = (BaseVariableState)measurement.FindChild(
+                context, new QualifiedName(ECM.BrowseNames.AcActiveEnergyTotalExportLp, ecm))!;
+            await Assert.That(export.WrappedValue.TryGetValue(out float exported)).IsTrue();
+            await Assert.That(exported).IsEqualTo(100f);
+            var children = new List<BaseInstanceState>();
+            measurement.GetChildren(context, children);
+            MethodState reset = children.OfType<MethodState>().Single(m => m.BrowseName.Name == "ResetStatistics");
+            ServiceResult result = await reset.OnCallMethod2Async!(
+                context, reset, measurement.NodeId, default, new List<Variant>(), CancellationToken.None)
+                .ConfigureAwait(false);
+            await Assert.That(ServiceResult.IsGood(result)).IsTrue();
+            await Assert.That(provider.ResetCount).IsEqualTo(1);
+            await Assert.That(export.WrappedValue.TryGetValue(out float zeroed)).IsTrue();
+            await Assert.That(zeroed).IsEqualTo(0f);
+            var power = (BaseVariableState)measurement.FindChild(
+                context, new QualifiedName(ECM.BrowseNames.AcActivePowerTotal, ecm))!;
+            await Assert.That(power.WrappedValue.TryGetValue(out float retainedPower)).IsTrue();
+            await Assert.That(retainedPower).IsEqualTo(15.5f);
+            await Assert.That(measurement.ApplicationTag!.WrappedValue.TryGetValue(out string? tag)).IsTrue();
+            await Assert.That(tag).IsEqualTo("aot/tag");
+            await Assert.That(export.StatusCode).IsEqualTo(StatusCodes.Good);
+            await binding.DisposeAsync().ConfigureAwait(false);
+            await Assert.That(reset.OnCallMethod2Async == null).IsTrue();
+
+            var template = new LocalizedText("key", "en", "Value {0}", 42);
+            LocalizedText copy = template.Copy();
+            await Assert.That(copy.Text).IsEqualTo(template.Text);
+            var rejected = new LocalizedText("key", "en", "Value {0}", new object());
+            ServiceResultException copyError = await Assert.That(() => rejected.Copy())
+                .Throws<ServiceResultException>() ??
+                throw new InvalidOperationException("The exception assertion returned no exception.");
+            await Assert.That(copyError.StatusCode).IsEqualTo(StatusCodes.BadNotSupported);
+        }
+
+        /// <summary>
+        /// An E0 AcPe companion on a statistics point is detached and retained through the shared reset.
+        /// </summary>
+        [Test]
+        public async Task E0CompanionIsDetachedAndRetainedThroughResetAsync()
+        {
+            ITelemetryContext telemetry = DefaultTelemetry.Create(
+                logging => logging.SetMinimumLevel(LogLevel.Warning));
+            var message = ServiceMessageContext.Create(telemetry);
+            message.NamespaceUris.GetIndexOrAppend(Di.Namespaces.OpcUaDi);
+            message.NamespaceUris.GetIndexOrAppend(IA.Namespaces.IA);
+            ushort ecm = message.NamespaceUris.GetIndexOrAppend(ECM.Namespaces.ECM);
+            ushort instances = message.NamespaceUris.GetIndexOrAppend("urn:ecm-aot:instances");
+            message.Factory.Builder.AddOpcUaECM().Commit();
+            var context = new SystemContext(telemetry)
+            {
+                NamespaceUris = message.NamespaceUris,
+                EncodeableFactory = message.Factory,
+                NodeIdFactory = new DefaultNodeIdFactory(NodeIdAssignmentMode.String, instances)
+            };
+            var nodes = new NodeStateCollection();
+            nodes.AddOpcUaDi(context);
+            new EcmModelProvider().AddPredefinedNodes(nodes, context);
+            EnergyMeasurementState measurement = context.CreateInstanceOfEnergyMeasurementType(
+                null, new QualifiedName("Meter", instances));
+            var acquired = new DateTime(2026, 8, 14, 9, 10, 11, DateTimeKind.Utc);
+            var restarted = new DateTime(2026, 8, 14, 10, 0, 0, DateTimeKind.Utc);
+            var phases = new AcPeDataType { L1 = 1f, L2 = 2f, L3 = 3f };
+            var provider = new StatisticsProvider(acquired, restarted) { Current = phases };
+            await using var binding = new EcmMeasurementBinding(
+                context, measurement, provider,
+                authorize: static (_, _) => new ValueTask<bool>(true));
+            await binding.RefreshAsync().ConfigureAwait(false);
+            phases.L1 = 99f;
+
+            var current = (BaseVariableState)measurement.FindChild(
+                context, new QualifiedName(ECM.BrowseNames.AcCurrentPe, ecm))!;
+            await Assert.That(current.WrappedValue.TryGetStructure(out AcPeDataType? published)).IsTrue();
+            await Assert.That(published!.L1).IsEqualTo(1f);
+            var children = new List<BaseInstanceState>();
+            measurement.GetChildren(context, children);
+            MethodState reset = children.OfType<MethodState>().Single(m => m.BrowseName.Name == "ResetStatistics");
+            ServiceResult result = await reset.OnCallMethod2Async!(
+                context, reset, measurement.NodeId, default, new List<Variant>(), CancellationToken.None)
+                .ConfigureAwait(false);
+
+            await Assert.That(ServiceResult.IsGood(result)).IsTrue();
+            await Assert.That(current.WrappedValue.TryGetStructure(out AcPeDataType? retained)).IsTrue();
+            await Assert.That(retained!.L1).IsEqualTo(1f);
+            await Assert.That(current.StatusCode).IsEqualTo(StatusCodes.Good);
+
+            var hostile = new HostileAcPe { L1 = 5f };
+            provider.Current = hostile;
+            hostile.Arm();
+            InvalidOperationException? failure = null;
+            try
+            {
+                await binding.RefreshAsync().ConfigureAwait(false);
+            }
+            catch (InvalidOperationException ex)
+            {
+                failure = ex;
+            }
+
+            await Assert.That(failure).IsNotNull();
+            await Assert.That(hostile.Touched).IsEqualTo(0);
+            await Assert.That(hostile.TypeIdReads).IsEqualTo(0);
+            await Assert.That(current.WrappedValue.TryGetStructure(out AcPeDataType? kept)).IsTrue();
+            await Assert.That(kept!.L1).IsEqualTo(1f);
+            await Assert.That(current.StatusCode).IsEqualTo(StatusCodes.BadNoCommunication);
+        }
+
+        /// <summary>
+        /// An AcPe subclass that counts the virtual members the validation path must not invoke.
+        /// </summary>
+        private sealed class HostileAcPe : AcPeDataType
+        {
+            private bool m_armed;
+
+            public int Touched { get; private set; }
+
+            public int TypeIdReads { get; private set; }
+
+            public override ExpandedNodeId TypeId
+            {
+                get
+                {
+                    if (m_armed)
+                    {
+                        TypeIdReads++;
+                    }
+                    return base.TypeId;
+                }
+            }
+
+            public void Arm()
+            {
+                m_armed = true;
+            }
+
+            public override string ToString()
+            {
+                Record();
+                return "hostile";
+            }
+
+            public override bool Equals(object? obj)
+            {
+                Record();
+                return ReferenceEquals(this, obj);
+            }
+
+            public override int GetHashCode()
+            {
+                Record();
+                return 0;
+            }
+
+            public override void Encode(IEncoder encoder)
+            {
+                Record();
+                throw new InvalidOperationException("Encode must not be invoked.");
+            }
+
+            public override object Clone()
+            {
+                Record();
+                throw new InvalidOperationException("Clone must not be invoked.");
+            }
+
+            public override bool IsEqual(IEncodeable? encodeable)
+            {
+                Record();
+                throw new InvalidOperationException("IsEqual must not be invoked.");
+            }
+
+            private void Record()
+            {
+                if (m_armed)
+                {
+                    Touched++;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Supplies E2 readings and a reset that zeroes the two energy statistics.
+        /// </summary>
+        private sealed class StatisticsProvider(DateTime acquired, DateTime restarted) : IEcmStatisticsProvider
+        {
+            public AcPeDataType? Current { get; set; }
+
+            public int ResetCount { get; private set; }
+
+            public ValueTask<EcmMeasurementSnapshot> ReadAsync(CancellationToken cancellationToken)
+            {
+                var readings = new List<EcmMeasurementReading>
+                {
+                    Float(ECM.BrowseNames.AcActivePowerTotal, 15.5f),
+                    Float(ECM.BrowseNames.AcActiveEnergyTotalExportLp, ResetCount == 0 ? 100f : 0f),
+                    Float(ECM.BrowseNames.AcActiveEnergyTotalImportLp, ResetCount == 0 ? 200f : 0f)
+                };
+                if (Current != null)
+                {
+                    readings.Add(new EcmMeasurementReading(
+                        ECM.BrowseNames.AcCurrentPe,
+                        new Variant(new ExtensionObject(ECM.DataTypeIds.AcPeDataType, Current)),
+                        ECM.DataTypeIds.AcPeDataType,
+                        StatusCodes.Good,
+                        acquired));
+                }
+                return new ValueTask<EcmMeasurementSnapshot>(new EcmMeasurementSnapshot(
+                    "aot/tag",
+                    readings.ToArray().ToArrayOf())
+                {
+                    StatisticsStartTime = (DateTimeUtc)(ResetCount == 0 ? acquired : restarted)
+                });
+            }
+
+            public ValueTask WriteApplicationTagAsync(string applicationTag, CancellationToken cancellationToken)
+            {
+                return default;
+            }
+
+            public ValueTask<ServiceResult> AuthorizeStatisticsResetAsync(
+                ISystemContext requestContext,
+                CancellationToken cancellationToken)
+            {
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            }
+
+            public ValueTask<EcmStatisticsSnapshot> ResetStatisticsAsync(CancellationToken cancellationToken)
+            {
+                ResetCount++;
+                return new ValueTask<EcmStatisticsSnapshot>(new EcmStatisticsSnapshot(
+                    (DateTimeUtc)restarted,
+                    new[]
+                    {
+                        Float(ECM.BrowseNames.AcActiveEnergyTotalExportLp, 0f),
+                        Float(ECM.BrowseNames.AcActiveEnergyTotalImportLp, 0f)
+                    }.ToArrayOf()));
+            }
+
+            private EcmMeasurementReading Float(string name, float value)
+            {
+                return new EcmMeasurementReading(
+                    name,
+                    Variant.From(value),
+                    new ExpandedNodeId(new NodeId(Opc.Ua.DataTypeIds.Float)),
+                    StatusCodes.Good,
+                    acquired);
+            }
+        }
+        /// <summary>
         /// Advances simulated transitions without wall-clock timing.
         /// </summary>
         private sealed class DeviceClock : TimeProvider
