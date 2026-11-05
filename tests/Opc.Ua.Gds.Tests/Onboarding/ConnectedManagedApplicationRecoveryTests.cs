@@ -584,7 +584,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 var fileSystem = new Mock<IFileSystem>(MockBehavior.Strict);
                 LocalFileSystem local = LocalFileSystem.Instance;
                 fileSystem.Setup(value => value.Exists(It.IsAny<string>(), It.IsAny<bool>()))
-                    .Returns<string, bool>(local.Exists);
+                    .Returns((string path, bool isDirectory) => local.Exists(path, isDirectory));
                 fileSystem.Setup(value => value.GetLength(It.IsAny<string>())).Returns<string>(local.GetLength);
                 fileSystem.Setup(value => value.OpenRead(It.IsAny<string>())).Returns<string>(local.OpenRead);
                 fileSystem.Setup(value => value.OpenWrite(It.IsAny<string>())).Returns<string>(local.OpenWrite);
