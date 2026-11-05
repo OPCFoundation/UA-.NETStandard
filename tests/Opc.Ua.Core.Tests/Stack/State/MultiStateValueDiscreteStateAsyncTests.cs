@@ -463,7 +463,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             node.OnSimpleWriteValueAsync = async (_, _, _, _) =>
             {
                 ServiceResult published = await node.UpdateEnumValueAsync(
-                    m_context, new DataValue(Variant.From(8u)));
+                    m_context, new DataValue(Variant.From(8u)), CancellationToken.None);
                 Assert.That(ServiceResult.IsGood(published), Is.True);
                 return new AttributeWriteResult(ServiceResult.Good)
                 {
