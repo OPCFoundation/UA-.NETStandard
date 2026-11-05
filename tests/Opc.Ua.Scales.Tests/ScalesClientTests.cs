@@ -114,6 +114,63 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(failure!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadTimeout));
         }
 
+        [TestCase(false, "absent")]
+        [TestCase(false, "present")]
+        [TestCase(false, "invalid")]
+        [TestCase(true, "absent")]
+        [TestCase(true, "present")]
+        [TestCase(true, "invalid")]
+        public void NotificationHelpSourcePreservesExistingEventAndAlarmFields(bool alarm, string help)
+        {
+            using SessionMock session = SessionMock.Create();
+            ushort scalesIndex = (ushort)session.NamespaceUris.GetIndexOrAppend(Namespaces.Scales);
+            var client = new ScalesClient(session, NUnitTelemetryContext.Create());
+            var fields = new Variant[help == "absent" ? 11 : 12];
+            var source = new NodeId("Scale", scalesIndex);
+            fields[0] = Variant.From(source);
+            fields[1] = Variant.From("Line scale");
+            fields[4] = Variant.From(new LocalizedText("Inspection needed"));
+            fields[6] = Variant.From(5001u);
+            fields[7] = Variant.From("INSPECTION");
+            fields[9] = Variant.From(new NodeId(
+                alarm ? ObjectTypes.ScaleAlarmType : ObjectTypes.ScaleEventType, scalesIndex));
+            fields[10] = alarm ? Variant.From(true) : Variant.Null;
+            if (help != "absent")
+            {
+                fields[11] = help == "present" ? Variant.From("manual:inspection") : Variant.From(42);
+            }
+
+            ScaleNotificationInfo actual = client.Decode(fields.ToArrayOf());
+
+            Assert.That(actual.SourceNode, Is.EqualTo(source));
+            Assert.That(actual.SourceName, Is.EqualTo("Line scale"));
+            Assert.That(actual.Message.Text, Is.EqualTo("Inspection needed"));
+            Assert.That(actual.NotificationId, Is.EqualTo(5001u));
+            Assert.That(actual.VendorNotificationId, Is.EqualTo("INSPECTION"));
+            Assert.That(actual.IsAlarm, Is.EqualTo(alarm));
+            Assert.That(actual.Active, Is.EqualTo(alarm ? true : (bool?)null));
+            Assert.That(actual.HelpSource, Is.EqualTo(help == "present" ? "manual:inspection" : null));
+        }
+
+        [Test]
+        public void NotificationFilterAppendsHelpSourceWithoutMovingExistingFields()
+        {
+            using SessionMock session = SessionMock.Create();
+            ushort scalesIndex = (ushort)session.NamespaceUris.GetIndexOrAppend(Namespaces.Scales);
+            var client = new ScalesClient(session, NUnitTelemetryContext.Create());
+
+            EventFilter filter = client.CreateNotificationFilter();
+
+            Assert.That(filter.SelectClauses.Count, Is.EqualTo(12));
+            Assert.That(filter.SelectClauses[9].BrowsePath[0],
+                Is.EqualTo(new QualifiedName(Opc.Ua.BrowseNames.EventType)));
+            Assert.That(filter.SelectClauses[10].BrowsePath[0],
+                Is.EqualTo(new QualifiedName(Opc.Ua.BrowseNames.ActiveState)));
+            Assert.That(filter.SelectClauses[11].BrowsePath[0],
+                Is.EqualTo(new QualifiedName(BrowseNames.HelpSource, scalesIndex)));
+            Assert.That(filter.SelectClauses[11].AttributeId, Is.EqualTo(Attributes.Value));
+        }
+
         [TestCase(BuiltInType.Byte)]
         [TestCase(BuiltInType.UInt16)]
         [TestCase(BuiltInType.UInt32)]

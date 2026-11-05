@@ -121,6 +121,11 @@ namespace Opc.Ua.Scales
         public ArrayOf<string> AuxParameters { get; init; } = [];
 
         /// <summary>
+        /// Gets the source of additional help, when published.
+        /// </summary>
+        public string? HelpSource { get; init; }
+
+        /// <summary>
         /// Gets whether the notification is an alarm condition.
         /// </summary>
         public bool IsAlarm { get; init; }

@@ -581,7 +581,8 @@ namespace Opc.Ua.Scales.Client
                     Field(ScalesName(BrowseNames.VendorNotificationId)),
                     Field(ScalesName(BrowseNames.AuxParameters)),
                     Field(new QualifiedName(Opc.Ua.BrowseNames.EventType)),
-                    Field(new QualifiedName(Opc.Ua.BrowseNames.ActiveState), new QualifiedName(Opc.Ua.BrowseNames.Id))
+                    Field(new QualifiedName(Opc.Ua.BrowseNames.ActiveState), new QualifiedName(Opc.Ua.BrowseNames.Id)),
+                    Field(ScalesName(BrowseNames.HelpSource))
                 }.ToArrayOf()
             };
             // Push inserts at the front and renumbers the element operands, so
@@ -620,6 +621,7 @@ namespace Opc.Ua.Scales.Client
                 NotificationId = Get(6).TryGetValue(out uint id) ? id : 0,
                 VendorNotificationId = AsString(Get(7)),
                 AuxParameters = Get(8).TryGetValue(out ArrayOf<string> aux) && !aux.IsNull ? aux : [],
+                HelpSource = AsString(Get(11)),
                 IsAlarm = isAlarm,
                 Active = isAlarm ? Get(10).TryGetValue(out bool active) && active : null
             };

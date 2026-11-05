@@ -1028,6 +1028,9 @@ await foreach (ScaleField<ArrayOf<RecipeReportElementType>> report in
     of a scale, module or system as `ScaleNotificationInfo`.
   - `CreateNotificationFilter()` and `Decode(fields)` expose the same
     filter for your own subscriptions.
+  - `HelpSource` contains the event or alarm's additional help reference.
+    The filter appends this optional field; decoding older field arrays leaves
+    it null without changing the existing event and alarm fields.
   - `DefinedId` maps the numeric id back to `ScaleNotificationId`.
 - **Snapshots.** `ReadSnapshotAsync(entry)` reads a whole scale in one pass:
   identification, both weights, ranges, units, products and PackML state.
