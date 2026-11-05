@@ -187,6 +187,153 @@ namespace Opc.Ua.Pumps.Tests
         }
 
         /// <summary>
+        /// Awaits asynchronous event reporting without synchronously blocking the evaluation caller.
+        /// </summary>
+        [Test]
+        public async Task EvaluationAwaitsGatedEventReportAsync()
+        {
+            IPumpGroupBuilder group = m_pump.Supervision(BrowseNames.SupervisionMechanics);
+            group.SetDiscrete(BrowseNames.BearingFault, false);
+            var input = (BaseVariableState)group.Child(BrowseNames.BearingFault)!;
+            PumpAlarmBinding binding = await m_fixture.Manager.Runtime.AddDiagnosticAlarmAsync(
+                group, input, "GatedReport", DeviceHealthEnumeration.FAILURE);
+            await binding.EvaluateAsync();
+
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var invocationReturned = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            binding.Alarm.OnReportEventAsync = async (_, _, _, _) =>
+            {
+                entered.TrySetResult(true);
+                await release.Task.ConfigureAwait(false);
+            };
+            group.SetDiscrete(BrowseNames.BearingFault, true);
+
+            Task evaluation = Task.Factory.StartNew(
+                () =>
+                {
+                    ValueTask pending = binding.EvaluateAsync();
+                    invocationReturned.TrySetResult(true);
+                    return pending.AsTask();
+                },
+                CancellationToken.None,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Default).Unwrap();
+            try
+            {
+                Task readiness = Task.WhenAll(entered.Task, invocationReturned.Task);
+                Task completed = await Task.WhenAny(readiness, Task.Delay(TimeSpan.FromSeconds(10)));
+                Assert.That(completed, Is.SameAs(readiness),
+                    "the event sink must enter and evaluation must return while it is gated");
+                Assert.That(release.Task.IsCompleted, Is.False, "the event sink must still be gated");
+                Assert.That(evaluation.IsCompleted, Is.False, "evaluation must remain pending while the sink is gated");
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                Task drained = await Task.WhenAny(evaluation, Task.Delay(TimeSpan.FromSeconds(10)));
+                Assert.That(drained, Is.SameAs(evaluation), "evaluation must finish after the sink is released");
+            }
+
+            await evaluation;
+        }
+
+        /// <summary>
+        /// Awaits state notifications under the evaluation gate and retains synchronous sink ordering.
+        /// </summary>
+        [Test]
+        public async Task EvaluationAwaitsGatedStateNotificationAfterSynchronousSinkAsync()
+        {
+            IPumpGroupBuilder group = m_pump.Supervision(BrowseNames.SupervisionMechanics);
+            group.SetDiscrete(BrowseNames.BearingFault, false);
+            var input = (BaseVariableState)group.Child(BrowseNames.BearingFault)!;
+            PumpAlarmBinding binding = await m_fixture.Manager.Runtime.AddDiagnosticAlarmAsync(
+                group, input, "GatedStateNotification", DeviceHealthEnumeration.FAILURE);
+            await binding.EvaluateAsync();
+
+            var notifications = new List<string>();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var invocationReturned = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            binding.Alarm.OnStateChanged = (_, _, _) => notifications.Add("sync");
+            binding.Alarm.OnStateChangedAsync = async (_, _, _, _) =>
+            {
+                notifications.Add("async");
+                if (notifications.Count == 2)
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.ConfigureAwait(false);
+                }
+            };
+            binding.Alarm.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            group.SetDiscrete(BrowseNames.BearingFault, true);
+
+            Task evaluation = Task.Factory.StartNew(
+                () =>
+                {
+                    ValueTask pending = binding.EvaluateAsync();
+                    invocationReturned.TrySetResult(true);
+                    return pending.AsTask();
+                },
+                CancellationToken.None,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Default).Unwrap();
+            try
+            {
+                Task readiness = Task.WhenAll(entered.Task, invocationReturned.Task);
+                Task completed = await Task.WhenAny(readiness, Task.Delay(TimeSpan.FromSeconds(10)));
+                Assert.That(completed, Is.SameAs(readiness),
+                    "the synchronous sink and gated async sink must run before EvaluateAsync returns");
+                Assert.That(notifications, Is.EqualTo(new[] { "sync", "async" }));
+                Assert.That(release.Task.IsCompleted, Is.False, "the state sink must still be gated");
+                Assert.That(evaluation.IsCompleted, Is.False, "evaluation must await the state sink");
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                Task drained = await Task.WhenAny(evaluation, Task.Delay(TimeSpan.FromSeconds(10)));
+                Assert.That(drained, Is.SameAs(evaluation), "evaluation must finish after the sink is released");
+            }
+
+            await evaluation;
+        }
+
+        /// <summary>
+        /// Propagates a state-sink failure before reporting an event or applying later alarm setters.
+        /// </summary>
+        [Test]
+        public async Task EvaluationPropagatesStateNotificationFailureBeforeEventReportAsync()
+        {
+            IPumpGroupBuilder group = m_pump.Supervision(BrowseNames.SupervisionMechanics);
+            group.SetDiscrete(BrowseNames.BearingFault, false);
+            var input = (BaseVariableState)group.Child(BrowseNames.BearingFault)!;
+            PumpAlarmBinding binding = await m_fixture.Manager.Runtime.AddDiagnosticAlarmAsync(
+                group, input, "FailedStateNotification", DeviceHealthEnumeration.FAILURE);
+            await binding.EvaluateAsync();
+
+            var failure = new InvalidOperationException("state notification failed");
+            bool reported = false;
+            binding.Alarm.OnStateChangedAsync = (_, _, _, _) => throw failure;
+            binding.Alarm.OnReportEventAsync = (_, _, _, _) =>
+            {
+                reported = true;
+                return default;
+            };
+            group.SetDiscrete(BrowseNames.BearingFault, true);
+
+            InvalidOperationException? observed = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await binding.EvaluateAsync());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(observed, Is.SameAs(failure));
+                Assert.That(binding.Alarm.Severity!.Value, Is.EqualTo((ushort)EventSeverity.High));
+                Assert.That(binding.Alarm.ActiveState!.Id!.Value, Is.False);
+                Assert.That(reported, Is.False);
+            });
+        }
+
+        /// <summary>
         /// Uses the shared suppression/shelving methods without replacing severity or source time.
         /// </summary>
         [Test]

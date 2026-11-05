@@ -185,7 +185,8 @@ namespace Opc.Ua.Pumps.Server
                     variables[i].RolePermissions = permissions;
                     variables[i].AccessLevel |= AccessLevels.CurrentReadOrWrite;
                     variables[i].UserAccessLevel |= AccessLevels.CurrentReadOrWrite;
-                    variables[i].ClearChangeMasks(runtime.SystemContext, false);
+                    await variables[i].ClearChangeMasksAsync(
+                        runtime.SystemContext, false, CancellationToken.None).ConfigureAwait(false);
                 }
                 identity.AccessLevel = (byte)(identity.AccessLevel & ~AccessLevels.CurrentWrite);
                 identity.UserAccessLevel = (byte)(identity.UserAccessLevel & ~AccessLevels.CurrentWrite);

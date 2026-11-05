@@ -559,6 +559,13 @@ rejected so that a restart cannot replace an accepted clearing operation with a
 configured default. Manufacturer-owned fields and `ProductInstanceUri` remain
 read-only. A volatile store or a duplicate stable identity is rejected.
 
+The binding publishes writable access and state notifications in `AssetId`,
+`ComponentName`, then `Location` order. If a notification sink throws, the
+exception propagates at that field: its mutations remain, later fields are not
+made writable, and the retained identity is not registered. The installed
+persistence callbacks remain in place, so calling the binding method again
+fails because the fields are already bound.
+
 An authorized client uses the typed writes and reads the nameplate again:
 
 ```csharp
@@ -601,8 +608,11 @@ PumpAlarmBinding limit = await runtime.AddMeasurementAlarmAsync(
 
 Publish input changes first, then await `EvaluateAsync(ct)` on each affected
 binding. This explicit evaluation step works with polling and provider-driven
-acquisition. Configured limits must be finite and strictly ordered; NaN omits
-a limit. Crossings are strict, so equality with a high limit does not cross it.
+acquisition. Evaluation serializes state mutation and awaits state-change
+notifications while holding the binding gate. A notification callback must not
+await another evaluation on the same binding. Configured limits must be finite
+and strictly ordered; NaN omits a limit. Crossings are strict, so equality with
+a high limit does not cross it.
 Bad-quality or non-finite samples update condition quality without inventing a
 normal measurement. Reported events retain the input source timestamp.
 
@@ -892,14 +902,35 @@ history access and an active shared data-provider route. Removed nodes and
 routes no longer contribute, and a disposed runtime contributes no native
 units. These evaluations do not establish the inherited profile facets.
 
-The published specification has an unresolved profile reference. Table 153
-defines the Base URI as
-`http://opcfoundation.org/UA-Profile/Pumps/Server/Base`, but Table 155 names
-the mandatory Pump Base profile and links it to
-`http://opcfoundation.org/UA-Profile/CAS/Server/Base`. No authoritative
-correction has been verified. The Advanced profile remains unadvertised;
-the implementation does not substitute the CAS profile or silently rewrite
-that dependency.
+The published profile tables define two different URIs. OPC 40223
+[Table 153](https://reference.opcfoundation.org/specs/OPC-40223/v1.0/9.2.1)
+defines the Pump Base URI as
+`http://opcfoundation.org/UA-Profile/Pumps/Server/Base`, while Table 155 names
+the Pump Advanced Server Profile and its mandatory Pump Base Server Profile
+row links to
+`http://opcfoundation.org/UA-Profile/CAS/Server/Base`. OPC 40250-1
+[Table 163](https://reference.opcfoundation.org/specs/OPC-40250-1/v1.00.1/9.2.1)
+independently defines that second URI as CAS Base, and
+[Table 172](https://reference.opcfoundation.org/specs/OPC-40250-1/v1.00.1/9.2.2.10)
+assigns it CAS-specific mandatory requirements. OPC 40223
+[Table 154](https://reference.opcfoundation.org/specs/OPC-40223/v1.0/9.2.2.2)
+specifies the Pump Base profile's own requirements; OPC 40223
+[Table 155](https://reference.opcfoundation.org/specs/OPC-40223/v1.0/9.2.2.3)
+is titled Pump Advanced Server Profile. These publications do not establish
+whether the Table 155 dependency intended the Pumps URI or the CAS URI. The
+implementation does not substitute one URI for the other or silently rewrite
+the dependency. The Advanced profile remains unadvertised.
+
+Table 154 includes Aggregate Subscription among the Pump Base requirements.
+Shared-server tests in `AsyncCustomNodeManagerTests`, including
+`ValidateMonitoringFilterAsyncUsesHistorianCapabilitiesAsync`,
+`ValidateMonitoringFilterAsyncUsesSamplingIntervalWithHistorianAsync` and
+`ReadInitialValueAsyncPrimesAggregateFilterFromPagedRawHistoryAsync`, exercise
+aggregate-filter validation and history priming. They provide partial evidence
+for the shared Aggregate Subscription behavior; they do not prove Pump Base
+conformance or a Pumps-connected subscription. The priming test applies only
+to the async manager. These tests do not establish that Pump Base is inherited
+by Advanced: Table 155's profile-name/URI discrepancy remains unresolved.
 
 Advanced also requires the Address Space Notifier, A&C Address Space Instance,
 A&C Exclusive Alarming, Base Historical Event, Historical Raw Data and
@@ -1029,8 +1060,8 @@ dotnet test tests/Opc.Ua.Pumps.Tests
 | `PumpValueSetTests` | Value-set and supervision evaluation |
 | `PumpsCompositionTests` | Stock Machinery owner, ordered providers, lazy groups, instance ownership, cancellation and runtime disposal |
 | `PumpsConformanceTests` | Native-unit evaluation for empty, partial and changed instances; condition/provider removal and runtime shutdown |
-| `PumpsIdentificationTests` | File-backed restart, locale, rejected commits, restoration rollback and stable-identity guards |
-| `PumpsAlarmTests` | Explicit NE107 mappings, exclusive-limit boundaries, quality and condition lifecycle |
+| `PumpsIdentificationTests` | Restart, locale, commit and restore failures, stable identity, ordered notification failures |
+| `PumpsAlarmTests` | NE107 mappings, limit boundaries, condition lifecycle and awaited state-notification ordering |
 | `PumpsHistoryTests` | Provider selection/capabilities and real-session raw/aggregate/event history with retained-condition refresh |
 | `PumpsClientServerE2eTests` | Standalone and composed Machinery hosts, read back by `PumpsClient` over real sessions and live data-change subscriptions |
 

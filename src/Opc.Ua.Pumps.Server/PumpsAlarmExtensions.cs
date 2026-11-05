@@ -484,11 +484,12 @@ namespace Opc.Ua.Pumps.Server
         /// This method does not overwrite input values or enable a condition disabled by a client.
         /// </summary>
         /// <param name="cancellationToken">Cancels before evaluating.</param>
-        public ValueTask EvaluateAsync(CancellationToken cancellationToken = default)
+        public async ValueTask EvaluateAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             InstanceStateSnapshot? snapshot = null;
-            lock (m_gate)
+            await m_gate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+            try
             {
                 LimitAlarmStates state = LimitAlarmStates.Inactive;
                 StatusCode quality = Input.StatusCode;
@@ -528,28 +529,35 @@ namespace Opc.Ua.Pumps.Server
                 }
                 if (m_evaluated && state == m_lastState && quality == Alarm.Quality!.Value)
                 {
-                    return default;
+                    return;
                 }
                 bool newlyActive = state != LimitAlarmStates.Inactive && state != m_lastState;
                 m_lastState = state;
                 m_evaluated = true;
                 Alarm.Quality!.Value = quality;
-                Alarm.SetSeverity(m_context, state == LimitAlarmStates.Inactive ? EventSeverity.Min : m_activeSeverity);
+                await Alarm.SetSeverityAsync(
+                    m_context,
+                    state == LimitAlarmStates.Inactive ? EventSeverity.Min : m_activeSeverity,
+                    CancellationToken.None).ConfigureAwait(false);
                 if (newlyActive)
                 {
-                    Alarm.SetAcknowledgedState(m_context, false);
+                    await Alarm.SetAcknowledgedStateAsync(
+                        m_context, false, CancellationToken.None).ConfigureAwait(false);
                     if (Alarm.SupportsConfirm())
                     {
-                        Alarm.SetConfirmedState(m_context, false);
+                        await Alarm.SetConfirmedStateAsync(
+                            m_context, false, CancellationToken.None).ConfigureAwait(false);
                     }
                 }
                 if (Alarm is ExclusiveLimitAlarmState limitAlarm)
                 {
-                    limitAlarm.SetLimitState(m_context, state);
+                    await limitAlarm.SetLimitStateAsync(
+                        m_context, state, CancellationToken.None).ConfigureAwait(false);
                 }
                 else
                 {
-                    Alarm.SetActiveState(m_context, state != LimitAlarmStates.Inactive);
+                    await Alarm.SetActiveStateAsync(
+                        m_context, state != LimitAlarmStates.Inactive, CancellationToken.None).ConfigureAwait(false);
                 }
                 Alarm.Message!.Value = new LocalizedText(
                     state == LimitAlarmStates.Inactive
@@ -564,11 +572,16 @@ namespace Opc.Ua.Pumps.Server
                     snapshot = new InstanceStateSnapshot();
                     snapshot.Initialize(m_context, Alarm);
                 }
-                Alarm.ClearChangeMasks(m_context, true);
+                await Alarm.ClearChangeMasksAsync(m_context, true, CancellationToken.None).ConfigureAwait(false);
             }
-            return snapshot is null
-                ? default
-                : Alarm.ReportEventAsync(m_context, snapshot, cancellationToken);
+            finally
+            {
+                m_gate.Release();
+            }
+            if (snapshot is not null)
+            {
+                await Alarm.ReportEventAsync(m_context, snapshot, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         /// <summary>The owning server context.</summary>
@@ -583,8 +596,8 @@ namespace Opc.Ua.Pumps.Server
         /// <summary>The explicitly selected active severity.</summary>
         private readonly EventSeverity m_activeSeverity;
 
-        /// <summary>Serializes evaluations without exposing a synchronization root.</summary>
-        private readonly Lock m_gate = new();
+        /// <summary>Serializes evaluations, including their asynchronous state notifications.</summary>
+        private readonly SemaphoreSlim m_gate = new(1, 1);
 
         /// <summary>The last evaluated limit or diagnostic state.</summary>
         private LimitAlarmStates m_lastState;

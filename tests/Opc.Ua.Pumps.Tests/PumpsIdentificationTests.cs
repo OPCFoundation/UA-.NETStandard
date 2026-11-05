@@ -132,6 +132,148 @@ namespace Opc.Ua.Pumps.Tests
         }
 
         /// <summary>
+        /// Waits for each asynchronous state notification without blocking the binding caller.
+        /// </summary>
+        [Test]
+        public async Task BindingAwaitsGatedStateNotificationsInFieldOrderAsync()
+        {
+            await using var fixture = new PumpsServerFixture();
+            await fixture.StartAsync();
+            IPumpBuilder pump = await CreateAsync(fixture, "GatedNotifications");
+            string[] fieldNames =
+            [
+                Opc.Ua.Di.BrowseNames.AssetId,
+                Opc.Ua.Di.BrowseNames.ComponentName,
+                Opc.Ua.Machinery.BrowseNames.Location
+            ];
+            var notifications = new System.Collections.Generic.List<string>();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var invocationReturned = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Mock<IAssetConfigurationStore> store = Store();
+            store.Setup(value => value.GetValueAsync(
+                    It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<string?>((string?)null));
+            foreach (string fieldName in fieldNames)
+            {
+                var variable = (BaseVariableState)pump.Identification.Child(fieldName)!;
+                variable.UpdateChangeMasks(NodeStateChangeMasks.Value);
+                variable.OnStateChangedAsync = async (_, node, _, _) =>
+                {
+                    notifications.Add(((BaseInstanceState)node).BrowseName.Name);
+                    if (notifications.Count == 1)
+                    {
+                        entered.TrySetResult(true);
+                        await release.Task.ConfigureAwait(false);
+                    }
+                };
+            }
+
+            Task<IPumpBuilder> binding = Task.Factory.StartNew(
+                () =>
+                {
+                    ValueTask<IPumpBuilder> pending = fixture.Manager.Runtime.WithRetainedIdentificationAsync(
+                        pump, store.Object, Permissions);
+                    invocationReturned.TrySetResult(true);
+                    return pending.AsTask();
+                },
+                CancellationToken.None,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Default).Unwrap();
+            try
+            {
+                Task readiness = Task.WhenAll(entered.Task, invocationReturned.Task);
+                Task completed = await Task.WhenAny(readiness, Task.Delay(TimeSpan.FromSeconds(10)));
+                Assert.That(completed, Is.SameAs(readiness),
+                    "the notification must enter and the binding invocation must return while it is gated");
+                Assert.That(release.Task.IsCompleted, Is.False, "the state sink must still be gated");
+                Assert.That(binding.IsCompleted, Is.False, "the binding must remain pending while the sink is gated");
+                for (int i = 0; i < fieldNames.Length; i++)
+                {
+                    var variable = (BaseVariableState)pump.Identification.Child(fieldNames[i])!;
+                    Assert.That(variable.OnSimpleWriteValueAsync, Is.Not.Null);
+                    Assert.That(variable.AccessLevel & AccessLevels.CurrentWrite,
+                        Is.EqualTo(i == 0 ? AccessLevels.CurrentWrite : 0));
+                    Assert.That(variable.UserAccessLevel & AccessLevels.CurrentWrite,
+                        Is.EqualTo(i == 0 ? AccessLevels.CurrentWrite : 0));
+                }
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                Task drained = await Task.WhenAny(binding, Task.Delay(TimeSpan.FromSeconds(10)));
+                Assert.That(drained, Is.SameAs(binding), "the binding must finish after the sink is released");
+            }
+
+            Assert.That(await binding, Is.SameAs(pump));
+            Assert.That(notifications, Is.EqualTo(fieldNames));
+        }
+
+        /// <summary>
+        /// Characterizes retained callbacks and partial publication after a notification failure.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        public async Task NotificationFailurePreservesPublishedPrefixAndRejectsRebindingAsync(int failingField)
+        {
+            await using var fixture = new PumpsServerFixture();
+            await fixture.StartAsync();
+            IPumpBuilder pump = await CreateAsync(fixture, "NotificationFailure");
+            string[] fieldNames =
+            [
+                Opc.Ua.Di.BrowseNames.AssetId,
+                Opc.Ua.Di.BrowseNames.ComponentName,
+                Opc.Ua.Machinery.BrowseNames.Location
+            ];
+            Mock<IAssetConfigurationStore> store = Store();
+            store.Setup(value => value.GetValueAsync(
+                    It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<string?>((string?)null));
+            store.Setup(value => value.GetValueAsync(
+                    It.IsAny<string>(), Opc.Ua.Di.BrowseNames.AssetId, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<string?>("restored-asset"));
+            var failure = new IOException("notification failed");
+            var notifications = new System.Collections.Generic.List<string>();
+            foreach (string fieldName in fieldNames)
+            {
+                var variable = (BaseVariableState)pump.Identification.Child(fieldName)!;
+                variable.UpdateChangeMasks(NodeStateChangeMasks.Value);
+                variable.OnStateChangedAsync = (_, node, _, _) =>
+                {
+                    notifications.Add(((BaseInstanceState)node).BrowseName.Name);
+                    if (notifications.Count == failingField + 1)
+                    {
+                        throw failure;
+                    }
+                    return default;
+                };
+            }
+
+            IOException? observed = await Assert.ThrowsAsync<IOException>(async () =>
+                await fixture.Manager.Runtime.WithRetainedIdentificationAsync(pump, store.Object, Permissions));
+            Assert.That(observed, Is.SameAs(failure));
+            Assert.That(notifications, Is.EqualTo(fieldNames[..(failingField + 1)]));
+            Assert.That(Value(pump, Opc.Ua.Di.BrowseNames.AssetId), Is.EqualTo(Variant.From("restored-asset")));
+            for (int i = 0; i < fieldNames.Length; i++)
+            {
+                var variable = (BaseVariableState)pump.Identification.Child(fieldNames[i])!;
+                Assert.That(variable.OnSimpleWriteValueAsync, Is.Not.Null);
+                Assert.That(variable.AccessLevel & AccessLevels.CurrentWrite,
+                    Is.EqualTo(i <= failingField ? AccessLevels.CurrentWrite : 0));
+                Assert.That(variable.UserAccessLevel & AccessLevels.CurrentWrite,
+                    Is.EqualTo(i <= failingField ? AccessLevels.CurrentWrite : 0));
+                if (i <= failingField)
+                {
+                    Assert.That(variable.RolePermissions, Is.EqualTo(Permissions));
+                }
+            }
+            InvalidOperationException? retry = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await fixture.Manager.Runtime.WithRetainedIdentificationAsync(pump, store.Object, Permissions));
+            Assert.That(retry!.Message, Is.EqualTo("An identification field is already bound."));
+        }
+
+        /// <summary>
         /// A failed restoration can be retried, without exposing a partly writable identification.
         /// </summary>
         [Test]
