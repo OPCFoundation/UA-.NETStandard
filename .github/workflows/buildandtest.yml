@@ -394,7 +394,7 @@ jobs:
       # binary is published and run on every AOT platform.
       AOTPROJECT_HISTORIAN: './tests/Opc.Ua.Aot.Tests.Historian/Opc.Ua.Aot.Tests.Historian.csproj'
       AOTPROJECT_MCP: './tests/Opc.Ua.Aot.Tests.Mcp/Opc.Ua.Aot.Tests.Mcp.csproj'
-      DOTNET_VERSION: '10.0.403'
+      DOTNET_VERSION: '10.0.402'
       CONFIGURATION: 'Release'
 
     steps:
