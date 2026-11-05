@@ -408,7 +408,7 @@ namespace Opc.Ua.LADS.Tests.Server
                         unit.Running.Current == LadsRunningStateValue.Idle &&
                         device.ItemState == MachineryItemStateValue.OutOfService);
                 }
-                return ValueTask.CompletedTask;
+                return default;
             };
             unit.Functional.StateChangedAsync += functionalHandler;
             device.DeviceState.StateChangedAsync += deviceHandler;
@@ -580,7 +580,7 @@ namespace Opc.Ua.LADS.Tests.Server
                         unit.Running.Current == LadsRunningStateValue.Idle &&
                         device.ItemState == MachineryItemStateValue.OutOfService);
                 }
-                return ValueTask.CompletedTask;
+                return default;
             };
             device.DeviceState.StateChangedAsync += deviceHandler;
 

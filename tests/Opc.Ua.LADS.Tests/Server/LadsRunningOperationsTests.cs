@@ -573,7 +573,7 @@ namespace Opc.Ua.LADS.Tests.Server
                 DateTimeUtc.MinValue,
                 TimeProvider.System,
                 static (_, _) => { },
-                static (_, _, _) => ValueTask.CompletedTask);
+                static (_, _, _) => default);
             using var cancellation = new CancellationTokenSource();
             var active = new LadsProgramManager.ActiveRunEntry(run, cancellation);
             var acknowledgment = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -931,11 +931,11 @@ namespace Opc.Ua.LADS.Tests.Server
                 if (notification == 1)
                 {
                     hold.Executable = true;
-                    return ValueTask.CompletedTask;
+                    return default;
                 }
                 return notification == 2
                     ? new ValueTask(Task.FromException(new InvalidOperationException("admission notification failed")))
-                    : ValueTask.CompletedTask;
+                    : default;
             };
             try
             {
@@ -994,7 +994,7 @@ namespace Opc.Ua.LADS.Tests.Server
                     return new ValueTask(Task.FromException(
                         new InvalidOperationException("transition notification failed")));
                 }
-                return ValueTask.CompletedTask;
+                return default;
             };
             try
             {
@@ -1031,7 +1031,7 @@ namespace Opc.Ua.LADS.Tests.Server
             currentState.OnStateChangedAsync = (_, _, _, _) =>
             {
                 Interlocked.Increment(ref notifications);
-                return ValueTask.CompletedTask;
+                return default;
             };
             try
             {
@@ -1112,7 +1112,7 @@ namespace Opc.Ua.LADS.Tests.Server
             currentState.OnStateChangedAsync = (_, _, _, _) =>
             {
                 Interlocked.Increment(ref notifications);
-                return ValueTask.CompletedTask;
+                return default;
             };
             machine.OnBeforeTransition = (_, _, _, _, _, _) =>
                 ServiceResult.Create(StatusCodes.BadInvalidState, "transition rejected");
@@ -1312,7 +1312,7 @@ namespace Opc.Ua.LADS.Tests.Server
             {
                 if (!failNotifications)
                 {
-                    return ValueTask.CompletedTask;
+                    return default;
                 }
                 int notification = Interlocked.Increment(ref notifications);
                 return new ValueTask(Task.FromException(
@@ -1566,7 +1566,7 @@ namespace Opc.Ua.LADS.Tests.Server
                 DateTimeUtc.MinValue,
                 TimeProvider.System,
                 static (_, _) => { },
-                static (_, _, _) => ValueTask.CompletedTask);
+                static (_, _, _) => default);
             var active = new LadsProgramManager.ActiveRunEntry(run, cancellation);
             LadsProgramOutcome candidate = active.GetCompletionOutcome(true);
             Assert.That(candidate, Is.EqualTo(LadsProgramOutcome.Completed));

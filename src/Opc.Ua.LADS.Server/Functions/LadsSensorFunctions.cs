@@ -355,7 +355,7 @@ namespace Opc.Ua.LADS.Server
                     Runtime.Logger.StateChanged(Path, state);
                 }
                 StateChanged?.Invoke(state);
-                return ValueTask.CompletedTask;
+                return default;
             };
             Runtime.Bind(stateMachine.Open, (_, ct) => OpenAsync(ct));
             Runtime.Bind(stateMachine.Close, (_, ct) => CloseAsync(ct));

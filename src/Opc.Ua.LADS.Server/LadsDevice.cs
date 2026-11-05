@@ -137,7 +137,7 @@ namespace Opc.Ua.LADS.Server
                     Runtime.Logger.StateChanged(Name, mode);
                 }
                 OperationModeChanged?.Invoke(mode);
-                return ValueTask.CompletedTask;
+                return default;
             };
             Runtime.Bind(
                 operationMode.GotoProcessing,

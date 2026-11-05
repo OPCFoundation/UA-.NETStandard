@@ -682,7 +682,7 @@ namespace Opc.Ua.LADS.Server
                 var run = new LadsProgramRun(stored.RunId, m_unit, RestoreTemplate(stored.Template),
                     stored.Properties, stored.SupervisoryJobId, stored.SupervisoryTaskId, stored.Samples,
                     stored.Started, Runtime.TimeProvider, static (_, _) => { },
-                    static (_, _, _) => ValueTask.CompletedTask);
+                    static (_, _, _) => default);
                 ArrayOf<LadsResultFile> files = stored.Files;
                 for (int fileIndex = 0; fileIndex < files.Count; fileIndex++)
                 {

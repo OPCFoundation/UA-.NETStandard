@@ -122,7 +122,7 @@ namespace Opc.Ua.LADS.Tests.Server
             device.ItemStateMachine.StateChangedAsync += (_, _) =>
             {
                 asynchronousItemStateChanges++;
-                return ValueTask.CompletedTask;
+                return default;
             };
 
             await unit.Functional.SetStateAsync(LadsFunctionalStateValue.Running).ConfigureAwait(false);
@@ -511,14 +511,14 @@ namespace Opc.Ua.LADS.Tests.Server
                 rawAsyncStates.Add(state);
                 rawAsyncItemStates.Add(device.ItemState);
                 order.Add($"raw-async:{state}");
-                return ValueTask.CompletedTask;
+                return default;
             };
             unit.Functional.StateChangedAsync += (state, _) =>
             {
                 typedAsyncStates.Add(state);
                 typedAsyncItemStates.Add(device.ItemState);
                 order.Add($"typed-async:{state}");
-                return ValueTask.CompletedTask;
+                return default;
             };
 
             await unit.Functional.TransitionToAsync(LadsFunctionalStateValue.Running).ConfigureAwait(false);

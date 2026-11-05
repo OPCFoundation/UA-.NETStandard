@@ -52,6 +52,7 @@ namespace Opc.Ua.LADS.Server
         /// <param name="started">When the run started.</param>
         /// <param name="timeProvider">The time provider.</param>
         /// <param name="onStep">Called when the executor reports a step.</param>
+        /// <param name="onStepAsync">Awaited when the executor reports a step asynchronously.</param>
         internal LadsProgramRun(
             string runId,
             ILadsFunctionalUnit functionalUnit,

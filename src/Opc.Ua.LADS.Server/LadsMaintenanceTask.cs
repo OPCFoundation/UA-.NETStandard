@@ -87,7 +87,7 @@ namespace Opc.Ua.LADS.Server
             {
                 Runtime.Logger.MaintenanceStateChanged(Device.Name, Name, state);
                 StateChanged?.Invoke(state);
-                return ValueTask.CompletedTask;
+                return default;
             };
 
             node.EventType?.Value = node.TypeDefinitionId;
