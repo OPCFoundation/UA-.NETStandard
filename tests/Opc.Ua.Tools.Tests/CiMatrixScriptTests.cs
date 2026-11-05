@@ -518,7 +518,7 @@ namespace Opc.Ua.Tools.Tests
                 string[] expectedShards = profile.First().Framework == "net48"
                     ? serverShards
                     : profile.First().Os == "macos"
-                        ? ["server-node-lifecycle", "server-other"]
+                        ? ["server-node-lifecycle-prepared", "server-node-lifecycle", "server-other"]
                         : ["all"];
                 Assert.That(profile.Select(entry => entry.Shard), Is.EquivalentTo(expectedShards));
                 Assert.That(profile.All(entry => entry.PerProjectTimeout == 45), Is.True);
@@ -561,7 +561,11 @@ namespace Opc.Ua.Tools.Tests
                             : testName.StartsWith(
                                 "Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.",
                                 StringComparison.Ordinal)
-                                ? "server-node-lifecycle"
+                                ? testName.StartsWith(
+                                    "Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.Prepared",
+                                    StringComparison.Ordinal)
+                                    ? "server-node-lifecycle-prepared"
+                                    : "server-node-lifecycle"
                                 : "server-other";
                     Assert.That(
                         matches,
@@ -613,7 +617,8 @@ namespace Opc.Ua.Tools.Tests
                         "wot-materialization-core",
                         "wot-materialization-integration",
                         "wot-materialization-live-events",
-                        "wot-other"
+                        "wot-other-core",
+                        "wot-other-integration"
                     ] : ["wot-materialization", "wot-other"];
                 Assert.That(
                     profile.Select(entry => entry.Shard),
@@ -663,7 +668,7 @@ namespace Opc.Ua.Tools.Tests
                             .Select(entry => entry.Shard)
                             .ToArray();
                         string expectedShard = !materialization
-                            ? profile.First().Framework != "net48"
+                            ? profile.First().Framework != "net48" && profile.First().Os != "macos"
                                 ? "wot-other"
                                 : integration ? "wot-other-integration" : "wot-other-core"
                             : profile.First().Framework != "net48" && profile.First().Os != "macos"

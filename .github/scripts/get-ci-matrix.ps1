@@ -384,14 +384,14 @@ function Expand-BuildMatrix([string] $scope)
 
 <#
  .SYNOPSIS
-    Packs an ordered project list into contiguous batches whose weights add up
+    Packs an ordered project list into batches whose weights add up
     to at most $targetMinutes, never more than $MaxProjectsPerBatch projects.
 
  .DESCRIPTION
-    Contiguous rather than best-fit: path order keeps projects that share
-    dependencies together, and the result only depends on the list and the
-    table, so a run is reproducible. A project heavier than the target is
-    placed in a batch of its own rather than split or dropped.
+    Ordinary projects retain path order within their batches. Isolated suites
+    get their own jobs without flushing an unfinished ordinary batch, so they
+    do not consume extra jobs for partially filled batches. A project heavier
+    than the target is placed in a batch of its own rather than split or dropped.
 #>
 function Split-IntoBatches([string[]] $projects, [int] $targetMinutes)
 {
@@ -402,11 +402,6 @@ function Split-IntoBatches([string[]] $projects, [int] $targetMinutes)
         $minutes = Get-ProjectMinutes $project
         $stem = [System.IO.Path]::GetFileNameWithoutExtension($project)
         if ($stem -eq 'Opc.Ua.WotCon.Samples.Tests' -or $DedicatedTestProjects -contains $stem) {
-            if ($current.Count -gt 0) {
-                $batches += , @($current)
-                $current = @()
-                $currentMinutes = 0
-            }
             $batches += , @($project)
             continue
         }
@@ -514,9 +509,15 @@ function Get-TestProjectShards([string] $project, [string] $framework, [string] 
                         hangTimeout = ''
                     }
                     @{
-                        id = 'wot-other'
-                        name = 'wot-other'
-                        filter = "FullyQualifiedName!~${materialization}"
+                        id = 'wot-other-core'
+                        name = 'wot-other-core'
+                        filter = "FullyQualifiedName!~${materialization}&TestCategory!=Integration"
+                        hangTimeout = ''
+                    }
+                    @{
+                        id = 'wot-other-integration'
+                        name = 'wot-other-integration'
+                        filter = "FullyQualifiedName!~${materialization}&TestCategory=Integration"
                         hangTimeout = ''
                     }
                 )
@@ -565,9 +566,15 @@ function Get-TestProjectShards([string] $project, [string] $framework, [string] 
             if ($framework -ne 'net48') {
                 return @(
                     @{
+                        id = 'server-node-lifecycle-prepared'
+                        name = 'server-node-lifecycle-prepared'
+                        filter = "FullyQualifiedName~${nativeLifecycle}Prepared"
+                        hangTimeout = ''
+                    }
+                    @{
                         id = 'server-node-lifecycle'
                         name = 'server-node-lifecycle'
-                        filter = "FullyQualifiedName~$nativeLifecycle"
+                        filter = "FullyQualifiedName~${nativeLifecycle}&FullyQualifiedName!~${nativeLifecycle}Prepared"
                         hangTimeout = ''
                     }
                     @{
