@@ -438,7 +438,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Prevents metadata mutation after inspection or disposal.
+        /// Prevents metadata mutation and releases a validation view's borrowed provider after inspection.
         /// </summary>
         internal void Seal()
         {
@@ -446,6 +446,10 @@ namespace Opc.Ua.Server
             {
                 m_consumed = true;
                 m_metadata.Clear();
+                if (m_validationOnly)
+                {
+                    m_prepared = null;
+                }
             }
         }
 

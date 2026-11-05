@@ -510,6 +510,12 @@ their own identity-keyed context instead of sharing a prior session's grant.
 Different diagnostics masks use separate bounded slots; a context change
 invalidates the sampled verdict, and the weak template table does not retain
 retired managers.
+An ordinary request that owns its routing pin retains its per-manager copies until
+the operation is disposed, because the pin already protects those manager
+generations. Unpinned operations and operations borrowing a routing view retain
+only their first copy directly and weakly key further copies. Acquiring a pin
+after a lookup preserves the existing copies and their weak ownership. Switching
+to subscriber caching releases the directly retained copies.
 Identity, endpoint, secure-channel and preferred-locale changes replace the
 cached subscriber context. If a session rebinds its channel while a read or
 authorization callback is suspended, the sampling pass rejects the stale
@@ -1242,6 +1248,10 @@ resulting routing and reference image, then disposes candidates even if
 inspection or validation fails. Validation does not publish namespaces, run
 readiness or advance the writer's evidence. Preparing and disposing an ordinary
 unit does not perform this validation.
+The inspection view borrows the provider; the publication owns candidate
+cleanup. When inspection ends, the view releases that reference even if the
+callback throws. Retaining the view preserves non-owning registration metadata,
+not the candidate or its provider.
 
 #### Publishing typed metadata
 
@@ -1657,7 +1667,7 @@ transactional.
 #### Invocation publication units
 
 `lifecycle.CaptureChanges()` records the serving revisions; `BeginAsync(ct)`
-reserves the invocation, and `IsCurrent` reports whether the revisions still match. A stale
+begins ownership of the invocation, and `IsCurrent` reports whether the revisions still match. A stale
 invocation must be disposed and recaptured. Units are prepared with
 `ILifecycleWriter.PrepareAsync` and follow the same decision and cleanup contracts.
 `SupportsPreparedPublication` and `SupportsPublicationIsolation` report whether the attached host
@@ -1667,10 +1677,35 @@ Providers and exact-generation consumers can continue to use
 `INodeManagerLifecycle.CapturePublication` and `INodeManagerPublication.PrepareAsync`;
 the slot-targeted API adapts that same transaction rather than introducing a second writer.
 
-Admission stays held across every unit. Other lifecycle mutations fail `BadServerTooBusy` before
-effects and can retry after disposal, so callback code should defer conflicting lifecycle work
-instead of awaiting a nested mutation. Disposal aborts remaining units, reports cleanup failures and
-releases admission; shutdown waits for it.
+The invocation retains a lifecycle operation across its units, so shutdown waits
+for it. It does not reserve the mutation writer while factories or reconciliation
+callbacks run. Another publication can make its captured revisions stale.
+Disposal aborts remaining units, reports cleanup failures and releases operation
+ownership.
+
+#### Retained lifecycle API
+
+The slot-targeted operations use the existing provider contract. The following
+public surfaces remain available during the compatibility period; removing them
+requires a later breaking release.
+
+| Surface | Current responsibility | Consumer guidance |
+|---|---|---|
+| `INodeManagerLifecycle.SupportsPreparedPublication` | Reports whether the host supports unpublished prepared units. | Check before offering prepared changes through a custom provider. |
+| `INodeManagerLifecycle.SupportsPublicationIsolation` | Reports captured-revision publication support. The default provider requires a dynamic batch host and an `EncodeableFactory`; WoT uses the value to advertise supported atomicities. | Keep the capability check when capturing inputs across publication units. The property does not reserve the writer. |
+| `INodeManagerPublicationLifecycle` and `INodeManagerBatchLifecycle` | Compatibility marker interfaces; their transaction members are on `INodeManagerLifecycle`. | Use `INodeManagerLifecycle` directly rather than downcasting to a marker. |
+| `NodeManagerLifecycle(StandardServer)` | Creates an additional handle forwarding publication to the server's canonical lifecycle owner. Disposing this handle rejects new operations through it without disposing serving generations. | Prefer `StandardServer.NodeManagerLifecycle` or the injected `INodeManagerLifecycle`; constructing a handle does not create an independent publication domain. |
+| `ISyncNodeManagerReadinessNotification` | Allows an adapted synchronous manager to receive `OnServerReady`. The adapter prefers `INodeManagerReadinessNotification` when both are implemented. | New managers implement the awaited readiness interface. Existing synchronous callbacks remain supported. |
+| `IPreparedNodeManagerBatch`, `NodeManagerBatchResult` and exact-generation changes | Preserve the provider boundary and strong registration handles for existing consumers. | Use `IPreparedChanges`, `LifecycleChange` and `LifecycleResult` for slot-targeted application code; retain a legacy handle explicitly when strong ownership is required. |
+| Add/reload/remove extensions, `callerContext` overloads and committed exceptions | Preserve the existing convenience-operation and post-commit error contracts. The context arguments do not select publication ownership. | Use change sets for new code; inspect the committed result before attempting recovery. |
+
+This inventory does not make the legacy handles non-owning. A
+`NodeManagerRegistration`, `NodeManagerSlotSnapshot` or legacy batch result can
+retain a retired manager after cleanup. Modern result metadata uses
+`NodeManagerRegistrationSnapshot` and `NodeManagerGenerationSnapshot` instead.
+Callers must also account for references carried by their own exception types,
+exception data and callbacks; exposing an exception does not detach its object
+graph.
 
 #### Prepared Session and all-events bindings
 
