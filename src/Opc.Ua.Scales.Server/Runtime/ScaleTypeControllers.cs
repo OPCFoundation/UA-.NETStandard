@@ -447,7 +447,10 @@ namespace Opc.Ua.Scales.Server.Runtime
             }
             if (weightTotal != null)
             {
-                ScaleValues.Set(m_owner.Services.Context, product.TotalizedWeight, weightTotal);
+                ScaleValues.Set(
+                    m_owner.Services.Context,
+                    product.TotalizedWeight,
+                    Variant.From(new ExtensionObject(weightTotal)));
             }
             return ServiceResult.Good;
         }
@@ -490,27 +493,15 @@ namespace Opc.Ua.Scales.Server.Runtime
             bool totalsEnabled,
             EUInformation units)
         {
-            if (product.ReferencePieceWeight == null)
-            {
-                product.AddReferencePieceWeight(context);
-                product.ReferencePieceWeight!.WrappedValue = Variant.From(0.0);
-                ScaleValues.SetUnits(context, product.ReferencePieceWeight, units);
-            }
-            if (product.NumberOfReferencePieces == null)
-            {
-                product.AddNumberOfReferencePieces(context);
-                product.NumberOfReferencePieces!.WrappedValue = Variant.From(0u);
-            }
+            product.ReferencePieceWeight!.WrappedValue = Variant.From(0.0);
+            ScaleValues.SetUnits(context, product.ReferencePieceWeight, units);
+            product.NumberOfReferencePieces!.WrappedValue = Variant.From(0u);
             if (product.CurrentItemCount == null)
             {
                 product.AddCurrentItemCount(context);
                 product.CurrentItemCount!.WrappedValue = Variant.From(0u);
             }
-            if (product.RegisteredPieceCount == null)
-            {
-                product.AddRegisteredPieceCount(context);
-                product.RegisteredPieceCount!.WrappedValue = Variant.From(0u);
-            }
+            product.RegisteredPieceCount!.WrappedValue = Variant.From(0u);
             if (!totalsEnabled)
             {
                 return;
@@ -523,7 +514,7 @@ namespace Opc.Ua.Scales.Server.Runtime
             if (product.TotalizedWeight == null)
             {
                 product.AddTotalizedWeight(context);
-                product.TotalizedWeight!.Value = new WeightType();
+                product.TotalizedWeight!.WrappedValue = Variant.From(new ExtensionObject(new WeightType()));
                 ScaleValues.SetUnits(context, product.TotalizedWeight, units);
             }
         }
@@ -556,7 +547,10 @@ namespace Opc.Ua.Scales.Server.Runtime
             }
             if (product.TotalizedWeight != null)
             {
-                ScaleValues.Set(context, product.TotalizedWeight, new WeightType());
+                ScaleValues.Set(
+                    context,
+                    product.TotalizedWeight,
+                    Variant.From(new ExtensionObject(new WeightType())));
             }
         }
 
@@ -573,7 +567,10 @@ namespace Opc.Ua.Scales.Server.Runtime
             }
             if (product.TotalizedWeight != null)
             {
-                await ScaleValues.SetAsync(context, product.TotalizedWeight, new WeightType()).ConfigureAwait(false);
+                await ScaleValues.SetAsync(
+                    context,
+                    product.TotalizedWeight,
+                    Variant.From(new ExtensionObject(new WeightType()))).ConfigureAwait(false);
             }
         }
 

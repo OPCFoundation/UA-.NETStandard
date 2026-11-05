@@ -755,23 +755,30 @@ namespace Opc.Ua.Scales.Server.Runtime
                 }
                 lock (m_lock)
                 {
-                    using ScaleProductionPreset.ActiveProductReservation? reservation =
+                    ScaleProductionPreset.ActiveProductReservation? reservation =
                         ProductionPreset?.ReserveActiveProduct();
-                    PieceCountingProductState? product = reservation?.Product as PieceCountingProductState;
-                    if (callContext != null && product != null)
+                    try
                     {
-                        ServiceResult access = ScaleValues.CheckLock(m_services, callContext, product.NodeId);
-                        if (ServiceResult.IsBad(access))
+                        PieceCountingProductState? product = reservation?.Product as PieceCountingProductState;
+                        if (callContext != null && product != null)
                         {
-                            return new ValueTask<ServiceResult>(access);
+                            ServiceResult access = ScaleValues.CheckLock(m_services, callContext, product.NodeId);
+                            if (ServiceResult.IsBad(access))
+                            {
+                                return new ValueTask<ServiceResult>(access);
+                            }
                         }
+                        ServiceResult committed = RegisterWeightCore(product, out registered);
+                        if (ServiceResult.IsGood(committed))
+                        {
+                            PublishCore(product);
+                        }
+                        return new ValueTask<ServiceResult>(committed);
                     }
-                    ServiceResult committed = RegisterWeightCore(product, out registered);
-                    if (ServiceResult.IsGood(committed))
+                    finally
                     {
-                        PublishCore(product);
+                        reservation?.Dispose();
                     }
-                    return new ValueTask<ServiceResult>(committed);
                 }
             }, cancellationToken).ConfigureAwait(false);
             if (registered != null)
@@ -938,8 +945,8 @@ namespace Opc.Ua.Scales.Server.Runtime
             Scale.ClearTare?.OnCallMethod2 = (context, method, objectId, inputs, outputs) => ClearTare(context);
             Scale.SetPresetTare?.OnCall = (context, method, objectId, presetTare, engineeringUnits) =>
                     SetPresetTare(presetTare, engineeringUnits, context);
-            Scale.RegisterWeight?.OnCallMethod2Async = async (context, method, objectId, inputs, outputs, ct) =>
-                await RegisterWeightAsync(context, ct).ConfigureAwait(false);
+            Scale.RegisterWeight?.OnCallMethod2Async = (context, method, objectId, inputs, outputs, ct) =>
+                RegisterWeightAsync(context, ct);
         }
 
         /// <summary>
