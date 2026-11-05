@@ -761,11 +761,11 @@ namespace Opc.Ua.Server.Tests.Historian
 
                 timeProvider.Advance(TimeSpan.FromSeconds(5));
 
-                AggregateException? ownerFailure = Assert.ThrowsAsync<AggregateException>(
+                AggregateException? ownerFailure = await Assert.ThrowsAsync<AggregateException>(
                     async () => await owner.WaitAsync(s_raceTimeout).ConfigureAwait(false));
                 Assert.That(ownerFailure?.InnerExceptions, Has.Count.EqualTo(1));
                 Assert.That(ownerFailure?.InnerExceptions[0], Is.TypeOf<TimeoutException>());
-                AggregateException? shutdownFailure = Assert.ThrowsAsync<AggregateException>(
+                AggregateException? shutdownFailure = await Assert.ThrowsAsync<AggregateException>(
                     async () => await shutdown.WaitAsync(s_raceTimeout).ConfigureAwait(false));
                 Assert.That(shutdownFailure?.InnerExceptions, Has.Count.EqualTo(1));
                 Assert.That(shutdownFailure?.InnerExceptions[0], Is.SameAs(ownerFailure));

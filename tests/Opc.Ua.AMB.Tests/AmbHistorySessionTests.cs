@@ -2062,8 +2062,7 @@ namespace Opc.Ua.AMB.Tests
             Assert.That(binding.Kinds, Is.EqualTo(AssetHistoryKinds.DeviceHealth));
         }
 
-        [TestCase((uint)StatusCodes.UncertainLastUsableValue)]
-        [TestCase((uint)StatusCodes.BadOutOfService)]
+        [TestCaseSource(nameof(NonGoodCurrentHealthStatuses))]
         public async Task NonGoodCurrentHealthKeepsItsTimestampAndIsCapturedAsync(uint status)
         {
             using var storage = new InMemoryHistorianProvider(new InMemoryHistorianOptions
@@ -2121,6 +2120,15 @@ namespace Opc.Ua.AMB.Tests
             Assert.That(page.Values[0].Value.SourceTimestamp, Is.EqualTo((DateTimeUtc)archivedTimestamp));
             Assert.That(page.Values[1].Value.SourceTimestamp, Is.EqualTo(currentTimestamp));
             Assert.That(page.Values[1].Value.StatusCode, Is.EqualTo((StatusCode)status));
+        }
+
+        /// <summary>
+        /// Gets non-Good health statuses used to verify initialization history.
+        /// </summary>
+        private static IEnumerable<TestCaseData> NonGoodCurrentHealthStatuses()
+        {
+            yield return new TestCaseData((uint)StatusCodes.UncertainLastUsableValue);
+            yield return new TestCaseData((uint)StatusCodes.BadOutOfService);
         }
 
         /// <summary>
