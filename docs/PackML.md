@@ -463,28 +463,51 @@ is undefined.
 Table 66 directly requires `Monitor MinQueueSize_05`, independently of the
 inherited Standard DataChange Subscription Server Facet, whose
 [Part 7 Table 38](https://reference.opcfoundation.org/specs/OPC-10000-7/full)
-requires `Monitor MinQueueSize_02`. The current evidence does not explicitly
-verify a revised monitored-item queue size of at least five.
-Existing SDK subscription services support
-configurable queues; the unverified threshold is not evidence that those
-queues are unsupported.
+requires `Monitor MinQueueSize_02`. A passing test result for a revised
+monitored-item queue size of at least five on the PackML host is still pending.
+The SDK supports configurable subscription queues. The verification required
+here is a passing real-session test of the revised size and retained values,
+not another queue implementation.
 
 [Part 7 v1.04 Table 9](https://reference.opcfoundation.org/specs/OPC-10000-7/v1.04/5.2#tbl_9_monitored-item-services)
 also expects this minimum queue size for at least one third of supported
-MonitoredItems. Evidence for one queue does not establish that capacity.
-Verification against a finite configured or declared supported item limit
-remains outstanding.
+MonitoredItems. Testing one queue does not establish that capacity.
+`PackMLMonitoredItemSupportsQueueSizeOfAtLeastFive` in
+[`PackMLClientServerTests.cs`](../tests/Opc.Ua.PackML.Tests/PackMLClientServerTests.cs)
+contains two cases. The single-item case checks the returned `RevisedQueueSize`
+and delivery of five distinct values in order. The capacity case configures and
+reads an advertised limit of 102 MonitoredItems, creates all 102, verifies that
+the 103rd is rejected, and checks five retained values on each of 34 queues.
+This tests the required one-third capacity for that finite configuration.
 
-The inherited Security Time Synchronization configuration and selected
-synchronization mechanism also lack explicit evidence for the tested PackML host.
-Time-source selection and clock synchronization belong to the hosting
-application and operating environment; this evidence gap does not establish
-that the SDK must implement an NTP service.
+Obtain the test result from automatic CI or, when local execution is permitted,
+run the two cases with:
+
+```powershell
+dotnet test tests\Opc.Ua.PackML.Tests\Opc.Ua.PackML.Tests.csproj `
+    -f net10.0 -p:CustomTestTarget=net10.0 -m:1 `
+    --filter "FullyQualifiedName~PackMLMonitoredItemSupportsQueueSizeOfAtLeastFive"
+```
+
+Keep the passing result with the tested SDK revision and server configuration.
+The test source alone is not a passing result, and the 102-item configuration
+does not establish the capacity of a larger deployment.
+
+A compliant PackML application must meet the inherited
+[Security Time Synchronization facet](https://reference.opcfoundation.org/specs/OPC-10000-7/v1.04/6.6.151):
+support `Security Time Synch - Configuration` and at least one of
+`Security Time Synch - NTP / OS Based support` or
+`Security Time Synch - UA based support`. The hosting application and operating
+environment must configure and maintain the selected synchronization mechanism.
+Verify that configuration and clock synchronization in the deployed application;
+the PackML SDK does not provide an NTP service, and its monotonic state timers
+do not synchronize the system clock.
 
 OPC 30050 remains Partial in the
 [published specification support matrix](Profiles.md#published-specification-support-matrix)
-while the direct queue-size and inherited time-synchronization evidence is
-reconciled. This is a validation limit, not a demonstrated missing PackML runtime
-capability. Verifying an installed
-server's providers, clock configuration and selected optional capabilities
-remains separate from the SDK implementation rating.
+until a passing result establishes the direct queue-size requirement on the
+PackML host. This is a validation limit, not a demonstrated missing PackML
+runtime capability. Time synchronization is an application compliance
+requirement, not a missing PackML SDK feature. Verifying an installed server's
+providers and selected optional capabilities also remains separate from the
+SDK implementation rating.
