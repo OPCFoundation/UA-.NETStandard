@@ -327,6 +327,53 @@ namespace Opc.Ua.IA.Tests.Stacklights
         }
 
         /// <summary>
+        /// Optional AudioSample values preserve metadata and detach provider-owned audio buffers.
+        /// </summary>
+        [Test]
+        public async Task AudioSamplePublishesOwnedBytesAndSourceMetadata()
+        {
+            var fixture = new IaTestContext();
+            BasicStacklightState state = fixture.Context.CreateInstanceOfBasicStacklightType(
+                browseName: fixture.Name("Stacklight"));
+            BaseVariableState? audioSample = null;
+            QualifiedName signalName = fixture.Name("Warning");
+            var builder = new IaStacklightBuilder(fixture.Context, state)
+                .AddAcoustic(fixture.Name("Sound"), signalName,
+                    configureSignal: signal =>
+                    {
+                        signal.AddAudioSample(fixture.Context);
+                        audioSample = signal.AudioSample;
+                    });
+            byte[] sourceBytes = [0x01, 0x02, 0x03];
+            IaStacklightAcousticSnapshot acoustic = new(null, Sample(0u), null)
+            {
+                AudioSamples =
+                [
+                    new IaStacklightAudioSample(signalName, Sample(new ByteString(sourceBytes.AsMemory())))
+                ]
+            };
+            IaStacklightSnapshot snapshot = new(Sample(StacklightOperationMode.Segmented),
+                [acoustic], null, null, null);
+            Mock<IIaStacklightProvider> provider = Provider(snapshot);
+            using IaStacklight binding = builder.Build(provider.Object);
+
+            await binding.RefreshAsync().ConfigureAwait(false);
+            sourceBytes[0] = 0xff;
+
+            Assert.That(audioSample!.WrappedValue.TryGetValue(out ByteString published), Is.True);
+            Assert.That(published.Span.ToArray(), Is.EqualTo(new byte[] { 0x01, 0x02, 0x03 }));
+            Assert.That(audioSample.Timestamp, Is.EqualTo(IaTestContext.Timestamp));
+            Assert.That(audioSample.StatusCode, Is.EqualTo((StatusCode)StatusCodes.UncertainLastUsableValue));
+
+            provider.Setup(source => source.ReadSnapshotAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(snapshot with { Elements = [acoustic with { AudioSamples = [] }] });
+            await Assert.ThatAsync(async () => await binding.RefreshAsync().ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>());
+            Assert.That(audioSample.WrappedValue.TryGetValue(out ByteString retained), Is.True);
+            Assert.That(retained.Span.ToArray(), Is.EqualTo(new byte[] { 0x01, 0x02, 0x03 }));
+        }
+
+        /// <summary>
         /// Duplicate ordered indexes cannot silently pick one element or depend on creation order.
         /// </summary>
         [Test]
@@ -620,6 +667,38 @@ namespace Opc.Ua.IA.Tests.Stacklights
             Assert.That(state.DeviceHealth!.Value, Is.EqualTo((DeviceHealthEnumeration)health));
             Assert.That(state.DeviceHealth.Timestamp, Is.EqualTo(IaTestContext.Timestamp));
             Assert.That(state.DeviceHealth.StatusCode, Is.EqualTo((StatusCode)StatusCodes.UncertainLastUsableValue));
+        }
+
+        /// <summary>
+        /// Stacklight publication leaves the DI-owned health-alarm subtree untouched.
+        /// </summary>
+        [Test]
+        public void BindingPreservesDeviceHealthAlarmAccess()
+        {
+            var fixture = new IaTestContext();
+            StacklightState state = fixture.Context.CreateInstanceOfStacklightType(
+                browseName: fixture.Name("Stacklight"));
+            int diNamespace = fixture.Context.NamespaceUris.GetIndex(Opc.Ua.Di.Namespaces.OpcUaDi);
+            var alarms = new FolderState(state)
+            {
+                BrowseName = new QualifiedName(DiBrowseNames.DeviceHealthAlarms, (ushort)diNamespace),
+                ReferenceTypeId = ReferenceTypeIds.HasComponent
+            };
+            var variable = new BaseDataVariableState(alarms)
+            {
+                BrowseName = new QualifiedName("AlarmState", (ushort)diNamespace),
+                AccessLevel = AccessLevels.CurrentReadOrWrite,
+                UserAccessLevel = AccessLevels.CurrentReadOrWrite
+            };
+            alarms.AddChild(variable);
+            state.AddChild(alarms);
+            using IaStacklight binding = new IaStacklightBuilder(fixture.Context, state)
+                .AddLight(fixture.Name("Lamp"))
+                .Build(Mock.Of<IIaStacklightProvider>());
+
+            Assert.That(binding.State, Is.SameAs(state));
+            Assert.That(variable.AccessLevel, Is.EqualTo(AccessLevels.CurrentReadOrWrite));
+            Assert.That(variable.UserAccessLevel, Is.EqualTo(AccessLevels.CurrentReadOrWrite));
         }
 
         /// <summary>

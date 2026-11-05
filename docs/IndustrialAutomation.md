@@ -51,7 +51,8 @@ same compiled model outside DI. `Opc.Ua.IA` remains its only producer.
 
 `IaStacklightBuilder` composes ordered light and acoustic elements on an existing
 `BasicStacklightState` or `StacklightState`. Callbacks retain access to generated
-optional members for intensities, control channels, RGBW values, and health.
+optional members for intensities, control channels, RGBW values, health, and
+audio samples.
 
 ```csharp
 BasicStacklightState state = context.CreateInstanceOfBasicStacklightType(
@@ -63,7 +64,8 @@ IaStacklight light = new IaStacklightBuilder(context, state)
     .WithModes(0, 100)
     .AddLight(new QualifiedName("Lamp", instanceNamespace))
     .AddAcoustic(new QualifiedName("Sound", instanceNamespace),
-        new QualifiedName("Warning", instanceNamespace))
+        new QualifiedName("Warning", instanceNamespace),
+        configureSignal: signal => signal.AddAudioSample(context))
     .Build(stacklightProvider);
 
 await light.RefreshAsync(cancellationToken);
@@ -81,6 +83,14 @@ Segmented mode exposes individual element observations. Level-meter mode require
 `StackRunning`. Separate control channels cannot coexist with direct light
 controls on one element. Acoustic `OperationMode` selects an actual signal's
 `NumberInList`; elements belonging to the mounting base precede other elements.
+`AcousticSignalType.AudioSample` is optional. Configure it through the
+`AddAcoustic` signal callback; the provider returns one `IaStacklightAudioSample`
+for each configured audio variable, in signal order. The binding copies the
+`ByteString` before publication and preserves its quality and source timestamp.
+The byte contents remain application-defined audio data: the stack does not
+select a codec or operate a speaker. When the DI `DeviceHealthAlarms` folder is
+present, the binding leaves that subtree and its access levels to the host's
+alarm implementation.
 
 This observation binding exposes variables as read-only. A generated client can
 represent a model-permitted write, but the server rejects writes to this binding
@@ -506,13 +516,14 @@ owned background resource. Existing Machinery, MachineTool, and Robotics
 integrations continue to consume the same generated IA model.
 
 Support depends on implemented behavior, not on model declarations alone.
-IA support is **Partial** because the ordinary statistics path accepts
-application-defined structures only in encoded `ExtensionObject` form; other
-decoded custom structures are rejected with `Bad_NotSupported`. NativeAOT,
-supported-framework solution results, and companion compatibility evidence
-remain part of validation, but pending test execution does not itself reduce
-the support rating. The binding does not invoke codecs, equality, clone methods
-or encodeable-factory activators to determine whether an unsupported decoded
-structure is safe to copy. The
+IA support is **Full** for the released information-model capabilities described
+above. Application-defined statistics use encoded `ExtensionObject` values;
+the binding copies their type identifiers and bodies without decoding or
+invoking application code. The provider API deliberately rejects arbitrary
+decoded custom structures with `Bad_NotSupported`, since it cannot safely copy
+their mutable state without application code. NativeAOT, supported-framework
+solution results, and companion compatibility evidence remain part of
+validation, but pending test execution does not itself reduce the support
+rating. The
 [published-specification matrix](Profiles.md#published-specification-support-matrix)
-records the same reason.
+records this rating.
