@@ -1413,33 +1413,28 @@ namespace Opc.Ua.Scales.Tests
         {
             var condition = (AnalogConditionSleepState)m_runtime.Manager.FindPredefinedNode(conditionId)!;
             condition.TargetThresholdValue!.EngineeringUnits!.Value = ScaleUnits.Kilogram;
-            WriteResponse response = await m_session.WriteAsync(
-                null,
-                new WriteValue[]
-                {
-                    new()
+            await WriteConditionSettingsAsync(
+                [
+                    new WriteValue
                     {
                         NodeId = condition.ThresholdValueId!.NodeId,
                         AttributeId = Attributes.Value,
                         Value = new DataValue(Variant.From(
                             s_analogConditionSourceId.ToString(CultureInfo.InvariantCulture)))
                     },
-                    new()
+                    new WriteValue
                     {
                         NodeId = condition.TargetThresholdValue!.NodeId,
                         AttributeId = Attributes.Value,
                         Value = new DataValue(Variant.From(10.0))
                     },
-                    new()
+                    new WriteValue
                     {
                         NodeId = condition.ConditionMode!.NodeId,
                         AttributeId = Attributes.Value,
                         Value = new DataValue(Variant.From((int)EqualityAndRelationalOperator.Equal_0))
                     }
-                }.ToArrayOf(),
-                CancellationToken.None);
-            Assert.That(response.Results.Count, Is.EqualTo(3));
-            Assert.That(response.Results.ToList().All(StatusCode.IsGood), Is.True);
+                ]);
         }
 
         /// <summary>
@@ -1448,33 +1443,46 @@ namespace Opc.Ua.Scales.Tests
         private async Task WriteEdgeConditionAsync(NodeId conditionId)
         {
             var condition = (EdgeTriggeredSleepState)m_runtime.Manager.FindPredefinedNode(conditionId)!;
-            WriteResponse response = await m_session.WriteAsync(
-                null,
-                new WriteValue[]
-                {
-                    new()
+            await WriteConditionSettingsAsync(
+                [
+                    new WriteValue
                     {
                         NodeId = condition.ThresholdValueId!.NodeId,
                         AttributeId = Attributes.Value,
                         Value = new DataValue(Variant.From(
                             s_edgeConditionSourceId.ToString(CultureInfo.InvariantCulture)))
                     },
-                    new()
+                    new WriteValue
                     {
                         NodeId = condition.TargetThresholdValue!.NodeId,
                         AttributeId = Attributes.Value,
                         Value = new DataValue(Variant.From(true))
                     },
-                    new()
+                    new WriteValue
                     {
                         NodeId = condition.ConditionMode!.NodeId,
                         AttributeId = Attributes.Value,
                         Value = new DataValue(Variant.From((int)EdgeOperator.Rising_0))
                     }
-                }.ToArrayOf(),
-                CancellationToken.None);
-            Assert.That(response.Results.Count, Is.EqualTo(3));
-            Assert.That(response.Results.ToList().All(StatusCode.IsGood), Is.True);
+                ]);
+        }
+
+        /// <summary>
+        /// Verifies the service write succeeds and the native async core commits each requested setting.
+        /// </summary>
+        private async Task WriteConditionSettingsAsync(WriteValue[] writes)
+        {
+            WriteResponse response = await m_session.WriteAsync(
+                null, writes.ToArrayOf(), CancellationToken.None);
+
+            Assert.That(response.Results.Count, Is.EqualTo(writes.Length));
+            for (int ii = 0; ii < writes.Length; ii++)
+            {
+                Assert.That(response.Results[ii], Is.EqualTo((StatusCode)StatusCodes.Good));
+                var node = (BaseVariableState)m_runtime.Manager.FindPredefinedNode(writes[ii].NodeId)!;
+                Assert.That(node.WrappedValue, Is.EqualTo(writes[ii].Value.WrappedValue));
+                Assert.That(node.StatusCode, Is.EqualTo(writes[ii].Value.StatusCode));
+            }
         }
 
         /// <summary>

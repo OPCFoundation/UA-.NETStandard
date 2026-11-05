@@ -43,21 +43,15 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="executeSynchronously">Runs one synchronous write operation.</param>
         /// <param name="executeAsynchronously">Runs one asynchronous write operation.</param>
-        /// <param name="executeSynchronousFallback">
-        /// Runs synchronous fallback work inside async admission and completes its synchronous reentrant writers.
-        /// </param>
         internal NodeWriteOperationExecutor(
             Func<Func<ServiceResult>, ServiceResult> executeSynchronously,
             Func<Func<CancellationToken, ValueTask<ServiceResult>>, CancellationToken, ValueTask<ServiceResult>>
-                executeAsynchronously,
-            Func<Func<ServiceResult>, ValueTask<ServiceResult>> executeSynchronousFallback)
+                executeAsynchronously)
         {
             m_executeSynchronously = executeSynchronously
                 ?? throw new ArgumentNullException(nameof(executeSynchronously));
             m_executeAsynchronously = executeAsynchronously
                 ?? throw new ArgumentNullException(nameof(executeAsynchronously));
-            m_executeSynchronousFallback = executeSynchronousFallback
-                ?? throw new ArgumentNullException(nameof(executeSynchronousFallback));
         }
 
         /// <summary>
@@ -84,18 +78,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Runs synchronous fallback work inside the admitted asynchronous operation, then awaits synchronous
-        /// writers admitted during the fallback body.
-        /// </summary>
-        /// <param name="operation">The complete synchronous fallback operation.</param>
-        /// <returns>The operation result.</returns>
-        internal ValueTask<ServiceResult> ExecuteSynchronousFallbackWithinAsyncOperation(
-            Func<ServiceResult> operation)
-        {
-            return m_executeSynchronousFallback(operation);
-        }
-
-        /// <summary>
         /// Runs a complete synchronous write operation.
         /// </summary>
         private readonly Func<Func<ServiceResult>, ServiceResult> m_executeSynchronously;
@@ -107,10 +89,5 @@ namespace Opc.Ua
             Func<CancellationToken, ValueTask<ServiceResult>>,
             CancellationToken,
             ValueTask<ServiceResult>> m_executeAsynchronously;
-
-        /// <summary>
-        /// Runs synchronous fallback work inside an asynchronous operation.
-        /// </summary>
-        private readonly Func<Func<ServiceResult>, ValueTask<ServiceResult>> m_executeSynchronousFallback;
     }
 }

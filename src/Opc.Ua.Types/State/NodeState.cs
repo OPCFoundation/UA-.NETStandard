@@ -5131,6 +5131,9 @@ namespace Opc.Ua
         /// a complete Value write before calling this virtual method. A Value-write core must not await another
         /// public Value write for the same node; that call waits behind the current admission until it is
         /// cancelled, while the outer write retains admission.
+        /// The base implementation returns BadNotSupported for executor-bound Value writes without invoking
+        /// synchronous validation, write handlers, or cache updates. Unbound Value writes and non-Value
+        /// attributes retain the ordinary synchronous fallback.
         /// </remarks>
         /// <param name="context">The context for the current operation.</param>
         /// <param name="attributeId">The attribute id.</param>
@@ -5145,10 +5148,11 @@ namespace Opc.Ua
             DataValue value,
             CancellationToken cancellationToken = default)
         {
-            if (attributeId == Attributes.Value && m_writeOperationExecutor is { } executor)
+            if (attributeId == Attributes.Value && m_writeOperationExecutor != null)
             {
-                return executor.ExecuteSynchronousFallbackWithinAsyncOperation(
-                    () => WriteAttributeCore(context, attributeId, indexRange, value));
+                return new ValueTask<ServiceResult>(ServiceResult.Create(
+                    StatusCodes.BadNotSupported,
+                    "Executor-bound asynchronous Value writes require a native asynchronous implementation."));
             }
             return new ValueTask<ServiceResult>(WriteAttributeCore(context, attributeId, indexRange, value));
         }
@@ -7248,6 +7252,11 @@ namespace Opc.Ua
         /// handler remains responsible for applying the requested range to its authoritative data.
         /// </remarks>
         public bool SuppressCacheUpdate { get; init; }
+
+        /// <summary>
+        /// Gets whether the native core owns an ordinary cache write, including copying and range rejection.
+        /// </summary>
+        internal bool UseOrdinaryCacheWrite { get; init; }
     }
 
     /// <summary>

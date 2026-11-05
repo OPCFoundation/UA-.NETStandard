@@ -51,8 +51,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                         StatusCodes.BadInvalidState,
                         "A scale write is awaiting an asynchronous state notification."),
                 (operation, cancellationToken) =>
-                    ExecuteAsynchronouslyAsync(operation, cancellationToken),
-                ExecuteSynchronousFallbackWithinAsynchronousOperation);
+                    ExecuteAsynchronouslyAsync(operation, cancellationToken));
         }
 
         /// <summary>
@@ -265,78 +264,13 @@ namespace Opc.Ua.Scales.Server.Runtime
         }
 
         /// <summary>
-        /// Runs synchronous fallback as a writer while keeping asynchronous waiters behind the outer operation.
-        /// </summary>
-        /// <param name="operation">The complete synchronous fallback operation.</param>
-        /// <returns>The operation result.</returns>
-        private async ValueTask<ServiceResult> ExecuteSynchronousFallbackWithinAsynchronousOperation(
-            Func<ServiceResult> operation)
-        {
-            if (operation == null)
-            {
-                throw new ArgumentNullException(nameof(operation));
-            }
-
-            lock (m_stateLock)
-            {
-                if (!m_asyncOwner)
-                {
-                    throw new InvalidOperationException(
-                        "A synchronous Value-write fallback requires asynchronous admission.");
-                }
-                if (m_synchronousFallbackWindowOpen)
-                {
-                    throw new InvalidOperationException(
-                        "A synchronous Value-write fallback is already active.");
-                }
-                m_synchronousFallbackWindowOpen = true;
-            }
-
-            try
-            {
-                return operation();
-            }
-            finally
-            {
-                lock (m_stateLock)
-                {
-                    m_synchronousFallbackWindowOpen = false;
-                }
-                await WaitForSynchronousWritersAsync().ConfigureAwait(false);
-            }
-        }
-
-        /// <summary>
-        /// Waits until synchronous work admitted during fallback has completed.
-        /// </summary>
-        private async ValueTask WaitForSynchronousWritersAsync()
-        {
-            while (true)
-            {
-                Task wait;
-                lock (m_stateLock)
-                {
-                    if (m_synchronousWriters == 0)
-                    {
-                        return;
-                    }
-                    wait = (m_stateChanged ??= new TaskCompletionSource<bool>(
-                        TaskCreationOptions.RunContinuationsAsynchronously)).Task;
-                }
-
-                await wait.ConfigureAwait(false);
-            }
-        }
-
-        /// <summary>
         /// Reserves synchronous admission unless an asynchronous operation owns the writer.
         /// </summary>
         private bool TryAdmitSynchronous()
         {
             lock (m_stateLock)
             {
-                if (m_asyncOwner &&
-                    !m_synchronousFallbackWindowOpen)
+                if (m_asyncOwner)
                 {
                     return false;
                 }
@@ -407,10 +341,5 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// Whether an asynchronous operation owns the writer.
         /// </summary>
         private bool m_asyncOwner;
-
-        /// <summary>
-        /// Whether synchronous writers may enter while the fallback body is running.
-        /// </summary>
-        private bool m_synchronousFallbackWindowOpen;
     }
 }

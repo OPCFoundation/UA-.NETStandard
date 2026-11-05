@@ -128,6 +128,28 @@ The synchronous `WriteAttribute` entrypoint is non-virtual and keeps its
 synchronous implementation, including protected `WriteValueAttribute`
 customization. It does not block on the asynchronous hook. Both public paths
 apply the same Value-write admission where an owning runtime binds it.
+
+On an executor-bound node, an asynchronous Value write no longer falls back to
+the synchronous implementation. Configure `OnWriteValueAsync` or
+`OnSimpleWriteValueAsync` on a `BaseVariableState`, or implement the asynchronous
+core yourself. When no native asynchronous implementation handles the write, it
+returns `BadNotSupported` without invoking synchronous handlers or changing the
+cached value, status or timestamp. This includes variables with no write
+handlers. Calling the synchronous entrypoint remains supported; wrapping it in
+an asynchronous core would violate this rule.
+
+Scales supplies a native async cache-write policy for its stock writable
+variables, including product targets, tolerances and recipe condition settings.
+That policy retains native validation and correlated cache commit. Custom
+synchronous-only handlers require an asynchronous implementation; they are
+neither invoked nor silently bypassed by the policy.
+Application-defined subclasses and stock SelectionList/MultiState variables do
+not receive the automatic cache policy; provide their native async behavior
+explicitly.
+
+Unbound nodes retain their existing synchronous fallback. Non-Value attributes
+still dispatch to the protected core without Value-write admission.
+
 Direct assignments to node properties do not pass through these methods and
 require application serialization. See [Scales write coordination](Scales.md)
 for the runtime-specific rejection and publication behavior.

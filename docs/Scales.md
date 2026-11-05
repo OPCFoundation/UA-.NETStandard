@@ -549,6 +549,9 @@ The methods and the local API share the same rules.
   change the product. The creating/owning session is distinct even when another
   session has the same username. Unlocked products retain ordinary access
   checks, and trusted equipment updates remain available through the local API.
+  Stock writable variables use a native async cache-write policy with these
+  same access checks. Custom synchronous-only write handlers are not called by
+  the async path; provide a native async implementation for those handlers.
 - **Catchweigher zones.** Zones come from `AddZone`.
 - **Vehicle information.** `VehicleInformationProvider` answers
   `GetVehicleInformation` from the application's vehicle database.
@@ -647,13 +650,43 @@ awaited publisher. A synchronous runtime call that returns `ServiceResult` rejec
 rejected. Ordinary synchronous operations retain their existing synchronization
 when no asynchronous operation is active.
 
-When an asynchronous write uses the native synchronous fallback, synchronous
-callbacks and overlapping synchronous writers retain their ordinary behavior
-while that fallback body runs. Before returning from the protected base hook,
-the runtime stops admitting synchronous writers and asynchronously waits for
-those already admitted to finish. A custom core therefore cannot resume awaited
-work while an overlapping synchronous writer is still active. This does not use
-thread or context identity to distinguish callback reentry from other writers.
+Executor-bound asynchronous Value writes never invoke the synchronous write
+implementation. Stock writable Scales variables receive a native async
+cache-write policy: `BaseVariableState` performs access, type, status/timestamp
+and index validation, then commits the correlated cache fields inside admission.
+Existing custom async handlers remain in place. A synchronous-only custom
+handler requires a native async implementation; the policy returns
+`BadNotSupported` rather than bypassing or calling it. Rejection leaves the
+value, status and timestamp unchanged. The synchronous `WriteAttribute`
+entrypoint remains supported through its own admission, including synchronous
+callbacks and their ordinary reentry.
+
+Automatic cache policy installation uses exact runtime types:
+`BaseDataVariableState`, `PropertyState`, `DataItemState`, `AnalogItemState`,
+`AnalogUnitRangeState`, `TwoStateDiscreteState`, `TargetItemState`,
+`MeasuredItemState` and `WeightItemState`, plus the exact generic
+`Implementation<TBuilder>` classes for all except `TwoStateDiscreteState` and
+`WeightItemState`. It requires `CurrentWrite` and no existing write hooks.
+Derived and unknown types do not receive the policy.
+
+`SelectionListState`, `MultiStateDiscreteState` and
+`MultiStateValueDiscreteState` require explicit native async behavior because a
+cache write cannot replace their semantic validation and publication.
+Consequently, bound `NotificationCategory` and `NotificationId` nodes using
+`MultiStateValueDiscreteState` return `BadNotSupported` through async service
+writes despite their NodeSet `CurrentWrite` declaration. Their synchronous
+write path remains available; this is a remaining support gap, not a change to
+the NodeSet access declaration.
+
+On other executor-bound nodes, configure `OnWriteValueAsync` or
+`OnSimpleWriteValueAsync`, or implement a native asynchronous
+`WriteAttributeCoreAsync` override. Without one, the write returns
+`BadNotSupported`, including variables with no write handlers.
+
+This rule applies to nodes bound to the Scales executor. Unbound nodes retain
+their existing synchronous fallback, and non-Value attributes retain their
+existing dispatch without Value-write admission. No thread, ambient or context
+identity grants an admission bypass.
 
 Admission remains held through each awaited notification. A notification sink
 must not await another asynchronous write or acquisition on the same scale:
@@ -820,6 +853,16 @@ this example) or by its registered `ThresholdValueNodeId`. If both are supplied,
 they must identify the same source. The controller does not browse arbitrary
 nodes or establish remote connections. Applications feed local observations
 from their existing equipment/provider path.
+
+Stock condition settings remain client-writable through the native async
+cache-write policy. This preserves the `CurrentWrite` access declared in the
+Scales NodeSet for `ThresholdValueId`, `ThresholdValueNodeId`,
+`TargetThresholdValue` and `ConditionMode`.
+OPC 40200 [§7.35](https://reference.opcfoundation.org/specs/OPC-40200/7.35),
+[§7.36](https://reference.opcfoundation.org/specs/OPC-40200/7.36) and
+[§7.37](https://reference.opcfoundation.org/specs/OPC-40200/7.37) define these
+recipe settings. Product targets and tolerances use the same policy; see
+[§9.1](https://reference.opcfoundation.org/specs/OPC-40200/9.1).
 
 On activation, the controller captures the source, target, units, operator and
 timeout. Analog waits support all six `EqualityAndRelationalOperator` values,
@@ -1052,7 +1095,7 @@ are left out (`ScaleFacetsBringTheMachineIdentificationTheyIncludeAsync`,
 | §7.29.4 enabled/released precondition | 🔧 | `ApplicationReleaseCheckRejectsStartWhenNotReleased`; `ApplicationReleaseCheckAllowsStartWhenReleased`; `LocalStartRejectsReleaseCheckReplacedBeforeCommitAsync`; `FluentRecipeReleaseCheckRejectsStartWhenNotReleased`; `PackMLStartUsesPackMLStateInsteadOfApplicationReleaseCheck`; `ClientStartsRecipeWithoutConfiguredReleaseCheckAsync`; `ClientReleaseCheckRunsOutsideBothLocksAndRejectsReplacementAsync` |
 | StartRecipe callback coordination and replacement | 🔧 | `ClientReleaseCheckRunsOutsideBothLocksAndRejectsReplacementAsync` contains assertions for both `ScaleHandle.CurrentReading` and `RecipeController.CurrentElements`, then replaces the callback before allowing it to return |
 | StartRecipe product-selection snapshot and release-check failures | 🔧 | `ClientRecipeStartRetainsSelectionAndReleasesReservationAsync` contains cases for absent and multiple-product selections, concurrent selection changes, allowing/rejecting/throwing checks, reservation release and one interceptor invocation |
-| Opt-in analog and edge recipe condition waits | ✅ / 🧪 | Real-session tests: `ClientRecipeWaitsForAnalogSourceBeforeProgressingAsync`; `ClientRecipeWaitsForBooleanEdgeBeforeProgressingAsync`. In-process tests: `AnalogOperatorsObserveEqualityAndAdjacentBoundaries`; `BooleanEdgesRequireTransitionAfterActivation`; `TimeoutLatchesInterventionInsteadOfAutomaticSuccess`; `DisabledConditionWaitsRetainManualExecution` |
+| Opt-in analog and edge recipe condition waits | 🔧 / 🧪 | Revised, unrun real-session tests: `ClientRecipeWaitsForAnalogSourceBeforeProgressingAsync`; `ClientRecipeWaitsForBooleanEdgeBeforeProgressingAsync`. They configure settings through native async service writes before observing progression. In-process tests: `AnalogOperatorsObserveEqualityAndAdjacentBoundaries`; `BooleanEdgesRequireTransitionAfterActivation`; `TimeoutLatchesInterventionInsteadOfAutomaticSuccess`; `DisabledConditionWaitsRetainManualExecution` |
 | Method veto through `CommandInterceptor` | 🧪 | `CommandInterceptorCanVetoACommandAsync`; `PieceCountingLocalCallsMatchTheMethodsAsync` |
 | Runtime members thread-safe against method calls | 🧪 | `EquipmentReportsAreAtomicAgainstTheScaleLockAsync`; `CalibrationReportsAreAtomicAgainstTheScaleLockAsync` |
 | Awaited acquisition publication and runtime/OPC UA Value-write admission | 🔧 | `CatchweigherNotificationRejectsOverlappingSynchronousWritersAsync`; `CatchweigherReportsSerializeAndWaitingCancellationReleasesAdmissionAsync`; `CatchweigherNotificationFailureLeavesSequenceRetryableAsync`; `HopperNotificationRejectsOverlapAfterTipCounterSetterAsync`; `ProductValueWritesPreserveConcurrentSynchronousAdmissionAsync`; `ProductValueWriteAsyncWaitsForAcquisitionAndRejectsSyncOverlapAsync`; `BoundWriteExecutorPreservesCopyAndTimestampSemanticsAsync`; `WriteAttributeAsyncIsNonVirtualAndGuardsCoreOverrideThroughCacheCommitAsync`; `WriteAttributeAsyncGuardsCoreOverrideWithoutBaseCallAsync`; `CoreOverrideSameNodePublicWriteCancellationReleasesAdmissionAsync`. These successor cases are unrun; direct property assignments require application serialization. |
@@ -1164,6 +1207,7 @@ Two defects this work found passed every in-process assertion:
 | `SetZero`/`SetTare`/`RegisterWeight` return `BadInvalidState` | The weight is unstable, overloaded or underloaded | Publish a stable load inside the range |
 | `SetPresetTare` returns `BadInvalidArgument` | The unit is not in `AllowedEngineeringUnits` (or not SI with `RequireSiUnits`) | Pass an allowed unit |
 | A product change returns `BadUserAccessDenied` | The preset is built `WithLocking` and the client holds no lock | Call the product's `Lock/InitLock` first |
+| A service Value write returns `BadNotSupported` | A bound custom node lacks a native async handler/core, or its cache policy encounters a synchronous-only custom handler | Supply a native `OnWriteValueAsync`, `OnSimpleWriteValueAsync` or core implementation; do not wrap the synchronous write |
 | `SwitchProduct` returns `BadInvalidState` | More than one product is in processing | Deselect down to one product |
 | PackML method returns `BadNotExecutable` / `BadStateNotActive` | Command not valid in the current state / sub-machine not active | Read `ReadPackMLStateAsync` first |
 | Weights arrive as `ExtensionObject` | Client not created through `session.Scales(...)` | Use the extension |

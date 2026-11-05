@@ -2203,6 +2203,12 @@ namespace Opc.Ua
         /// <summary>
         /// Dispatches a Value write to the configured native asynchronous handler.
         /// </summary>
+        /// <remarks>
+        /// When neither asynchronous write hook is configured, delegates to the base core. Executor-bound
+        /// Value writes then return BadNotSupported without calling synchronous write handlers or updating
+        /// the cache, including when no write handlers are configured. Unbound Value writes and non-Value
+        /// attributes retain the ordinary synchronous fallback.
+        /// </remarks>
         /// <param name="context">The system context used to validate access and value type.</param>
         /// <param name="attributeId">The attribute to write.</param>
         /// <param name="indexRange">The elements to replace, or a null range to replace the whole value.</param>
@@ -2316,6 +2322,32 @@ namespace Opc.Ua
                     DateTimeUtc effectiveTimestamp = sourceTimestamp == DateTimeUtc.MinValue
                         ? DateTimeUtc.Now
                         : sourceTimestamp;
+
+                    if (writeResult.UseOrdinaryCacheWrite)
+                    {
+                        if (CopyPolicy is VariableCopyPolicy.CopyOnWrite or VariableCopyPolicy.Always)
+                        {
+                            valueToWrite = CoreUtils.Clone(valueToWrite);
+                        }
+                        lock (m_attributeLock)
+                        {
+                            if (!indexRange.IsNull)
+                            {
+                                Variant cachedValue = m_value;
+                                StatusCode cacheResult = indexRange.UpdateRange(ref cachedValue, valueToWrite);
+                                if (StatusCode.IsBad(cacheResult))
+                                {
+                                    return new ServiceResult(cacheResult);
+                                }
+                                valueToWrite = cachedValue;
+                            }
+                            m_value = valueToWrite;
+                            m_statusCode = statusCode;
+                            m_timestamp = effectiveTimestamp;
+                            ChangeMasks |= NodeStateChangeMasks.Value;
+                        }
+                        return writeResult.Result;
+                    }
 
                     lock (m_attributeLock)
                     {

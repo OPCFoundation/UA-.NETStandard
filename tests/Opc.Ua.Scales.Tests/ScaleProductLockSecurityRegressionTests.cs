@@ -102,6 +102,433 @@ namespace Opc.Ua.Scales.Tests
         }
 
         /// <summary>
+        /// A synchronous callback installed after binding is not bypassed by the native cache-writing policy.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task BoundProductAsyncWritesRejectLateSynchronousHandlersWithoutMutationAsync(bool simple)
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            var product = (AutomaticFillingProductState)scale.ProductionPreset!.ActiveProduct!;
+            TargetItemState target = product.TargetWeight!;
+            Assert.That(target.OnWriteValueAsync, Is.Not.Null);
+            int calls = 0;
+            if (simple)
+            {
+                target.OnSimpleWriteValue = (_, _, ref _) =>
+                {
+                    calls++;
+                    return ServiceResult.Good;
+                };
+            }
+            else
+            {
+                target.OnWriteValue = (
+                    ISystemContext _, NodeState _, NumericRange _, QualifiedName _,
+                    ref Variant _, ref StatusCode _, ref DateTimeUtc _) =>
+                {
+                    calls++;
+                    return ServiceResult.Good;
+                };
+            }
+            Variant original = target.WrappedValue;
+            StatusCode status = target.StatusCode;
+            DateTimeUtc timestamp = target.Timestamp;
+
+            foreach (ISystemContext context in new ISystemContext[] { harness.Context, harness.Owner, harness.Other })
+            {
+                ServiceResult rejected = await WriteAsync(context, target, Variant.From(15.0)).ConfigureAwait(false);
+                Assert.That(rejected.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotSupported));
+                Assert.That(target.WrappedValue, Is.EqualTo(original));
+                Assert.That(target.StatusCode, Is.EqualTo(status));
+                Assert.That(target.Timestamp, Is.EqualTo(timestamp));
+                Assert.That(calls, Is.Zero);
+            }
+
+            AssertGood(Write(harness.Owner, target, Variant.From(12.0)));
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(ReadDouble(target), Is.EqualTo(12));
+
+            target.OnWriteValue = null;
+            target.OnSimpleWriteValue = null;
+            AssertGood(await WriteAsync(harness.Owner, target, Variant.From(14.0)).ConfigureAwait(false));
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(ReadDouble(target), Is.EqualTo(14));
+        }
+
+        /// <summary>
+        /// A synchronous application handler present before registration is not replaced by a cache policy.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task BoundProductAsyncWritesPreserveExistingSynchronousHandlerPolicyAsync(bool simple)
+        {
+            using var harness = new Harness();
+            int calls = 0;
+            ScaleHandle scale = harness.CreateScale(
+                ScaleKind.AutomaticFilling,
+                (context, state) =>
+                {
+                    ConfigureFillingProduct(context, state);
+                    TargetItemState target = ((AutomaticFillingProductState)state).TargetWeight!;
+                    if (simple)
+                    {
+                        target.OnSimpleWriteValue = (_, _, ref _) =>
+                        {
+                            calls++;
+                            return ServiceResult.Good;
+                        };
+                    }
+                    else
+                    {
+                        target.OnWriteValue = (
+                            ISystemContext _, NodeState _, NumericRange _, QualifiedName _,
+                            ref Variant _, ref StatusCode _, ref DateTimeUtc _) =>
+                        {
+                            calls++;
+                            return ServiceResult.Good;
+                        };
+                    }
+                });
+            var product = (AutomaticFillingProductState)scale.ProductionPreset!.ActiveProduct!;
+            TargetItemState target = product.TargetWeight!;
+            Assert.That(target.OnWriteValueAsync, Is.Null);
+            Assert.That(target.OnSimpleWriteValueAsync, Is.Null);
+            StatusCode status = target.StatusCode;
+            DateTimeUtc timestamp = target.Timestamp;
+
+            ServiceResult rejected = await WriteAsync(harness.Owner, target, Variant.From(12.0))
+                .ConfigureAwait(false);
+
+            Assert.That(rejected.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotSupported));
+            Assert.That(calls, Is.Zero);
+            Assert.That(ReadDouble(target), Is.EqualTo(10));
+            Assert.That(target.StatusCode, Is.EqualTo(status));
+            Assert.That(target.Timestamp, Is.EqualTo(timestamp));
+            AssertGood(Write(harness.Owner, target, Variant.From(12.0)));
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(ReadDouble(target), Is.EqualTo(12));
+        }
+
+        /// <summary>
+        /// Native cache writes retain access and metadata validation before type checks and cache commit.
+        /// </summary>
+        [Test]
+        public async Task StockProductNativeAsyncWritePreservesValidationOrderAndCacheAsync()
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            var product = (AutomaticFillingProductState)scale.ProductionPreset!.ActiveProduct!;
+            TargetItemState target = product.TargetWeight!;
+            StatusCode status = target.StatusCode;
+            DateTimeUtc timestamp = target.Timestamp;
+            await harness.AcquireAsync(product).ConfigureAwait(false);
+            var wrongType = new DataValue(Variant.From("not a weight"));
+
+            ServiceResult denied = await target.WriteAttributeAsync(
+                harness.Other, Attributes.Value, NumericRange.Null, wrongType).ConfigureAwait(false);
+            AssertDenied(denied);
+            ServiceResult badTimestamp = await target.WriteAttributeAsync(
+                harness.Other,
+                Attributes.Value,
+                NumericRange.Null,
+                wrongType.WithServerTimestamp(new DateTimeUtc(2026, 1, 1, 0, 0, 1))).ConfigureAwait(false);
+            Assert.That(badTimestamp.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadWriteNotSupported));
+            ServiceResult invalid = await target.WriteAttributeAsync(
+                harness.Owner, Attributes.Value, NumericRange.Null, wrongType).ConfigureAwait(false);
+            Assert.That(invalid.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadTypeMismatch));
+            ServiceResult metadata = await target.WriteAttributeAsync(
+                harness.Owner,
+                Attributes.Value,
+                NumericRange.Null,
+                new DataValue(Variant.From("not a weight"), StatusCodes.Uncertain)).ConfigureAwait(false);
+            Assert.That(metadata.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadWriteNotSupported));
+            byte originalAccessLevel = target.AccessLevel;
+            target.AccessLevel = AccessLevels.CurrentRead;
+            ServiceResult notWritable = await target.WriteAttributeAsync(
+                harness.Owner, Attributes.Value, NumericRange.Null, wrongType).ConfigureAwait(false);
+            Assert.That(notWritable.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotWritable));
+            target.AccessLevel = originalAccessLevel;
+            Assert.That(ReadDouble(target), Is.EqualTo(10));
+            Assert.That(target.StatusCode, Is.EqualTo(status));
+            Assert.That(target.Timestamp, Is.EqualTo(timestamp));
+
+            AssertGood(await WriteAsync(harness.Owner, target, Variant.From(12.0)).ConfigureAwait(false));
+            Assert.That(ReadDouble(target), Is.EqualTo(12));
+            Assert.That(target.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+        }
+
+        /// <summary>
+        /// Newly materialised writable children use native indexed writes and preserve product-lock validation.
+        /// </summary>
+        [Test]
+        public async Task DynamicWritableChildUsesNativeIndexedAsyncCachePolicyAsync()
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            ProductState product = scale.ProductionPreset!.ActiveProduct!;
+            var variable = new BaseDataVariableState(product)
+            {
+                NodeId = new NodeId("DynamicWritableArray", 1),
+                BrowseName = new QualifiedName("DynamicWritableArray", 1),
+                DataType = Ua.DataTypeIds.Double,
+                ValueRank = ValueRanks.OneDimension,
+                AccessLevel = AccessLevels.CurrentReadOrWrite | AccessLevels.StatusWrite | AccessLevels.TimestampWrite,
+                UserAccessLevel = AccessLevels.CurrentReadOrWrite |
+                    AccessLevels.StatusWrite | AccessLevels.TimestampWrite,
+                Value = Variant.From(new[] { 1.0, 2.0, 3.0 }),
+                StatusCode = StatusCodes.Good
+            };
+            product.AddChild(variable);
+            await product.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+            Assert.That(variable.OnWriteValueAsync, Is.Not.Null);
+            await harness.AcquireAsync(product).ConfigureAwait(false);
+            var timestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 2);
+            var requested = new DataValue(
+                Variant.From(new[] { 20.0, 30.0 }), StatusCodes.Uncertain, timestamp);
+
+            ServiceResult denied = await variable.WriteAttributeAsync(
+                harness.Other, Attributes.Value, NumericRange.Parse("1:2"), requested).ConfigureAwait(false);
+            AssertDenied(denied);
+            Assert.That(variable.Value.GetDoubleArray(), Is.EqualTo(new[] { 1.0, 2.0, 3.0 }.ToArrayOf()));
+            ServiceResult result = await variable.WriteAttributeAsync(
+                harness.Owner, Attributes.Value, NumericRange.Parse("1:2"), requested).ConfigureAwait(false);
+
+            AssertGood(result);
+            Assert.That(variable.Value.GetDoubleArray(), Is.EqualTo(new[] { 1.0, 20.0, 30.0 }.ToArrayOf()));
+            Assert.That(variable.StatusCode, Is.EqualTo(StatusCodes.Uncertain));
+            Assert.That(variable.Timestamp, Is.EqualTo(timestamp));
+        }
+
+        /// <summary>
+        /// Ordinary native cache writes isolate caller arrays under the selected write-copy policy.
+        /// </summary>
+        [TestCase(VariableCopyPolicy.CopyOnWrite)]
+        [TestCase(VariableCopyPolicy.Always)]
+        public async Task NativeCachePolicyCopiesWholeAndIndexedWriteInputsAsync(VariableCopyPolicy copyPolicy)
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            ProductState product = scale.ProductionPreset!.ActiveProduct!;
+            var variable = new BaseDataVariableState(product)
+            {
+                NodeId = new NodeId("CopiedArray", 1),
+                BrowseName = new QualifiedName("CopiedArray", 1),
+                DataType = Ua.DataTypeIds.Double,
+                ValueRank = ValueRanks.OneDimension,
+                AccessLevel = AccessLevels.CurrentReadOrWrite,
+                UserAccessLevel = AccessLevels.CurrentReadOrWrite,
+                CopyPolicy = copyPolicy
+            };
+            product.AddChild(variable);
+            await product.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+            double[] input = [1.0, 2.0, 3.0];
+            AssertGood(await WriteAsync(harness.Owner, variable, Variant.From(input)).ConfigureAwait(false));
+            input[0] = 99;
+            Assert.That(variable.Value.GetDoubleArray(), Is.EqualTo(new[] { 1.0, 2.0, 3.0 }.ToArrayOf()));
+
+            double[] slice = [20.0, 30.0];
+            AssertGood(await variable.WriteAttributeAsync(
+                harness.Owner,
+                Attributes.Value,
+                NumericRange.Parse("1:2"),
+                new DataValue(Variant.From(slice))).ConfigureAwait(false));
+            slice[0] = 99;
+            Assert.That(variable.Value.GetDoubleArray(), Is.EqualTo(new[] { 1.0, 20.0, 30.0 }.ToArrayOf()));
+        }
+
+        /// <summary>
+        /// Exact generated implementation classes receive the same cache policy as their untyped stock forms.
+        /// </summary>
+        [Test]
+        public async Task AuditedGenericVariableImplementationsReceiveNativeCachePolicyAsync()
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            ProductState product = scale.ProductionPreset!.ActiveProduct!;
+            BaseVariableState[] variables =
+            [
+                BaseDataVariableState<double>.With<VariantBuilder>(product),
+                PropertyState<double>.With<VariantBuilder>(product),
+                DataItemState<double>.With<VariantBuilder>(product),
+                AnalogItemState<double>.With<VariantBuilder>(product),
+                AnalogUnitRangeState<double>.With<VariantBuilder>(product),
+                TargetItemState<double>.With<VariantBuilder>(product),
+                MeasuredItemState<double>.With<VariantBuilder>(product)
+            ];
+            for (int ii = 0; ii < variables.Length; ii++)
+            {
+                BaseVariableState variable = variables[ii];
+                variable.NodeId = new NodeId("AuditedGeneric" + ii, 1);
+                variable.BrowseName = new QualifiedName("AuditedGeneric" + ii, 1);
+                variable.DataType = Ua.DataTypeIds.Double;
+                variable.ValueRank = ValueRanks.Scalar;
+                variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.Value = Variant.From(1.0);
+                product.AddChild(variable);
+            }
+            await product.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+
+            foreach (BaseVariableState variable in variables)
+            {
+                Assert.That(variable.OnWriteValueAsync, Is.Not.Null);
+                AssertGood(await WriteAsync(harness.Owner, variable, Variant.From(2.0)).ConfigureAwait(false));
+                Assert.That(variable.Value.GetDouble(), Is.EqualTo(2.0));
+            }
+        }
+
+        /// <summary>
+        /// Invalid indexed writes reject without cache, metadata, change-mask or source-array mutation.
+        /// </summary>
+        [TestCase("4:5", StatusCodes.BadIndexRangeNoData)]
+        [TestCase("1:2", StatusCodes.BadIndexRangeDataMismatch)]
+        [TestCase("0:1,0:1", StatusCodes.BadIndexRangeNoData)]
+        public async Task NativeCachePolicyRejectsInvalidRangesWithoutMutationAsync(string range, uint expected)
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            ProductState product = scale.ProductionPreset!.ActiveProduct!;
+            double[] original = [1.0, 2.0, 3.0];
+            var timestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 3);
+            var variable = new BaseDataVariableState(product)
+            {
+                NodeId = new NodeId("RejectedArray", 1),
+                BrowseName = new QualifiedName("RejectedArray", 1),
+                DataType = Ua.DataTypeIds.Double,
+                ValueRank = ValueRanks.OneDimension,
+                AccessLevel = AccessLevels.CurrentReadOrWrite | AccessLevels.StatusWrite | AccessLevels.TimestampWrite,
+                UserAccessLevel = AccessLevels.CurrentReadOrWrite |
+                    AccessLevels.StatusWrite | AccessLevels.TimestampWrite,
+                Value = Variant.From(original),
+                StatusCode = StatusCodes.Uncertain,
+                Timestamp = timestamp
+            };
+            product.AddChild(variable);
+            await product.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+            NodeStateChangeMasks changeMasks = variable.ChangeMasks;
+            ServiceResult result = await variable.WriteAttributeAsync(
+                harness.Owner,
+                Attributes.Value,
+                NumericRange.Parse(range),
+                new DataValue(
+                    Variant.From(new[] { 20.0 }),
+                    StatusCodes.Good,
+                    new DateTimeUtc(2026, 1, 1, 0, 0, 4))).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)expected));
+            Assert.That(variable.Value.GetDoubleArray(), Is.EqualTo(new[] { 1.0, 2.0, 3.0 }.ToArrayOf()));
+            Assert.That(original, Is.EqualTo(new[] { 1.0, 2.0, 3.0 }));
+            Assert.That(variable.StatusCode, Is.EqualTo(StatusCodes.Uncertain));
+            Assert.That(variable.Timestamp, Is.EqualTo(timestamp));
+            Assert.That(variable.ChangeMasks, Is.EqualTo(changeMasks));
+        }
+
+        /// <summary>
+        /// External subtypes retain their synchronous semantics instead of receiving stock cache acceptance.
+        /// </summary>
+        [Test]
+        public async Task ExternalVariableOverrideRequiresExplicitNativeAsyncImplementationAsync()
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            ProductState product = scale.ProductionPreset!.ActiveProduct!;
+            var variable = new CustomWriteVariableState(product)
+            {
+                NodeId = new NodeId("CustomWrite", 1),
+                BrowseName = new QualifiedName("CustomWrite", 1),
+                DataType = Ua.DataTypeIds.Double,
+                ValueRank = ValueRanks.Scalar,
+                AccessLevel = AccessLevels.CurrentReadOrWrite,
+                UserAccessLevel = AccessLevels.CurrentReadOrWrite,
+                Value = Variant.From(1.0)
+            };
+            product.AddChild(variable);
+            await product.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+            Assert.That(variable.OnWriteValueAsync, Is.Null);
+            Assert.That(variable.OnSimpleWriteValueAsync, Is.Null);
+
+            ServiceResult rejected = await WriteAsync(harness.Owner, variable, Variant.From(2.0))
+                .ConfigureAwait(false);
+            Assert.That(rejected.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotSupported));
+            Assert.That(variable.SynchronousCalls, Is.Zero);
+            Assert.That(variable.Value.GetDouble(), Is.EqualTo(1.0));
+            ServiceResult synchronous = Write(harness.Owner, variable, Variant.From(2.0));
+            Assert.That(synchronous.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadOutOfRange));
+            Assert.That(variable.SynchronousCalls, Is.EqualTo(1));
+            Assert.That(variable.Value.GetDouble(), Is.EqualTo(1.0));
+        }
+
+        /// <summary>
+        /// Supplies application-specific synchronous write semantics outside the audited model assemblies.
+        /// </summary>
+        private sealed class CustomWriteVariableState : BaseDataVariableState
+        {
+            /// <summary>
+            /// Creates an application variable beneath its product.
+            /// </summary>
+            internal CustomWriteVariableState(NodeState parent)
+                : base(parent)
+            {
+            }
+
+            /// <summary>
+            /// Gets how often the synchronous semantic override ran.
+            /// </summary>
+            internal int SynchronousCalls { get; private set; }
+
+            /// <inheritdoc/>
+            protected override ServiceResult WriteValueAttribute(
+                ISystemContext context,
+                NumericRange indexRange,
+                Variant value,
+                StatusCode statusCode,
+                DateTimeUtc sourceTimestamp)
+            {
+                SynchronousCalls++;
+                return StatusCodes.BadOutOfRange;
+            }
+        }
+
+        /// <summary>
+        /// Known variable types with synchronous semantic overrides do not receive a cache-only async policy.
+        /// </summary>
+        [Test]
+        public async Task SemanticVariableOverridesDoNotReceiveNativeCachePolicyAsync()
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            ProductState product = scale.ProductionPreset!.ActiveProduct!;
+            BaseVariableState[] variables =
+            [
+                new SelectionListState(product),
+                new MultiStateDiscreteState(product),
+                new MultiStateValueDiscreteState(product)
+            ];
+            for (int ii = 0; ii < variables.Length; ii++)
+            {
+                BaseVariableState variable = variables[ii];
+                variable.NodeId = new NodeId("SemanticVariable" + ii, 1);
+                variable.BrowseName = new QualifiedName("SemanticVariable" + ii, 1);
+                variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.Value = Variant.From(1u);
+                product.AddChild(variable);
+            }
+            await product.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+
+            foreach (BaseVariableState variable in variables)
+            {
+                Assert.That(variable.OnWriteValueAsync, Is.Null);
+                ServiceResult rejected = await WriteAsync(harness.Owner, variable, Variant.From(2u))
+                    .ConfigureAwait(false);
+                Assert.That(rejected.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotSupported));
+                Assert.That(variable.Value.GetUInt32(), Is.EqualTo(1u));
+            }
+        }
+
+        /// <summary>
         /// All reference-setting Calls preserve the caller's session before changing cached or product values.
         /// </summary>
         /// <exception cref="ArgumentOutOfRangeException">
@@ -599,12 +1026,14 @@ namespace Opc.Ua.Scales.Tests
         /// <summary>
         /// Lock denial happens before an existing asynchronous value callback, which remains active for the owner.
         /// </summary>
-        [Test]
+        [TestCase(false)]
+        [TestCase(true)]
         [Category("SecurityRegression")]
-        public async Task SecurityF43LockGuardPreservesExistingValueCallbackAsync()
+        public async Task SecurityF43LockGuardPreservesExistingValueCallbackAsync(bool simple)
         {
             using var harness = new Harness();
             int calls = 0;
+            int synchronousCalls = 0;
             bool applicationAllowsWrites = true;
             ScaleHandle scale = harness.CreateScale(
                 ScaleKind.AutomaticFilling,
@@ -612,6 +1041,11 @@ namespace Opc.Ua.Scales.Tests
                 {
                     ConfigureFillingProduct(context, state);
                     TargetItemState target = ((AutomaticFillingProductState)state).TargetWeight!;
+                    target.OnSimpleWriteValue = (_, _, ref _) =>
+                    {
+                        synchronousCalls++;
+                        return StatusCodes.BadInvalidState;
+                    };
                     target.OnReadUserAccessLevel = (_, _, ref value) =>
                     {
                         if (!applicationAllowsWrites)
@@ -620,15 +1054,22 @@ namespace Opc.Ua.Scales.Tests
                         }
                         return ServiceResult.Good;
                     };
-                    target.OnSimpleWriteValueAsync =
-                        (_, _, value, _) =>
-                        {
-                            calls++;
-                            ServiceResult result = value.TryGetValue(out double weight) && weight <= 20
-                                ? ServiceResult.Good
-                                : new ServiceResult(StatusCodes.BadOutOfRange);
-                            return new ValueTask<AttributeWriteResult>(new AttributeWriteResult(result));
-                        };
+                    ValueTask<AttributeWriteResult> WriteValue(Variant value)
+                    {
+                        calls++;
+                        ServiceResult result = value.TryGetValue(out double weight) && weight <= 20
+                            ? ServiceResult.Good
+                            : new ServiceResult(StatusCodes.BadOutOfRange);
+                        return new ValueTask<AttributeWriteResult>(new AttributeWriteResult(result));
+                    }
+                    if (simple)
+                    {
+                        target.OnSimpleWriteValueAsync = (_, _, value, _) => WriteValue(value);
+                    }
+                    else
+                    {
+                        target.OnWriteValueAsync = (_, _, _, value, _) => WriteValue(value);
+                    }
                 });
             var product = (AutomaticFillingProductState)scale.ProductionPreset!.ActiveProduct!;
             await harness.AcquireAsync(product).ConfigureAwait(false);
@@ -644,11 +1085,13 @@ namespace Opc.Ua.Scales.Tests
                 .ConfigureAwait(false));
             Assert.That(calls, Is.EqualTo(2));
             Assert.That(ReadDouble(product.TargetWeight!), Is.EqualTo(15));
+            Assert.That(synchronousCalls, Is.Zero);
             applicationAllowsWrites = false;
             AssertDenied(await WriteAsync(harness.Owner, product.TargetWeight!, Variant.From(16.0))
                 .ConfigureAwait(false));
             Assert.That(calls, Is.EqualTo(2));
             Assert.That(ReadDouble(product.TargetWeight!), Is.EqualTo(15));
+            Assert.That(synchronousCalls, Is.Zero);
         }
 
         /// <summary>
@@ -685,7 +1128,18 @@ namespace Opc.Ua.Scales.Tests
         }
 
         /// <summary>
-        /// Uses the ordinary asynchronous Value-attribute path, not the lock helper directly.
+        /// Uses the ordinary synchronous Value-attribute path, not the lock helper directly.
+        /// </summary>
+        private static ServiceResult Write(
+            ISystemContext context,
+            BaseVariableState variable,
+            Variant value)
+        {
+            return variable.WriteAttribute(context, Attributes.Value, default, new DataValue(value));
+        }
+
+        /// <summary>
+        /// Uses native asynchronous Value handlers without synchronous fallback.
         /// </summary>
         private static ValueTask<ServiceResult> WriteAsync(
             ISystemContext context,

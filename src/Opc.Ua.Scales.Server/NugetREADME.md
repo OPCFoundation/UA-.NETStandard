@@ -30,6 +30,10 @@ Server hosting for the source-generated **OPC 40200 Weighing Technology
 - Acquisition publication awaits live-node notifications. Runtime calls and OPC UA
   Value writes retain admission through their complete operations; synchronous
   writes overlapping awaited publication reject with `BadInvalidState`.
+  Executor-bound async Value writes require a native async handler or core;
+  otherwise they return `BadNotSupported` without invoking synchronous handlers.
+  Stock writable variables receive a native async cache-write policy so product
+  targets, tolerances and recipe condition settings remain client-writable.
   Direct node-property assignments require application serialization, and notification
   sinks must not await another write or acquisition on the same scale.
 - `ConfigureRecipes` enables local, registered analog/edge observations explicitly.

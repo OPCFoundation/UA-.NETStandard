@@ -27,12 +27,15 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Scales.Server.Runtime
 {
     /// <summary>
-    /// Adds the product's session-owner restriction without replacing its existing value handlers.
+    /// Composes product session-owner access and native cache writes without replacing application value handlers.
     /// </summary>
     internal sealed class ScaleProductWriteGuard
     {
@@ -124,6 +127,16 @@ namespace Opc.Ua.Scales.Server.Runtime
             if (writeGate != null)
             {
                 node.BindWriteOperationExecutor(writeGate.NodeWriteExecutor);
+                if (node is BaseVariableState variable &&
+                    (variable.AccessLevel & AccessLevels.CurrentWrite) != 0 &&
+                    IsOrdinaryCacheVariable(variable) &&
+                    variable.OnWriteValueAsync == null &&
+                    variable.OnSimpleWriteValueAsync == null &&
+                    variable.OnWriteValue == null &&
+                    variable.OnSimpleWriteValue == null)
+                {
+                    variable.OnWriteValueAsync = WriteCachedValueAsync;
+                }
             }
             if ((product != null || writeGate != null) &&
                 (node.OnStateChanged?.Target is not ScaleProductWriteGuard guard ||
@@ -146,6 +159,65 @@ namespace Opc.Ua.Scales.Server.Runtime
                 }
                 Bind(services, child, product, scaleRoot, writeGate);
             }
+        }
+
+        /// <summary>
+        /// Limits automatic cache policy to exact audited stock types, never their derived application types.
+        /// </summary>
+        private static bool IsOrdinaryCacheVariable(BaseVariableState variable)
+        {
+            Type type = variable.GetType();
+            if (type == typeof(BaseDataVariableState) ||
+                type == typeof(PropertyState) ||
+                type == typeof(DataItemState) ||
+                type == typeof(AnalogItemState) ||
+                type == typeof(AnalogUnitRangeState) ||
+                type == typeof(TwoStateDiscreteState) ||
+                type == typeof(TargetItemState) ||
+                type == typeof(MeasuredItemState) ||
+                type == typeof(WeightItemState))
+            {
+                return true;
+            }
+            if (!type.IsGenericType)
+            {
+                return false;
+            }
+            Type definition = type.GetGenericTypeDefinition();
+            return definition == typeof(BaseDataVariableState<>.Implementation<>) ||
+                definition == typeof(PropertyState<>.Implementation<>) ||
+                definition == typeof(DataItemState<>.Implementation<>) ||
+                definition == typeof(AnalogItemState<>.Implementation<>) ||
+                definition == typeof(AnalogUnitRangeState<>.Implementation<>) ||
+                definition == typeof(TargetItemState<>.Implementation<>) ||
+                definition == typeof(MeasuredItemState<>.Implementation<>);
+        }
+
+        /// <summary>
+        /// Accepts the Scales cache-writing policy without adapting synchronous application callbacks.
+        /// </summary>
+        /// <remarks>
+        /// The native BaseVariableState async core validates access, status, timestamp and type before this
+        /// callback and commits the value, including copy policy and indexed range rejection, afterward.
+        /// This callback does not mutate the cache. A synchronous handler installed after binding requires
+        /// its own native async implementation;
+        /// accepting its write here would otherwise bypass the application's write semantics. Variables with
+        /// SelectionList or MultiState write overrides and all unknown types are excluded by the exact type
+        /// list because their synchronous semantics require a separate native async implementation.
+        /// </remarks>
+        private static ValueTask<AttributeWriteResult> WriteCachedValueAsync(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            Variant value,
+            CancellationToken cancellationToken)
+        {
+            var variable = (BaseVariableState)node;
+            ServiceResult result = variable.OnWriteValue != null || variable.OnSimpleWriteValue != null
+                ? new ServiceResult(StatusCodes.BadNotSupported)
+                : ServiceResult.Good;
+            return new ValueTask<AttributeWriteResult>(
+                new AttributeWriteResult(result) { UseOrdinaryCacheWrite = true });
         }
 
         /// <summary>

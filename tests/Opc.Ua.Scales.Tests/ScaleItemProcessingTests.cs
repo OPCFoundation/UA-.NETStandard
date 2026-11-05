@@ -1134,10 +1134,10 @@ namespace Opc.Ua.Scales.Tests
         }
 
         /// <summary>
-        /// Verifies synchronous callbacks remain reentrant after async fallback admission.
+        /// Verifies async writes reject synchronous fallback after acquisition and synchronous writes still reenter.
         /// </summary>
         [Test]
-        public async Task ValueWriteAsyncFallbackAllowsReentrantSynchronousWritersAsync()
+        public async Task ValueWriteAsyncRejectsSynchronousFallbackAndSyncWriteStillReentersAsync()
         {
             ScaleHandle scale = await CreateAsync(ScaleKind.Catchweigher);
             BaseVariableState gross = scale.ProductionPreset!.ActiveProduct!
@@ -1190,7 +1190,17 @@ namespace Opc.Ua.Scales.Tests
 
                 acquisitionRelease.TrySetResult(true);
                 AssertGood(await acquisition.WaitAsync(TimeSpan.FromSeconds(15)));
-                AssertGood(await valueWrite.WaitAsync(TimeSpan.FromSeconds(15)));
+                Assert.That(
+                    (await valueWrite.WaitAsync(TimeSpan.FromSeconds(15))).StatusCode,
+                    Is.EqualTo((StatusCode)StatusCodes.BadNotSupported));
+                Assert.That(writeHandlerCalls, Is.Zero);
+                Assert.That(gross.WrappedValue.TryGetValue(out double unchanged), Is.True);
+                Assert.That(unchanged, Is.EqualTo(1));
+                AssertGood(gross.WriteAttribute(
+                    m_fixture.Context,
+                    Attributes.Value,
+                    NumericRange.Null,
+                    new DataValue(Variant.From(2.0))));
             }
             finally
             {
@@ -1204,25 +1214,29 @@ namespace Opc.Ua.Scales.Tests
 
             Assert.That(writeHandlerCalls, Is.EqualTo(2));
             Assert.That(scale.CurrentReading.Net, Is.EqualTo(5));
+            Assert.That(gross.WrappedValue.TryGetValue(out double committed), Is.True);
+            Assert.That(committed, Is.EqualTo(2));
         }
 
         /// <summary>
-        /// Verifies independent synchronous writers remain rejected after fallback and while the async core continues.
+        /// Verifies rejected base writes retain exclusive async ownership until the custom core returns.
         /// </summary>
         [Test]
-        public async Task SynchronousFallbackRejectsIndependentWritersBeforeCoreResumesAsync()
+        public async Task UnsupportedAsyncValueWriteRetainsOwnershipUntilCoreReturnsAsync()
         {
             ScaleHandle scale = await CreateAsync(ScaleKind.Catchweigher);
-            var variable = new AsyncFallbackVariableState
+            var variable = new UnsupportedAsyncVariableState
             {
-                NodeId = new NodeId("AsyncFallback", 0),
-                BrowseName = new QualifiedName("AsyncFallback", 0),
-                DisplayName = new LocalizedText("AsyncFallback"),
+                NodeId = new NodeId("UnsupportedAsync", 0),
+                BrowseName = new QualifiedName("UnsupportedAsync", 0),
+                DisplayName = new LocalizedText("UnsupportedAsync"),
                 DataType = DataTypeIds.Double,
                 ValueRank = ValueRanks.Scalar,
                 AccessLevel = AccessLevels.CurrentReadOrWrite,
                 UserAccessLevel = AccessLevels.CurrentReadOrWrite,
-                Value = new Variant(1.0)
+                Value = new Variant(1.0),
+                StatusCode = StatusCodes.Uncertain,
+                Timestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 1)
             };
             variable.BindWriteOperationExecutor(scale.WriteOperations.NodeWriteExecutor);
             var coreResumed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -1230,27 +1244,7 @@ namespace Opc.Ua.Scales.Tests
             variable.CoreResumed = coreResumed;
             variable.CoreRelease = coreRelease;
 
-            using var workerStarted = new ManualResetEventSlim();
-            using var attemptCompleted = new ManualResetEventSlim();
-            using var independentEntered = new ManualResetEventSlim();
-            using var independentRelease = new ManualResetEventSlim();
-            bool independentWriterStarted = false;
-            bool independentAdmitted = false;
-            var independentWriter = new Thread(() =>
-            {
-                workerStarted.Set();
-                independentAdmitted = scale.WriteOperations.TryExecuteSynchronously(
-                    () =>
-                    {
-                        independentEntered.Set();
-                        independentRelease.Wait();
-                        return true;
-                    },
-                    out bool operationResult);
-                independentAdmitted &= operationResult;
-                attemptCompleted.Set();
-            });
-
+            int synchronousCalls = 0;
             variable.OnWriteValue = (
                 ISystemContext _,
                 NodeState _,
@@ -1260,13 +1254,7 @@ namespace Opc.Ua.Scales.Tests
                 ref StatusCode _,
                 ref DateTimeUtc _) =>
             {
-                independentWriter.Start();
-                independentWriterStarted = true;
-                Assert.That(workerStarted.Wait(TimeSpan.FromSeconds(5)), Is.True);
-                int signaled = WaitHandle.WaitAny(
-                    [attemptCompleted.WaitHandle, independentEntered.WaitHandle],
-                    TimeSpan.FromSeconds(5));
-                Assert.That(signaled, Is.Not.EqualTo(WaitHandle.WaitTimeout));
+                synchronousCalls++;
                 return ServiceResult.Good;
             };
 
@@ -1278,35 +1266,46 @@ namespace Opc.Ua.Scales.Tests
                     Attributes.Value,
                     NumericRange.Null,
                     new DataValue(new Variant(2.0))).AsTask();
-                Assert.That(independentEntered.IsSet, Is.True);
-                Assert.That(coreResumed.Task.IsCompleted, Is.False);
-                Assert.That(
-                    scale.WriteOperations.TryExecuteSynchronously(() => true, out _),
-                    Is.False);
-
-                independentRelease.Set();
                 Assert.That(await coreResumed.Task.WaitAsync(TimeSpan.FromSeconds(5)), Is.True);
-                Assert.That(coreRelease.Task.IsCompleted, Is.False);
+                Assert.That(pending.IsCompleted, Is.False);
+                Assert.That(synchronousCalls, Is.Zero);
+                Assert.That(variable.Value.GetDouble(), Is.EqualTo(1.0));
+                Assert.That(variable.StatusCode, Is.EqualTo(StatusCodes.Uncertain));
+                Assert.That(variable.Timestamp, Is.EqualTo(new DateTimeUtc(2026, 1, 1, 0, 0, 1)));
                 Assert.That(
                     scale.WriteOperations.TryExecuteSynchronously(() => true, out _),
                     Is.False);
+                ServiceResult rejected = variable.WriteAttribute(
+                    m_fixture.Context,
+                    Attributes.Value,
+                    NumericRange.Null,
+                    new DataValue(new Variant(3.0)));
+                Assert.That(rejected.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                Assert.That(synchronousCalls, Is.Zero);
+                Assert.That(variable.Value.GetDouble(), Is.EqualTo(1.0));
                 coreRelease.TrySetResult(true);
-                AssertGood(await pending.WaitAsync(TimeSpan.FromSeconds(5)));
-                Assert.That(independentWriter.Join(TimeSpan.FromSeconds(5)), Is.True);
-                Assert.That(independentAdmitted, Is.True);
-                Assert.That(attemptCompleted.IsSet, Is.True);
+                Assert.That(
+                    (await pending.WaitAsync(TimeSpan.FromSeconds(5))).StatusCode,
+                    Is.EqualTo((StatusCode)StatusCodes.BadNotSupported));
+                Assert.That(variable.Value.GetDouble(), Is.EqualTo(1.0));
+                Assert.That(variable.StatusCode, Is.EqualTo(StatusCodes.Uncertain));
+                Assert.That(variable.Timestamp, Is.EqualTo(new DateTimeUtc(2026, 1, 1, 0, 0, 1)));
+                Assert.That(scale.WriteOperations.TryExecuteSynchronously(() => true, out bool admitted), Is.True);
+                Assert.That(admitted, Is.True);
+                AssertGood(variable.WriteAttribute(
+                    m_fixture.Context,
+                    Attributes.Value,
+                    NumericRange.Null,
+                    new DataValue(new Variant(4.0))));
+                Assert.That(synchronousCalls, Is.EqualTo(1));
+                Assert.That(variable.Value.GetDouble(), Is.EqualTo(4.0));
             }
             finally
             {
                 coreRelease.TrySetResult(true);
-                independentRelease.Set();
                 if (pending != null)
                 {
                     _ = await pending.WaitAsync(TimeSpan.FromSeconds(5));
-                }
-                if (independentWriterStarted)
-                {
-                    Assert.That(independentWriter.Join(TimeSpan.FromSeconds(5)), Is.True);
                 }
             }
         }
@@ -1417,20 +1416,20 @@ namespace Opc.Ua.Scales.Tests
         }
 
         /// <summary>
-        /// Pauses after the native synchronous fallback while the public async write retains admission.
+        /// Pauses after the native base core rejects while the public async write retains admission.
         /// </summary>
-        private sealed class AsyncFallbackVariableState : BaseDataVariableState
+        private sealed class UnsupportedAsyncVariableState : BaseDataVariableState
         {
             /// <summary>
             /// Creates a test variable without a parent.
             /// </summary>
-            internal AsyncFallbackVariableState()
+            internal UnsupportedAsyncVariableState()
                 : base(null)
             {
             }
 
             /// <summary>
-            /// Gets or sets the signal raised after the native fallback returns.
+            /// Gets or sets the signal raised after the native base core returns.
             /// </summary>
             internal TaskCompletionSource<bool>? CoreResumed { get; set; }
 

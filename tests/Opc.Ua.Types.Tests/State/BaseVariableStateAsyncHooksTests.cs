@@ -51,8 +51,8 @@ namespace Opc.Ua.Types.Tests.State
     ///   <item>Exceptions from the handler propagate to the caller.</item>
     ///   <item>The cached value / status / timestamp are updated on
     ///         successful writes (mirroring the sync flow).</item>
-    ///   <item>When no async slot is set, the core uses the synchronous
-    ///         write flow under the existing attribute lock.</item>
+    ///   <item>When no async slot is set, bound Value writes reject without
+    ///         synchronous fallback; unbound writes retain the ordinary flow.</item>
     /// </list>
     /// </remarks>
     [TestFixture]
@@ -104,8 +104,7 @@ namespace Opc.Ua.Types.Tests.State
                     {
                         admission.Release();
                     }
-                },
-                operation => new ValueTask<ServiceResult>(operation()));
+                });
         }
 
         /// <summary>
@@ -115,8 +114,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             return new NodeWriteOperationExecutor(
                 operation => operation(),
-                (operation, cancellationToken) => operation(cancellationToken),
-                operation => new ValueTask<ServiceResult>(operation()));
+                (operation, cancellationToken) => operation(cancellationToken));
         }
 
         /// <summary>
@@ -501,8 +499,7 @@ namespace Opc.Ua.Types.Tests.State
                 {
                     asynchronousExecutions++;
                     return await operation(cancellationToken).ConfigureAwait(false);
-                },
-                operation => new ValueTask<ServiceResult>(operation())));
+                }));
             Variant observedValue = Variant.Null;
             int handlerCalls = 0;
             variable.OnSimpleWriteValueAsync = (_, _, value, _) =>
@@ -551,6 +548,8 @@ namespace Opc.Ua.Types.Tests.State
                 Is.False);
             SystemContext context = CreateSystemContext();
             var variable = CreateCoreOverrideVariable();
+            variable.OnSimpleWriteValueAsync = (_, _, _, _) =>
+                new ValueTask<AttributeWriteResult>(new AttributeWriteResult(ServiceResult.Good));
             variable.BindWriteOperationExecutor(CreateSerializedWriteExecutor());
             var coreEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var coreRelease = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -646,8 +645,7 @@ namespace Opc.Ua.Types.Tests.State
                 {
                     asyncAdmissions++;
                     return await operation(cancellationToken).ConfigureAwait(false);
-                },
-                operation => new ValueTask<ServiceResult>(operation())));
+                }));
 
             ServiceResult result = await variable.WriteAttributeAsync(
                 context,
@@ -669,6 +667,8 @@ namespace Opc.Ua.Types.Tests.State
         {
             SystemContext context = CreateSystemContext();
             var variable = CreateCoreOverrideVariable();
+            variable.OnSimpleWriteValueAsync = (_, _, _, _) =>
+                new ValueTask<AttributeWriteResult>(new AttributeWriteResult(ServiceResult.Good));
             variable.BindWriteOperationExecutor(CreateSerializedWriteExecutor());
             using var nestedCancellation = new CancellationTokenSource();
             variable.NestedWriteToken = nestedCancellation.Token;
@@ -774,6 +774,42 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(variable.Value.GetDouble(), Is.EqualTo(1.0));
             Assert.That(variable.StatusCode, Is.EqualTo(StatusCodes.Uncertain));
             Assert.That(variable.Timestamp, Is.EqualTo(originalTimestamp));
+        }
+
+        /// <summary>
+        /// Existing external full hooks keep accepted-write cache invalidation when a range cannot merge.
+        /// </summary>
+        [Test]
+        public async Task CustomFullAsyncHookRetainsAcceptedInvalidRangeCacheSemanticsAsync()
+        {
+            SystemContext context = CreateSystemContext();
+            BaseDataVariableState variable = CreateReadableVariable();
+            variable.DataType = DataTypeIds.Int32;
+            variable.ValueRank = ValueRanks.OneDimension;
+            variable.Value = Variant.From(new[] { 1, 2, 3 });
+            variable.StatusCode = StatusCodes.Good;
+            variable.Timestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 9);
+            variable.BindWriteOperationExecutor(CreateInlineWriteExecutor());
+            int calls = 0;
+            variable.OnWriteValueAsync = (_, _, _, _, _) =>
+            {
+                calls++;
+                return new ValueTask<AttributeWriteResult>(new AttributeWriteResult(ServiceResult.Good));
+            };
+            await variable.ClearChangeMasksAsync(context, false).ConfigureAwait(false);
+
+            ServiceResult result = await variable.WriteAttributeAsync(
+                context,
+                Attributes.Value,
+                NumericRange.Parse("4:5"),
+                new DataValue(Variant.From(new[] { 20, 30 }))).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(variable.Value.IsNull, Is.True);
+            Assert.That(variable.StatusCode, Is.EqualTo(StatusCodes.BadWaitingForInitialData));
+            Assert.That(variable.Timestamp, Is.EqualTo(DateTimeUtc.MinValue));
+            Assert.That(variable.ChangeMasks & NodeStateChangeMasks.Value, Is.EqualTo(NodeStateChangeMasks.Value));
         }
 
         [Test]
@@ -975,7 +1011,7 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
-        public async Task WriteAttributeAsyncFallsBackToSyncWhenNoAsyncSlotSet()
+        public async Task UnboundWriteAttributeAsyncFallsBackToSyncWhenNoAsyncSlotSet()
         {
             SystemContext ctx = CreateSystemContext();
             BaseDataVariableState v = CreateReadableVariable();
@@ -990,6 +1026,261 @@ namespace Opc.Ua.Types.Tests.State
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(v.Value.GetDouble(), Is.EqualTo(2.0));
+        }
+
+        /// <summary>
+        /// Bound writes without native async hooks reject before synchronous callbacks or cache mutation.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        public async Task BoundWriteAttributeAsyncRejectsSynchronousFallbackWithoutChangingCacheAsync(int handler)
+        {
+            SystemContext context = CreateSystemContext();
+            BaseDataVariableState variable = CreateReadableVariable();
+            variable.Value = new Variant(1.0);
+            variable.StatusCode = StatusCodes.Uncertain;
+            var timestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 5);
+            variable.Timestamp = timestamp;
+            int calls = 0;
+            int accessChecks = 0;
+            variable.OnReadUserAccessLevel = (_, _, ref _) =>
+            {
+                accessChecks++;
+                return ServiceResult.Good;
+            };
+            if (handler == 1)
+            {
+                variable.OnWriteValue = (
+                    ISystemContext _, NodeState _, NumericRange _, QualifiedName _,
+                    ref Variant _, ref StatusCode _, ref DateTimeUtc _) =>
+                {
+                    calls++;
+                    return ServiceResult.Good;
+                };
+            }
+            else if (handler == 2)
+            {
+                variable.OnSimpleWriteValue = (_, _, ref _) =>
+                {
+                    calls++;
+                    return ServiceResult.Good;
+                };
+            }
+            variable.BindWriteOperationExecutor(CreateSerializedWriteExecutor());
+            await variable.ClearChangeMasksAsync(context, false).ConfigureAwait(false);
+            NodeStateChangeMasks changeMasks = variable.ChangeMasks;
+
+            ServiceResult result = await variable.WriteAttributeAsync(
+                context, Attributes.Value, NumericRange.Null, new DataValue(new Variant(2.0)));
+
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotSupported));
+            Assert.That(calls, Is.Zero);
+            Assert.That(accessChecks, Is.Zero);
+            Assert.That(variable.Value.GetDouble(), Is.EqualTo(1.0));
+            Assert.That(variable.StatusCode, Is.EqualTo(StatusCodes.Uncertain));
+            Assert.That(variable.Timestamp, Is.EqualTo(timestamp));
+            Assert.That(variable.ChangeMasks, Is.EqualTo(changeMasks));
+
+            ServiceResult synchronous = variable.WriteAttribute(
+                context, Attributes.Value, NumericRange.Null, new DataValue(new Variant(3.0)));
+            Assert.That(ServiceResult.IsGood(synchronous), Is.True);
+            Assert.That(calls, Is.EqualTo(handler == 0 ? 0 : 1));
+            Assert.That(accessChecks, Is.EqualTo(1));
+            Assert.That(variable.Value.GetDouble(), Is.EqualTo(3.0));
+        }
+
+        /// <summary>
+        /// Unsupported whole and indexed writes cannot invoke sync hooks or change cached value and metadata.
+        /// </summary>
+        [TestCase(0, false)]
+        [TestCase(0, true)]
+        [TestCase(1, false)]
+        [TestCase(1, true)]
+        [TestCase(2, false)]
+        [TestCase(2, true)]
+        public async Task BoundWriteAttributeAsyncRejectsMetadataBeforeSynchronousFallbackAsync(
+            int handler, bool indexed)
+        {
+            SystemContext context = CreateSystemContext();
+            BaseDataVariableState variable = CreateReadableVariable();
+            variable.DataType = DataTypeIds.Int32;
+            variable.ValueRank = ValueRanks.OneDimension;
+            variable.AccessLevel |= AccessLevels.StatusWrite | AccessLevels.TimestampWrite;
+            variable.UserAccessLevel |= AccessLevels.StatusWrite | AccessLevels.TimestampWrite;
+            variable.Value = Variant.From(new[] { 1, 2, 3, 4 });
+            variable.StatusCode = StatusCodes.Uncertain;
+            var timestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 6);
+            variable.Timestamp = timestamp;
+            int calls = 0;
+            if (handler == 1)
+            {
+                variable.OnWriteValue = (
+                    ISystemContext _, NodeState _, NumericRange _, QualifiedName _,
+                    ref Variant _, ref StatusCode _, ref DateTimeUtc _) =>
+                {
+                    calls++;
+                    return ServiceResult.Good;
+                };
+            }
+            else if (handler == 2)
+            {
+                variable.OnSimpleWriteValue = (_, _, ref _) =>
+                {
+                    calls++;
+                    return ServiceResult.Good;
+                };
+            }
+            variable.BindWriteOperationExecutor(CreateInlineWriteExecutor());
+            await variable.ClearChangeMasksAsync(context, false).ConfigureAwait(false);
+            NodeStateChangeMasks changeMasks = variable.ChangeMasks;
+
+            ServiceResult result = await variable.WriteAttributeAsync(
+                context,
+                Attributes.Value,
+                indexed ? NumericRange.Parse("1:2") : NumericRange.Null,
+                new DataValue(
+                    Variant.From(s_slice), StatusCodes.Good, new DateTimeUtc(2026, 1, 1, 0, 0, 8)));
+
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotSupported));
+            Assert.That(calls, Is.Zero);
+            Assert.That(variable.Value.GetInt32Array(), Is.EqualTo(s_initialArray.ToArrayOf()));
+            Assert.That(variable.StatusCode, Is.EqualTo(StatusCodes.Uncertain));
+            Assert.That(variable.Timestamp, Is.EqualTo(timestamp));
+            Assert.That(variable.ChangeMasks, Is.EqualTo(changeMasks));
+        }
+
+        /// <summary>
+        /// A custom core calling base without native async hooks rejects and releases admission.
+        /// </summary>
+        [Test]
+        public async Task BoundCoreOverrideCallingBaseWithoutAsyncHooksRejectsAndReleasesAdmissionAsync()
+        {
+            SystemContext context = CreateSystemContext();
+            var variable = CreateCoreOverrideVariable();
+            variable.BindWriteOperationExecutor(CreateSerializedWriteExecutor());
+            variable.StatusCode = StatusCodes.Uncertain;
+            var timestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 7);
+            variable.Timestamp = timestamp;
+
+            ServiceResult result = await variable.WriteAttributeAsync(
+                context, Attributes.Value, NumericRange.Null, new DataValue(new Variant(2.0)));
+
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotSupported));
+            Assert.That(variable.LastAttributeId, Is.EqualTo(Attributes.Value));
+            Assert.That(variable.Value.GetDouble(), Is.EqualTo(1.0));
+            Assert.That(variable.StatusCode, Is.EqualTo(StatusCodes.Uncertain));
+            Assert.That(variable.Timestamp, Is.EqualTo(timestamp));
+
+            variable.OnSimpleWriteValueAsync = (_, _, _, _) =>
+                new ValueTask<AttributeWriteResult>(new AttributeWriteResult(ServiceResult.Good));
+            ServiceResult retry = await variable.WriteAttributeAsync(
+                context, Attributes.Value, NumericRange.Null, new DataValue(new Variant(3.0)));
+            Assert.That(ServiceResult.IsGood(retry), Is.True);
+            Assert.That(variable.Value.GetDouble(), Is.EqualTo(3.0));
+
+            variable.OnSimpleWriteValueAsync = null;
+            StatusCode statusAfterRetry = variable.StatusCode;
+            DateTimeUtc timestampAfterRetry = variable.Timestamp;
+            ServiceResult unsupportedAgain = await variable.WriteAttributeAsync(
+                context, Attributes.Value, NumericRange.Null, new DataValue(new Variant(4.0)));
+            Assert.That(unsupportedAgain.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotSupported));
+            Assert.That(variable.Value.GetDouble(), Is.EqualTo(3.0));
+            Assert.That(variable.StatusCode, Is.EqualTo(statusAfterRetry));
+            Assert.That(variable.Timestamp, Is.EqualTo(timestampAfterRetry));
+        }
+
+        /// <summary>
+        /// Unbound writes continue invoking synchronous handlers and committing their result.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task UnboundWriteAttributeAsyncPreservesSynchronousHandlersAsync(bool simple)
+        {
+            SystemContext context = CreateSystemContext();
+            BaseDataVariableState variable = CreateReadableVariable();
+            int calls = 0;
+            if (simple)
+            {
+                variable.OnSimpleWriteValue = (_, _, ref _) =>
+                {
+                    calls++;
+                    return ServiceResult.Good;
+                };
+            }
+            else
+            {
+                variable.OnWriteValue = (
+                    ISystemContext _, NodeState _, NumericRange _, QualifiedName _,
+                    ref Variant _, ref StatusCode _, ref DateTimeUtc _) =>
+                {
+                    calls++;
+                    return ServiceResult.Good;
+                };
+            }
+
+            ServiceResult result = await variable.WriteAttributeAsync(
+                context, Attributes.Value, NumericRange.Null, new DataValue(new Variant(2.0)));
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(variable.Value.GetDouble(), Is.EqualTo(2.0));
+        }
+
+        /// <summary>
+        /// Native async hooks take precedence over sync hooks on bound nodes.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task BoundWriteAttributeAsyncPrefersNativeAsyncHooksAsync(bool simple)
+        {
+            SystemContext context = CreateSystemContext();
+            BaseDataVariableState variable = CreateReadableVariable();
+            variable.BindWriteOperationExecutor(CreateSerializedWriteExecutor());
+            int synchronousCalls = 0;
+            int asynchronousCalls = 0;
+            int accessChecks = 0;
+            variable.OnReadUserAccessLevel = (_, _, ref _) =>
+            {
+                accessChecks++;
+                return ServiceResult.Good;
+            };
+            variable.OnWriteValue = (
+                ISystemContext _, NodeState _, NumericRange _, QualifiedName _,
+                ref Variant _, ref StatusCode _, ref DateTimeUtc _) =>
+            {
+                synchronousCalls++;
+                return StatusCodes.BadInvalidState;
+            };
+            variable.OnSimpleWriteValue = (_, _, ref _) =>
+            {
+                synchronousCalls++;
+                return StatusCodes.BadInvalidState;
+            };
+            if (simple)
+            {
+                variable.OnSimpleWriteValueAsync = (_, _, _, _) =>
+                {
+                    asynchronousCalls++;
+                    return new ValueTask<AttributeWriteResult>(new AttributeWriteResult(ServiceResult.Good));
+                };
+            }
+            else
+            {
+                variable.OnWriteValueAsync = (_, _, _, _, _) =>
+                {
+                    asynchronousCalls++;
+                    return new ValueTask<AttributeWriteResult>(new AttributeWriteResult(ServiceResult.Good));
+                };
+            }
+
+            ServiceResult result = await variable.WriteAttributeAsync(
+                context, Attributes.Value, NumericRange.Null, new DataValue(new Variant(2.0)));
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(asynchronousCalls, Is.EqualTo(1));
+            Assert.That(synchronousCalls, Is.Zero);
+            Assert.That(accessChecks, Is.EqualTo(1));
+            Assert.That(variable.Value.GetDouble(), Is.EqualTo(2.0));
         }
 
         [Test]
