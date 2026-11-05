@@ -136,7 +136,8 @@ namespace LadsSample.Client
             Console.WriteLine(
                 $"Device {snapshot.DisplayName}: {snapshot.Identification.Manufacturer} " +
                 $"{snapshot.Identification.Model} ({snapshot.Identification.SerialNumber}), " +
-                $"state {snapshot.DeviceState}");
+                $"state {snapshot.DeviceState}, asset {snapshot.Identification.AssetId}, " +
+                $"health {snapshot.DeviceHealth}");
 
             LadsFunctionalUnit chamber = await device
                 .GetFunctionalUnitAsync(snapshot.FunctionalUnitNames[0], ct)

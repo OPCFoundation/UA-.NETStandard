@@ -32,9 +32,11 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.AMB.Server.Assets;
 using Opc.Ua.LADS.Server.StateMachines;
 using Opc.Ua.Machinery;
 using Opc.Ua.Machinery.Server.StateMachines;
+using Opc.Ua.Server.Fluent;
 
 namespace Opc.Ua.LADS.Server
 {
@@ -206,6 +208,9 @@ namespace Opc.Ua.LADS.Server
         /// Gets the device node.
         /// </summary>
         public LADSDeviceState Node { get; }
+
+        /// <inheritdoc/>
+        public IAssetHandle? Asset { get; private set; }
 
         /// <summary>
         /// Gets the device state machine.
@@ -1333,6 +1338,69 @@ namespace Opc.Ua.LADS.Server
         }
 
         /// <summary>
+        /// Selects the existing asset registry and defers composition until the device root is registered.
+        /// </summary>
+        internal void ConfigureAssetManagement(
+            IAssetManagement assets, INodeBuilder<BaseObjectState> node, Action<IAssetBuilder> configure)
+        {
+            if (m_assetManagement != null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidState, "Asset management is already configured for this LADS device.");
+            }
+            m_assetManagement = assets;
+            m_assetNode = node;
+            m_configureAsset = configure;
+        }
+
+        /// <summary>
+        /// Validates opted-in identity and shares the configurable AssetId between its two browse paths.
+        /// </summary>
+        internal void ValidateAssetManagementConfiguration()
+        {
+            if (m_assetManagement == null)
+            {
+                return;
+            }
+            if (!Uri.TryCreate(Node.Identification?.ProductInstanceUri?.Value, UriKind.Absolute, out _))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "LADS asset-management configuration requires a stable absolute ProductInstanceUri.");
+            }
+            if (Node.Identification is { } identification && Node.AssetId is { } assetId)
+            {
+                identification.AssetId = assetId;
+                if (!assetId.ReferenceExists(
+                    global::Opc.Ua.ReferenceTypeIds.HasProperty, true, identification.NodeId))
+                {
+                    assetId.AddReference(
+                        global::Opc.Ua.ReferenceTypeIds.HasProperty, true, identification.NodeId);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Composes selected asset building blocks through the shared registry without changing the LADS object.
+        /// </summary>
+        internal async ValueTask RegisterAssetManagementAsync(CancellationToken cancellationToken)
+        {
+            if (m_assetManagement != null)
+            {
+                Asset = await m_assetManagement.RegisterAssetAsync(
+                    m_assetNode!, m_configureAsset, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Withdraws asset discovery before a failed LADS registration removes its owning subtree.
+        /// </summary>
+        internal ValueTask UnregisterAssetManagementAsync()
+        {
+            return Asset?.UnregisterAsync(CancellationToken.None) ?? default;
+        }
+
+        /// <summary>
         /// Organizes the Operational FunctionalGroups of the functions once the nodes have NodeIds.
         /// </summary>
         internal void OrganizeOperationalGroups()
@@ -1469,6 +1537,14 @@ namespace Opc.Ua.LADS.Server
                 {
                     failures.Add(failure);
                 }
+            }
+            try
+            {
+                await UnregisterAssetManagementAsync().ConfigureAwait(false);
+            }
+            catch (Exception failure)
+            {
+                failures.Add(failure);
             }
             Volatile.Write(ref m_published, false);
             m_gate.Dispose();
@@ -1812,6 +1888,16 @@ namespace Opc.Ua.LADS.Server
         private readonly List<LadsMaintenanceTask> m_tasks = [];
         private LadsFunctionalUnit? m_admittedStart;
         private ILadsDeviceProvider? m_provider;
+
+        /// <summary>The injected registry selected only for opted-in asset-management features.</summary>
+        private IAssetManagement? m_assetManagement;
+
+        /// <summary>The existing LADS object viewed through its owner's fluent builder.</summary>
+        private INodeBuilder<BaseObjectState>? m_assetNode;
+
+        /// <summary>The selected asset building blocks, applied during registration.</summary>
+        private Action<IAssetBuilder>? m_configureAsset;
+
         private bool m_published;
         private int m_cycles;
         private long m_operationTicks;

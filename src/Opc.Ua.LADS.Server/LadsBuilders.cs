@@ -31,6 +31,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.AMB.Server.Assets;
 using Opc.Ua.Machinery.Server;
 using Opc.Ua.Machinery.Server.StateMachines;
 
@@ -163,6 +164,23 @@ namespace Opc.Ua.LADS.Server
         /// </summary>
         /// <param name="provider">The provider.</param>
         ILadsDeviceBuilder Provider(ILadsDeviceProvider provider);
+
+        /// <summary>
+        /// Registers the device with the existing injected asset-management service when it is published.
+        /// A stable ProductInstanceUri must be configured on the device.
+        /// </summary>
+        /// <param name="configure">Selects the reusable asset-management building blocks.</param>
+        /// <returns>The same builder.</returns>
+        ILadsDeviceBuilder AssetManagement(Action<IAssetBuilder> configure);
+
+        /// <summary>
+        /// Registers the device with an explicitly supplied asset-management service when it is published.
+        /// A stable ProductInstanceUri must be configured on the device.
+        /// </summary>
+        /// <param name="assets">The existing asset-management service.</param>
+        /// <param name="configure">Selects the reusable asset-management building blocks.</param>
+        /// <returns>The same builder.</returns>
+        ILadsDeviceBuilder AssetManagement(IAssetManagement assets, Action<IAssetBuilder> configure);
     }
 
     /// <summary>

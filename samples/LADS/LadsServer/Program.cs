@@ -105,7 +105,13 @@ builder.Services
             }
             options.EndpointUrls.Add(endpointUrl);
         })
-    // AddLads registers a Machinery owner, the asset management model and the LADS model.
+    .AddAssetManagement(options =>
+    {
+        if (dataRoot is not null)
+        {
+            options.UseFileSystemStores(Path.Combine(dataRoot, "assets"));
+        }
+    })
     .AddLads(options =>
     {
         options.Store = dataStore;

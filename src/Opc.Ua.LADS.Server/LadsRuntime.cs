@@ -328,6 +328,14 @@ namespace Opc.Ua.LADS.Server
                 {
                     Logger.MachinesFolderUnavailable(device.Name);
                 }
+                try
+                {
+                    await device.RegisterAssetManagementAsync(cancellationToken).ConfigureAwait(false);
+                }
+                finally
+                {
+                    registrationNodes = CaptureSubtree(node);
+                }
                 await device.StartAsync(cancellationToken).ConfigureAwait(false);
                 Registry.Add(device);
                 lock (m_lock)
@@ -341,6 +349,15 @@ namespace Opc.Ua.LADS.Server
                 var failures = new List<Exception> { registrationFailure };
                 device.MarkRegistrationFailed();
                 Registry.Remove(device);
+                try
+                {
+                    await device.UnregisterAssetManagementAsync().ConfigureAwait(false);
+                }
+                catch (Exception cleanupFailure)
+                {
+                    failures.Add(cleanupFailure);
+                    orphaned = true;
+                }
                 if (attachedParent != null)
                 {
                     try
@@ -351,14 +368,14 @@ namespace Opc.Ua.LADS.Server
                     {
                         failures.Add(cleanupFailure);
                     }
-                    orphaned = registrationNodes != null && registrationNodes.Any(candidate =>
+                    orphaned |= registrationNodes != null && registrationNodes.Any(candidate =>
                         ReferenceEquals(Manager.FindPredefinedNode(candidate.NodeId), candidate));
-                    if (orphaned)
+                }
+                if (orphaned)
+                {
+                    lock (m_lock)
                     {
-                        lock (m_lock)
-                        {
-                            m_orphanedNames.Add(device.Name);
-                        }
+                        m_orphanedNames.Add(device.Name);
                     }
                 }
                 try

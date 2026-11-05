@@ -31,6 +31,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.AMB.Server.Assets;
 using Opc.Ua.Machinery.Server.StateMachines;
 
 namespace Opc.Ua.LADS.Server
@@ -55,6 +56,12 @@ namespace Opc.Ua.LADS.Server
         /// The NodeId of the device object.
         /// </summary>
         NodeId NodeId { get; }
+
+        /// <summary>
+        /// Gets the shared asset-management handle after opted-in registration, or null when not configured.
+        /// The handle reports its registration state after the device is disposed.
+        /// </summary>
+        IAssetHandle? Asset { get; }
 
         /// <summary>
         /// The current state of the device state machine.

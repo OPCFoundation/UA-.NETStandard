@@ -26,6 +26,7 @@ client that drives an incubation program end to end.
   - [Placement](#placement)
   - [Direct composition](#direct-composition)
 - [Building a device](#building-a-device)
+  - [Asset management](#asset-management)
   - [Functions](#functions)
   - [Programs](#programs)
   - [Maintenance tasks](#maintenance-tasks)
@@ -208,12 +209,66 @@ from the in-memory defaults when none are registered.
 | `MaintenanceTask(name, configure)` | A maintenance task in the device's maintenance set |
 | `Component(name, identification)` | A component with its own identification |
 | `Provider(ILadsDeviceProvider)` | A device provider for this device only |
+| `AssetManagement(configure)` | Registers the device with the injected `IAssetManagement`, using its identification, health and other selected building blocks |
+| `AssetManagement(assets, configure)` | Uses an explicitly supplied existing `IAssetManagement` for direct composition |
 
 `ILadsFunctionalUnitBuilder` adds functions (see below), `SupportedProperty(name)`
 for the `SupportedPropertiesSet`, `Programs(configure)` for a program manager
 and `FunctionProvider(provider)` for a function provider for this unit only.
 `RunningOperations()` selects the complete running lifecycle for that unit;
 omitting it retains automatic stop after a successful program.
+
+### Asset management
+
+Select `AssetManagement` on devices that need AMB services. The registry adds
+the selected building blocks to the existing LADS object; it does not create
+a second device or replace its NodeId. Both overloads require a stable,
+absolute `ProductInstanceUri`. Identification can precede or follow the
+asset-management call within the device callback.
+
+```csharp
+using Opc.Ua.AMB.Server.Assets;
+using Opc.Ua.Di;
+
+services.AddOpcUa()
+    .AddServer<StandardServer>(server => { /* endpoints, security */ })
+    .AddAssetManagement(options => options.UseFileSystemStores("asset-state"))
+    .AddLads()
+    .ConfigureLads(context => context.AddDevice("Incubator", device => device
+        .Identification(id => id.ProductInstanceUri = "urn:example:incubator:SN-0001")
+        .AssetManagement(asset => asset
+            .WithConfigurableAssetId("Incubator-1")
+            .WithDeviceHealth())));
+
+ILadsDevice device = await registry.WaitForDeviceAsync("Incubator", ct);
+IAssetHandle asset = device.Asset!;
+await asset.Health!.SetDeviceHealthAsync(DeviceHealthEnumeration.FAILURE, ct);
+```
+
+The callback uses the existing `IAssetBuilder`, including its health alarms,
+maintenance, documentation and structure options. Configure AMB health alarms
+during initial address-space setup; the shared alarm builder does not support
+adding them after setup. `ILadsDevice.Asset` becomes
+available after registration. Clients can use the existing
+`AmbClient.WriteAssetIdAsync(deviceId, value, ct)` on the same session and
+NodeId; LADS identification reads observe the updated value. The device's
+direct and `Identification` paths share the configurable `AssetId`.
+
+A missing service or invalid identity rejects opted-in configuration before
+stored-data loading or publication. A second asset-management selection is
+rejected. If later LADS publication fails, cleanup unregisters the asset
+before removing its device nodes; an unsuccessful withdrawal retains the
+name and storage-key reservations. Device disposal also unregisters the
+asset, and the retained handle reports `IsRegistered == false` after
+successful withdrawal.
+
+Devices without this selection keep their existing behavior. No URI is
+fabricated, and a device without one retains the
+`InstanceNamespaceUri + "#" + Name` storage key. Such a configuration does
+not implement the BaseServer profile's mandatory AMB Configurable Asset
+Identification unit. Selecting `WithConfigurableAssetId` requires a
+persistent AMB store for that unit; the default memory store does not
+provide persistence. See [Asset Management Basics](AMB.md).
 
 ### Functions
 
@@ -737,6 +792,14 @@ The server implements:
 - Maintenance tasks as conditions with the AMB maintenance state machine.
 - Machinery identification, item state, operation mode and operation counters
   as building blocks.
+- Configurable asset identification and selected AMB building blocks through
+  the opted-in [asset-management configuration](#asset-management).
+
+The SDK does not yet enforce DI locking across LADS commands. DI Locking
+is optional in the published
+[BaseServer table](https://reference.opcfoundation.org/specs/OPC-30500-1/9.2.3.2);
+the catalogue's Partial rating records this missing functionality, not whether
+the latest changes have been tested. Validation results are reported separately.
 
 Running operations require explicit configuration and an executor or hardware
 provider that supports them. Optional operations are not universally required
@@ -862,6 +925,10 @@ incubator (temperature and shaker speed controls, a CO2 sensor, a door cover, a
 timer, two program templates and a calibration task) and a client that finds
 the device, starts an incubation program, watches the temperature, CO2 and
 shaker speed, waits for the run to finish and downloads the result file.
+The device selects configurable asset identification and DeviceHealth. Its
+`--data-root` option also retains AMB configuration in the `assets` subdirectory;
+without that option, the sample uses the memory store. The client prints the
+asset identifier and current health alongside the device state.
 
 ## Provenance
 
@@ -879,6 +946,7 @@ encodings, and run hosted servers with the LADS client over a real session.
 | --- | --- |
 | `LadsModelAssetTests` | File hashes, model identity and required models, generated identifiers against the NodeSet and the identifier table |
 | `LadsHostingTests` | `AddLads` and `AddLadsToMachinery` in both registration orders, duplicate registration, option validation, provider defaults |
+| `LadsAssetManagementTests` | Legacy identity restoration, opted-in prerequisites, shared registry and health, persistent client writes, failed writes, cancellation, publication rollback and disposal |
 | `LadsAddressSpaceTests` | The mandatory children of devices, functional units, functions, program managers, templates and results |
 | `LadsDeviceTests` | Device and operation mode state machines, item state, counters, providers rejecting transitions |
 | `LadsFunctionTests` | Every function type, control and cover state machines, provider vetoes |

@@ -29,6 +29,12 @@ control stops or aborts, the temperature returns toward ambient (22 °C). When
 the shaker control stops or aborts, its speed returns toward zero. Restarting
 either control resumes its retained target.
 
+The device selects AMB configurable asset identification and DeviceHealth.
+The client prints its asset identifier and health with the device state.
+`--data-root` retains client-written asset configuration in the `assets`
+subdirectory as well as LADS data; without it, AMB configuration uses the
+memory store and is not retained across process restarts.
+
 ## Run
 
 In two terminals:
@@ -65,7 +71,7 @@ acknowledgments and a protocol for the steps reached. Identifiers, timestamps
 and measured values vary. For example, discovery begins with:
 
 ```
-Device Incubator: OPC Foundation Shaking incubator (SN-0001), state Operate
+Device Incubator: OPC Foundation Shaking incubator (SN-0001), state Operate, asset Incubator-1, health 0
 Functional unit Chamber: Stopped
   Temperature  AnalogControl                current 22, target 22
   ShakerSpeed  AnalogControl                current 0, target 0

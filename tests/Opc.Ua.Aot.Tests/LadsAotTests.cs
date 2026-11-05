@@ -30,6 +30,9 @@
 using System.Globalization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Opc.Ua.AMB.Server.Assets;
+using Opc.Ua.AMB.Server.Health;
+using Opc.Ua.Di;
 using Opc.Ua.LADS;
 using Opc.Ua.LADS.Client;
 using Opc.Ua.LADS.Server;
@@ -65,10 +68,24 @@ namespace Opc.Ua.Aot.Tests
                     await using ServiceProvider provider = CreateProvider(directory, store, executor);
                     IHostedService host = provider.GetServices<IHostedService>().Single();
                     await host.StartAsync(cancellationToken).ConfigureAwait(false);
+                    IAssetHandle? asset = null;
                     try
                     {
                         ILadsDevice device = await provider.GetRequiredService<ILadsDeviceRegistry>()
                             .WaitForDeviceAsync(kDevice, cancellationToken).ConfigureAwait(false);
+                        asset = device.Asset ??
+                            throw new InvalidOperationException("The configured LADS asset handle is missing.");
+                        await Assert.That(asset.NodeId).IsEqualTo(device.NodeId);
+                        await Assert.That(asset.ProductInstanceUri).IsEqualTo("urn:tests:lads:native:device");
+                        await Assert.That(asset.AssetId).IsEqualTo("Native-1");
+                        await Assert.That(asset.IsRegistered).IsTrue();
+                        IAssetHealth health = asset.Health ??
+                            throw new InvalidOperationException("The configured LADS asset health is missing.");
+                        await health.SetDeviceHealthAsync(DeviceHealthEnumeration.FAILURE, cancellationToken)
+                            .ConfigureAwait(false);
+                        await Assert.That(health.DeviceHealth).IsEqualTo(DeviceHealthEnumeration.FAILURE);
+                        await health.SetDeviceHealthAsync(DeviceHealthEnumeration.NORMAL, cancellationToken)
+                            .ConfigureAwait(false);
                         ILadsFunctionalUnit unit = device.GetFunctionalUnit(kUnit);
                         IAnalogControlFunction flow = unit.GetFunction<IAnalogControlFunction>("Flow");
                         await flow.ResetTotalizerAsync(12.5, cancellationToken).ConfigureAwait(false);
@@ -131,6 +148,7 @@ namespace Opc.Ua.Aot.Tests
                     {
                         await host.StopAsync(CancellationToken.None).ConfigureAwait(false);
                     }
+                    await Assert.That(asset!.IsRegistered).IsFalse();
                 }
 
                 using var reopened = new FileSystemLadsStore(LocalFileSystem.Instance, storage);
@@ -213,6 +231,8 @@ namespace Opc.Ua.Aot.Tests
                     AotServerFixtureSupport.GetNextFreeIPPort().ToString(CultureInfo.InvariantCulture) + "/LadsAot");
             }).AddLads(options => options.Store = store)
                 .ConfigureLads(context => context.AddDevice(kDevice, device => device
+                    .Identification(id => id.ProductInstanceUri = "urn:tests:lads:native:device")
+                    .AssetManagement(asset => asset.WithConfigurableAssetId("Native-1").WithDeviceHealth())
                     .MaintenanceTask(kMaintenance)
                     .FunctionalUnit(kUnit, unit => unit
                         .AnalogControl("Flow", options =>

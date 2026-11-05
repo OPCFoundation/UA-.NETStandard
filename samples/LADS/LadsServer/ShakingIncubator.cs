@@ -60,6 +60,7 @@ namespace LadsSample.Server
                     id.ProductInstanceUri = "urn:opcfoundation.org:LadsServer:Incubator:SN-0001";
                     id.SoftwareRevision = "1.0.0";
                 })
+                .AssetManagement(asset => asset.WithConfigurableAssetId("Incubator-1").WithDeviceHealth())
                 .Location("Lab 1", "Site/Building A/Lab 1")
                 .MaintenanceTask("Calibration", task =>
                 {
