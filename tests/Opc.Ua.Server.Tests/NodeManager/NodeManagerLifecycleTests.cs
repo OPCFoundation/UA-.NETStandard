@@ -113,7 +113,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public void OneTimeSetUp()
         {
             m_pkiRoot = Path.Combine(
-                AppContext.BaseDirectory,
+                TestContext.CurrentContext.WorkDirectory,
                 "nl-" + Guid.NewGuid().ToString("N"));
         }
 
