@@ -154,12 +154,58 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Sets the enable state for the condition and awaits state-change notification sinks.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="enabled">If true the condition is put into the Enabled state.</param>
+        /// <param name="cancellationToken">
+        /// The token is checked before mutation; cancellation is not observed after mutation starts.
+        /// </param>
+        /// <remarks>
+        /// Derived classes that customize <see cref="SetEnableState"/> must also override this method.
+        /// When the caller retains a serialization gate while invoking or awaiting this method, notification sinks
+        /// must not await or synchronously block on an operation that needs the same gate.
+        /// </remarks>
+        public virtual async ValueTask SetEnableStateAsync(
+            ISystemContext context,
+            bool enabled,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (enabled)
+            {
+                UpdateStateAfterEnable(context);
+            }
+            else
+            {
+                UpdateStateAfterDisable(context);
+            }
+
+            EnabledState!.Timestamp = DateTime.UtcNow;
+            await ClearChangeMasksAsync(context, includeChildren: true, CancellationToken.None)
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Sets the severity for the condition without raising events.
         /// </summary>
         /// <param name="context">The system context.</param>
         /// <param name="severity">The event severity.</param>
         /// <remarks>This method ensures all related variables are set correctly.</remarks>
         public virtual void SetSeverity(ISystemContext context, EventSeverity severity)
+        {
+            SetSeverity(context, severity, clearChangeMasks: true);
+        }
+
+        /// <summary>
+        /// Sets severity attributes and optionally publishes their change masks.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="severity">The event severity.</param>
+        /// <param name="clearChangeMasks">
+        /// Whether to notify state observers now. Otherwise the caller clears change masks after its other updates.
+        /// </param>
+        public void SetSeverity(ISystemContext context, EventSeverity severity, bool clearChangeMasks)
         {
             ConditionVariableState<ushort> lastSeverity = LastSeverity!; // condition states always have LastSeverity after construction
             PropertyState<ushort> severityProp = Severity!; // condition states always have Severity after construction
@@ -170,7 +216,63 @@ namespace Opc.Ua
 
             lastSeverity.Timestamp = DateTime.UtcNow;
             severityProp.Timestamp = DateTime.UtcNow;
-            ClearChangeMasks(context, includeChildren: true);
+            if (clearChangeMasks)
+            {
+                ClearChangeMasks(context, includeChildren: true);
+            }
+        }
+
+        /// <summary>
+        /// Sets the severity for the condition and awaits state-change notification sinks.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="severity">The event severity.</param>
+        /// <param name="cancellationToken">
+        /// The token is checked before mutation; cancellation is not observed after mutation starts.
+        /// </param>
+        /// <remarks>
+        /// Derived classes that customize <see cref="SetSeverity(ISystemContext, EventSeverity)"/> must also
+        /// override this method. When the caller retains a serialization gate while invoking or awaiting this
+        /// method, notification sinks must not await or synchronously block on an operation that needs the same gate.
+        /// </remarks>
+        public virtual ValueTask SetSeverityAsync(
+            ISystemContext context,
+            EventSeverity severity,
+            CancellationToken cancellationToken = default)
+        {
+            return SetSeverityAsync(context, severity, clearChangeMasks: true, cancellationToken);
+        }
+
+        /// <summary>
+        /// Sets severity attributes and optionally awaits state-change notification sinks.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="severity">The event severity.</param>
+        /// <param name="clearChangeMasks">Whether to notify state observers now.</param>
+        /// <param name="cancellationToken">
+        /// The token is checked before mutation; cancellation is not observed after mutation starts.
+        /// </param>
+        /// <remarks>
+        /// This overload does not invoke overrides of <see cref="SetSeverity(ISystemContext, EventSeverity)"/> or
+        /// <see cref="SetSeverityAsync(ISystemContext, EventSeverity, CancellationToken)"/>. A derived class that
+        /// customizes calls specifying <paramref name="clearChangeMasks"/> must override this overload.
+        /// When <paramref name="clearChangeMasks"/> is <see langword="true"/> and the caller retains a serialization
+        /// gate while invoking or awaiting this method, notification sinks must not await or synchronously block on
+        /// an operation that needs the same gate.
+        /// </remarks>
+        public virtual async ValueTask SetSeverityAsync(
+            ISystemContext context,
+            EventSeverity severity,
+            bool clearChangeMasks,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            SetSeverity(context, severity, clearChangeMasks: false);
+            if (clearChangeMasks)
+            {
+                await ClearChangeMasksAsync(context, includeChildren: true, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -910,6 +1012,9 @@ namespace Opc.Ua
         /// <summary>
         /// Records the EventId of a reported state change of this condition.
         /// </summary>
+        /// <remarks>
+        /// See <see cref="NodeState.ReportEvent"/> for callback behavior and propagation through multiple paths.
+        /// </remarks>
         public override void ReportEvent(ISystemContext context, IFilterTarget e)
         {
             RecordReportedEvent(e);
@@ -919,6 +1024,12 @@ namespace Opc.Ua
         /// <summary>
         /// Records the EventId of a reported state change of this condition.
         /// </summary>
+        /// <remarks>
+        /// This method does not invoke overrides of <see cref="ReportEvent"/>. A subclass that
+        /// customizes synchronous event reporting must also override this method to apply that
+        /// customization to asynchronous calls.
+        /// See <see cref="NodeState.ReportEventAsync"/> for callback behavior and propagation through multiple paths.
+        /// </remarks>
         public override ValueTask ReportEventAsync(
             ISystemContext context,
             IFilterTarget e,
