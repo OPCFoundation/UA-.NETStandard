@@ -274,7 +274,7 @@ namespace Opc.Ua.LADS.Tests.Server
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var releaseNotification = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            NodeStateChangedAsyncHandler handler = async (_, _) =>
+            NodeStateChangedAsyncHandler handler = async (_, _, _, _) =>
             {
                 if (device.ItemState == MachineryItemStateValue.OutOfService)
                 {
