@@ -262,7 +262,7 @@ support gap.
 
 | Model or family | Support | Implemented behavior and limits |
 | --- | --- | --- |
-| [Base Network Model](BaseNetworkModel.md), OPC 10000-22 | Partial | Provider-backed Resources model, typed clients and simulator; Part 22 integration-test validation remains incomplete |
+| [Base Network Model](BaseNetworkModel.md), OPC 10000-22 | Full | Provider-backed Resources model, typed clients and simulator; applications supply production network providers |
 | [Device Integration](DeviceIntegration.md), OPC 10000-100 | Partial | Device composition, locking and software updates; offline/online representations, some loading modes and `UpdateStatus` remain incomplete |
 | [Asset Management Basics](AMB.md), OPC 10000-110 | Partial | Identity, health, maintenance, documentation, locations and dictionary classification; asset-health and past-maintenance event history remain unimplemented |
 | [Industrial Automation](Robotics.md), OPC 10000-200 | Partial | Shared generated model and the behavior used by Machinery/Robotics; not every standalone IA facet |
@@ -854,7 +854,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 10000-19: Dictionary Reference](https://reference.opcfoundation.org/specs/OPC-10000-19) | 1.05.03 | Full | - |
 | [OPC 10000-20: File Transfer](https://reference.opcfoundation.org/specs/OPC-10000-20) | 1.05.06 | Full | - |
 | [OPC 10000-21: Device Onboarding](https://reference.opcfoundation.org/specs/OPC-10000-21) | 1.05.04 | Partial | Registrar tickets only; complete device-facing onboarding state machine missing |
-| [OPC 10000-22: Base Network Model](https://reference.opcfoundation.org/specs/OPC-10000-22) | 1.05.04 | Partial | Part 22 server integration evidence is incomplete |
+| [OPC 10000-22: Base Network Model](https://reference.opcfoundation.org/specs/OPC-10000-22) | 1.05.04 | Full | - |
 | [OPC 10000-23: Common ReferenceTypes](https://reference.opcfoundation.org/specs/OPC-10000-23) | 1.05.02 | Full | - |
 | [OPC 10000-24: Scheduler](https://reference.opcfoundation.org/specs/OPC-10000-24) | 1.05.02 | No | - |
 | [OPC 10000-25: Object Serialization](https://reference.opcfoundation.org/specs/OPC-10000-25) | 1.05.06 | Partial | Generated serialization declarations; no complete ConfigureSerialization runtime |
