@@ -395,7 +395,7 @@ namespace Opc.Ua.IA.Tests.Calibration
                         var variable = new BaseDataVariableState(folder);
                         variable.Create(context, NodeId.Null, fixture.Name("VendorOffset"),
                             new LocalizedText("Vendor offset"), true);
-                        variable.DataType = DataTypeIds.Double;
+                        variable.DataType = Opc.Ua.DataTypeIds.Double;
                         variable.ValueRank = ValueRanks.Scalar;
                         variable.Value = 2.0;
                         folder.AddChild(variable);
@@ -693,7 +693,7 @@ namespace Opc.Ua.IA.Tests.Calibration
                         var humidity = new BaseDataVariableState(folder);
                         humidity.Create(context, NodeId.Null, fixture.Name("Humidity"),
                             new LocalizedText("Relative humidity"), true);
-                        humidity.DataType = DataTypeIds.Double;
+                        humidity.DataType = Opc.Ua.DataTypeIds.Double;
                         humidity.ValueRank = ValueRanks.Scalar;
                         humidity.Value = 45.0;
                         folder.AddChild(humidity);

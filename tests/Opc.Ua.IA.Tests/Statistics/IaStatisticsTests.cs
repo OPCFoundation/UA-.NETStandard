@@ -764,7 +764,7 @@ namespace Opc.Ua.IA.Tests.Statistics
                     .EqualTo((StatusCode)StatusCodes.BadNotSupported));
             AssertValue(statistic, 7);
             Assert.That(binding.StartTime.Value.IsNull, Is.True);
-            Assert.That(companion.WrappedValue.TryGetStructure(out LossyStructure? retained), Is.True);
+            Assert.That(companion.WrappedValue.TryGetStructure<LossyStructure>(out LossyStructure? retained), Is.True);
             Assert.That(ReferenceEquals(retained, unsupported), Is.True);
             Assert.That(unsupported.CloneCalls, Is.Zero);
             Assert.That(unsupported.EncodeCalls, Is.Zero);
@@ -2868,7 +2868,7 @@ namespace Opc.Ua.IA.Tests.Statistics
         {
             if (source is ECM.AcPeDataType)
             {
-                Assert.That(node.WrappedValue.TryGetStructure(out ECM.AcPeDataType? value), Is.True);
+                Assert.That(node.WrappedValue.TryGetStructure<ECM.AcPeDataType>(out ECM.AcPeDataType? value), Is.True);
                 Assert.That(value!.GetType(), Is.EqualTo(typeof(ECM.AcPeDataType)));
                 Assert.That(ReferenceEquals(value, source), Is.False);
                 Assert.That(value.L1, Is.EqualTo(first));
@@ -2877,7 +2877,7 @@ namespace Opc.Ua.IA.Tests.Statistics
             }
             else
             {
-                Assert.That(node.WrappedValue.TryGetStructure(out ECM.AcPpDataType? value), Is.True);
+                Assert.That(node.WrappedValue.TryGetStructure<ECM.AcPpDataType>(out ECM.AcPpDataType? value), Is.True);
                 Assert.That(value!.GetType(), Is.EqualTo(typeof(ECM.AcPpDataType)));
                 Assert.That(ReferenceEquals(value, source), Is.False);
                 Assert.That(value.L1L2, Is.EqualTo(first));
