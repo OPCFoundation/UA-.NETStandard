@@ -261,9 +261,13 @@ namespace Opc.Ua.IA.Server
 
         /// <summary>
         /// Gets vendor-defined operational conditions represented using typed calibration variables.
-        /// Reusable categories retain the required OperationalConditions folder even when this collection is empty.
         /// </summary>
         public ArrayOf<IaCalibrationFeature> OperationalConditions { get; init; }
+
+        /// <summary>
+        /// Gets the callback that adds application-defined components to OperationalConditions.
+        /// </summary>
+        public Action<ISystemContext, BaseObjectState>? ConfigureCustomOperationalConditions { get; init; }
 
         /// <summary>
         /// Gets reference measurement instruments for a dynamic target.

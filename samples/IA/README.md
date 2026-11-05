@@ -33,7 +33,9 @@ provider publishes a reference value, capacity range, validation dates, quality,
 a certificate URI without retrieving it, and an application-defined
 `VendorGeometry` object feature. The client reads calibration metadata through
 generated target accessors and discovers the custom feature through the IA
-feature-inspection API.
+feature-inspection API. A custom operational-condition variable describes the
+operating environment; the client resolves its folder through the generated
+target proxy.
 
 The DI container owns both the server resources and the client's cached managed
 session. The sample drains hosted services before disposing its bindings and

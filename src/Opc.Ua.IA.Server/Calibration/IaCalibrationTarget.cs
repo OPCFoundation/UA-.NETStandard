@@ -100,13 +100,14 @@ namespace Opc.Ua.IA.Server
             ConfigureOptionalFields();
             ConfigureFeatures(state.CalibrationTargetFeatures, Configuration.Features, m_features);
             Configuration.ConfigureCustomFeatures?.Invoke(context, state.CalibrationTargetFeatures);
-            ValidateFeatureComponents(state.CalibrationTargetFeatures);
+            ValidateNamedComponents(state.CalibrationTargetFeatures, "feature");
             if (Configuration.OperationalConditions.Count > 0 ||
-                Configuration.Category is IaCalibrationTargetCategory.Reusable or
-                    IaCalibrationTargetCategory.ReusableDevice)
+                Configuration.ConfigureCustomOperationalConditions != null)
             {
                 state.AddOperationalConditions(context);
                 ConfigureFeatures(state.OperationalConditions!, Configuration.OperationalConditions, m_conditions);
+                Configuration.ConfigureCustomOperationalConditions?.Invoke(context, state.OperationalConditions!);
+                ValidateNamedComponents(state.OperationalConditions!, "operational-condition");
             }
             else
             {
@@ -352,15 +353,15 @@ namespace Opc.Ua.IA.Server
         }
 
         /// <summary>
-        /// Requires a nonempty feature folder with unique names across standard and custom components.
+        /// Requires a nonempty component folder with unique names.
         /// </summary>
-        private void ValidateFeatureComponents(NodeState folder)
+        private void ValidateNamedComponents(NodeState folder, string componentName)
         {
             var children = new List<BaseInstanceState>();
             folder.GetChildren(m_context, children);
             if (children.Count == 0)
             {
-                throw new ArgumentException("A calibration target requires at least one feature component.");
+                throw new ArgumentException($"A configured {componentName} folder requires at least one component.");
             }
             var names = new HashSet<QualifiedName>();
             foreach (BaseInstanceState child in children)
@@ -369,7 +370,7 @@ namespace Opc.Ua.IA.Server
                     !names.Add(child.BrowseName))
                 {
                     throw new ArgumentException(
-                        "Calibration feature components require unique, non-null browse names.");
+                        $"Calibration {componentName} components require unique, non-null browse names.");
                 }
             }
         }

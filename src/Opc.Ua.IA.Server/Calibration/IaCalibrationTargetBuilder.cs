@@ -77,6 +77,18 @@ namespace Opc.Ua.IA.Server
         }
 
         /// <summary>
+        /// Adds application-defined components to the optional OperationalConditions folder.
+        /// </summary>
+        /// <param name="configure">Creates condition components before the target is registered.</param>
+        public IaCalibrationTargetBuilder WithCustomOperationalConditions(
+            Action<ISystemContext, BaseObjectState> configure)
+        {
+            m_customOperationalConditionConfigurators.Add(
+                configure ?? throw new ArgumentNullException(nameof(configure)));
+            return this;
+        }
+
+        /// <summary>
         /// Selects optional target properties. Reusable categories always include LastValidationDate.
         /// </summary>
         public IaCalibrationTargetBuilder WithOptionalFields(IaCalibrationTargetFields fields)
@@ -108,6 +120,11 @@ namespace Opc.Ua.IA.Server
             {
                 configureCustomFeatures += configure;
             }
+            Action<ISystemContext, BaseObjectState>? configureCustomOperationalConditions = null;
+            foreach (Action<ISystemContext, BaseObjectState> configure in m_customOperationalConditionConfigurators)
+            {
+                configureCustomOperationalConditions += configure;
+            }
             var configuration = new IaCalibrationTargetConfiguration(
                 m_category,
                 m_identification,
@@ -115,6 +132,7 @@ namespace Opc.Ua.IA.Server
             {
                 OptionalFields = m_fields,
                 ConfigureCustomFeatures = configureCustomFeatures,
+                ConfigureCustomOperationalConditions = configureCustomOperationalConditions,
                 OperationalConditions = m_conditions.ToArray(),
                 ReferenceMeasurementInstruments = m_instruments.ToArray()
             };
@@ -136,6 +154,9 @@ namespace Opc.Ua.IA.Server
 
         /// <summary>The selected operational conditions.</summary>
         private readonly List<IaCalibrationFeature> m_conditions = [];
+
+        /// <summary>The application callbacks for custom operational-condition components.</summary>
+        private readonly List<Action<ISystemContext, BaseObjectState>> m_customOperationalConditionConfigurators = [];
 
         /// <summary>The related reference instruments.</summary>
         private readonly List<NodeId> m_instruments = [];

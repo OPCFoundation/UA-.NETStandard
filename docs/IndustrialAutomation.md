@@ -400,12 +400,23 @@ await target.RefreshAsync(cancellationToken);
 ```
 
 Dynamic and one-time targets require at least one feature. Reusable and
-reusable-device targets additionally require manufacturer, model, serial number,
-an `OperationalConditions` object, and `LastValidationDate`. Applications can
-publish numeric calibration values or capacity ranges with units and positive
-resolution. Numeric values retain their actual scalar, array, or matrix type.
-Operational conditions use the same typed metadata. Dynamic categories can
-reference the instruments that measured the individual target.
+reusable-device targets additionally require `LastValidationDate`; DI
+identification properties remain optional. Applications can publish numeric
+calibration values or capacity ranges with units and positive resolution.
+Numeric values retain their actual scalar, array, or matrix type. Dynamic
+categories can reference the instruments that measured the individual target.
+
+`OperationalConditions` is optional and is omitted when no conditions are
+configured. Use `WithOperationalCondition` for typed numeric conditions with
+engineering-unit metadata. Use `WithCustomOperationalConditions` to add
+application-defined components to the folder; these nodes are read-only through
+the binding and remain application-owned, so they are not refreshed from the
+calibration provider. A configured custom folder must contain at least one named
+component, and its direct children must have unique browse names.
+The [sample](../samples/IA/README.md) publishes a custom environment description
+in this folder. Its client uses `GetOperationalConditionsAsync` on the generated
+target proxy; applications interpret the child nodes according to their own
+model rather than treating every condition as a numeric calibration value.
 
 Use `WithCustomFeatures` to add application-defined variables or objects under
 `CalibrationTargetFeatures`. The callback runs during binding construction,
@@ -553,8 +564,9 @@ proxies expose the corresponding model members.
 - **Calibration targets:** optional DI identification fields, `OperationalConditions`, `LastValidationDate`,
   `NextValidationDate`, `Quality`, `CertificateUri`, dynamic-target measurement-instrument references, and
   application-defined variable or object features are supported. Reusable categories require
-  `LastValidationDate`. `IaCalibrationTargetBuilder` fixes topology before registration; its
-  `WithCustomFeatures` callback adds custom components, while the provider supplies standard calibration readings.
+  `LastValidationDate`; the optional `OperationalConditions` folder is omitted when empty and accepts typed or
+  application-defined components. `IaCalibrationTargetBuilder` fixes topology before registration; custom
+  condition and feature callbacks add read-only components, while the provider supplies typed calibration readings.
   The generated client exposes target properties and reports custom feature names and values without assigning
   standard calibration semantics. The binding publishes certificate URIs without retrieving them.
   See `IaCalibrationTargetTests`.

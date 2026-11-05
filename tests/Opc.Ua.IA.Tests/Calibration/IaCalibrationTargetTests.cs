@@ -67,7 +67,7 @@ namespace Opc.Ua.IA.Tests.Calibration
             Assert.That(node.CalibrationTargetCategory.TypeDefinitionId,
                 Is.EqualTo(NodeId.Create(typeId, Namespaces.IA, fixture.Context.NamespaceUris)));
             Assert.That(node.LastValidationDate != null, Is.EqualTo(reusable));
-            Assert.That(node.OperationalConditions != null, Is.EqualTo(reusable));
+            Assert.That(node.OperationalConditions, Is.Null);
             Assert.That(node.Identification, Is.Not.Null);
             var identityProperties = fixture.Children(node.Identification)
                 .Select(child => child.BrowseName.Name);
@@ -82,16 +82,29 @@ namespace Opc.Ua.IA.Tests.Calibration
         }
 
         /// <summary>
-        /// Reusable identity and validation date cannot be silently omitted.
+        /// Reusable categories allow all optional nameplate properties to be omitted.
         /// </summary>
         [TestCase(IaCalibrationTargetCategory.Reusable)]
         [TestCase(IaCalibrationTargetCategory.ReusableDevice)]
-        public void ReusableTargetsRequireManufacturedIdentity(IaCalibrationTargetCategory category)
+        public async Task ReusableTargetsAllowOmittedNameplateProperties(IaCalibrationTargetCategory category)
         {
             var fixture = new IaTestContext();
-            var builder = new IaCalibrationTargetBuilder(category, new IaCalibrationIdentification())
-                .WithFeature(Feature(fixture));
-            Assert.That(() => builder.Build(), Throws.ArgumentException);
+            IaCalibrationFeature feature = Feature(fixture);
+            IaCalibrationTargetConfiguration configuration =
+                new IaCalibrationTargetBuilder(category, new IaCalibrationIdentification())
+                    .WithFeature(feature)
+                    .Build();
+            CalibrationTargetState node = fixture.Context.CreateInstanceOfCalibrationTargetType(
+                browseName: fixture.Name("Target"));
+            var binding = new IaCalibrationTarget(fixture.Context, node,
+                Provider(configuration, Snapshot(feature, 25) with { LastValidationDate = DateSample() }).Object);
+            await binding.RefreshAsync().ConfigureAwait(false);
+
+            Assert.That(fixture.Children(node.Identification!), Is.Empty);
+            Assert.That(node.LastValidationDate, Is.Not.Null);
+            Assert.That(node.LastValidationDate!.Value, Is.EqualTo(IaTestContext.Timestamp));
+            Assert.That(node.OperationalConditions, Is.Null);
+            Assert.That(binding.Configuration.Identification, Is.EqualTo(new IaCalibrationIdentification()));
         }
 
         /// <summary>
@@ -652,6 +665,149 @@ namespace Opc.Ua.IA.Tests.Calibration
             Assert.That(variable.BrowseName, Is.EqualTo(condition.BrowseName));
             Assert.That(variable.WrappedValue, Is.EqualTo(Variant.From(20.0)));
             Assert.That(node.NextValidationDate!.Value, Is.EqualTo(IaTestContext.Timestamp));
+        }
+
+        /// <summary>
+        /// Application-defined condition objects and variables can populate the optional folder.
+        /// </summary>
+        [Test]
+        public async Task CustomOperationalConditionsCanBeConfiguredWithoutTypedConditions()
+        {
+            var fixture = new IaTestContext();
+            BaseObjectState? publishedCondition = null;
+            BaseDataVariableState? publishedVariable = null;
+            int configurations = 0;
+            IaCalibrationFeature feature = Feature(fixture);
+            IaCalibrationTargetConfiguration configuration =
+                new IaCalibrationTargetBuilder(IaCalibrationTargetCategory.Dynamic,
+                    new IaCalibrationIdentification())
+                    .WithFeature(feature)
+                    .WithCustomOperationalConditions((context, folder) =>
+                    {
+                        configurations++;
+                        var environment = new BaseObjectState(folder);
+                        environment.Create(context, NodeId.Null, fixture.Name("Environment"),
+                            new LocalizedText("Operating environment"), true);
+                        folder.AddChild(environment);
+                        publishedCondition = environment;
+                        var humidity = new BaseDataVariableState(folder);
+                        humidity.Create(context, NodeId.Null, fixture.Name("Humidity"),
+                            new LocalizedText("Relative humidity"), true);
+                        humidity.DataType = DataTypeIds.Double;
+                        humidity.ValueRank = ValueRanks.Scalar;
+                        humidity.Value = 45.0;
+                        folder.AddChild(humidity);
+                        publishedVariable = humidity;
+                    })
+                    .Build();
+            CalibrationTargetState node = fixture.Context.CreateInstanceOfCalibrationTargetType(
+                browseName: fixture.Name("Target"));
+            var binding = new IaCalibrationTarget(fixture.Context, node,
+                Provider(configuration, Snapshot(feature, 25)).Object);
+            await binding.RefreshAsync().ConfigureAwait(false);
+            await binding.RefreshAsync().ConfigureAwait(false);
+
+            Assert.That(node.OperationalConditions, Is.Not.Null);
+            Assert.That(fixture.Children(node.OperationalConditions!), Has.Count.EqualTo(2));
+            Assert.That(publishedCondition!.WriteMask, Is.Zero);
+            Assert.That(publishedVariable!.AccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
+            Assert.That(publishedVariable.WrappedValue, Is.EqualTo(Variant.From(45.0)));
+            Assert.That(configurations, Is.EqualTo(1));
+            Assert.That(binding.Configuration.OperationalConditions.Count, Is.Zero);
+        }
+
+        /// <summary>
+        /// An explicitly configured custom condition folder cannot be empty.
+        /// </summary>
+        [Test]
+        public void EmptyCustomOperationalConditionsAreRejected()
+        {
+            var fixture = new IaTestContext();
+            IaCalibrationFeature feature = Feature(fixture);
+            IaCalibrationTargetConfiguration configuration =
+                new IaCalibrationTargetBuilder(IaCalibrationTargetCategory.Dynamic,
+                    new IaCalibrationIdentification())
+                    .WithFeature(feature)
+                    .WithCustomOperationalConditions((_, _) => { })
+                    .Build();
+            CalibrationTargetState node = fixture.Context.CreateInstanceOfCalibrationTargetType(
+                browseName: fixture.Name("Target"));
+
+            Assert.That(() => new IaCalibrationTarget(fixture.Context, node,
+                Provider(configuration, Snapshot(feature, 25)).Object), Throws.ArgumentException);
+        }
+
+        /// <summary>
+        /// Custom condition names cannot collide with typed conditions in the same folder.
+        /// </summary>
+        [Test]
+        public void CustomOperationalConditionsRequireUniqueBrowseNames()
+        {
+            var fixture = new IaTestContext();
+            IaCalibrationFeature feature = Feature(fixture);
+            IaCalibrationFeature condition = feature with { BrowseName = fixture.Name("Temperature") };
+            IaCalibrationTargetConfiguration configuration =
+                new IaCalibrationTargetBuilder(IaCalibrationTargetCategory.Dynamic,
+                    new IaCalibrationIdentification())
+                    .WithFeature(feature)
+                    .WithOperationalCondition(condition)
+                    .WithCustomOperationalConditions((context, folder) =>
+                    {
+                        var duplicate = new BaseObjectState(folder);
+                        duplicate.Create(context, NodeId.Null, condition.BrowseName,
+                            new LocalizedText("Duplicate condition"), true);
+                        folder.AddChild(duplicate);
+                    })
+                    .Build();
+            CalibrationTargetState node = fixture.Context.CreateInstanceOfCalibrationTargetType(
+                browseName: fixture.Name("Target"));
+
+            Assert.That(() => new IaCalibrationTarget(fixture.Context, node,
+                Provider(configuration, Snapshot(feature, 25) with
+                {
+                    OperationalConditions =
+                    [
+                        new IaCalibrationReading(condition.BrowseName,
+                            new DataValue(Variant.From(20.0), StatusCodes.Good, IaTestContext.Timestamp))
+                    ]
+                }).Object), Throws.ArgumentException);
+        }
+
+        /// <summary>
+        /// Neither custom folder accepts an unnamed or whitespace-only component.
+        /// </summary>
+        [TestCase(false, "")]
+        [TestCase(false, " ")]
+        [TestCase(true, "")]
+        [TestCase(true, " ")]
+        public void CustomComponentsRequireNonemptyBrowseNames(bool condition, string name)
+        {
+            var fixture = new IaTestContext();
+            IaCalibrationFeature feature = Feature(fixture);
+            var builder = new IaCalibrationTargetBuilder(IaCalibrationTargetCategory.Dynamic,
+                new IaCalibrationIdentification()).WithFeature(feature);
+            Action<ISystemContext, BaseObjectState> configure = (context, folder) =>
+            {
+                var child = new BaseObjectState(folder);
+                child.Create(context, NodeId.Null, fixture.Name("Custom"),
+                    new LocalizedText("Custom component"), true);
+                child.BrowseName = fixture.Name(name);
+                folder.AddChild(child);
+            };
+            if (condition)
+            {
+                builder.WithCustomOperationalConditions(configure);
+            }
+            else
+            {
+                builder.WithCustomFeatures(configure);
+            }
+            IaCalibrationTargetConfiguration configuration = builder.Build();
+            CalibrationTargetState node = fixture.Context.CreateInstanceOfCalibrationTargetType(
+                browseName: fixture.Name("Target"));
+
+            Assert.That(() => new IaCalibrationTarget(fixture.Context, node,
+                Provider(configuration, Snapshot(feature, 25)).Object), Throws.ArgumentException);
         }
 
         /// <summary>

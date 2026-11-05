@@ -409,6 +409,18 @@ namespace IndustrialAutomationSample
                             new LocalizedText("Target geometry definition"), true);
                         folder.AddChild(geometry);
                     })
+                    .WithCustomOperationalConditions((context, folder) =>
+                    {
+                        var environment = new BaseDataVariableState(folder);
+                        environment.Create(context, NodeId.Null, new QualifiedName("Environment", ns),
+                            new LocalizedText("Operating environment"), true);
+                        environment.DataType = Opc.Ua.DataTypeIds.String;
+                        environment.ValueRank = ValueRanks.Scalar;
+                        environment.Value = "Dry indoor environment";
+                        environment.StatusCode = StatusCodes.Good;
+                        environment.Timestamp = DateTime.UtcNow;
+                        folder.AddChild(environment);
+                    })
                     .WithOptionalFields(IaCalibrationTargetFields.NextValidationDate |
                         IaCalibrationTargetFields.Quality | IaCalibrationTargetFields.CertificateUri)
                     .Build();
