@@ -983,10 +983,10 @@ Request routing remains owned by the explicit `OperationContext` view.
 | Scope | Purpose and expiration | Retained state |
 | --- | --- | --- |
 | `LifecycleWriter` decision scope | Rejects nested lifecycle operations during the durable decision, including spawned work. The decision's `finally` block revokes the scope before restoring its predecessor. | An active flag; no manager or generation |
-| `NodeManagerReadinessScope` | Allows initializer access only to its exact server and generation. Disposal revokes access and clears the server, generation and parent references before restoring the preceding scope. | Server and generation references only while active |
+| `NodeManagerReadinessScope` | Allows initializer access only to its exact server and generation. Disposal revokes access, restores the preceding scope only if it is still current, and clears the server, generation and parent references. | Server and generation references only while active |
 | `MasterNodeManager` callback permit | Allows nested publication to reuse the capabilities currently held by a manager callback. Disposal revokes the permit; an escaped preparation must reacquire each missing capability. | Capability flags, the preceding permit and its execution-context slot; no manager or generation |
 | `MasterNodeManager` current decision | Rejects namespace and node-management writes from the callback whose decision they would otherwise wait for. Releasing the reservation completes its marker and clears the current slot. | A completion task with no manager or generation payload |
-| `MasterNodeManager` namespace publication | Rejects serving namespace changes from callbacks invoked before the durable decision. Releasing the namespace reservation completes its marker and restores the preceding slot, on success or failure. | A completion task with no manager or generation payload |
+| `MasterNodeManager` namespace publication | Rejects serving namespace changes from callbacks while lifecycle publication holds the namespace reservation, including during the durable decision. Releasing the reservation completes its marker and restores the preceding slot, on success or failure. | A completion task with no manager or generation payload |
 
 Restoring an `AsyncLocal` value alone cannot revoke a scope copied into another
 execution context. Readers therefore check the shared active flag or completion
