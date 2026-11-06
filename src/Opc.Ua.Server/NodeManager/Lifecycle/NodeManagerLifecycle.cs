@@ -77,11 +77,27 @@ namespace Opc.Ua.Server
             StandardServer server,
             TimeProvider timeProvider,
             Func<Func<bool>, LifecycleWriter>? writerFactory)
+            : this(server, timeProvider, writerFactory, server?.NodeManagerLifecycle as NodeManagerLifecycle)
+        {
+        }
+
+        /// <summary>
+        /// Creates a lifecycle owner bound to its server services before any preparation or publication.
+        /// </summary>
+        /// <param name="server">The server state and schema services.</param>
+        /// <param name="timeProvider">The server's clock.</param>
+        /// <param name="writerFactory">The factory receiving the owner's cleanup-completion policy.</param>
+        /// <param name="canonicalOwner">The canonical owner, or null when creating that owner.</param>
+        internal NodeManagerLifecycle(
+            INodeManagerLifecycleHost server,
+            TimeProvider timeProvider,
+            Func<Func<bool>, LifecycleWriter>? writerFactory,
+            NodeManagerLifecycle? canonicalOwner = null)
         {
             m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
             m_reclaimer = new GenerationReclaimer(m_timeProvider);
-            m_canonicalOwner = server.NodeManagerLifecycle as NodeManagerLifecycle;
+            m_canonicalOwner = canonicalOwner;
             bool CanDispose() => m_reclaimer.Count == 0 && m_registrations.Count == 0;
 
             if (writerFactory is null)
@@ -721,11 +737,11 @@ namespace Opc.Ua.Server
             lock (m_registrationLock)
             {
                 return m_registrations.Values.Any(state =>
-                        AreSameNodeManager(
+                        NodeManagerGenerationRegistry.HasSameIdentity(
                             state.Registration.NodeManager,
                             nodeManager)) ||
                     m_reclaimer.Snapshot().Any(retired =>
-                        AreSameNodeManager(
+                        NodeManagerGenerationRegistry.HasSameIdentity(
                             retired.NodeManager,
                             nodeManager));
             }
@@ -1011,23 +1027,6 @@ namespace Opc.Ua.Server
             }
             return new ValueTask<(INodeManagerMonitoredItemSource, IReadOnlyList<IMonitoredItem>)>(
                 (nodeManagerLifecycle, items));
-        }
-
-        private static bool AreSameNodeManager(
-            IAsyncNodeManager first,
-            IAsyncNodeManager second)
-        {
-            if (ReferenceEquals(first, second))
-            {
-                return true;
-            }
-            INodeManager? firstSyncNodeManager = first.SyncNodeManager;
-            INodeManager? secondSyncNodeManager = second.SyncNodeManager;
-            return firstSyncNodeManager is not null &&
-                secondSyncNodeManager is not null &&
-                ReferenceEquals(
-                    firstSyncNodeManager,
-                    secondSyncNodeManager);
         }
 
         private static ValueTask ResolveUnresolvedSourcesAsync(
@@ -2008,8 +2007,8 @@ namespace Opc.Ua.Server
                                         .ConfigureAwait(false)
                                 ];
                             }
-                            resolver = await m_server.RefreshComplexTypesAsync(
-                                stagingServer, entry.Manager, publishResolver: false, cancellationToken: cancellationToken)
+                            resolver = await m_server.PrepareComplexTypesAsync(
+                                stagingServer, entry.Manager, cancellationToken)
                                 .ConfigureAwait(false) ??
                                 resolver;
                             var registration = new NodeManagerRegistration(
@@ -2669,7 +2668,7 @@ namespace Opc.Ua.Server
                 }
                 if (m_batch.Resolver is not null)
                 {
-                    m_owner.m_server.ComplexTypeResolverHolder?.SetResolver(m_batch.Resolver);
+                    m_owner.m_server.PublishComplexTypeResolver(m_batch.Resolver);
                 }
                 m_reconciler.SupersedeReconciliations();
             }
@@ -3094,13 +3093,38 @@ namespace Opc.Ua.Server
                 {
                     await m_finished.Task.ConfigureAwait(false);
                 }
-                OperationLifetime? operation = Interlocked.Exchange(ref m_operation, null);
+                TaskCompletionSource<bool> disposalFinished;
+                OperationLifetime? operation;
+                lock (m_stateGate)
+                {
+                    if (m_disposalFinished is { } current)
+                    {
+                        if (current.Task.IsCompleted)
+                        {
+                            return;
+                        }
+                        disposalFinished = current;
+                        operation = null;
+                    }
+                    else
+                    {
+                        operation = Interlocked.Exchange(ref m_operation, null);
+                        if (operation is null)
+                        {
+                            return;
+                        }
+                        disposalFinished = m_disposalFinished = new TaskCompletionSource<bool>(
+                            TaskCreationOptions.RunContinuationsAsynchronously);
+                    }
+                }
+                if (operation is null)
+                {
+                    await disposalFinished.Task.ConfigureAwait(false);
+                    return;
+                }
+                Exception? cleanupFailure = null;
                 try
                 {
-                    if (operation is null)
-                    {
-                        return;
-                    }
                     if (!IsCommitted && !DecisionCommitted)
                     {
                         Exception? failure = await m_owner.AbortBatchEntriesAsync(
@@ -3111,10 +3135,23 @@ namespace Opc.Ua.Server
                         }
                     }
                 }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    cleanupFailure = failure;
+                }
                 finally
                 {
-                    operation?.Dispose();
+                    operation.Dispose();
+                    if (cleanupFailure is null)
+                    {
+                        disposalFinished.TrySetResult(true);
+                    }
+                    else
+                    {
+                        disposalFinished.TrySetException(cleanupFailure);
+                    }
                 }
+                await disposalFinished.Task.ConfigureAwait(false);
             }
 
             private async ValueTask<NodeManagerBatchResult> CommitCoreAsync(
@@ -3212,6 +3249,10 @@ namespace Opc.Ua.Server
             private readonly Lock m_stateGate = new();
             private readonly TaskCompletionSource<bool> m_finished =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>Completion shared only while this batch's abort disposal is in progress.</summary>
+            private TaskCompletionSource<bool>? m_disposalFinished;
+
             private OperationLifetime? m_operation;
             private int m_state;
             private bool m_readImagesBound;
@@ -3318,13 +3359,31 @@ namespace Opc.Ua.Server
                 IPreparedNodeManagerBatch batch = await PrepareCoreAsync(
                     changes, default, cancellationToken, validationOnly: true)
                     .ConfigureAwait(false);
-                await using var lifetime = batch.ConfigureAwait(false);
-                if (batch is not PreparedBatch candidate)
+                try
                 {
-                    throw new InvalidOperationException("Validation requires the captured lifecycle batch owner.");
+                    if (batch is not PreparedBatch candidate)
+                    {
+                        throw new InvalidOperationException("Validation requires the captured lifecycle batch owner.");
+                    }
+                    await inspectAsync(batch, cancellationToken).ConfigureAwait(false);
+                    await candidate.ValidateAsync(cancellationToken).ConfigureAwait(false);
                 }
-                await inspectAsync(batch, cancellationToken).ConfigureAwait(false);
-                await candidate.ValidateAsync(cancellationToken).ConfigureAwait(false);
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    try
+                    {
+                        await batch.DisposeAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
+                    {
+                        throw new AggregateException(
+                            "Private validation and candidate cleanup both failed.",
+                            failure,
+                            cleanupFailure);
+                    }
+                    throw;
+                }
+                await batch.DisposeAsync().ConfigureAwait(false);
             }
 
             /// <summary>
@@ -3362,7 +3421,8 @@ namespace Opc.Ua.Server
         }
 
 
-        private readonly StandardServer m_server;
+        /// <summary>The construction-bound server state and schema publication services.</summary>
+        private readonly INodeManagerLifecycleHost m_server;
 
         /// <summary>The clock used for lifecycle wait diagnostics and retry delays.</summary>
         private readonly TimeProvider m_timeProvider;

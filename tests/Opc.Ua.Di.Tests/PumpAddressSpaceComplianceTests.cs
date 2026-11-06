@@ -894,10 +894,8 @@ namespace Opc.Ua.Di.Tests
         {
             await using var clientFixture = new ClientFixture(server.Telemetry);
             string clientRoot = System.IO.Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                nameof(PumpAddressSpaceComplianceTests),
-                "client",
-                Guid.NewGuid().ToString("N"));
+                System.IO.Path.GetTempPath(),
+                "ua-pump-address-client-" + Guid.NewGuid().ToString("N"));
             await clientFixture.LoadClientConfigurationAsync(clientRoot).ConfigureAwait(false);
             clientFixture.OperationTimeout = 15_000;
 
@@ -1339,9 +1337,8 @@ namespace Opc.Ua.Di.Tests
         {
             const string applicationName = nameof(PumpAddressSpaceComplianceTests);
             string testRoot = System.IO.Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                applicationName,
-                Guid.NewGuid().ToString("N"));
+                System.IO.Path.GetTempPath(),
+                "ua-pump-address-server-" + Guid.NewGuid().ToString("N"));
             options.ApplicationName = applicationName;
             options.ApplicationUri = "urn:localhost:" + applicationName;
             options.ProductUri = "urn:localhost:" + applicationName + ":product";

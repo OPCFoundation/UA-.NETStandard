@@ -106,6 +106,11 @@ namespace Opc.Ua.Server
         /// Gets or sets the incarnation committed by this attempt, never an unrelated adoption.
         /// </summary>
         internal long SourceRevision { get; set; }
+
+        /// <summary>
+        /// Gets or sets the generation committed by this attempt until the source manager takes ownership.
+        /// </summary>
+        internal NodeManagerGeneration? Generation { get; set; }
     }
 
     /// <summary>

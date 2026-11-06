@@ -126,9 +126,8 @@ namespace Opc.Ua.Di.Tests
                 using var clientFixture = new ClientFixture(
                     NUnitTelemetryContext.Create());
                 string clientPkiRoot = System.IO.Path.Combine(
-                    TestContext.CurrentContext.WorkDirectory,
-                    nameof(HostedPumpsBrowseSimulateAndReportEventsAsync),
-                    "client-pki");
+                    System.IO.Path.GetTempPath(),
+                    "ua-pump-host-client-" + Guid.NewGuid().ToString("N"));
                 await clientFixture.LoadClientConfigurationAsync(clientPkiRoot)
                     .ConfigureAwait(false);
                 using Ua.Client.ISession session = await clientFixture.ConnectAsync(
@@ -381,9 +380,8 @@ namespace Opc.Ua.Di.Tests
 
                 using var clientFixture = new ClientFixture(NUnitTelemetryContext.Create());
                 string clientPkiRoot = System.IO.Path.Combine(
-                    TestContext.CurrentContext.WorkDirectory,
-                    nameof(PumpCreatedAfterStartupJoinsTheLiveSimulationAsync),
-                    "client-pki");
+                    System.IO.Path.GetTempPath(),
+                    "ua-pump-host-client-" + Guid.NewGuid().ToString("N"));
                 await clientFixture.LoadClientConfigurationAsync(clientPkiRoot)
                     .ConfigureAwait(false);
                 using Ua.Client.ISession session = await clientFixture.ConnectAsync(
@@ -467,9 +465,8 @@ namespace Opc.Ua.Di.Tests
         {
             const string applicationName = nameof(PumpHostedReferenceTests);
             string testRoot = System.IO.Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                applicationName,
-                Guid.NewGuid().ToString("N"));
+                System.IO.Path.GetTempPath(),
+                "ua-pump-host-server-" + Guid.NewGuid().ToString("N"));
             options.ApplicationName = applicationName;
             options.ApplicationUri = "urn:localhost:" + applicationName;
             options.ProductUri = "urn:localhost:" + applicationName + ":product";

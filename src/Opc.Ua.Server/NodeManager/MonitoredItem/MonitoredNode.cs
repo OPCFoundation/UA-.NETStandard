@@ -119,8 +119,8 @@ namespace Opc.Ua.Server
             bool enableMultipleEventConsumers,
             TimeProvider? timeProvider)
         {
-            NodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
             m_server = server ?? throw new ArgumentNullException(nameof(server));
+            NodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
             Node = node ?? throw new ArgumentNullException(nameof(node));
             m_timeProvider = timeProvider
                 ?? (server as ITimeProviderProvider)?.TimeProvider
@@ -148,15 +148,55 @@ namespace Opc.Ua.Server
             get => m_nodeManager;
             set
             {
-                m_nodeManager = value ?? throw new ArgumentNullException(nameof(value));
-                Generation = NodeManagerGenerationRegistry.GetOrCreate(value).Reference;
+                lock (m_rebindLock)
+                {
+                    m_nodeManager = value ?? throw new ArgumentNullException(nameof(value));
+                    Volatile.Write(ref m_generation, null);
+                }
             }
         }
 
         /// <summary>
         /// Gets the non-owning identity of the generation currently bound to this monitored node.
         /// </summary>
-        internal NodeManagerGenerationReference Generation { get; private set; } = null!;
+        internal NodeManagerGenerationReference? Generation
+        {
+            get
+            {
+                NodeManagerGenerationReference? reference = Volatile.Read(ref m_generation);
+                if (reference is not null)
+                {
+                    return reference;
+                }
+                lock (m_rebindLock)
+                {
+                    if (m_generation is not null)
+                    {
+                        return m_generation;
+                    }
+                    NodeManagerGeneration? generation;
+                    if (m_server.NodeManager is MasterNodeManager master)
+                    {
+                        if (!master.TryGetSourceGeneration(m_nodeManager, out generation) &&
+                            !master.TryGetLegacySourceGeneration(m_nodeManager, out generation))
+                        {
+                            return null;
+                        }
+                    }
+                    else if (m_server.NodeManager is null)
+                    {
+                        return null;
+                    }
+                    else
+                    {
+                        generation = NodeManagerGenerationRegistry.GetOrCreate(m_nodeManager);
+                    }
+                    reference = generation!.Reference;
+                    Volatile.Write(ref m_generation, reference);
+                    return reference;
+                }
+            }
+        }
 
         /// <summary>
         /// Gets or sets the Node being monitored.
@@ -2153,8 +2193,11 @@ namespace Opc.Ua.Server
                 return true;
             }
 
-            return itemGeneration.SlotId == Generation.SlotId &&
-                itemGeneration.Number == Generation.Number;
+            NodeManagerGenerationReference? generation = Generation;
+            return generation is null
+                ? m_server.NodeManager is not MasterNodeManager
+                : itemGeneration.SlotId == generation.SlotId &&
+                    itemGeneration.Number == generation.Number;
         }
 
         private void InvalidatePermissionCaches()
@@ -2216,6 +2259,7 @@ namespace Opc.Ua.Server
         private ServerSystemContext? m_subscriberContextTemplate;
         private readonly IServerInternal m_server;
         private IAsyncNodeManager m_nodeManager = null!;
+        private NodeManagerGenerationReference? m_generation;
         private readonly TimeProvider m_timeProvider;
         private readonly ILogger? m_logger;
         private readonly Channel<INodeNotification> m_channel;
@@ -2284,7 +2328,7 @@ namespace Opc.Ua.Server
                     return;
                 }
                 if (disposing &&
-                    Generation.TryGetGeneration(out NodeManagerGeneration? generation) &&
+                    Generation?.TryGetGeneration(out NodeManagerGeneration? generation) == true &&
                     generation!.TryDeferDisposal(this))
                 {
                     m_draining = true;

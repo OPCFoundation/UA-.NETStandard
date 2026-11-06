@@ -198,7 +198,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception failure) when (failure is not OutOfMemoryException)
             {
-                await prepared.DisposeAsync().ConfigureAwait(false);
+                await PreparedLifecycleChanges.DisposeAfterAdapterFailureAsync(prepared, failure).ConfigureAwait(false);
                 throw;
             }
         }
@@ -362,8 +362,30 @@ namespace Opc.Ua.Server
             }
             catch (Exception failure) when (failure is not OutOfMemoryException)
             {
-                await prepared.DisposeAsync().ConfigureAwait(false);
+                await DisposeAfterAdapterFailureAsync(prepared, failure).ConfigureAwait(false);
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// Disposes a provider after adapter construction fails, preserving both failures if cleanup also fails.
+        /// </summary>
+        /// <param name="prepared">The provider that could not be adapted.</param>
+        /// <param name="failure">The adapter construction or validation failure.</param>
+        internal static async ValueTask DisposeAfterAdapterFailureAsync(
+            IPreparedNodeManagerBatch prepared,
+            Exception failure)
+        {
+            try
+            {
+                await prepared.DisposeAsync().ConfigureAwait(false);
+            }
+            catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
+            {
+                throw new AggregateException(
+                    "Prepared lifecycle adapter construction and cleanup both failed.",
+                    failure,
+                    cleanupFailure);
             }
         }
 
@@ -438,7 +460,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Prevents metadata mutation after inspection or disposal.
+        /// Prevents metadata mutation and releases a validation view's borrowed provider after inspection.
         /// </summary>
         internal void Seal()
         {
@@ -446,6 +468,10 @@ namespace Opc.Ua.Server
             {
                 m_consumed = true;
                 m_metadata.Clear();
+                if (m_validationOnly)
+                {
+                    m_prepared = null;
+                }
             }
         }
 

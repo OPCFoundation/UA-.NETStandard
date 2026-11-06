@@ -58,6 +58,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var candidate = CreateLifecycleNodeManager(kSecondModelNamespaceUri);
             bool committing = false;
             bool checkedReentry = false;
+            ExecutionContext? publicationContext = null;
             candidate.SetupGet(value => value.NamespaceUris).Returns(() =>
             {
                 if (committing)
@@ -77,6 +78,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     master.RegisterNamespaceManager(StagedAliasUri, candidate.Object);
                     Assert.That(master.UnregisterNamespaceManager(StagedAliasUri, candidate.Object), Is.True);
                     checkedReentry = true;
+                    publicationContext ??= ExecutionContext.Capture();
                 }
                 return new[] { kSecondModelNamespaceUri };
             });
@@ -95,6 +97,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 added = result.Registrations[0];
                 Assert.That(result.CleanupFailure, Is.Null);
                 Assert.That(checkedReentry, Is.True);
+                committing = false;
+                Assert.That(publicationContext, Is.Not.Null);
+                ExecutionContext.Run(publicationContext!, _ =>
+                {
+                    master.RegisterNamespaceManager(AliasUri, serving);
+                    Assert.That(master.UnregisterNamespaceManager(AliasUri, serving), Is.True);
+                }, null);
             }
             finally
             {
@@ -309,8 +318,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     null,
                     timeout.Token).ConfigureAwait(false);
 
+            ExecutionContext? decisionContext = null;
             NodeManagerBatchResult result = await prepared.CommitAsync(async _ =>
             {
+                decisionContext = ExecutionContext.Capture();
                 Task nodeManagement = requestType switch
                 {
                     RequestType.AddNodes => master.AddNodesAsync(
@@ -329,6 +340,22 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }, timeout.Token).ConfigureAwait(false);
 
             Assert.That(result.CleanupFailure, Is.Null);
+            Assert.That(decisionContext, Is.Not.Null);
+            Task? resumed = null;
+            ExecutionContext.Run(decisionContext!, _ =>
+            {
+                resumed = requestType switch
+                {
+                    RequestType.AddNodes => master.AddNodesAsync(context, [], CancellationToken.None).AsTask(),
+                    RequestType.DeleteNodes => master.DeleteNodesAsync(context, [], CancellationToken.None).AsTask(),
+                    RequestType.AddReferences => master.AddReferencesAsync(context, [], CancellationToken.None).AsTask(),
+                    RequestType.DeleteReferences => master.DeleteReferencesAsync(context, [], CancellationToken.None)
+                        .AsTask(),
+                    _ => throw new AssertionException($"Unexpected request type {requestType}.")
+                };
+            }, null);
+            Assert.That(resumed, Is.Not.Null);
+            await resumed!.WaitAsync(timeout.Token).ConfigureAwait(false);
         }
     }
 }

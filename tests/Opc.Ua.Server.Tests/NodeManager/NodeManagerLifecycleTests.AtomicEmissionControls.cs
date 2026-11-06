@@ -111,17 +111,30 @@ namespace Opc.Ua.Server.Tests.NodeManager
             MonitoredNode2 source = second.GetEmissionSource(sourceId);
             var validating = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var releaseValidation = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var validatingQueuedSource = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseQueuedSource = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var releaseDispatch = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var published = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             int validationClaims = 0;
             second.EmissionPermissionCallback = async (permission, token) =>
             {
-                if (permission == (events ? PermissionType.ReceiveEvents : PermissionType.Read) &&
-                    Interlocked.CompareExchange(ref validationClaims, 1, 0) == 0)
+                if (permission != (events ? PermissionType.ReceiveEvents : PermissionType.Read))
+                {
+                    return;
+                }
+                int claim = Interlocked.Increment(ref validationClaims);
+                if (claim == 1)
                 {
                     validating.TrySetResult(true);
                     await releaseValidation.Task.WaitAsync(token).ConfigureAwait(false);
+                }
+                else if (claim == 2)
+                {
+                    validatingQueuedSource.TrySetResult(true);
+                    await releaseQueuedSource.Task.WaitAsync(token).ConfigureAwait(false);
                 }
             };
             first.ConditionRefreshCallback = async (_, token) =>
@@ -144,27 +157,29 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     ], timeout.Token).ConfigureAwait(false);
                 ISession session = RequireLifecycleValue(
                     server.SessionManager.GetSession(m_requestHeader.AuthenticationToken));
-                    using (var context = new OperationContext(session, DiagnosticsMasks.None))
-                    {
-                        dispatch = master.ConditionRefreshAsync(context, [allEvents], timeout.Token).AsTask();
-                        await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                        commit = prepared.CommitAsync(_ => default, () => published.TrySetResult(true), timeout.Token)
-                            .AsTask();
-                        await published.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                        Assert.That(prepared.IsCommitted, Is.True);
-                        Assert.That(dispatch.IsCompleted, Is.False);
-                        Assert.That(second.DisposeCount, Is.Zero);
-                        releaseDispatch.TrySetResult(true);
-                        releaseValidation.TrySetResult(true);
-                        await dispatch.WaitAsync(timeout.Token).ConfigureAwait(false);
-                        await ProduceAsync(999).ConfigureAwait(false);
-                        Assert.That(second.DisposeCount, Is.Zero,
-                            "The queued source snapshots, not just A's callback, must retain B.");
-                    }
-                    NodeManagerBatchResult result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
-                    retirementResult = result;
-                    Assert.That(result.CleanupFailure, Is.Null);
-                    await survivor.ReportOwnedEmissionAsync("source-drain-fence", timeout.Token).ConfigureAwait(false);
+                using (var context = new OperationContext(session, DiagnosticsMasks.None))
+                {
+                    dispatch = master.ConditionRefreshAsync(context, [allEvents], timeout.Token).AsTask();
+                    await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    commit = prepared.CommitAsync(_ => default, () => published.TrySetResult(true), timeout.Token)
+                        .AsTask();
+                    await published.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    Assert.That(prepared.IsCommitted, Is.True);
+                    Assert.That(dispatch.IsCompleted, Is.False);
+                    Assert.That(second.DisposeCount, Is.Zero);
+                    releaseDispatch.TrySetResult(true);
+                    releaseValidation.TrySetResult(true);
+                    await dispatch.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    await validatingQueuedSource.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    await ProduceAsync(999).ConfigureAwait(false);
+                    Assert.That(second.DisposeCount, Is.Zero,
+                        "The queued source snapshots, not just A's callback, must retain B.");
+                    releaseQueuedSource.TrySetResult(true);
+                }
+                NodeManagerBatchResult result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
+                retirementResult = result;
+                Assert.That(result.CleanupFailure, Is.Null);
+                await survivor.ReportOwnedEmissionAsync("source-drain-fence", timeout.Token).ConfigureAwait(false);
                 var values = new List<DataValue>();
                 var messages = new List<string>();
                 bool fenced = false;
@@ -256,6 +271,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 releaseDispatch.TrySetResult(true);
                 releaseValidation.TrySetResult(true);
+                releaseQueuedSource.TrySetResult(true);
                 if (dispatch is not null)
                 {
                     await dispatch.WaitAsync(timeout.Token).ConfigureAwait(false);

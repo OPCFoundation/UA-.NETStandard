@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RunSettings>
+  <NUnit>
+    <AssemblySelectLimit>2147483647</AssemblySelectLimit>
+  </NUnit>
   <DataCollectionRunSettings>
     <DataCollectors>
       <DataCollector friendlyName="XPlat Code Coverage">

@@ -112,6 +112,8 @@ namespace Opc.Ua.Server
         {
             // check if the node is already being monitored.
 
+            NodeManagerGeneration sourceGeneration = MasterNodeManager.GetSourceGeneration(
+                server, nodeManager, context.OperationContext);
             NodeState cachedNode = addNodeToComponentCache(context, handle, handle.Node);
 
             if (!MonitoredNodes.TryGetValue(handle.Node.NodeId, out MonitoredNode2? monitoredNode))
@@ -150,7 +152,9 @@ namespace Opc.Ua.Server
                 revisedQueueSize,
                 itemToCreate.RequestedParameters.DiscardOldest,
                 0,
-                createDurable);
+                createDurable,
+                timeProvider: null,
+                sourceGeneration: sourceGeneration);
 
             // now save the monitored item.
             monitoredNode.Add((IDataChangeMonitoredItem2)datachangeItem);
@@ -347,6 +351,11 @@ namespace Opc.Ua.Server
                 return false;
             }
 
+            NodeManagerGeneration sourceGeneration = MasterNodeManager.GetSourceGeneration(
+                server, nodeManager, context.OperationContext);
+            NodeManagerGeneration nativeGeneration = ReferenceEquals(nodeManager, m_nodeManager)
+                ? sourceGeneration
+                : MasterNodeManager.GetSourceGeneration(server, m_nodeManager, context.OperationContext);
             NodeState cachedNode = addNodeToComponentCache(context, handle, handle.Node);
 
             // check if the node is already being monitored.
@@ -365,10 +374,13 @@ namespace Opc.Ua.Server
                 server,
                 nodeManager,
                 handle,
-                storedMonitoredItem);
+                storedMonitoredItem,
+                timeProvider: null,
+                sourceGeneration: sourceGeneration);
 
             var binding = (IMonitoredItemGenerationBinding)datachangeItem;
-            if (!binding.TryBindSource(binding.SourceRevision, m_nodeManager, handle, out _))
+            if (!datachangeItem.TryBindSource(
+                binding.SourceRevision, m_nodeManager, handle, nativeGeneration, out _))
             {
                 datachangeItem.Dispose();
                 throw new InvalidOperationException("The restored source changed before native registration.");
@@ -737,13 +749,9 @@ namespace Opc.Ua.Server
                 }
                 monitoredNodeLinked = true;
 
-                if (!binding.TryBindSource(expectedRevision, m_nodeManager, handle, out long boundRevision))
+                if (!binding.TryBindSource(expectedRevision, m_nodeManager, handle, out _, adoption))
                 {
                     return (StatusCodes.BadInvalidState, false);
-                }
-                if (adoption is not null)
-                {
-                    adoption.SourceRevision = boundRevision;
                 }
                 attached = true;
                 return (ServiceResult.Good, true);

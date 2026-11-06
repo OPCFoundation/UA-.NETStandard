@@ -30,6 +30,7 @@
 using System;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
@@ -164,6 +165,113 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Escaped inspection metadata does not retain the provider after its publication owner finishes cleanup.
+        /// </summary>
+        [TestCase("Success")]
+        [TestCase("Inspection")]
+        [TestCase("Validation")]
+        public async Task RetainedInspectionReleasesProviderAfterValidationAsync(string outcome)
+        {
+            (IPreparedChanges changes,
+                WeakReference provider,
+                WeakReference<IAsyncNodeManager> candidate,
+                Guid id) = await CreateRetainedInspectionAsync(outcome).ConfigureAwait(false);
+            CollectFully();
+            try
+            {
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(provider.IsAlive, Is.False);
+                    Assert.That(candidate.TryGetTarget(out _), Is.False);
+                    Assert.That(changes.Registrations[0].TryGetRegistration(out _), Is.False);
+                    Assert.That(changes.Registrations[0].Id, Is.EqualTo(id));
+                    Assert.That(changes.IsCommitted, Is.False);
+                }
+                await changes.DisposeAsync().ConfigureAwait(false);
+                Assert.That(changes.Registrations[0].Id, Is.EqualTo(id));
+            }
+            finally
+            {
+                GC.KeepAlive(changes);
+            }
+        }
+
+        /// <summary>
+        /// Runs the real inspection adapter while the publication retains sole cleanup ownership.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static async Task<(
+            IPreparedChanges Changes,
+            WeakReference Provider,
+            WeakReference<IAsyncNodeManager> Candidate,
+            Guid Id)> CreateRetainedInspectionAsync(string outcome)
+        {
+            var manager = new Mock<IAsyncNodeManager>(MockBehavior.Strict);
+            manager.SetupGet(value => value.SyncNodeManager).Returns(new SyncNodeManagerAdapter(manager.Object));
+            manager.SetupGet(value => value.NamespaceUris).Returns(["urn:opcua:tests:inspection"]);
+            var registration = new NodeManagerRegistration(Guid.NewGuid(), 1, manager.Object);
+            var provider = new Mock<IPreparedNodeManagerBatch>(MockBehavior.Strict);
+            provider.SetupGet(value => value.Registrations).Returns(new ArrayOf<NodeManagerRegistration>([registration]));
+            provider.SetupGet(value => value.IsCommitted).Returns(false);
+            provider.Setup(value => value.DisposeAsync()).Returns(default(ValueTask));
+            var failure = new InvalidOperationException(outcome);
+            var publication = new Mock<INodeManagerPublication>(MockBehavior.Strict);
+            publication.Setup(value => value.ValidateAsync(
+                    It.IsAny<ArrayOf<NodeManagerBatchChange>>(),
+                    It.IsAny<Func<IPreparedNodeManagerBatch, CancellationToken, ValueTask>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(async (ArrayOf<NodeManagerBatchChange> _,
+                    Func<IPreparedNodeManagerBatch, CancellationToken, ValueTask> inspect,
+                    CancellationToken ct) =>
+                {
+                    try
+                    {
+                        await inspect(provider.Object, ct).ConfigureAwait(false);
+                        provider.Verify(value => value.DisposeAsync(), Times.Never);
+                        if (outcome == "Validation")
+                        {
+                            throw failure;
+                        }
+                    }
+                    finally
+                    {
+                        await provider.Object.DisposeAsync().ConfigureAwait(false);
+                    }
+                });
+            publication.Setup(value => value.DisposeAsync()).Returns(default(ValueTask));
+            await using var writer = new LifecyclePublicationWriter(publication.Object);
+            IPreparedChanges? retained = null;
+            async Task ValidateAsync()
+            {
+                await writer.ValidateAsync(
+                    [LifecycleChange.Add(Mock.Of<IAsyncNodeManagerFactory>())], (changes, _) =>
+                    {
+                        retained = changes;
+                        if (outcome == "Inspection")
+                        {
+                            throw failure;
+                        }
+                        return default;
+                    }).ConfigureAwait(false);
+            }
+            if (outcome == "Success")
+            {
+                await ValidateAsync().ConfigureAwait(false);
+            }
+            else
+            {
+                await Assert.ThatAsync(ValidateAsync, Throws.Exception.SameAs(failure)).ConfigureAwait(false);
+            }
+            provider.Verify(value => value.DisposeAsync(), Times.Once);
+            registration.Slot.Unpublish(registration.Identity);
+            return (
+                retained ?? throw new InvalidOperationException("The inspection was not invoked."),
+                new WeakReference(provider.Object),
+                new WeakReference<IAsyncNodeManager>(manager.Object),
+                registration.Id);
+        }
+
+        /// <summary>
         /// Separates provider construction and completed disposal from the collection assertion.
         /// </summary>
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -178,6 +286,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             string[] namespaceUris = ["urn:opcua:tests:prepared-snapshot"];
             var manager = new Mock<IAsyncNodeManager>(MockBehavior.Strict);
+            manager.SetupGet(value => value.SyncNodeManager).Returns(new SyncNodeManagerAdapter(manager.Object));
             manager.SetupGet(value => value.NamespaceUris).Returns(namespaceUris);
             var registration = new NodeManagerRegistration(Guid.NewGuid(), 1, manager.Object);
             var provider = new Mock<IPreparedNodeManagerBatch>(MockBehavior.Strict);
@@ -209,6 +318,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             CreateDisposedChangesWithIndependentOwnerAsync()
         {
             var manager = new Mock<IAsyncNodeManager>(MockBehavior.Strict);
+            manager.SetupGet(value => value.SyncNodeManager).Returns(new SyncNodeManagerAdapter(manager.Object));
             manager.SetupGet(value => value.NamespaceUris).Returns(["urn:opcua:tests:prepared-owner"]);
             var owner = new NodeManagerRegistration(Guid.NewGuid(), 1, manager.Object);
             var provider = new Mock<IPreparedNodeManagerBatch>(MockBehavior.Strict);

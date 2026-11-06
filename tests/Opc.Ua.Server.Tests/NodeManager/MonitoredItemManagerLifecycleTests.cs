@@ -376,6 +376,59 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Forwarded owners release the same generation that was bound to the monitored item.
+        /// </summary>
+        [TestCase(ManagerPath.AsyncMonitoredNode, false)]
+        [TestCase(ManagerPath.AsyncMonitoredNode, true)]
+        [TestCase(ManagerPath.AsyncSamplingGroup, false)]
+        [TestCase(ManagerPath.AsyncSamplingGroup, true)]
+        [TestCase(ManagerPath.SyncAdapterMonitoredNode, false)]
+        [TestCase(ManagerPath.SyncAdapterMonitoredNode, true)]
+        [TestCase(ManagerPath.SyncAdapterSamplingGroup, false)]
+        [TestCase(ManagerPath.SyncAdapterSamplingGroup, true)]
+        public async Task ForwardedOwnerReleasesItsBoundMonitoredSourceAsync(ManagerPath path, bool retire)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (ManagerOwner owner = CreateManager(server.Object, path))
+            using (MasterNodeManager master = CreateForwardedMaster(server, owner, out NodeManagerGeneration generation))
+            {
+                var node = new BaseDataVariableState(null)
+                {
+                    NodeId = new NodeId("ForwardedSource", owner.NamespaceIndex),
+                    BrowseName = new QualifiedName("ForwardedSource", owner.NamespaceIndex),
+                    DataType = DataTypeIds.Int32,
+                    Value = 42
+                };
+                node.CreateAsPredefinedNode(owner.SystemContext);
+                await owner.AddNodeAsync(node).ConfigureAwait(false);
+                using MonitoredItem item = CreateMonitoredItem(
+                    server.Object, Mock.Of<IAsyncNodeManager>(), new NodeHandle(), node.NodeId);
+                var binding = (IMonitoredItemGenerationBinding)item;
+                binding.ReleaseSource();
+
+                ServiceResult attached = await owner.Lifecycle.AdoptSourceAsync(item).ConfigureAwait(false);
+                Assert.That(attached.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(owner.CaptureMonitoredItems(), Does.Contain(item));
+                Assert.That(item.Generation, Is.SameAs(generation.Reference));
+                if (retire)
+                {
+                    generation.Gate.Retire();
+                }
+
+                ServiceResult released = await owner.Lifecycle.ReleaseSourceAsync(item).ConfigureAwait(false);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(released.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(binding.IsSourceUnavailable, Is.True);
+                    Assert.That(item.NodeManager, Is.Null);
+                    Assert.That(owner.CaptureMonitoredItems(), Is.Empty);
+                });
+            }
+        }
+
         [TestCase(ManagerPath.AsyncMonitoredNode)]
         [TestCase(ManagerPath.AsyncSamplingGroup)]
         [TestCase(ManagerPath.SyncAdapterMonitoredNode)]
@@ -658,6 +711,67 @@ namespace Opc.Ua.Server.Tests
                     Assert.That(lifecycle.IsDeleted, Is.True);
                     Assert.That(lifecycle.IsSourceUnavailable, Is.True);
                     Assert.That(remaining, Is.Empty);
+                });
+            }
+        }
+
+        /// <summary>
+        /// Failed forwarded-provider cleanup stays with the facade's generation and can be retried.
+        /// </summary>
+        [TestCase(ManagerPath.AsyncMonitoredNode)]
+        [TestCase(ManagerPath.AsyncSamplingGroup)]
+        [TestCase(ManagerPath.SyncAdapterMonitoredNode)]
+        [TestCase(ManagerPath.SyncAdapterSamplingGroup)]
+        public async Task ForwardedOwnerRetriesFailedEventSourceReleaseAsync(ManagerPath path)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (ManagerOwner owner = CreateManager(server.Object, path))
+            using (MasterNodeManager master = CreateForwardedMaster(server, owner, out NodeManagerGeneration generation))
+            {
+                var node = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("ForwardedEventSource", owner.NamespaceIndex),
+                    BrowseName = new QualifiedName("ForwardedEventSource", owner.NamespaceIndex),
+                    EventNotifier = EventNotifiers.SubscribeToEvents
+                };
+                node.CreateAsPredefinedNode(owner.SystemContext);
+                await owner.AddNodeAsync(node).ConfigureAwait(false);
+                using MonitoredItem item = CreateEventMonitoredItem(
+                    server.Object, Mock.Of<IAsyncNodeManager>(), new NodeHandle(), node.NodeId);
+                ((IMonitoredItemGenerationBinding)item).ReleaseSource();
+                Assert.That(
+                    (await owner.Lifecycle.AdoptSourceAsync(item).ConfigureAwait(false)).StatusCode,
+                    Is.EqualTo(StatusCodes.Good));
+                Assert.That(item.Generation, Is.SameAs(generation.Reference));
+
+                int unsubscribeCount = 0;
+                var failure = new InvalidOperationException("Injected forwarded-provider release failure.");
+                var conflicting = new Mock<IMonitoredItem>();
+                owner.SetEventSubscriptionCallback(unsubscribe =>
+                {
+                    if (unsubscribe && ++unsubscribeCount == 1)
+                    {
+                        Assert.That(owner.TryAddNativeItem(item.Id, conflicting.Object), Is.True);
+                        throw failure;
+                    }
+                });
+                InvalidOperationException? observed = await Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await owner.Lifecycle.ReleaseSourceAsync(item).ConfigureAwait(false))
+                    .ConfigureAwait(false);
+                Assert.That(observed, Is.SameAs(failure));
+                Assert.That(generation.HasPendingSourceReleases, Is.True);
+                Assert.That(owner.TryRemoveNativeItem(item.Id), Is.True);
+
+                ServiceResult retried = await owner.Lifecycle.ReleaseSourceAsync(item).ConfigureAwait(false);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(retried.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(unsubscribeCount, Is.EqualTo(2));
+                    Assert.That(generation.HasPendingSourceReleases, Is.False);
+                    Assert.That(owner.CaptureMonitoredItems(), Is.Empty);
+                    Assert.That(item.NodeManager, Is.Null);
                 });
             }
         }
@@ -949,6 +1063,80 @@ namespace Opc.Ua.Server.Tests
                 item.Dispose();
                 await generation.CompleteSourceReleasesAsync(null, CancellationToken.None).ConfigureAwait(false);
                 await generation.CompleteSourceReleasesAsync(null, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(unsubscribes, Is.EqualTo(2));
+                Assert.That(generation.HasPendingSourceReleases, Is.False);
+            }
+        }
+
+        /// <summary>
+        /// Failed adoption retains cleanup on its bound generation when the current source route is ambiguous.
+        /// </summary>
+        [TestCase(ManagerPath.AsyncMonitoredNode)]
+        [TestCase(ManagerPath.AsyncSamplingGroup)]
+        [TestCase(ManagerPath.SyncAdapterMonitoredNode)]
+        [TestCase(ManagerPath.SyncAdapterSamplingGroup)]
+        public async Task FailedForwardedAdoptionRetainsCleanupAfterRoutingChangesAsync(ManagerPath path)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (ManagerOwner owner = CreateManager(server.Object, path))
+            using (MasterNodeManager master = CreateForwardedMaster(server, owner, out NodeManagerGeneration generation))
+            {
+                var resource = (IAsyncNodeManager)owner.Lifecycle;
+                var otherFacade = new Mock<IAsyncNodeManager>();
+                otherFacade.SetupGet(value => value.SyncNodeManager).Returns(resource.SyncNodeManager);
+                otherFacade.SetupGet(value => value.NamespaceUris).Returns(() => resource.NamespaceUris);
+                using MasterNodeManager ambiguousMaster = DeterministicServerMock.CreateMasterNodeManager(
+                    server, [generation.NodeManager, otherFacade.Object]);
+                Assert.That(ambiguousMaster.TryGetSourceGeneration(resource, out _), Is.False);
+                server.SetupGet(value => value.NodeManager).Returns(master);
+
+                var node = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("AmbiguousTargetProvider", owner.NamespaceIndex),
+                    BrowseName = new QualifiedName("AmbiguousTargetProvider", owner.NamespaceIndex),
+                    EventNotifier = EventNotifiers.SubscribeToEvents
+                };
+                node.CreateAsPredefinedNode(owner.SystemContext);
+                await owner.AddNodeAsync(node).ConfigureAwait(false);
+                using MonitoredItem item = CreateEventMonitoredItem(
+                    server.Object, Mock.Of<IAsyncNodeManager>(), new object(), node.NodeId);
+                ((IMonitoredItemGenerationBinding)item).ReleaseSource();
+                var adoption = new MonitoredItemAdoption(
+                    ((IMonitoredItemGenerationBinding)item).SourceRevision);
+                var adoptionFailure = new InvalidOperationException("Injected target-provider failure.");
+                var cleanupFailure = new InvalidOperationException("Injected target-provider cleanup failure.");
+                int unsubscribes = 0;
+                owner.SetEventSubscriptionCallback(unsubscribe =>
+                {
+                    if (!unsubscribe)
+                    {
+                        server.SetupGet(value => value.NodeManager).Returns(ambiguousMaster);
+                        throw adoptionFailure;
+                    }
+                    if (++unsubscribes == 1)
+                    {
+                        throw cleanupFailure;
+                    }
+                });
+
+                AggregateException? observed = await Assert.ThrowsAsync<AggregateException>(
+                    async () => await owner.Lifecycle.AdoptSourceAsync(item, adoption).ConfigureAwait(false))
+                    .ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(observed!.InnerExceptions, Has.Count.EqualTo(2));
+                    Assert.That(observed.InnerExceptions[0], Is.SameAs(adoptionFailure));
+                    Assert.That(observed.InnerExceptions[1], Is.SameAs(cleanupFailure));
+                    Assert.That(adoption.Generation, Is.Null);
+                    Assert.That(generation.HasPendingSourceReleases, Is.True);
+                    Assert.That(owner.CaptureMonitoredItems(), Is.Empty);
+                    Assert.That(item.NodeManager, Is.Null);
+                });
+
+                item.Dispose();
+                ServiceResult retry = await owner.Lifecycle.ReleaseSourceAsync(item).ConfigureAwait(false);
+                Assert.That(retry.StatusCode, Is.EqualTo(StatusCodes.Good));
                 Assert.That(unsubscribes, Is.EqualTo(2));
                 Assert.That(generation.HasPendingSourceReleases, Is.False);
             }
@@ -4149,6 +4337,221 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// A failed sampling restore keeps cleanup with the source generation until it succeeds.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        public async Task SamplingRestoreFailureRetainsUnfinishedCleanupAsync(int cleanupFailureStage)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queueFactory);
+            using (queueFactory)
+            {
+                var owner = new Mock<IAsyncNodeManager>().Object;
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(owner);
+                using MonitoredItem source = CreateMonitoredItem(
+                    server.Object, owner, new object(), new NodeId("FailedSamplingRestore", 1));
+                IStoredMonitoredItem stored = source.ToStorableMonitoredItem();
+                var node = new BaseDataVariableState(null)
+                {
+                    NodeId = stored.NodeId,
+                    DataType = DataTypeIds.Int32,
+                    Value = 1
+                };
+                var handle = new NodeHandle(node.NodeId, node);
+                var cleanupFailure = new InvalidOperationException("Injected sampling cleanup failure.");
+                using var sampling = new TrackingSamplingGroupManager(server.Object, owner);
+                using var manager = new SamplingGroupMonitoredItemManager(owner, server.Object, sampling);
+                MonitoredItem? restoredItem = null;
+                sampling.RestoredCallback = item =>
+                {
+                    restoredItem = (MonitoredItem)item;
+                    ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: true);
+                };
+                if (cleanupFailureStage == 1)
+                {
+                    sampling.StopFailures.Enqueue(cleanupFailure);
+                }
+                else if (cleanupFailureStage == 2)
+                {
+                    sampling.ApplyFailures.Enqueue(cleanupFailure);
+                }
+
+                Exception? failure = Assert.Catch(() => manager.RestoreMonitoredItem(
+                    server.Object,
+                    owner,
+                    server.Object.DefaultSystemContext,
+                    handle,
+                    stored,
+                    Mock.Of<IUserIdentity>(),
+                    static (_, _, cached) => cached,
+                    out _));
+                Assert.That(restoredItem, Is.Not.Null);
+                var binding = (IMonitoredItemGenerationBinding)restoredItem!;
+                Assert.Multiple(() =>
+                {
+                    Assert.That(sampling.StartCount, Is.EqualTo(1));
+                    Assert.That(manager.MonitoredItems, Is.Empty);
+                    if (cleanupFailureStage == 0)
+                    {
+                        Assert.That(failure, Is.TypeOf<InvalidOperationException>());
+                        Assert.That(binding.IsDisposed, Is.True);
+                        Assert.That(generation.CapturePendingSourceItems(), Is.Empty);
+                    }
+                    else
+                    {
+                        Assert.That(failure, Is.TypeOf<AggregateException>());
+                        Assert.That(((AggregateException)failure!).InnerExceptions,
+                            Does.Contain(cleanupFailure));
+                        Assert.That(((AggregateException)failure).InnerExceptions[0],
+                            Is.TypeOf<InvalidOperationException>());
+                        Assert.That(binding.IsDisposed, Is.False);
+                        Assert.That(generation.CapturePendingSourceItems(), Does.Contain(restoredItem));
+                    }
+                });
+
+                if (cleanupFailureStage != 0)
+                {
+                    await generation.CompleteSourceReleasesAsync(
+                        restoredItem, CancellationToken.None).ConfigureAwait(false);
+                }
+                Assert.Multiple(() =>
+                {
+                    Assert.That(binding.IsDisposed, Is.True);
+                    Assert.That(generation.CapturePendingSourceItems(), Is.Empty);
+                    Assert.That(sampling.StopCount, Is.EqualTo(cleanupFailureStage == 1 ? 2 : 1));
+                    Assert.That(sampling.ApplyCount, Is.EqualTo(cleanupFailureStage == 2 ? 2 : 1));
+                });
+            }
+        }
+
+        /// <summary>
+        /// A duplicate registered during restoration leaves the existing item in place.
+        /// </summary>
+        [Test]
+        public void SamplingRestoreDuplicateDisposesTheUnregisteredItem()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queueFactory);
+            using (queueFactory)
+            {
+                var owner = new Mock<IAsyncNodeManager>().Object;
+                using MonitoredItem existing = CreateMonitoredItem(
+                    server.Object, owner, new object(), new NodeId("DuplicateSamplingRestore", 1));
+                IStoredMonitoredItem stored = existing.ToStorableMonitoredItem();
+                var node = new BaseDataVariableState(null)
+                {
+                    NodeId = stored.NodeId,
+                    DataType = DataTypeIds.Int32,
+                    Value = 1
+                };
+                using var sampling = new TrackingSamplingGroupManager(server.Object, owner);
+                using var manager = new SamplingGroupMonitoredItemManager(owner, server.Object, sampling);
+                ISampledDataChangeMonitoredItem? restoredItem = null;
+                sampling.RestoredCallback = item =>
+                {
+                    restoredItem = item;
+                    Assert.That(manager.MonitoredItems.TryAdd(item.Id, existing), Is.True);
+                };
+
+                bool result = manager.RestoreMonitoredItem(
+                    server.Object,
+                    owner,
+                    server.Object.DefaultSystemContext,
+                    new NodeHandle(node.NodeId, node),
+                    stored,
+                    Mock.Of<IUserIdentity>(),
+                    static (_, _, cached) => cached,
+                    out ISampledDataChangeMonitoredItem output);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result, Is.False);
+                    Assert.That(output, Is.Null);
+                    Assert.That(restoredItem, Is.Not.Null);
+                    Assert.That(((IMonitoredItemGenerationBinding)restoredItem!).IsDisposed, Is.True);
+                    Assert.That(manager.MonitoredItems[existing.Id], Is.SameAs(existing));
+                    Assert.That(sampling.StopCount, Is.EqualTo(1));
+                    Assert.That(sampling.ApplyCount, Is.EqualTo(1));
+                });
+            }
+        }
+
+        /// <summary>
+        /// A sampling restore keeps its pinned source generation when routing changes after sampling starts.
+        /// </summary>
+        [Test]
+        public void SamplingRestoreRetainsPinnedGenerationAfterRoutingChanges()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queueFactory);
+            using (queueFactory)
+            {
+                var routing = new NodeManagerRoutingTable();
+                var factory = new Mock<IMainNodeManagerFactory>();
+                factory.Setup(value => value.CreateConfigurationNodeManager())
+                    .Returns(server.Object.NodeManager.ConfigurationNodeManager!);
+                factory.Setup(value => value.CreateCoreNodeManager(It.IsAny<ushort>()))
+                    .Returns(server.Object.CoreNodeManager);
+                server.SetupGet(value => value.MainNodeManagerFactory).Returns(factory.Object);
+                using var master = new MasterNodeManager(
+                    server.Object,
+                    new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() },
+                    routing);
+                server.SetupGet(value => value.NodeManager).Returns(master);
+                var resource = new Mock<IAsyncNodeManager>();
+                var sync = new SyncNodeManagerAdapter(resource.Object);
+                resource.SetupGet(value => value.SyncNodeManager).Returns(sync);
+                var facade = new Mock<IAsyncNodeManager>();
+                facade.SetupGet(value => value.SyncNodeManager).Returns(sync);
+                routing.Add(facade.Object, [1]);
+                NodeManagerGeneration generation = routing.Revision.GetGeneration(facade.Object);
+                var node = new BaseDataVariableState(null)
+                {
+                    NodeId = new NodeId("PinnedSamplingRestore", 1),
+                    DataType = DataTypeIds.Int32,
+                    Value = 1
+                };
+                using MonitoredItem source = CreateMonitoredItem(
+                    server.Object, resource.Object, new object(), node.NodeId);
+                IStoredMonitoredItem stored = source.ToStorableMonitoredItem();
+                using var operation = new OperationContext(
+                    new RequestHeader(), null, RequestType.CreateMonitoredItems, RequestLifetime.None);
+                using OperationContext.RoutingScope pinned = operation.CaptureRouting(routing);
+                using var sampling = new TrackingSamplingGroupManager(server.Object, resource.Object);
+                using var manager = new SamplingGroupMonitoredItemManager(resource.Object, server.Object, sampling);
+                sampling.RestoredCallback = _ =>
+                {
+                    routing.Remove(facade.Object);
+                    generation.Gate.Retire();
+                };
+
+                bool result = manager.RestoreMonitoredItem(
+                    server.Object,
+                    resource.Object,
+                    new ServerSystemContext(server.Object, operation),
+                    new NodeHandle(node.NodeId, node),
+                    stored,
+                    Mock.Of<IUserIdentity>(),
+                    static (_, _, cached) => cached,
+                    out ISampledDataChangeMonitoredItem restored);
+                using (restored)
+                {
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(result, Is.True);
+                        Assert.That(((MonitoredItem)restored).Generation, Is.SameAs(generation.Reference));
+                        Assert.That(manager.MonitoredItems[restored.Id], Is.SameAs(restored));
+                    });
+                    int previousCount = ((MonitoredItem)restored).ItemsInQueue;
+                    restored.QueueValue(new DataValue(new Variant(42)), ServiceResult.Good);
+                    Assert.That(((MonitoredItem)restored).ItemsInQueue, Is.EqualTo(previousCount));
+                }
+            }
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public void CustomAndRestoredItemsAcquireIndependentComponentReferences(bool restore)
@@ -4635,6 +5038,23 @@ namespace Opc.Ua.Server.Tests
             return (MonitoredItem)items[0];
         }
 
+        /// <summary>
+        /// Publishes an owner through a forwarding facade over its underlying manager.
+        /// </summary>
+        private static MasterNodeManager CreateForwardedMaster(
+            Mock<IServerInternal> server,
+            ManagerOwner owner,
+            out NodeManagerGeneration generation)
+        {
+            var resource = (IAsyncNodeManager)owner.Lifecycle;
+            var facade = new Mock<IAsyncNodeManager>();
+            facade.SetupGet(value => value.SyncNodeManager).Returns(resource.SyncNodeManager);
+            facade.SetupGet(value => value.NamespaceUris).Returns(() => resource.NamespaceUris);
+            MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(server, [facade.Object]);
+            generation = NodeManagerGenerationRegistry.GetOrCreate(facade.Object);
+            return master;
+        }
+
         private static ManagerOwner CreateManager(IServerInternal server, ManagerPath path)
         {
             ApplicationConfiguration configuration = CreateConfiguration();
@@ -5104,6 +5524,16 @@ namespace Opc.Ua.Server.Tests
             public bool FailNextApply { get; set; }
 
             /// <summary>
+            /// Gets or sets the callback invoked after sampling has started for a restored item.
+            /// </summary>
+            public Action<ISampledDataChangeMonitoredItem>? RestoredCallback { get; set; }
+
+            /// <summary>
+            /// Gets ordered failures injected into sampling removal.
+            /// </summary>
+            public Queue<Exception> StopFailures { get; } = [];
+
+            /// <summary>
             /// Gets ordered failures injected into sampling commits.
             /// </summary>
             public Queue<Exception> ApplyFailures { get; } = [];
@@ -5125,9 +5555,24 @@ namespace Opc.Ua.Server.Tests
                 }
             }
 
+            public override ISampledDataChangeMonitoredItem RestoreMonitoredItem(
+                object managerHandle,
+                IStoredMonitoredItem storedMonitoredItem,
+                IUserIdentity savedOwnerIdentity)
+            {
+                ISampledDataChangeMonitoredItem item = base.RestoreMonitoredItem(
+                    managerHandle, storedMonitoredItem, savedOwnerIdentity);
+                RestoredCallback?.Invoke(item);
+                return item;
+            }
+
             public override void StopMonitoring(ISampledDataChangeMonitoredItem monitoredItem)
             {
                 StopCount++;
+                if (StopFailures.Count > 0)
+                {
+                    throw StopFailures.Dequeue();
+                }
                 if (m_forwardToBase)
                 {
                     base.StopMonitoring(monitoredItem);

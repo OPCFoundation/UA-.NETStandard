@@ -29,6 +29,7 @@
 
 using System;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -54,9 +55,10 @@ namespace Opc.Ua.AMB.Tests
         public async Task AClientManagesItsLinksAsync(bool allowAnonymous)
         {
             string root = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                nameof(AmbDocumentationLinksSessionTests),
-                Guid.NewGuid().ToString("N"));
+                RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                    ? Path.GetTempPath()
+                    : TestContext.CurrentContext.WorkDirectory,
+                "amb-doc-links-" + Guid.NewGuid().ToString("N"));
             (AmbHostedServer server, IAssetHandle asset, _) = await HealthAlarmTests
                 .StartWithSensorAsync(
                     nameof(AmbDocumentationLinksSessionTests) + allowAnonymous,

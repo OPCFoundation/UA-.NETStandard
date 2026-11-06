@@ -481,9 +481,13 @@ namespace Opc.Ua.Server
                 }
                 if (!ownsDisposal)
                 {
-                    await Finished.ConfigureAwait(false);
+                    if (!Finished.IsCompleted)
+                    {
+                        await Finished.ConfigureAwait(false);
+                    }
                     return;
                 }
+                Exception? cleanupFailure = null;
                 try
                 {
                     if (prepared is not null)
@@ -507,12 +511,24 @@ namespace Opc.Ua.Server
                         throw new AggregateException("Publication invocation cleanup failed.", failures);
                     }
                 }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    cleanupFailure = failure;
+                }
                 finally
                 {
                     m_batches.Clear();
                     m_operation.Dispose();
-                    m_finished.TrySetResult(true);
+                    if (cleanupFailure is null)
+                    {
+                        m_finished.TrySetResult(true);
+                    }
+                    else
+                    {
+                        m_finished.TrySetException(cleanupFailure);
+                    }
                 }
+                await Finished.ConfigureAwait(false);
             }
 
             /// <summary>Transactions retained until invocation disposal.</summary>
@@ -521,7 +537,7 @@ namespace Opc.Ua.Server
             /// <summary>Expected serving metadata, advanced only by this invocation's own publication.</summary>
             private PublicationRevision m_revision = revision;
 
-            /// <summary>Completion shared by disposal and shutdown waiters.</summary>
+            /// <summary>Outcome shared by callers joining the active cleanup attempt.</summary>
             private readonly TaskCompletionSource<bool> m_finished =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 

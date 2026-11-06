@@ -342,9 +342,8 @@ namespace Opc.Ua.Machinery.Tests.Integration
                 Task> scenario)
         {
             string testRoot = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                nameof(MachineryEndToEndTests),
-                Guid.NewGuid().ToString("N"));
+                Path.GetTempPath(),
+                "ua-machinery-e2e-" + Guid.NewGuid().ToString("N"));
             using var jobProvider = new InMemoryIsa95JobControlProvider();
             var configurator = new PressConfigurator(jobProvider);
 
