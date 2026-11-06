@@ -1148,14 +1148,20 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <remarks>
         /// The drain starts without the caller's execution context, so it never inherits a callback
-        /// permit or a lifecycle decision from the deleting flow.
+        /// permit or a lifecycle decision from the deleting flow. A request made while a drain is running
+        /// is recorded, so that drain runs another pass instead of stopping after a failed one.
         /// </remarks>
         private void ScheduleDeferredReferenceDrain()
         {
             lock (m_deferredReferenceDrainLock)
             {
-                if (m_deferredReferenceDrainStopped || m_deferredReferenceDrainScheduled)
+                if (m_deferredReferenceDrainStopped)
                 {
+                    return;
+                }
+                if (m_deferredReferenceDrainScheduled)
+                {
+                    m_deferredReferenceDrainRequested = true;
                     return;
                 }
                 m_deferredReferenceDrainScheduled = true;
@@ -1186,14 +1192,16 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <remarks>
         /// A removal still rejected by a reserved source node is retried after a delay that doubles up to
-        /// one second. Any other failure is logged and its removal stays queued; the drain then stops, and
-        /// the next deletion or publication starts a new one. Every exit clears the scheduled flag, so a
-        /// faulted drain never prevents a later one.
+        /// one second. Any other failure is logged and its removal stays queued. The drain then stops
+        /// unless a deletion or publication requested a drain during the failed pass; that request gets
+        /// another pass. Every exit clears the scheduled flag, and an exit caused by an unexpected
+        /// exception starts a new drain for a request it would otherwise drop.
         /// </remarks>
         /// <param name="cancellationToken">Cancelled when the node managers are disposed.</param>
         private async Task DrainDeferredReferenceChangesAsync(CancellationToken cancellationToken)
         {
             bool scheduled = true;
+            bool restart = false;
             try
             {
                 TimeSpan delay = TimeSpan.Zero;
@@ -1203,15 +1211,21 @@ namespace Opc.Ua.Server
                     {
                         await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
                     }
+                    lock (m_deferredReferenceDrainLock)
+                    {
+                        // This pass covers every request made before it starts.
+                        m_deferredReferenceDrainRequested = false;
+                    }
                     DeferredReferenceDrainOutcome outcome =
                         await ApplyDeferredReferenceChangesAsync(cancellationToken).ConfigureAwait(false);
                     lock (m_deferredReferenceDrainLock)
                     {
                         if (m_deferredReferenceDrainStopped ||
-                            outcome == DeferredReferenceDrainOutcome.Faulted ||
-                            (m_deferredReferencePrunes.IsEmpty && m_deferredServingRemovals.IsEmpty))
+                            (m_deferredReferencePrunes.IsEmpty && m_deferredServingRemovals.IsEmpty) ||
+                            (outcome == DeferredReferenceDrainOutcome.Faulted && !m_deferredReferenceDrainRequested))
                         {
                             m_deferredReferenceDrainScheduled = false;
+                            m_deferredReferenceDrainRequested = false;
                             scheduled = false;
                             return;
                         }
@@ -1240,8 +1254,14 @@ namespace Opc.Ua.Server
                     lock (m_deferredReferenceDrainLock)
                     {
                         m_deferredReferenceDrainScheduled = false;
+                        restart = m_deferredReferenceDrainRequested && !m_deferredReferenceDrainStopped;
+                        m_deferredReferenceDrainRequested = false;
                     }
                 }
+            }
+            if (restart)
+            {
+                ScheduleDeferredReferenceDrain();
             }
         }
 
@@ -2586,6 +2606,9 @@ namespace Opc.Ua.Server
 
         /// <summary>True while a deferred deletion drain is running or about to run.</summary>
         private bool m_deferredReferenceDrainScheduled;
+
+        /// <summary>True when a drain was requested while one was running, after its current pass began.</summary>
+        private bool m_deferredReferenceDrainRequested;
 
         /// <summary>True once disposal stopped the deferred deletion drain.</summary>
         private bool m_deferredReferenceDrainStopped;
