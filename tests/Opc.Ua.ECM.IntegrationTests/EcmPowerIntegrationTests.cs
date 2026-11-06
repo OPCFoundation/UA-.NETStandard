@@ -445,7 +445,7 @@ namespace Opc.Ua.ECM.IntegrationTests
                 Reading(BrowseNames.AcReactivePowerPe, Phase(7f, 8f, 9f), pe, acquired),
                 Reading(BrowseNames.AcVoltagePe, Phase(230f, 231f, 232f), pe, acquired),
                 Reading(BrowseNames.AcVoltagePp,
-                    Variant.From(new AcPpDataType { L1L2 = 400f, L2L3 = 401f, L3L1 = 402f }),
+                    Variant.FromStructure(new AcPpDataType { L1L2 = 400f, L2L3 = 401f, L3L1 = 402f }),
                     DataTypeIds.AcPpDataType, acquired),
                 Reading(BrowseNames.AcActiveEnergyTotalExportHp, Variant.From(1.0000001d), DoubleType(), acquired),
                 Reading(BrowseNames.AcActiveEnergyTotalImportHp, Variant.From(2.0000002d), DoubleType(), acquired),
@@ -576,7 +576,7 @@ namespace Opc.Ua.ECM.IntegrationTests
         /// </summary>
         private static Variant Phase(float l1, float l2, float l3)
         {
-            return Variant.From(new AcPeDataType { L1 = l1, L2 = l2, L3 = l3 });
+            return Variant.FromStructure(new AcPeDataType { L1 = l1, L2 = l2, L3 = l3 });
         }
 
         /// <summary>
@@ -652,7 +652,7 @@ namespace Opc.Ua.ECM.IntegrationTests
                         [
                             new(
                                 BrowseNames.AcCurrentPe,
-                                Variant.From(new AcPeDataType { L1 = 1.25f, L2 = 2.5f, L3 = 3.75f }),
+                                Variant.FromStructure(new AcPeDataType { L1 = 1.25f, L2 = 2.5f, L3 = 3.75f }),
                                 DataTypeIds.AcPeDataType,
                                 StatusCodes.Good,
                                 m_acquired,

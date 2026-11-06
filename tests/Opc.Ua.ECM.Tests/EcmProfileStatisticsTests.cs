@@ -35,7 +35,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Di.Server;
+using Opc.Ua.Di.Server.Locking;
 using Opc.Ua.ECM;
 using Opc.Ua.ECM.Server;
 using Opc.Ua.Server;
@@ -1431,7 +1431,7 @@ namespace Opc.Ua.ECM.Tests
         /// </summary>
         private static EnergyMeasurementValueState Child(
             EcmMeasurementBinding binding,
-            ISystemContext context,
+            ServerSystemContext context,
             string name)
         {
             ushort ecmNamespace = context.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
