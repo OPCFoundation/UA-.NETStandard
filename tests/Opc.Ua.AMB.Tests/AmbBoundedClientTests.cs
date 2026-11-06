@@ -987,7 +987,7 @@ namespace Opc.Ua.AMB.Tests
             context.NamespaceUris.GetIndexOrAppend(InstanceNamespace);
             session.SetupGet(s => s.NamespaceUris).Returns(context.NamespaceUris);
             session.SetupGet(s => s.MessageContext).Returns(context);
-            session.SetupGet(s => s.OperationLimits).Returns(new OperationLimits());
+            session.SetupGet(s => s.OperationLimits).Returns(new OperationLimits { MaxNodesPerBrowse = 64 });
             session.SetupGet(s => s.ServerCapabilities).Returns(new ServerCapabilities());
             session.SetupGet(s => s.ContinuationPointPolicy).Returns(ContinuationPointPolicy.Default);
             return session;
