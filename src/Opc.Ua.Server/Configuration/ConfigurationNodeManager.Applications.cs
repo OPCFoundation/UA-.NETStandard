@@ -150,7 +150,7 @@ namespace Opc.Ua.Server
                             throw new ServiceResultException(defaults.Status);
                         }
 
-                        hasRolePermissionRestrictions = defaults.HasDefaultRolePermissions;
+                        hasRolePermissionRestrictions = !defaults.DefaultRolePermissions.IsEmpty;
                         if (hasRolePermissionRestrictions)
                         {
                             permissions = defaults.DefaultRolePermissions;
@@ -193,7 +193,7 @@ namespace Opc.Ua.Server
                         throw new ServiceResultException(defaults.Status);
                     }
 
-                    hasRolePermissionRestrictions = defaults.HasDefaultRolePermissions;
+                    hasRolePermissionRestrictions = !defaults.DefaultRolePermissions.IsEmpty;
                     if (hasRolePermissionRestrictions)
                     {
                         permissions = defaults.DefaultRolePermissions;

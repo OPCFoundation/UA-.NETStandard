@@ -107,6 +107,83 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Preserves namespace permissions while granting SecurityAdmin access only on restricted nodes.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task NamespacePermissionsPreservedAfterConfigurationAsync(
+            bool asyncConfiguration,
+            bool restricted)
+        {
+            IServerInternal serverInternal = m_server.CurrentInstance;
+            NamespaceMetadataState? metadata = await serverInternal.ConfigurationNodeManager
+                .GetNamespaceMetadataStateAsync(0).ConfigureAwait(false);
+            Assert.That(metadata?.DefaultRolePermissions, Is.Not.Null);
+            ArrayOf<RolePermissionType> original = metadata!.DefaultRolePermissions!.Value;
+            try
+            {
+                metadata.DefaultRolePermissions.Value = restricted
+                    ? [new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_Anonymous,
+                        Permissions = (uint)PermissionType.Browse
+                    }]
+                    : ArrayOf<RolePermissionType>.Empty;
+                await metadata.ClearChangeMasksAsync(serverInternal.DefaultSystemContext, true)
+                    .ConfigureAwait(false);
+                Harness harness = await CreateHarnessAsync(
+                    new ServerConfigurationOptions(), asyncConfiguration: asyncConfiguration).ConfigureAwait(false);
+                using (harness.Manager)
+                {
+                    var pending = new Stack<NodeState>();
+                    pending.Push(harness.Node);
+                    while (pending.Count != 0)
+                    {
+                        NodeState node = pending.Pop();
+                        if (node is MethodState or BaseObjectState)
+                        {
+                            if (restricted)
+                            {
+                                Assert.That(node.RolePermissions.Count, Is.EqualTo(2), node.BrowseName.ToString());
+                                Assert.Multiple(() =>
+                                {
+                                    Assert.That(node.RolePermissions[0].RoleId,
+                                        Is.EqualTo(ObjectIds.WellKnownRole_Anonymous));
+                                    Assert.That(node.RolePermissions[0].Permissions,
+                                        Is.EqualTo((uint)PermissionType.Browse));
+                                    Assert.That(node.RolePermissions[1].RoleId,
+                                        Is.EqualTo(ObjectIds.WellKnownRole_SecurityAdmin));
+                                    Assert.That(node.RolePermissions[1].Permissions,
+                                        Is.EqualTo((uint)(PermissionType.Browse | PermissionType.Call)));
+                                });
+                            }
+                            else
+                            {
+                                Assert.That(node.RolePermissions.IsEmpty, Is.True,
+                                    $"Unrestricted namespace permissions must remain inherited by {node.BrowseName}.");
+                            }
+                        }
+
+                        var children = new List<BaseInstanceState>();
+                        node.GetChildren(serverInternal.DefaultSystemContext, children);
+                        foreach (BaseInstanceState child in children)
+                        {
+                            pending.Push(child);
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                metadata.DefaultRolePermissions.Value = original;
+                await metadata.ClearChangeMasksAsync(serverInternal.DefaultSystemContext, true)
+                    .ConfigureAwait(false);
+            }
+        }
+
         [Test]
         public async Task OptionalMembersSuppressedWhenNotConfiguredAsync()
         {
@@ -1700,7 +1777,8 @@ namespace Opc.Ua.Server.Tests
 
         private async Task<Harness> CreateHarnessAsync(
             ServerConfigurationOptions options,
-            TimeProvider? timeProvider = null)
+            TimeProvider? timeProvider = null,
+            bool asyncConfiguration = false)
         {
             IServerInternal serverInternal = m_server.CurrentInstance;
             var coordinator = new PushConfigurationTransactionCoordinator(serverInternal.Telemetry);
@@ -1718,7 +1796,15 @@ namespace Opc.Ua.Server.Tests
             IDictionary<NodeId, IList<IReference>> externalReferences =
                 new Dictionary<NodeId, IList<IReference>>();
             await manager.CreateAddressSpaceAsync(externalReferences, CancellationToken.None).ConfigureAwait(false);
-            manager.CreateServerConfiguration(serverInternal.DefaultSystemContext, m_fixture.Config);
+            if (asyncConfiguration)
+            {
+                await manager.CreateServerConfigurationAsync(serverInternal.DefaultSystemContext, m_fixture.Config)
+                    .ConfigureAwait(false);
+            }
+            else
+            {
+                manager.CreateServerConfiguration(serverInternal.DefaultSystemContext, m_fixture.Config);
+            }
             await manager.RecoverConfigurationFileUpdateAsync(CancellationToken.None).ConfigureAwait(false);
 
             var node = manager.FindPredefinedNode<ServerConfigurationState>(ObjectIds.ServerConfiguration);
