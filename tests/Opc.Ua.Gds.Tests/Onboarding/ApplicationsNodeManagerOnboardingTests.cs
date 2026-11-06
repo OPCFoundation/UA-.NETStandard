@@ -738,7 +738,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                             _ => throw new InvalidOperationException("Recovery must not replace the original CSR."))
                             .ConfigureAwait(false));
                 Assert.That(changedDuringRecovery!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
-                Assert.That(database.CertificateRequests.Count, Is.EqualTo(originalRequestCount));
+                Assert.That(database.CertificateRequests, Has.Count.EqualTo(originalRequestCount));
                 Assert.That(await restored.FindRequestAsync(identity.ProductInstanceUri, applicationId)
                     .ConfigureAwait(false), Is.EqualTo(originalRequest));
                 if (failedJournalWrite is 2 or 4)

@@ -152,7 +152,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 _ => throw new ArgumentOutOfRangeException(nameof(address))
             };
 
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await fixture.Client.UpdateApplicationConfigurationFileAsync(
                     fixture.ApplicationConfigurationId, UpdateFixture.Content, UpdateFixture.Targets, 30_000, 0)
                     .ConfigureAwait(false));
