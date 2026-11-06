@@ -31,6 +31,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Machinery.Server;
+using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.LADS.Server
 {
@@ -49,6 +50,16 @@ namespace Opc.Ua.LADS.Server
         /// Gets or sets the stored-data provider. Null selects the registered provider or memory default.
         /// </summary>
         public ILadsStore? Store { get; set; }
+
+        /// <summary>
+        /// Gets the lease group used by the optional authority-backed store.
+        /// </summary>
+        public string? LeasePublicationGroupIdentity { get; private set; }
+
+        /// <summary>
+        /// Gets the provider for the current lease token used by the optional authority-backed store.
+        /// </summary>
+        public Func<LeasePublicationToken>? LeasePublicationTokenProvider { get; private set; }
 
         /// <summary>
         /// Gets or sets equipment-readiness confirmation before starting a recovered interrupted device.
@@ -84,10 +95,36 @@ namespace Opc.Ua.LADS.Server
         public MachineryParts RequiredMachineryParts => MachineryParts.BuildingBlocks;
 
         /// <summary>
+        /// Selects the authority-backed LADS store for a lease group.
+        /// </summary>
+        /// <param name="groupIdentity">The lease group that scopes LADS snapshots.</param>
+        /// <param name="tokenProvider">Returns the caller's current fencing identity.</param>
+        /// <returns>This options instance.</returns>
+        public LadsServerOptions UseLeasePublicationStore(
+            string groupIdentity,
+            Func<LeasePublicationToken> tokenProvider)
+        {
+            if (string.IsNullOrWhiteSpace(groupIdentity))
+            {
+                throw new ArgumentException("A lease group is required.", nameof(groupIdentity));
+            }
+            if (tokenProvider == null)
+            {
+                throw new ArgumentNullException(nameof(tokenProvider));
+            }
+            LeasePublicationGroupIdentity = groupIdentity;
+            LeasePublicationTokenProvider = tokenProvider;
+            return this;
+        }
+
+        /// <summary>
         /// Rejects invalid limits and application namespaces.
         /// </summary>
-        /// <exception cref="ArgumentException">The application namespace is invalid.</exception>
+        /// <exception cref="ArgumentException">A namespace or lease group is invalid.</exception>
         /// <exception cref="ArgumentOutOfRangeException">A limit is not positive.</exception>
+        /// <exception cref="InvalidOperationException">
+        /// A custom store conflicts with strict lease publication selection.
+        /// </exception>
         public void Validate()
         {
             if (MaxResultFileBytes <= 0)
@@ -119,6 +156,16 @@ namespace Opc.Ua.LADS.Server
                     "The application namespace must not be the OPC UA namespace.",
                     nameof(InstanceNamespaceUri));
             }
+            if ((LeasePublicationGroupIdentity == null) != (LeasePublicationTokenProvider == null))
+            {
+                throw new InvalidOperationException(
+                    "Lease publication selection requires both a group and a token provider.");
+            }
+            if (LeasePublicationGroupIdentity != null && Store != null)
+            {
+                throw new InvalidOperationException(
+                    "A custom LADS store cannot be combined with lease publication selection.");
+            }
         }
 
         /// <summary>
@@ -131,6 +178,8 @@ namespace Opc.Ua.LADS.Server
             target.MaxResultFileBytes = MaxResultFileBytes;
             target.MaxRetainedResults = MaxRetainedResults;
             target.Store = Store;
+            target.LeasePublicationGroupIdentity = LeasePublicationGroupIdentity;
+            target.LeasePublicationTokenProvider = LeasePublicationTokenProvider;
             target.ConfirmInterruptedDeviceReadinessAsync = ConfirmInterruptedDeviceReadinessAsync;
         }
     }

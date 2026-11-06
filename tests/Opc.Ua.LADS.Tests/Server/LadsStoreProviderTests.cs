@@ -38,6 +38,7 @@ using System.Xml;
 using System.Xml.Linq;
 using NUnit.Framework;
 using Opc.Ua.LADS.Server;
+using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.LADS.Tests.Server
 {
@@ -96,6 +97,63 @@ namespace Opc.Ua.LADS.Tests.Server
             Assert.That(await scope.Store.LoadAsync(kIdentity).ConfigureAwait(false), Is.Null);
             await scope.Store.SaveAsync(kIdentity, CreateSnapshot()).ConfigureAwait(false);
             AssertSnapshot(await scope.Store.LoadAsync(kIdentity).ConfigureAwait(false), CreateSnapshot());
+        }
+
+        /// <summary>
+        /// Verifies the authority-backed adapter preserves complete snapshots and isolates equal keys by group.
+        /// </summary>
+        [Test]
+        public async Task LeasePublicationStorePreservesSnapshotAndGroupIsolationAsync()
+        {
+            var authority = new InMemoryLeasePublicationAuthority();
+            LeasePublicationToken firstToken = await AcquireAsync(authority, "lads-a", "owner-a").ConfigureAwait(false);
+            LeasePublicationToken secondToken = await AcquireAsync(authority, "lads-b", "owner-b").ConfigureAwait(false);
+            var firstStore = new LeasePublicationLadsStore(authority, firstToken);
+            var secondStore = new LeasePublicationLadsStore(authority, secondToken);
+            LadsStoredDeviceData expected = CreateSnapshot();
+
+            Assert.That(await secondStore.LoadAsync(kIdentity).ConfigureAwait(false), Is.Null);
+            await firstStore.SaveAsync(kIdentity, expected).ConfigureAwait(false);
+
+            AssertSnapshot(await firstStore.LoadAsync(kIdentity).ConfigureAwait(false), expected);
+            Assert.That(await secondStore.LoadAsync(kIdentity).ConfigureAwait(false), Is.Null);
+            LadsStoredDeviceData invalid = CreateSnapshot();
+            invalid.Identity = "urn:device:mismatched";
+            await Assert.ThrowsAsync<InvalidDataException>(async () =>
+                await firstStore.SaveAsync(kIdentity, invalid).ConfigureAwait(false)).ConfigureAwait(false);
+            AssertSnapshot(await firstStore.LoadAsync(kIdentity).ConfigureAwait(false), expected);
+            await firstStore.DeleteAsync(kIdentity).ConfigureAwait(false);
+            Assert.That(await firstStore.LoadAsync(kIdentity).ConfigureAwait(false), Is.Null);
+        }
+
+        /// <summary>
+        /// Verifies the adapter rejects expired save and delete operations without changing the prior snapshot.
+        /// </summary>
+        [Test]
+        public async Task LeasePublicationStoreRejectsExpiredSaveAndDeleteAsync()
+        {
+            var time = new ManualTimeProvider();
+            var authority = new InMemoryLeasePublicationAuthority(time);
+            LeasePublicationToken token = await AcquireAsync(authority, "lads", "owner").ConfigureAwait(false);
+            var store = new LeasePublicationLadsStore(authority, token);
+            LadsStoredDeviceData previous = CreateSnapshot();
+            await store.SaveAsync(kIdentity, previous).ConfigureAwait(false);
+            LadsStoredDeviceData replacement = CreateSnapshot();
+            replacement.OperationCycles = 17;
+            time.Advance(TimeSpan.FromSeconds(30));
+
+            InvalidOperationException saveFailure =
+                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await store.SaveAsync(kIdentity, replacement).ConfigureAwait(false)).ConfigureAwait(false) ??
+                throw new AssertionException("An expired lease save was not rejected.");
+            InvalidOperationException deleteFailure =
+                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await store.DeleteAsync(kIdentity).ConfigureAwait(false)).ConfigureAwait(false) ??
+                throw new AssertionException("An expired lease delete was not rejected.");
+
+            Assert.That(saveFailure.Message, Does.Contain(nameof(LeasePublicationStatus.LeaseExpired)));
+            Assert.That(deleteFailure.Message, Does.Contain(nameof(LeasePublicationStatus.LeaseExpired)));
+            AssertSnapshot(await store.LoadAsync(kIdentity).ConfigureAwait(false), previous);
         }
 
         [Test]
@@ -541,6 +599,22 @@ namespace Opc.Ua.LADS.Tests.Server
         }
 
         /// <summary>
+        /// Acquires the fencing identity used by an authority-backed store.
+        /// </summary>
+        private static async Task<LeasePublicationToken> AcquireAsync(
+            InMemoryLeasePublicationAuthority authority,
+            string group,
+            string owner)
+        {
+            LeaseAcquisitionResult result = await authority.TryAcquireLeaseAsync(
+                group,
+                owner,
+                TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+            Assert.That(result.Status, Is.EqualTo(LeaseAcquisitionStatus.Acquired));
+            return result.Token ?? throw new AssertionException("Successful acquisition did not return a token.");
+        }
+
+        /// <summary>
         /// Compares every public snapshot field, including nested structures and each file byte.
         /// </summary>
         private static void AssertSnapshot(LadsStoredDeviceData? actual, LadsStoredDeviceData expected)
@@ -785,6 +859,36 @@ namespace Opc.Ua.LADS.Tests.Server
 
         /// <summary>An isolated virtual path; no files are written there by virtual providers.</summary>
         private const string kVirtualDirectory = @"D:\temp\LadsStoreProviderTests";
+
+        /// <summary>
+        /// Supplies a test-controlled monotonic timestamp without wall-clock delays.
+        /// </summary>
+        private sealed class ManualTimeProvider : TimeProvider
+        {
+            /// <summary>
+            /// Gets the frequency of the test clock's timestamp units.
+            /// </summary>
+            public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+
+            /// <summary>
+            /// Gets the current monotonic timestamp.
+            /// </summary>
+            public override long GetTimestamp()
+            {
+                return Interlocked.Read(ref m_timestamp);
+            }
+
+            /// <summary>
+            /// Advances the test clock.
+            /// </summary>
+            public void Advance(TimeSpan duration)
+            {
+                Interlocked.Add(ref m_timestamp, duration.Ticks);
+            }
+
+            /// <summary>The test-controlled monotonic timestamp.</summary>
+            private long m_timestamp;
+        }
 
         /// <summary>
         /// Owns an isolated provider and virtual file system for one test case.

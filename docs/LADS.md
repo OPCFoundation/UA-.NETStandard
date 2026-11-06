@@ -37,6 +37,7 @@ client that drives an incubation program end to end.
 - [Providers](#providers)
 - [Results and result files](#results-and-result-files)
 - [Stored data and restart](#stored-data-and-restart)
+  - [Strict lease publication](#strict-lease-publication)
 - [Conformance](#conformance)
 - [Client](#client)
 - [Sample](#sample)
@@ -135,6 +136,7 @@ services.AddOpcUa()
 | `MaxResultFileBytes` | 16 MiB | Largest result file clients can read through the `FileType` methods |
 | `MaxRetainedResults` | 100 | Results kept per program manager; the oldest is removed when a new result exceeds the limit |
 | `Store` | Registered `ILadsStore`, or `InMemoryLadsStore` | Retains templates, completed results and file bytes, maintenance records and counters |
+| `UseLeasePublicationStore(group, tokenProvider)` | Not selected | Uses the registered `ILeasePublicationAuthority` for fenced, complete snapshot publication and deletion |
 | `TimeProvider` | Registered `TimeProvider` | Overrides the LADS execution and counter clock without changing transport or session timing |
 
 `Validate()` rejects a limit that is not positive and an invalid namespace, so
@@ -871,6 +873,73 @@ Recovery uses the interruption record retained before execution began.
 If maintenance hardware has already acknowledged an action when its checkpoint
 fails, the storage error is reported without reversing the physical action.
 Inspect the equipment state before retrying that command.
+
+### Strict lease publication
+
+The ordinary `InMemoryLadsStore` and `FileSystemLadsStore` serialize complete
+snapshots, but neither checks a lease when it publishes. Select
+`UseLeasePublicationStore` when a LADS snapshot must be changed only by the
+current lease holder. The store sends the complete snapshot to an
+`ILeasePublicationAuthority`; that authority checks owner identity, fencing
+epoch and expiry in the same atomic operation that publishes or deletes the
+snapshot. A stale token is rejected even when the device key has never been
+written.
+
+The in-memory authority measures expiry with elapsed monotonic timestamps from
+its injected `TimeProvider`. At the exact expiry boundary, renewal, publication
+and deletion are rejected. A takeover receives a larger epoch, including after
+the previous holder released the lease. A lease token identifies the caller
+and epoch; it is not an authentication credential.
+
+Create one authority instance, acquire a token from it, and register that same
+instance for every participant that shares the LADS snapshot group:
+
+```csharp
+using System;
+using System.Threading;
+using Microsoft.Extensions.DependencyInjection;
+using Opc.Ua.LADS.Server;
+using Opc.Ua.Redundancy;
+using Opc.Ua.Server;
+
+var authority = new InMemoryLeasePublicationAuthority();
+LeaseAcquisitionResult acquisition = await authority.TryAcquireLeaseAsync(
+    "lads-lab-1", "server-a", TimeSpan.FromSeconds(30), cancellationToken);
+LeasePublicationToken currentToken = acquisition.Token ??
+    throw new InvalidOperationException("The LADS lease is already held.");
+
+services.AddInMemoryLeasePublicationAuthority(authority);
+services.AddOpcUa()
+    .AddServer<StandardServer>(server => { /* endpoints, security */ })
+    .AddLads(options => options.UseLeasePublicationStore(
+        "lads-lab-1",
+        () => Volatile.Read(ref currentToken)));
+```
+
+Renew the lease through the same authority. Renewal keeps the token's epoch.
+If the lease expires and the application later acquires a new epoch, update
+the token provider before that participant writes again. A save or delete
+rejected by the authority throws `InvalidOperationException`; there is no
+fallback to another LADS store. The adapter uses the existing bounded
+`LadsSnapshotCodec`, so templates, results, result-file bytes, maintenance
+records and counters remain one versioned snapshot. Direct construction uses
+`new LeasePublicationLadsStore(authority, token)`.
+
+This implementation stores leases and snapshots in one process. Every
+participant must resolve the same authority instance; a process restart loses
+its state, and separate processes do not coordinate. It does not provide
+durable high availability. `ISharedKeyValueStore`, `SharedStoreLeaseElection`,
+the existing file and memory LADS stores, and the current Raft, replicated/CRDT
+and Kubernetes backends do not implement this authority contract. Selecting strict
+publication without a registered `ILeasePublicationAuthority` fails explicitly; those backends must
+not be wrapped in read-then-CAS logic or used as an implicit fallback.
+
+An independently implemented authority can construct `LeasePublicationToken`
+and `LeaseAcquisitionResult` through their public constructors. It must own both
+the group lease decision and snapshot publication; returning a token from a
+separate leader election does not establish that guarantee. Its clock and
+partition behavior must preserve expiry at publication, including when no
+successor has acquired the group.
 
 ## Conformance
 

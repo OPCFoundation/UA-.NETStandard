@@ -31,6 +31,7 @@ For distributed PubSub active/standby publishers and subscribers, see the PubSub
 - [Client redundancy (as per Part 4 §6.6.3)](#client-redundancy-as-per-part-4-663)
 - [Network redundancy (as per Part 4 §6.6.4)](#network-redundancy-as-per-part-4-664)
 - [Beyond §6.6: distributed extensions](#beyond-66-distributed-extensions)
+  - [Process-local lease publication authority](#process-local-lease-publication-authority)
   - [Dynamic peer discovery (beyond §6.6, opt-in)](#dynamic-peer-discovery-beyond-66-opt-in)
   - [Sharing values across replicas: distributed value cache (beyond §6.6, opt-in)](#sharing-values-across-replicas-distributed-value-cache-beyond-66-opt-in)
   - [Shared certificate stores (distributed trust lists) (beyond §6.6, opt-in)](#shared-certificate-stores-distributed-trust-lists-beyond-66-opt-in)
@@ -487,6 +488,34 @@ ManagedSession session = await new ManagedSessionBuilder(configuration, telemetr
 ## Beyond §6.6: distributed extensions
 
 The base package uses `ISharedKeyValueStore` as the common seam for address-space, session, subscription, retransmission, nonce, and lease records. The in-memory implementation is for tests and single-process samples; multi-pod production deployments need a networked, authenticated, encrypted, and capacity-bounded backend. `IRecordProtector` protects serialized records before they reach the store.
+
+### Process-local lease publication authority
+
+The strict lease publication authority is a separate boundary for complete LADS
+snapshot writes. `ISharedKeyValueStore` compare-and-swap applies to one key; it
+cannot atomically check a lease record and update a different snapshot key.
+`ILeasePublicationAuthority` combines the group lease and snapshot state so an
+implementation can check the current owner, fencing epoch and expiry in the
+same atomic operation that publishes or deletes a snapshot. The LADS adapter
+uses the complete `LadsSnapshotCodec` payload, and the authority checks the
+lease even when the target device key is absent.
+
+The supplied implementation, `InMemoryLeasePublicationAuthority`, is
+process-local. Its `TimeProvider` supplies monotonic elapsed time for lease
+expiry; at the expiry boundary it rejects the old token, and a later acquisition
+receives a higher epoch. Every participant must use the same authority instance.
+This implementation does not coordinate separate processes, survive restart or
+provide durable high availability.
+
+This contract is not an adapter for `SharedStoreLeaseElection`,
+`ILeaderElection`, `ISharedKeyValueStore`, or the existing Raft, replicated/CRDT
+and Kubernetes backends.
+Their current APIs do not provide the atomic lease-and-snapshot operation
+required by this contract. Strict LADS selection rejects a missing authority
+instead of wrapping a store with read-then-CAS or falling back to ordinary LADS
+storage. Use this implementation for process-local deployments and tests; a
+distributed implementation must provide a valid authoritative atomic boundary
+before it can be selected.
 
 The same seam also backs a shared PKI: `SharedKeyValueCertificateStore` keeps the trusted, issuer and rejected certificate lists and their CRLs in the shared store so every replica makes the same trust decision, with fail-closed record integrity and read-through live propagation. See *Shared certificate stores (distributed trust lists)* below.
 

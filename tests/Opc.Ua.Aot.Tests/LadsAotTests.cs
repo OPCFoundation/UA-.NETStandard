@@ -36,6 +36,7 @@ using Opc.Ua.Di;
 using Opc.Ua.LADS;
 using Opc.Ua.LADS.Client;
 using Opc.Ua.LADS.Server;
+using Opc.Ua.Redundancy;
 using Opc.Ua.Server;
 using LadsProgramTemplate = Opc.Ua.LADS.Server.LadsProgramTemplate;
 
@@ -211,6 +212,34 @@ namespace Opc.Ua.Aot.Tests
             await using ServiceProvider provider = services.BuildServiceProvider();
             await Assert.That(provider.GetRequiredService<LadsClientFactory>()).IsNotNull();
             await Assert.That(provider.GetRequiredService<Func<CancellationToken, Task<LadsClient>>>()).IsNotNull();
+        }
+
+        /// <summary>
+        /// Exercises authority-backed snapshot persistence without reflection-based serialization.
+        /// </summary>
+        [Test]
+        public async Task LeasePublicationLadsStoreIsAotSafeAsync()
+        {
+            var authority = new InMemoryLeasePublicationAuthority();
+            LeaseAcquisitionResult acquisition = await authority.TryAcquireLeaseAsync(
+                "aot-lads",
+                "aot-owner",
+                TimeSpan.FromMinutes(1)).ConfigureAwait(false);
+            LeasePublicationToken token = acquisition.Token ??
+                throw new InvalidOperationException("The LADS lease was not acquired.");
+            var store = new LeasePublicationLadsStore(authority, token);
+            var snapshot = new LadsStoredDeviceData
+            {
+                Identity = "urn:aot:lads:device",
+                FunctionalUnits = [],
+                MaintenanceTasks = []
+            };
+
+            await store.SaveAsync(snapshot.Identity, snapshot).ConfigureAwait(false);
+            LadsStoredDeviceData? restored = await store.LoadAsync(snapshot.Identity).ConfigureAwait(false);
+            await Assert.That(restored?.Identity).IsEqualTo(snapshot.Identity);
+            await store.DeleteAsync(snapshot.Identity).ConfigureAwait(false);
+            await Assert.That(await store.LoadAsync(snapshot.Identity).ConfigureAwait(false)).IsNull();
         }
 
         /// <summary>
