@@ -3359,13 +3359,31 @@ namespace Opc.Ua.Server
                 IPreparedNodeManagerBatch batch = await PrepareCoreAsync(
                     changes, default, cancellationToken, validationOnly: true)
                     .ConfigureAwait(false);
-                await using var lifetime = batch.ConfigureAwait(false);
-                if (batch is not PreparedBatch candidate)
+                try
                 {
-                    throw new InvalidOperationException("Validation requires the captured lifecycle batch owner.");
+                    if (batch is not PreparedBatch candidate)
+                    {
+                        throw new InvalidOperationException("Validation requires the captured lifecycle batch owner.");
+                    }
+                    await inspectAsync(batch, cancellationToken).ConfigureAwait(false);
+                    await candidate.ValidateAsync(cancellationToken).ConfigureAwait(false);
                 }
-                await inspectAsync(batch, cancellationToken).ConfigureAwait(false);
-                await candidate.ValidateAsync(cancellationToken).ConfigureAwait(false);
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    try
+                    {
+                        await batch.DisposeAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
+                    {
+                        throw new AggregateException(
+                            "Private validation and candidate cleanup both failed.",
+                            failure,
+                            cleanupFailure);
+                    }
+                    throw;
+                }
+                await batch.DisposeAsync().ConfigureAwait(false);
             }
 
             /// <summary>

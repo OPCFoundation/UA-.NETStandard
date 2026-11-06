@@ -1319,6 +1319,11 @@ cleanup. When inspection ends, the view releases that reference even if the
 callback throws. Retaining the view preserves non-owning registration metadata,
 not the candidate or its provider.
 
+If inspection or validation fails and candidate cleanup also fails,
+`ValidateAsync` throws an `AggregateException` containing the original failure
+first and the cleanup failure second. The lifecycle attempts candidate cleanup
+once and leaves the serving image unchanged.
+
 #### Publishing typed metadata
 
 Bind immutable `INodeManagerReadImage` metadata before consuming the prepared unit:
