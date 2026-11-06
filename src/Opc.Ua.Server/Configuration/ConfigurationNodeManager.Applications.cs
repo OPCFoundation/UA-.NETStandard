@@ -132,42 +132,58 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Grants SecurityAdmin Browse and Call permissions on push methods and their containing objects.
         /// </summary>
-        private static void GrantSecurityAdminCallPermissions(ISystemContext context, NodeState node)
+        private void GrantSecurityAdminCallPermissions(ISystemContext context, NodeState node)
         {
             if (node is MethodState or BaseObjectState)
             {
                 ArrayOf<RolePermissionType> permissions = node.RolePermissions;
-                NodeId roleId = ObjectIds.WellKnownRole_SecurityAdmin;
-                for (int index = 0; index < permissions.Count; index++)
+                bool hasRolePermissionRestrictions = !permissions.IsEmpty;
+                if (!hasRolePermissionRestrictions)
                 {
-                    RolePermissionType permission = permissions[index];
-                    if (permission.RoleId == roleId)
+                    NamespaceDefaultPermissions defaults = NamespaceDefaultPermissionReader.Read(
+                        Server, SystemContext, node.NodeId.NamespaceIndex);
+                    if (!StatusCode.IsGood(defaults.Status))
                     {
-                        permission.Permissions |= (uint)(PermissionType.Browse | PermissionType.Call);
-                        node.RolePermissions = permissions;
-                        break;
+                        throw new ServiceResultException(defaults.Status);
                     }
-                    if (index == permissions.Count - 1)
+
+                    hasRolePermissionRestrictions = defaults.HasDefaultRolePermissions;
+                    if (hasRolePermissionRestrictions)
                     {
-                        node.RolePermissions = ArrayOf.Combine(
-                            permissions,
-                            [new RolePermissionType
-                            {
-                                RoleId = roleId,
-                                Permissions = (uint)(PermissionType.Browse | PermissionType.Call)
-                            }]);
+                        permissions = defaults.DefaultRolePermissions;
                     }
                 }
-                if (permissions.IsEmpty)
+
+                if (hasRolePermissionRestrictions)
                 {
-                    node.RolePermissions =
-                    [
-                        new RolePermissionType
+                    const uint addedPermissions = (uint)(PermissionType.Browse | PermissionType.Call);
+                    NodeId roleId = ObjectIds.WellKnownRole_SecurityAdmin;
+                    var updatedPermissions = new List<RolePermissionType>(permissions.Count + 1);
+                    bool foundSecurityAdmin = false;
+                    for (int index = 0; index < permissions.Count; index++)
+                    {
+                        RolePermissionType permission = permissions[index];
+                        var updatedPermission = new RolePermissionType
+                        {
+                            RoleId = permission.RoleId,
+                            Permissions = permission.Permissions
+                        };
+                        if (updatedPermission.RoleId == roleId)
+                        {
+                            updatedPermission.Permissions |= addedPermissions;
+                            foundSecurityAdmin = true;
+                        }
+                        updatedPermissions.Add(updatedPermission);
+                    }
+                    if (!foundSecurityAdmin)
+                    {
+                        updatedPermissions.Add(new RolePermissionType
                         {
                             RoleId = roleId,
-                            Permissions = (uint)(PermissionType.Browse | PermissionType.Call)
-                        }
-                    ];
+                            Permissions = addedPermissions
+                        });
+                    }
+                    node.RolePermissions = updatedPermissions.ToArrayOf();
                 }
             }
 
