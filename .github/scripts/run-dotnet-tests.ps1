@@ -395,6 +395,11 @@ foreach ($project in $projectList) {
         if (-not [string]::IsNullOrWhiteSpace($projectFilter)) {
             $testArguments += @('--filter', $projectFilter)
         }
+        # Keep per-test progress visible while diagnosing the WotCon shard timeout.
+        if ($stem -eq 'Opc.Ua.WotCon.Tests' -and
+            $projectFilter -like '*FullyQualifiedName!~Opc.Ua.WotCon.Tests.Materialization.*') {
+            $testArguments += @('--logger', 'console;verbosity=detailed')
+        }
         $testBudget = [System.Diagnostics.Stopwatch]::StartNew()
         $test = Invoke-Dotnet $testArguments $testBudget $PerProjectTimeoutMinutes $logPath $targetDir
         $record.testSeconds = [int]$testBudget.Elapsed.TotalSeconds
