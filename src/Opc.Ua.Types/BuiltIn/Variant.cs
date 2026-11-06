@@ -1271,13 +1271,11 @@ namespace Opc.Ua
                     switch (TypeInfo.BuiltInType)
                     {
                         case BuiltInType.Double:
-                        {
                             ArrayOf<double> values = GetDoubleArray();
                             return new Variant(
                                 m_union,
                                 m_typeInfo,
                                 values.IsNull ? default : values.Span.ToArray().ToArrayOf());
-                        }
                         case BuiltInType.ExtensionObject:
                             return new Variant(m_union, m_typeInfo, CoreUtils.Clone(GetExtensionObjectArray()));
                         case BuiltInType.DataValue:
