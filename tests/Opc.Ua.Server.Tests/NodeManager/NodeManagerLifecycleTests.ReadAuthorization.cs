@@ -38,15 +38,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
     public sealed partial class NodeManagerLifecycleTests
     {
         /// <summary>
-        /// A real shadow-retained item is authorized against its original source after same-channel reactivation.
+        /// A migrated monitored item is authorized against the replacement source after same-channel reactivation.
         /// </summary>
-        [TestCase(false, false)]
-        [TestCase(false, true)]
-        [TestCase(true, false)]
-        [TestCase(true, true)]
+        [TestCase(false)]
+        [TestCase(true)]
         [Category("SecurityRegression")]
         public async Task SecurityR44ShadowReloadReenableRechecksAcceptedIdentityOnExactSourceAsync(
-            bool reusedNodeId,
             bool authorized)
         {
             NodeManagerRegistration original = await m_server.NodeManagerLifecycle
@@ -55,9 +52,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var owner = (AsyncCustomNodeManager)original.NodeManager;
             var nodeId = new NodeId(kValueNodeId, (ushort)server.NamespaceUris.GetIndex(kModelNamespaceUri));
             var handle = (NodeHandle)(await owner.GetManagerHandleAsync(nodeId).ConfigureAwait(false))!;
-            var source = (BaseVariableState)handle.Node;
-            source.Value = 42;
-            source.RolePermissions =
+            var originalSource = (BaseVariableState)handle.Node;
+            originalSource.Value = 42;
+            originalSource.RolePermissions =
             [
                 new RolePermissionType
                 {
@@ -79,9 +76,22 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 m_requestHeader, subscriptionId, MonitoringMode.Disabled, [itemId]).ConfigureAwait(false);
             Assert.That(disabled.Results[0], Is.EqualTo(StatusCodes.Good));
             NodeManagerRegistration replacement = await m_server.NodeManagerLifecycle.ShadowReloadRuntimeNodeSetAsync(
-                original, reusedNodeId ? CreateGenerationOptions(2) : CreateDroppedGenerationOptions())
+                original, CreateGenerationOptions(2))
                 .ConfigureAwait(false);
             Assert.That(replacement.NodeManager, Is.Not.SameAs(owner));
+            var replacementOwner = (AsyncCustomNodeManager)replacement.NodeManager;
+            var replacementHandle = (NodeHandle)(await replacementOwner.GetManagerHandleAsync(nodeId)
+                .ConfigureAwait(false))!;
+            var replacementSource = (BaseVariableState)replacementHandle.Node;
+            replacementSource.Value = 42;
+            replacementSource.RolePermissions =
+            [
+                new RolePermissionType
+                {
+                    RoleId = ObjectIds.WellKnownRole_Anonymous,
+                    Permissions = (uint)(PermissionType.Browse | PermissionType.Read)
+                }
+            ];
 
             var session = (Opc.Ua.Server.Session)server.SessionManager.GetSession(m_requestHeader.AuthenticationToken)!;
             string channelId = session.SecureChannelId;
@@ -97,7 +107,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     default, Nonce.CreateNonce(SecurityPolicies.None));
             }
             Assert.That(session.SecureChannelId, Is.EqualTo(channelId));
-            source.Value = authorized ? 42 : 99;
+            replacementSource.Value = authorized ? 42 : 99;
 
             SetMonitoringModeResponse enabled = await services.SetMonitoringModeAsync(
                 m_requestHeader, subscriptionId, MonitoringMode.Reporting, [itemId]).ConfigureAwait(false);

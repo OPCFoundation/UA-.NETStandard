@@ -61,10 +61,11 @@ namespace Opc.Ua
                     {
                         Value = source.NodeId,
                         Timestamp = time,
-                        RolePermissions = source.RolePermissions,
-                        UserRolePermissions = source.UserRolePermissions,
                         NodeId = source.NodeId
                     };
+                    // the field is new: copying the source's permissions changes no node's
+                    // permissions, so it must not retire the server's cached verdicts.
+                    m_sourceNode.InitializeRolePermissions(source.RolePermissions, source.UserRolePermissions);
                 }
 
                 if (!source.BrowseName.IsNull)

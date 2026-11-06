@@ -75,16 +75,19 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(rd.NodeClass, Is.EqualTo(NodeClass.Unspecified));
         }
 
+        /// <summary>
+        /// A new reference description has null OPC UA identifiers and names.
+        /// </summary>
         [Test]
         public void DefaultConstructorSetsNullDefaults()
         {
             var rd = new ReferenceDescription();
 
-            Assert.That(rd.ReferenceTypeId, Is.Default);
-            Assert.That(rd.NodeId, Is.Default);
-            Assert.That(rd.BrowseName, Is.Default);
-            Assert.That(rd.DisplayName, Is.Default);
-            Assert.That(rd.TypeDefinition, Is.Default);
+            Assert.That(rd.ReferenceTypeId.IsNull, Is.True);
+            Assert.That(rd.NodeId.IsNull, Is.True);
+            Assert.That(rd.BrowseName.IsNull, Is.True);
+            Assert.That(rd.DisplayName.IsNull, Is.True);
+            Assert.That(rd.TypeDefinition.IsNull, Is.True);
             Assert.That(rd.Unfiltered, Is.False);
         }
 

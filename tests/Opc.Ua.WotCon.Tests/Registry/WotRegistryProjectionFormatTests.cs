@@ -37,7 +37,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 using Opc.Ua.WotCon.Tests.Materialization;
@@ -246,7 +245,8 @@ namespace Opc.Ua.WotCon.Tests.Registry
         public async Task RestoredPlanAdmissionRunsBeforeAnyRuntimePublication(
             string format, string contentType, WoTDocumentKindEnum storedKind)
         {
-            string root = Path.Combine(TestContext.CurrentContext.WorkDirectory, "format-restore", Guid.NewGuid().ToString("N"));
+            string root = Path.Combine(
+                Path.GetTempPath(), "format-restore", Guid.NewGuid().ToString("N")[..12]);
             Directory.CreateDirectory(root);
             try
             {
@@ -495,9 +495,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
         public async Task RestoredUnsupportedMetadataFailsBeforeRuntimePublication()
         {
             string root = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
+                Path.GetTempPath(),
                 "unsupported-format-restore",
-                Guid.NewGuid().ToString("N"));
+                Guid.NewGuid().ToString("N")[..12]);
             Directory.CreateDirectory(root);
             try
             {

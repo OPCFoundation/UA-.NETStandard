@@ -36,37 +36,21 @@ namespace Opc.Ua.Server
     public partial class MasterNodeManager
     {
         /// <summary>
-        /// Sets the lifecycle that decides which history sources need captured continuation ownership.
-        /// </summary>
-        /// <param name="lifecycle">The node manager lifecycle.</param>
-        internal void SetHistoryContinuationLifecycle(NodeManagerLifecycle lifecycle)
-        {
-            Volatile.Write(ref m_historyContinuationLifecycle, lifecycle);
-        }
-
-        /// <summary>
-        /// Determines whether continuation points of a node manager must retain the captured generation.
-        /// </summary>
-        /// <param name="manager">The node manager serving the history read.</param>
-        /// <returns>True if the lifecycle owns the node manager as a history source.</returns>
-        internal bool RequiresHistoryContinuationOwnership(IAsyncNodeManager manager)
-        {
-            return Volatile.Read(ref m_historyContinuationLifecycle)?.OwnsHistorySource(manager) == true;
-        }
-
-        /// <summary>
         /// Captures the node managers a history continuation depends on.
         /// </summary>
+        /// <param name="context">The operation whose routing view owns the read.</param>
         /// <param name="state">The continuation state to capture.</param>
+        /// <param name="validateSource">Whether restoration requires a current serving source.</param>
         /// <param name="cancellationToken">The token used to cancel the operation.</param>
         /// <returns>Good if captured or not required; otherwise the reason it cannot be captured.</returns>
         internal ValueTask<ServiceResult> CaptureHistoryContinuationAsync(
+            OperationContext context,
             HistorianContinuationState state,
+            bool validateSource,
             CancellationToken cancellationToken)
         {
-            return m_serviceDispatch.CaptureHistoryContinuationAsync(state, cancellationToken);
+            return m_serviceDispatch.CaptureHistoryContinuationAsync(
+                context, state, cancellationToken, validateSource);
         }
-
-        private NodeManagerLifecycle? m_historyContinuationLifecycle;
     }
 }

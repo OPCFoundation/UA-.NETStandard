@@ -19,6 +19,14 @@ on:
         description: 'Include macOS runners in the test / AoT matrix'
         type: boolean
         default: true
+      pkcs11_native_loader_diagnostics:
+        description: 'Run only paired macOS PKCS#11 control and loader-trace tests'
+        type: boolean
+        default: false
+      pkcs11_full_shard_diagnostics:
+        description: 'Run only the macOS net10.0 shard 11 batch with coverage, paired control and loader-trace'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -91,6 +99,8 @@ jobs:
       env:
         EVENT_NAME: ${{ github.event_name }}
         INCLUDE_MACOS: ${{ github.event.inputs.include_macos }}
+        PKCS11_NATIVE_LOADER_DIAGNOSTICS: ${{ github.event.inputs.pkcs11_native_loader_diagnostics }}
+        PKCS11_FULL_SHARD_DIAGNOSTICS: ${{ github.event.inputs.pkcs11_full_shard_diagnostics }}
         BASE_SHA: ${{ github.event.pull_request.base.sha }}
       run: |
         # macOS is included by default on pull_request, push, and schedule events
@@ -112,8 +122,18 @@ jobs:
         # can be tested: getting it wrong in the "irrelevant" direction skips
         # the build, test and AOT jobs while the required summary still reports
         # success. See CiPathRelevanceTests.
-        $relevantChanges = $true
-        if ($env:EVENT_NAME -eq 'pull_request' -and -not [string]::IsNullOrWhiteSpace($env:BASE_SHA)) {
+        $diagnosticMode = $env:EVENT_NAME -eq 'workflow_dispatch' -and
+            ($env:PKCS11_NATIVE_LOADER_DIAGNOSTICS -eq 'true' -or
+             $env:PKCS11_FULL_SHARD_DIAGNOSTICS -eq 'true')
+        if ($env:PKCS11_NATIVE_LOADER_DIAGNOSTICS -eq 'true' -and
+            $env:PKCS11_FULL_SHARD_DIAGNOSTICS -eq 'true') {
+            throw 'Select one PKCS#11 diagnostic: the isolated and full-shard runs are separate experiments.'
+        }
+        $relevantChanges = -not $diagnosticMode
+        if ($diagnosticMode) {
+            Write-Host 'Native-loader diagnostic selected; skipping the general test/build matrices.'
+        }
+        elseif ($env:EVENT_NAME -eq 'pull_request' -and -not [string]::IsNullOrWhiteSpace($env:BASE_SHA)) {
             # Triple-dot: diff from the merge base, not from the current base
             # branch head. A two-dot diff would also report commits that landed
             # on the base branch after this one was cut, which would make an
@@ -200,6 +220,74 @@ jobs:
         # code-coverage below collects every artifact matching dotnet-results-*.
         artifact-name: dotnet-results-${{ matrix.entry.id }}
 
+  macos-pkcs11-native-loader-diagnostics:
+    needs: discover
+    name: ${{ matrix.mode }} PKCS#11 run
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' &&
+          github.event.inputs.pkcs11_native_loader_diagnostics == 'true' }}
+    runs-on: macos-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [control, trace]
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+
+    - uses: ./.github/actions/run-dotnet-tests
+      with:
+        projects: ./tests/Opc.Ua.Security.Pkcs11.Tests/Opc.Ua.Security.Pkcs11.Tests.csproj
+        custom-test-target: net10.0
+        framework: net10.0
+        configuration: Release
+        dotnet: '10.0.403'
+        filter: ''
+        hang-timeout: 10m
+        per-project-timeout: '30'
+        coverage: 'false'
+        artifact-name: macos-pkcs11-native-loader-${{ matrix.mode }}
+        macos-native-loader-diagnostics: ${{ matrix.mode }}
+
+  # The isolated run above does not reproduce the shard-11 host crash. This one
+  # keeps the conditions that differ: the projects, order, category filter and
+  # coverage collection of the macos-net10.0 (11/19) entry from get-ci-matrix.ps1.
+  # Each project still runs in its own test host; only PKCS#11 is traced.
+  macos-pkcs11-full-shard-diagnostics:
+    needs: discover
+    name: ${{ matrix.mode }} shard-11 run ${{ matrix.attempt }}
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' &&
+          github.event.inputs.pkcs11_full_shard_diagnostics == 'true' }}
+    runs-on: macos-latest
+    timeout-minutes: 200
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [control, trace]
+        attempt: [1, 2]
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+
+    - uses: ./.github/actions/run-dotnet-tests
+      with:
+        projects: >-
+          tests/Opc.Ua.Robotics.Tests/Opc.Ua.Robotics.Tests.csproj;tests/Opc.Ua.Scales.Tests/Opc.Ua.Scales.Tests.csproj;tests/Opc.Ua.Security.Certificates.Tests/Opc.Ua.Security.Certificates.Tests.csproj;tests/Opc.Ua.Security.Pkcs11.Tests/Opc.Ua.Security.Pkcs11.Tests.csproj
+        custom-test-target: net10.0
+        framework: net10.0
+        configuration: Release
+        dotnet: '10.0.403'
+        filter: 'TestCategory!=LongRunning&TestCategory!=Stress'
+        hang-timeout: 10m
+        per-project-timeout: '45'
+        coverage: 'true'
+        artifact-name: macos-pkcs11-full-shard-${{ matrix.mode }}-${{ matrix.attempt }}
+        macos-native-loader-diagnostics: ${{ matrix.mode }}
+
   code-coverage:
     name: code coverage
     needs: [discover, build-and-test]
@@ -231,7 +319,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: '10.0.402'
+        global-json-file: global.json
 
     - name: Download test results
       uses: actions/download-artifact@v8
@@ -394,7 +482,6 @@ jobs:
       # binary is published and run on every AOT platform.
       AOTPROJECT_HISTORIAN: './tests/Opc.Ua.Aot.Tests.Historian/Opc.Ua.Aot.Tests.Historian.csproj'
       AOTPROJECT_MCP: './tests/Opc.Ua.Aot.Tests.Mcp/Opc.Ua.Aot.Tests.Mcp.csproj'
-      DOTNET_VERSION: '10.0.402'
       CONFIGURATION: 'Release'
 
     steps:
@@ -402,10 +489,10 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Setup .NET ${{ env.DOTNET_VERSION }}
+    - name: Setup .NET from global.json
       uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: ${{ env.DOTNET_VERSION }}
+        global-json-file: global.json
 
     - name: Set Cloud Version
       shell: pwsh
@@ -473,10 +560,15 @@ jobs:
         # a shallow clone.
         fetch-depth: 0
 
-    - name: Setup .NET
+    - name: Setup .NET SDKs for build matrix
       uses: actions/setup-dotnet@v6
       with:
         dotnet-version: ${{ matrix.entry.dotnet }}
+
+    - name: Setup repository .NET SDK
+      uses: actions/setup-dotnet@v6
+      with:
+        global-json-file: global.json
 
     - name: Set cloud version
       shell: pwsh
@@ -512,7 +604,7 @@ jobs:
         fetch-depth: 0
     - uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: 10.0.402
+        global-json-file: global.json
     - name: Validate manifest and negative controls
       shell: pwsh
       run: ./fuzzing/Scripts/validate-fuzz-manifest.ps1 -SelfTest
@@ -563,12 +655,16 @@ jobs:
         # Full history: Nerdbank.GitVersioning refuses to compute a version from
         # a shallow clone, which fails the build before any test runs.
         fetch-depth: 0
-    - uses: actions/setup-dotnet@v6
+    - name: Setup .NET 8 and 9 runtimes
+      uses: actions/setup-dotnet@v6
       with:
         dotnet-version: |
           8.0.x
           9.0.x
-          10.0.402
+    - name: Setup repository .NET SDK
+      uses: actions/setup-dotnet@v6
+      with:
+        global-json-file: global.json
     - name: Run fuzz regressions
       shell: pwsh
       run: ./fuzzing/Scripts/test-fuzzing.ps1 -Framework '${{ matrix.framework }}' -ResultsDirectory '${{ runner.temp }}/fuzz-results'

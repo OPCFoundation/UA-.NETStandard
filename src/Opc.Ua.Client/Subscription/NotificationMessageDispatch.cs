@@ -75,7 +75,8 @@ namespace Opc.Ua.Client.Subscriptions
             AcknowledgementHandle handle,
             ArrayOf<string> stringTable,
             Func<DataChangeNotification, ReadOnlyMemory<DataValueChange>> dataChanges,
-            Func<EventNotificationList, ReadOnlyMemory<EventNotification>> events)
+            Func<EventNotificationList, ReadOnlyMemory<EventNotification>> events,
+            bool republished = false)
         {
             var payloads = new SubscriptionNotificationPayload[message.NotificationData.Count];
             for (int i = 0; i < payloads.Length; i++)
@@ -103,7 +104,10 @@ namespace Opc.Ua.Client.Subscriptions
                 }
             }
             return new SubscriptionNotificationMessage(
-                handle, (DateTime)message.PublishTime, payloads, stringTable);
+                handle, (DateTime)message.PublishTime, payloads, stringTable)
+            {
+                MoreNotifications = republished ? null : message.MoreNotifications
+            };
         }
 
         /// <summary>
@@ -111,9 +115,10 @@ namespace Opc.Ua.Client.Subscriptions
         /// </summary>
         internal static SubscriptionNotificationMessage CreateClassic(
             NotificationMessage message,
-            AcknowledgementHandle handle)
+            AcknowledgementHandle handle,
+            bool republished = false)
         {
-            return Create(message, handle, message.StringTable, DataChanges, Events);
+            return Create(message, handle, message.StringTable, DataChanges, Events, republished);
 
             ReadOnlyMemory<DataValueChange> DataChanges(DataChangeNotification data)
             {

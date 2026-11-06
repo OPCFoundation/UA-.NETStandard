@@ -60,7 +60,20 @@ namespace Opc.Ua.Client.Subscriptions
         AcknowledgementHandle Acknowledgement,
         DateTime PublishTime,
         ArrayOf<SubscriptionNotificationPayload> Notifications,
-        ArrayOf<string> StringTable);
+        ArrayOf<string> StringTable)
+    {
+        /// <summary>
+        /// Gets the originating Publish response's indication that further notifications
+        /// are queued for this physical subscription. A Republish response does not carry
+        /// this indication, so the value is <c>null</c> for republished messages.
+        /// </summary>
+        /// <remarks>
+        /// This is response metadata, not a boundary of the acknowledgement handle.
+        /// Each complete message must still be confirmed independently after delivery.
+        /// A manually constructed message defaults to <c>null</c> (unknown).
+        /// </remarks>
+        public bool? MoreNotifications { get; init; }
+    }
 
     /// <summary>
     /// The kind of a notification payload.
