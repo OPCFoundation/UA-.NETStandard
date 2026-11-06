@@ -519,17 +519,6 @@ function Get-TestProjectShards([string] $project, [string] $framework)
             )
         }
         'Opc.Ua.Server.Tests' {
-            if ($framework -ne 'net48') {
-                return @(
-                    @{
-                        id = 'all'
-                        name = 'all'
-                        filter = ''
-                        hangTimeout = ''
-                    }
-                )
-            }
-
             $groups = @(
                 @{
                     id = 'server-node-management'
