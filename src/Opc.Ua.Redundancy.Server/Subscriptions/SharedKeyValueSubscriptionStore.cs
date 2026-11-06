@@ -1056,6 +1056,7 @@ namespace Opc.Ua.Redundancy.Server
                 IsRestored = item.IsRestored,
                 IsDeleted = item.IsDeleted,
                 IsDetached = item.IsDetached,
+                IsTerminal = item is IStoredMonitoredItemInvalidation { IsTerminal: true },
                 AlwaysReportUpdates = item.AlwaysReportUpdates,
                 AttributeId = item.AttributeId,
                 ClientHandle = item.ClientHandle,
@@ -1095,12 +1096,14 @@ namespace Opc.Ua.Redundancy.Server
 
         private ByteString Encode(StoredSubscription subscription)
         {
-            // Only subscriptions with triggering links need the newer format; writing the
-            // previous one otherwise keeps snapshots readable by replicas that predate it
-            // during a rolling upgrade.
+            // Use the oldest capable format so unaffected subscriptions remain readable by older replicas.
             int version = subscription.TriggeringLinks is { Count: > 0 }
                 ? TriggeringLinksDefinitionFormatVersion
                 : OwnerStateDefinitionFormatVersion;
+            if (subscription.MonitoredItems.Any(item => item is IStoredMonitoredItemInvalidation { IsTerminal: true }))
+            {
+                version = TerminalItemsDefinitionFormatVersion;
+            }
             using var encoder = new BinaryEncoder(m_context);
             encoder.WriteInt32(null, version);
             encoder.WriteStringArray(null, m_context.NamespaceUris.ToArrayOf());
@@ -1417,6 +1420,10 @@ namespace Opc.Ua.Redundancy.Server
             {
                 encoder.WriteStringArray(null, item.FilteredRetainConditionIds);
             }
+            if (version >= TerminalItemsDefinitionFormatVersion)
+            {
+                encoder.WriteBoolean(null, item.IsTerminal);
+            }
         }
 
         private static StoredMonitoredItem DecodeMonitoredItem(BinaryDecoder decoder, int version)
@@ -1462,6 +1469,10 @@ namespace Opc.Ua.Redundancy.Server
             {
                 // the keys are written by the monitored item and never null.
                 item.FilteredRetainConditionIds = decoder.ReadStringArray(null)!;
+            }
+            if (version >= TerminalItemsDefinitionFormatVersion)
+            {
+                item.IsTerminal = decoder.ReadBoolean(null);
             }
             return item;
         }
@@ -1542,7 +1553,8 @@ namespace Opc.Ua.Redundancy.Server
                 LifecycleStateDefinitionFormatVersion or
                 FilteredRetainDefinitionFormatVersion or
                 OwnerStateDefinitionFormatVersion or
-                TriggeringLinksDefinitionFormatVersion;
+                TriggeringLinksDefinitionFormatVersion or
+                TerminalItemsDefinitionFormatVersion;
         }
 
         private static string ContinuationPointPrefixFor(NodeId ownerSessionId)
@@ -1557,6 +1569,9 @@ namespace Opc.Ua.Redundancy.Server
         private const int FilteredRetainDefinitionFormatVersion = 3;
         private const int OwnerStateDefinitionFormatVersion = 5;
         private const int TriggeringLinksDefinitionFormatVersion = 6;
+
+        /// <summary>Persists items that must not recover after terminal invalidation.</summary>
+        private const int TerminalItemsDefinitionFormatVersion = 7;
 
         private const int DefinitionSnapshotManifestFormatVersion = 1;
         private const int ContinuationPointFormatVersion = 1;

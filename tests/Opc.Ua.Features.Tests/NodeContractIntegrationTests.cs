@@ -116,9 +116,12 @@ namespace Opc.Ua.Features.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies real file sizes after initial creation, terminal removal/resubscription, and re-enabling.
+        /// </summary>
         [Test]
         [Category("FileSystem")]
-        public async Task FirstFileSizeNotificationsAreRealAcrossCreateReattachAndReenableAsync()
+        public async Task FirstFileSizeNotificationsAreRealAcrossCreateResubscribeAndReenableAsync()
         {
             NodeManagerRegistration registration = m_server.NodeManagerLifecycle.Registrations.ToArray()!
                 .Single(value => value.NodeManager is FileSystemNodeManager);
@@ -134,16 +137,22 @@ namespace Opc.Ua.Features.Tests
                 AssertSize(await PublishDataAsync(subscriptionId).ConfigureAwait(false), 10240);
                 Assert.That(manager.TrackedFileCount, Is.Zero);
 
-                await m_server.NodeManagerLifecycle.RemoveAsync(registration, null).ConfigureAwait(false);
+                await ApplyChangeAsync(NodeManagerBatchChange.Remove(registration)).ConfigureAwait(false);
                 DataValue removed = await PublishDataAsync(subscriptionId).ConfigureAwait(false);
                 Assert.That(removed.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
                 await WritePayloadAsync(20480).ConfigureAwait(false);
                 IAsyncNodeManagerFactory replacement = new FileSystemNodeManagerFactory(
                     new PhysicalFileSystemProvider(m_providerDirectory, "Metadata"));
-                NodeManagerRegistration restored = await m_server.NodeManagerLifecycle
-                    .AddAsync(replacement, null).ConfigureAwait(false);
+                NodeManagerBatchResult restoration = await ApplyChangeAsync(
+                    NodeManagerBatchChange.Add(replacement)).ConfigureAwait(false);
+                NodeManagerRegistration restored = restoration.Registrations[0];
                 var restoredManager = (FileSystemNodeManager)restored.NodeManager;
                 Assert.That(restoredManager.NamespaceIndex, Is.EqualTo(manager.NamespaceIndex));
+                uint originalItemId = created.MonitoredItemId;
+                await DeleteItemAsync(subscriptionId, originalItemId).ConfigureAwait(false);
+                created = await CreateItemAsync(subscriptionId, sizeId, Attributes.Value).ConfigureAwait(false);
+                Assert.That(created.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(created.MonitoredItemId, Is.Not.Zero.And.Not.EqualTo(originalItemId));
                 AssertSize(await PublishDataAsync(subscriptionId).ConfigureAwait(false), 20480);
                 Assert.That(restoredManager.TrackedFileCount, Is.Zero);
 
@@ -173,8 +182,9 @@ namespace Opc.Ua.Features.Tests
         public async Task ReloadPreservesItemAndPublishesAsyncProviderValueWithoutPlaceholderAsync()
         {
             var provider = new PhysicalFileSystemProvider(m_providerDirectory, "Reload");
-            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
-                .AddAsync(new ReloadableValueFactory(provider), null).ConfigureAwait(false);
+            NodeManagerBatchResult addition = await ApplyChangeAsync(
+                NodeManagerBatchChange.Add(new ReloadableValueFactory(provider))).ConfigureAwait(false);
+            NodeManagerRegistration registration = addition.Registrations[0];
             var manager = (ReloadableValueManager)registration.NodeManager;
             uint subscriptionId = await CreateSubscriptionAsync().ConfigureAwait(false);
             try
@@ -185,8 +195,10 @@ namespace Opc.Ua.Features.Tests
                 AssertSize(await PublishDataAsync(subscriptionId).ConfigureAwait(false), 10240);
                 await WritePayloadAsync(40960).ConfigureAwait(false);
 
-                NodeManagerRegistration reloaded = await m_server.NodeManagerLifecycle
-                    .ReloadAsync(registration, new ReloadableValueFactory(provider), null).ConfigureAwait(false);
+                NodeManagerBatchResult reload = await ApplyChangeAsync(
+                    NodeManagerBatchChange.Replace(registration, new ReloadableValueFactory(provider)))
+                    .ConfigureAwait(false);
+                NodeManagerRegistration reloaded = reload.Registrations[0];
 
                 Assert.That(reloaded.Id, Is.EqualTo(registration.Id));
                 Assert.That(reloaded.Generation, Is.GreaterThan(registration.Generation));
@@ -202,8 +214,9 @@ namespace Opc.Ua.Features.Tests
         [Test]
         public async Task ServerEventsSurviveUnsupportedRootsAndRollBackRealStartupFailureAsync()
         {
-            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
-                .AddAsync(new EventNodeManagerFactory(), null).ConfigureAwait(false);
+            NodeManagerBatchResult addition = await ApplyChangeAsync(
+                NodeManagerBatchChange.Add(new EventNodeManagerFactory())).ConfigureAwait(false);
+            NodeManagerRegistration registration = addition.Registrations[0];
             var manager = (TestableAsyncCustomNodeManager)registration.NodeManager;
             BaseObjectState supported = await AddRootAsync(manager, "Supported", true).ConfigureAwait(false);
             BaseObjectState unsupported = await AddRootAsync(manager, "Unsupported", false).ConfigureAwait(false);
@@ -248,6 +261,18 @@ namespace Opc.Ua.Features.Tests
             {
                 await DeleteSubscriptionAsync(subscriptionId).ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// Publishes one real lifecycle change and rejects committed reconciliation failures.
+        /// </summary>
+        private async Task<NodeManagerBatchResult> ApplyChangeAsync(NodeManagerBatchChange change)
+        {
+            await using IPreparedNodeManagerBatch prepared = await m_server.NodeManagerLifecycle
+                .PrepareAsync([change]).ConfigureAwait(false);
+            NodeManagerBatchResult result = await prepared.CommitAsync(static _ => default).ConfigureAwait(false);
+            Assert.That(result.CleanupFailure, Is.Null);
+            return result;
         }
 
         private async Task WritePayloadAsync(int length)

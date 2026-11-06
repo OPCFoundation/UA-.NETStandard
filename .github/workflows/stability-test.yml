@@ -43,7 +43,6 @@ jobs:
     timeout-minutes: 120  # Allow extra time beyond test duration for setup/teardown
 
     env:
-      DOTNET_VERSION: '10.0.403'
       TARGET_FRAMEWORK: 'net10.0'
       CONFIGURATION: 'Release'
       TESTPROJECT: './tests/Opc.Ua.Sessions.Tests/Opc.Ua.Sessions.Tests.csproj'
@@ -55,10 +54,10 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Setup .NET ${{ env.DOTNET_VERSION }}
+    - name: Setup .NET from global.json
       uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: ${{ env.DOTNET_VERSION }}
+        global-json-file: global.json
 
     - name: Set Cloud Version
       shell: pwsh

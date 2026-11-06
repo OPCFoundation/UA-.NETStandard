@@ -395,6 +395,20 @@ foreach ($project in $projectList) {
         if (-not [string]::IsNullOrWhiteSpace($projectFilter)) {
             $testArguments += @('--filter', $projectFilter)
         }
+        if ($IsMacOS -and $env:OPCUA_CAPTURE_MACOS_NATIVE_LOADER_DIAGNOSTICS -eq 'true' -and
+            $stem -eq 'Opc.Ua.Security.Pkcs11.Tests') {
+            # VSTest does not forward the test host's stderr, where dyld writes
+            # by default, so variables set on 'dotnet test' only traced the
+            # muxer and MSBuild. RunConfiguration.EnvironmentVariables reaches
+            # the test host alone, and DYLD_PRINT_TO_FILE keeps its trace.
+            $dyldTrace = Join-Path $projectResults 'dyld-testhost.log'
+            $testArguments += @(
+                '--',
+                "RunConfiguration.EnvironmentVariables.DYLD_PRINT_TO_FILE=$dyldTrace",
+                'RunConfiguration.EnvironmentVariables.DYLD_PRINT_LIBRARIES=1',
+                'RunConfiguration.EnvironmentVariables.DYLD_PRINT_SEGMENTS=1',
+                'RunConfiguration.EnvironmentVariables.DYLD_PRINT_APIS=1')
+        }
         $testBudget = [System.Diagnostics.Stopwatch]::StartNew()
         $test = Invoke-Dotnet $testArguments $testBudget $PerProjectTimeoutMinutes $logPath $targetDir
         $record.testSeconds = [int]$testBudget.Elapsed.TotalSeconds
@@ -419,6 +433,7 @@ foreach ($project in $projectList) {
             -Passed $results.Passed `
             -Failed $results.Failed `
             -FixtureFailures $results.FixtureFailures `
+            -RunFailures $results.RunFailures `
             -ExitCode $test.ExitCode `
             -TimedOut $test.TimedOut `
             -TimeoutMinutes $PerProjectTimeoutMinutes

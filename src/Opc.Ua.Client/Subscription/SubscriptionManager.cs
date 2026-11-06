@@ -3444,7 +3444,15 @@ namespace Opc.Ua.Client.Subscriptions
                 uint timeoutHint = 0u;
                 bool moreNotifications = true; // Dont wait first time we enter the loop.
                 m_logger.PublishWorkerStarted(Index);
-                while (!ct.IsCancellationRequested)
+                //
+                // Check the manager's token as well as the worker's own. Admission can be
+                // cancelled by a callback that runs before the callback linking the worker's
+                // token, and this loop then resumes inline on the thread cancelling the
+                // manager. With only ct to check, nothing here awaits, so the loop would spin
+                // on that thread and the callback that cancels ct could never run.
+                //
+                CancellationToken shutdown = m_outer.ShutdownToken;
+                while (!ct.IsCancellationRequested && !shutdown.IsCancellationRequested)
                 {
                     if (!m_outer.m_running.IsSet)
                     {

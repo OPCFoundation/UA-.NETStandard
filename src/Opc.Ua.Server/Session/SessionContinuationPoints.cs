@@ -42,9 +42,7 @@ namespace Opc.Ua.Server
     /// (save/restore/load/clear) instead of managing the store, lists, and dictionaries inline.
     /// </summary>
     internal sealed class SessionContinuationPoints :
-        ISessionContinuationPoints,
-        ISessionContinuationPointLifecycle,
-        ISessionHistoryContinuationPointLifecycle
+        ISessionContinuationPoints
     {
         /// <summary>
         /// Creates a local-only continuation-point holder.
@@ -131,9 +129,14 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(nodeManager));
             }
+            return HasBrowseForGeneration(NodeManagerGenerationRegistry.GetOrCreate(nodeManager));
+        }
+
+        internal bool HasBrowseForGeneration(NodeManagerGeneration generation)
+        {
             lock (m_lock)
             {
-                return m_browse?.Exists(point => IsOwnedBy(point.Point, nodeManager)) == true;
+                return m_browse?.Exists(point => IsOwnedBy(point.Point, generation)) == true;
             }
         }
 
@@ -279,8 +282,17 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public void RemoveForManager(IAsyncNodeManager nodeManager)
         {
-            RemoveBrowseForManager(nodeManager);
-            RemoveHistoryForManager(nodeManager);
+            if (nodeManager is null)
+            {
+                throw new ArgumentNullException(nameof(nodeManager));
+            }
+            RemoveForGeneration(NodeManagerGenerationRegistry.GetOrCreate(nodeManager));
+        }
+
+        internal void RemoveForGeneration(NodeManagerGeneration generation)
+        {
+            RemoveBrowseForGeneration(generation);
+            RemoveHistoryForGeneration(generation);
         }
 
         /// <summary>
@@ -293,7 +305,11 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(nodeManager));
             }
+            RemoveBrowseForGeneration(NodeManagerGenerationRegistry.GetOrCreate(nodeManager));
+        }
 
+        internal void RemoveBrowseForGeneration(NodeManagerGeneration generation)
+        {
             List<ContinuationPoint>? removed = null;
             lock (m_lock)
             {
@@ -305,7 +321,7 @@ namespace Opc.Ua.Server
                 for (int ii = m_browse.Count - 1; ii >= 0; ii--)
                 {
                     BrowseContinuationPoint entry = m_browse[ii];
-                    if (!IsOwnedBy(entry.Point, nodeManager))
+                    if (!IsOwnedBy(entry.Point, generation))
                     {
                         continue;
                     }
@@ -335,11 +351,11 @@ namespace Opc.Ua.Server
         /// Determines whether a continuation point requires the specified node manager.
         /// </summary>
         /// <param name="point">The continuation point.</param>
-        /// <param name="nodeManager">The node manager.</param>
-        /// <returns>True if the continuation point depends on the node manager.</returns>
-        private static bool IsOwnedBy(ContinuationPoint point, IAsyncNodeManager nodeManager)
+        /// <param name="generation">The generation represented by the continuation point.</param>
+        /// <returns>True if the continuation point was issued by the generation.</returns>
+        private static bool IsOwnedBy(ContinuationPoint point, NodeManagerGeneration generation)
         {
-            return point.RequiresManager(nodeManager);
+            return point.Generation is { } reference && reference.Identifies(generation);
         }
 
         /// <summary>
@@ -403,13 +419,17 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(nodeManager));
             }
+            RemoveHistoryForGeneration(NodeManagerGenerationRegistry.GetOrCreate(nodeManager));
+        }
 
+        internal void RemoveHistoryForGeneration(NodeManagerGeneration generation)
+        {
             List<HistoryContinuationPoint>? removed = null;
             lock (m_lock)
             {
                 foreach (HistoryContinuationPoint checkedOut in m_checkedOutHistory)
                 {
-                    if (IsOwnedBy(checkedOut.Value, nodeManager) &&
+                    if (IsOwnedBy(checkedOut, generation) &&
                         checkedOut.Value is Historian.HistorianContinuationState state)
                     {
                         state.Invalidate();
@@ -418,7 +438,7 @@ namespace Opc.Ua.Server
                 for (int ii = (m_history?.Count ?? 0) - 1; ii >= 0; ii--)
                 {
                     HistoryContinuationPoint continuationPoint = m_history![ii];
-                    if (!IsOwnedBy(continuationPoint.Value, nodeManager))
+                    if (!IsOwnedBy(continuationPoint, generation))
                     {
                         continue;
                     }
@@ -454,34 +474,11 @@ namespace Opc.Ua.Server
         /// custom implementation is left alone rather than dropped on a guess.
         /// </summary>
         private bool IsOwnedBy(
-            IHistoryContinuationPoint continuationPoint,
-            IAsyncNodeManager nodeManager)
+            HistoryContinuationPoint continuationPoint,
+            NodeManagerGeneration generation)
         {
-            if (continuationPoint is not Historian.HistorianContinuationState state)
-            {
-                return false;
-            }
-            if (state.Ownership.Manager is not null || state.Ownership.HasCapturedDependencies)
-            {
-                return state.Ownership.RequiresManager(nodeManager);
-            }
-            string? namespaceUri = m_namespaceUris.GetString(
-                state.NodeId.NamespaceIndex);
-            if (namespaceUri == null)
-            {
-                return false;
-            }
-            foreach (string ownedNamespace in nodeManager.NamespaceUris)
-            {
-                if (string.Equals(
-                    ownedNamespace,
-                    namespaceUri,
-                    StringComparison.Ordinal))
-                {
-                    return true;
-                }
-            }
-            return false;
+            return continuationPoint.Generation is { } reference &&
+                reference.Identifies(generation);
         }
 
         /// <inheritdoc/>
@@ -491,10 +488,15 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(nodeManager));
             }
+            return HasHistoryForGeneration(NodeManagerGenerationRegistry.GetOrCreate(nodeManager));
+        }
+
+        internal bool HasHistoryForGeneration(NodeManagerGeneration generation)
+        {
             lock (m_lock)
             {
-                return m_history?.Exists(entry => IsOwnedBy(entry.Value, nodeManager)) == true ||
-                    m_checkedOutHistory.Exists(entry => IsOwnedBy(entry.Value, nodeManager));
+                return m_history?.Exists(entry => IsOwnedBy(entry, generation)) == true ||
+                    m_checkedOutHistory.Exists(entry => IsOwnedBy(entry, generation));
             }
         }
 
@@ -512,22 +514,48 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Determines whether a token identifies a saved history continuation with captured dependencies.
+        /// Associates a saved continuation token with the generation that produced it.
         /// </summary>
         /// <param name="token">The continuation point token.</param>
-        /// <returns>True if the continuation has captured dependencies.</returns>
-        internal bool IsCapturedHistoryPoint(ByteString token)
+        /// <param name="generation">The issuing generation.</param>
+        internal void BindHistoryGeneration(ByteString token, NodeManagerGeneration generation)
         {
-            if (token.Length != 16)
+            if (!TryGetHistoryContinuationPointId(token, out Guid id))
             {
-                return false;
+                return;
             }
-            var id = new Guid(token.ToArray());
             lock (m_lock)
             {
-                return m_history?.Exists(entry => !entry.PendingPersistence && !entry.Claiming && entry.Id == id &&
-                    entry.Value is Historian.HistorianContinuationState state &&
-                    state.Ownership.HasCapturedDependencies) == true;
+                HistoryContinuationPoint? entry =
+                    m_history?.Find(candidate => candidate.Id == id) ??
+                    m_checkedOutHistory.Find(candidate => candidate.Id == id);
+                if (entry is null)
+                {
+                    return;
+                }
+                entry.Generation = generation.Reference;
+                if (entry.Value is Historian.HistorianContinuationState state)
+                {
+                    state.Ownership.Generation = generation.Reference;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets the issuing generation of a checked-out continuation without retaining it.
+        /// </summary>
+        /// <param name="point">The continuation point.</param>
+        /// <returns>The weak generation identity, or null if it was not captured.</returns>
+        internal NodeManagerGenerationReference? GetHistoryGeneration(IHistoryContinuationPoint point)
+        {
+            if (point is Historian.HistorianContinuationState state &&
+                state.Ownership.Generation is { } ownership)
+            {
+                return ownership;
+            }
+            lock (m_lock)
+            {
+                return m_checkedOutHistory.Find(entry => ReferenceEquals(entry.Value, point))?.Generation;
             }
         }
 
@@ -599,20 +627,6 @@ namespace Opc.Ua.Server
             if (continuationPoint == null)
             {
                 throw new ArgumentNullException(nameof(continuationPoint));
-            }
-
-            // Captured owners remain local; the codec independently validates whether the cursor is portable.
-            if (continuationPoint is Historian.HistorianContinuationState { Ownership.HasCapturedDependencies: true })
-            {
-                try
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                }
-                catch
-                {
-                    DisposeUnretainedHistoryPoint(continuationPoint);
-                    throw;
-                }
             }
 
             HistoryContinuationPoint local;
@@ -731,7 +745,7 @@ namespace Opc.Ua.Server
                             return null;
                         }
                         m_history.RemoveAt(i);
-                        TrackCheckedOutHistory(restored);
+                        TrackCheckedOutHistory(restored, includeOpaque: true);
                         ReserveForContinuedOperation(id);
                         point = restored.Value;
                         break;
@@ -844,7 +858,7 @@ namespace Opc.Ua.Server
                     if (!candidate.Portable)
                     {
                         m_history.RemoveAt(i);
-                        TrackCheckedOutHistory(candidate);
+                        TrackCheckedOutHistory(candidate, includeOpaque: true);
                         ReserveForContinuedOperation(id);
                         localPoint = candidate.Value;
                         break;
@@ -932,7 +946,7 @@ namespace Opc.Ua.Server
                 {
                     return false;
                 }
-                TrackCheckedOutHistory(continuationPoint);
+                TrackCheckedOutHistory(continuationPoint, includeOpaque: true);
                 if (reserve)
                 {
                     ReserveForContinuedOperation(continuationPoint.Id);
@@ -945,12 +959,32 @@ namespace Opc.Ua.Server
         /// Tracks a history continuation point that is checked out for an operation.
         /// </summary>
         /// <param name="entry">The checked out entry.</param>
-        private void TrackCheckedOutHistory(HistoryContinuationPoint entry)
+        /// <param name="includeOpaque">Whether to track opaque points while a read is active.</param>
+        private void TrackCheckedOutHistory(HistoryContinuationPoint entry, bool includeOpaque = false)
         {
             if (entry.Value is Historian.HistorianContinuationState state)
             {
                 state.Saved = false;
+            }
+            if (includeOpaque || entry.Value is Historian.HistorianContinuationState)
+            {
                 m_checkedOutHistory.Add(entry);
+            }
+        }
+
+        /// <summary>
+        /// Removes a point after its active history read has ended.
+        /// </summary>
+        /// <param name="point">The checked out point.</param>
+        private void RemoveCheckedOutHistory(IHistoryContinuationPoint? point)
+        {
+            if (point is null)
+            {
+                return;
+            }
+            lock (m_lock)
+            {
+                m_checkedOutHistory.RemoveAll(entry => ReferenceEquals(entry.Value, point));
             }
         }
 
@@ -1183,6 +1217,9 @@ namespace Opc.Ua.Server
                     stored.PendingPersistence = pendingPersistence;
                     stored.Claiming = false;
                     stored.Timestamp = DateTime.UtcNow;
+                    stored.Generation = continuationPoint is Historian.HistorianContinuationState generationState
+                        ? generationState.Ownership.Generation
+                        : stored.Generation;
                     m_history.Add(stored);
                     if (continuationPoint is Historian.HistorianContinuationState savedState)
                     {
@@ -1893,6 +1930,7 @@ namespace Opc.Ua.Server
                 {
                     Point?.Dispose();
                 }
+                owner.RemoveCheckedOutHistory(Point);
             }
         }
 
@@ -1906,6 +1944,7 @@ namespace Opc.Ua.Server
             public int Pins;
             public IHistoryContinuationPoint Value = null!;
             public DateTime Timestamp;
+            public NodeManagerGenerationReference? Generation;
 
             /// <summary>
             /// The request whose reserved slot this point consumed when it was saved, so the

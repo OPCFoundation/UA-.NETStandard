@@ -88,7 +88,6 @@ namespace Opc.Ua.Server.Historian.InMemory
         IHistorianTransactionalProvider,
         IHistorianBulkInsertProvider,
         IHistorianEventProvider,
-        IHistorianContinuationDependencies,
         IHistorianStructuredDataProvider,
         IDisposable
     {
@@ -125,16 +124,6 @@ namespace Opc.Ua.Server.Historian.InMemory
                     m_options.RawDataRetentionPeriod,
                     "Raw data retention period must be non-negative.");
             }
-        }
-
-        /// <inheritdoc/>
-        public bool TryGetContinuationDependencies(
-            NodeId sourceNodeId,
-            HistorianResumeToken resumeToken,
-            out ArrayOf<NodeId> dependencies)
-        {
-            dependencies = [];
-            return true;
         }
 
         /// <summary>

@@ -8,7 +8,7 @@ states and client proxies, plus the `AddOpcUaIA` model loader. The generated
 `ObjectTypeIds` / `VariableTypeIds` / `ReferenceTypeIds` classes and
 `Opc.Ua.IA.Namespaces` are the source of truth for the model.
 
-IA supplies the stacklight, state and identification building blocks that other
+IA supplies stacklight, statistics and calibration-target building blocks that other
 companion specifications compose — notably OPC 40010 Robotics
 (`Opc.Ua.Robotics`), OPC 40001-1 Machinery (`Opc.Ua.Machinery`) and OPC 34100
 Energy Consumption Management (`Opc.Ua.ECM`).
@@ -20,4 +20,5 @@ net48, net8.0, net9.0, net10.0
 ## Additional documentation
 
 See the [Device Integration developer guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/DeviceIntegration.md)
-and the [Robotics developer guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Robotics.md).
+and the [Industrial Automation guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/IndustrialAutomation.md)
+for the separate server and client runtime packages.

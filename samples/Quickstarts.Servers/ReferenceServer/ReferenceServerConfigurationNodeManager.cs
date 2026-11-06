@@ -231,18 +231,6 @@ namespace Quickstarts.ReferenceServer
             addedNodes.AddRange(await AddConformanceDataSetsAsync(cancellationToken)
                 .ConfigureAwait(false));
 
-            // CTT: Part 17 clients discover aliases by browsing, so turn the
-            // aliases seeded into the server's alias store (tag aliases in
-            // ReferenceServer.ConfigureAliasNameStore, Topics aliases in
-            // AddConformanceDataSetsAsync above) into AliasNameType
-            // instances and nested AliasNameCategoryType objects. The
-            // created nodes are registered as predefined nodes of this
-            // manager, which serves Browse and Call for them — they are
-            // deliberately NOT imported into the CoreNodeManager, which
-            // would register the same NodeIds twice.
-            await MaterializeRegisteredAliasNameNodesAsync(
-                externalReferences, cancellationToken).ConfigureAwait(false);
-
             // Push any newly added namespace-0 nodes into the CoreNodeManager
             // so they are reachable via Browse from the standard address
             // space (base.CreateAddressSpaceAsync already performed the bulk
@@ -254,6 +242,21 @@ namespace Quickstarts.ReferenceServer
                     addedNodes,
                     true,
                     cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Materializes sample aliases after initial application publication and before accepting clients.
+        /// </summary>
+        internal async ValueTask InitializeSampleAliasesAsync(CancellationToken cancellationToken)
+        {
+            var externalReferences = new Dictionary<NodeId, IList<IReference>>();
+            await MaterializeRegisteredAliasNameNodesAsync(externalReferences, cancellationToken)
+                .ConfigureAwait(false);
+            foreach (KeyValuePair<NodeId, IList<IReference>> entry in externalReferences)
+            {
+                await Server.NodeManager.AddReferencesAsync(entry.Key, entry.Value, cancellationToken)
+                    .ConfigureAwait(false);
             }
         }
 

@@ -296,6 +296,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     var item = new Mock<IEventMonitoredItem>();
                     item.SetupGet(value => value.Id).Returns((uint)i + 1);
                     item.SetupGet(value => value.NodeManager).Returns(m_owners[i + 1]);
+                    item.SetupGet(value => value.ManagerHandle).Returns(new NodeHandle());
                     item.SetupGet(value => value.MonitoredItemType).Returns(
                         i == 0 && allEvents
                             ? MonitoredItemTypeMask.Events | MonitoredItemTypeMask.AllEvents

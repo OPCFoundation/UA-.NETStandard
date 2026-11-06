@@ -82,6 +82,7 @@ namespace Opc.Ua.Server
             : base(source)
         {
             Server = source.Server;
+            SourceEmissionOrigin = source.SourceEmissionOrigin;
         }
 
         /// <summary>
@@ -98,6 +99,11 @@ namespace Opc.Ua.Server
         /// Copies do not inherit it.
         /// </summary>
         internal ServerSystemContext? CopiedFrom { get; set; }
+
+        /// <summary>
+        /// Gets or sets the revocable source of an explicitly propagated root event.
+        /// </summary>
+        internal MasterNodeManager.SourceEmissionOrigin? SourceEmissionOrigin { get; set; }
 
         /// <summary>
         /// The operation context associated with system context.
