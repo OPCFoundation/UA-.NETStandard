@@ -35,6 +35,7 @@ using Microsoft.Extensions.Hosting;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
+using Opc.Ua.Client.Subscriptions.Streaming;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Configuration;
 using Opc.Ua.PackML.Client;
@@ -43,6 +44,9 @@ using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
+using ClientSubscription = Opc.Ua.Client.Subscriptions.ISubscription;
+using ClientSubscriptionManager = Opc.Ua.Client.Subscriptions.ISubscriptionManager;
+using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 using Unit = Opc.Ua.PackML.Server.PackMLUnit;
 
 namespace Opc.Ua.PackML.Tests
@@ -620,6 +624,152 @@ namespace Opc.Ua.PackML.Tests
             Assert.That(value.DataValue.SourceTimestamp, Is.EqualTo(m_equipment.Snapshot.SourceTimestamp));
             Assert.That((await m_client.ReadStatusAsync(m_unit.Node.NodeId)).CurMachSpeed.Value, Is.EqualTo(44));
             Assert.That(m_equipment.Executed, Is.Empty);
+        }
+
+        /// <summary>
+        /// Verifies that PackML state observation continues after reconnect without closing the borrowed session.
+        /// </summary>
+        [Test]
+        [CancelAfter(150_000)]
+        public async Task StreamingStateObservationRecoversAfterAutomaticReconnect(CancellationToken ct)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            await using ManagedSession session = await new ManagedSessionBuilder(m_clientFixture.Config, telemetry)
+                .UseEndpoint(new ConfiguredEndpoint(
+                    null, m_session.Endpoint, EndpointConfiguration.Create(m_clientFixture.Config)))
+                .WithSessionName(nameof(StreamingStateObservationRecoversAfterAutomaticReconnect))
+                .WithSessionTimeout(TimeSpan.FromSeconds(60))
+                .WithReconnectPolicy(options => options with
+                {
+                    Strategy = BackoffStrategy.Constant,
+                    InitialDelay = TimeSpan.FromMilliseconds(200),
+                    MaxRetries = 0,
+                    JitterFactor = 0.0
+                })
+                .ConnectAsync(ct);
+            session.KeepAliveInterval = 1_000;
+
+            var factory = new PackMLClientFactory(_ => Task.FromResult(session), telemetry);
+            PackMLClient client = await factory.CreateAsync(ct);
+            Assert.That(client.Session, Is.SameAs(session));
+            Assert.That(session.Connected, Is.True);
+
+            var reconnected = PackMLTestSupport.Signal();
+            var closed = PackMLTestSupport.Signal();
+            EventHandler<ConnectionStateChangedEventArgs> onStateChanged = (_, change) =>
+            {
+                if (change.PreviousState == ConnectionState.Reconnecting &&
+                    change.NewState == ConnectionState.Connected)
+                {
+                    reconnected.TrySetResult(true);
+                }
+            };
+            EventHandler onClosing = (_, _) => closed.TrySetResult(true);
+            session.ConnectionStateChanged += onStateChanged;
+            session.SessionClosing += onClosing;
+            try
+            {
+                var streaming = (StreamingSubscription)session.DefaultStreaming;
+                long droppedBefore = streaming.DroppedNotificationCount;
+                NodeId changedState = NodeId.Null;
+                using var observationStop = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                await using (IAsyncEnumerator<PackMLValue<NodeId>> observation = client.ObserveAsync(
+                    m_unit.Node.NodeId,
+                    PackMLFields.State.MachineState,
+                    options: new MonitoringOptions
+                    {
+                        SamplingInterval = TimeSpan.FromMilliseconds(100),
+                        QueueSize = 32
+                    },
+                    cancellationToken: observationStop.Token).GetAsyncEnumerator(observationStop.Token))
+                {
+                    Task<bool>? move = null;
+                    try
+                    {
+                        move = observation.MoveNextAsync().AsTask();
+                        Assert.That(await move.WaitAsync(TimeSpan.FromSeconds(20), ct), Is.True);
+                        move = null;
+                        PackMLValue<NodeId> initial = observation.Current;
+                        Assert.That(initial.IsGood, Is.True);
+                        Assert.That(initial.Value.TryGetValue(out uint initialStateId), Is.True);
+                        Assert.That(PackMLStateNumbers.FromStateId(initialStateId),
+                            Is.EqualTo(PackMLStateNumbers.Stopped));
+
+                        Assert.That(session.TryGetSubscriptionManager(out ClientSubscriptionManager? manager), Is.True);
+                        ClientSubscription subscription = manager!.Items.Single();
+                        Assert.That(subscription.Created, Is.True);
+                        Assert.That(subscription.MonitoredItems.Items.Single().Created, Is.True);
+
+                        session.TransportChannel.Dispose();
+                        Assert.That(await reconnected.Task.WaitAsync(TimeSpan.FromSeconds(60), ct), Is.True,
+                            "The managed session must reconnect automatically after channel loss.");
+                        Assert.That(session.Connected, Is.True);
+                        using var recovery = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                        recovery.CancelAfter(TimeSpan.FromSeconds(15));
+                        while (!subscription.Created || !subscription.MonitoredItems.Items.Single().Created)
+                        {
+                            await Task.Delay(50, recovery.Token);
+                        }
+
+                        move = observation.MoveNextAsync().AsTask();
+                        await client.CommandAsync(m_unit.Node.NodeId, PackMLStateCommand.Reset, ct);
+                        Assert.That(await move.WaitAsync(TimeSpan.FromSeconds(20), ct), Is.True);
+                        move = null;
+                        PackMLValue<NodeId> changed = observation.Current;
+                        Assert.That(changed.IsGood, Is.True);
+                        Assert.That(changed.NodeId, Is.EqualTo(initial.NodeId));
+                        Assert.That(changed.Value.TryGetValue(out uint changedStateId), Is.True);
+                        Assert.That(PackMLStateNumbers.FromStateId(changedStateId),
+                            Is.EqualTo(PackMLStateNumbers.Running),
+                            "The first post-reconnect notification must not be a stale or duplicate state.");
+                        Assert.That(m_unit.CurrentState, Is.EqualTo(PackMLStateNumbers.Resetting));
+                        changedState = changed.Value;
+
+                        Task<bool> unexpected = observation.MoveNextAsync().AsTask();
+                        move = unexpected;
+                        TimeSpan quietPeriod = TimeSpan.FromMilliseconds(Math.Max(
+                            2_000, subscription.CurrentPublishingInterval.TotalMilliseconds * 3));
+                        Task completed = await Task.WhenAny(unexpected, Task.Delay(quietPeriod, ct));
+                        ct.ThrowIfCancellationRequested();
+                        Assert.That(completed, Is.Not.SameAs(unexpected),
+                            "The observer must not receive another duplicate or stale state.");
+                        observationStop.Cancel();
+                        await Assert.ThatAsync(() => unexpected, Throws.InstanceOf<OperationCanceledException>());
+                        move = null;
+                        Assert.That(streaming.DroppedNotificationCount, Is.EqualTo(droppedBefore));
+                    }
+                    finally
+                    {
+                        observationStop.Cancel();
+                        if (move != null)
+                        {
+                            try
+                            {
+                                await move;
+                            }
+                            catch (OperationCanceledException) when (observationStop.IsCancellationRequested)
+                            {
+                            }
+                        }
+                    }
+                }
+
+                Assert.That(session.DefaultStreaming, Is.SameAs(streaming));
+                Assert.That(client.Session, Is.SameAs(session));
+                Assert.That(session.Connected, Is.True);
+                Assert.That(closed.Task.IsCompleted, Is.False);
+                PackMLValue<NodeId> current = await client.ReadAsync(
+                    m_unit.Node.NodeId, PackMLFields.State.MachineState, ct);
+                Assert.That(current.IsGood, Is.True);
+                Assert.That(current.Value, Is.EqualTo(changedState));
+                Assert.That(session.Connected, Is.True);
+                Assert.That(closed.Task.IsCompleted, Is.False);
+            }
+            finally
+            {
+                session.ConnectionStateChanged -= onStateChanged;
+                session.SessionClosing -= onClosing;
+            }
         }
 
         [Test]
