@@ -38,23 +38,26 @@ using NUnit.Framework;
 namespace Opc.Ua.Server.Tests.NodeManager
 {
     /// <summary>
-    /// Exercises root registration through initial facades without a lifecycle staging server.
+    /// Exercises direct root registration and initial facades without a lifecycle staging server.
     /// </summary>
     [TestFixture]
     [Category("NodeManager")]
     public sealed class AsyncRootNotifierFacadeTests
     {
         /// <summary>
-        /// Publishes a root once and attaches the existing Server subscriber through its registered facade.
+        /// Publishes a root once and attaches the existing Server subscriber for direct and registered owners.
         /// </summary>
         /// <param name="adapted">Whether to register the standard asynchronous adapter.</param>
         /// <param name="forwarded">Whether to register a custom forwarding facade.</param>
-        [TestCase(false, false)]
-        [TestCase(true, false)]
-        [TestCase(false, true)]
-        public async Task InitiallyRegisteredFacadePublishesRootAndAttachesExistingSubscriberAsync(
+        /// <param name="initiallyRegistered">Whether the owner appears in the initial routing view.</param>
+        [TestCase(false, false, false)]
+        [TestCase(false, false, true)]
+        [TestCase(true, false, true)]
+        [TestCase(false, true, true)]
+        public async Task DirectAndInitiallyRegisteredOwnersPublishRootsAndAttachExistingSubscribersAsync(
             bool adapted,
-            bool forwarded)
+            bool forwarded,
+            bool initiallyRegistered)
         {
             Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
             using (queues)
@@ -93,7 +96,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     registered = CreateForwardingFacade(manager);
                 }
-                using MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(server, [registered]);
+                using MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(
+                    server, initiallyRegistered ? [registered] : []);
+                Assert.That(master.IsPublishedNodeManager(registered), Is.EqualTo(initiallyRegistered));
                 using var context = new OperationContext(
                     new RequestHeader(), null, RequestType.CreateMonitoredItems, RequestLifetime.None);
                 IEventMonitoredItem item = events.CreateMonitoredItem(
@@ -143,6 +148,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task PreparedFacadeDoesNotBorrowAnotherPublishedFacadeOfTheResourceAsync()
         {
             Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            server.SetupGet(value => value.MessageContext).Returns(
+                new ServiceMessageContext(server.Object.Telemetry, server.Object.Factory)
+                {
+                    NamespaceUris = server.Object.NamespaceUris,
+                    ServerUris = server.Object.ServerUris
+                });
             using (queues)
             {
                 await using var manager = new TestableAsyncCustomNodeManager(

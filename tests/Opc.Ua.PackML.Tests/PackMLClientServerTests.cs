@@ -649,7 +649,11 @@ namespace Opc.Ua.PackML.Tests
                 .ConnectAsync(ct);
             session.KeepAliveInterval = 1_000;
 
+            // Task.FromResult is complete, and CreateAsync is awaited before session disposal.
+            // TODO: Remove when CA2025 recognizes the factory callback's completed task.
+#pragma warning disable CA2025
             var factory = new PackMLClientFactory(_ => Task.FromResult(session), telemetry);
+#pragma warning restore CA2025
             PackMLClient client = await factory.CreateAsync(ct);
             Assert.That(client.Session, Is.SameAs(session));
             Assert.That(session.Connected, Is.True);

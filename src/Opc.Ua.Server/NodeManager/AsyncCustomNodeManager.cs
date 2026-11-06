@@ -8167,10 +8167,11 @@ namespace Opc.Ua.Server
 
             // subscribe to existing events.
             ChangePreparer.StagingServer? staging = ChangePreparer.GetServer(this);
-            bool isPublished = Server.NodeManager is not MasterNodeManager master ||
+            bool canAttachExistingSubscriptions = staging is null ||
+                Server.NodeManager is not MasterNodeManager master ||
                 master.GetPublishedRootNotifierOwner(this) is not null;
             if (!SuppressExistingEventSubscriptions &&
-                isPublished &&
+                canAttachExistingSubscriptions &&
                 (staging is null ||
                     (!staging.IsStaging && !staging.IsDetached)) &&
                 Server.EventManager != null)
@@ -8302,13 +8303,16 @@ namespace Opc.Ua.Server
             if (Server.NodeManager is MasterNodeManager master)
             {
                 IAsyncNodeManager? facade = master.GetPublishedRootNotifierOwner(this);
-                if (facade is null)
+                if (facade is not null)
+                {
+                    return await master.PublishManagedRootNotifierReferenceAsync(
+                        this, facade, notifier, cancellationToken).ConfigureAwait(false);
+                }
+                if (stagingServer is not null)
                 {
                     // Reconciliation publishes roots added before the routing swap.
                     return true;
                 }
-                return await master.PublishManagedRootNotifierReferenceAsync(
-                    this, facade, notifier, cancellationToken).ConfigureAwait(false);
             }
 
             ServerObjectState? serverObject = Server.ServerObject;
