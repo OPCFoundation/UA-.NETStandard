@@ -1699,8 +1699,12 @@ namespace Opc.Ua.PackML.Tests
         /// <summary>
         /// Attaches existing Server-event subscribers when a prepared PackML manager is published.
         /// </summary>
-        [Test]
-        public async Task PreparedPackMLRootAttachesExistingServerSubscribersAfterPublication()
+        /// <param name="facade">The facade returned by the candidate factory.</param>
+        [TestCase(ManagerFacadeKind.Direct)]
+        [TestCase(ManagerFacadeKind.Adapted)]
+        [TestCase(ManagerFacadeKind.Forwarded)]
+        public async Task PreparedPackMLRootAttachesExistingServerSubscribersAfterPublication(
+            ManagerFacadeKind facade)
         {
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             CancellationToken ct = deadline.Token;
@@ -1708,26 +1712,116 @@ namespace Opc.Ua.PackML.Tests
             uint subscriptionId = await SubscribeToServerEventsAsync(ct).ConfigureAwait(false);
             try
             {
-                var factory = new PreparedPackMLManagerFactory(failFirstUnit: false);
+                var factory = new PreparedPackMLManagerFactory(failFirstUnit: false, facade: facade);
                 await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                     [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false);
                 PreparedPackMLManager candidate = factory.Manager
                     ?? throw new InvalidOperationException("The candidate manager was not created.");
-                Assert.That(candidate.CreatedUnit.Node.AreEventsMonitored, Is.False);
+                Unit addedAfterPreparation = await candidate.Runtime.AddUnitAsync(
+                    new QualifiedName("AfterPreparationWithSubscribers", candidate.NamespaceIndexes[0]),
+                    new EquipmentProvider(),
+                    cancellationToken: ct).ConfigureAwait(false);
+                Unit[] units = [candidate.CreatedUnit, addedAfterPreparation];
+                foreach (Unit unit in units)
+                {
+                    Assert.That(unit.Node.AreEventsMonitored, Is.False);
+                }
 
-                NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+                var lateRoot = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("LateRootWithSubscribers", candidate.NamespaceIndexes[0]),
+                    BrowseName = new QualifiedName("LateRootWithSubscribers", candidate.NamespaceIndexes[0]),
+                    DisplayName = new LocalizedText("LateRootWithSubscribers"),
+                    TypeDefinitionId = Ua.ObjectTypeIds.BaseObjectType,
+                    EventNotifier = EventNotifiers.SubscribeToEvents
+                };
+                await candidate.AddPredefinedNodeAsync(lateRoot, ct).ConfigureAwait(false);
+
+                NodeManagerBatchResult committed = await prepared.CommitAsync(async token =>
+                {
+                    await candidate.RegisterRootNotifierAsync(lateRoot, token).ConfigureAwait(false);
+                    Assert.That(lateRoot.AreEventsMonitored, Is.False);
+                    Assert.That(candidate.Server.ServerObject.ReferenceExists(
+                        Ua.ReferenceTypeIds.HasNotifier, false, lateRoot.NodeId), Is.False);
+                }, ct).ConfigureAwait(false);
                 Assert.That(committed.CleanupFailure, Is.Null);
                 Assert.That(committed.Issues.Count, Is.Zero);
-                Assert.That(candidate.CreatedUnit.Node.AreEventsMonitored, Is.True);
-                HashSet<NodeId> sources = CollectSubtree(candidate.SystemContext, candidate.CreatedUnit.Node);
-                ServiceResult reset = await candidate.CreatedUnit.RequestAsync(
-                    candidate.SystemContext,
-                    new PackMLRequest { Operation = PackMLOperation.Command, Command = PackMLCommand.Reset },
-                    ct).ConfigureAwait(false);
-                Assert.That(ServiceResult.IsGood(reset), Is.True, reset.ToString());
-                NodeId source = await PublishUnitEventAsync(subscriptionId, sources, ct).ConfigureAwait(false);
-                Assert.That(sources, Does.Contain(source));
+                if (facade == ManagerFacadeKind.Forwarded)
+                {
+                    // Forwarded published-event delivery depends on the source routing in #5011.
+                    await RetirePackMLManagerAsync(lifecycle, committed, ct).ConfigureAwait(false);
+                    return;
+                }
+
+                Assert.That(lateRoot.AreEventsMonitored, Is.True);
+                Assert.That(candidate.Server.ServerObject.ReferenceExists(
+                    Ua.ReferenceTypeIds.HasNotifier, false, lateRoot.NodeId), Is.True);
+                Unit addedAfterPublication = await candidate.Runtime.AddUnitAsync(
+                    new QualifiedName("AfterPublicationWithSubscribers", candidate.NamespaceIndexes[0]),
+                    new EquipmentProvider(),
+                    cancellationToken: ct).ConfigureAwait(false);
+                units = [.. units, addedAfterPublication];
+                foreach (Unit unit in units)
+                {
+                    Assert.That(unit.Node.AreEventsMonitored, Is.True);
+                    HashSet<NodeId> sources = CollectSubtree(candidate.SystemContext, unit.Node);
+                    ServiceResult reset = await unit.RequestAsync(
+                        candidate.SystemContext,
+                        new PackMLRequest { Operation = PackMLOperation.Command, Command = PackMLCommand.Reset },
+                        ct).ConfigureAwait(false);
+                    Assert.That(ServiceResult.IsGood(reset), Is.True, reset.ToString());
+                    NodeId source = await PublishUnitEventAsync(subscriptionId, sources, ct).ConfigureAwait(false);
+                    Assert.That(sources, Does.Contain(source));
+                }
                 await RetirePackMLManagerAsync(lifecycle, committed, ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                await m_session.DeleteSubscriptionsAsync(null, [subscriptionId], CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Keeps aborted prepared units detached from existing Server-event subscribers.
+        /// </summary>
+        /// <param name="facade">The facade returned by the candidate factory.</param>
+        [TestCase(ManagerFacadeKind.Direct)]
+        [TestCase(ManagerFacadeKind.Adapted)]
+        [TestCase(ManagerFacadeKind.Forwarded)]
+        public async Task AbortedPreparedPackMLRootsDoNotAttachExistingServerSubscribers(ManagerFacadeKind facade)
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            CancellationToken ct = deadline.Token;
+            INodeManagerLifecycle lifecycle = m_services.GetRequiredService<INodeManagerLifecycle>();
+            uint subscriptionId = await SubscribeToServerEventsAsync(ct).ConfigureAwait(false);
+            try
+            {
+                var factory = new PreparedPackMLManagerFactory(failFirstUnit: false, facade: facade);
+                Unit[] units;
+                await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                    [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false))
+                {
+                    PreparedPackMLManager candidate = factory.Manager
+                        ?? throw new InvalidOperationException("The candidate manager was not created.");
+                    Unit addedAfterPreparation = await candidate.Runtime.AddUnitAsync(
+                        new QualifiedName("BeforeAbortWithSubscribers", candidate.NamespaceIndexes[0]),
+                        new EquipmentProvider(),
+                        cancellationToken: ct).ConfigureAwait(false);
+                    units = [candidate.CreatedUnit, addedAfterPreparation];
+                    foreach (Unit unit in units)
+                    {
+                        Assert.That(unit.Node.AreEventsMonitored, Is.False);
+                        Assert.That(candidate.Server.ServerObject.ReferenceExists(
+                            Ua.ReferenceTypeIds.HasNotifier, false, unit.Node.NodeId), Is.False);
+                    }
+                }
+
+                foreach (Unit unit in units)
+                {
+                    Assert.That(unit.Node.AreEventsMonitored, Is.False);
+                    Assert.That(unit.Node.OnReportEventAsync, Is.Null);
+                }
             }
             finally
             {
@@ -2578,6 +2672,12 @@ namespace Opc.Ua.PackML.Tests
                     It.IsAny<CancellationToken>()))
                     .Returns((OperationContext context, object handle, BrowseResultMask mask, CancellationToken ct) =>
                         manager.GetNodeMetadataAsync(context, handle, mask, ct));
+                facade.Setup(value => value.SubscribeToAllEventsAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<uint>(), It.IsAny<IEventMonitoredItem>(), It.IsAny<bool>(),
+                    It.IsAny<CancellationToken>()))
+                    .Returns((OperationContext context, uint subscriptionId, IEventMonitoredItem monitoredItem,
+                        bool unsubscribe, CancellationToken ct) => manager.SubscribeToAllEventsAsync(
+                            context, subscriptionId, monitoredItem, unsubscribe, ct));
                 facade.Setup(value => value.AddReferencesAsync(
                     It.IsAny<IDictionary<NodeId, IList<IReference>>>(), It.IsAny<CancellationToken>()))
                     .Returns((IDictionary<NodeId, IList<IReference>> references, CancellationToken ct) =>

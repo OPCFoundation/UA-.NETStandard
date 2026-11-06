@@ -750,6 +750,7 @@ namespace Opc.Ua.Server
             }
 
             ct.ThrowIfCancellationRequested();
+            IAsyncNodeManager suppressionOwner = GetReferenceOwnerIdentity(nodeManager);
             var candidate = new PreparedNodeManager(nodeManager, [], generation, replacedNodeManager);
             candidate.ValidateForPublication();
             bool prepared = false;
@@ -762,7 +763,7 @@ namespace Opc.Ua.Server
                 }
                 preparationStarted = true;
                 SetPreparing(nodeManager, preparing: true);
-                SetExistingEventSubscriptionSuppression(nodeManager, suppress: true);
+                SetExistingEventSubscriptionSuppression(suppressionOwner, suppress: true);
                 Dictionary<NodeId, IList<IReference>> externalReferences = candidate.ExternalReferences;
                 ChangePreparer.StagingServer? stagingServer = ChangePreparer.GetServer(nodeManager);
                 stagingServer?.TrackExternalReferences(externalReferences);
@@ -810,7 +811,7 @@ namespace Opc.Ua.Server
                 if (preparationStarted)
                 {
                     SetExistingEventSubscriptionSuppression(
-                        nodeManager,
+                        suppressionOwner,
                         suppress: false);
                 }
             }
@@ -977,9 +978,164 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Publishes a current root's Server reference under address-space mutation admission.
+        /// </summary>
+        internal async ValueTask<bool> PublishManagedRootNotifierReferenceAsync(
+            AsyncCustomNodeManager owner,
+            IAsyncNodeManager registeredFacade,
+            NodeState notifier,
+            CancellationToken cancellationToken)
+        {
+            bool mutationAdmissionHeld = await AcquireDynamicMutationAdmissionAsync(cancellationToken)
+                .ConfigureAwait(false);
+            try
+            {
+                if (!IsPublishedNodeManager(registeredFacade) || !owner.IsCurrentRootNotifier(notifier))
+                {
+                    return false;
+                }
+                if (Server.ServerObject?.ReferenceExists(
+                    ReferenceTypeIds.HasNotifier, false, notifier.NodeId) == true)
+                {
+                    return true;
+                }
+
+                await using var callbackPermit = new NodeManagerCallbackPermit(
+                    m_lifecycleCallbackPermit,
+                    NodeManagerAdmissionCapability.AddressSpaceMutation).ConfigureAwait(false);
+                await AddReferencesAsync(
+                    ObjectIds.Server,
+                    [
+                        new ReferenceNode
+                        {
+                            ReferenceTypeId = ReferenceTypeIds.HasNotifier,
+                            IsInverse = false,
+                            TargetId = notifier.NodeId
+                        }
+                    ],
+                    cancellationToken).ConfigureAwait(false);
+                return true;
+            }
+            finally
+            {
+                if (mutationAdmissionHeld)
+                {
+                    m_dynamicMutationSemaphore.Release();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Removes a withdrawn private root reference without disturbing another published owner.
+        /// </summary>
+        internal async ValueTask RemoveWithdrawnRootNotifierReferenceAsync(
+            AsyncCustomNodeManager owner,
+            IAsyncNodeManager registeredFacade,
+            NodeId notifierId,
+            CancellationToken cancellationToken)
+        {
+            bool mutationAdmissionHeld = await AcquireDynamicMutationAdmissionAsync(cancellationToken)
+                .ConfigureAwait(false);
+            try
+            {
+                if (!IsPublishedNodeManager(registeredFacade) || owner.IsRootNotifier(notifierId) ||
+                    HasOtherRootNotifierContribution(registeredFacade, notifierId))
+                {
+                    return;
+                }
+
+                await using var callbackPermit = new NodeManagerCallbackPermit(
+                    m_lifecycleCallbackPermit,
+                    NodeManagerAdmissionCapability.AddressSpaceMutation).ConfigureAwait(false);
+                (object? handle, IAsyncNodeManager? currentOwner) =
+                    await GetManagerHandleAsync(notifierId, cancellationToken).ConfigureAwait(false);
+                if ((handle is not null && !ReferenceEquals(currentOwner, registeredFacade)) ||
+                    owner.IsRootNotifier(notifierId) ||
+                    Server.ServerObject?.ReferenceExists(
+                        ReferenceTypeIds.HasNotifier, false, notifierId) != true)
+                {
+                    return;
+                }
+                await RemoveManagedNodeReferencesAsync(
+                    owner,
+                    [new LocalReference(ObjectIds.Server, ReferenceTypeIds.HasNotifier, false, notifierId)],
+                    cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                if (mutationAdmissionHeld)
+                {
+                    m_dynamicMutationSemaphore.Release();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Checks whether another contribution still owns the Server reference.
+        /// </summary>
+        private bool HasOtherRootNotifierContribution(IAsyncNodeManager registeredFacade, NodeId notifierId)
+        {
+            if (ContainsRootNotifierContribution(m_foundationExternalReferences, notifierId))
+            {
+                return true;
+            }
+            foreach (KeyValuePair<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>> contribution in
+                m_dynamicExternalReferences)
+            {
+                if (!ReferenceEquals(contribution.Key, registeredFacade) &&
+                    ContainsRootNotifierContribution(contribution.Value, notifierId))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Finds a Server-object notifier reference in a contribution set.
+        /// </summary>
+        private static bool ContainsRootNotifierContribution(
+            Dictionary<NodeId, IList<IReference>>? contributions,
+            NodeId notifierId)
+        {
+            if (contributions is null ||
+                !contributions.TryGetValue(ObjectIds.Server, out IList<IReference>? references))
+            {
+                return false;
+            }
+            foreach (IReference reference in references)
+            {
+                if (reference.ReferenceTypeId == ReferenceTypeIds.HasNotifier &&
+                    !reference.IsInverse &&
+                    !reference.TargetId.IsAbsolute &&
+                    (NodeId)reference.TargetId == notifierId)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Gets whether the exact candidate facade appears in the published routing view.
+        /// </summary>
+        internal bool IsPublishedNodeManager(IAsyncNodeManager nodeManager)
+        {
+            NodeManagerRoutingTable.RoutingSnapshot snapshot = m_nodeManagers.Revision;
+            foreach (IAsyncNodeManager published in snapshot.VisibleNodeManagers)
+            {
+                if (ReferenceEquals(published, nodeManager))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Resolves the resource behind a registered facade for reference cleanup.
         /// </summary>
-        private static IAsyncNodeManager GetReferenceOwnerIdentity(IAsyncNodeManager manager)
+        internal static IAsyncNodeManager GetReferenceOwnerIdentity(IAsyncNodeManager manager)
         {
             IAsyncNodeManager identity = NodeManagerGenerationRegistry.GetIdentity(manager);
             return identity.SyncNodeManager is SyncNodeManagerAdapter synchronous
@@ -1455,14 +1611,14 @@ namespace Opc.Ua.Server
         }
 
         private static void SetExistingEventSubscriptionSuppression(
-            IAsyncNodeManager nodeManager,
+            IAsyncNodeManager resourceOwner,
             bool suppress)
         {
-            if (nodeManager is AsyncCustomNodeManager asyncCustomNodeManager)
+            if (resourceOwner is AsyncCustomNodeManager asyncCustomNodeManager)
             {
                 asyncCustomNodeManager.SuppressExistingEventSubscriptions = suppress;
             }
-            else if (nodeManager.SyncNodeManager is CustomNodeManager2 customNodeManager)
+            else if (resourceOwner.SyncNodeManager is CustomNodeManager2 customNodeManager)
             {
                 customNodeManager.SuppressExistingEventSubscriptions = suppress;
             }

@@ -1551,7 +1551,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets or sets whether new root notifiers skip attachment to existing event subscriptions.
         /// </summary>
-        internal bool SuppressExistingEventSubscriptions { get; set; }
+        internal bool SuppressExistingEventSubscriptions
+        {
+            get => Volatile.Read(ref m_suppressExistingEventSubscriptions);
+            set => Volatile.Write(ref m_suppressExistingEventSubscriptions, value);
+        }
 
         /// <summary>
         /// Gets the removed cross-manager references awaiting reconciliation.
@@ -8155,11 +8159,20 @@ namespace Opc.Ua.Server
         protected virtual async ValueTask AddRootNotifierAsync(NodeState notifier, CancellationToken cancellationToken = default)
         {
             AddRootNotifierSynchronously(notifier);
-            await PublishRootNotifierReferenceAsync(notifier, cancellationToken)
-                .ConfigureAwait(false);
+            if (!await PublishRootNotifierReferenceAsync(notifier, cancellationToken).ConfigureAwait(false))
+            {
+                throw new InvalidOperationException(
+                    "The root notifier is no longer registered by a published manager.");
+            }
 
             // subscribe to existing events.
+            ChangePreparer.StagingServer? staging = ChangePreparer.GetServer(this);
+            bool isPublished = Server.NodeManager is not MasterNodeManager master ||
+                master.IsPublishedNodeManager(staging?.RegisteredFacade ?? this);
             if (!SuppressExistingEventSubscriptions &&
+                isPublished &&
+                (staging is null ||
+                    (!staging.IsStaging && !staging.IsDetached)) &&
                 Server.EventManager != null)
             {
                 IList<IEventMonitoredItem> monitoredItems = Server.EventManager
@@ -8191,6 +8204,15 @@ namespace Opc.Ua.Server
         internal bool IsRootNotifier(NodeId nodeId)
         {
             return !nodeId.IsNull && RootNotifiers.TryGetValue(nodeId, out _);
+        }
+
+        /// <summary>
+        /// Gets whether the exact node instance remains registered as a root notifier.
+        /// </summary>
+        internal bool IsCurrentRootNotifier(NodeState notifier)
+        {
+            return RootNotifiers.TryGetValue(notifier.NodeId, out NodeState? current) &&
+                ReferenceEquals(current, notifier);
         }
 
         /// <summary>
@@ -8241,6 +8263,16 @@ namespace Opc.Ua.Server
         internal async ValueTask PublishRootNotifierReferencesAsync(
             CancellationToken cancellationToken = default)
         {
+            ChangePreparer.StagingServer? stagingServer = ChangePreparer.GetServer(this);
+            if (stagingServer?.RegisteredFacade is { } facade && Server.NodeManager is MasterNodeManager master)
+            {
+                foreach (NodeId notifierId in stagingServer.GetWithdrawnRootNotifierReferences())
+                {
+                    await master.RemoveWithdrawnRootNotifierReferenceAsync(
+                        this, facade, notifierId, cancellationToken).ConfigureAwait(false);
+                    stagingServer.ForgetWithdrawnRootNotifierReference(notifierId);
+                }
+            }
             foreach (NodeState notifier in RootNotifiers.Values)
             {
                 await PublishRootNotifierReferenceAsync(notifier, cancellationToken)
@@ -8248,20 +8280,38 @@ namespace Opc.Ua.Server
             }
         }
 
-        private async ValueTask PublishRootNotifierReferenceAsync(
+        private async ValueTask<bool> PublishRootNotifierReferenceAsync(
             NodeState notifier,
             CancellationToken cancellationToken)
         {
             if (notifier.NodeId == ObjectIds.Server)
             {
-                return;
+                return true;
             }
 
             ChangePreparer.StagingServer? stagingServer = ChangePreparer.GetServer(this);
-            if (stagingServer?.IsStaging == true)
+            if (stagingServer?.IsDetached == true)
             {
-                stagingServer.StageRootNotifierReference(notifier.NodeId);
-                return;
+                throw new ObjectDisposedException(nameof(AsyncCustomNodeManager));
+            }
+            if (stagingServer?.TryStageRootNotifierReference(notifier.NodeId) == true)
+            {
+                return true;
+            }
+
+            if (Server.NodeManager is MasterNodeManager master)
+            {
+                IAsyncNodeManager facade = stagingServer?.RegisteredFacade ?? this;
+                if (!master.IsPublishedNodeManager(facade))
+                {
+                    // Reconciliation publishes roots added before the routing swap.
+                    return true;
+                }
+                if (stagingServer is not null)
+                {
+                    return await master.PublishManagedRootNotifierReferenceAsync(
+                        this, facade, notifier, cancellationToken).ConfigureAwait(false);
+                }
             }
 
             ServerObjectState? serverObject = Server.ServerObject;
@@ -8271,7 +8321,7 @@ namespace Opc.Ua.Server
                     false,
                     notifier.NodeId))
             {
-                return;
+                return true;
             }
 
             IList<IReference> references =
@@ -8288,6 +8338,7 @@ namespace Opc.Ua.Server
                 ObjectIds.Server,
                 references,
                 cancellationToken).ConfigureAwait(false);
+            return true;
         }
 
         /// <summary>
@@ -11365,6 +11416,9 @@ namespace Opc.Ua.Server
 #endif
         private List<LocalReference> m_removedExternalReferences = [];
         private volatile bool m_disposed;
+
+        /// <summary>Whether new roots skip existing event subscriptions.</summary>
+        private bool m_suppressExistingEventSubscriptions;
 
         /// <summary>
         /// Protects closing operation admission and teardown-context activation.

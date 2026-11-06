@@ -176,6 +176,7 @@ namespace Opc.Ua.Server
                 await server.DisposeAsync().ConfigureAwait(false);
                 throw new NodeManagerAlreadyRegisteredException();
             }
+            server.RegisteredFacade = manager;
             try
             {
                 ValidateHistorianReadiness(manager);
@@ -558,12 +559,21 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Gets whether this candidate's metadata is still private.
             /// </summary>
-            internal bool IsStaging { get; private set; } = true;
+            internal bool IsStaging => Volatile.Read(ref m_isStaging);
+
+            /// <summary>
+            /// Gets or sets the exact candidate facade returned by the factory.
+            /// </summary>
+            internal IAsyncNodeManager? RegisteredFacade
+            {
+                get => Volatile.Read(ref m_registeredFacade);
+                set => Volatile.Write(ref m_registeredFacade, value);
+            }
 
             /// <summary>
             /// Gets whether this facade has been detached from its published generation.
             /// </summary>
-            internal bool IsDetached { get; private set; }
+            internal bool IsDetached => Volatile.Read(ref m_isDetached);
 
             /// <summary>
             /// Gets whether preparation recorded candidate-owned historian bindings that require readiness.
@@ -1010,7 +1020,7 @@ namespace Opc.Ua.Server
                 ((EncodeableFactory)Factory).BindTo(m_servingFactory);
                 lock (m_externalReferencesLock)
                 {
-                    IsStaging = false;
+                    Volatile.Write(ref m_isStaging, false);
                     m_preparedExternalReferences = null;
                     m_stagedNodeReferences.Clear();
                 }
@@ -1035,17 +1045,27 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Retains a root-notifier reference contribution until external-reference publication.
             /// </summary>
-            internal void StageRootNotifierReference(NodeId notifierId)
+            internal bool TryStageRootNotifierReference(NodeId notifierId)
             {
                 lock (m_externalReferencesLock)
                 {
+                    if (IsDetached)
+                    {
+                        throw new ObjectDisposedException(nameof(StagingServer));
+                    }
+                    if (!IsStaging)
+                    {
+                        return false;
+                    }
                     m_pendingRootNotifierReferences.Add(notifierId);
+                    m_withdrawnRootNotifierReferences.Remove(notifierId);
                     if (m_preparedExternalReferences is { } references)
                     {
                         AddPreparedReference(
                             references,
                             new LocalReference(ObjectIds.Server, ReferenceTypeIds.HasNotifier, false, notifierId));
                     }
+                    return true;
                 }
             }
 
@@ -1056,7 +1076,12 @@ namespace Opc.Ua.Server
             {
                 lock (m_externalReferencesLock)
                 {
+                    if (!IsStaging)
+                    {
+                        return;
+                    }
                     m_pendingRootNotifierReferences.Remove(notifierId);
+                    m_withdrawnRootNotifierReferences.Add(notifierId);
                     if (m_preparedExternalReferences is { } references)
                     {
                         RemovePreparedReference(
@@ -1067,10 +1092,32 @@ namespace Opc.Ua.Server
             }
 
             /// <summary>
+            /// Gets roots withdrawn while prepared reference updates may already have captured them.
+            /// </summary>
+            internal NodeId[] GetWithdrawnRootNotifierReferences()
+            {
+                lock (m_externalReferencesLock)
+                {
+                    return [.. m_withdrawnRootNotifierReferences];
+                }
+            }
+
+            /// <summary>
+            /// Releases a withdrawn root after its serving reference has been reconciled.
+            /// </summary>
+            internal void ForgetWithdrawnRootNotifierReference(NodeId notifierId)
+            {
+                lock (m_externalReferencesLock)
+                {
+                    m_withdrawnRootNotifierReferences.Remove(notifierId);
+                }
+            }
+
+            /// <summary>
             /// Merges retained root-notifier contributions into the prepared external-reference set.
             /// </summary>
             internal void AppendRootNotifierReferences(
-                IDictionary<NodeId, IList<IReference>> externalReferences)
+                Dictionary<NodeId, IList<IReference>> externalReferences)
             {
                 lock (m_externalReferencesLock)
                 {
@@ -1087,7 +1134,7 @@ namespace Opc.Ua.Server
             /// Adds a contribution once and records additions made after the initial capture.
             /// </summary>
             private void AddPreparedReference(
-                IDictionary<NodeId, IList<IReference>> references,
+                Dictionary<NodeId, IList<IReference>> references,
                 LocalReference reference)
             {
                 if (!references.TryGetValue(reference.SourceId, out IList<IReference>? sourceReferences))
@@ -1124,7 +1171,7 @@ namespace Opc.Ua.Server
             /// Removes one staged contribution from the prepared and captured sets.
             /// </summary>
             private void RemovePreparedReference(
-                IDictionary<NodeId, IList<IReference>> references,
+                Dictionary<NodeId, IList<IReference>> references,
                 LocalReference reference)
             {
                 if (!references.TryGetValue(reference.SourceId, out IList<IReference>? sourceReferences))
@@ -1198,7 +1245,7 @@ namespace Opc.Ua.Server
                     {
                         return;
                     }
-                    IsDetached = true;
+                    Volatile.Write(ref m_isDetached, true);
                 }
                 RetireHistorianRegistrations();
                 RevokeServiceLevelControl();
@@ -1221,6 +1268,18 @@ namespace Opc.Ua.Server
 
             /// <summary>The running server whose non-metadata services are forwarded.</summary>
             private readonly IServerInternal m_server;
+
+            /// <summary>The exact facade associated with this candidate.</summary>
+            private IAsyncNodeManager? m_registeredFacade;
+
+            /// <summary>Whether the candidate's metadata is still private.</summary>
+            private bool m_isStaging = true;
+
+            /// <summary>Whether the candidate's metadata handles have been detached.</summary>
+            private bool m_isDetached;
+
+            /// <summary>Roots withdrawn before publication and reconciled against the serving view.</summary>
+            private readonly HashSet<NodeId> m_withdrawnRootNotifierReferences = [];
 
             /// <summary>Canonical handles captured before any durable publication decision.</summary>
             private readonly NamespaceTable m_servingNamespaceUris;

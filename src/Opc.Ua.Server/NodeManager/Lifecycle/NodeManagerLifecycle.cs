@@ -2387,6 +2387,19 @@ namespace Opc.Ua.Server
                     {
                         await committedReferences.ReconcileAdditionsAsync(reconciliation).ConfigureAwait(false);
                     }
+                    for (int index = 0; index < candidates.Count; index++)
+                    {
+                        PreparedNodeManager candidate = candidates[index];
+                        if (MasterNodeManager.GetReferenceOwnerIdentity(candidate.NodeManager)
+                            is AsyncCustomNodeManager manager)
+                        {
+                            await reconciliation.RunAsync(
+                                NodeManagerReconciliationStage.References,
+                                [candidate.Generation],
+                                () => manager.PublishRootNotifierReferencesAsync(CancellationToken.None))
+                                .ConfigureAwait(false);
+                        }
+                    }
                     foreach (MonitoredItemTransition transition in monitoredItemTransitions)
                     {
                         try

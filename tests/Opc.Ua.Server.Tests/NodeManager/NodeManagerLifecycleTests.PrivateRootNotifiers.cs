@@ -33,7 +33,9 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using NUnit.Framework;
+using Opc.Ua.Server.TestFramework;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
@@ -76,6 +78,128 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 Assert.That(result, Is.Null);
             }
+        }
+
+        /// <summary>
+        /// Attaches a root registered after the route swap while preparation bookkeeping is still present.
+        /// </summary>
+        /// <param name="adapted">Whether the registered facade wraps the asynchronous manager.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RootRegisteredDuringPublicationAttachesExistingServerSubscriberAsync(bool adapted)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var services = new ServerTestServices(m_server, m_secureChannelContext);
+            (uint subscriptionId, _) = await CreateSubscriptionAndEventMonitoredItemAsync(
+                services, ObjectIds.Server).ConfigureAwait(false);
+            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            var master = (MasterNodeManager)m_server.CurrentInstance.NodeManager;
+            var factory = new LifecycleRootNotifierFactory(kRootNotifierNamespaceUri, kRootNotifierNodeId, adapted);
+            try
+            {
+                await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                    [NodeManagerBatchChange.Add(factory)], null, timeout.Token).ConfigureAwait(false);
+                LifecycleRootNotifierNodeManager candidate = RequireLifecycleValue(factory.Manager);
+                IAsyncNodeManager registered = RequireLifecycleValue(factory.RegisteredManager);
+                IAsyncNodeManager alternate = adapted
+                    ? candidate
+                    : new AsyncNodeManagerAdapter(candidate.SyncNodeManager);
+                var lateRoot = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId(kRootNotifierNodeId + 1, candidate.NamespaceIndexes[0]),
+                    BrowseName = new QualifiedName("PublishedLateRoot", candidate.NamespaceIndexes[0]),
+                    EventNotifier = EventNotifiers.SubscribeToEvents
+                };
+                await candidate.AddPredefinedNodeAsync(lateRoot, timeout.Token).ConfigureAwait(false);
+                Assert.That(master.IsPublishedNodeManager(registered), Is.False);
+                Assert.That(master.IsPublishedNodeManager(alternate), Is.False);
+
+                ExecutionContext executionContext = ExecutionContext.Capture() ??
+                    throw new InvalidOperationException("The test execution context is unavailable.");
+                Task? registration = null;
+                bool registeredVisible = false;
+                bool alternateVisible = true;
+                bool rootRegistered = false;
+                bool referencePublished = true;
+                bool monitored = true;
+                bool registrationCompleted = true;
+                m_server.HostBoundary.Publication = async (plan, publish) =>
+                {
+                    var commit = new Mock<INodeManagerPublicationCommit>();
+                    commit.SetupGet(value => value.HasDecision).Returns(() => plan.Commit.HasDecision);
+                    commit.Setup(value => value.DecideAsync(It.IsAny<CancellationToken>()))
+                        .Returns<CancellationToken>(plan.Commit.DecideAsync);
+                    commit.Setup(value => value.CaptureCommittedReferences(It.IsAny<PublishedReferenceChanges>()))
+                        .Callback<PublishedReferenceChanges>(plan.Commit.CaptureCommittedReferences);
+                    commit.Setup(value => value.Publish(It.IsAny<bool>())).Callback<bool>(historianChanged =>
+                    {
+                        plan.Commit.Publish(historianChanged);
+                        registeredVisible = master.IsPublishedNodeManager(registered);
+                        alternateVisible = master.IsPublishedNodeManager(alternate);
+                        ExecutionContext.Run(executionContext, _ =>
+                        {
+                            registration = candidate.RegisterRootNotifierAsync(lateRoot, timeout.Token).AsTask();
+                        }, null);
+                        rootRegistered = candidate.IsRootNotifier(lateRoot.NodeId);
+                        referencePublished = HasServerNotifierReference(lateRoot.NodeId);
+                        monitored = lateRoot.AreEventsMonitored;
+                        registrationCompleted = registration!.IsCompleted;
+                    });
+                    return await publish(plan with { Commit = commit.Object }).ConfigureAwait(false);
+                };
+
+                NodeManagerBatchResult result = await prepared.CommitAsync(_ => default, timeout.Token)
+                    .ConfigureAwait(false);
+                m_server.HostBoundary.Publication = null;
+                Assert.That(result.CleanupFailure, Is.Null);
+                Assert.That(result.Issues.Count, Is.Zero);
+                Assert.That(registeredVisible, Is.True);
+                Assert.That(alternateVisible, Is.False);
+                Assert.That(rootRegistered, Is.True);
+                Assert.That(referencePublished, Is.False);
+                Assert.That(monitored, Is.False);
+                Assert.That(registrationCompleted, Is.False);
+                Assert.That(registration, Is.Not.Null);
+                await registration!.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(HasServerNotifierReference(lateRoot.NodeId), Is.True);
+                Assert.That(lateRoot.AreEventsMonitored, Is.True);
+            }
+            finally
+            {
+                m_server.HostBoundary.Publication = null;
+                m_requestHeader.Timestamp = DateTimeUtc.Now;
+                await services.DeleteSubscriptionsAsync(m_requestHeader, [subscriptionId]).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Removes a root withdrawn after reference discovery instead of publishing a stale reference.
+        /// </summary>
+        /// <param name="adapted">Whether the registered facade wraps the asynchronous manager.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RootDeletedDuringDecisionDoesNotLeaveServerReferenceAsync(bool adapted)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            var factory = new LifecycleRootNotifierFactory(kRootNotifierNamespaceUri, kRootNotifierNodeId, adapted);
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(factory)], null, timeout.Token).ConfigureAwait(false);
+            LifecycleRootNotifierNodeManager candidate = RequireLifecycleValue(factory.Manager);
+            NodeId rootId = candidate.RootNotifierId;
+
+            NodeManagerBatchResult result = await prepared.CommitAsync(async cancellationToken =>
+            {
+                bool deleted = await candidate.DeleteNodeAsync(
+                    candidate.SystemContext, rootId, emitModelChange: false, cancellationToken).ConfigureAwait(false);
+                Assert.That(deleted, Is.True);
+                Assert.That(HasServerNotifierReference(rootId), Is.False);
+            }, timeout.Token).ConfigureAwait(false);
+
+            Assert.That(result.CleanupFailure, Is.Null);
+            Assert.That(result.Issues.Count, Is.Zero);
+            Assert.That(candidate.Find(rootId), Is.Null);
+            Assert.That(HasServerNotifierReference(rootId), Is.False);
         }
 
         /// <summary>
@@ -177,16 +301,23 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// </summary>
             /// <param name="namespaceUri">The manager namespace URI.</param>
             /// <param name="identifier">The numeric notifier identifier.</param>
-            public LifecycleRootNotifierFactory(string namespaceUri, uint identifier)
+            /// <param name="adapted">Whether to register an adapter over the manager.</param>
+            public LifecycleRootNotifierFactory(string namespaceUri, uint identifier, bool adapted = false)
             {
                 m_namespaceUri = namespaceUri;
                 m_identifier = identifier;
+                m_adapted = adapted;
             }
 
             /// <summary>
             /// Gets the most recently created manager.
             /// </summary>
             public LifecycleRootNotifierNodeManager? Manager { get; private set; }
+
+            /// <summary>
+            /// Gets the exact facade returned for registration.
+            /// </summary>
+            public IAsyncNodeManager? RegisteredManager { get; private set; }
 
             /// <summary>
             /// Gets the namespace used by the manager.
@@ -210,7 +341,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     configuration,
                     m_namespaceUri,
                     m_identifier);
-                return new ValueTask<IAsyncNodeManager>(Manager);
+                RegisteredManager = m_adapted ? new AsyncNodeManagerAdapter(Manager.SyncNodeManager) : Manager;
+                return new ValueTask<IAsyncNodeManager>(RegisteredManager);
             }
 
             /// <summary>The manager namespace URI.</summary>
@@ -218,6 +350,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             /// <summary>The numeric notifier identifier.</summary>
             private readonly uint m_identifier;
+
+            /// <summary>Whether to register an adapter over the manager.</summary>
+            private readonly bool m_adapted;
         }
 
         /// <summary>

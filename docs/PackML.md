@@ -98,13 +98,13 @@ A parentless unit has no parent notifier to carry its events, so `AddUnitAsync`
 registers it as a Server event root through
 `AsyncCustomNodeManager.RegisterRootNotifierAsync`. For a published manager,
 the call adds the Server object's `HasNotifier` reference and attempts to attach
-existing Server-event monitored items. During address-space creation for a
-lifecycle candidate, the reference is staged and existing subscriptions are
-attached during reconciliation after publication. Check the lifecycle result
-for reconciliation failures. After successful reconciliation, a Server
-subscription receives the unit's transition events whether it was created
-before or after the unit. If registration fails, `AddUnitAsync` deletes the unit
-and its `ModeDataType`, which also discards any partial registration, and
+existing Server-event monitored items. While a lifecycle candidate is private,
+including after preparation returns, the reference is staged and existing
+subscriptions are attached during reconciliation after publication. Check the
+lifecycle result for reconciliation failures. After successful reconciliation,
+a Server subscription receives the unit's transition events whether it was
+created before or after the unit. If registration fails, `AddUnitAsync` deletes
+the unit and its `ModeDataType`, which also discards any partial registration, and
 rethrows the failure. Deleting the unit through its node manager removes the
 Server root; there is no separate removal call. A unit with a parent reports
 through that parent's notifier chain. `PackMLNodeManager` registers every unit

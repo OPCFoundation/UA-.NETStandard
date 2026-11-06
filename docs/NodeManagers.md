@@ -3033,12 +3033,12 @@ The `Server` Object (`i=2253`) is the aggregate event subscription point
 Use `await manager.RegisterRootNotifierAsync(node, ct)` to register a node
 without a parent notifier as a Server event root. For a published manager, the
 call publishes the Server object's `HasNotifier` reference and attempts to
-attach existing Server-event monitored items. During address-space creation for
-a lifecycle candidate, the reference is staged and existing subscriptions are
-attached during reconciliation after publication. Check the lifecycle result
-for reconciliation failures. Deleting the node through its manager removes the
-registration, so there is no removal API. If registration throws, delete the
-node to discard any partial registration.
+attach existing Server-event monitored items. While a lifecycle candidate is
+private, including after preparation returns, the reference is staged and
+existing subscriptions are attached during reconciliation after publication.
+Check the lifecycle result for reconciliation failures. Deleting the node
+through its manager removes the registration, so there is no removal API. If
+registration throws, delete the node to discard any partial registration.
 Server-wide fan-out treats an individual root or manager's `BadNotSupported` as
 non-participation, not as a failure of every other source. Root registration
 does not silently set `EventNotifier.SubscribeToEvents`; declare the capability
