@@ -544,7 +544,7 @@ namespace Opc.Ua.WotCon.Tests
             {
                 await m_server.NodeManagerLifecycle.AddAsync(
                     new RejectingPeerFactory(status, throws, adapted, checkpoint), null).ConfigureAwait(false);
-                await Session.FetchNamespaceTablesAsync();
+                await Session.FetchNamespaceTablesAsync().ConfigureAwait(false);
                 return new NodeId(4040u, Session.NamespaceUris.GetIndexOrAppend(RejectingPeerNamespaceUri));
             }
         }
