@@ -2732,6 +2732,117 @@ namespace Opc.Ua.PackML.Tests
         }
 
         /// <summary>
+        /// Services a deletion's drain request made while another removal is about to fail.
+        /// </summary>
+        [Test]
+        public async Task DeferredRemovalRequestedDuringFaultedPassIsRetriedWithoutAnotherMutation()
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            CancellationToken ct = deadline.Token;
+            INodeManagerLifecycle lifecycle = m_services.GetRequiredService<INodeManagerLifecycle>();
+            FolderState source = await AddComposedSourceFolderAsync("DrainHandoffSource", ct).ConfigureAwait(false);
+            var firstFactory = new ExternalProbeManagerFactory(
+                "urn:opcfoundation:tests:packml:drain-handoff-1", source.NodeId);
+            await using IPreparedNodeManagerBatch firstPrepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(firstFactory)], ct).ConfigureAwait(false);
+            NodeManagerBatchResult first = await firstPrepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            Assert.That(first.CleanupFailure, Is.Null);
+            ExternalProbeManager firstProbe = firstFactory.Manager
+                ?? throw new InvalidOperationException("The first probe manager was not created.");
+
+            var secondFactory = new ExternalProbeManagerFactory(
+                "urn:opcfoundation:tests:packml:drain-handoff-2", source.NodeId);
+            await using IPreparedNodeManagerBatch secondPrepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(secondFactory)], ct).ConfigureAwait(false);
+            NodeManagerBatchResult second = await secondPrepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            Assert.That(second.CleanupFailure, Is.Null);
+            ExternalProbeManager secondProbe = secondFactory.Manager
+                ?? throw new InvalidOperationException("The second probe manager was not created.");
+            Assert.That(source.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, firstProbe.ProbeId), Is.True);
+            Assert.That(source.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, secondProbe.ProbeId), Is.True);
+
+            var entered = PackMLTestSupport.Signal();
+            var release = PackMLTestSupport.Signal();
+            var removed = PackMLTestSupport.Signal();
+            int attempts = 0;
+            var decidingFactory = new ExternalProbeManagerFactory(
+                "urn:opcfoundation:tests:packml:drain-handoff-deciding", source.NodeId);
+            await using IPreparedNodeManagerBatch deciding = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(decidingFactory)], ct).ConfigureAwait(false);
+            NodeManagerBatchResult decided;
+            try
+            {
+                decided = await deciding.CommitAsync(async token =>
+                {
+                    Task<bool> deletion;
+                    using (ExecutionContext.SuppressFlow())
+                    {
+                        deletion = Task.Run(async () =>
+                            await firstProbe.DeleteNodeAsync(firstProbe.SystemContext, firstProbe.ProbeId, token)
+                                .ConfigureAwait(false), token);
+                    }
+                    Assert.That(await deletion.WaitAsync(token).ConfigureAwait(false), Is.True);
+                    Assert.That(
+                        source.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, firstProbe.ProbeId), Is.True);
+
+                    // The initial deletion hit the reserved source. Only its post-publication retry
+                    // reaches this barrier, with mutation admission held by the drain.
+                    m_composed.BeforeReferenceDeleteAsync = async (target, cancellationToken) =>
+                    {
+                        if (target == firstProbe.ProbeId && Interlocked.Increment(ref attempts) == 1)
+                        {
+                            entered.TrySetResult(true);
+                            await release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                            throw m_composed.ReferenceDeleteFault;
+                        }
+                    };
+                    m_composed.ReferenceDeleted = target =>
+                    {
+                        if (target == firstProbe.ProbeId)
+                        {
+                            removed.TrySetResult(true);
+                        }
+                    };
+                }, ct).ConfigureAwait(false);
+                Assert.That(decided.CleanupFailure, Is.Null);
+                await entered.Task.WaitAsync(ct).ConfigureAwait(false);
+
+                // This deletion cannot enter admission. Its finally requests a drain while the
+                // existing drain is still inside the barrier, before that pass returns Faulted.
+                Task<bool> secondDeletion;
+                using (ExecutionContext.SuppressFlow())
+                {
+                    secondDeletion = Task.Run(async () =>
+                        await secondProbe.DeleteNodeAsync(secondProbe.SystemContext, secondProbe.ProbeId, ct)
+                            .ConfigureAwait(false), ct);
+                }
+                Assert.That(await secondDeletion.WaitAsync(ct).ConfigureAwait(false), Is.True);
+                Assert.That(source.ReferenceExists(
+                    Ua.ReferenceTypeIds.Organizes, false, secondProbe.ProbeId), Is.False);
+                Assert.That(removed.Task.IsCompleted, Is.False);
+                Assert.That(Volatile.Read(ref attempts), Is.EqualTo(1));
+
+                release.TrySetResult(true);
+                await removed.Task.WaitAsync(ct).ConfigureAwait(false);
+                Assert.That(Volatile.Read(ref attempts), Is.EqualTo(2));
+                Assert.That(source.ReferenceExists(
+                    Ua.ReferenceTypeIds.Organizes, false, firstProbe.ProbeId), Is.False);
+                Assert.That(firstProbe.Find(firstProbe.ProbeId), Is.Null);
+                Assert.That(secondProbe.Find(secondProbe.ProbeId), Is.Null);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                m_composed.BeforeReferenceDeleteAsync = null;
+                m_composed.ReferenceDeleted = null;
+            }
+
+            await RetirePackMLManagerAsync(lifecycle, decided, ct).ConfigureAwait(false);
+            await RetirePackMLManagerAsync(lifecycle, second, ct).ConfigureAwait(false);
+            await RetirePackMLManagerAsync(lifecycle, first, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Does not transfer a staged external reference to an unrelated replacement with the same NodeId.
         /// </summary>
         [Test]
@@ -2999,7 +3110,7 @@ namespace Opc.Ua.PackML.Tests
 
         /// <summary>
         /// Ordinary asynchronous node manager that can inject a root registration failure
-        /// after the registration has been applied, or a failure when a reference is deleted.
+        /// after registration, or coordinate and fail reference deletion.
         /// </summary>
         private sealed class ComposedNodeManager : AsyncCustomNodeManager
         {
@@ -3044,6 +3155,16 @@ namespace Opc.Ua.PackML.Tests
             /// </summary>
             public int FailedReferenceDeletes => Volatile.Read(ref m_failedReferenceDeletes);
 
+            /// <summary>
+            /// Gets or sets a callback that can pause or fail a reference deletion before it is applied.
+            /// </summary>
+            public Func<ExpandedNodeId, CancellationToken, ValueTask>? BeforeReferenceDeleteAsync { get; set; }
+
+            /// <summary>
+            /// Gets or sets a callback observing a successfully applied reference deletion.
+            /// </summary>
+            public Action<ExpandedNodeId>? ReferenceDeleted { get; set; }
+
             /// <inheritdoc/>
             public override async ValueTask<ServiceResult> DeleteReferenceAsync(
                 object sourceHandle,
@@ -3053,18 +3174,27 @@ namespace Opc.Ua.PackML.Tests
                 bool deleteBidirectional,
                 CancellationToken cancellationToken = default)
             {
+                if (BeforeReferenceDeleteAsync is { } beforeDelete)
+                {
+                    await beforeDelete(targetId, cancellationToken).ConfigureAwait(false);
+                }
                 if (FailReferenceDeletes)
                 {
                     Interlocked.Increment(ref m_failedReferenceDeletes);
                     throw ReferenceDeleteFault;
                 }
-                return await base.DeleteReferenceAsync(
+                ServiceResult result = await base.DeleteReferenceAsync(
                     sourceHandle,
                     referenceTypeId,
                     isInverse,
                     targetId,
                     deleteBidirectional,
                     cancellationToken).ConfigureAwait(false);
+                if (ServiceResult.IsGood(result))
+                {
+                    ReferenceDeleted?.Invoke(targetId);
+                }
+                return result;
             }
 
             /// <inheritdoc/>

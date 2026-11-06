@@ -1345,7 +1345,7 @@ namespace Opc.Ua.Server
                 new RequestHeader(), null, RequestType.DeleteReferences, RequestLifetime.None);
             context.PinRouting(m_nodeManagers);
             IAsyncNodeManager ownerIdentity = GetReferenceOwnerIdentity(removal.Owner);
-            List<DeferredServingReference>? remaining = null;
+            var remaining = new List<DeferredServingReference>();
             bool faulted = false;
             foreach (DeferredServingReference pending in removal.References)
             {
@@ -1380,18 +1380,18 @@ namespace Opc.Ua.Server
                 }
                 catch (NodeReferencesReservedException)
                 {
-                    (remaining ??= []).Add(pending);
+                    remaining.Add(pending);
                 }
                 catch (Exception ex) when (
                     ex is not OutOfMemoryException &&
                     !(ex is OperationCanceledException && cancellationToken.IsCancellationRequested))
                 {
                     m_logger.DeferredReferenceRemovalFailed(ex);
-                    (remaining ??= []).Add(pending);
+                    remaining.Add(pending);
                     faulted = true;
                 }
             }
-            return (remaining is null ? null : new DeferredServingRemoval(removal.Owner, remaining), faulted);
+            return (remaining.Count == 0 ? null : new DeferredServingRemoval(removal.Owner, remaining), faulted);
         }
 
         /// <summary>
