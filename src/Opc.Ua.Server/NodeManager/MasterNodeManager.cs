@@ -850,11 +850,12 @@ namespace Opc.Ua.Server
 
             // Reclamation exclusively owns this detached manager's removed-reference list.
             // Reference callbacks may publish dependencies, so no publication semaphore may be held.
-            List<LocalReference> referencesToRemove = nodeManager switch
+            IAsyncNodeManager resourceOwner = GetReferenceOwnerIdentity(nodeManager);
+            List<LocalReference> referencesToRemove = resourceOwner switch
             {
                 AsyncCustomNodeManager asyncCustomNodeManager =>
                     asyncCustomNodeManager.GetRemovedExternalReferences(),
-                _ when nodeManager.SyncNodeManager is
+                _ when resourceOwner.SyncNodeManager is
                     CustomNodeManager2 customNodeManager =>
                     customNodeManager.GetRemovedExternalReferences(),
                 _ => []
@@ -887,11 +888,11 @@ namespace Opc.Ua.Server
                 cleanup.Dispose();
             }
             m_inheritedReferenceCleanup.Remove(nodeManager);
-            if (nodeManager is AsyncCustomNodeManager asyncManagerToClear)
+            if (resourceOwner is AsyncCustomNodeManager asyncManagerToClear)
             {
                 asyncManagerToClear.ClearRemovedExternalReferences();
             }
-            else if (nodeManager.SyncNodeManager is
+            else if (resourceOwner.SyncNodeManager is
                 CustomNodeManager2 syncManagerToClear)
             {
                 syncManagerToClear.ClearRemovedExternalReferences();
@@ -910,12 +911,9 @@ namespace Opc.Ua.Server
                 .ConfigureAwait(false);
             try
             {
-                IAsyncNodeManager identity = NodeManagerGenerationRegistry.GetIdentity(owner);
+                IAsyncNodeManager identity = GetReferenceOwnerIdentity(owner);
                 IAsyncNodeManager? registeredOwner = m_dynamicExternalReferences.Keys.FirstOrDefault(manager =>
-                    ReferenceEquals(NodeManagerGenerationRegistry.GetIdentity(manager), identity) ||
-                    (manager.SyncNodeManager is SyncNodeManagerAdapter synchronous &&
-                        ReferenceEquals(
-                            NodeManagerGenerationRegistry.GetIdentity(synchronous.AsyncNodeManager), identity)));
+                    ReferenceEquals(GetReferenceOwnerIdentity(manager), identity));
                 if (registeredOwner is null)
                 {
                     owner.RetainRemovedExternalReferences(referencesToRemove);
@@ -976,6 +974,17 @@ namespace Opc.Ua.Server
                     m_dynamicMutationSemaphore.Release();
                 }
             }
+        }
+
+        /// <summary>
+        /// Resolves the resource behind a registered facade for reference cleanup.
+        /// </summary>
+        private static IAsyncNodeManager GetReferenceOwnerIdentity(IAsyncNodeManager manager)
+        {
+            IAsyncNodeManager identity = NodeManagerGenerationRegistry.GetIdentity(manager);
+            return identity.SyncNodeManager is SyncNodeManagerAdapter synchronous
+                ? NodeManagerGenerationRegistry.GetIdentity(synchronous.AsyncNodeManager)
+                : identity;
         }
 
         async ValueTask IDynamicNodeManagerHost.AbortAsync(

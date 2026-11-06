@@ -1985,9 +1985,16 @@ namespace Opc.Ua.PackML.Tests
         /// Removes a later unit's external references when its manager is retired.
         /// </summary>
         /// <param name="deleteBeforeAddressSpace">Whether teardown deletes the unit before the address space.</param>
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task PublishedPackMLUnitReferencesAreRemovedOnRetirement(bool deleteBeforeAddressSpace)
+        /// <param name="facade">The facade returned by the candidate factory.</param>
+        [TestCase(false, ManagerFacadeKind.Direct)]
+        [TestCase(true, ManagerFacadeKind.Direct)]
+        [TestCase(false, ManagerFacadeKind.Adapted)]
+        [TestCase(true, ManagerFacadeKind.Adapted)]
+        [TestCase(false, ManagerFacadeKind.Forwarded)]
+        [TestCase(true, ManagerFacadeKind.Forwarded)]
+        public async Task PublishedPackMLUnitReferencesAreRemovedOnRetirement(
+            bool deleteBeforeAddressSpace,
+            ManagerFacadeKind facade)
         {
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             CancellationToken ct = deadline.Token;
@@ -1998,13 +2005,19 @@ namespace Opc.Ua.PackML.Tests
                 ?? throw new InvalidOperationException("Objects folder is unavailable.");
             NodeState enumeration = core.FindPredefinedNode<NodeState>(Ua.DataTypeIds.Enumeration)
                 ?? throw new InvalidOperationException("Enumeration type is unavailable.");
-            var factory = new PreparedPackMLManagerFactory(failFirstUnit: false);
+            var factory = new PreparedPackMLManagerFactory(failFirstUnit: false, facade: facade);
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false);
             NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
             Assert.That(committed.CleanupFailure, Is.Null);
             PreparedPackMLManager candidate = factory.Manager
                 ?? throw new InvalidOperationException("The candidate manager was not created.");
+            Assert.That(committed.Registrations[0].NodeManager, Is.SameAs(factory.RegisteredManager));
+            Assert.That(ReferenceEquals(factory.RegisteredManager, candidate),
+                Is.EqualTo(facade == ManagerFacadeKind.Direct));
+            Assert.That(factory.RegisteredManager is AsyncNodeManagerAdapter,
+                Is.EqualTo(facade == ManagerFacadeKind.Adapted));
+            Assert.That(factory.RegisteredManager!.SyncNodeManager, Is.SameAs(candidate.SyncNodeManager));
             Unit added = await candidate.Runtime.AddUnitAsync(
                 new QualifiedName("AfterPublication", candidate.NamespaceIndexes[0]),
                 new EquipmentProvider(),
@@ -2173,13 +2186,6 @@ namespace Opc.Ua.PackML.Tests
             AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: true);
             Assert.That(candidate.Server.ServerObject.ReferenceExists(
                 Ua.ReferenceTypeIds.HasNotifier, false, unitId), Is.True);
-            Assert.That(await candidate.DeleteNodeAsync(candidate.SystemContext, unitId, ct).ConfigureAwait(false),
-                Is.True);
-            Assert.That(await candidate.DeleteNodeAsync(candidate.SystemContext, modeId, ct).ConfigureAwait(false),
-                Is.True);
-            AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: false);
-            Assert.That(candidate.Server.ServerObject.ReferenceExists(
-                Ua.ReferenceTypeIds.HasNotifier, false, unitId), Is.False);
             await RetirePackMLManagerAsync(lifecycle, committed, ct).ConfigureAwait(false);
             AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: false);
             Assert.That(candidate.Server.ServerObject.ReferenceExists(
