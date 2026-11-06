@@ -981,6 +981,75 @@ namespace Opc.Ua.Client.Tests
             });
         }
 
+        [Test]
+        public void BoxedDataChangeIsSavedLikeTheTypedOne()
+        {
+            MonitoredItem item = CreateItem();
+            var message = new NotificationMessage();
+            var notification = new MonitoredItemNotification
+            {
+                ClientHandle = item.ClientHandle,
+                Value = new DataValue(new Variant(12), StatusCodes.Good, DateTime.UtcNow)
+            };
+
+            item.SaveValueInCache((IEncodeable)notification, message);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(item.LastValue, Is.EqualTo(notification));
+                Assert.That(item.LastMessage, Is.SameAs(message));
+                Assert.That(item.DequeueValues(), Has.Count.EqualTo(1));
+            });
+        }
+
+        [Test]
+        public void LastValueFollowsTheKindOfTheLatestNotification()
+        {
+            MonitoredItem item = CreateItem();
+            var dataChange = new MonitoredItemNotification
+            {
+                ClientHandle = item.ClientHandle,
+                Value = new DataValue(new Variant(13), StatusCodes.Good, DateTime.UtcNow)
+            };
+            var fields = new EventFieldList { ClientHandle = item.ClientHandle };
+
+            item.SaveValueInCache(dataChange, new NotificationMessage());
+            item.SaveValueInCache(fields);
+            Assert.Multiple(() =>
+            {
+                Assert.That(item.LastValue, Is.SameAs(fields));
+                Assert.That(item.LastMessage, Is.Null);
+            });
+
+            item.SaveValueInCache(dataChange);
+            Assert.That(item.LastValue, Is.EqualTo(dataChange));
+        }
+
+#if NET
+        [Test]
+        public void SavingADataChangeDoesNotBoxIt()
+        {
+            const int kCount = 1000;
+            MonitoredItem item = CreateItem();
+            var notification = new MonitoredItemNotification
+            {
+                ClientHandle = item.ClientHandle,
+                Value = new DataValue(new Variant(14), StatusCodes.Good, DateTime.UtcNow)
+            };
+            item.SaveValueInCache(notification);
+
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            for (int ii = 0; ii < kCount; ii++)
+            {
+                item.SaveValueInCache(notification);
+            }
+            long perCall = (GC.GetAllocatedBytesForCurrentThread() - before) / kCount;
+
+            // a box of the value is several times larger than this bound.
+            Assert.That(perCall, Is.LessThan(16));
+        }
+#endif
+
         /// <summary>
         /// A notification of the other kind for the item's client handle
         /// (buggy server or handle clash) must not make LastMessage throw.
