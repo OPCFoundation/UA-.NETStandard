@@ -66,7 +66,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
         public async Task SetUpAsync()
         {
             m_root = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
+                Path.GetTempPath(),
                 nameof(WotCoordinatedMutationTests),
                 Guid.NewGuid().ToString("N"));
             try

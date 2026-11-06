@@ -106,6 +106,20 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Gets a synchronized snapshot of the number of sampling groups owned by this manager.
+        /// </summary>
+        internal int SamplingGroupCount
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_samplingGroups.Count;
+                }
+            }
+        }
+
+        /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
         public void Dispose()

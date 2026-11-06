@@ -216,6 +216,9 @@ namespace System.Diagnostics.CodeAnalysis
     /// <see cref="Type"/> are accessed dynamically.
     /// </summary>
     [AttributeUsage(
+        AttributeTargets.Class |
+        AttributeTargets.Struct |
+        AttributeTargets.Interface |
         AttributeTargets.Field |
         AttributeTargets.ReturnValue |
         AttributeTargets.GenericParameter |

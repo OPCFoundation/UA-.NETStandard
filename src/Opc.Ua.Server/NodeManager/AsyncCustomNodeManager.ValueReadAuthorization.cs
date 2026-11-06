@@ -78,16 +78,26 @@ namespace Opc.Ua.Server
                 {
                     throw new ObjectDisposedException(nameof(AsyncCustomNodeManager));
                 }
-                if (m_valueReadAuthorizations.TryGetValue(node, out ValueReadAuthorizationRegistration? previous))
+                if (m_valueReadAuthorizations.TryGetValue(node, out ValueReadAuthorizationRegistration? previous) &&
+                    previous.Authorize != null)
                 {
-                    if (previous.Authorize != null)
-                    {
-                        throw new InvalidOperationException("The variable already has a Value read authorizer.");
-                    }
-                    m_valueReadAuthorizations.Remove(node);
+                    throw new InvalidOperationException("The variable already has a Value read authorizer.");
                 }
                 var registration = new ValueReadAuthorizationRegistration(this, authorize);
-                m_valueReadAuthorizations.Add(node, registration);
+                // Lookups run without the lock: an odd version marks the replacement in progress.
+                Interlocked.Increment(ref m_valueReadAuthorizationVersion);
+                try
+                {
+                    if (previous != null)
+                    {
+                        m_valueReadAuthorizations.Remove(node);
+                    }
+                    m_valueReadAuthorizations.Add(node, registration);
+                }
+                finally
+                {
+                    Interlocked.Increment(ref m_valueReadAuthorizationVersion);
+                }
                 m_activeValueReadAuthorizations.Add(registration);
                 return registration;
             }
@@ -98,9 +108,32 @@ namespace Opc.Ua.Server
         /// </summary>
         internal bool HasValueReadAuthorization(BaseVariableState node)
         {
+            return GetValueReadAuthorization(node) != null;
+        }
+
+        /// <summary>
+        /// Gets the variable's active or retired read-authorization registration.
+        /// </summary>
+        /// <remarks>
+        /// Runs per monitored-item notification, so it reads the thread-safe table without the
+        /// lock and only takes it when a registration was replaced during the lookup.
+        /// </remarks>
+        private ValueReadAuthorizationRegistration? GetValueReadAuthorization(BaseVariableState node)
+        {
+            int version = Volatile.Read(ref m_valueReadAuthorizationVersion);
+            if ((version & 1) == 0)
+            {
+                m_valueReadAuthorizations.TryGetValue(node, out ValueReadAuthorizationRegistration? registration);
+                Interlocked.MemoryBarrier();
+                if (Volatile.Read(ref m_valueReadAuthorizationVersion) == version)
+                {
+                    return registration;
+                }
+            }
             lock (m_operationLifetimeLock)
             {
-                return m_valueReadAuthorizations.TryGetValue(node, out _);
+                m_valueReadAuthorizations.TryGetValue(node, out ValueReadAuthorizationRegistration? registration);
+                return registration;
             }
         }
 
@@ -138,11 +171,7 @@ namespace Opc.Ua.Server
                 return result!;
             }
 
-            ValueReadAuthorizationRegistration? registration;
-            lock (m_operationLifetimeLock)
-            {
-                m_valueReadAuthorizations.TryGetValue(variable, out registration);
-            }
+            ValueReadAuthorizationRegistration? registration = GetValueReadAuthorization(variable);
             if (registration == null)
             {
                 return result!;
@@ -236,6 +265,12 @@ namespace Opc.Ua.Server
 #else
                 new();
 #endif
+
+        /// <summary>
+        /// Incremented before and after a registration replaces another, so lookups without the lock
+        /// detect a concurrent replacement.
+        /// </summary>
+        private int m_valueReadAuthorizationVersion;
 
         /// <summary>Live policy registrations protected by the existing manager operation-admission gate.</summary>
         private readonly HashSet<ValueReadAuthorizationRegistration> m_activeValueReadAuthorizations = [];
@@ -350,6 +385,141 @@ namespace Opc.Ua.Server
                     Profiles.IsWssJson(endpoint.TransportProfileUri) ||
                     Profiles.IsWssOpenApi(endpoint.TransportProfileUri));
         }
+
+        /// <summary>
+        /// Gets the subscriber context of a monitored item for read checks and reads on its
+        /// notification path, shared by every item of the same session.
+        /// </summary>
+        /// <remarks>
+        /// The context of a session only depends on its effective identity, its notification
+        /// authorization epoch, accepted endpoint, secure channel and preferred locales, so all
+        /// items of the session reuse one context until one of them changes, and the context's
+        /// per-node-manager system context copy is reused with it. A notification therefore
+        /// allocates no context. The returned context is shared: callers must not dispose or
+        /// retain it.
+        /// </remarks>
+        /// <param name="item">The monitored item.</param>
+        /// <param name="diagnostics">The requested operation diagnostics mask.</param>
+        public static OperationContext GetSubscriberContext(
+            IMonitoredItem item,
+            DiagnosticsMasks diagnostics = DiagnosticsMasks.SymbolicId)
+        {
+            ISession? session = item.Session;
+            if (session == null)
+            {
+                IUserIdentity? identity = item.EffectiveIdentity;
+                SubscriberContext? itemContext = s_itemContexts.TryGetValue(item, out SubscriberContextSlot? itemSlot)
+                    ? Volatile.Read(ref itemSlot.GetEntry(diagnostics)) : null;
+                if (itemContext is { Context.Session: null } &&
+                    itemContext.Context.DiagnosticsMask == diagnostics &&
+                    ReferenceEquals(itemContext.Identity, identity))
+                {
+                    return itemContext.Context;
+                }
+                // CA2000: the shared context is owned by the item's entry and never disposed by callers.
+#pragma warning disable CA2000
+                var operationContext = new OperationContext(item, diagnostics);
+                operationContext.EnableWeakSystemContextCache();
+                var created = new SubscriberContext(identity, null, 0, null, null, operationContext);
+#pragma warning restore CA2000
+                Volatile.Write(
+                    ref s_itemContexts.GetValue(item, static _ => new SubscriberContextSlot()).GetEntry(diagnostics),
+                    created);
+                return created.Context;
+            }
+
+            // read without the session's lock; a context captured under it is reused only when
+            // every input it captured is still current.
+            // A custom session has no epoch object to compare; its identity refresh generation is.
+            NotificationAuthorization? authorization = (session as Session)?.NotificationAuthorization;
+            long generation = session is Session ? 0 : session.CaptureIdentityRefreshSnapshot().Generation;
+            IUserIdentity effectiveIdentity = session.EffectiveIdentity;
+            EndpointDescription? endpoint = GetEndpoint(session);
+            string secureChannelId = session.SecureChannelId ?? string.Empty;
+            SubscriberContextSlot slot = s_sessionContexts.GetValue(session, static _ => new SubscriberContextSlot());
+            ref SubscriberContext? entry = ref slot.GetEntry(diagnostics);
+            SubscriberContext? current = Volatile.Read(ref entry);
+            if (current != null &&
+                current.Context.DiagnosticsMask == diagnostics &&
+                ReferenceEquals(current.Identity, effectiveIdentity) &&
+                current.Generation == generation &&
+                ReferenceEquals(current.Endpoint, endpoint) &&
+                current.SecureChannelId == secureChannelId &&
+                current.Context.PreferredLocales == session.PreferredLocales &&
+                (session is not Session || ReferenceEquals(current.Authorization, authorization)))
+            {
+                return current.Context;
+            }
+            OperationContext context = CreateContext(session, diagnostics);
+            context.EnableWeakSystemContextCache();
+            // the constructor captured identity and epoch together; key the entry on what it captured.
+            current = new SubscriberContext(
+                context.UserIdentity, context.NotificationAuthorization, generation, endpoint, secureChannelId, context);
+            Volatile.Write(ref entry, current);
+            return context;
+        }
+
+        /// <summary>
+        /// A shared subscriber context and the inputs it was created from.
+        /// </summary>
+        private sealed class SubscriberContext(
+            IUserIdentity? identity,
+            NotificationAuthorization? authorization,
+            long generation,
+            EndpointDescription? endpoint,
+            string? secureChannelId,
+            OperationContext context)
+        {
+            public IUserIdentity? Identity { get; } = identity;
+            public NotificationAuthorization? Authorization { get; } = authorization;
+            public long Generation { get; } = generation;
+            public EndpointDescription? Endpoint { get; } = endpoint;
+            public string? SecureChannelId { get; } = secureChannelId;
+            public OperationContext Context { get; } = context;
+        }
+
+        /// <summary>
+        /// Holds the current shared context of a session or sessionless item.
+        /// </summary>
+        private sealed class SubscriberContextSlot
+        {
+            /// <summary>
+            /// Selects a bounded slot for the default or operation-level diagnostics mask.
+            /// </summary>
+            public ref SubscriberContext? GetEntry(DiagnosticsMasks diagnostics)
+            {
+                if (diagnostics == DiagnosticsMasks.SymbolicId)
+                {
+                    return ref m_current;
+                }
+                if ((diagnostics & ~DiagnosticsMasks.OperationAll) != 0)
+                {
+                    return ref m_other;
+                }
+                SubscriberContext?[] masked = Volatile.Read(ref m_masked) ??
+                    Interlocked.CompareExchange(ref m_masked, new SubscriberContext?[kOperationMasks], null) ??
+                    m_masked;
+                return ref masked[(int)diagnostics >> kOperationMaskShift];
+            }
+
+            /// <summary>The operation-level diagnostics occupy bits 5 through 9.</summary>
+            private const int kOperationMaskShift = 5;
+
+            /// <summary>Number of possible operation-level diagnostics masks.</summary>
+            private const int kOperationMasks = ((int)DiagnosticsMasks.OperationAll >> kOperationMaskShift) + 1;
+
+            /// <summary>Default diagnostics context.</summary>
+            private SubscriberContext? m_current;
+
+            /// <summary>Fallback context for non-operation masks.</summary>
+            private SubscriberContext? m_other;
+
+            /// <summary>Lazily allocated operation diagnostics slots.</summary>
+            private SubscriberContext?[]? m_masked;
+        }
+
+        private static readonly ConditionalWeakTable<ISession, SubscriberContextSlot> s_sessionContexts = new();
+        private static readonly ConditionalWeakTable<IMonitoredItem, SubscriberContextSlot> s_itemContexts = new();
 
         /// <summary>
         /// Creates a read context from the current item owner, never from the change reporter.

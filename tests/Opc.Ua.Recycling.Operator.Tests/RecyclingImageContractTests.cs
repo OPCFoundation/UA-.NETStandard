@@ -107,6 +107,7 @@ namespace Opc.Ua.Recycling.Operator.Tests
         [TestCase("10.0.400")]
         [TestCase("10.0.401")]
         [TestCase("10.0.402")]
+        [TestCase("10.0.403")]
         [TestCase("11.0.100")]
         public void SdkImageAcceptsMinimumAndNewerStableVersions(string sdk)
         {

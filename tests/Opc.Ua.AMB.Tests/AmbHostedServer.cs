@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -104,6 +103,8 @@ namespace Opc.Ua.AMB.Tests
                 options.EndpointUrls.Add(endpointUrl);
             });
             compose(builder);
+            var readiness = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            services.AddSingleton<IServerStartupTask>(new StartupCompletion(readiness));
 
             ServiceProvider provider = services.BuildServiceProvider();
             IHostedService? startingService = null;
@@ -117,19 +118,16 @@ namespace Opc.Ua.AMB.Tests
                 var server = new AmbHostedServer(provider, hostedService, endpointUrl, testRoot);
                 startingService = hostedService;
                 await hostedService.StartAsync(ct).ConfigureAwait(false);
-                var watch = Stopwatch.StartNew();
-                while (server.AssetManagement.Manager?.Server.IsRunning != true)
+                if (backgroundService.ExecuteTask is not { } execution)
                 {
-                    if (backgroundService.ExecuteTask is { IsCompleted: true } execution)
-                    {
-                        await execution.ConfigureAwait(false);
-                        Assert.Fail("The server stopped before completing startup.");
-                    }
-                    if (watch.Elapsed > TimeSpan.FromSeconds(90))
-                    {
-                        Assert.Fail("The server did not start.");
-                    }
-                    await Task.Delay(50, ct).ConfigureAwait(false);
+                    throw new InvalidOperationException("The hosted service did not start its execution task.");
+                }
+                Task completed = await Task.WhenAny(readiness.Task, execution)
+                    .WaitAsync(TimeSpan.FromSeconds(90), ct).ConfigureAwait(false);
+                await completed.ConfigureAwait(false);
+                if (!readiness.Task.IsCompleted || server.AssetManagement.Manager?.Server.IsRunning != true)
+                {
+                    throw new InvalidOperationException("The hosted service stopped before the server started.");
                 }
                 return server;
             }
@@ -367,5 +365,20 @@ namespace Opc.Ua.AMB.Tests
 
         private readonly IHostedService m_hostedService;
         private readonly string m_testRoot;
+
+        /// <summary>
+        /// Signals readiness after the configured startup tasks and published manager readiness have completed.
+        /// </summary>
+        /// <param name="completion">The completion observed by the test host.</param>
+        private sealed class StartupCompletion(TaskCompletionSource<bool> completion) : IServerStartupTask
+        {
+            /// <inheritdoc/>
+            public ValueTask OnServerStartedAsync(IServerContext server, CancellationToken cancellationToken)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                completion.TrySetResult(true);
+                return default;
+            }
+        }
     }
 }

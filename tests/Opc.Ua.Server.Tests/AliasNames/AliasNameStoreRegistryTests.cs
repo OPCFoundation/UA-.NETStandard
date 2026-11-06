@@ -81,6 +81,244 @@ namespace Opc.Ua.Server.Tests.AliasNames
                 Throws.TypeOf<InvalidOperationException>());
         }
 
+        /// <summary>
+        /// A superseded lease cannot release a replacement, even when both use the same backend.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public void OwnedRegistrationReplacesOnlyItsOwner(bool sharedStore, bool releasePreviousFirst)
+        {
+            using var registry = new AliasNameStoreRegistry();
+            using InMemoryAliasNameStore original = Store(s_a, "A");
+            using InMemoryAliasNameStore distinct = Store(s_a, "A2");
+            InMemoryAliasNameStore replacement = sharedStore ? original : distinct;
+            Guid owner = Guid.NewGuid();
+            using IDisposable first = registry.AcquireRegistration(original, owner);
+            using IDisposable second = registry.AcquireRegistration(replacement, owner);
+
+            registry.Unregister(replacement);
+            Assert.That(registry.GetStoreForCategory(s_a), Is.SameAs(replacement));
+            Assert.That(registry.Stores, Is.EqualTo(new[] { replacement }));
+            if (releasePreviousFirst)
+            {
+                first.Dispose();
+                first.Dispose();
+                Assert.That(registry.GetStoreForCategory(s_a), Is.SameAs(replacement));
+            }
+            second.Dispose();
+            Assert.That(registry.GetStoreForCategory(s_a), Is.Null);
+            first.Dispose();
+            Assert.That(registry.GetStoreForCategory(s_a), Is.Null);
+            Assert.That(registry.Stores, Is.Empty);
+        }
+
+        /// <summary>
+        /// Independent owners share one backend without duplicating change notifications.
+        /// </summary>
+        [Test]
+        public async System.Threading.Tasks.Task IndependentOwnedClaimsShareOneBackendAsync()
+        {
+            using var registry = new AliasNameStoreRegistry();
+            var descriptor = new AliasNameCategoryDescriptor(
+                s_a, new QualifiedName("A", 2), AliasNameCapabilities.All);
+            using var store = new InMemoryAliasNameStore([descriptor]);
+            using IDisposable first = registry.AcquireRegistration(store, Guid.NewGuid());
+            using IDisposable second = registry.AcquireRegistration(store, Guid.NewGuid());
+            int changes = 0;
+            registry.Changed += (_, _) => changes++;
+
+            first.Dispose();
+            Assert.That(registry.GetStoreForCategory(s_a), Is.SameAs(store));
+            await store.AddAliasesAsync(s_a,
+                [new AliasAddRequest("Live", new ExpandedNodeId("T", 2), null, ReferenceTypeIds.AliasFor)],
+                System.Threading.CancellationToken.None).ConfigureAwait(false);
+            Assert.That(changes, Is.EqualTo(1));
+            second.Dispose();
+            Assert.That(registry.GetStoreForCategory(s_a), Is.Null);
+            await store.AddAliasesAsync(s_a,
+                [new AliasAddRequest("After", new ExpandedNodeId("T2", 2), null, ReferenceTypeIds.AliasFor)],
+                System.Threading.CancellationToken.None).ConfigureAwait(false);
+            Assert.That(changes, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Manual registration remains idempotent and independent of leased ownership.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public void ManualAndOwnedRegistrationsReleaseIndependently(bool manualFirst, bool releaseManualFirst)
+        {
+            using var registry = new AliasNameStoreRegistry();
+            using InMemoryAliasNameStore store = Store(s_a, "A");
+            if (manualFirst)
+            {
+                registry.Register(store);
+            }
+            using IDisposable owned = registry.AcquireRegistration(store, Guid.NewGuid());
+            registry.Register(store);
+            registry.Register(store);
+            if (releaseManualFirst)
+            {
+                registry.Unregister(store);
+                registry.Unregister(store);
+            }
+            else
+            {
+                owned.Dispose();
+                owned.Dispose();
+            }
+            Assert.That(registry.GetStoreForCategory(s_a), Is.SameAs(store));
+            Assert.That(registry.Stores, Is.EqualTo(new[] { store }));
+
+            if (releaseManualFirst)
+            {
+                owned.Dispose();
+            }
+            else
+            {
+                registry.Unregister(store);
+            }
+            Assert.That(registry.GetStoreForCategory(s_a), Is.Null);
+            Assert.That(registry.Stores, Is.Empty);
+        }
+
+        /// <summary>
+        /// Replacing one owner cannot displace another owner's or a manual claim on the same backend.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void OwnedReplacementCannotStealAnotherClaim(bool manual)
+        {
+            using var registry = new AliasNameStoreRegistry();
+            using InMemoryAliasNameStore original = Store(s_a, "A");
+            using InMemoryAliasNameStore replacement = Store(s_a, "A2");
+            Guid owner = Guid.NewGuid();
+            using IDisposable first = registry.AcquireRegistration(original, owner);
+            using IDisposable other = registry.AcquireRegistration(original, Guid.NewGuid());
+            if (manual)
+            {
+                registry.Register(original);
+                other.Dispose();
+            }
+            Assert.That(() => registry.AcquireRegistration(replacement, owner),
+                Throws.TypeOf<InvalidOperationException>());
+            Assert.That(registry.GetStoreForCategory(s_a), Is.SameAs(original));
+            Assert.That(registry.Stores, Is.EqualTo(new[] { original }));
+            first.Dispose();
+            Assert.That(registry.GetStoreForCategory(s_a), Is.SameAs(original));
+            if (manual)
+            {
+                registry.Unregister(original);
+            }
+            else
+            {
+                other.Dispose();
+            }
+            Assert.That(registry.GetStoreForCategory(s_a), Is.Null);
+        }
+
+        /// <summary>
+        /// A fresh owner cannot use replacement semantics to claim another store's categories.
+        /// </summary>
+        [Test]
+        public void IndependentOwnedOverlapIsRejectedWithoutChangingRouting()
+        {
+            using var registry = new AliasNameStoreRegistry();
+            using InMemoryAliasNameStore original = Store(s_a, "A");
+            using InMemoryAliasNameStore overlap = Store(s_a, "A2");
+            using IDisposable owner = registry.AcquireRegistration(original, Guid.NewGuid());
+            Assert.That(() => registry.AcquireRegistration(overlap, Guid.NewGuid()),
+                Throws.TypeOf<InvalidOperationException>());
+            Assert.That(() => registry.Register(overlap), Throws.TypeOf<InvalidOperationException>());
+            Assert.That(registry.GetStoreForCategory(s_a), Is.SameAs(original));
+            Assert.That(registry.Stores, Is.EqualTo(new[] { original }));
+        }
+
+        /// <summary>
+        /// An overlap on another category rejects the whole replacement before changing its current claim.
+        /// </summary>
+        [Test]
+        public void OwnedReplacementValidatesEveryCategoryBeforeChangingClaims()
+        {
+            using var registry = new AliasNameStoreRegistry();
+            using InMemoryAliasNameStore original = Store(s_a, "A");
+            using InMemoryAliasNameStore independent = Store(s_b, "B");
+            using var replacement = new InMemoryAliasNameStore(
+            [
+                new AliasNameCategoryDescriptor(s_a, new QualifiedName("A2", 2)),
+                new AliasNameCategoryDescriptor(s_b, new QualifiedName("B2", 2))
+            ]);
+            Guid owner = Guid.NewGuid();
+            using IDisposable first = registry.AcquireRegistration(original, owner);
+            using IDisposable other = registry.AcquireRegistration(independent, Guid.NewGuid());
+
+            Assert.That(() => registry.AcquireRegistration(replacement, owner),
+                Throws.TypeOf<InvalidOperationException>());
+            Assert.That(registry.GetStoreForCategory(s_a), Is.SameAs(original));
+            Assert.That(registry.GetStoreForCategory(s_b), Is.SameAs(independent));
+            Assert.That(registry.Stores, Is.EqualTo(new[] { original, independent }));
+            first.Dispose();
+            Assert.That(registry.GetStoreForCategory(s_a), Is.Null);
+            Assert.That(registry.GetStoreForCategory(s_b), Is.SameAs(independent));
+        }
+
+        /// <summary>
+        /// A replacement becomes the dispatcher and the sole change source for its categories.
+        /// </summary>
+        [Test]
+        public async System.Threading.Tasks.Task OwnedReplacementChangesDispatchAndNotificationsAsync()
+        {
+            using var registry = new AliasNameStoreRegistry();
+            var descriptor = new AliasNameCategoryDescriptor(
+                s_a, new QualifiedName("A", 2), AliasNameCapabilities.All);
+            using var original = new InMemoryAliasNameStore([descriptor]);
+            using var replacement = new InMemoryAliasNameStore([descriptor]);
+            Guid owner = Guid.NewGuid();
+            using IDisposable first = registry.AcquireRegistration(original, owner);
+            using IDisposable second = registry.AcquireRegistration(replacement, owner);
+            int changes = 0;
+            registry.Changed += (_, _) => changes++;
+
+            await original.AddAliasesAsync(s_a,
+                [new AliasAddRequest("Old", new ExpandedNodeId("T", 2), null, ReferenceTypeIds.AliasFor)],
+                System.Threading.CancellationToken.None).ConfigureAwait(false);
+            Assert.That(changes, Is.Zero);
+            await replacement.AddAliasesAsync(s_a,
+                [new AliasAddRequest("New", new ExpandedNodeId("T2", 2), null, ReferenceTypeIds.AliasFor)],
+                System.Threading.CancellationToken.None).ConfigureAwait(false);
+            Assert.That(changes, Is.EqualTo(1));
+            (ServiceResult result, System.Collections.Generic.IReadOnlyList<AliasNameDataType> aliases) =
+                await registry.DispatchFindAliasAsync(s_a, "%", NodeId.Null, new TypeTable(new NamespaceTable()))
+                    .ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(aliases, Has.Count.EqualTo(1));
+            Assert.That(aliases[0].AliasName.Name, Is.EqualTo("New"));
+        }
+
+        /// <summary>
+        /// Invalid claims fail explicitly and releasing a lease after registry disposal is safe.
+        /// </summary>
+        [Test]
+        public void OwnedRegistrationValidatesInputsAndSurvivesRegistryDisposal()
+        {
+            using var registry = new AliasNameStoreRegistry();
+            using InMemoryAliasNameStore store = Store(s_a, "A");
+            Assert.That(() => registry.AcquireRegistration(null!, Guid.NewGuid()),
+                Throws.TypeOf<ArgumentNullException>());
+            Assert.That(() => registry.AcquireRegistration(store, Guid.Empty),
+                Throws.TypeOf<ArgumentException>());
+            using IDisposable claim = registry.AcquireRegistration(store, Guid.NewGuid());
+            registry.Dispose();
+            Assert.That(claim.Dispose, Throws.Nothing);
+            Assert.That(claim.Dispose, Throws.Nothing);
+            Assert.That(() => registry.AcquireRegistration(store, Guid.NewGuid()),
+                Throws.TypeOf<ObjectDisposedException>());
+        }
+
         [Test]
         public async System.Threading.Tasks.Task DispatchBadNotImplementedWhenNoStoreOwnsCategoryAsync()
         {

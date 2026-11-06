@@ -49,6 +49,8 @@ OPCFoundation.NetStandard.Opc.Ua.GMS
 OPCFoundation.NetStandard.Opc.Ua.GMS.Client
 OPCFoundation.NetStandard.Opc.Ua.GMS.Server
 OPCFoundation.NetStandard.Opc.Ua.IA
+OPCFoundation.NetStandard.Opc.Ua.IA.Client
+OPCFoundation.NetStandard.Opc.Ua.IA.Server
 OPCFoundation.NetStandard.Opc.Ua.ISA95
 OPCFoundation.NetStandard.Opc.Ua.ISA95.Client
 OPCFoundation.NetStandard.Opc.Ua.ISA95.Server

@@ -2269,7 +2269,11 @@ namespace Opc.Ua.Sample
                     // check for subscription to local node.
                     else
                     {
-                        NodeState? source = IsHandleInNamespace(monitoredItem.ManagerHandle);
+                        if (monitoredItem.ManagerHandle is not { } managerHandle)
+                        {
+                            continue;
+                        }
+                        NodeState? source = IsHandleInNamespace(managerHandle);
 
                         if (source == null)
                         {

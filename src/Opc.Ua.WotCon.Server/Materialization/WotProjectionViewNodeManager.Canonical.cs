@@ -360,7 +360,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <param name="server">The server internal.</param>
         internal void ValidateCanonicalServer(IServerInternal server)
         {
-            if (!ReferenceEquals(Server, server))
+            if (!ReferenceEquals(Server.NodeManager, server.NodeManager))
             {
                 throw new ArgumentException("The previous canonical registration belongs to another server instance.");
             }

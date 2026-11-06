@@ -29,6 +29,7 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -165,6 +166,13 @@ namespace Opc.Ua.PlasticsRubber.Runtime.Tests
         internal CommonRuntimeTestServer(ITelemetryContext telemetry)
             : base(telemetry)
         {
+            AddNodeManager(new MachineryNodeManagerFactory(
+                [new MachineryModelProvider(MachineryParts.BuildingBlocks), new PlasticsRubberModelProvider()],
+                new MachineryServerOptions
+                {
+                    Parts = MachineryParts.BuildingBlocks,
+                    InstanceNamespaceUri = "urn:plastics-runtime-tests:instances"
+                }));
         }
 
         /// <summary>
@@ -173,21 +181,12 @@ namespace Opc.Ua.PlasticsRubber.Runtime.Tests
         internal MachineryNodeManager Manager { get; private set; } = null!;
 
         /// <inheritdoc/>
-        protected override ValueTask<IMasterNodeManager> CreateMasterNodeManagerAsync(
+        protected override async ValueTask OnNodeManagerStartedAsync(
             IServerInternal server,
-            ApplicationConfiguration configuration,
             CancellationToken cancellationToken = default)
         {
-            Manager = new MachineryNodeManager(
-                server,
-                configuration,
-                [new MachineryModelProvider(MachineryParts.BuildingBlocks), new PlasticsRubberModelProvider()],
-                new MachineryServerOptions
-                {
-                    Parts = MachineryParts.BuildingBlocks,
-                    InstanceNamespaceUri = "urn:plastics-runtime-tests:instances"
-                });
-            return new ValueTask<IMasterNodeManager>(new MasterNodeManager(server, configuration, null, [Manager]));
+            Manager = server.NodeManager.AsyncNodeManagers.OfType<MachineryNodeManager>().Single();
+            await base.OnNodeManagerStartedAsync(server, cancellationToken).ConfigureAwait(false);
         }
     }
 }
