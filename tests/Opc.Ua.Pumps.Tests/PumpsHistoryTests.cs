@@ -669,9 +669,12 @@ namespace Opc.Ua.Pumps.Tests
             try
             {
                 StandardServer server = await fixture.StartAsync(pki);
-                NodeManagerRegistration registration = await server.NodeManagerLifecycle.AddAsync(
-                    new PumpsNodeManagerFactory(), callerContext: null);
-                var manager = (PumpsNodeManager)registration.NodeManager;
+                await using IPreparedNodeManagerBatch prepared = await server.NodeManagerLifecycle
+                    .PrepareAsync([NodeManagerBatchChange.Add(new PumpsNodeManagerFactory())])
+                    .ConfigureAwait(false);
+                NodeManagerBatchResult added = await prepared.CommitAsync(static _ => default).ConfigureAwait(false);
+                Assert.That(added.CleanupFailure, Is.Null);
+                var manager = (PumpsNodeManager)added.Registrations[0].NodeManager;
                 IPumpBuilder pump = await manager.CreatePumpAsync(
                     new QualifiedName("HistoricalPump", manager.InstanceNamespaceIndex));
                 pump.WithNameplate(new PumpNameplate
