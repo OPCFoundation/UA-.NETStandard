@@ -110,13 +110,18 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Preserves namespace permissions while granting SecurityAdmin access only on restricted nodes.
         /// </summary>
-        [TestCase(false, false)]
-        [TestCase(true, false)]
-        [TestCase(false, true)]
-        [TestCase(true, true)]
+        [TestCase(false, false, false)]
+        [TestCase(true, false, false)]
+        [TestCase(false, true, false)]
+        [TestCase(true, true, false)]
+        [TestCase(false, false, true)]
+        [TestCase(true, false, true)]
+        [TestCase(false, true, true)]
+        [TestCase(true, true, true)]
         public async Task NamespacePermissionsPreservedAfterConfigurationAsync(
             bool asyncConfiguration,
-            bool restricted)
+            bool restricted,
+            bool explicitPermissions)
         {
             IServerInternal serverInternal = m_server.CurrentInstance;
             NamespaceMetadataState? metadata = await serverInternal.ConfigurationNodeManager
@@ -135,7 +140,38 @@ namespace Opc.Ua.Server.Tests
                 await metadata.ClearChangeMasksAsync(serverInternal.DefaultSystemContext, true)
                     .ConfigureAwait(false);
                 Harness harness = await CreateHarnessAsync(
-                    new ServerConfigurationOptions(), asyncConfiguration: asyncConfiguration).ConfigureAwait(false);
+                    new ServerConfigurationOptions(),
+                    asyncConfiguration: asyncConfiguration,
+                    beforeConfiguration: root =>
+                    {
+                        var pending = new Stack<NodeState>();
+                        pending.Push(root);
+                        while (pending.Count != 0)
+                        {
+                            NodeState node = pending.Pop();
+                            if (node is MethodState or BaseObjectState)
+                            {
+                                // The standard nodeset has explicit policies; isolate inheritance deliberately.
+                                node.RolePermissions = ArrayOf<RolePermissionType>.Empty;
+                            }
+
+                            var children = new List<BaseInstanceState>();
+                            node.GetChildren(serverInternal.DefaultSystemContext, children);
+                            foreach (BaseInstanceState child in children)
+                            {
+                                pending.Push(child);
+                            }
+                        }
+
+                        if (explicitPermissions)
+                        {
+                            root.RolePermissions = [new RolePermissionType
+                            {
+                                RoleId = ObjectIds.WellKnownRole_Observer,
+                                Permissions = (uint)(PermissionType.Browse | PermissionType.Read)
+                            }];
+                        }
+                    }).ConfigureAwait(false);
                 using (harness.Manager)
                 {
                     var pending = new Stack<NodeState>();
@@ -145,15 +181,20 @@ namespace Opc.Ua.Server.Tests
                         NodeState node = pending.Pop();
                         if (node is MethodState or BaseObjectState)
                         {
-                            if (restricted)
+                            bool explicitNode = explicitPermissions && ReferenceEquals(node, harness.Node);
+                            if (restricted || explicitNode)
                             {
                                 Assert.That(node.RolePermissions.Count, Is.EqualTo(2), node.BrowseName.ToString());
                                 Assert.Multiple(() =>
                                 {
                                     Assert.That(node.RolePermissions[0].RoleId,
-                                        Is.EqualTo(ObjectIds.WellKnownRole_Anonymous));
+                                        Is.EqualTo(explicitNode
+                                            ? ObjectIds.WellKnownRole_Observer
+                                            : ObjectIds.WellKnownRole_Anonymous));
                                     Assert.That(node.RolePermissions[0].Permissions,
-                                        Is.EqualTo((uint)PermissionType.Browse));
+                                        Is.EqualTo((uint)(explicitNode
+                                            ? PermissionType.Browse | PermissionType.Read
+                                            : PermissionType.Browse)));
                                     Assert.That(node.RolePermissions[1].RoleId,
                                         Is.EqualTo(ObjectIds.WellKnownRole_SecurityAdmin));
                                     Assert.That(node.RolePermissions[1].Permissions,
@@ -1778,7 +1819,8 @@ namespace Opc.Ua.Server.Tests
         private async Task<Harness> CreateHarnessAsync(
             ServerConfigurationOptions options,
             TimeProvider? timeProvider = null,
-            bool asyncConfiguration = false)
+            bool asyncConfiguration = false,
+            Action<ServerConfigurationState>? beforeConfiguration = null)
         {
             IServerInternal serverInternal = m_server.CurrentInstance;
             var coordinator = new PushConfigurationTransactionCoordinator(serverInternal.Telemetry);
@@ -1796,6 +1838,9 @@ namespace Opc.Ua.Server.Tests
             IDictionary<NodeId, IList<IReference>> externalReferences =
                 new Dictionary<NodeId, IList<IReference>>();
             await manager.CreateAddressSpaceAsync(externalReferences, CancellationToken.None).ConfigureAwait(false);
+            var node = manager.FindPredefinedNode<ServerConfigurationState>(ObjectIds.ServerConfiguration);
+            Assert.That(node, Is.Not.Null, "ServerConfiguration node not materialised");
+            beforeConfiguration?.Invoke(node);
             if (asyncConfiguration)
             {
                 await manager.CreateServerConfigurationAsync(serverInternal.DefaultSystemContext, m_fixture.Config)
@@ -1807,8 +1852,6 @@ namespace Opc.Ua.Server.Tests
             }
             await manager.RecoverConfigurationFileUpdateAsync(CancellationToken.None).ConfigureAwait(false);
 
-            var node = manager.FindPredefinedNode<ServerConfigurationState>(ObjectIds.ServerConfiguration);
-            Assert.That(node, Is.Not.Null, "ServerConfiguration node not materialised");
             return new Harness(manager, node, coordinator);
         }
 
