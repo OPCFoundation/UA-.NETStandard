@@ -1,0 +1,336 @@
+/* ========================================================================
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using System.IO;
+using System.Threading.Tasks;
+using NUnit.Framework;
+using Opc.Ua.Tests;
+
+namespace Opc.Ua.Types.Tests.Encoders
+{
+    /// <summary>
+    /// Notification bodies that the binary decoder keeps as bytes until first use.
+    /// </summary>
+    [TestFixture]
+    [Category("Encoders")]
+    [Parallelizable(ParallelScope.All)]
+    public class DeferredExtensionObjectBodyTests
+    {
+        [Test]
+        public void EventsAreDeferredAndDecodeToTheSameValue()
+        {
+            ServiceMessageContext context = CreateContext(defer: true);
+            byte[] encoded = Encode(context, CreateEvents(3));
+
+            ExtensionObject decoded = Decode(context, encoded);
+
+            Assert.That(decoded.IsDeferred, Is.True);
+            Assert.That(decoded.TryGetValue(out EventNotificationList? events), Is.True);
+            Assert.That(events!.Events.Count, Is.EqualTo(3));
+            Assert.That(events.Events[2].ClientHandle, Is.EqualTo(2u));
+            Assert.That(events.Events[1].EventFields[0].TryGetValue(out string? text), Is.True);
+            Assert.That(text, Is.EqualTo("event 1"));
+        }
+
+        [Test]
+        public void DataChangesAreDeferred()
+        {
+            ServiceMessageContext context = CreateContext(defer: true);
+            var notification = new DataChangeNotification
+            {
+                MonitoredItems =
+                [
+                    new MonitoredItemNotification { ClientHandle = 7, Value = new DataValue(Variant.From(42)) }
+                ]
+            };
+
+            ExtensionObject decoded = Decode(context, Encode(context, notification));
+
+            Assert.That(decoded.IsDeferred, Is.True);
+            Assert.That(decoded.TryGetValue(out DataChangeNotification? data), Is.True);
+            Assert.That(data!.MonitoredItems[0].ClientHandle, Is.EqualTo(7u));
+        }
+
+        [Test]
+        public void BodiesAreDecodedEagerlyByDefault()
+        {
+            ServiceMessageContext context = CreateContext(defer: false);
+
+            ExtensionObject decoded = Decode(context, Encode(context, CreateEvents(1)));
+
+            Assert.That(decoded.IsDeferred, Is.False);
+            Assert.That(decoded.TryGetValue(out EventNotificationList? _), Is.True);
+        }
+
+        [Test]
+        public void OtherTypesAreNotDeferred()
+        {
+            ServiceMessageContext context = CreateContext(defer: true);
+            var status = new StatusChangeNotification { Status = StatusCodes.BadDecodingError };
+
+            ExtensionObject decoded = Decode(context, Encode(context, status));
+
+            Assert.That(decoded.IsDeferred, Is.False);
+            Assert.That(decoded.TryGetValue(out StatusChangeNotification? value), Is.True);
+            Assert.That(value!.Status, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void DecodedValueIsCached()
+        {
+            ServiceMessageContext context = CreateContext(defer: true);
+            ExtensionObject decoded = Decode(context, Encode(context, CreateEvents(1)));
+
+            Assert.That(decoded.TryGetValue(out EventNotificationList? first), Is.True);
+            Assert.That(decoded.TryGetValue(out EventNotificationList? second), Is.True);
+
+            Assert.That(second, Is.SameAs(first));
+        }
+
+        [Test]
+        public async Task ConcurrentReadersSeeOneValueAsync()
+        {
+            ServiceMessageContext context = CreateContext(defer: true);
+            ExtensionObject decoded = Decode(context, Encode(context, CreateEvents(50)));
+
+            var readers = new Task<EventNotificationList?>[8];
+            for (int i = 0; i < readers.Length; i++)
+            {
+                readers[i] = Task.Run(() =>
+                {
+                    decoded.TryGetValue(out EventNotificationList? value);
+                    return value;
+                });
+            }
+            EventNotificationList?[] values = await Task.WhenAll(readers).ConfigureAwait(false);
+
+            Assert.That(values[0], Is.Not.Null);
+            Assert.That(values, Has.All.SameAs(values[0]));
+        }
+
+        [Test]
+        public void ReleaseDropsTheValue()
+        {
+            ServiceMessageContext context = CreateContext(defer: true);
+            ExtensionObject decoded = Decode(context, Encode(context, CreateEvents(1)));
+            Assert.That(decoded.TryGetValue(out EventNotificationList? _), Is.True);
+
+            decoded.ReleaseDeferredBody();
+
+            Assert.That(decoded.TryGetValue(out EventNotificationList? _), Is.False);
+            Assert.That(decoded.TryGetAsBinary(out ByteString _), Is.False);
+        }
+
+        [Test]
+        public void ReleaseBeforeFirstReadIsSafe()
+        {
+            ServiceMessageContext context = CreateContext(defer: true);
+            ExtensionObject decoded = Decode(context, Encode(context, CreateEvents(1)));
+
+            decoded.ReleaseDeferredBody();
+            decoded.ReleaseDeferredBody();
+
+            Assert.That(decoded.TryGetValue(out EventNotificationList? _), Is.False);
+        }
+
+        [Test]
+        public void ReleaseLeavesOtherBodiesAlone()
+        {
+            var extension = new ExtensionObject(CreateEvents(1));
+
+            extension.ReleaseDeferredBody();
+
+            Assert.That(extension.TryGetValue(out EventNotificationList? _), Is.True);
+        }
+
+        [Test]
+        public void MalformedBodyDoesNotFailTheDecoderAndStaysAvailableAsBytes()
+        {
+            ServiceMessageContext context = CreateContext(defer: true);
+            byte[] body = [0xFF, 0xFF, 0xFF, 0x7F, 1, 2, 3];
+            byte[] encoded = EncodeRaw(body);
+
+            ExtensionObject decoded = Decode(context, encoded);
+
+            Assert.That(decoded.TryGetValue(out EventNotificationList? _), Is.False);
+            Assert.That(decoded.TryGetAsBinary(out ByteString bytes), Is.True);
+            Assert.That(bytes.ToArray(), Is.EqualTo(body));
+        }
+
+        [Test]
+        public void TrailingBytesAreRejectedLikeTheEagerDecoderDoes()
+        {
+            ServiceMessageContext context = CreateContext(defer: true);
+            byte[] valid = EncodeBody(context, CreateEvents(1));
+            byte[] body = new byte[valid.Length + 2];
+            valid.CopyTo(body, 0);
+
+            ExtensionObject decoded = Decode(context, EncodeRaw(body));
+
+            Assert.That(decoded.TryGetValue(out EventNotificationList? _), Is.False);
+            Assert.That(decoded.TryGetAsBinary(out ByteString bytes), Is.True);
+            Assert.That(bytes.Length, Is.EqualTo(body.Length));
+        }
+
+        [Test]
+        public void LengthBeyondTheInputIsRejectedBeforeRenting()
+        {
+            ServiceMessageContext context = CreateContext(defer: true);
+            byte[] encoded = EncodeRaw([1, 2, 3], claimedLength: int.MaxValue);
+
+            ServiceResultException? ex = Assert.Throws<ServiceResultException>(() => Decode(context, encoded));
+
+            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void LengthAboveMaxMessageSizeIsRejected()
+        {
+            ServiceMessageContext context = CreateContext(defer: true);
+            context.MaxMessageSize = 16;
+            byte[] encoded = EncodeRaw(new byte[32]);
+
+            ServiceResultException? ex = Assert.Throws<ServiceResultException>(() => Decode(context, encoded));
+
+            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
+        public void ForwardOnlyStreamDecodesEagerly()
+        {
+            ServiceMessageContext context = CreateContext(defer: true);
+            byte[] encoded = Encode(context, CreateEvents(2));
+            using var stream = new ForwardOnlyStream(encoded);
+            using var decoder = new BinaryDecoder(stream, context, leaveOpen: true);
+
+            ExtensionObject decoded = decoder.ReadExtensionObject(null);
+
+            Assert.That(decoded.IsDeferred, Is.False);
+            Assert.That(decoded.TryGetValue(out EventNotificationList? events), Is.True);
+            Assert.That(events!.Events.Count, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void SeekableStreamDefers()
+        {
+            ServiceMessageContext context = CreateContext(defer: true);
+            using var stream = new MemoryStream(Encode(context, CreateEvents(2)));
+            using var decoder = new BinaryDecoder(stream, context, leaveOpen: true);
+
+            ExtensionObject decoded = decoder.ReadExtensionObject(null);
+
+            Assert.That(decoded.IsDeferred, Is.True);
+            Assert.That(decoded.TryGetValue(out EventNotificationList? events), Is.True);
+            Assert.That(events!.Events.Count, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void DeferredBodyEncodesAgain()
+        {
+            ServiceMessageContext context = CreateContext(defer: true);
+            byte[] encoded = Encode(context, CreateEvents(2));
+            ExtensionObject decoded = Decode(context, encoded);
+
+            using var encoder = new BinaryEncoder(context);
+            encoder.WriteExtensionObject(null, decoded);
+
+            Assert.That(encoder.CloseAndReturnBuffer(), Is.EqualTo(encoded));
+        }
+
+        private static ServiceMessageContext CreateContext(bool defer)
+        {
+            ServiceMessageContext context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
+            context.DeferNotificationBodies = defer;
+            return context;
+        }
+
+        private static EventNotificationList CreateEvents(int count)
+        {
+            var events = new EventFieldList[count];
+            for (int i = 0; i < count; i++)
+            {
+                events[i] = new EventFieldList
+                {
+                    ClientHandle = (uint)i,
+                    EventFields = [Variant.From($"event {i}"), Variant.From(i)]
+                };
+            }
+            return new EventNotificationList { Events = events };
+        }
+
+        private static byte[] Encode(IServiceMessageContext context, IEncodeable value)
+        {
+            using var encoder = new BinaryEncoder(context);
+            encoder.WriteExtensionObject(null, new ExtensionObject(value));
+            return encoder.CloseAndReturnBuffer()!;
+        }
+
+        private static byte[] EncodeBody(IServiceMessageContext context, EventNotificationList value)
+        {
+            using var encoder = new BinaryEncoder(context);
+            value.Encode(encoder);
+            return encoder.CloseAndReturnBuffer()!;
+        }
+
+        /// <summary>
+        /// An EventNotificationList with the given body bytes: type id
+        /// i=916 as a four byte node id, binary encoding, length, body.
+        /// </summary>
+        private static byte[] EncodeRaw(byte[] body, int? claimedLength = null)
+        {
+            using var stream = new MemoryStream();
+            using var writer = new BinaryWriter(stream);
+            writer.Write((byte)1);
+            writer.Write((byte)0);
+            writer.Write((ushort)916);
+            writer.Write((byte)1);
+            writer.Write(claimedLength ?? body.Length);
+            writer.Write(body);
+            writer.Flush();
+            return stream.ToArray();
+        }
+
+        private static ExtensionObject Decode(IServiceMessageContext context, byte[] encoded)
+        {
+            using var decoder = new BinaryDecoder(encoded, context);
+            return decoder.ReadExtensionObject(null);
+        }
+
+        private sealed class ForwardOnlyStream : MemoryStream
+        {
+            public ForwardOnlyStream(byte[] buffer)
+                : base(buffer)
+            {
+            }
+
+            public override bool CanSeek => false;
+        }
+    }
+}

@@ -776,6 +776,24 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Decodes notifications when the Publish response arrives instead of
+        /// right before they are dispatched, which is the default.
+        /// </summary>
+        /// <remarks>
+        /// Has no effect when the classic subscription engine is in
+        /// use; this option only applies to the V2
+        /// <see cref="Subscriptions.ISubscriptionManager"/>.
+        /// </remarks>
+        public ManagedSessionBuilder WithoutDeferredNotificationDecoding()
+        {
+            m_options = m_options with
+            {
+                DeferNotificationDecoding = false
+            };
+            return this;
+        }
+
+        /// <summary>
         /// Enables address-space model change tracking. The session
         /// auto-starts a <see cref="ModelChange.IModelChangeTracker"/>
         /// after connect that invalidates the node cache and exposes
