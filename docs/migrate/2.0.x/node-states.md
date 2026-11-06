@@ -1,6 +1,6 @@
 # Node States and INodeCache
 
-> **When to read this:** Read this when migrating custom NodeManagers, `NodeState` clone / read / write helpers (`Clone` -> `CreateCopy`, removed `BaseVariableState` helpers), the new `INodeManager3` role-permission hooks, `OnAfterCreate(CancellationToken)`, predefined-node processing, generics on `BaseVariableState` / `BaseVariableTypeState`, code that took `lock (node)` on a `NodeState` or used `NodeBrowser.DataLock`, or `INodeCache.InvalidateNode`.
+> **When to read this:** Read this when migrating custom NodeManagers, their interfaces and transfer overrides, `NodeState` clone / read / write helpers (`Clone` -> `CreateCopy`, removed `BaseVariableState` helpers), the new `INodeManager3` role-permission hooks, `OnAfterCreate(CancellationToken)`, predefined-node processing, generics on `BaseVariableState` / `BaseVariableTypeState`, code that took `lock (node)` on a `NodeState` or used `NodeBrowser.DataLock`, or `INodeCache.InvalidateNode`.
 
 ## Contents
 
@@ -8,6 +8,7 @@
   - [Generics and Typed BaseVariableState and BaseVariableTypeState](#generics-and-typed-basevariablestate-and-basevariabletypestate)
   - [Predefined node processing](#predefined-node-processing)
   - [NodeState Cloning and Lifecycle](#nodestate-cloning-and-lifecycle)
+  - [Custom NodeManager interface changes](#custom-nodemanager-interface-changes)
   - [INodeManager3 - new role-permission and method-resolution hooks](#inodemanager3---new-role-permission-and-method-resolution-hooks)
   - [NodeState guards itself; NodeBrowser is single-consumer (UA0027)](#nodestate-guards-itself-nodebrowser-is-single-consumer-ua0027)
   - [Browse continuation lifetime](#browse-continuation-lifetime)
@@ -247,11 +248,79 @@ track outstanding allocations. Thread the argument into every
 already do. See
 [Custom node types and assignment control](../../NodeManagers.md#custom-node-types-and-assignment-control).
 
+### Custom NodeManager interface changes
+
+Custom managers that implement `INodeManager` or `INodeManager2` directly
+must update their method signatures when moving from 1.5.378 to 2.0. The
+request inputs below use `ArrayOf<T>` instead of `IList<T>`:
+
+| Method | Request input |
+| --- | --- |
+| `Read` | `ArrayOf<ReadValueId>` |
+| `HistoryRead` | `ArrayOf<HistoryReadValueId>` |
+| `Write` | `ArrayOf<WriteValue>` |
+| `HistoryUpdate` | `ArrayOf<HistoryUpdateDetails>` |
+| `Call` | `ArrayOf<CallMethodRequest>` |
+| `CreateMonitoredItems` | `ArrayOf<MonitoredItemCreateRequest>` |
+| `ModifyMonitoredItems` | `ArrayOf<MonitoredItemModifyRequest>` |
+
+The corresponding async service interfaces and overrides take the same
+request inputs. `INodeManager2.GetPermissionMetadata` and
+`IAsyncNodeManager.GetPermissionMetadataAsync` change the cache parameter
+from `Dictionary<NodeId, List<object>>` to `Dictionary<NodeId, Variant[]>`.
+Both `INodeManagerFactory.NamespacesUris` and
+`IAsyncNodeManagerFactory.NamespacesUris` return `ArrayOf<string>` instead
+of `StringCollection`.
+
+`IConditionRefreshAsyncNodeManager.ConditionRefreshAsync` now returns
+`ValueTask<ServiceResult>` rather than `ValueTask`. Return the refresh
+result from the implementation.
+
+Direct `IAsyncNodeManager` implementations must also provide
+`FindMethodStateAsync`, `SessionActivatedAsync`,
+`ValidateEventRolePermissionsAsync`, `ValidateRolePermissionsAsync`,
+`IsMultipleEventConsumerNode`, `AddNode` and `AddRootNotifier`. The interface
+also inherits `INodeManagementAsyncNodeManager` and `INodeIdFactory`.
+Implement their members as well. If the manager does not accept
+NodeManagement requests, set `AllowNodeManagement` to `false`; the master
+dispatcher rejects requests routed to it with `BadUserAccessDenied`.
+`SessionActivatedAsync` should invalidate cached permissions for monitored
+items belonging to the session when its identity changes.
+
+`TransferMonitoredItems` adds a `MonitoredItemTransferOptions` parameter.
+The async `ITransferMonitoredItemsAsyncNodeManager` method adds the same
+parameter before the cancellation token. When `DeferInitialValues` is true,
+the manager must not call `SetupResendDataTrigger` during the transfer. When
+a coordinated transfer commits, it schedules requested initial values for
+successful items whose source is available. If an item's source is lost, it
+reschedules the lost-node status instead when initial values were requested.
+When the option is false and initial values were requested, the manager
+schedules them for its transferred items as before.
+
+`CustomNodeManager2` and `AsyncCustomNodeManager` retain the old transfer
+overloads as obsolete methods. They forward calls to the new overloads, but
+server dispatch calls the new overloads directly. A subclass that only
+overrides an old overload must move its override to the overload accepting
+`MonitoredItemTransferOptions`; the old override is not invoked by the new
+dispatch path. Review the transfer logic for deferred initial values as part
+of that change.
+
 ### INodeManager3 - new role-permission and method-resolution hooks
 
-2.0 introduces `INodeManager3`, an extension of `INodeManager2` that surfaces explicit hooks for per-role permission evaluation and for resolving the target of a `Call` request. `CustomNodeManager2` implements the new members with safe defaults that mirror the previous behavior, so node managers that already derive from `CustomNodeManager2` need no changes.
+2.0 introduces `INodeManager3`, which extends `INodeManager2` with hooks for
+per-role permission evaluation, session activation and resolving the target
+of a `Call` request. `CustomNodeManager2` implements these members.
 
-Custom node managers that implement `INodeManager` / `INodeManager2` **directly** (not via `CustomNodeManager2`) silently lose the new behavior: the server probes for `INodeManager3` at the call site, and node managers that do not implement it fall through to the legacy code path. This is not a build break - it is a silent feature-availability regression. Either derive from `CustomNodeManager2` or implement `INodeManager3` explicitly to participate in role-permission evaluation and the new method-resolution contract.
+After updating the base interface signatures above, a direct implementation
+of `INodeManager` or `INodeManager2` can omit `INodeManager3`. If a synchronous
+manager also does not implement `IAsyncNodeManager`, its adapter returns
+`Good` for the manager-specific role-validation hooks, returns no method from
+the method-resolution hook and does not call a manager-specific session
+activation hook. Other server authorization checks may still apply. Implement
+`INodeManager3` or derive from `CustomNodeManager2` to participate in those
+hooks. The master's call prevalidation checks the object's and method's
+`Call` permissions only when the method-resolution hook returns a method.
+Review the manager's authorization path if the hook is omitted.
 
 ### NodeState guards itself; NodeBrowser is single-consumer (UA0027)
 

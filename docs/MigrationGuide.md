@@ -21,6 +21,7 @@ covers cross-cutting changes.
 - [Adopting replica-consistent NodeIds](#adopting-replica-consistent-nodeids)
 - [Removed members on ISession](#removed-members-on-isession)
 - [Awaiting custom node-manager cleanup](#awaiting-custom-node-manager-cleanup)
+- [Migrating custom NodeManager interfaces](#migrating-custom-nodemanager-interfaces)
 - [Migrating code that called IServerInternal.Set\* mutators](#migrating-code-that-called-iserverinternalset-mutators)
 - [Migrating IServerStartupTask implementations to IServerContext](#migrating-iserverstartuptask-implementations-to-iservercontext)
 - [Removed members on IServerInternal](#removed-members-on-iserverinternal)
@@ -437,6 +438,16 @@ await its own drain with `DisposeAsync()`. Await completion outside the
 callback. Server and master-node-manager asynchronous teardown already await
 adapted synchronous managers, so server-owned managers need no additional
 disposal call.
+
+## Migrating custom NodeManager interfaces
+
+Custom managers implementing `INodeManager`, `INodeManager2` or
+`IAsyncNodeManager` directly must update changed signatures. Direct
+`IAsyncNodeManager` implementations also have new required members.
+Subclasses overriding the old monitored-item transfer methods must move their
+overrides to the options-taking methods used by server dispatch. See
+[custom NodeManager interface changes](migrate/2.0.x/node-states.md#custom-nodemanager-interface-changes)
+for the affected methods and deferred initial-value behavior.
 
 ## Migrating code that called IServerInternal.Set* mutators
 
