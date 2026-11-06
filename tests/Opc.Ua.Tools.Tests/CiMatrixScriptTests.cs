@@ -489,8 +489,8 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
-        /// The server suite is split into exclusive filters so slower runners
-        /// stay within the per-project execution budget.
+        /// The net48 and macOS server suites use exclusive filters; other
+        /// profiles retain the unfiltered workload.
         /// </summary>
         [TestCase("pr")]
         [TestCase("full")]
@@ -512,26 +512,48 @@ namespace Opc.Ua.Tools.Tests
                 "server-transport",
                 "server-other"
             ];
-            foreach (IGrouping<string, MatrixEntry> profile in server.GroupBy(entry => entry.Profile))
-            {
-                Assert.That(profile.Select(entry => entry.Shard), Is.EquivalentTo(serverShards));
-            }
-
-            (string TestName, string ExpectedShard)[] testCases =
+            string[] macServerShards =
             [
-                ("Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.TestAsync", "server-node-management"),
-                ("Opc.Ua.Server.Tests.Fluent.FluentNodeManagerBasePipelineTests.TestAsync", "server-node-management"),
-                ("Opc.Ua.Server.Tests.Historian.HistorianDispatcherTests.TestAsync", "server-historian"),
-                ("Opc.Ua.Server.Tests.SubscriptionTests.TransferSubscriptionAsync", "server-subscriptions"),
-                ("Opc.Ua.Server.Tests.Session.SessionTests.TestAsync", "server-sessions"),
-                ("Opc.Ua.Server.Tests.Configuration.TrustListTests.TestAsync", "server-configuration"),
-                ("Opc.Ua.Server.Tests.RuntimeNodeSet.RuntimeNodeSetTests.TestAsync", "server-runtime"),
-                ("Opc.Ua.Server.Tests.ReverseConnectServerTests.TestAsync", "server-transport"),
-                ("Opc.Ua.Server.Tests.RequestTableTests.TestAsync", "server-other")
+                "server-node-historian",
+                "server-subscriptions-sessions",
+                "server-configuration-runtime",
+                "server-other"
             ];
             foreach (IGrouping<string, MatrixEntry> profile in server.GroupBy(entry => entry.Profile))
             {
-                foreach ((string testName, string expectedShard) in testCases)
+                MatrixEntry first = profile.First();
+                string[] expectedShards = first.Framework == "net48"
+                    ? serverShards
+                    : first.Os == "macos" ? macServerShards : ["all"];
+                Assert.That(profile.Select(entry => entry.Shard), Is.EquivalentTo(expectedShards));
+            }
+
+            (string TestName, string ExpectedShard, string MacShard)[] testCases =
+            [
+                ("Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.TestAsync",
+                    "server-node-management", "server-node-historian"),
+                ("Opc.Ua.Server.Tests.Fluent.FluentNodeManagerBasePipelineTests.TestAsync",
+                    "server-node-management", "server-node-historian"),
+                ("Opc.Ua.Server.Tests.Historian.HistorianDispatcherTests.TestAsync",
+                    "server-historian", "server-node-historian"),
+                ("Opc.Ua.Server.Tests.SubscriptionTests.TransferSubscriptionAsync",
+                    "server-subscriptions", "server-subscriptions-sessions"),
+                ("Opc.Ua.Server.Tests.Session.SessionTests.TestAsync",
+                    "server-sessions", "server-subscriptions-sessions"),
+                ("Opc.Ua.Server.Tests.Configuration.TrustListTests.TestAsync",
+                    "server-configuration", "server-configuration-runtime"),
+                ("Opc.Ua.Server.Tests.RuntimeNodeSet.RuntimeNodeSetTests.TestAsync",
+                    "server-runtime", "server-configuration-runtime"),
+                ("Opc.Ua.Server.Tests.Network.NetworkModelIntegrationTests." +
+                    "LldpOptionalCapabilitiesArePublishedAndRemovedAsync",
+                    "server-subscriptions", "server-subscriptions-sessions"),
+                ("Opc.Ua.Server.Tests.ReverseConnectServerTests.TestAsync", "server-transport", "server-other"),
+                ("Opc.Ua.Server.Tests.RequestTableTests.TestAsync", "server-other", "server-other")
+            ];
+            foreach (IGrouping<string, MatrixEntry> profile in server.GroupBy(entry => entry.Profile))
+            {
+                MatrixEntry first = profile.First();
+                foreach ((string testName, string expectedShard, string macShard) in testCases)
                 {
                     string[] matches = profile
                         .Where(entry => MatchesServerFilter(entry.Filter, testName))
@@ -539,7 +561,10 @@ namespace Opc.Ua.Tools.Tests
                         .ToArray();
                     Assert.That(
                         matches,
-                        Is.EqualTo(new[] { expectedShard }),
+                        Is.EqualTo(new[]
+                        {
+                            first.Framework == "net48" ? expectedShard : first.Os == "macos" ? macShard : "all"
+                        }),
                         $"Profile '{profile.Key}', test '{testName}'.");
                 }
             }
@@ -709,6 +734,11 @@ namespace Opc.Ua.Tools.Tests
         /// </summary>
         private static bool MatchesServerFilter(string filter, string testName)
         {
+            if (string.IsNullOrEmpty(filter))
+            {
+                return true;
+            }
+
             string[] categories = [];
             return filter.Split('&').All(term =>
             {
