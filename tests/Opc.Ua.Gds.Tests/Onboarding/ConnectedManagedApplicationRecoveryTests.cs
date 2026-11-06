@@ -313,6 +313,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 await TrustRegistrarAsync(m_managed.Config).ConfigureAwait(false);
                 await m_managed.StartAsync().ConfigureAwait(false);
                 m_managedStarted = true;
+                RegisterAdministrator(m_managed.Server);
                 EndpointDescription managed = await DiscoverAsync(m_managed).ConfigureAwait(false);
                 InitialManagedCertificate = Leaf(managed.ServerCertificate);
                 await File.WriteAllBytesAsync(Path.Combine(m_root, "managed-operator.der"),
@@ -320,9 +321,12 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 await TrustAsync(managed.ServerCertificate).ConfigureAwait(false);
                 await m_dca.LoadConfigurationAsync(Path.Combine(m_root, "dca")).ConfigureAwait(false);
                 m_dca.Config.ApplicationUri = "urn:localhost:connected:dca";
+                m_dca.Config.ServerConfiguration!.UserTokenPolicies =
+                    [new UserTokenPolicy(UserTokenType.UserName)];
                 await TrustRegistrarAsync(m_dca.Config).ConfigureAwait(false);
                 await m_dca.StartAsync().ConfigureAwait(false);
                 m_dcaStarted = true;
+                RegisterAdministrator(m_dca.Server);
                 EndpointDescription dca = await DiscoverAsync(m_dca).ConfigureAwait(false);
                 DcaApplication = CoreUtils.Clone(dca.Server)!;
                 ByteString bootstrap = Leaf(dca.ServerCertificate);
@@ -775,14 +779,26 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             }
 
             /// <summary>
-            /// Registers the generated fixture credential with each server before startup.
+            /// Creates each independent reference server.
             /// </summary>
-            private ReferenceServer CreateServer(ITelemetryContext telemetry)
+            private static ReferenceServer CreateServer(ITelemetryContext telemetry)
             {
-                var server = new ReferenceServer(telemetry);
+                return new ReferenceServer(telemetry);
+            }
+
+            /// <summary>
+            /// Registers the generated account through live user management before assigning its roles.
+            /// </summary>
+            private void RegisterAdministrator(ReferenceServer server)
+            {
+                var users = server.CurrentInstance.UserManagement!;
+                ServiceResult result = users.AddUser(
+                    m_userName, Encoding.UTF8.GetString(m_password), 0, string.Empty);
+                Assert.That(ServiceResult.IsGood(result), Is.True);
                 Assert.That(server.UserDatabase.CreateUser(m_userName, m_password,
-                    [Role.SecurityAdmin, Role.ConfigureAdmin, Role.AuthenticatedUser]), Is.True);
-                return server;
+                    [Role.SecurityAdmin, Role.ConfigureAdmin, Role.AuthenticatedUser]), Is.False);
+                Assert.That(users.IsUserActive(m_userName), Is.True);
+                Assert.That(server.UserDatabase.CheckCredentials(m_userName, m_password), Is.True);
             }
 
             /// <summary>
