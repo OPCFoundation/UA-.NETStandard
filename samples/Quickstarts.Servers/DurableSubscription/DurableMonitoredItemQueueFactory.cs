@@ -319,7 +319,12 @@ namespace Quickstarts.Servers
             encoder.WriteInt32(null, q.ItemsInQueue);
             encoder.WriteUInt32(null, q.QueueSize);
             EncodeDataChangeBatch(encoder, q.EnqueueBatch);
-            EncodeDataChangeBatch(encoder, q.DequeueBatch);
+            // a single batch is both the enqueue and the dequeue batch: store it once
+            // (a null dequeue batch restores as the enqueue batch). Storing it twice restores
+            // two independent lists, so values enqueued after the restore are never dequeued.
+            EncodeDataChangeBatch(
+                encoder,
+                ReferenceEquals(q.DequeueBatch, q.EnqueueBatch) ? null : q.DequeueBatch);
 
             int batchCount = q.DataChangeBatches?.Count ?? 0;
             encoder.WriteInt32(null, batchCount);
@@ -339,10 +344,17 @@ namespace Quickstarts.Servers
                 IsDurable = decoder.ReadBoolean(null),
                 MonitoredItemId = decoder.ReadUInt32(null),
                 ItemsInQueue = decoder.ReadInt32(null),
-                QueueSize = decoder.ReadUInt32(null),
-                EnqueueBatch = DecodeDataChangeBatch(decoder),
-                DequeueBatch = DecodeDataChangeBatch(decoder)
+                QueueSize = decoder.ReadUInt32(null)
             };
+            q.EnqueueBatch = DecodeDataChangeBatch(decoder, out Uuid enqueueBatchId);
+            q.DequeueBatch = DecodeDataChangeBatch(decoder, out Uuid dequeueBatchId);
+
+            // files written before the shared batch was stored once hold the batch that was
+            // both the enqueue and the dequeue batch in both slots: restore it once.
+            if (q.EnqueueBatch != null && q.DequeueBatch != null && enqueueBatchId == dequeueBatchId)
+            {
+                q.DequeueBatch = null;
+            }
 
             int batchCount = decoder.ReadInt32(null);
             q.DataChangeBatches = new List<DataChangeBatch>(batchCount);
@@ -382,13 +394,19 @@ namespace Quickstarts.Servers
 
         internal static DataChangeBatch? DecodeDataChangeBatch(BinaryDecoder decoder)
         {
+            return DecodeDataChangeBatch(decoder, out _);
+        }
+
+        private static DataChangeBatch? DecodeDataChangeBatch(BinaryDecoder decoder, out Uuid batchId)
+        {
+            batchId = default;
             bool hasValue = decoder.ReadBoolean(null);
             if (!hasValue)
             {
                 return null;
             }
 
-            _ = decoder.ReadGuid(null);
+            batchId = decoder.ReadGuid(null);
             uint batchSize = decoder.ReadUInt32(null);
             uint monItemId = decoder.ReadUInt32(null);
             bool isPersisted = decoder.ReadBoolean(null);

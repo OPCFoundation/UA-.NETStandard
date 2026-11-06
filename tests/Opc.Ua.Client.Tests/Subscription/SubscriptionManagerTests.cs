@@ -2086,6 +2086,45 @@ namespace Opc.Ua.Client.Subscriptions
             await WaitUntilAsync(() => provider.Count(level, kRejectedText) >= 1, testCt).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Capture response metadata before the Publish worker queues native delivery.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [CancelAfter(10_000)]
+        public async Task PublishWorkerPreservesSplitMetadataAsync(bool moreNotifications, CancellationToken ct)
+        {
+            var received = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var context = new FakeSubscriptionManagerContext();
+            List<FakeManagedSubscription> partitions = AddPartitionFactory(context);
+            await using var manager = new SubscriptionManager(context, m_telemetry.LoggerFactory, DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 1,
+                MaxPublishWorkerCount = 1
+            };
+            int calls = 0;
+            context.OnPublishAsync = async (_, acknowledgements, token) =>
+            {
+                if (Interlocked.Increment(ref calls) > 1)
+                {
+                    await Task.Delay(Timeout.InfiniteTimeSpan, token).ConfigureAwait(false);
+                }
+                PublishResponse response = CreatePublishResponse(1, acknowledgements);
+                response.MoreNotifications = moreNotifications;
+                response.NotificationMessage.MoreNotifications = !moreNotifications;
+                return response;
+            };
+            manager.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                new SubscriptionOptions { DisableUnboundedItemMode = true }));
+            partitions[0].OnPublishReceivedAsyncFunc = (message, _, _) =>
+            {
+                received.TrySetResult(message.MoreNotifications);
+                return default;
+            };
+            manager.Resume();
+            Assert.That(await received.Task.WaitAsync(ct).ConfigureAwait(false), Is.EqualTo(moreNotifications));
+        }
+
         [Test]
         public async Task SendPublishRequestsWithSuccessAsync()
         {

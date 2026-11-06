@@ -73,7 +73,8 @@ namespace Opc.Ua.AMB.Server
     /// assets meet now and withdraws what they no longer meet.
     /// </para>
     /// </remarks>
-    public sealed partial class AmbNodeManager : FluentNodeManagerBase, IConformanceContributor
+    public sealed partial class AmbNodeManager : FluentNodeManagerBase, IConformanceContributor,
+        INodeManagerReadinessNotification
     {
         /// <summary>
         /// Creates the node manager without hosting integration.
@@ -153,8 +154,8 @@ namespace Opc.Ua.AMB.Server
         /// <inheritdoc/>
         /// <remarks>
         /// Wires the asset discovery and lists the assets registered so far,
-        /// then runs the configurators registered with
-        /// <c>ConfigureAssetManagement</c>, while the builder is still open.
+        /// then defers the shared-service configurators registered with
+        /// <c>ConfigureAssetManagement</c> until published readiness, keeping the builder open until they complete.
         /// </remarks>
         protected override async ValueTask ConfigureAsync(
             INodeManagerBuilder builder,
@@ -163,10 +164,16 @@ namespace Opc.Ua.AMB.Server
             await InitializeAlarmTypesAsync(cancellationToken).ConfigureAwait(false);
             await InitializeDiscoveryAsync(cancellationToken).ConfigureAwait(false);
             await InitializeLocationsAsync(cancellationToken).ConfigureAwait(false);
-            if (m_setupRunner != null)
+            if (m_setupRunner is { } runner)
             {
-                await m_setupRunner.RunAsync(this, builder, cancellationToken).ConfigureAwait(false);
+                DeferPublishedAuthoringUntilReady(builder, (published, ct) => runner.RunAsync(this, published, ct));
             }
+        }
+
+        /// <inheritdoc/>
+        public ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)
+        {
+            return CompletePublishedConfigurationAsync(cancellationToken);
         }
 
         /// <summary>
@@ -180,7 +187,7 @@ namespace Opc.Ua.AMB.Server
         /// </remarks>
         internal async ValueTask OnAssetsChangedAsync(CancellationToken cancellationToken)
         {
-            if (Server is ServerInternalData { ConformanceUnitsManager: { } conformance })
+            if (Server is IConformanceUnitsManagerProvider { ConformanceUnitsManager: { } conformance })
             {
                 conformance.Register(this);
                 await conformance.PublishAsync(cancellationToken).ConfigureAwait(false);

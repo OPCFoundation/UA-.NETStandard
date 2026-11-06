@@ -13,11 +13,10 @@
 
     The emitted TRX decides the verdict, not the 'dotnet test' exit code. A
     non-zero exit is tolerated when - and only when - the results record at least
-    one *passing* test, no failure of any kind, and no test fixture whose setup or
-    teardown failed, which means the host died during process exit after the last
-    test and every teardown had already run. A host that dies mid-run leaves a
-    non-zero failed/aborted/passedButRunAborted counter and is rejected, and a
-    suite whose tests were all skipped is rejected as well.
+    one passing test, no non-passing counter, no failed fixture, and no Error
+    RunInfo. A host crash can leave passing counters and an Error RunInfo, so
+    counters alone do not establish that the run completed. A suite whose tests
+    were all skipped is rejected as well.
 #>
 
 <#
@@ -45,6 +44,10 @@
     as Measure-TestResults reads them from the TRX run messages. No counter
     records these failures.
 
+ .PARAMETER RunFailures
+    Error RunInfo messages reported by the test host, including crashes or
+    aborted runs that do not appear in the test counters.
+
  .PARAMETER ExitCode
     Exit code of the 'dotnet test' process.
 
@@ -70,7 +73,8 @@ function Get-TestRunVerdict
         [Parameter(Mandatory = $true)] [int] $ExitCode,
         [Parameter(Mandatory = $true)] [bool] $TimedOut,
         [Parameter(Mandatory = $false)] [int] $TimeoutMinutes = 0,
-        [Parameter(Mandatory = $false)] [string[]] $FixtureFailures = @()
+        [Parameter(Mandatory = $false)] [string[]] $FixtureFailures = @(),
+        [Parameter(Mandatory = $false)] [string[]] $RunFailures = @()
     )
 
     # A timeout is never benign: the executor killed a process that was still
@@ -119,6 +123,15 @@ function Get-TestRunVerdict
         }
     }
 
+    $runFailureList = @($RunFailures | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    if ($runFailureList.Count -gt 0) {
+        return [pscustomobject]@{
+            Passed    = $false
+            Tolerated = $false
+            Reason    = ("$($runFailureList.Count) test run error(s): $($runFailureList -join '; ').")
+        }
+    }
+
     if ($Total -le 0) {
         return [pscustomobject]@{
             Passed    = $false
@@ -155,7 +168,7 @@ function Get-TestRunVerdict
 <#
  .SYNOPSIS
     Sums the counters of every TRX below a directory and collects the test
-    fixtures whose setup or teardown failed.
+    fixtures whose setup or teardown failed and Error RunInfo messages.
 
  .DESCRIPTION
     A failed fixture setup or teardown is not a test result, so no counter
@@ -171,6 +184,7 @@ function Measure-TestResults([string] $directory)
     $passed = 0
     $failed = 0
     $fixtureFailures = [System.Collections.Generic.List[string]]::new()
+    $runFailures = [System.Collections.Generic.List[string]]::new()
     $nonPassingCounters = @(
         'failed',
         'error',
@@ -200,6 +214,13 @@ function Measure-TestResults([string] $directory)
             }
         }
         foreach ($runInfo in $document.GetElementsByTagName('RunInfo')) {
+            if ($runInfo.GetAttribute('outcome') -eq 'Error') {
+                $message = $runInfo.InnerText.Trim()
+                if ([string]::IsNullOrWhiteSpace($message)) {
+                    $message = 'The test host reported an Error RunInfo without a message.'
+                }
+                $runFailures.Add($message)
+            }
             # The NUnit adapter writes "Setup" or "TearDown"; accept either
             # spelling of both.
             if ($runInfo.InnerText -match '^\s*(set ?up|tear ?down) failed for test fixture [^\r\n]+') {
@@ -213,6 +234,7 @@ function Measure-TestResults([string] $directory)
         Passed          = $passed
         Failed          = $failed
         FixtureFailures = $fixtureFailures.ToArray()
+        RunFailures     = $runFailures.ToArray()
     }
 }
 

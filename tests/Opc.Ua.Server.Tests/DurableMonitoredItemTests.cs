@@ -1273,9 +1273,9 @@ namespace Opc.Ua.Server.Tests
                 {
                     // Production deletes a monitored node by detaching the item and marking
                     // it deleted, so establish both flags here as well.
-                    var sourceLifecycle = (IDetachableMonitoredItem)source;
-                    sourceLifecycle.MarkNodeDeleted();
-                    sourceLifecycle.BeginDetach();
+                    var sourceBinding = (IMonitoredItemGenerationBinding)source;
+                    sourceBinding.Invalidate(terminal: false);
+                    Assert.That(sourceBinding.TryClearSource(sourceBinding.SourceRevision), Is.True);
                     var notifications = new Queue<MonitoredItemNotification>();
                     var diagnostics = new Queue<DiagnosticInfo>();
                     source.Publish(
@@ -1314,7 +1314,7 @@ namespace Opc.Ua.Server.Tests
                     new Mock<IAsyncNodeManager>().Object,
                     new object(),
                     stored);
-                var restoredLifecycle = (IDetachableMonitoredItem)restored;
+                var restoredLifecycle = (IMonitoredItemGenerationBinding)restored;
                 var restoredNotifications = new Queue<MonitoredItemNotification>();
                 if (disabledBeforeStore)
                 {
@@ -1331,7 +1331,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.Multiple(() =>
                 {
                     Assert.That(restoredLifecycle.IsDeleted, Is.True);
-                    Assert.That(restoredLifecycle.IsDetached, Is.True);
+                    Assert.That(restoredLifecycle.IsSourceUnavailable, Is.True);
                     if (disabledBeforeStore)
                     {
                         // leaving DISABLED reports the deleted node once more, as it does for

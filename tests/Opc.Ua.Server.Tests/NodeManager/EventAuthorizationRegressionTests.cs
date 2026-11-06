@@ -756,6 +756,148 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// Ensures the permission gate suspends exactly one result.
             /// </summary>
             private int m_blocked;
+
+            /// <summary>
+            /// Routes node-management services to real in-memory node initialization and deletion.
+            /// The proxy opts in to management without replacing the monitored notifier or its recipients.
+            /// </summary>
+            public MasterNodeManager CreateNodeManagementDispatcher(BaseObjectState replacement)
+            {
+                var types = (TypeTable)m_server.Object.TypeTree;
+                types.AddSubtype(ReferenceTypeIds.References, NodeId.Null);
+                types.AddSubtype(ReferenceTypeIds.HierarchicalReferences, ReferenceTypeIds.References);
+                types.AddSubtype(ReferenceTypeIds.Organizes, ReferenceTypeIds.HierarchicalReferences);
+                var manager = new Mock<IAsyncNodeManager>();
+                manager.SetupGet(value => value.NamespaceUris).Returns(m_nodes.NamespaceUris);
+                manager.SetupGet(value => value.AllowNodeManagement).Returns(true);
+                manager.Setup(value => value.GetManagerHandleAsync(
+                        It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+                    .Returns<NodeId, CancellationToken>((id, ct) => m_nodes.GetManagerHandleAsync(id, ct));
+                manager.Setup(value => value.GetNodeMetadataAsync(
+                        It.IsAny<OperationContext>(), It.IsAny<object>(),
+                        It.IsAny<BrowseResultMask>(), It.IsAny<CancellationToken>()))
+                    .Returns<OperationContext, object, BrowseResultMask, CancellationToken>(
+                        (context, handle, mask, ct) => m_nodes.GetNodeMetadataAsync(context, handle, mask, ct));
+                manager.Setup(value => value.DeleteNodeAsync(
+                        It.IsAny<OperationContext>(), It.IsAny<DeleteNodesItem>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns(async (OperationContext context, DeleteNodesItem item, CancellationToken ct) =>
+                    {
+                        bool deleted = await m_nodes.DeleteNodeAsync(
+                            m_nodes.SystemContext, item.NodeId, ct).ConfigureAwait(false);
+                        return deleted ? ServiceResult.Good : new ServiceResult(StatusCodes.BadNodeIdUnknown);
+                    });
+                manager.Setup(value => value.AddNodeAsync(
+                        It.IsAny<OperationContext>(), It.IsAny<AddNodesItem>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns(async (OperationContext context, AddNodesItem item, CancellationToken ct) =>
+                    {
+                        Assert.That(item.RequestedNewNodeId, Is.EqualTo(new ExpandedNodeId(replacement.NodeId)));
+                        NodeId id = await m_nodes.AddNodeAsync(
+                            m_nodes.SystemContext, NodeId.Null, replacement, ct).ConfigureAwait(false);
+                        return (ServiceResult.Good, id);
+                    });
+                return DeterministicServerMock.CreateMasterNodeManager(m_server, [manager.Object]);
+            }
+
+            /// <summary>Proves repeated event delivery used the cached verdict for each unchanged recipient.</summary>
+            public void AssertPermissionValidationCount(int count)
+            {
+                Mock<IAsyncNodeManager> validator = Mock.Get(m_monitored.NodeManager);
+                foreach (uint id in new uint[] { 1, 2 })
+                {
+                    validator.Verify(value => value.ValidateEventRolePermissionsAsync(
+                        It.Is<IEventMonitoredItem>(item => item.Id == id),
+                        It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()), Times.Exactly(count));
+                }
+            }
+
+            /// <summary>Returns the currently indexed instance, independently of the event's fixed SourceNode.</summary>
+            public NodeState? FindSource() => m_nodes.Find(Source.NodeId);
+        }
+
+        /// <summary>
+        /// Node-management dispatch must retire cached source ACL verdicts even when routing never publishes.
+        /// </summary>
+        [Test]
+        [NonParallelizable]
+        [Category("SecurityRegression")]
+        public async Task SameNodeIdDeleteAddDispatchInvalidatesCachedReceiveEventsWithoutRoutingChangeAsync()
+        {
+            await using var harness = new EventHarness(true);
+            await harness.InitializeAsync().ConfigureAwait(false);
+            // Construct the denied ACL before warming the verdict: its setter must not be the invalidation seam.
+            var replacement = new BaseObjectState(null)
+            {
+                NodeId = harness.Source.NodeId,
+                BrowseName = harness.Source.BrowseName,
+                EventNotifier = EventNotifiers.SubscribeToEvents,
+                RolePermissions =
+                [
+                    new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_Operator,
+                        Permissions = (uint)PermissionType.ReceiveEvents
+                    }
+                ]
+            };
+            using MasterNodeManager dispatcher = harness.CreateNodeManagementDispatcher(replacement);
+            var routing = (IDynamicNodeManagerBatchHost)dispatcher;
+            NodeManagerRoutingTable.RoutingSnapshot snapshot = routing.RoutingRevision;
+            IEventMonitoredItem recipient = harness.AliceReceiver.Object;
+            await harness.ReportAsync("warm-allow").ConfigureAwait(false);
+            await harness.ReportAsync("cached-allow").ConfigureAwait(false);
+            harness.AssertPermissionValidationCount(1);
+            Assert.That(harness.AliceEvents.ToArray(), Is.EqualTo<string[]>(["warm-allow", "cached-allow"]));
+
+            using (var context = new OperationContext(
+                new RequestHeader(), null, RequestType.DeleteNodes, RequestLifetime.None))
+            {
+                (ArrayOf<StatusCode> results, _) = await dispatcher.DeleteNodesAsync(
+                    context, [new DeleteNodesItem { NodeId = harness.Source.NodeId, DeleteTargetReferences = true }])
+                    .ConfigureAwait(false);
+                Assert.That(results, Has.Count.EqualTo(1));
+                Assert.That(results[0], Is.EqualTo(StatusCodes.Good));
+            }
+            Assert.That(harness.FindSource(), Is.Null);
+            Assert.That(routing.RoutingRevision, Is.SameAs(snapshot));
+            using (var context = new OperationContext(
+                new RequestHeader(), null, RequestType.AddNodes, RequestLifetime.None))
+            {
+                (ArrayOf<AddNodesResult> results, _) = await dispatcher.AddNodesAsync(context,
+                [
+                    new AddNodesItem
+                    {
+                        ParentNodeId = harness.EventType.NodeId,
+                        ReferenceTypeId = ReferenceTypeIds.Organizes,
+                        RequestedNewNodeId = replacement.NodeId,
+                        BrowseName = replacement.BrowseName,
+                        NodeClass = NodeClass.Object,
+                        NodeAttributes = new ExtensionObject(new ObjectAttributes
+                        {
+                            DisplayName = new LocalizedText("Replacement source"),
+                            EventNotifier = EventNotifiers.SubscribeToEvents
+                        })
+                    }
+                ]).ConfigureAwait(false);
+                Assert.That(results, Has.Count.EqualTo(1));
+                Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(results[0].AddedNodeId, Is.EqualTo(harness.Source.NodeId));
+            }
+            Assert.That(harness.FindSource(), Is.SameAs(replacement));
+            Assert.That(harness.FindSource(), Is.Not.SameAs(harness.Source));
+            Assert.That(routing.RoutingRevision, Is.SameAs(snapshot));
+            Assert.That(harness.AliceReceiver.Object, Is.SameAs(recipient));
+
+            await harness.ReportAsync("replacement-denied").ConfigureAwait(false);
+
+            Assert.That(harness.AliceEvents.ToArray(), Is.EqualTo<string[]>(["warm-allow", "cached-allow"]),
+                "The prior ReceiveEvents allow must not authorize the replacement source.");
+            Assert.That(harness.BobEvents.ToArray(),
+                Is.EqualTo<string[]>(["warm-allow", "cached-allow", "replacement-denied"]),
+                "The replacement event must actually reach the unaffected recipient.");
+            harness.AssertPermissionValidationCount(2);
+            Assert.That(routing.RoutingRevision, Is.SameAs(snapshot));
         }
     }
 }

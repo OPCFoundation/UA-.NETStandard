@@ -48,6 +48,10 @@ session scalability.
   - [Observed scaling](#observed-scaling)
   - [Subscription transport buffer pooling](#subscription-transport-buffer-pooling)
   - [Sizing and configuration](#sizing-and-configuration)
+- [NodeManager lifecycle measurements](#nodemanager-lifecycle-measurements)
+  - [Type registration snapshots](#type-registration-snapshots)
+  - [Notification and permission costs](#notification-and-permission-costs)
+  - [Session activation scaling](#session-activation-scaling)
 
 ## How to run
 
@@ -639,6 +643,15 @@ commit with the lower delivery (0edc3b55a: 98 %, 2.8 µs per notification;
 65a67dd2f: 6 %, 94 µs). The 10-session row above may be affected as well:
 its CPU per notification is about twice the value reported in #4829.
 
+The lock-free admission, cached exact-source verdict and shared subscriber
+context changes from draft #4874 target this regression. Its paired runs on a
+Ryzen AI 9 HX 370 reported 98.4–98.8 % delivery at 4.7–4.8 µs of server CPU
+per notification. A validation run on another machine after applying those
+changes delivered 88.8 % and 91.7 % at 3.2 and 3.1 µs, respectively. These
+results are not directly comparable across machines; rerun the paired harness
+scenario below on the target hardware before treating the delivery percentage
+as an acceptance threshold.
+
 Results of the individual pull requests, measured as paired A/B rounds
 against the previous `master` when each was merged, are recorded in
 #4829 (publish cadence: 50 × 15 × 600 delivered 67.7 % → 97.8 %),
@@ -857,3 +870,93 @@ The net10.0 in-process short `BufferManagerBenchmarks` run completed 256 `Buffer
 * Session establishment is CPU-bound (RSA handshakes) but parallelizes across cores; throttle/stagger concurrent connects and scale cores for bulk connection throughput.
 
 > A full macro benchmark that produces a capability matrix (sessions × subscriptions × items against CPU/memory) across configurations is planned as follow-up work.
+
+## NodeManager lifecycle measurements
+
+These measurements cover metadata capture and private candidate preparation.
+They do not measure complete lifecycle transactions or establish notification,
+session-activation or retirement throughput.
+
+### Type registration snapshots
+
+Type-table snapshots share a registration graph until their first write.
+The first mutation copies that graph; capture alone does not. See
+[NodeManager DataTypes](NodeManagers.md#datatypes) for the publication and
+ownership contract.
+
+A three-round sequential net10.0 Release comparison against
+`fcfc84eab5c105780d7268474a47d344d100aca1` recorded the following medians
+for five snapshots. The candidate uses copy-on-write type registration storage.
+This record does not identify the candidate SHA or machine configuration,
+so the figures describe that run rather than a reproducible capacity baseline.
+
+| Registered types | Baseline time / allocation | Copy-on-write time / allocation |
+| ---: | ---: | ---: |
+| 128 | 0.172 ms / 43,696 bytes | 0.024 ms / 5,216 bytes |
+| 2,048 | 7.827 ms / 828,296 bytes | 0.018 ms / 5,216 bytes |
+| 16,384 | 26.784 ms / 4,596,984 bytes | 0.017 ms / 5,208 bytes |
+
+At 16,384 types, five first mutations measured 29.054 ms and 4,597,048 bytes
+on the candidate. Copying moves from capture under the serving-table lock
+to the first write under the private staging-table lock; total copy work is
+not eliminated.
+
+A separate three-round alternating net10.0 Release comparison used baseline
+`0a48fb5cf2de4c9bec3a2beafe41d8caedb482ea` and candidate
+`1cf9db60d24feb1b916f2e4741d92a1334f4f5c7`. Each round measured five
+`LifecycleWriter.CaptureRevision` calls, then four concurrent preparations
+through `ChangePreparer.CreateNodeManagerAsync`. Each factory added one
+distinct root subtype to its private type table. Capture columns report
+median elapsed time and allocation; preparation columns report median wall
+time and summed worker allocations.
+
+| Registered types | Baseline capture, 5 calls | Candidate capture, 5 calls | Baseline preparation, 4 candidates | Candidate preparation, 4 candidates |
+| ---: | ---: | ---: | ---: | ---: |
+| 128 | 0.29 ms / 225,568 bytes | 0.14 ms / 32,888 bytes | 2.97 ms / 394,168 bytes | 3.34 ms / 420,056 bytes |
+| 2,048 | 9.81 ms / 4,148,568 bytes | 0.08 ms / 32,888 bytes | 3.01 ms / 3,470,232 bytes | 10.55 ms / 3,491,872 bytes |
+| 16,384 | 22.85 ms / 22,992,048 bytes | 0.09 ms / 32,888 bytes | 23.87 ms / 18,547,144 bytes | 6.33 ms / 18,572,808 bytes |
+
+Candidate capture time and allocation stayed nearly constant as the model
+grew. Preparation with a first type write was faster at 16,384 types, similar
+at 128 and slower at 2,048; worker allocations were close at every size.
+The fixture measures metadata capture, staging-server creation and one type
+registration. Its models use root registrations rather than a representative
+hierarchy, and it does not measure address-space construction or routing
+publication. Machine configuration is not recorded for this comparison.
+Treat the timings as directional.
+
+The explicit diagnostic fixtures are
+`TypeTableSnapshotPerformanceTests.CaptureSnapshotReportsTimeAndAllocation`
+in `Opc.Ua.Types.Tests` and
+`TypeRegistrationSnapshotPerformanceTests.CaptureRevisionAndConcurrentPreparationReportTimeAndAllocationAsync`
+in `Opc.Ua.Server.Tests`. Select them by full method name in a Release
+`dotnet test` run to collect the corresponding measurements.
+
+### Notification and permission costs
+
+`perf/ServerLoadHarness` can run write-driven `sub`, sampled `native-counters`,
+and high-fanout `events` scenarios. It reports total server CPU and allocation
+per operation, delivered notifications, latency, and can collect CPU,
+allocation, or contention traces. Those results do not separately attribute
+each delivery's collection snapshots, `NamespaceDefaultPermissionReader`,
+`ConditionalWeakTable` access, or their contention. The in-process
+`MonitoredItemBenchmarks.QueueEvent` benchmark only queues synthetic events; it
+does not exercise subscriber delivery or authorization.
+
+Whole-workload CPU and allocation measurements do not establish the cost of
+an individual cache or registration-storage change. No isolated comparative
+measurement is recorded here for those costs.
+
+### Session activation scaling
+
+`SessionManager.GetSessions()` creates a list from `m_sessions.Values`.
+`MasterNodeManager.SessionActivatedAsync` searches that list.
+`GenerationReconciler` enumerates it during binding and reconciliation, and
+checks session identity by taking new snapshots around activation callbacks
+in `src/Opc.Ua.Server/NodeManager/Lifecycle/GenerationReconciler.cs`.
+
+The session-load test measures connection establishment and steady-state
+notification delivery, not activation cost versus generation count during
+concurrent publication and close. No activation-scaling comparison is recorded
+here. Connection throughput must not be interpreted as a measurement of that
+reconciliation path.

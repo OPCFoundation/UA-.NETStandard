@@ -342,8 +342,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// A durable event queue persisted with the literal size 1 must be resized
         /// to the revised size when the monitored item is restored.
         /// </summary>
-        [Test]
-        public void RestoreMonitoredItemResizesRestoredEventQueue()
+        [TestCase(false)]
+        [TestCase(true)]
+        public void RestoreMonitoredItemResizesRestoredEventQueue(bool wasUnbound)
         {
             Mock<IServerInternal> server = DeterministicServerMock.Create(
                 out MonitoredItemQueueFactory queueFactory);
@@ -375,15 +376,27 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 FilterToUse = new EventFilter(),
                 IndexRange = string.Empty,
                 ParsedIndexRange = NumericRange.Null,
-                RestoredEventQueue = persisted
+                RestoredEventQueue = persisted,
+                IsDetached = wasUnbound,
+                IsDeleted = wasUnbound
             };
 
+            var nodeManager = new Mock<IAsyncNodeManager>().Object;
+            var handle = new object();
             var item = (MonitoredItem)manager.RestoreMonitoredItem(
-                new Mock<IAsyncNodeManager>().Object,
-                null!,
+                nodeManager,
+                handle,
                 stored);
 
-            Assert.That(item.QueueSize, Is.EqualTo(EventManager.DefaultEventQueueSize));
+            Assert.Multiple(() =>
+            {
+                Assert.That(item.QueueSize, Is.EqualTo(EventManager.DefaultEventQueueSize));
+                Assert.That(item.NodeManager, Is.SameAs(nodeManager));
+                Assert.That(item.ManagerHandle, Is.SameAs(handle));
+                Assert.That(item.Generation, Is.Not.Null);
+                Assert.That(item.ToStorableMonitoredItem().IsDeleted, Is.False);
+                Assert.That(item.ToStorableMonitoredItem().IsDetached, Is.False);
+            });
 
             for (int ii = 1; ii < 3; ii++)
             {

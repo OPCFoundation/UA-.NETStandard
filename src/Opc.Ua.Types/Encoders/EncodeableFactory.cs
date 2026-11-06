@@ -83,11 +83,11 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public IEncodeableFactoryBuilder Builder => CurrentView?.Builder ?? new EncodeableFactoryBuilder(this);
+        public IEncodeableFactoryBuilder Builder => new EncodeableFactoryBuilder(this);
 
         /// <inheritdoc/>
         public IEnumerable<ExpandedNodeId> KnownTypeIds
-            => CurrentView?.KnownTypeIds ?? m_encodeableTypes.Keys.Concat(m_enumeratedTypes.Keys);
+            => m_encodeableTypes.Keys.Concat(m_enumeratedTypes.Keys);
 
         /// <inheritdoc/>
         /// <param name="typeId">The type identifier.</param>
@@ -96,10 +96,6 @@ namespace Opc.Ua
             ExpandedNodeId typeId,
             [NotNullWhen(true)] out IEncodeableType? encodeableType)
         {
-            if (CurrentView is { } view)
-            {
-                return view.TryGetEncodeableType(typeId, out encodeableType);
-            }
             if (typeId.IsNull)
             {
                 encodeableType = null;
@@ -115,10 +111,6 @@ namespace Opc.Ua
             ExpandedNodeId typeId,
             [NotNullWhen(true)] out IEnumeratedType? enumeratedType)
         {
-            if (CurrentView is { } view)
-            {
-                return view.TryGetEnumeratedType(typeId, out enumeratedType);
-            }
             if (typeId.IsNull)
             {
                 enumeratedType = null;
@@ -134,10 +126,6 @@ namespace Opc.Ua
             XmlQualifiedName xmlName,
             [NotNullWhen(true)] out IType? type)
         {
-            if (CurrentView is { } view)
-            {
-                return view.TryGetType(xmlName, out type);
-            }
             if (xmlName == null)
             {
                 type = null;
@@ -394,29 +382,25 @@ namespace Opc.Ua
                 }
                 lock (m_factory.m_publicationGate)
                 {
-                    EncodeableFactory factory = m_factory.CurrentView ?? m_factory;
-                    lock (factory.m_publicationGate)
+                    m_factory.EnsureMutable();
+                    if (!overwriteExisting)
                     {
-                        factory.EnsureMutable();
-                        if (!overwriteExisting)
+                        foreach (ExpandedNodeId id in m_encodeableTypes.Keys
+                            .Where(m_factory.m_enumeratedTypes.ContainsKey).ToArray())
                         {
-                            foreach (ExpandedNodeId id in m_encodeableTypes.Keys
-                                .Where(factory.m_enumeratedTypes.ContainsKey).ToArray())
-                            {
-                                m_encodeableTypes.Remove(id);
-                            }
-                            foreach (ExpandedNodeId id in m_enumeratedTypes.Keys
-                                .Where(id => factory.m_encodeableTypes.ContainsKey(id) ||
-                                    m_encodeableTypes.ContainsKey(id)).ToArray())
-                            {
-                                m_enumeratedTypes.Remove(id);
-                            }
+                            m_encodeableTypes.Remove(id);
                         }
-                        CompareExchange(ref factory.m_encodeableTypes, m_encodeableTypes, overwriteExisting);
-                        CompareExchange(ref factory.m_enumeratedTypes, m_enumeratedTypes, overwriteExisting);
-                        CompareExchange(ref factory.m_xmlNameToType, m_xmlNameToType, overwriteExisting);
-                        factory.m_revision++;
+                        foreach (ExpandedNodeId id in m_enumeratedTypes.Keys
+                            .Where(id => m_factory.m_encodeableTypes.ContainsKey(id) ||
+                                m_encodeableTypes.ContainsKey(id)).ToArray())
+                        {
+                            m_enumeratedTypes.Remove(id);
+                        }
                     }
+                    CompareExchange(ref m_factory.m_encodeableTypes, m_encodeableTypes, overwriteExisting);
+                    CompareExchange(ref m_factory.m_enumeratedTypes, m_enumeratedTypes, overwriteExisting);
+                    CompareExchange(ref m_factory.m_xmlNameToType, m_xmlNameToType, overwriteExisting);
+                    m_factory.m_revision++;
                 }
             }
 
@@ -586,9 +570,12 @@ namespace Opc.Ua
         /// | Frozen     | 621.1 us |  0.86 |        0.94 |
         /// </para>
         /// </summary>
-        private FrozenDictionary<ExpandedNodeId, IEncodeableType> m_encodeableTypes;
-        private FrozenDictionary<ExpandedNodeId, IEnumeratedType> m_enumeratedTypes;
-        private FrozenDictionary<XmlQualifiedName, IType> m_xmlNameToType;
+        private ref FrozenDictionary<ExpandedNodeId, IEncodeableType> m_encodeableTypes
+            => ref m_storage.EncodeableTypes;
+        private ref FrozenDictionary<ExpandedNodeId, IEnumeratedType> m_enumeratedTypes
+            => ref m_storage.EnumeratedTypes;
+        private ref FrozenDictionary<XmlQualifiedName, IType> m_xmlNameToType
+            => ref m_storage.XmlNames;
     }
 
     /// <summary>
