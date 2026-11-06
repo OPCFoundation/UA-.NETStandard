@@ -342,19 +342,6 @@ namespace Opc.Ua.Server
             }
         }
 
-        void Historian.IHistorianBuilderRegistry.UnregisterHistorianBuilder(
-            Historian.HistorianBuilder builder)
-        {
-            if (builder == null)
-            {
-                throw new ArgumentNullException(nameof(builder));
-            }
-            lock (m_historianBuildersLock)
-            {
-                m_historianBuilders.Remove(builder);
-            }
-        }
-
         /// <summary>
         /// Stops role reconciliation before shutdown deletes the address space.
         /// </summary>
