@@ -133,6 +133,40 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         }
 
         /// <summary>
+        /// Disposing a queue must not fault its workers, whether they are already waiting
+        /// for a request or have not started yet (#5010). On .NET Framework a disposed
+        /// SemaphoreSlim fails a pending WaitAsync with an ArgumentNullException.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task DisposeDoesNotFaultWorkersAsync(bool workersWaiting)
+        {
+            using var server = new QueueTestServer();
+
+            for (int iteration = 0; iteration < 200; iteration++)
+            {
+                QueueTestServer.RequestQueueHandle queue = server.CreateQueue(10, 10, 100);
+                if (workersWaiting)
+                {
+                    // let the workers enter the wait
+                    await Task.Delay(2).ConfigureAwait(false);
+                }
+                queue.Dispose();
+
+                Task[] workers = queue.Workers;
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                Task all = Task.WhenAll(workers);
+                Task completed = await Task.WhenAny(all, Task.Delay(Timeout.Infinite, timeout.Token))
+                    .ConfigureAwait(false);
+                Assert.That(completed, Is.SameAs(all), $"Workers did not stop in iteration {iteration}");
+                Assert.That(
+                    workers.Where(w => w.IsFaulted).Select(w => w.Exception.InnerException.ToString()),
+                    Is.Empty,
+                    $"Iteration {iteration}");
+            }
+        }
+
+        /// <summary>
         /// Mirrors EndpointIncomingRequest.ProcessAsync, which completes the request
         /// with a fault when scheduling throws.
         /// </summary>
@@ -188,7 +222,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             public RequestQueueHandle CreateQueue(int minThreads, int maxThreads, int maxRequests)
             {
                 var queue = new RequestQueue(this, minThreads, maxThreads, maxRequests);
-                return new RequestQueueHandle(queue.ScheduleIncomingRequest, queue);
+                return new RequestQueueHandle(queue.ScheduleIncomingRequest, queue, () => queue.Workers);
             }
 
             protected override Task ProcessRequestAsync(
@@ -205,12 +239,19 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             {
                 private readonly Action<IEndpointIncomingRequest> m_schedule;
                 private readonly IDisposable m_queue;
+                private readonly Func<Task[]> m_workers;
 
-                public RequestQueueHandle(Action<IEndpointIncomingRequest> schedule, IDisposable queue)
+                public RequestQueueHandle(
+                    Action<IEndpointIncomingRequest> schedule,
+                    IDisposable queue,
+                    Func<Task[]> workers)
                 {
                     m_schedule = schedule;
                     m_queue = queue;
+                    m_workers = workers;
                 }
+
+                public Task[] Workers => m_workers();
 
                 public void ScheduleIncomingRequest(IEndpointIncomingRequest request)
                 {
