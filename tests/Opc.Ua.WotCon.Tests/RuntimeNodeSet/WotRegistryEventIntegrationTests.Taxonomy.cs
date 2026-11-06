@@ -41,11 +41,13 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
+using ISession = Opc.Ua.Client.ISession;
 using WotConModel = Opc.Ua.WotCon;
 using XRegistryModel = Opc.Ua.XRegistry;
 
@@ -588,9 +590,14 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 m_coordinator.Event -= CancelAfterCompletion;
             }
 
-            await Assert.ThatAsync(
-                () => m_eventManager.DeleteAddressSpaceAsync(CancellationToken.None).AsTask(),
-                Throws.Nothing).ConfigureAwait(false);
+            NodeManagerRegistration registration = m_server.NodeManagerLifecycle.Registrations.ToList()
+                .Single(candidate => ReferenceEquals(candidate.NodeManager, m_eventManager));
+            IPreparedNodeManagerBatch removal = await m_server.NodeManagerLifecycle
+                .PrepareAsync([NodeManagerBatchChange.Remove(registration)]).ConfigureAwait(false);
+            await using var removalLifetime = removal.ConfigureAwait(false);
+            NodeManagerBatchResult result = await removal.CommitAsync(static _ => default).ConfigureAwait(false);
+            Assert.That(result.CleanupFailure, Is.Null);
+            await result.Retirement.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
             NodeId registryId = ExpandedNodeId.ToNodeId(
                 WotConModel.ObjectIds.WoTRegistry, m_server.CurrentInstance.NamespaceUris);
             Assert.That(m_eventManager.Find(registryId), Is.Null);

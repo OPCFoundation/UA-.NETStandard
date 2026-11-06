@@ -233,22 +233,27 @@ namespace Opc.Ua.Server
         /// <param name="samplingInterval">the sampling interval</param>
         public void SetSamplingInterval(double samplingInterval)
         {
-            // substract the previous sampling interval.
-            if (m_samplingInterval < m_nextSampleTime)
-            {
-                m_nextSampleTime -= m_samplingInterval;
-            }
-
-            // calculate the next sampling interval.
+            long previousInterval = m_samplingInterval;
             m_samplingInterval = (long)samplingInterval;
 
-            if (m_samplingInterval > 0)
-            {
-                m_nextSampleTime += m_samplingInterval;
-            }
-            else
+            if (m_samplingInterval <= 0)
             {
                 m_nextSampleTime = 0;
+                return;
+            }
+
+            // Zero means no sample has been queued yet: the first QueueValue anchors the
+            // next sample time to the current clock. Only an absolute next sample time is
+            // rebased onto the new interval; a relative interval must never be used as an
+            // absolute timestamp, or samples coalesce while the host clock is below it.
+            if (m_nextSampleTime > 0)
+            {
+                if (previousInterval <= m_nextSampleTime)
+                {
+                    m_nextSampleTime -= previousInterval;
+                }
+
+                m_nextSampleTime += m_samplingInterval;
             }
         }
 

@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -118,6 +117,38 @@ namespace Opc.Ua.Server.Tests
         private OperationContext CreateOperationContext()
         {
             return new OperationContext(m_sessionMock.Object, DiagnosticsMasks.None);
+        }
+
+        /// <summary>
+        /// External membership does not create a source, accepts no duplicate, and releases only its own item.
+        /// </summary>
+        [Test]
+        public void ExternalMembershipIsScopedAndDoesNotOwnTheItem()
+        {
+            using Subscription subscription = CreateSubscription();
+            var membership = (ISubscriptionMonitoredItemLifecycle)subscription;
+            Assert.That(() => subscription.IncludeExternalMonitoredItem(null!), Throws.ArgumentNullException);
+            var item = new Mock<IMonitoredItem>();
+            item.SetupGet(value => value.Id).Returns(42u);
+
+            IDisposable lease = subscription.IncludeExternalMonitoredItem(item.Object);
+            Assert.That(membership.ContainsMonitoredItem(item.Object), Is.True);
+            Assert.That(subscription.MonitoredItemCount, Is.EqualTo(1));
+            Assert.That(
+                () => subscription.IncludeExternalMonitoredItem(item.Object),
+                Throws.ArgumentException);
+            lease.Dispose();
+            Assert.That(membership.ContainsMonitoredItem(item.Object), Is.False);
+            Assert.That(subscription.MonitoredItemCount, Is.Zero);
+
+            var replacement = new Mock<IMonitoredItem>();
+            replacement.SetupGet(value => value.Id).Returns(42u);
+            using IDisposable replacementLease = subscription.IncludeExternalMonitoredItem(replacement.Object);
+            lease.Dispose();
+            Assert.That(membership.ContainsMonitoredItem(replacement.Object), Is.True);
+            Assert.That(membership.ContainsMonitoredItem(item.Object), Is.False);
+            item.VerifyGet(value => value.Id, Times.AtLeastOnce);
+            item.VerifyNoOtherCalls();
         }
 
         [Test]

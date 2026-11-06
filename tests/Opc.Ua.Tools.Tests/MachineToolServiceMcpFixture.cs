@@ -458,6 +458,12 @@ namespace Opc.Ua.Tools.Tests
                 : base(telemetry)
             {
                 m_password = password;
+                var options = new MachineryServerOptions
+                {
+                    Parts = MachineryParts.BuildingBlocks | MachineryParts.Jobs
+                };
+                AddNodeManager(new MachineryNodeManagerFactory(
+                    [new MachineryModelProvider(options.Parts), new MachineToolModelProvider()], options));
             }
 
             /// <summary>
@@ -466,18 +472,12 @@ namespace Opc.Ua.Tools.Tests
             internal MachineryNodeManager Manager { get; private set; } = null!;
 
             /// <inheritdoc/>
-            protected override ValueTask<IMasterNodeManager> CreateMasterNodeManagerAsync(
-                IServerInternal server, ApplicationConfiguration configuration,
+            protected override async ValueTask OnNodeManagerStartedAsync(
+                IServerInternal server,
                 CancellationToken cancellationToken = default)
             {
-                var options = new MachineryServerOptions
-                {
-                    Parts = MachineryParts.BuildingBlocks | MachineryParts.Jobs
-                };
-                Manager = new MachineryNodeManager(server, configuration,
-                    [new MachineryModelProvider(options.Parts), new MachineToolModelProvider()], options);
-                return new ValueTask<IMasterNodeManager>(
-                    new MasterNodeManager(server, configuration, null, [Manager]));
+                Manager = server.NodeManager.AsyncNodeManagers.OfType<MachineryNodeManager>().Single();
+                await base.OnNodeManagerStartedAsync(server, cancellationToken).ConfigureAwait(false);
             }
 
             /// <inheritdoc/>

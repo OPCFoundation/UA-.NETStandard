@@ -88,15 +88,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     replace
                         ? NodeManagerBatchChange.Replace(registration,
                             CreateTrackingNodeManagementFactory(202, _ => { }), true)
-                        : NodeManagerBatchChange.Remove(registration, true)
+                        : NodeManagerBatchChange.Remove(registration)
                 ], null, timeout.Token).ConfigureAwait(false);
             try
             {
                 NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, timeout.Token)
                     .ConfigureAwait(false);
                 Assert.That(committed.CleanupFailure, Is.Null);
+                await committed.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(original.DisposeCount, Is.EqualTo(1));
-                original.ValidateNodeCallback = (_, _) =>
+                original.ValidateNodeCallback = (_, _, _) =>
                     throw new InvalidOperationException("A survivor service re-entered its retired source.");
                 request.RequestedParameters.ClientHandle = 81;
                 request.RequestedParameters.QueueSize = 4;
@@ -222,11 +223,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 await CheckFiltersAsync().ConfigureAwait(false);
                 await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Remove(registration, true)], null, timeout.Token)
+                    [NodeManagerBatchChange.Remove(registration)], null, timeout.Token)
                     .ConfigureAwait(false);
                 NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, timeout.Token)
                     .ConfigureAwait(false);
                 Assert.That(committed.CleanupFailure, Is.Null);
+                await committed.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(manager.Find(valueId), Is.Null);
                 await CheckFiltersAsync().ConfigureAwait(false);
             }

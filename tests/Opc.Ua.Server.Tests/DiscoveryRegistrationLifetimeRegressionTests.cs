@@ -126,6 +126,69 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Verifies that a stopped server instance can register with discovery again after it restarts.
+        /// </summary>
+        [Test]
+        public async Task SameServerInstanceRearmsRegistrationAfterRestartAsync()
+        {
+            await using RegistrationHarness harness = await RegistrationHarness.StartAsync(succeeds: true)
+                .ConfigureAwait(false);
+            StandardServer server = harness.Server;
+
+            await server.StopAsync(CancellationToken.None).AsTask()
+                .WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+
+            Assert.That(GetRegistrationTimer(server), Is.Null);
+
+            await harness.Application.Application.StartAsync(server)
+                .WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+            Assert.That(harness.Server, Is.SameAs(server));
+            Assert.That(GetRegistrationTimer(server), Is.Not.Null);
+            Assert.That(GetRegistrationTimer(server), Is.Not.Null);
+        }
+
+        /// <summary>
+        /// Verifies that initial discovery registration cannot start before NodeManager readiness completes.
+        /// </summary>
+        [Test]
+        public async Task InitialReadinessCompletesBeforeDiscoveryRegistrationStartsAsync()
+        {
+            var readiness = new ReadinessGate();
+            await using var harness = new RegistrationHarness(succeeds: true, readiness: readiness);
+            Task? startup = null;
+            try
+            {
+                LdsServer lds = await harness.Discovery.StartAsync().ConfigureAwait(false);
+                EndpointDescription endpoint = lds.GetEndpoints().ToArray()!.First(value =>
+                    value.SecurityPolicyUri == SecurityPolicies.Basic256Sha256 &&
+                    value.SecurityMode == MessageSecurityMode.SignAndEncrypt);
+                await harness.Application.LoadConfigurationAsync().ConfigureAwait(false);
+                ServerConfiguration configuration = harness.Application.Config.ServerConfiguration!;
+                configuration.MaxRegistrationInterval = 60_000;
+                configuration.RegistrationEndpoint = endpoint;
+
+                startup = harness.Application.StartAsync();
+                await readiness.Entered.Task.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+
+                Assert.That(GetRegistrationTimer(harness.Server), Is.Null);
+                Assert.That(harness.RegistrationCalls, Is.Zero);
+
+                readiness.Release.TrySetResult(true);
+                await startup.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+
+                Assert.That(GetRegistrationTimer(harness.Server), Is.Not.Null);
+            }
+            finally
+            {
+                readiness.Release.TrySetResult(true);
+                if (startup is not null)
+                {
+                    await startup.ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
         /// Reads the server's current registration timer to check replacement and shutdown state.
         /// </summary>
         private static ManualTimer? GetRegistrationTimer(StandardServer server)
@@ -198,7 +261,7 @@ namespace Opc.Ua.Server.Tests
             /// <summary>
             /// Creates a discovery store whose registration can be held and then completed or failed.
             /// </summary>
-            private RegistrationHarness(bool succeeds)
+            public RegistrationHarness(bool succeeds, ReadinessGate? readiness = null)
             {
                 m_store = new RegisteredServerStore();
                 var store = new Mock<IRegisteredServerStore>();
@@ -212,6 +275,10 @@ namespace Opc.Ua.Server.Tests
                     .Returns(async (RegisteredServer server, MdnsDiscoveryConfiguration mdns, CancellationToken ct) =>
                     {
                         Interlocked.Increment(ref m_registrationCalls);
+                        if (server.IsOnline)
+                        {
+                            Interlocked.Increment(ref m_onlineRegistrationCalls);
+                        }
                         Entered.TrySetResult(true);
                         await Release.Task.ConfigureAwait(false);
                         if (!succeeds)
@@ -224,8 +291,16 @@ namespace Opc.Ua.Server.Tests
                 {
                     AutoAccept = true
                 };
-                m_application = new ServerFixture<StandardServer>(
-                    telemetry => new StandardServer(telemetry, new ManualClock()))
+                m_application = new ServerFixture<StandardServer>(telemetry =>
+                {
+                    var server = new StandardServer(telemetry, new ManualClock());
+                    m_server = server;
+                    if (readiness is not null)
+                    {
+                        server.AddNodeManager(new ReadinessNodeManagerFactory(readiness));
+                    }
+                    return server;
+                })
                 {
                     AutoAccept = true
                 };
@@ -234,7 +309,18 @@ namespace Opc.Ua.Server.Tests
             /// <summary>
             /// Gets the application server whose registration lifetime is under test.
             /// </summary>
-            public StandardServer Server => m_application.Server;
+            public StandardServer Server => m_server ??
+                throw new InvalidOperationException("The application server has not been created.");
+
+            /// <summary>
+            /// Gets the discovery fixture used by the application server.
+            /// </summary>
+            public ServerFixture<LdsServer> Discovery => m_discovery;
+
+            /// <summary>
+            /// Gets the application fixture whose registration lifetime is under test.
+            /// </summary>
+            public ServerFixture<StandardServer> Application => m_application;
 
             /// <summary>
             /// Gets the signal raised when registration reaches the discovery store.
@@ -255,6 +341,11 @@ namespace Opc.Ua.Server.Tests
             /// Gets the number of registration requests observed by the discovery store.
             /// </summary>
             public int RegistrationCalls => Volatile.Read(ref m_registrationCalls);
+
+            /// <summary>
+            /// Gets how often the application advertised itself online to discovery.
+            /// </summary>
+            public int OnlineRegistrationCalls => Volatile.Read(ref m_onlineRegistrationCalls);
 
             /// <summary>
             /// Fires the supplied registration timer and retains its completion task.
@@ -333,6 +424,83 @@ namespace Opc.Ua.Server.Tests
             /// Counts requests reaching the controlled discovery store.
             /// </summary>
             private int m_registrationCalls;
+
+            /// <summary>Counts online announcements separately from shutdown's offline registration.</summary>
+            private int m_onlineRegistrationCalls;
+
+            /// <summary>
+            /// Retains the application server while its startup readiness callback is pending.
+            /// </summary>
+            private StandardServer? m_server;
+        }
+
+        /// <summary>
+        /// Holds the initial readiness callback until the test releases it.
+        /// </summary>
+        private sealed class ReadinessGate
+        {
+            /// <summary>
+            /// Gets the signal raised when initial server readiness reaches the manager.
+            /// </summary>
+            public TaskCompletionSource<bool> Entered { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>
+            /// Gets the signal that completes the readiness callback.
+            /// </summary>
+            public TaskCompletionSource<bool> Release { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
+        /// <summary>
+        /// Creates a NodeManager whose readiness callback is controlled by a test gate.
+        /// </summary>
+        private sealed class ReadinessNodeManagerFactory(ReadinessGate readiness) : IAsyncNodeManagerFactory
+        {
+            /// <inheritdoc/>
+            public ArrayOf<string> NamespacesUris => ["urn:tests:discovery-readiness"];
+
+            /// <inheritdoc/>
+            public ValueTask<IAsyncNodeManager> CreateAsync(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                CancellationToken cancellationToken = default)
+            {
+                return new ValueTask<IAsyncNodeManager>(new ReadinessNodeManager(
+                    server,
+                    configuration,
+                    readiness));
+            }
+        }
+
+        /// <summary>
+        /// Blocks initial NodeManager readiness while preserving the default address-space behavior.
+        /// </summary>
+        private sealed class ReadinessNodeManager : AsyncCustomNodeManager, INodeManagerReadinessNotification
+        {
+            /// <summary>
+            /// Initializes the controlled manager.
+            /// </summary>
+            public ReadinessNodeManager(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                ReadinessGate readiness)
+                : base(server, configuration, "urn:tests:discovery-readiness")
+            {
+                m_readiness = readiness;
+            }
+
+            /// <inheritdoc/>
+            public async ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)
+            {
+                m_readiness.Entered.TrySetResult(true);
+                await m_readiness.Release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            /// <summary>
+            /// Controls completion of the initial readiness callback.
+            /// </summary>
+            private readonly ReadinessGate m_readiness;
         }
 
         /// <summary>
@@ -413,5 +581,89 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         private static readonly FieldInfo? s_taskField = typeof(StandardServer)
             .GetField("m_registrationTask", BindingFlags.Instance | BindingFlags.NonPublic);
+
+        /// <summary>
+        /// Exercises the registration continuation after real readiness completion without starting transport hosts.
+        /// Shutdown must remain authoritative even when a pending readiness callback subsequently succeeds.
+        /// </summary>
+        [Test]
+        public async Task StartupRegistrationContinuationAfterStopDuringReadinessRemainsStoppedAsync()
+        {
+            var readiness = new ReadinessGate();
+            Mock<IServerInternal> services = NodeManager.DeterministicServerMock.Create(out var queues);
+            services.SetupGet(value => value.Telemetry).Returns(Opc.Ua.Tests.NUnitTelemetryContext.Create());
+            using (queues)
+            await using (var manager = new ReadinessNodeManager(services.Object,
+                new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() }, readiness))
+            {
+                int callbacks = 0;
+                await using var server = new StandardServer(
+                    Opc.Ua.Tests.NUnitTelemetryContext.Create(), new ManualClock(), _ =>
+                    {
+                        Interlocked.Increment(ref callbacks);
+                        return Task.CompletedTask;
+                    });
+                const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+                FieldInfo registrationInfo = typeof(StandardServer).GetField("m_registrationInfo", flags)!;
+                FieldInfo maximumInterval = typeof(StandardServer).GetField("m_maxRegistrationInterval", flags)!;
+                FieldInfo minimumInterval = typeof(StandardServer).GetField("m_minRegistrationInterval", flags)!;
+                FieldInfo stopped = typeof(StandardServer).GetField("m_registrationStopped", flags)!;
+                FieldInfo cancellation = typeof(StandardServer).GetField("m_registrationCts", flags)!;
+                MethodInfo startRegistration = typeof(StandardServer).GetMethod(
+                    "StartRegistrationAfterReadiness", flags)!;
+                var info = new RegisteredServer { IsOnline = false };
+                registrationInfo.SetValue(server, info);
+                maximumInterval.SetValue(server, 60_000);
+                minimumInterval.SetValue(server, 1_000);
+
+                // A control proves these socket-free inputs really enable the production registration boundary.
+                await using (var control = new StandardServer(
+                    Opc.Ua.Tests.NUnitTelemetryContext.Create(), new ManualClock(), _ => Task.CompletedTask))
+                {
+                    registrationInfo.SetValue(control, new RegisteredServer { IsOnline = false });
+                    maximumInterval.SetValue(control, 60_000);
+                    minimumInterval.SetValue(control, 1_000);
+                    startRegistration.Invoke(control, null);
+                    Assert.That(GetRegistrationTimer(control), Is.Not.Null);
+                    Assert.That(GetRegistrationTimer(control)!.DueTime,
+                        Is.EqualTo(TimeSpan.FromMilliseconds(1_000)));
+                }
+
+                async Task CompleteReadinessAndStartRegistrationAsync()
+                {
+                    await manager.OnServerReadyAsync().ConfigureAwait(false);
+                    startRegistration.Invoke(server, null);
+                }
+
+                Task continuation = CompleteReadinessAndStartRegistrationAsync();
+                try
+                {
+                    await readiness.Entered.Task.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+                    Assert.That(continuation.IsCompleted, Is.False);
+                    Assert.That(GetRegistrationTimer(server), Is.Null);
+                    await server.StopAsync(CancellationToken.None).ConfigureAwait(false);
+                    Assert.That(stopped.GetValue(server), Is.True);
+                    Assert.That(cancellation.GetValue(server), Is.Null);
+                    Assert.That(readiness.Release.Task.IsCompleted, Is.False);
+
+                    readiness.Release.TrySetResult(true);
+                    await continuation.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+
+                    Assert.That(GetRegistrationTimer(server), Is.Null,
+                        "Successful readiness after Stop must not create an LDS registration timer.");
+                    Assert.That(stopped.GetValue(server), Is.True);
+                    Assert.That(cancellation.GetValue(server), Is.Null);
+                    Assert.That(info.IsOnline, Is.False,
+                        "The late continuation must not announce the stopped server as online.");
+                    Assert.That(callbacks, Is.Zero);
+                    Assert.That(s_taskField!.GetValue(server), Is.Null);
+                }
+                finally
+                {
+                    readiness.Release.TrySetResult(true);
+                    await continuation.ConfigureAwait(false);
+                }
+            }
+        }
     }
 }

@@ -257,17 +257,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using var fixture = new IdentityFixture();
             EnableAdmission(fixture);
-            // The manager holds the admitted identity only while the admitted
-            // event is reachable; keep it alive so a GC cannot release it.
-            BaseEventState first = Event(s_id);
-            fixture.Manager.AdmitEvent(fixture.Context, first);
+            BaseEventState original = Event(s_id);
+            fixture.Manager.AdmitEvent(fixture.Context, original);
+            CollectUnownedTargets();
             BaseEventState changed = Event(s_id);
             changed.Severity!.Value = 999;
 
             AssertStatus(() => fixture.Manager.AdmitEvent(fixture.Context, changed),
                 StatusCodes.BadSecurityChecksFailed);
             fixture.Manager.AdmitEvent(fixture.Context, Event(s_id));
-            GC.KeepAlive(first);
+            GC.KeepAlive(original);
         }
 
         /// <summary>
@@ -322,6 +321,65 @@ namespace Opc.Ua.Server.Tests.NodeManager
             AssertStatus(() => fixture.Manager.ReserveEventIdentity(s_otherId, new Origin()).Dispose(),
                 StatusCodes.BadNotSupported);
             GC.KeepAlive(first);
+        }
+
+        /// <summary>
+        /// Verifies that a snapshot copied from its admitted occurrence is admitted with it.
+        /// </summary>
+        [Test]
+        public void TransferredSnapshotIsAdmittedWithItsOccurrence()
+        {
+            using var fixture = new IdentityFixture();
+            EnableAdmission(fixture);
+            BaseEventState native = Event(s_id);
+            fixture.Manager.AdmitEvent(fixture.Context, native);
+            var snapshot = (BaseEventState)native.Clone();
+            fixture.Manager.TransferEventIdentity(fixture.Context, native, snapshot);
+
+            Assert.DoesNotThrow(() => fixture.Manager.AdmitEvent(fixture.Context, snapshot));
+            BaseEventState other = Event(s_id);
+            other.Severity!.Value = 999;
+            AssertStatus(() => fixture.Manager.AdmitEvent(fixture.Context, other),
+                StatusCodes.BadSecurityChecksFailed);
+            GC.KeepAlive(native);
+        }
+
+        /// <summary>
+        /// Verifies that a snapshot that no longer matches its occurrence is not admitted with
+        /// it, so the items it is queued to still see the conflict.
+        /// </summary>
+        [Test]
+        public void SnapshotChangedBeforeTransferIsNotAdmittedWithItsOccurrence()
+        {
+            using var fixture = new IdentityFixture();
+            EnableAdmission(fixture);
+            BaseEventState native = Event(s_id);
+            fixture.Manager.AdmitEvent(fixture.Context, native);
+            var snapshot = (BaseEventState)native.Clone();
+            snapshot.Severity!.Value = 999;
+            fixture.Manager.TransferEventIdentity(fixture.Context, native, snapshot);
+
+            AssertStatus(() => fixture.Manager.AdmitEvent(fixture.Context, snapshot),
+                StatusCodes.BadSecurityChecksFailed);
+            GC.KeepAlive(native);
+        }
+
+        /// <summary>
+        /// Verifies that a changed snapshot still marks optional admission unavailable.
+        /// </summary>
+        [Test]
+        public void ChangedSnapshotMakesLaterOptionalAdmissionUnavailable()
+        {
+            using var fixture = new IdentityFixture();
+            BaseEventState native = Event(s_id);
+            fixture.Manager.AdmitEvent(fixture.Context, native);
+            var snapshot = (BaseEventState)native.Clone();
+            snapshot.Severity!.Value = 999;
+            fixture.Manager.TransferEventIdentity(fixture.Context, native, snapshot);
+            fixture.Manager.AdmitEvent(fixture.Context, snapshot);
+
+            Assert.That(fixture.Manager.EventIdentityAdmissionStatus, Is.EqualTo(StatusCodes.BadNotSupported));
+            GC.KeepAlive(native);
         }
 
         /// <summary>
