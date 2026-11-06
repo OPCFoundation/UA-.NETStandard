@@ -938,11 +938,24 @@ namespace Opc.Ua.Server
                 target,
                 eventTypeId,
                 sourceNodeId,
+                CreateEventSourceLookup(eventTypeId, sourceNodeId),
                 snapshot.SourceEmission?.Generation,
                 snapshot.SourceEmission?.ReadinessPending ?? false,
                 snapshot.SourceEmission?.ReadinessEventId ?? 0,
                 itemCount,
                 offset);
+        }
+
+        /// <summary>
+        /// Creates the lookup of the source node instance that binds the cached permission
+        /// verdicts of one delivery, or null when the verdicts of the event are not cached.
+        /// </summary>
+        private EventSourceLookup? CreateEventSourceLookup(NodeId eventTypeId, NodeId sourceNodeId)
+        {
+            IMasterNodeManager? masterNodeManager = m_server.NodeManager;
+            return masterNodeManager != null && !eventTypeId.IsNull && !sourceNodeId.IsNull
+                ? new EventSourceLookup(masterNodeManager, sourceNodeId)
+                : null;
         }
 
         /// <summary>
@@ -1001,6 +1014,8 @@ namespace Opc.Ua.Server
 
         private async Task DeliverDeferredEventAsync(EventDelivery delivery, EventItemDelivery[] items)
         {
+            // the delivery was retained, so the instance its items saw may have been replaced.
+            EventSourceLookup? sourceLookup = CreateEventSourceLookup(delivery.EventTypeId, delivery.SourceNodeId);
             Task[] pending = new Task[items.Length];
             for (int ii = 0; ii < items.Length; ii++)
             {
@@ -1010,6 +1025,7 @@ namespace Opc.Ua.Server
                     delivery.Target,
                     delivery.EventTypeId,
                     delivery.SourceNodeId,
+                    sourceLookup,
                     delivery.SourceGeneration,
                     item.Key,
                     item.Evaluation,
@@ -1249,10 +1265,42 @@ namespace Opc.Ua.Server
                 delivery.Target,
                 delivery.EventTypeId,
                 delivery.SourceNodeId,
+                delivery.SourceLookup,
                 delivery.SourceGeneration,
                 item.Key,
                 item.Evaluation,
                 cancellationToken);
+        }
+
+        /// <summary>
+        /// The source node instance of one event delivery, looked up once for all its items.
+        /// </summary>
+        /// <remarks>
+        /// A permission verdict is validated after the lookup it is bound to, so it never
+        /// describes an older node than the instance it is cached for. Items that race for the
+        /// first lookup may each run it; they then all use the one that was published first.
+        /// </remarks>
+        private sealed class EventSourceLookup
+        {
+            public EventSourceLookup(IMasterNodeManager masterNodeManager, NodeId sourceNodeId)
+            {
+                m_masterNodeManager = masterNodeManager;
+                m_sourceNodeId = sourceNodeId;
+            }
+
+            public Task<NodeState?> GetAsync(CancellationToken cancellationToken)
+            {
+                return Volatile.Read(ref m_lookup) ??
+                    Interlocked.CompareExchange(
+                        ref m_lookup,
+                        m_masterNodeManager.FindNodeInAddressSpaceAsync(m_sourceNodeId, cancellationToken).AsTask(),
+                        null) ??
+                    m_lookup!;
+            }
+
+            private readonly IMasterNodeManager m_masterNodeManager;
+            private readonly NodeId m_sourceNodeId;
+            private Task<NodeState?>? m_lookup;
         }
 
         /// <summary>
@@ -1265,6 +1313,7 @@ namespace Opc.Ua.Server
                 IFilterTarget target,
                 NodeId eventTypeId,
                 NodeId sourceNodeId,
+                EventSourceLookup? sourceLookup,
                 NodeManagerGeneration? sourceGeneration,
                 bool sourceReadinessPending,
                 long readinessEventId,
@@ -1274,6 +1323,7 @@ namespace Opc.Ua.Server
                 Target = target;
                 EventTypeId = eventTypeId;
                 SourceNodeId = sourceNodeId;
+                SourceLookup = sourceLookup;
                 SourceGeneration = sourceGeneration;
                 SourceReadinessPending = sourceReadinessPending;
                 ReadinessEventId = readinessEventId;
@@ -1286,6 +1336,8 @@ namespace Opc.Ua.Server
             public NodeId EventTypeId { get; }
 
             public NodeId SourceNodeId { get; }
+
+            public EventSourceLookup? SourceLookup { get; }
 
             public NodeManagerGeneration? SourceGeneration { get; }
 
@@ -1362,6 +1414,7 @@ namespace Opc.Ua.Server
             IFilterTarget target,
             NodeId eventTypeId,
             NodeId sourceNodeId,
+            EventSourceLookup? sourceLookup,
             NodeManagerGeneration? sourceGeneration,
             MonitoredItem.SharedEventFilterKey? key,
             MonitoredItem.SharedEventEvaluation? evaluation,
@@ -1382,7 +1435,7 @@ namespace Opc.Ua.Server
 
                 (ServiceResult validationResult, ISession? authorizationSession,
                     NotificationAuthorization? authorization) = await GetOrAddEventPermissionAsync(
-                    monitoredItem, target, eventTypeId, sourceNodeId, cancellationToken).ConfigureAwait(false);
+                    monitoredItem, target, eventTypeId, sourceNodeId, sourceLookup, cancellationToken).ConfigureAwait(false);
                 // An Uncertain verdict is not a denial, so it must not drop the event.
                 if (!ServiceResult.IsBad(validationResult))
                 {
@@ -1452,9 +1505,10 @@ namespace Opc.Ua.Server
             IFilterTarget filterTarget,
             NodeId eventTypeId,
             NodeId sourceNodeId,
+            EventSourceLookup? sourceLookup,
             CancellationToken cancellationToken)
         {
-            bool cacheable = !eventTypeId.IsNull && !sourceNodeId.IsNull;
+            bool cacheable = sourceLookup != null;
             var key = new EventPermissionCacheKey(monitoredItem.Id, eventTypeId, sourceNodeId);
             while (true)
             {
@@ -1479,11 +1533,9 @@ namespace Opc.Ua.Server
                     return (restrictions, authorization.Session, notificationAuthorization);
                 }
                 NodeState? sourceNode = null;
-                IMasterNodeManager? masterNodeManager = m_server.NodeManager;
-                if (cacheable && masterNodeManager != null)
+                if (cacheable)
                 {
-                    sourceNode = await masterNodeManager.FindNodeInAddressSpaceAsync(
-                        sourceNodeId, cancellationToken).ConfigureAwait(false);
+                    sourceNode = await sourceLookup!.GetAsync(cancellationToken).ConfigureAwait(false);
                     cancellationToken.ThrowIfCancellationRequested();
                     if (!authorization.Matches(CapturePermissionContext(monitoredItem)))
                     {
