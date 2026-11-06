@@ -234,6 +234,7 @@ namespace Opc.Ua.Server
                         .ToDictionary(entry => entry.Key, entry => entry.Value);
                     foreach (PreparedNodeManager candidate in candidates)
                     {
+                        ChangePreparer.GetServer(candidate.NodeManager)?.PruneStagedExternalReferences();
                         next.Add(candidate.NodeManager, candidate.ExternalReferences);
                     }
                 }
@@ -738,6 +739,17 @@ namespace Opc.Ua.Server
                 {
                     throw new NotSupportedException(
                         "Prepared external references have both in-memory and external owners.");
+                }
+                if (!hasUnsupportedOwner && ownerNodes.Count == 0)
+                {
+                    foreach (PreparedNodeManager candidate in candidates)
+                    {
+                        if (ChangePreparer.GetServer(candidate.NodeManager)?.RequiresExternalSource(sourceId) == true)
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadNodeIdUnknown, "A staged external reference source is not available.");
+                        }
+                    }
                 }
                 if (hasUnsupportedOwner || ownerNodes.Count == 0)
                 {

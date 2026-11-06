@@ -83,21 +83,32 @@ For composition inside another asynchronous node manager, load
 `new NodeStateCollection().AddOpcUaPackML(context)` once and construct
 `new PackMLRuntime(manager)`. Call `AddUnitAsync` with an application-qualified
 name and the chosen parent; a null parent places the unit directly under
-Objects. Keep the runtime until the owner shuts down, then await
-`DisposeAsync` before deleting its nodes. This path does not require Machinery,
-DI, Scales or a PackML-specific global folder.
+Objects. A non-null parent must be an indexed node owned by the runtime's node
+manager. `AddUnitAsync` rejects a parent from another manager before invoking
+configuration or creating the unit. Keep the runtime until the owner shuts down,
+then await `DisposeAsync` before deleting its nodes. This path does not require
+Machinery, DI, Scales or a PackML-specific global folder.
+
+During lifecycle preparation, the unit's references from Objects and from the
+Enumeration DataType remain private until publication. A failed unit addition
+discards its staged references without changing references owned by the serving
+generation.
 
 A parentless unit has no parent notifier to carry its events, so `AddUnitAsync`
 registers it as a Server event root through
-`AsyncCustomNodeManager.RegisterRootNotifierAsync`. That call adds the Server
-object's `HasNotifier` reference and attaches monitored items that already
-subscribe to Server events. A subscription to Server therefore receives the
-unit's transition events, whether it was created before or after the unit. If
-registration fails, `AddUnitAsync` deletes the unit and its `ModeDataType`, which
-also discards any partial registration, and rethrows the failure. Deleting the
-unit through its node manager removes the Server root; there is no separate
-removal call. A unit with a parent reports through that parent's notifier
-chain. `PackMLNodeManager` registers every unit as an event root.
+`AsyncCustomNodeManager.RegisterRootNotifierAsync`. For a published manager,
+the call adds the Server object's `HasNotifier` reference and attempts to attach
+existing Server-event monitored items. During address-space creation for a
+lifecycle candidate, the reference is staged and existing subscriptions are
+attached during reconciliation after publication. Check the lifecycle result
+for reconciliation failures. After successful reconciliation, a Server
+subscription receives the unit's transition events whether it was created
+before or after the unit. If registration fails, `AddUnitAsync` deletes the unit
+and its `ModeDataType`, which also discards any partial registration, and
+rethrows the failure. Deleting the unit through its node manager removes the
+Server root; there is no separate removal call. A unit with a parent reports
+through that parent's notifier chain. `PackMLNodeManager` registers every unit
+as an event root.
 
 The direct `PackMLUnit.CreateAsync` path creates an unregistered unit and its
 `ModeDataType`. Its owner must register both nodes, attach the unit to its

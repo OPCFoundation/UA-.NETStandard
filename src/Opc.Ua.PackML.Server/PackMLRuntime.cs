@@ -88,6 +88,13 @@ namespace Opc.Ua.PackML.Server
         /// Creates and registers a unit below a chosen parent, or directly in
         /// Objects when parent is null. No PackML-specific global folder is added.
         /// </summary>
+        /// <remarks>
+        /// A non-null parent must be the indexed node owned by this runtime's node manager.
+        /// A parent owned by another node manager is rejected before configuration or node creation.
+        /// </remarks>
+        /// <exception cref="ArgumentException">
+        /// <paramref name="parent"/> is not an indexed node owned by this runtime's node manager.
+        /// </exception>
         public ValueTask<PackMLUnit> AddUnitAsync(
             QualifiedName browseName,
             IPackMLEquipmentProvider provider,
@@ -110,6 +117,11 @@ namespace Opc.Ua.PackML.Server
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            if (parent is not null && !ReferenceEquals(m_manager.Find(parent.NodeId), parent))
+            {
+                throw new ArgumentException(
+                    "The parent must be an indexed node owned by this runtime's node manager.", nameof(parent));
+            }
             var options = new PackMLUnitOptions();
             configure?.Invoke(options);
             var children = new List<BaseInstanceState>();
@@ -132,9 +144,11 @@ namespace Opc.Ua.PackML.Server
                     m_pendingUnits.Add(unit);
                 }
                 await m_manager.AddPredefinedNodeAsync(unit.ModeDataType, cancellationToken).ConfigureAwait(false);
-                await m_manager.Server.NodeManager.AddReferencesAsync(
+                await m_manager.AddExternalReferenceAsync(
+                    unit.ModeDataType,
                     Ua.DataTypeIds.Enumeration,
-                    [new NodeStateReference(Ua.ReferenceTypeIds.HasSubtype, false, unit.ModeDataType.NodeId)],
+                    Ua.ReferenceTypeIds.HasSubtype,
+                    false,
                     cancellationToken).ConfigureAwait(false);
                 unit.Node.ReferenceTypeId = parent is null
                     ? Ua.ReferenceTypeIds.Organizes
@@ -152,9 +166,11 @@ namespace Opc.Ua.PackML.Server
                 await m_manager.AddPredefinedNodeAsync(unit.Node, cancellationToken).ConfigureAwait(false);
                 if (parent is null)
                 {
-                    await m_manager.Server.NodeManager.AddReferencesAsync(
+                    await m_manager.AddExternalReferenceAsync(
+                        unit.Node,
                         Ua.ObjectIds.ObjectsFolder,
-                        [new NodeStateReference(Ua.ReferenceTypeIds.Organizes, false, unit.Node.NodeId)],
+                        Ua.ReferenceTypeIds.Organizes,
+                        false,
                         cancellationToken).ConfigureAwait(false);
                 }
                 // Parentless units have no notifier to propagate through, so they

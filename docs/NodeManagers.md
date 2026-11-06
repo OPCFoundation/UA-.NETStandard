@@ -1720,6 +1720,24 @@ fails; that failure cannot restore the prior routing view. This path supports th
 ownership model of `AsyncCustomNodeManager` and adapted `CustomNodeManager2`; a custom external
 reference store is rejected before the decision.
 
+For an indexed node owned by an `AsyncCustomNodeManager`, use
+`AddExternalReferenceAsync` to link an externally owned source to it:
+
+```csharp
+await manager.AddExternalReferenceAsync(
+    node, ObjectIds.ObjectsFolder, ReferenceTypeIds.Organizes, isInverse: false,
+    cancellationToken: ct);
+```
+
+The method adds the reciprocal reference on `node`. For a private candidate it
+stages the external reference until publication; for a published manager it
+adds the reference through the master. The external source must exist by
+publication; a missing source rejects the commit before its durable decision.
+Deleting or replacing the target before publication discards its staged
+reference. Deleting a target from a published lifecycle manager also removes
+its contribution, so a later publication does not restore the reference. Finish
+changes to the candidate before starting its commit.
+
 #### Change notifications
 
 Every committed lifecycle transaction emits one compressed model-change notification. Reload also
@@ -3012,12 +3030,15 @@ builder.Boilers.Boiler__1.DrumX001
 
 The `Server` Object (`i=2253`) is the aggregate event subscription point
 (OPC UA Part 5 [8.3.2](https://reference.opcfoundation.org/Core/Part5/v105/docs/8.3.2)).
-A node added at runtime without a parent notifier reaches Server subscribers only
-after `await manager.RegisterRootNotifierAsync(node, ct)`. The call publishes the
-Server object's `HasNotifier` reference and attaches monitored items that already
-subscribe to Server events. Deleting the node through its manager removes the
-registration, so there is no removal API. If registration throws, delete the node
-to discard any partial registration.
+Use `await manager.RegisterRootNotifierAsync(node, ct)` to register a node
+without a parent notifier as a Server event root. For a published manager, the
+call publishes the Server object's `HasNotifier` reference and attempts to
+attach existing Server-event monitored items. During address-space creation for
+a lifecycle candidate, the reference is staged and existing subscriptions are
+attached during reconciliation after publication. Check the lifecycle result
+for reconciliation failures. Deleting the node through its manager removes the
+registration, so there is no removal API. If registration throws, delete the
+node to discard any partial registration.
 Server-wide fan-out treats an individual root or manager's `BadNotSupported` as
 non-participation, not as a failure of every other source. Root registration
 does not silently set `EventNotifier.SubscribeToEvents`; declare the capability

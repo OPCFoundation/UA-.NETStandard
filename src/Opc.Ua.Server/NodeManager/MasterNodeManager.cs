@@ -764,12 +764,15 @@ namespace Opc.Ua.Server
                 SetPreparing(nodeManager, preparing: true);
                 SetExistingEventSubscriptionSuppression(nodeManager, suppress: true);
                 Dictionary<NodeId, IList<IReference>> externalReferences = candidate.ExternalReferences;
+                ChangePreparer.StagingServer? stagingServer = ChangePreparer.GetServer(nodeManager);
+                stagingServer?.TrackExternalReferences(externalReferences);
                 await nodeManager
                     .CreateAddressSpaceAsync(externalReferences, ct)
                     .ConfigureAwait(false);
                 ChangePreparer.ValidateHistorianReadiness(nodeManager);
-                ChangePreparer.GetServer(nodeManager)?.AppendRootNotifierReferences(externalReferences);
-                ChangePreparer.GetServer(nodeManager)?.CaptureExternalReferences(externalReferences);
+                stagingServer?.AppendRootNotifierReferences(externalReferences);
+                stagingServer?.PruneStagedExternalReferences();
+                stagingServer?.CaptureExternalReferences(externalReferences);
                 prepared = true;
                 return candidate;
             }
@@ -892,6 +895,80 @@ namespace Opc.Ua.Server
                 CustomNodeManager2 syncManagerToClear)
             {
                 syncManagerToClear.ClearRemovedExternalReferences();
+            }
+        }
+
+        /// <summary>
+        /// Removes a published manager's references and forgets its deleted-node contributions.
+        /// </summary>
+        internal async ValueTask RemoveManagedNodeReferencesAsync(
+            AsyncCustomNodeManager owner,
+            List<LocalReference> referencesToRemove,
+            CancellationToken cancellationToken)
+        {
+            bool mutationAdmissionHeld = await AcquireDynamicMutationAdmissionAsync(cancellationToken)
+                .ConfigureAwait(false);
+            try
+            {
+                if (!m_dynamicExternalReferences.ContainsKey(owner))
+                {
+                    owner.RetainRemovedExternalReferences(referencesToRemove);
+                    return;
+                }
+                await using var callbackPermit = new NodeManagerCallbackPermit(
+                    m_lifecycleCallbackPermit,
+                    NodeManagerAdmissionCapability.AddressSpaceMutation).ConfigureAwait(false);
+                await RemoveReferencesAsync(referencesToRemove, cancellationToken).ConfigureAwait(false);
+
+                var removed = new HashSet<(NodeId SourceId, NodeId ReferenceTypeId, bool IsInverse, NodeId TargetId)>();
+                foreach (LocalReference reference in referencesToRemove)
+                {
+                    removed.Add(
+                        (reference.SourceId, reference.ReferenceTypeId, reference.IsInverse, reference.TargetId));
+                }
+
+                if (m_dynamicExternalReferences.TryGetValue(
+                    owner, out Dictionary<NodeId, IList<IReference>>? contributed))
+                {
+                    var remaining = new Dictionary<NodeId, IList<IReference>>(contributed.Count);
+                    bool changed = false;
+                    foreach (KeyValuePair<NodeId, IList<IReference>> source in contributed)
+                    {
+                        var retained = new List<IReference>(source.Value.Count);
+                        foreach (IReference reference in source.Value)
+                        {
+                            if (!reference.TargetId.IsAbsolute &&
+                                removed.Contains(
+                                    (source.Key, reference.ReferenceTypeId, reference.IsInverse,
+                                        (NodeId)reference.TargetId)))
+                            {
+                                changed = true;
+                            }
+                            else
+                            {
+                                retained.Add(reference);
+                            }
+                        }
+                        remaining.Add(source.Key, retained);
+                    }
+                    if (changed)
+                    {
+                        var next = new Dictionary<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>>(
+                            m_dynamicExternalReferences)
+                        {
+                            [owner] = remaining
+                        };
+                        m_dynamicExternalReferences = next;
+                    }
+                }
+                ChangePreparer.GetServer(owner)?.DiscardCapturedReferences(referencesToRemove);
+            }
+            finally
+            {
+                if (mutationAdmissionHeld)
+                {
+                    m_dynamicMutationSemaphore.Release();
+                }
             }
         }
 

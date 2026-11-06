@@ -659,16 +659,18 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Registers a node owned by this manager as a root notifier and waits until
-        /// subscribers of the Server object can receive its events.
+        /// Registers a node owned by this manager as a root notifier.
         /// </summary>
         /// <remarks>
-        /// Unlike <see cref="AddRootNotifier"/>, this publishes the forward
-        /// HasNotifier reference on the Server object and attaches monitored items
-        /// that already subscribe to all Server events. Deleting the node through
-        /// this manager removes the registration, so there is no separate removal
-        /// API. If registration fails, delete the node to discard any partial
-        /// registration.
+        /// For a published manager, this publishes the forward HasNotifier reference
+        /// on the Server object and attempts to attach monitored items that already
+        /// subscribe to all Server events. During address-space creation for a
+        /// lifecycle candidate, the reference is staged and existing subscriptions
+        /// are attached during reconciliation after publication. A notifier that
+        /// rejects an all-events subscription is not attached by that attempt.
+        /// Deleting the node through this manager removes the registration, so there
+        /// is no separate removal API. If registration fails, delete the node to
+        /// discard any partial registration.
         /// </remarks>
         /// <param name="notifier">The notifier to register.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
@@ -682,6 +684,93 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(notifier));
             }
             return AddRootNotifierAsync(notifier, cancellationToken);
+        }
+
+        /// <summary>
+        /// Adds a reference from an externally owned node to an indexed node owned by this manager.
+        /// </summary>
+        /// <remarks>
+        /// The reciprocal reference is added to <paramref name="target"/>. During lifecycle
+        /// preparation the external reference is staged until publication and discarded if
+        /// the target is deleted or replaced. For a published manager it is added through the
+        /// master node manager. Finish changes to a prepared candidate before starting its commit.
+        /// Deleting the target through this manager removes the reference. If the operation
+        /// throws, delete the target to discard any partial registration.
+        /// </remarks>
+        /// <param name="target">The indexed node owned by this manager.</param>
+        /// <param name="sourceId">The identifier of the external source node.</param>
+        /// <param name="referenceTypeId">The reference type from the source to the target.</param>
+        /// <param name="isInverse">Whether the reference from the source is inverse.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="target"/> is null.</exception>
+        /// <exception cref="ArgumentException">
+        /// The target is not the indexed node owned by this manager, the source is owned by this
+        /// manager, or a reference identifier is null.
+        /// </exception>
+        /// <exception cref="ServiceResultException">
+        /// The external source is not available in a published address space.
+        /// </exception>
+        public async ValueTask AddExternalReferenceAsync(
+            NodeState target,
+            NodeId sourceId,
+            NodeId referenceTypeId,
+            bool isInverse,
+            CancellationToken cancellationToken = default)
+        {
+            if (target is null)
+            {
+                throw new ArgumentNullException(nameof(target));
+            }
+            if (sourceId.IsNull)
+            {
+                throw new ArgumentException("An external source NodeId is required.", nameof(sourceId));
+            }
+            if (referenceTypeId.IsNull)
+            {
+                throw new ArgumentException("A reference type NodeId is required.", nameof(referenceTypeId));
+            }
+            if (!ReferenceEquals(Find(target.NodeId), target))
+            {
+                throw new ArgumentException(
+                    "The target must be an indexed node owned by this manager.", nameof(target));
+            }
+            if (Find(sourceId) is not null)
+            {
+                throw new ArgumentException("The source node must be owned by another node manager.", nameof(sourceId));
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+
+            ChangePreparer.StagingServer? stagingServer = ChangePreparer.GetServer(this);
+            if (stagingServer?.IsDetached == true)
+            {
+                throw new InvalidOperationException("External references cannot be added to a detached node manager.");
+            }
+            if (stagingServer?.IsStaging != true)
+            {
+                (object? sourceHandle, IAsyncNodeManager? sourceManager) =
+                    await Server.NodeManager.GetManagerHandleAsync(sourceId, cancellationToken).ConfigureAwait(false);
+                if (sourceHandle is null || sourceManager is null)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNodeIdUnknown, "The external source node is not available.");
+                }
+                if (ReferenceEquals(sourceManager, this))
+                {
+                    throw new ArgumentException(
+                        "The source node must be owned by another node manager.", nameof(sourceId));
+                }
+            }
+            target.AddReferenceIfMissing(referenceTypeId, !isInverse, sourceId);
+            var reference = new LocalReference(sourceId, referenceTypeId, isInverse, target.NodeId);
+            if (stagingServer?.TryStageExternalReference(this, target, reference) == true)
+            {
+                return;
+            }
+
+            await Server.NodeManager.AddReferencesAsync(
+                sourceId,
+                [new NodeStateReference(referenceTypeId, isInverse, target.NodeId)],
+                cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1473,6 +1562,17 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Retains references removed from a generation that is no longer serving.
+        /// </summary>
+        internal void RetainRemovedExternalReferences(List<LocalReference> references)
+        {
+            foreach (LocalReference reference in references)
+            {
+                RecordRemovedExternalReference(reference);
+            }
+        }
+
+        /// <summary>
         /// Clears the removed-reference collection after reconciliation.
         /// </summary>
         internal void ClearRemovedExternalReferences()
@@ -2187,12 +2287,7 @@ namespace Opc.Ua.Server
                     parentId,
                     cancellationToken).ConfigureAwait(false);
 
-                if (referencesToRemove.Count > 0)
-                {
-                    await Server.NodeManager
-                        .RemoveReferencesAsync(referencesToRemove, cancellationToken)
-                        .ConfigureAwait(false);
-                }
+                await RemoveNodeReferencesAsync(referencesToRemove, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception failure)
             {
@@ -2464,11 +2559,8 @@ namespace Opc.Ua.Server
                                     await RemoveDeletedNotifiersAsync(removedNotifiers).ConfigureAwait(false);
                                 }
                             }
-                            if (referencesToRemove.Count > 0)
-                            {
-                                await Server.NodeManager.RemoveReferencesAsync(
-                                    referencesToRemove, CancellationToken.None).ConfigureAwait(false);
-                            }
+                            await RemoveNodeReferencesAsync(referencesToRemove, CancellationToken.None)
+                                .ConfigureAwait(false);
                         }
                         finally
                         {
@@ -2623,9 +2715,7 @@ namespace Opc.Ua.Server
 
                 if (item.DeleteTargetReferences && referencesToRemove.Count > 0)
                 {
-                    await Server.NodeManager
-                        .RemoveReferencesAsync(referencesToRemove, cancellationToken)
-                        .ConfigureAwait(false);
+                    await RemoveNodeReferencesAsync(referencesToRemove, cancellationToken).ConfigureAwait(false);
                 }
             }
             catch (Exception failure)
@@ -3990,11 +4080,16 @@ namespace Opc.Ua.Server
             List<LocalReference> referencesToRemove,
             CancellationToken cancellationToken = default)
         {
-            if (!PredefinedNodes.TryRemove(node.NodeId, out _))
+            if (!PredefinedNodes.TryRemove(node.NodeId, out NodeState? removed))
             {
                 return;
             }
 
+            ChangePreparer.StagingServer? stagingServer = ChangePreparer.GetServer(this);
+            if (stagingServer?.IsStaging == true)
+            {
+                stagingServer.DiscardNodeReferences(removed);
+            }
             DisposeValueReadAuthorization(node);
             // Drop any cached component view so a later resolution does not
             // return the removed node.
@@ -4058,6 +4153,59 @@ namespace Opc.Ua.Server
             if (retainedParent != null && PredefinedNodes.ContainsKey(retainedParent.NodeId))
             {
                 m_localAddressSpace?.NotifyAdded(retainedParent);
+            }
+        }
+
+        /// <summary>
+        /// Removes local counterpart references and defers detached external references to reclamation.
+        /// </summary>
+        private async ValueTask RemoveNodeReferencesAsync(
+            List<LocalReference> references,
+            CancellationToken cancellationToken)
+        {
+            if (references.Count == 0)
+            {
+                return;
+            }
+            ChangePreparer.StagingServer? stagingServer = ChangePreparer.GetServer(this);
+            if (stagingServer?.IsStaging == true || stagingServer?.IsDetached == true)
+            {
+                foreach (LocalReference reference in references)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (PredefinedNodes.TryGetValue(reference.SourceId, out NodeState? source))
+                    {
+                        source.RemoveReference(
+                            reference.ReferenceTypeId, reference.IsInverse, reference.TargetId);
+                    }
+                    else if (stagingServer is { IsDetached: true, IsStaging: false })
+                    {
+                        RecordRemovedExternalReference(reference);
+                    }
+                }
+                return;
+            }
+            if (stagingServer is not null && Server.NodeManager is MasterNodeManager master)
+            {
+                await master.RemoveManagedNodeReferencesAsync(this, references, cancellationToken)
+                    .ConfigureAwait(false);
+                return;
+            }
+            await Server.NodeManager.RemoveReferencesAsync(references, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Records a detached reference once for the generation reclaimer.
+        /// </summary>
+        private void RecordRemovedExternalReference(LocalReference reference)
+        {
+            if (!m_removedExternalReferences.Exists(existing =>
+                existing.SourceId == reference.SourceId &&
+                existing.ReferenceTypeId == reference.ReferenceTypeId &&
+                existing.IsInverse == reference.IsInverse &&
+                existing.TargetId == reference.TargetId))
+            {
+                m_removedExternalReferences.Add(reference);
             }
         }
 
@@ -8196,19 +8344,38 @@ namespace Opc.Ua.Server
                     true,
                     ObjectIds.Server);
 
-                ServerObjectState? serverObject = Server.ServerObject;
+                if (stagingServer is { IsDetached: true, IsStaging: false } &&
+                    notifier.NodeId != ObjectIds.Server)
+                {
+                    RecordRemovedExternalReference(new LocalReference(
+                        ObjectIds.Server, ReferenceTypeIds.HasNotifier, false, notifier.NodeId));
+                }
+
                 if (stagingServer?.IsStaging != true &&
                     stagingServer?.IsDetached != true &&
-                    serverObject != null &&
-                    serverObject.ReferenceExists(
-                        ReferenceTypeIds.HasNotifier,
-                        false,
-                        notifier.NodeId))
+                    notifier.NodeId != ObjectIds.Server)
                 {
-                    serverObject.RemoveReference(
-                        ReferenceTypeIds.HasNotifier,
-                        false,
-                        notifier.NodeId);
+                    if (stagingServer is not null && Server.NodeManager is MasterNodeManager master)
+                    {
+                        await master.RemoveManagedNodeReferencesAsync(
+                            this,
+                            [
+                                new LocalReference(
+                                    ObjectIds.Server, ReferenceTypeIds.HasNotifier, false, notifier.NodeId)
+                            ],
+                            cancellationToken).ConfigureAwait(false);
+                    }
+                    else if (Server.ServerObject is { } serverObject &&
+                        serverObject.ReferenceExists(
+                            ReferenceTypeIds.HasNotifier,
+                            false,
+                            notifier.NodeId))
+                    {
+                        serverObject.RemoveReference(
+                            ReferenceTypeIds.HasNotifier,
+                            false,
+                            notifier.NodeId);
+                    }
                 }
                 List<Exception>? failures = null;
                 foreach (MonitoredNode2 monitored in detached)

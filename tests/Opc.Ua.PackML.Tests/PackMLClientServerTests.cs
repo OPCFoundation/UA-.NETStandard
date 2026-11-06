@@ -711,6 +711,178 @@ namespace Opc.Ua.PackML.Tests
             Assert.That((await m_client.ReadStatusAsync(child.Node.NodeId)).CurMachSpeed.Value, Is.EqualTo(12.5f));
         }
 
+        /// <summary>
+        /// Rejects a parent owned by another manager before changing its address space.
+        /// </summary>
+        [Test]
+        public async Task PreparedRuntimeRejectsForeignParentWithoutChangingIt()
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            CancellationToken ct = deadline.Token;
+            ushort namespaceIndex = m_composed.NamespaceIndexes[0];
+            var parent = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("ForeignLine", namespaceIndex),
+                BrowseName = new QualifiedName("ForeignLine", namespaceIndex),
+                DisplayName = new LocalizedText("ForeignLine"),
+                TypeDefinitionId = Ua.ObjectTypeIds.BaseObjectType
+            };
+            var existing = new BaseObjectState(parent)
+            {
+                NodeId = new NodeId("ForeignLine.Existing", namespaceIndex),
+                BrowseName = new QualifiedName("Existing", namespaceIndex),
+                DisplayName = new LocalizedText("Existing"),
+                TypeDefinitionId = Ua.ObjectTypeIds.BaseObjectType
+            };
+            parent.AddChild(existing);
+            parent.AddNotifier(m_composed.SystemContext, Ua.ReferenceTypeIds.HasEventSource, false, existing);
+            parent.AddReference(Ua.ReferenceTypeIds.Organizes, false, existing.NodeId);
+            await m_composed.AddPredefinedNodeAsync(parent, ct).ConfigureAwait(false);
+
+            var childrenBefore = new List<BaseInstanceState>();
+            var notifiersBefore = new List<NodeState.Notifier>();
+            var referencesBefore = new List<IReference>();
+            parent.GetChildren(m_composed.SystemContext, childrenBefore);
+            parent.GetNotifiers(m_composed.SystemContext, notifiersBefore);
+            parent.GetReferences(m_composed.SystemContext, referencesBefore);
+
+            INodeManagerLifecycle lifecycle = m_services.GetRequiredService<INodeManagerLifecycle>();
+            var factory = new PreparedPackMLManagerFactory(failFirstUnit: false);
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false);
+            PreparedPackMLManager candidate = factory.Manager
+                ?? throw new InvalidOperationException("The candidate manager was not created.");
+            int unitCount = candidate.Runtime.Units.Count;
+            bool configured = false;
+
+            ArgumentException? error = await Assert.ThrowsAsync<ArgumentException>(
+                async () => await candidate.Runtime.AddUnitAsync(
+                    new QualifiedName("RejectedUnit", candidate.NamespaceIndexes[0]),
+                    new EquipmentProvider(),
+                    _ => configured = true,
+                    parent,
+                    ct).ConfigureAwait(false)).ConfigureAwait(false);
+
+            Assert.That(error!.ParamName, Is.EqualTo("parent"));
+            Assert.That(error.Message, Does.Contain("owned by"));
+            Assert.That(configured, Is.False);
+            Assert.That(candidate.Runtime.Units.Count, Is.EqualTo(unitCount));
+            var childrenAfter = new List<BaseInstanceState>();
+            var notifiersAfter = new List<NodeState.Notifier>();
+            var referencesAfter = new List<IReference>();
+            parent.GetChildren(m_composed.SystemContext, childrenAfter);
+            parent.GetNotifiers(m_composed.SystemContext, notifiersAfter);
+            parent.GetReferences(m_composed.SystemContext, referencesAfter);
+            Assert.That(childrenAfter, Is.EqualTo(childrenBefore));
+            Assert.That(
+                notifiersAfter.Select(notifier => (notifier.Node, notifier.ReferenceTypeId, notifier.IsInverse)),
+                Is.EquivalentTo(
+                    notifiersBefore.Select(notifier => (notifier.Node, notifier.ReferenceTypeId, notifier.IsInverse))));
+            Assert.That(
+                referencesAfter.Select(reference =>
+                    (reference.ReferenceTypeId, reference.IsInverse, reference.TargetId)),
+                Is.EquivalentTo(
+                    referencesBefore.Select(reference =>
+                        (reference.ReferenceTypeId, reference.IsInverse, reference.TargetId))));
+        }
+
+        /// <summary>
+        /// Rejects an unindexed object even when it uses an owned parent's NodeId.
+        /// </summary>
+        [Test]
+        public async Task RuntimeRejectsDifferentParentWithOwnedNodeId()
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            CancellationToken ct = deadline.Token;
+            ushort namespaceIndex = m_composed.NamespaceIndexes[0];
+            var parent = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("OwnedLine", namespaceIndex),
+                BrowseName = new QualifiedName("OwnedLine", namespaceIndex),
+                DisplayName = new LocalizedText("OwnedLine"),
+                TypeDefinitionId = Ua.ObjectTypeIds.BaseObjectType
+            };
+            await m_composed.AddPredefinedNodeAsync(parent, ct).ConfigureAwait(false);
+            var impostor = new BaseObjectState(null)
+            {
+                NodeId = parent.NodeId,
+                BrowseName = parent.BrowseName,
+                DisplayName = parent.DisplayName,
+                TypeDefinitionId = Ua.ObjectTypeIds.BaseObjectType
+            };
+            bool configured = false;
+            await using var runtime = new PackMLRuntime(m_composed);
+
+            ArgumentException? error = await Assert.ThrowsAsync<ArgumentException>(
+                async () => await runtime.AddUnitAsync(
+                    new QualifiedName("RejectedUnit", namespaceIndex),
+                    new EquipmentProvider(),
+                    _ => configured = true,
+                    impostor,
+                    ct).ConfigureAwait(false)).ConfigureAwait(false);
+
+            Assert.That(error!.ParamName, Is.EqualTo("parent"));
+            Assert.That(configured, Is.False);
+            Assert.That(runtime.Units.Count, Is.Zero);
+            Assert.That(m_composed.Find(parent.NodeId), Is.SameAs(parent));
+            var children = new List<BaseInstanceState>();
+            parent.GetChildren(m_composed.SystemContext, children);
+            Assert.That(children, Is.Empty);
+            impostor.GetChildren(m_composed.SystemContext, children);
+            Assert.That(children, Is.Empty);
+        }
+
+        /// <summary>
+        /// Validates external-reference ownership before modifying the target.
+        /// </summary>
+        [Test]
+        public async Task ExternalReferenceHelperRejectsInvalidOwnership()
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            CancellationToken ct = deadline.Token;
+            ushort namespaceIndex = m_composed.NamespaceIndexes[0];
+            var target = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("ReferenceTarget", namespaceIndex),
+                BrowseName = new QualifiedName("ReferenceTarget", namespaceIndex),
+                DisplayName = new LocalizedText("ReferenceTarget"),
+                TypeDefinitionId = Ua.ObjectTypeIds.BaseObjectType
+            };
+            await m_composed.AddPredefinedNodeAsync(target, ct).ConfigureAwait(false);
+
+            ArgumentException? wrongTarget = await Assert.ThrowsAsync<ArgumentException>(
+                async () => await m_composed.AddExternalReferenceAsync(
+                    m_unit.Node, Ua.ObjectIds.ObjectsFolder, Ua.ReferenceTypeIds.Organizes, false, ct)
+                    .ConfigureAwait(false)).ConfigureAwait(false);
+            ArgumentException? localSource = await Assert.ThrowsAsync<ArgumentException>(
+                async () => await m_composed.AddExternalReferenceAsync(
+                    target, target.NodeId, Ua.ReferenceTypeIds.Organizes, false, ct)
+                    .ConfigureAwait(false)).ConfigureAwait(false);
+            ArgumentException? missingSource = await Assert.ThrowsAsync<ArgumentException>(
+                async () => await m_composed.AddExternalReferenceAsync(
+                    target, NodeId.Null, Ua.ReferenceTypeIds.Organizes, false, ct)
+                    .ConfigureAwait(false)).ConfigureAwait(false);
+            ArgumentException? missingType = await Assert.ThrowsAsync<ArgumentException>(
+                async () => await m_composed.AddExternalReferenceAsync(
+                    target, Ua.ObjectIds.ObjectsFolder, NodeId.Null, false, ct)
+                    .ConfigureAwait(false)).ConfigureAwait(false);
+            var unknownSource = new NodeId("UnknownReferenceSource", namespaceIndex);
+            ServiceResultException? unknown = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await m_composed.AddExternalReferenceAsync(
+                    target, unknownSource, Ua.ReferenceTypeIds.Organizes, false, ct)
+                    .ConfigureAwait(false)).ConfigureAwait(false);
+
+            Assert.That(wrongTarget!.ParamName, Is.EqualTo("target"));
+            Assert.That(localSource!.ParamName, Is.EqualTo("sourceId"));
+            Assert.That(missingSource!.ParamName, Is.EqualTo("sourceId"));
+            Assert.That(missingType!.ParamName, Is.EqualTo("referenceTypeId"));
+            Assert.That(unknown!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
+            Assert.That(target.ReferenceExists(
+                Ua.ReferenceTypeIds.Organizes, true, Ua.ObjectIds.ObjectsFolder), Is.False);
+            Assert.That(target.ReferenceExists(
+                Ua.ReferenceTypeIds.Organizes, true, unknownSource), Is.False);
+        }
+
         [Test]
         public async Task RuntimeRollsBackUnitWhenParentNotificationFailsAndPermitsRetry()
         {
@@ -1477,6 +1649,527 @@ namespace Opc.Ua.PackML.Tests
             Assert.That(unit.Node.OnReportEventAsync, Is.Null);
         }
 
+        /// <summary>
+        /// Keeps a prepared unit's external references private until publication or abort.
+        /// </summary>
+        /// <param name="publish">Whether to publish the prepared manager.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PreparedPackMLReferencesRemainPrivateUntilPublicationOrAbort(bool publish)
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            CancellationToken ct = deadline.Token;
+            INodeManagerLifecycle lifecycle = m_services.GetRequiredService<INodeManagerLifecycle>();
+            var core = m_manager.Server.NodeManager.CoreNodeManager as CoreNodeManager
+                ?? throw new InvalidOperationException("The core node manager is unavailable.");
+            NodeState objects = core.FindPredefinedNode<NodeState>(Ua.ObjectIds.ObjectsFolder)
+                ?? throw new InvalidOperationException("Objects folder is unavailable.");
+            NodeState enumeration = core.FindPredefinedNode<NodeState>(Ua.DataTypeIds.Enumeration)
+                ?? throw new InvalidOperationException("Enumeration type is unavailable.");
+            var factory = new PreparedPackMLManagerFactory(failFirstUnit: false);
+            NodeManagerBatchResult? committed = null;
+            NodeId unitId;
+            NodeId modeId;
+
+            await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false))
+            {
+                PreparedPackMLManager candidate = factory.Manager
+                    ?? throw new InvalidOperationException("The candidate manager was not created.");
+                unitId = candidate.CreatedUnit.Node.NodeId;
+                modeId = candidate.CreatedUnit.ModeDataType.NodeId;
+
+                AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: false);
+                if (publish)
+                {
+                    committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+                    Assert.That(committed.CleanupFailure, Is.Null);
+                }
+            }
+
+            AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: publish);
+            if (committed is not null)
+            {
+                await RetirePackMLManagerAsync(lifecycle, committed, ct).ConfigureAwait(false);
+                AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: false);
+            }
+        }
+
+        /// <summary>
+        /// Attaches existing Server-event subscribers when a prepared PackML manager is published.
+        /// </summary>
+        [Test]
+        public async Task PreparedPackMLRootAttachesExistingServerSubscribersAfterPublication()
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            CancellationToken ct = deadline.Token;
+            INodeManagerLifecycle lifecycle = m_services.GetRequiredService<INodeManagerLifecycle>();
+            uint subscriptionId = await SubscribeToServerEventsAsync(ct).ConfigureAwait(false);
+            try
+            {
+                var factory = new PreparedPackMLManagerFactory(failFirstUnit: false);
+                await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                    [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false);
+                PreparedPackMLManager candidate = factory.Manager
+                    ?? throw new InvalidOperationException("The candidate manager was not created.");
+                Assert.That(candidate.CreatedUnit.Node.AreEventsMonitored, Is.False);
+
+                NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+                Assert.That(committed.CleanupFailure, Is.Null);
+                Assert.That(committed.Issues.Count, Is.Zero);
+                Assert.That(candidate.CreatedUnit.Node.AreEventsMonitored, Is.True);
+                HashSet<NodeId> sources = CollectSubtree(candidate.SystemContext, candidate.CreatedUnit.Node);
+                ServiceResult reset = await candidate.CreatedUnit.RequestAsync(
+                    candidate.SystemContext,
+                    new PackMLRequest { Operation = PackMLOperation.Command, Command = PackMLCommand.Reset },
+                    ct).ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(reset), Is.True, reset.ToString());
+                NodeId source = await PublishUnitEventAsync(subscriptionId, sources, ct).ConfigureAwait(false);
+                Assert.That(sources, Does.Contain(source));
+                await RetirePackMLManagerAsync(lifecycle, committed, ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                await m_session.DeleteSubscriptionsAsync(null, [subscriptionId], CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Does not publish references from a unit rolled back during manager preparation.
+        /// </summary>
+        [Test]
+        public async Task RolledBackPreparedPackMLUnitDoesNotPublishExternalReferences()
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            CancellationToken ct = deadline.Token;
+            INodeManagerLifecycle lifecycle = m_services.GetRequiredService<INodeManagerLifecycle>();
+            var core = m_manager.Server.NodeManager.CoreNodeManager as CoreNodeManager
+                ?? throw new InvalidOperationException("The core node manager is unavailable.");
+            NodeState objects = core.FindPredefinedNode<NodeState>(Ua.ObjectIds.ObjectsFolder)
+                ?? throw new InvalidOperationException("Objects folder is unavailable.");
+            NodeState enumeration = core.FindPredefinedNode<NodeState>(Ua.DataTypeIds.Enumeration)
+                ?? throw new InvalidOperationException("Enumeration type is unavailable.");
+            var factory = new PreparedPackMLManagerFactory(failFirstUnit: true);
+
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false);
+            PreparedPackMLManager candidate = factory.Manager
+                ?? throw new InvalidOperationException("The candidate manager was not created.");
+            Assert.That(candidate.FailedUnitId.IsNull, Is.False);
+            Assert.That(candidate.FailedModeId.IsNull, Is.False);
+            Assert.That(candidate.Find(candidate.FailedUnitId), Is.Null);
+            Assert.That(candidate.Find(candidate.FailedModeId), Is.Null);
+            AssertPackMLExternalReferences(
+                objects, enumeration, candidate.FailedUnitId, candidate.FailedModeId, expected: false);
+
+            NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            Assert.That(committed.CleanupFailure, Is.Null);
+            AssertPackMLExternalReferences(
+                objects, enumeration, candidate.FailedUnitId, candidate.FailedModeId, expected: false);
+            AssertPackMLExternalReferences(
+                objects, enumeration, candidate.CreatedUnit.Node.NodeId, candidate.CreatedUnit.ModeDataType.NodeId,
+                expected: true);
+            await RetirePackMLManagerAsync(lifecycle, committed, ct).ConfigureAwait(false);
+            AssertPackMLExternalReferences(
+                objects, enumeration, candidate.FailedUnitId, candidate.FailedModeId, expected: false);
+        }
+
+        /// <summary>
+        /// Keeps the serving references when a private replacement rolls back matching node identifiers.
+        /// </summary>
+        [Test]
+        public async Task RolledBackPreparedPackMLUnitKeepsServingReferencesWithMatchingIds()
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            CancellationToken ct = deadline.Token;
+            INodeManagerLifecycle lifecycle = m_services.GetRequiredService<INodeManagerLifecycle>();
+            var core = m_manager.Server.NodeManager.CoreNodeManager as CoreNodeManager
+                ?? throw new InvalidOperationException("The core node manager is unavailable.");
+            NodeState objects = core.FindPredefinedNode<NodeState>(Ua.ObjectIds.ObjectsFolder)
+                ?? throw new InvalidOperationException("Objects folder is unavailable.");
+            NodeState enumeration = core.FindPredefinedNode<NodeState>(Ua.DataTypeIds.Enumeration)
+                ?? throw new InvalidOperationException("Enumeration type is unavailable.");
+            var originalFactory = new PreparedPackMLManagerFactory(failFirstUnit: false);
+            await using IPreparedNodeManagerBatch originalPreparation = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(originalFactory)], ct).ConfigureAwait(false);
+            NodeManagerBatchResult original = await originalPreparation.CommitAsync(_ => default, ct)
+                .ConfigureAwait(false);
+            Assert.That(original.CleanupFailure, Is.Null);
+            PreparedPackMLManager serving = originalFactory.Manager
+                ?? throw new InvalidOperationException("The serving manager was not created.");
+            NodeId unitId = serving.CreatedUnit.Node.NodeId;
+            NodeId modeId = serving.CreatedUnit.ModeDataType.NodeId;
+            AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: true);
+
+            var replacementFactory = new PreparedPackMLManagerFactory(failFirstUnit: true, failServingUnit: true);
+            await using (IPreparedNodeManagerBatch replacement = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Replace(original.Registrations[0], replacementFactory)], ct)
+                .ConfigureAwait(false))
+            {
+                PreparedPackMLManager candidate = replacementFactory.Manager
+                    ?? throw new InvalidOperationException("The candidate manager was not created.");
+                Assert.That(candidate.FailedUnitId, Is.EqualTo(unitId));
+                Assert.That(candidate.FailedModeId, Is.EqualTo(modeId));
+                AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: true);
+            }
+
+            AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: true);
+            await RetirePackMLManagerAsync(lifecycle, original, ct).ConfigureAwait(false);
+            AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: false);
+        }
+
+        /// <summary>
+        /// Discards a unit's captured references when it is deleted before publication.
+        /// </summary>
+        [Test]
+        public async Task PreparedPackMLUnitDeletedBeforeCommitDoesNotPublishReferences()
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            CancellationToken ct = deadline.Token;
+            INodeManagerLifecycle lifecycle = m_services.GetRequiredService<INodeManagerLifecycle>();
+            var core = m_manager.Server.NodeManager.CoreNodeManager as CoreNodeManager
+                ?? throw new InvalidOperationException("The core node manager is unavailable.");
+            NodeState objects = core.FindPredefinedNode<NodeState>(Ua.ObjectIds.ObjectsFolder)
+                ?? throw new InvalidOperationException("Objects folder is unavailable.");
+            NodeState enumeration = core.FindPredefinedNode<NodeState>(Ua.DataTypeIds.Enumeration)
+                ?? throw new InvalidOperationException("Enumeration type is unavailable.");
+            var factory = new PreparedPackMLManagerFactory(failFirstUnit: false);
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false);
+            PreparedPackMLManager candidate = factory.Manager
+                ?? throw new InvalidOperationException("The candidate manager was not created.");
+            NodeId unitId = candidate.CreatedUnit.Node.NodeId;
+            NodeId modeId = candidate.CreatedUnit.ModeDataType.NodeId;
+
+            Assert.That(await candidate.DeleteNodeAsync(candidate.SystemContext, unitId, ct).ConfigureAwait(false),
+                Is.True);
+            Assert.That(await candidate.DeleteNodeAsync(candidate.SystemContext, modeId, ct).ConfigureAwait(false),
+                Is.True);
+            NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            Assert.That(committed.CleanupFailure, Is.Null);
+            AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: false);
+            Assert.That(candidate.Server.ServerObject.ReferenceExists(
+                Ua.ReferenceTypeIds.HasNotifier, false, unitId), Is.False);
+            await RetirePackMLManagerAsync(lifecycle, committed, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Publishes and later removes references added after preparation has returned.
+        /// </summary>
+        [Test]
+        public async Task PreparedPackMLUnitAddedAfterPreparationPublishesReferences()
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            CancellationToken ct = deadline.Token;
+            INodeManagerLifecycle lifecycle = m_services.GetRequiredService<INodeManagerLifecycle>();
+            var core = m_manager.Server.NodeManager.CoreNodeManager as CoreNodeManager
+                ?? throw new InvalidOperationException("The core node manager is unavailable.");
+            NodeState objects = core.FindPredefinedNode<NodeState>(Ua.ObjectIds.ObjectsFolder)
+                ?? throw new InvalidOperationException("Objects folder is unavailable.");
+            NodeState enumeration = core.FindPredefinedNode<NodeState>(Ua.DataTypeIds.Enumeration)
+                ?? throw new InvalidOperationException("Enumeration type is unavailable.");
+            var factory = new PreparedPackMLManagerFactory(failFirstUnit: false);
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false);
+            PreparedPackMLManager candidate = factory.Manager
+                ?? throw new InvalidOperationException("The candidate manager was not created.");
+            Unit added = await candidate.Runtime.AddUnitAsync(
+                new QualifiedName("AfterPreparation", candidate.NamespaceIndexes[0]),
+                new EquipmentProvider(),
+                cancellationToken: ct).ConfigureAwait(false);
+            NodeId unitId = added.Node.NodeId;
+            NodeId modeId = added.ModeDataType.NodeId;
+
+            AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: false);
+            Assert.That(candidate.Server.ServerObject.ReferenceExists(
+                Ua.ReferenceTypeIds.HasNotifier, false, unitId), Is.False);
+            NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            Assert.That(committed.CleanupFailure, Is.Null);
+            AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: true);
+            Assert.That(candidate.Server.ServerObject.ReferenceExists(
+                Ua.ReferenceTypeIds.HasNotifier, false, unitId), Is.True);
+
+            await RetirePackMLManagerAsync(lifecycle, committed, ct).ConfigureAwait(false);
+            AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: false);
+            Assert.That(candidate.Server.ServerObject.ReferenceExists(
+                Ua.ReferenceTypeIds.HasNotifier, false, unitId), Is.False);
+        }
+
+        /// <summary>
+        /// Rejects a staged reference whose external source does not exist when publishing.
+        /// </summary>
+        [Test]
+        public async Task PreparedExternalReferenceRequiresAnAvailableSource()
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            CancellationToken ct = deadline.Token;
+            INodeManagerLifecycle lifecycle = m_services.GetRequiredService<INodeManagerLifecycle>();
+            var core = m_manager.Server.NodeManager.CoreNodeManager as CoreNodeManager
+                ?? throw new InvalidOperationException("The core node manager is unavailable.");
+            NodeState objects = core.FindPredefinedNode<NodeState>(Ua.ObjectIds.ObjectsFolder)
+                ?? throw new InvalidOperationException("Objects folder is unavailable.");
+            NodeState enumeration = core.FindPredefinedNode<NodeState>(Ua.DataTypeIds.Enumeration)
+                ?? throw new InvalidOperationException("Enumeration type is unavailable.");
+            var factory = new PreparedPackMLManagerFactory(failFirstUnit: false);
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false);
+            PreparedPackMLManager candidate = factory.Manager
+                ?? throw new InvalidOperationException("The candidate manager was not created.");
+            Unit unit = candidate.CreatedUnit;
+            var missingSource = new NodeId("MissingPreparedSource", candidate.NamespaceIndexes[0]);
+            await candidate.AddExternalReferenceAsync(
+                unit.Node, missingSource, Ua.ReferenceTypeIds.Organizes, false, ct).ConfigureAwait(false);
+            bool decided = false;
+
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await prepared.CommitAsync(
+                    _ =>
+                    {
+                        decided = true;
+                        return default;
+                    },
+                    ct).ConfigureAwait(false)).ConfigureAwait(false);
+
+            Assert.That(failure!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
+            Assert.That(decided, Is.False);
+            AssertPackMLExternalReferences(
+                objects, enumeration, unit.Node.NodeId, unit.ModeDataType.NodeId, expected: false);
+            Assert.That(candidate.Server.ServerObject.ReferenceExists(
+                Ua.ReferenceTypeIds.HasNotifier, false, unit.Node.NodeId), Is.False);
+        }
+
+        /// <summary>
+        /// Publishes both directions of an external reference and removes it at retirement.
+        /// </summary>
+        /// <param name="isInverse">Whether the reference on the external source is inverse.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PreparedExternalReferencePreservesDirection(bool isInverse)
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            CancellationToken ct = deadline.Token;
+            INodeManagerLifecycle lifecycle = m_services.GetRequiredService<INodeManagerLifecycle>();
+            var core = m_manager.Server.NodeManager.CoreNodeManager as CoreNodeManager
+                ?? throw new InvalidOperationException("The core node manager is unavailable.");
+            NodeState objects = core.FindPredefinedNode<NodeState>(Ua.ObjectIds.ObjectsFolder)
+                ?? throw new InvalidOperationException("Objects folder is unavailable.");
+            var factory = new PreparedPackMLManagerFactory(failFirstUnit: false);
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false);
+            PreparedPackMLManager candidate = factory.Manager
+                ?? throw new InvalidOperationException("The candidate manager was not created.");
+            NodeState target = candidate.CreatedUnit.Node;
+            await candidate.AddExternalReferenceAsync(
+                target, Ua.ObjectIds.ObjectsFolder, Ua.ReferenceTypeIds.HasComponent, isInverse, ct)
+                .ConfigureAwait(false);
+            await candidate.AddExternalReferenceAsync(
+                target, Ua.ObjectIds.ObjectsFolder, Ua.ReferenceTypeIds.HasComponent, isInverse, ct)
+                .ConfigureAwait(false);
+            Assert.That(target.ReferenceExists(
+                Ua.ReferenceTypeIds.HasComponent, !isInverse, Ua.ObjectIds.ObjectsFolder), Is.True);
+            Assert.That(objects.ReferenceExists(
+                Ua.ReferenceTypeIds.HasComponent, isInverse, target.NodeId), Is.False);
+
+            NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            Assert.That(committed.CleanupFailure, Is.Null);
+            Assert.That(objects.ReferenceExists(
+                Ua.ReferenceTypeIds.HasComponent, isInverse, target.NodeId), Is.True);
+            await RetirePackMLManagerAsync(lifecycle, committed, ct).ConfigureAwait(false);
+            Assert.That(objects.ReferenceExists(
+                Ua.ReferenceTypeIds.HasComponent, isInverse, target.NodeId), Is.False);
+        }
+
+        /// <summary>
+        /// Removes a later unit's external references when its manager is retired.
+        /// </summary>
+        /// <param name="deleteBeforeAddressSpace">Whether teardown deletes the unit before the address space.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PublishedPackMLUnitReferencesAreRemovedOnRetirement(bool deleteBeforeAddressSpace)
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            CancellationToken ct = deadline.Token;
+            INodeManagerLifecycle lifecycle = m_services.GetRequiredService<INodeManagerLifecycle>();
+            var core = m_manager.Server.NodeManager.CoreNodeManager as CoreNodeManager
+                ?? throw new InvalidOperationException("The core node manager is unavailable.");
+            NodeState objects = core.FindPredefinedNode<NodeState>(Ua.ObjectIds.ObjectsFolder)
+                ?? throw new InvalidOperationException("Objects folder is unavailable.");
+            NodeState enumeration = core.FindPredefinedNode<NodeState>(Ua.DataTypeIds.Enumeration)
+                ?? throw new InvalidOperationException("Enumeration type is unavailable.");
+            var factory = new PreparedPackMLManagerFactory(failFirstUnit: false);
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false);
+            NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            Assert.That(committed.CleanupFailure, Is.Null);
+            PreparedPackMLManager candidate = factory.Manager
+                ?? throw new InvalidOperationException("The candidate manager was not created.");
+            Unit added = await candidate.Runtime.AddUnitAsync(
+                new QualifiedName("AfterPublication", candidate.NamespaceIndexes[0]),
+                new EquipmentProvider(),
+                cancellationToken: ct).ConfigureAwait(false);
+            NodeId unitId = added.Node.NodeId;
+            NodeId modeId = added.ModeDataType.NodeId;
+            if (deleteBeforeAddressSpace)
+            {
+                candidate.UnitToDeleteOnRetirement = added;
+            }
+            AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: true);
+            Assert.That(candidate.Server.ServerObject.ReferenceExists(
+                Ua.ReferenceTypeIds.HasNotifier, false, unitId), Is.True);
+
+            await RetirePackMLManagerAsync(lifecycle, committed, ct).ConfigureAwait(false);
+            AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: false);
+            Assert.That(candidate.Server.ServerObject.ReferenceExists(
+                Ua.ReferenceTypeIds.HasNotifier, false, unitId), Is.False);
+        }
+
+        /// <summary>
+        /// Keeps a deleted prepared unit's references removed and cleans up a later unit with the same identifiers.
+        /// </summary>
+        /// <param name="removeRootFirst">Whether the root's references were already removed.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DeletedPreparedUnitReferencesDoNotReturnOrMaskLaterUnit(bool removeRootFirst)
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            CancellationToken ct = deadline.Token;
+            INodeManagerLifecycle lifecycle = m_services.GetRequiredService<INodeManagerLifecycle>();
+            var core = m_manager.Server.NodeManager.CoreNodeManager as CoreNodeManager
+                ?? throw new InvalidOperationException("The core node manager is unavailable.");
+            NodeState objects = core.FindPredefinedNode<NodeState>(Ua.ObjectIds.ObjectsFolder)
+                ?? throw new InvalidOperationException("Objects folder is unavailable.");
+            NodeState enumeration = core.FindPredefinedNode<NodeState>(Ua.DataTypeIds.Enumeration)
+                ?? throw new InvalidOperationException("Enumeration type is unavailable.");
+            var factory = new PreparedPackMLManagerFactory(failFirstUnit: false);
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false);
+            NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            Assert.That(committed.CleanupFailure, Is.Null);
+            PreparedPackMLManager candidate = factory.Manager
+                ?? throw new InvalidOperationException("The candidate manager was not created.");
+            NodeId unitId = candidate.CreatedUnit.Node.NodeId;
+            NodeId modeId = candidate.CreatedUnit.ModeDataType.NodeId;
+
+            Assert.That(candidate.Server.ServerObject.ReferenceExists(
+                Ua.ReferenceTypeIds.HasNotifier, false, unitId), Is.True);
+            if (removeRootFirst)
+            {
+                candidate.Server.ServerObject.RemoveReference(Ua.ReferenceTypeIds.HasNotifier, false, unitId);
+                candidate.CreatedUnit.Node.RemoveReference(
+                    Ua.ReferenceTypeIds.HasNotifier, true, Ua.ObjectIds.Server);
+            }
+
+            Assert.That(await candidate.DeleteNodeAsync(candidate.SystemContext, unitId, ct).ConfigureAwait(false),
+                Is.True);
+            Assert.That(await candidate.DeleteNodeAsync(candidate.SystemContext, modeId, ct).ConfigureAwait(false),
+                Is.True);
+            AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: false);
+            Assert.That(candidate.Server.ServerObject.ReferenceExists(
+                Ua.ReferenceTypeIds.HasNotifier, false, unitId), Is.False);
+
+            var otherFactory = new PreparedPackMLManagerFactory(
+                failFirstUnit: false, namespaceUri: "urn:opcfoundation:tests:packml:second-prepared");
+            await using IPreparedNodeManagerBatch otherPreparation = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(otherFactory)], ct).ConfigureAwait(false);
+            NodeManagerBatchResult other = await otherPreparation.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            Assert.That(other.CleanupFailure, Is.Null);
+            AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: false);
+            Assert.That(candidate.Server.ServerObject.ReferenceExists(
+                Ua.ReferenceTypeIds.HasNotifier, false, unitId), Is.False);
+
+            await using (var replacementRuntime = new PackMLRuntime(candidate))
+            {
+                Unit replacement = await replacementRuntime.AddUnitAsync(
+                    new QualifiedName("PreparedUnit", candidate.NamespaceIndexes[0]),
+                    new EquipmentProvider(),
+                    cancellationToken: ct).ConfigureAwait(false);
+                Assert.That(replacement.Node.NodeId, Is.EqualTo(unitId));
+                Assert.That(replacement.ModeDataType.NodeId, Is.EqualTo(modeId));
+                AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: true);
+                Assert.That(candidate.Server.ServerObject.ReferenceExists(
+                    Ua.ReferenceTypeIds.HasNotifier, false, unitId), Is.True);
+            }
+
+            await RetirePackMLManagerAsync(lifecycle, other, ct).ConfigureAwait(false);
+            AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: true);
+            await RetirePackMLManagerAsync(lifecycle, committed, ct).ConfigureAwait(false);
+            AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: false);
+            Assert.That(candidate.Server.ServerObject.ReferenceExists(
+                Ua.ReferenceTypeIds.HasNotifier, false, unitId), Is.False);
+        }
+
+        /// <summary>
+        /// Does not transfer a staged external reference to an unrelated replacement with the same NodeId.
+        /// </summary>
+        [Test]
+        public async Task ReplacedPreparedPackMLNodeDoesNotInheritStagedReference()
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            CancellationToken ct = deadline.Token;
+            INodeManagerLifecycle lifecycle = m_services.GetRequiredService<INodeManagerLifecycle>();
+            var core = m_manager.Server.NodeManager.CoreNodeManager as CoreNodeManager
+                ?? throw new InvalidOperationException("The core node manager is unavailable.");
+            NodeState objects = core.FindPredefinedNode<NodeState>(Ua.ObjectIds.ObjectsFolder)
+                ?? throw new InvalidOperationException("Objects folder is unavailable.");
+            NodeState enumeration = core.FindPredefinedNode<NodeState>(Ua.DataTypeIds.Enumeration)
+                ?? throw new InvalidOperationException("Enumeration type is unavailable.");
+            var factory = new PreparedPackMLManagerFactory(failFirstUnit: false);
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false);
+            PreparedPackMLManager candidate = factory.Manager
+                ?? throw new InvalidOperationException("The candidate manager was not created.");
+            NodeState original = candidate.CreatedUnit.Node;
+            NodeId modeId = candidate.CreatedUnit.ModeDataType.NodeId;
+            var replacement = new BaseObjectState(null)
+            {
+                NodeId = original.NodeId,
+                BrowseName = original.BrowseName,
+                DisplayName = original.DisplayName,
+                TypeDefinitionId = Ua.ObjectTypeIds.BaseObjectType
+            };
+            await candidate.AddPredefinedNodeAsync(replacement, ct).ConfigureAwait(false);
+            Assert.That(candidate.Find(original.NodeId), Is.SameAs(replacement));
+
+            NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            Assert.That(committed.CleanupFailure, Is.Null);
+            Assert.That(objects.ReferenceExists(
+                Ua.ReferenceTypeIds.Organizes, false, original.NodeId), Is.False);
+            Assert.That(enumeration.ReferenceExists(
+                Ua.ReferenceTypeIds.HasSubtype, false, modeId), Is.True);
+            await RetirePackMLManagerAsync(lifecycle, committed, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Checks the serving Objects-folder and Enumeration references for one unit.
+        /// </summary>
+        private static void AssertPackMLExternalReferences(
+            NodeState objects,
+            NodeState enumeration,
+            NodeId unitId,
+            NodeId modeId,
+            bool expected)
+        {
+            Assert.That(objects.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, unitId), Is.EqualTo(expected));
+            Assert.That(
+                enumeration.ReferenceExists(Ua.ReferenceTypeIds.HasSubtype, false, modeId), Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// Retires a committed manager and waits for its address space to be deleted.
+        /// </summary>
+        private static async Task RetirePackMLManagerAsync(
+            INodeManagerLifecycle lifecycle,
+            NodeManagerBatchResult committed,
+            CancellationToken ct)
+        {
+            await using IPreparedNodeManagerBatch removal = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Remove(committed.Registrations[0])], ct).ConfigureAwait(false);
+            NodeManagerBatchResult removed = await removal.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            Assert.That(removed.CleanupFailure, Is.Null);
+            await removed.Retirement.WaitAsync(ct).ConfigureAwait(false);
+        }
+
         private async Task<uint> SubscribeToServerEventsAsync(CancellationToken ct)
         {
             CreateSubscriptionResponse subscription = await m_session.CreateSubscriptionAsync(
@@ -1691,6 +2384,188 @@ namespace Opc.Ua.PackML.Tests
                     throw fault;
                 }
             }
+        }
+
+        /// <summary>
+        /// Creates a candidate that composes PackML during address-space preparation.
+        /// </summary>
+        private sealed class PreparedPackMLManagerFactory : IAsyncNodeManagerFactory
+        {
+            /// <summary>
+            /// Selects whether the candidate first rolls back a unit.
+            /// </summary>
+            /// <param name="failFirstUnit">Whether to inject a failure during the first unit's registration.</param>
+            /// <param name="failServingUnit">Whether the failed unit uses the serving unit's name.</param>
+            /// <param name="namespaceUri">The namespace owned by the candidate.</param>
+            public PreparedPackMLManagerFactory(
+                bool failFirstUnit,
+                bool failServingUnit = false,
+                string namespaceUri = "urn:opcfoundation:tests:packml:prepared")
+            {
+                m_failFirstUnit = failFirstUnit;
+                m_failServingUnit = failServingUnit;
+                NamespacesUris = [namespaceUri];
+            }
+
+            /// <summary>
+            /// Gets the candidate manager.
+            /// </summary>
+            public PreparedPackMLManager? Manager { get; private set; }
+
+            /// <inheritdoc/>
+            public ArrayOf<string> NamespacesUris { get; }
+
+            /// <inheritdoc/>
+            public ValueTask<IAsyncNodeManager> CreateAsync(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                Manager = new PreparedPackMLManager(
+                    server, configuration, NamespacesUris[0], m_failFirstUnit, m_failServingUnit);
+                return new ValueTask<IAsyncNodeManager>(Manager);
+            }
+
+            /// <summary>Whether to fail the first unit's registration.</summary>
+            private readonly bool m_failFirstUnit;
+
+            /// <summary>Whether the failed unit uses the serving unit's name.</summary>
+            private readonly bool m_failServingUnit;
+        }
+
+        /// <summary>
+        /// Composes units in a private candidate and can inject a registration failure.
+        /// </summary>
+        private sealed class PreparedPackMLManager : AsyncCustomNodeManager, INodeManagerReloadParticipant
+        {
+            /// <summary>
+            /// Creates the candidate and its PackML runtime.
+            /// </summary>
+            public PreparedPackMLManager(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                string namespaceUri,
+                bool failFirstUnit,
+                bool failServingUnit)
+                : base(server, configuration, namespaceUri)
+            {
+                m_failFirstUnit = failFirstUnit;
+                m_failServingUnit = failServingUnit;
+                Runtime = new PackMLRuntime(this);
+            }
+
+            /// <summary>
+            /// Gets the candidate's PackML runtime.
+            /// </summary>
+            public PackMLRuntime Runtime { get; }
+
+            /// <summary>
+            /// Gets the unit retained by the candidate.
+            /// </summary>
+            public Unit CreatedUnit { get; private set; } = null!;
+
+            /// <summary>
+            /// Gets or sets a unit to delete before the address space during retirement.
+            /// </summary>
+            public Unit? UnitToDeleteOnRetirement { get; set; }
+
+            /// <summary>
+            /// Gets the identifier of the rolled-back unit.
+            /// </summary>
+            public NodeId FailedUnitId { get; private set; }
+
+            /// <summary>
+            /// Gets the identifier of the rolled-back unit's mode type.
+            /// </summary>
+            public NodeId FailedModeId { get; private set; }
+
+            /// <inheritdoc/>
+            public override async ValueTask CreateAddressSpaceAsync(
+                IDictionary<NodeId, IList<IReference>> externalReferences,
+                CancellationToken cancellationToken = default)
+            {
+                await base.CreateAddressSpaceAsync(externalReferences, cancellationToken).ConfigureAwait(false);
+                if (m_failFirstUnit)
+                {
+                    m_failRegistration = true;
+                    try
+                    {
+                        InvalidOperationException? failure = await Assert.ThrowsAsync<InvalidOperationException>(
+                            async () => await Runtime.AddUnitAsync(
+                                new QualifiedName(
+                                    m_failServingUnit ? "PreparedUnit" : "FailedUnit", NamespaceIndexes[0]),
+                                new EquipmentProvider(),
+                                cancellationToken: cancellationToken).ConfigureAwait(false)).ConfigureAwait(false);
+                        Assert.That(failure, Is.SameAs(m_registrationFailure));
+                    }
+                    finally
+                    {
+                        m_failRegistration = false;
+                    }
+                }
+                CreatedUnit = await Runtime.AddUnitAsync(
+                    new QualifiedName(m_failServingUnit ? "ReplacementUnit" : "PreparedUnit", NamespaceIndexes[0]),
+                    new EquipmentProvider(),
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
+                await AddReverseReferencesAsync(externalReferences, cancellationToken).ConfigureAwait(false);
+            }
+
+            /// <inheritdoc/>
+            public ValueTask<ArrayOf<LocalReference>> PrepareReloadAsync(
+                IAsyncNodeManager replacement,
+                CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return new ValueTask<ArrayOf<LocalReference>>([]);
+            }
+
+            /// <inheritdoc/>
+            public override async ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
+            {
+                await Runtime.DisposeAsync().ConfigureAwait(false);
+                if (UnitToDeleteOnRetirement is { } unit)
+                {
+                    await DeleteNodeAsync(SystemContext, unit.Node.NodeId, cancellationToken).ConfigureAwait(false);
+                    await DeleteNodeAsync(SystemContext, unit.ModeDataType.NodeId, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                await base.DeleteAddressSpaceAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            /// <inheritdoc/>
+            protected override async ValueTask AddRootNotifierAsync(
+                NodeState notifier,
+                CancellationToken cancellationToken = default)
+            {
+                await base.AddRootNotifierAsync(notifier, cancellationToken).ConfigureAwait(false);
+                if (m_failRegistration && notifier is PackMLBaseObjectState unit)
+                {
+                    FailedUnitId = unit.NodeId;
+                    FailedModeId = unit.Status.Required().UnitModeCurrent.Required().DataType;
+                    throw m_registrationFailure;
+                }
+            }
+
+            /// <inheritdoc/>
+            protected override async ValueTask DisposeAsyncCore()
+            {
+                await Runtime.DisposeAsync().ConfigureAwait(false);
+                await base.DisposeAsyncCore().ConfigureAwait(false);
+            }
+
+            /// <summary>Whether to fail the first unit's registration.</summary>
+            private readonly bool m_failFirstUnit;
+
+            /// <summary>Whether the failed unit uses the serving unit's name.</summary>
+            private readonly bool m_failServingUnit;
+
+            /// <summary>The failure raised after the first root is registered.</summary>
+            private readonly InvalidOperationException m_registrationFailure =
+                new("Injected root registration failure.");
+
+            /// <summary>Whether the next root registration fails.</summary>
+            private bool m_failRegistration;
         }
     }
 }
