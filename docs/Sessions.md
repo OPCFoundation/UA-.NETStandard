@@ -1482,7 +1482,7 @@ This is enabled by default and does not change what a handler sees,
 with one exception: a notification body that cannot be decoded is
 logged and not delivered, instead of failing the whole Publish
 response. To decode on arrival, use
-`ManagedSessionBuilder.WithDeferredNotificationDecoding(false)` or the
+`ManagedSessionBuilder.WithoutDeferredNotificationDecoding()` or the
 `ManagedSessionOptions.DeferNotificationDecoding` init property. The
 classic subscription engine decodes on arrival.
 

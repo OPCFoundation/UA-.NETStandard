@@ -1419,7 +1419,7 @@ namespace Microsoft.Extensions.DependencyInjection
             }
             if (!sessionOptions.DeferNotificationDecoding)
             {
-                builder.WithDeferredNotificationDecoding(false);
+                builder.WithoutDeferredNotificationDecoding();
             }
             if (sessionOptions.ModelChangeTracking)
             {

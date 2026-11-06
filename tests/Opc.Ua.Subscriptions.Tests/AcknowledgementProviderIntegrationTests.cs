@@ -374,7 +374,10 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 builder.UseSubscriptionEngine(ClassicSubscriptionEngineFactory.Instance);
             }
-            builder.WithDeferredNotificationDecoding(deferNotificationDecoding);
+            if (!deferNotificationDecoding)
+            {
+                builder.WithoutDeferredNotificationDecoding();
+            }
             return await builder.ConnectAsync(ct).ConfigureAwait(false);
         }
 

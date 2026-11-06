@@ -286,7 +286,6 @@ namespace Opc.Ua.Client
         /// </summary>
         public bool DeferNotificationDecoding { get; init; } = true;
 
-
         /// <summary>
         /// <para>
         /// When <c>true</c>, the <see cref="ManagedSession"/> automatically
