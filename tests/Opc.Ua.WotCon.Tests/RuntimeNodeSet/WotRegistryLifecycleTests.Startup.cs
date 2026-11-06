@@ -322,8 +322,13 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             }
 
             private sealed class DeadlinePublication(
-                DeadlineProjectionHost owner, IWotPreparedProjectionPublication inner) : IWotPreparedProjectionPublication
+                DeadlineProjectionHost owner, IWotPreparedProjectionPublication inner)
+                : IWotPreparedProjectionPublication, IWotPreparedProjectionNamespaceSource
             {
+                /// <inheritdoc/>
+                public ArrayOf<string> CapturedNamespaceUris =>
+                    (inner as IWotPreparedProjectionNamespaceSource)?.CapturedNamespaceUris ?? [];
+
                 /// <summary>
                 /// Gets the projections for <c>DeadlinePublication</c>.
                 /// </summary>

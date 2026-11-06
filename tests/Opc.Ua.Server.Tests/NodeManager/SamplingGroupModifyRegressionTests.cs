@@ -27,9 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections;
 using System.Collections.Generic;
-using System.Reflection;
 using Moq;
 using NUnit.Framework;
 
@@ -119,12 +117,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 manager.ModifyMonitoring(context, item);
                 manager.ApplyChanges();
 
-                Assert.That(GroupCount(manager), Is.EqualTo(1), "the item must be sampled by one group only");
+                Assert.That(manager.SamplingGroupCount, Is.EqualTo(1), "the item must be sampled by one group only");
 
                 manager.StopMonitoring(item);
                 manager.ApplyChanges();
 
-                Assert.That(GroupCount(manager), Is.Zero, "no group may keep sampling the deleted item");
+                Assert.That(manager.SamplingGroupCount, Is.Zero, "no group may keep sampling the deleted item");
             }
         }
 
@@ -153,13 +151,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 manager.ModifyMonitoring(context, item);
                 manager.ApplyChanges();
 
-                Assert.That(GroupCount(manager), Is.EqualTo(1), "the item must still be sampled");
+                Assert.That(manager.SamplingGroupCount, Is.EqualTo(1), "the item must still be sampled");
                 Assert.That(item.SamplingInterval, Is.EqualTo(100));
 
                 manager.StopMonitoring(item);
                 manager.ApplyChanges();
 
-                Assert.That(GroupCount(manager), Is.Zero);
+                Assert.That(manager.SamplingGroupCount, Is.Zero);
             }
         }
 
@@ -213,13 +211,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
         private static List<SamplingRateGroup> Rates()
         {
             return [new SamplingRateGroup(100, 100, 9)];
-        }
-
-        private static int GroupCount(SamplingGroupManager manager)
-        {
-            FieldInfo field = typeof(SamplingGroupManager).GetField(
-                "m_samplingGroups", BindingFlags.Instance | BindingFlags.NonPublic)!;
-            return ((ICollection)field!.GetValue(manager)!).Count;
         }
 
         private static OperationContext CreateContext()

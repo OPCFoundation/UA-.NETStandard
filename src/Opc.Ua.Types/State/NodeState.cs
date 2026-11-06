@@ -195,8 +195,8 @@ namespace Opc.Ua
             target.m_writeMask = m_writeMask;
             target.m_userWriteMask = m_userWriteMask;
 
-            target.RolePermissions = RolePermissions;
-            target.UserRolePermissions = UserRolePermissions;
+            // the copy is new: storing the permissions does not change those of any node.
+            target.InitializeRolePermissions(RolePermissions, UserRolePermissions);
             target.AccessRestrictions = AccessRestrictions;
 
             if (GetReferenceKeys() is { } references)
@@ -1945,20 +1945,11 @@ namespace Opc.Ua
             {
                 lock (m_referencesLock)
                 {
-                    ReferenceSnapshot image = CurrentReferenceSnapshot;
-                    image.EnsureMutable();
-                    if (ReferenceEquals(image, s_emptyReferenceSnapshot))
+                    EnsureReferencesMutable();
+                    m_referenceRevision++;
+                    if (m_references is not null || references.Count != 0)
                     {
-                        if (references.Count == 0)
-                        {
-                            return;
-                        }
-                        image = GetMutableReferenceSnapshot();
-                    }
-                    image.Revision++;
-                    if (image.References is not null || references.Count != 0)
-                    {
-                        image.References = references;
+                        m_references = references;
                         m_changeMasks |= NodeStateChangeMasks.References;
                     }
                 }
@@ -2918,6 +2909,13 @@ namespace Opc.Ua
         /// <summary>
         /// Reports an event produced by the node.
         /// </summary>
+        /// <remarks>
+        /// A derived override may run for each parent or inverse-notifier path reaching this node.
+        /// The base implementation tracks visited nodes to suppress repeated sink delivery during propagation.
+        /// When the caller retains a serialization gate while reporting an event, synchronous sinks must not
+        /// block on work that needs the same gate. The synchronous path also waits for asynchronous sinks,
+        /// which must not await such work.
+        /// </remarks>
         /// <param name="context">The system context.</param>
         /// <param name="e">The event to report.</param>
         public virtual void ReportEvent(ISystemContext context, IFilterTarget e)
@@ -2993,10 +2991,19 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Asynchronously reports an event produced by the node, awaiting an asynchronous report
-        /// sink (see <see cref="OnReportEventAsync"/>) so the caller is never blocked. A synchronous
-        /// sink is invoked as well.
+        /// Reports an event through the asynchronous path, awaiting asynchronous report sinks
+        /// (see <see cref="OnReportEventAsync"/>) and inverse notifiers. Synchronous sinks are
+        /// still invoked directly.
         /// </summary>
+        /// <remarks>
+        /// This method does not invoke overrides of <see cref="ReportEvent"/>. A subclass that
+        /// customizes synchronous event reporting must also override this method to apply that
+        /// customization to asynchronous calls.
+        /// A derived override may run for each parent or inverse-notifier path reaching this node.
+        /// The base implementation tracks visited nodes to suppress repeated sink delivery during propagation.
+        /// When the caller retains a serialization gate while invoking or awaiting this method, report-event sinks
+        /// must not await or synchronously block on an operation that needs the same gate.
+        /// </remarks>
         /// <param name="context">The system context.</param>
         /// <param name="e">The event to report.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
@@ -3303,6 +3310,11 @@ namespace Opc.Ua
         /// <summary>
         /// Clears the change masks.
         /// </summary>
+        /// <remarks>
+        /// When the caller retains a serialization gate while clearing change masks, synchronous sinks must not block
+        /// on work that needs the same gate. This method also waits for asynchronous sinks, which must not await such
+        /// work.
+        /// </remarks>
         /// <param name="context">The context that describes how access the system containing the data..</param>
         /// <param name="includeChildren">if set to <c>true</c> clear masks recursively for all children..</param>
         public void ClearChangeMasks(ISystemContext context, bool includeChildren)
@@ -3412,10 +3424,14 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Asynchronously clears the change masks, awaiting any asynchronous state-changed sinks
-        /// (see <see cref="OnStateChangedAsync"/> / <see cref="StateChangedAsync"/>) so the caller
-        /// is never blocked. Synchronous sinks are invoked as well.
+        /// Asynchronously clears the change masks, awaiting asynchronous state-changed sinks
+        /// (see <see cref="OnStateChangedAsync"/> / <see cref="StateChangedAsync"/>). Synchronous sinks run inline
+        /// and may block the caller.
         /// </summary>
+        /// <remarks>
+        /// When the caller retains a serialization gate while invoking or awaiting this method, state-change sinks
+        /// must not await or synchronously block on an operation that needs the same gate.
+        /// </remarks>
         /// <param name="context">The context that describes how to access the system containing the data.</param>
         /// <param name="includeChildren">if set to <c>true</c> clear masks recursively for all children.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
@@ -4046,7 +4062,7 @@ namespace Opc.Ua
             lock (m_referencesLock)
             {
                 // index any references.
-                if (CurrentReferenceSnapshot.References is { } table)
+                if (m_references is { } table)
                 {
                     foreach (IReference reference in table.Keys)
                     {
@@ -4107,10 +4123,9 @@ namespace Opc.Ua
         {
             lock (m_referencesLock)
             {
-                ReferenceSnapshot image = CurrentReferenceSnapshot;
-                image.EnsureMutable();
+                EnsureReferencesMutable();
                 // check if there are references to update.
-                if (image.References is { } table)
+                if (m_references is { } table)
                 {
                     var referencesToAdd = new List<IReference>();
                     var referencesToRemove = new List<IReference>();
@@ -4141,7 +4156,7 @@ namespace Opc.Ua
 
                     if (referencesToRemove.Count != 0)
                     {
-                        image.Revision++;
+                        m_referenceRevision++;
                     }
 
                     // remove old references.
@@ -4263,7 +4278,7 @@ namespace Opc.Ua
             lock (m_referencesLock)
             {
                 // add any arbitrary references.
-                if (CurrentReferenceSnapshot.References is { } table)
+                if (m_references is { } table)
                 {
                     if (referenceTypeId.IsNull)
                     {
@@ -6144,7 +6159,7 @@ namespace Opc.Ua
         {
             lock (m_referencesLock)
             {
-                ReferenceDictionary<object?>? references = CurrentReferenceSnapshot.References;
+                ReferenceDictionary<object?>? references = m_references;
                 if (references == null || referenceTypeId.IsNull || targetId.IsNull)
                 {
                     return false;
@@ -6260,13 +6275,12 @@ namespace Opc.Ua
 
             lock (m_referencesLock)
             {
-                ReferenceSnapshot image = CurrentReferenceSnapshot;
-                image.EnsureMutable();
-                removed = image.References?.Remove(
+                EnsureReferencesMutable();
+                removed = m_references?.Remove(
                     new NodeStateReference(referenceTypeId, isInverse, targetId)) == true;
                 if (removed)
                 {
-                    image.Revision++;
+                    m_referenceRevision++;
                 }
             }
 
@@ -6343,9 +6357,8 @@ namespace Opc.Ua
 
             lock (m_referencesLock)
             {
-                ReferenceSnapshot image = CurrentReferenceSnapshot;
-                image.EnsureMutable();
-                if (image.References is not { } references)
+                EnsureReferencesMutable();
+                if (m_references is not { } references)
                 {
                     return false;
                 }
@@ -6363,7 +6376,7 @@ namespace Opc.Ua
                 }
                 if (refsToRemove.Count != 0)
                 {
-                    image.Revision++;
+                    m_referenceRevision++;
                     m_changeMasks |= NodeStateChangeMasks.References;
                 }
             }
@@ -6418,7 +6431,7 @@ namespace Opc.Ua
         {
             lock (m_referencesLock)
             {
-                if (CurrentReferenceSnapshot.References is { } table)
+                if (m_references is { } table)
                 {
                     foreach (IReference reference in table.Keys)
                     {
@@ -6443,7 +6456,7 @@ namespace Opc.Ua
         {
             lock (m_referencesLock)
             {
-                if (CurrentReferenceSnapshot.References is { } table)
+                if (m_references is { } table)
                 {
                     foreach (IReference reference in table.Keys)
                     {
@@ -6866,10 +6879,46 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Changes whenever the RolePermissions or UserRolePermissions of any node change, so
-        /// that cached permission verdicts can be invalidated without a reference to the node.
+        /// Stores the role permissions of a node that was just created, such as a copy or an
+        /// event field, without moving <see cref="RolePermissionsVersion"/>.
+        /// </summary>
+        /// <remarks>
+        /// No permission check has seen the new node yet, so no cached verdict depends on its
+        /// permissions; the permissions it copies changed the version when they were set on
+        /// their own node. Moving the version here would retire every cached verdict of the
+        /// server each time an event or a snapshot is created.
+        /// </remarks>
+        /// <param name="rolePermissions">The role permissions.</param>
+        /// <param name="userRolePermissions">The user role permissions.</param>
+        internal void InitializeRolePermissions(
+            ArrayOf<RolePermissionType> rolePermissions,
+            ArrayOf<RolePermissionType> userRolePermissions)
+        {
+            NodeStateSecurityData? data = rolePermissions.IsNull && userRolePermissions.IsNull
+                ? Volatile.Read(ref m_securityData)
+                : GetOrCreateSecurityData();
+            if (data != null)
+            {
+                data.RolePermissions = rolePermissions;
+                data.UserRolePermissions = userRolePermissions;
+            }
+        }
+
+        /// <summary>
+        /// Changes when role-permission attributes change or address-space membership may
+        /// replace the node resolved for a NodeId.
+        /// Cached permission verdicts use this version without retaining every resolved node.
         /// </summary>
         internal static long RolePermissionsVersion => Interlocked.Read(ref s_rolePermissionsVersion);
+
+        /// <summary>
+        /// Advances the permission cache version around node-management operations that can
+        /// replace the node resolved for a NodeId.
+        /// </summary>
+        internal static void InvalidateRolePermissionsCache()
+        {
+            Interlocked.Increment(ref s_rolePermissionsVersion);
+        }
 
         private static long s_rolePermissionsVersion;
 

@@ -32,15 +32,18 @@
 #pragma warning disable CA2000
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.Historian;
 using Opc.Ua.Server.Historian.InMemory;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests.Historian
 {
@@ -314,6 +317,106 @@ namespace Opc.Ua.Server.Tests.Historian
 
             Assert.That(registry.Resolve(v.NodeId), Is.SameAs(perCallProvider));
             Assert.That(v.Historizing, Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that a builder disposed by its owner leaves the server's shutdown list.
+        /// </summary>
+        [Test]
+        public async Task DisposedBuilderUnregistersFromServerAsync()
+        {
+            var builders = new List<HistorianBuilder>();
+            IServerInternal server = CreateServerWithRegistry(builders);
+            Mock<IHistorianBuilderRegistry> lifecycle = Mock.Get(server).As<IHistorianBuilderRegistry>();
+            lifecycle
+                .Setup(value => value.UnregisterHistorianBuilder(It.IsAny<HistorianBuilder>()))
+                .Callback<HistorianBuilder>(builder => builders.Remove(builder));
+            var builder = new HistorianBuilder(server);
+            Assert.That(builders, Is.Empty);
+            using var provider = new InMemoryHistorianProvider();
+            builder.UseProvider(provider).RegisterAsDefault();
+            Assert.That(builders, Has.Count.EqualTo(1));
+            Assert.That(builders[0], Is.SameAs(builder));
+
+            await builder.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(builders, Is.Empty);
+            lifecycle.Verify(value => value.RegisterHistorianBuilder(builder), Times.Once);
+            lifecycle.Verify(value => value.UnregisterHistorianBuilder(builder), Times.Once);
+        }
+
+        /// <summary>
+        /// Verifies that owner disposal and full server shutdown, started in either order, both wait
+        /// for the single in-flight capture drain, and that the server disposes the historian
+        /// registry and its providers only after that drain has finished.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task OwnerDisposalAndServerShutdownAwaitTheSameCaptureDrainAsync(bool ownerFirst)
+        {
+            var gate = new GatedCaptureProvider();
+            ServerInternalData server = CreateServerInternalData(new FakeTimeProvider());
+            try
+            {
+                HistorianBuilder builder = StartGatedCapture(server, gate);
+                await gate.Entered.WaitAsync(s_raceTimeout).ConfigureAwait(false);
+
+                (Task owner, Task shutdown) = StartRacingDisposals(server, builder, ownerFirst);
+
+                Assert.That(owner.IsCompleted, Is.False);
+                Assert.That(shutdown.IsCompleted, Is.False);
+                Assert.That(gate.Events, Is.Empty);
+
+                gate.Release();
+                await owner.WaitAsync(s_raceTimeout).ConfigureAwait(false);
+                await shutdown.WaitAsync(s_raceTimeout).ConfigureAwait(false);
+
+                Assert.That(gate.Events, Is.EqualTo(s_drainThenDispose));
+                Assert.That(builder.DisposeAsync().AsTask().IsCompleted, Is.True);
+            }
+            finally
+            {
+                gate.Release();
+                await server.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Verifies that a capture drain failure surfaces to both the owner and the server shutdown,
+        /// whichever of them started the drain.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task CaptureDrainFailureSurfacesToOwnerAndServerShutdownAsync(bool ownerFirst)
+        {
+            var gate = new GatedCaptureProvider();
+            var timeProvider = new FakeTimeProvider();
+            ServerInternalData server = CreateServerInternalData(timeProvider);
+            try
+            {
+                HistorianBuilder builder = StartGatedCapture(server, gate);
+                await gate.Entered.WaitAsync(s_raceTimeout).ConfigureAwait(false);
+
+                (Task owner, Task shutdown) = StartRacingDisposals(server, builder, ownerFirst);
+                Assert.That(owner.IsCompleted, Is.False);
+                Assert.That(shutdown.IsCompleted, Is.False);
+
+                timeProvider.Advance(TimeSpan.FromSeconds(5));
+
+                AggregateException? ownerFailure = await Assert.ThrowsAsync<AggregateException>(
+                    async () => await owner.WaitAsync(s_raceTimeout).ConfigureAwait(false));
+                Assert.That(ownerFailure?.InnerExceptions, Has.Count.EqualTo(1));
+                Assert.That(ownerFailure?.InnerExceptions[0], Is.TypeOf<TimeoutException>());
+                AggregateException? shutdownFailure = await Assert.ThrowsAsync<AggregateException>(
+                    async () => await shutdown.WaitAsync(s_raceTimeout).ConfigureAwait(false));
+                Assert.That(shutdownFailure?.InnerExceptions, Has.Count.EqualTo(1));
+                Assert.That(shutdownFailure?.InnerExceptions[0], Is.SameAs(ownerFailure));
+            }
+            finally
+            {
+                gate.Release();
+                await server.DisposeAsync().ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -627,5 +730,147 @@ namespace Opc.Ua.Server.Tests.Historian
             mockServer.Setup(s => s.Telemetry).Returns(mockTelemetry.Object);
             return mockServer.Object;
         }
+
+        private static ServerInternalData CreateServerInternalData(TimeProvider timeProvider)
+        {
+            var configuration = new ApplicationConfiguration
+            {
+                ApplicationUri = "urn:test:historian-shutdown",
+                ApplicationName = "HistorianShutdownTest",
+                ServerConfiguration = new ServerConfiguration
+                {
+                    BaseAddresses = ["opc.tcp://localhost:4840"]
+                }
+            };
+            return new ServerInternalData(
+                new ServerProperties
+                {
+                    ProductName = "HistorianShutdownTest",
+                    ProductUri = "urn:test:product",
+                    ManufacturerName = "TestManufacturer",
+                    SoftwareVersion = "1.0.0",
+                    BuildNumber = "1",
+                    BuildDate = DateTime.UtcNow
+                },
+                configuration,
+                ServiceMessageContext.Create(NUnitTelemetryContext.Create()),
+                timeProvider);
+        }
+
+        /// <summary>
+        /// Binds a gated provider to a variable of the real server, captures one value and leaves
+        /// that value blocked inside the provider insert.
+        /// </summary>
+        private static HistorianBuilder StartGatedCapture(ServerInternalData server, GatedCaptureProvider gate)
+        {
+            var variable = new BaseDataVariableState(parent: null)
+            {
+                NodeId = new NodeId("GatedCapture", 0),
+                BrowseName = new QualifiedName("GatedCapture", 0),
+                DisplayName = new LocalizedText("GatedCapture"),
+                DataType = DataTypeIds.Int32,
+                ValueRank = ValueRanks.Scalar
+            };
+            server.HistorianRegistry.RegisterForNode(variable.NodeId, gate.Provider);
+            HistorianBuilder builder = new HistorianBuilder(server)
+                .UseProvider(gate.Provider)
+                .Historize(
+                    variable,
+                    systemContext: server.DefaultSystemContext,
+                    captureOptions: new HistorianCaptureOptions
+                    {
+                        BatchTarget = 1,
+                        BatchWindow = TimeSpan.Zero
+                    });
+            variable.Value = 7;
+            variable.Timestamp = DateTime.UtcNow;
+            variable.StatusCode = StatusCodes.Good;
+            variable.ClearChangeMasks(server.DefaultSystemContext, includeChildren: false);
+            return builder;
+        }
+
+        /// <summary>
+        /// Starts owner disposal and full server shutdown in the requested order.
+        /// </summary>
+        private static (Task Owner, Task Shutdown) StartRacingDisposals(
+            ServerInternalData server,
+            HistorianBuilder builder,
+            bool ownerFirst)
+        {
+            if (ownerFirst)
+            {
+                Task owner = builder.DisposeAsync().AsTask();
+                return (owner, server.DisposeAsync().AsTask());
+            }
+            Task shutdown = server.DisposeAsync().AsTask();
+            return (builder.DisposeAsync().AsTask(), shutdown);
+        }
+
+        /// <summary>
+        /// A per-node data provider whose insert blocks until released and which records the
+        /// completed insert and its own disposal in order.
+        /// </summary>
+        private sealed class GatedCaptureProvider
+        {
+            /// <summary>
+            /// Creates the gated provider.
+            /// </summary>
+            public GatedCaptureProvider()
+            {
+                var provider = new Mock<IHistorianProvider>();
+                provider.As<IHistorianDataProvider>()
+                    .Setup(value => value.InsertAsync(
+                        It.IsAny<HistorianOperationContext>(),
+                        It.IsAny<NodeId>(),
+                        It.IsAny<ArrayOf<DataValue>>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns<HistorianOperationContext, NodeId, ArrayOf<DataValue>, CancellationToken>(
+                        (_, _, values, _) => InsertAsync(values.Count));
+                provider.As<IDisposable>()
+                    .Setup(value => value.Dispose())
+                    .Callback(() => m_events.Enqueue("disposed"));
+                Provider = provider.Object;
+            }
+
+            /// <summary>
+            /// The provider registered with the server and bound to the builder.
+            /// </summary>
+            public IHistorianProvider Provider { get; }
+
+            /// <summary>
+            /// Completes when the capture pipeline has entered the provider insert.
+            /// </summary>
+            public Task Entered => m_entered.Task;
+
+            /// <summary>
+            /// The completed insert and disposal, in the order they happened.
+            /// </summary>
+            public string[] Events => [.. m_events];
+
+            /// <summary>
+            /// Lets the blocked insert complete.
+            /// </summary>
+            public void Release()
+            {
+                m_release.TrySetResult(true);
+            }
+
+            private async ValueTask<HistorianUpdateOutcome<DataValue>> InsertAsync(int count)
+            {
+                m_entered.TrySetResult(true);
+                await m_release.Task.ConfigureAwait(false);
+                m_events.Enqueue("inserted");
+                return new HistorianUpdateOutcome<DataValue>(new StatusCode[count]);
+            }
+
+            private readonly TaskCompletionSource<bool> m_entered =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private readonly TaskCompletionSource<bool> m_release =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private readonly ConcurrentQueue<string> m_events = new();
+        }
+
+        private static readonly TimeSpan s_raceTimeout = TimeSpan.FromSeconds(30);
+        private static readonly string[] s_drainThenDispose = ["inserted", "disposed"];
     }
 }

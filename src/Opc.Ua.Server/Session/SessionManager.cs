@@ -74,6 +74,18 @@ namespace Opc.Ua.Server
             IServerInternal server,
             ApplicationConfiguration configuration,
             TimeProvider? timeProvider)
+            : this(server, configuration, timeProvider, sessionMonitorWorkerDecorator: null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the manager with a decorator for the real session-monitor worker task.
+        /// </summary>
+        internal SessionManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            TimeProvider? timeProvider,
+            Func<Task, Task>? sessionMonitorWorkerDecorator)
         {
             if (configuration == null)
             {
@@ -85,6 +97,7 @@ namespace Opc.Ua.Server
                 ?? (server as ITimeProviderProvider)?.TimeProvider
                 ?? TimeProvider.System;
             m_logger = server.Telemetry.CreateLogger<SessionManager>();
+            m_sessionMonitorWorkerDecorator = sessionMonitorWorkerDecorator;
 
             m_minSessionTimeout = configuration.ServerConfiguration!.MinSessionTimeout;
             m_maxSessionTimeout = configuration.ServerConfiguration.MaxSessionTimeout;
@@ -130,6 +143,13 @@ namespace Opc.Ua.Server
                 ref m_sessionlessBudget,
                 value != null ? new SessionlessRequestBudget(value) : null);
         }
+
+        /// <summary>
+        /// Gets the cancellation token owned by the running session monitor.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">The session monitor is not running.</exception>
+        internal CancellationToken SessionMonitorCancellationToken =>
+            (m_workerCts ?? throw new InvalidOperationException("The session monitor is not running.")).Token;
 
         /// <summary>
         /// Frees any unmanaged resources.
@@ -191,7 +211,8 @@ namespace Opc.Ua.Server
                 m_workerCts?.Dispose();
                 m_workerCts = new CancellationTokenSource();
 
-                m_monitorWorkerTask = StartSessionMonitor(m_workerCts.Token);
+                Task worker = StartSessionMonitor(m_workerCts.Token);
+                m_monitorWorkerTask = m_sessionMonitorWorkerDecorator is { } decorate ? decorate(worker) : worker;
             }
             finally
             {
@@ -238,17 +259,36 @@ namespace Opc.Ua.Server
 
             // Cancel so the monitor's inter-cycle delay is abandoned immediately
             // instead of running to the end of its sleep cycle.
-            m_workerCts?.Cancel();
+            var failures = new List<Exception>();
+            try
+            {
+                m_workerCts?.Cancel();
+            }
+            catch (Exception failure) when (failure is not OutOfMemoryException)
+            {
+                failures.Add(failure);
+            }
 
             Task? monitorWorkerTask = m_monitorWorkerTask;
             if (monitorWorkerTask is not null)
             {
-                await monitorWorkerTask.ConfigureAwait(false);
+                try
+                {
+                    await monitorWorkerTask.ConfigureAwait(false);
+                }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    failures.Add(failure);
+                }
                 m_monitorWorkerTask = null;
             }
 
             m_workerCts?.Dispose();
             m_workerCts = null;
+            if (failures.Count != 0)
+            {
+                throw new AggregateException("The session-monitor worker failed during shutdown.", failures);
+            }
 
             // Sessions still open at shutdown are closed like any other session: the Closing
             // event is raised, the SessionDiagnostics node is removed and the session count
@@ -599,14 +639,10 @@ namespace Opc.Ua.Server
             PendingRestore? pendingRestore = null;
             if (!m_sessions.TryGetValue(authenticationToken, out _) && SupportsSessionRestore)
             {
-                await using (((m_server.NodeManager as IDynamicNodeManagerBatchHost)?.SuspendBindingAdmission(context) ??
-                    BindingAdmissionSuspension.Empty).ConfigureAwait(false))
-                {
-                    (pendingRestore, restoredSession) = await JoinRestoreAsync(
-                        authenticationToken,
-                        context,
-                        cancellationToken).ConfigureAwait(false);
-                }
+                (pendingRestore, restoredSession) = await JoinRestoreAsync(
+                    authenticationToken,
+                    context,
+                    cancellationToken).ConfigureAwait(false);
             }
 
             Nonce? serverNonceObject = null;
@@ -2841,6 +2877,10 @@ namespace Opc.Ua.Server
         private readonly SemaphoreSlim m_semaphoreSlim = new(1, 1);
         private readonly IServerInternal m_server;
         private readonly TimeProvider m_timeProvider;
+
+        /// <summary>Decorates the real session-monitor worker task at startup.</summary>
+        private readonly Func<Task, Task>? m_sessionMonitorWorkerDecorator;
+
         private readonly ILogger m_logger;
         private readonly NodeIdDictionary<ISession> m_sessions;
         private readonly Lock m_bindingsLock = new();

@@ -43,6 +43,7 @@ namespace Opc.Ua.SourceGeneration
         public void Initialize(IncrementalGeneratorInitializationContext context)
         {
             SourceGenerator.AttachDebuggerIfRequested();
+            EcmFieldCopyGeneration.Register(context);
 
             // Pair every AdditionalFile with its own per-file analyzer config
             // options once, up front, so both the design/NodeSet2 filter and

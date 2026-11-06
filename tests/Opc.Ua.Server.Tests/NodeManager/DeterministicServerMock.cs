@@ -91,6 +91,50 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Creates a socket-free routing owner and connects it to the supplied mock server.
+        /// </summary>
+        /// <param name="server">The deterministic server whose services the master borrows.</param>
+        /// <param name="managers">The application managers included in the initial view.</param>
+        /// <returns>The master owned and disposed by the caller.</returns>
+        public static MasterNodeManager CreateMasterNodeManager(
+            Mock<IServerInternal> server,
+            ArrayOf<IAsyncNodeManager> managers)
+        {
+            var factory = new Mock<IMainNodeManagerFactory>();
+            factory.Setup(value => value.CreateConfigurationNodeManager())
+                .Returns(server.Object.NodeManager.ConfigurationNodeManager!);
+            factory.Setup(value => value.CreateCoreNodeManager(It.IsAny<ushort>()))
+                .Returns(server.Object.CoreNodeManager);
+            server.SetupGet(value => value.MainNodeManagerFactory).Returns(factory.Object);
+            var master = new MasterNodeManager(
+                server.Object,
+                new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() },
+                null,
+                managers.ToList(),
+                null);
+            server.SetupGet(value => value.NodeManager).Returns(master);
+            return master;
+        }
+
+        /// <summary>
+        /// Probes whether an untagged Server event incorrectly inherits an application's source generation.
+        /// </summary>
+        /// <param name="server">The server whose routing owner is under test.</param>
+        /// <param name="source">The application manager that must require explicit provenance.</param>
+        /// <returns>Whether the untagged capture borrowed this application source.</returns>
+        public static bool HasImplicitEventSource(IServerInternal server, IAsyncNodeManager source)
+        {
+            var master = (MasterNodeManager)server.NodeManager;
+            if (!MasterNodeManager.TryCaptureSourceEmission(
+                server, master.CoreNodeManager!, out var probe, isGlobalServerEventSink: true))
+            {
+                throw new InvalidOperationException("The serving core event source unexpectedly refused the probe.");
+            }
+            using var admission = probe;
+            return ReferenceEquals(probe?.Generation.NodeManager, source);
+        }
+
+        /// <summary>
         /// Makes the same namespace policy available to synchronous and asynchronous node-manager paths.
         /// </summary>
         public static void SetNamespaceMetadata(

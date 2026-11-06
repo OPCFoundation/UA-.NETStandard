@@ -86,11 +86,14 @@ namespace Opc.Ua.WotCon.Tests
                 $"'{name}' should be rejected as forbidden-punctuation");
         }
 
-        [TestCase("a\u0000b")]    // NUL
-        [TestCase("a\u0001b")]    // C0 control
-        [TestCase("a\u001Fb")]    // C0 control (US)
-        [TestCase("a\u007Fb")]    // DEL
-        public void NamesWithControlCharacters_Rejected(string name)
+        /// <summary>
+        /// Control characters are rejected using report-safe test case names.
+        /// </summary>
+        [TestCase("a\u0000b", TestName = "RejectsNulCharacter")]
+        [TestCase("a\u0001b", TestName = "RejectsStartOfHeadingCharacter")]
+        [TestCase("a\u001Fb", TestName = "RejectsUnitSeparatorCharacter")]
+        [TestCase("a\u007Fb", TestName = "RejectsDeleteCharacter")]
+        public void NamesWithControlCharactersAreRejected(string name)
         {
             ServiceResult result = WotChildNameValidator.Validate(name);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
