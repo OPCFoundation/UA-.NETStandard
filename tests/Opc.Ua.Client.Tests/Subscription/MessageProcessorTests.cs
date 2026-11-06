@@ -2393,6 +2393,86 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// A full buffer ends the grace of a first message early. Older
+        /// advertised messages are still recovered and nothing is skipped.
+        /// </summary>
+        [Test]
+        public async Task PendingCapacityEndsReorderGraceOfFirstMessageAsync()
+        {
+            SetupRepublish();
+            var timeProvider = new FakeTimeProvider();
+            var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_completion, m_telemetry, timeProvider)
+            {
+                Id = 78
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(2), [1, 2], [])
+                    .ConfigureAwait(false);
+                for (uint sequenceNumber = 3; sequenceNumber <= 1025; sequenceNumber++)
+                {
+                    await sut.OnPublishReceivedAsync(BuildDataChangeMessage(sequenceNumber), [], [])
+                        .ConfigureAwait(false);
+                }
+                await WaitForDataSeqNumberAsync(sut, 1025).ConfigureAwait(false);
+
+                Assert.That(
+                    sut.DataSequenceNumbers,
+                    Is.EqualTo(Enumerable.Range(1, 1025).Select(i => (uint)i).ToArray()));
+                Assert.That(sut.RepublishMessageCount, Is.EqualTo(1));
+            }
+        }
+
+        /// <summary>
+        /// Shutdown after a failed recovery attempt must not deliver the
+        /// buffered message when the gap timeout fires.
+        /// </summary>
+        [Test]
+        public async Task GapTimeoutAfterReorderGraceDoesNotDispatchAfterOwnerShutdownAsync()
+        {
+            SetupRepublishFailingFirst(2, 1);
+            using var shutdown = new CancellationTokenSource();
+            var processorCompleted = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var ackQueue = new FakeMessageAckQueue
+            {
+                ShutdownToken = shutdown.Token,
+                OnCompleteAsync = (_, _) =>
+                {
+                    processorCompleted.TrySetResult(true);
+                    return default;
+                }
+            };
+            var timeProvider = new FakeTimeProvider();
+            var sut = new TestMessageProcessor(m_mockServices.Object,
+                ackQueue, m_telemetry, timeProvider)
+            {
+                Id = 79
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(1), [1], [])
+                    .ConfigureAwait(false);
+                await WaitForLastSeqNumberAsync(sut, 1).ConfigureAwait(false);
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(3), [2, 3], [])
+                    .ConfigureAwait(false);
+                await WaitForMissingCountAsync(sut, 1).ConfigureAwait(false);
+                await WaitForKeepAliveBarrierAsync(sut, 1).ConfigureAwait(false);
+                await AdvanceUntilAsync(timeProvider, () => sut.RepublishMessageCount == 1,
+                    TimeSpan.FromMilliseconds(100)).ConfigureAwait(false);
+
+                // Republish failed, so the keep-alive is read once the walk ended.
+                await WaitForKeepAliveBarrierAsync(sut, 1).ConfigureAwait(false);
+                shutdown.Cancel();
+                await AdvanceUntilAsync(timeProvider,
+                    () => processorCompleted.Task.IsCompleted).ConfigureAwait(false);
+
+                Assert.That(sut.DataSequenceNumbers, Is.EqualTo(new uint[] { 1 }));
+            }
+        }
+
+        /// <summary>
         /// Wait until the worker has handled everything queued with a lower
         /// sequence number. The queue orders by sequence number, so a
         /// keep-alive is read after those messages.
