@@ -58,9 +58,8 @@ namespace Opc.Ua.AMB.Tests
         public async Task AClientFollowsAMaintenanceActivityAsync()
         {
             string root = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                nameof(AmbMaintenanceSessionTests),
-                Guid.NewGuid().ToString("N"));
+                Path.GetTempPath(),
+                "amb-maintenance-" + Guid.NewGuid().ToString("N"));
             var planned = new DateTimeUtc(new DateTime(2027, 3, 1, 8, 0, 0, DateTimeKind.Utc));
             (AmbHostedServer server, IAssetHandle asset, _) = await HealthAlarmTests
                 .StartWithSensorAsync(

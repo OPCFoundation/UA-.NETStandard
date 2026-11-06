@@ -54,9 +54,8 @@ namespace Opc.Ua.AMB.Tests
         public async Task AClientManagesItsLinksAsync(bool allowAnonymous)
         {
             string root = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                nameof(AmbDocumentationLinksSessionTests),
-                Guid.NewGuid().ToString("N"));
+                Path.GetTempPath(),
+                "amb-doc-links-" + Guid.NewGuid().ToString("N"));
             (AmbHostedServer server, IAssetHandle asset, _) = await HealthAlarmTests
                 .StartWithSensorAsync(
                     nameof(AmbDocumentationLinksSessionTests) + allowAnonymous,

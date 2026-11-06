@@ -486,9 +486,8 @@ namespace Opc.Ua.Gds.Tests.Hosting
         private static string CreateTestRoot()
         {
             string testRoot = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                "gds",
-                Guid.NewGuid().ToString("N"));
+                Path.GetTempPath(),
+                "gds-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(testRoot);
             return testRoot;
         }
