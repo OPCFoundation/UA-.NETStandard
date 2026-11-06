@@ -176,7 +176,16 @@ namespace Opc.Ua.Server
         {
             get
             {
-                Volatile.Write(ref m_dataChangeItemsExposed, true);
+                if (!Volatile.Read(ref m_dataChangeItemsExposed))
+                {
+                    // Under the rebuild lock, so a rebuild in progress cannot publish the cache again
+                    // and keep items alive that are removed through the dictionary.
+                    lock (m_rebindLock)
+                    {
+                        Volatile.Write(ref m_dataChangeItemsExposed, true);
+                        m_dataChangeItems = null;
+                    }
+                }
                 return m_dataChangeMonitoredItems;
             }
         }
@@ -2306,7 +2315,10 @@ namespace Opc.Ua.Server
                 {
                     itemSet = new DataChangeItemSet(
                         m_dataChangeMonitoredItems.IsEmpty ? [] : m_dataChangeMonitoredItems.ToArray());
-                    Volatile.Write(ref m_dataChangeItems, itemSet);
+                    if (!Volatile.Read(ref m_dataChangeItemsExposed))
+                    {
+                        Volatile.Write(ref m_dataChangeItems, itemSet);
+                    }
                 }
                 return itemSet;
             }

@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -272,6 +273,67 @@ namespace Opc.Ua.Server.Tests
             Assert.That(
                 QueuedValues(added).Select(v => v.WrappedValue.AsBoxedObject()),
                 Is.EqualTo(new object[] { 2 }));
+        }
+
+        /// <summary>
+        /// Exposing the dictionary drops the cached array, so it does not keep removed items alive.
+        /// </summary>
+        [Test]
+        public async Task ExposingDictionaryReleasesCachedItemsAsync()
+        {
+            BaseDataVariableState node = CreateNode();
+            var monitoredNode = new MonitoredNode2(CreateNodeManager().Object, CreateServer().Object, node);
+            monitoredNode.Add(CreateItem(1u, Attributes.Value).Object);
+            await monitoredNode.OnMonitoredNodeChangedAsync(
+                s_context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
+            Assert.That(CachedItemSet(monitoredNode), Is.Not.Null);
+
+            _ = monitoredNode.DataChangeMonitoredItems;
+            Assert.That(CachedItemSet(monitoredNode), Is.Null);
+
+            await monitoredNode.OnMonitoredNodeChangedAsync(
+                s_context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
+            Assert.That(CachedItemSet(monitoredNode), Is.Null);
+
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// A rebuild waiting on the lock while the dictionary is exposed does not publish the cache.
+        /// </summary>
+        [Test]
+        public async Task RebuildDuringExposureDoesNotPublishCacheAsync()
+        {
+            BaseDataVariableState node = CreateNode();
+            var monitoredNode = new MonitoredNode2(CreateNodeManager().Object, CreateServer().Object, node);
+            monitoredNode.Add(CreateItem(1u, Attributes.Value).Object);
+            var rebindLock = (Lock)typeof(MonitoredNode2)
+                .GetField("m_rebindLock", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .GetValue(monitoredNode)!;
+
+            Task change;
+            lock (rebindLock)
+            {
+                change = Task.Run(async () => await monitoredNode.OnMonitoredNodeChangedAsync(
+                    s_context, node, NodeStateChangeMasks.Value).ConfigureAwait(false));
+
+                // Gives the change time to reach the lock. If it has not, the test passes without
+                // covering the race, so the delay cannot make it fail.
+                Thread.Sleep(200);
+                _ = monitoredNode.DataChangeMonitoredItems;
+            }
+            await change.ConfigureAwait(false);
+
+            Assert.That(CachedItemSet(monitoredNode), Is.Null);
+
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
+        }
+
+        private static object? CachedItemSet(MonitoredNode2 monitoredNode)
+        {
+            return typeof(MonitoredNode2)
+                .GetField("m_dataChangeItems", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .GetValue(monitoredNode);
         }
 
         /// <summary>
