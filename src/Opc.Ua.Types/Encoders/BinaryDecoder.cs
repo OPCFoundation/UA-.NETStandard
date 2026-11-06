@@ -1181,6 +1181,10 @@ namespace Opc.Ua
             IEncodeableType activator,
             int length)
         {
+            // the eager path enforces the limit when it starts on the body, and a body
+            // without nested structures would never reach another check.
+            CheckNestingLevel();
+
             // never rent a length the input cannot satisfy.
             CheckRemainingBytes(length, nameof(ReadExtensionObject));
             if (Context.MaxMessageSize > 0 && Context.MaxMessageSize < length)
@@ -1204,8 +1208,15 @@ namespace Opc.Ua
             return new ExtensionObject(
                 typeId,
                 new DeferredExtensionObjectBody(
-                    typeId, buffer, length, activator, Context, m_nestingLevel + 1));
+                    typeId,
+                    buffer,
+                    length,
+                    activator,
+                    Context,
+                    m_nestingLevel + 1,
+                    m_deferredBodyFailureLogged ??= new StrongBox<int>()));
         }
+
         /// <summary>
         /// Decodes a binary body on seekable input, retaining the original
         /// namespace-zero failure and bounded recovery policy.
@@ -3235,6 +3246,17 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private void CheckAndIncrementNestingLevel()
         {
+            CheckNestingLevel();
+            EncodingLimits.EnsureSufficientStack();
+            m_nestingLevel++;
+        }
+
+        /// <summary>
+        /// Test the nesting level.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void CheckNestingLevel()
+        {
             if (m_nestingLevel > Context.MaxEncodingNestingLevels)
             {
                 throw ServiceResultException.Create(
@@ -3242,8 +3264,6 @@ namespace Opc.Ua
                     "Maximum nesting level of {0} was exceeded",
                     Context.MaxEncodingNestingLevels);
             }
-            EncodingLimits.EnsureSufficientStack();
-            m_nestingLevel++;
         }
 
         /// <summary>
@@ -3308,6 +3328,7 @@ namespace Opc.Ua
         // when none is. See TryReadRemainingBodyBytes.
         private int m_bodyEnd = -1;
         private uint m_encodeablesRecovered;
+        private StrongBox<int>? m_deferredBodyFailureLogged;
 
         // The most bytes allocated up front for an array read element by
         // element, see ReadArrayElements. Below the large object heap limit.
