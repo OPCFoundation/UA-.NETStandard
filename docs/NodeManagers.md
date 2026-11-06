@@ -1757,8 +1757,16 @@ requires a later breaking release.
 | `ISyncNodeManagerReadinessNotification` | Allows an adapted synchronous manager to receive `OnServerReady`. The adapter prefers `INodeManagerReadinessNotification` when both are implemented. | New managers implement the awaited readiness interface. Existing synchronous callbacks remain supported. |
 | `IPreparedNodeManagerBatch`, `NodeManagerBatchResult` and exact-generation changes | Preserve the provider boundary and strong registration handles for existing consumers. | Use `IPreparedChanges`, `LifecycleChange` and `LifecycleResult` for slot-targeted application code; retain a legacy handle explicitly when strong ownership is required. |
 | `INodeManagerReadImage`, `INodeManagerReadImageSource` and `NodeManagerReadImageExtensions` | Select immutable application state through the request's routing view, or live state without a request pin. A pinned view with no image for an owner does not fall back to newer live state. | Use the context-aware `GetReadImage` and `GetNodeManagers` extensions for request work. Bind new metadata through the [prepared unit](#publishing-typed-metadata); account for any strong references the image holds to its exact `Owner`. |
-| Add/reload/remove extensions and `callerContext` overloads | Preserve the existing convenience-operation contract. The context arguments do not select publication ownership. | Use change sets for new code. |
+| Add/reload/remove extensions and `callerContext` overloads | Forward convenience operations through prepared transactions. The context arguments are ignored. | Use change sets for new code. `ShadowReloadAsync` uses the `Migrate` transition rather than retaining existing subscribers on the old manager. |
 | `NodeManagerAddCommittedException`, `NodeManagerReloadCommittedException`, `NodeManagerRemovalCommittedException` and `INodeManagerCommittedFailure` | Report failures after publication and expose the committed result when supplied. The exceptions retain their strong registration handles. | Inspect `CommittedResult` when present before attempting recovery. Do not repeat the durable decision; retaining the exception can retain its manager after retirement. |
+
+**Binary compatibility is not yet resolved.** Version 2.0.1 declared the
+add, reload, shadow reload, immediate reload and remove overloads as instance
+members of `INodeManagerLifecycle` and `NodeManagerLifecycle`. The current
+extensions do not satisfy references to those members in an existing binary.
+Recompiled callers can use the extensions, but custom lifecycle providers also
+need to implement the current interface's revision, slot, capability and
+transaction members. The release-compatibility disposition remains open.
 
 This inventory does not make the legacy handles non-owning. A
 `NodeManagerRegistration`, `NodeManagerSlotSnapshot` or legacy batch result can
