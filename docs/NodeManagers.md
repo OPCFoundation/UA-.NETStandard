@@ -994,6 +994,16 @@ task. A captured context may retain the expired marker, but that marker grants n
 authority. Application callbacks can still retain their own captured objects;
 scope expiration does not remove references from application closures.
 
+Derived `MasterNodeManager` instances use a separate compatibility scope during
+the virtual `GetManagerHandleAsync` call. It carries the caller's pinned routing
+image so an override that calls the base implementation resolves against that
+same image. The dispatcher clears the shared image and restores the previous
+scope when the override returns or throws. A later base lookup from a captured
+execution context falls back to the live routing image.
+`MasterNodeManagerViewOwnershipTests.CompletedLegacyLookupDoesNotRetainOperationInCapturedContextAsync`
+checks that the completed operation and its superseded image can be collected
+while the captured context remains live.
+
 The direct `NodeManagerReadinessScopeTests` controls verify exact-generation
 authority and collection of the completed initializer's server and generation.
 `LifecycleWriterTests.DecisionRejectsSpawnedReentrancyAndExpiresInCapturedContextAsync`
