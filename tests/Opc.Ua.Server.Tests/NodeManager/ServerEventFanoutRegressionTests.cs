@@ -147,6 +147,195 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Delivers a root event from a resource registered through a forwarding facade only while the facade's
+        /// generation is published and admitting work.
+        /// </summary>
+        [Test]
+        public async Task ForwardedFacadeRootEventsUsePublishedFacadeGenerationAsync(
+            [Values] bool forwarded)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                await using var manager = new TestableAsyncCustomNodeManager(
+                    server.Object,
+                    new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() },
+                    false, NullLogger.Instance, DeterministicServerMock.TestNamespaceUri);
+                var facade = new Mock<IAsyncNodeManager>();
+                facade.SetupGet(value => value.NamespaceUris).Returns(() => manager.NamespaceUris);
+                facade.SetupGet(value => value.SyncNodeManager).Returns(manager.SyncNodeManager);
+                IAsyncNodeManager registered = forwarded ? facade.Object : manager;
+                using MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(server, [registered]);
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(registered);
+                var serverNode = new BaseObjectState(null) { NodeId = ObjectIds.Server };
+                Mock.Get(master.CoreNodeManager!).Setup(value => value.ValidateEventRolePermissionsAsync(
+                        It.IsAny<IEventMonitoredItem>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
+                    .Returns((IEventMonitoredItem _, IFilterTarget _, CancellationToken _) =>
+                        new ValueTask<ServiceResult>(ServiceResult.Good));
+                await using var monitored = new MonitoredNode2(master.CoreNodeManager!, server.Object, serverNode);
+                var item = new Mock<IEventMonitoredItem>();
+                item.SetupGet(value => value.Id).Returns(42);
+                item.SetupGet(value => value.MonitoringAllEvents).Returns(true);
+                monitored.Add(item.Object);
+                var root = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("forwarded-root", manager.NamespaceIndex),
+                    EventNotifier = EventNotifiers.SubscribeToEvents
+                };
+                await manager.AddRootNotifierPublicAsync(root).ConfigureAwait(false);
+                NodeManagerGeneration? propagatedGeneration = null;
+                server.Setup(value => value.ReportEventAsync(
+                        It.IsAny<ISystemContext>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
+                    .Returns((ISystemContext context, IFilterTarget target, CancellationToken cancellationToken) =>
+                    {
+                        bool admitted = MasterNodeManager.TryCaptureSourceEmission(
+                            server.Object, master.CoreNodeManager!, out var child,
+                            isGlobalServerEventSink: true, context: context);
+                        propagatedGeneration = child?.Generation;
+                        child?.Dispose();
+                        Assert.That(admitted, Is.True);
+                        return serverNode.ReportEventAsync(context, target, cancellationToken);
+                    });
+                IFilterTarget notification = Mock.Of<IFilterTarget>();
+
+                await root.ReportEventAsync(manager.SystemContext, notification).ConfigureAwait(false);
+                await monitored.WaitForPendingNotificationsAsync(CancellationToken.None)
+                    .AsTask().WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(generation.NodeManager, Is.SameAs(registered));
+                    Assert.That(propagatedGeneration, Is.SameAs(generation));
+                    Assert.That(generation.Gate.ActiveCount, Is.Zero);
+                });
+                item.Verify(value => value.QueueEvent(notification), Times.Once);
+
+                generation.Gate.Retire();
+                await root.ReportEventAsync(manager.SystemContext, notification).ConfigureAwait(false);
+                await monitored.WaitForPendingNotificationsAsync(CancellationToken.None)
+                    .AsTask().WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                item.Verify(value => value.QueueEvent(notification), Times.Once);
+            }
+        }
+
+        /// <summary>
+        /// An unpublished facade cannot borrow the generation published for the same resource.
+        /// </summary>
+        [Test]
+        public async Task UnpublishedFacadeCannotBorrowPublishedResourceGenerationAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                await using var manager = new TestableAsyncCustomNodeManager(
+                    server.Object,
+                    new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() },
+                    false, NullLogger.Instance, DeterministicServerMock.TestNamespaceUri);
+                var publishedFacade = new Mock<IAsyncNodeManager>();
+                publishedFacade.SetupGet(value => value.NamespaceUris).Returns(() => manager.NamespaceUris);
+                publishedFacade.SetupGet(value => value.SyncNodeManager).Returns(manager.SyncNodeManager);
+                var unpublishedFacade = new Mock<IAsyncNodeManager>();
+                unpublishedFacade.SetupGet(value => value.SyncNodeManager).Returns(manager.SyncNodeManager);
+                using MasterNodeManager master =
+                    DeterministicServerMock.CreateMasterNodeManager(server, [publishedFacade.Object]);
+                NodeManagerGeneration published = NodeManagerGenerationRegistry.GetOrCreate(publishedFacade.Object);
+                NodeManagerGeneration unpublished = NodeManagerGenerationRegistry.GetOrCreate(unpublishedFacade.Object);
+
+                bool rejected = MasterNodeManager.TryCaptureSourceEmission(
+                    server.Object, unpublishedFacade.Object, out var rejectedAdmission);
+                bool admitted = MasterNodeManager.TryCaptureSourceEmission(
+                    server.Object, manager, out var sourceAdmission);
+                try
+                {
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(unpublished, Is.Not.SameAs(published));
+                        Assert.That(rejected, Is.False);
+                        Assert.That(rejectedAdmission.HasValue, Is.False);
+                        Assert.That(admitted, Is.True);
+                        Assert.That(sourceAdmission?.Generation, Is.SameAs(published));
+                    });
+                }
+                finally
+                {
+                    rejectedAdmission?.Dispose();
+                    sourceAdmission?.Dispose();
+                }
+            }
+        }
+
+        /// <summary>
+        /// A resource source resolves only a single visible facade in the captured routing view.
+        /// </summary>
+        [TestCase(false, false, true)]
+        [TestCase(true, false, false)]
+        [TestCase(false, true, false)]
+        public void ResourceSourceRequiresOneVisibleFacade(bool hidden, bool ambiguous, bool expected)
+        {
+            var resource = new Mock<IAsyncNodeManager>();
+            var sync = new SyncNodeManagerAdapter(resource.Object);
+            resource.SetupGet(value => value.SyncNodeManager).Returns(sync);
+            var facade = new Mock<IAsyncNodeManager>();
+            facade.SetupGet(value => value.SyncNodeManager).Returns(sync);
+            var otherFacade = new Mock<IAsyncNodeManager>();
+            otherFacade.SetupGet(value => value.SyncNodeManager).Returns(sync);
+            IAsyncNodeManager[] owners = ambiguous ? [facade.Object, otherFacade.Object] : [facade.Object];
+            var view = new NodeManagerRoutingTable.RoutingSnapshot(
+                owners,
+                new Dictionary<int, IReadOnlyList<IAsyncNodeManager>>(),
+                hidden ? [facade.Object] : []);
+
+            bool found = view.TryGetSourceGeneration(resource.Object, out NodeManagerGeneration? generation);
+
+            Assert.That(found, Is.EqualTo(expected));
+            Assert.That(generation, expected ? Is.SameAs(view.Generations[0]) : Is.Null);
+        }
+
+        /// <summary>
+        /// Rejects a root event from a resource whose forwarding facade has a generation outside the published view.
+        /// </summary>
+        [Test]
+        public async Task UnpublishedForwardedResourceRootEventsAreRejectedAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                await using var manager = new TestableAsyncCustomNodeManager(
+                    server.Object,
+                    new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() },
+                    false, NullLogger.Instance, DeterministicServerMock.TestNamespaceUri);
+                var facade = new Mock<IAsyncNodeManager>();
+                facade.SetupGet(value => value.NamespaceUris).Returns(() => manager.NamespaceUris);
+                facade.SetupGet(value => value.SyncNodeManager).Returns(manager.SyncNodeManager);
+                NodeManagerGeneration unpublished = NodeManagerGenerationRegistry.GetOrCreate(facade.Object);
+                var other = new Mock<IAsyncNodeManager>();
+                using MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(server, [other.Object]);
+                var root = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("unpublished-root", manager.NamespaceIndex),
+                    EventNotifier = EventNotifiers.SubscribeToEvents
+                };
+                await manager.AddRootNotifierPublicAsync(root).ConfigureAwait(false);
+                int delivered = 0;
+                server.Setup(value => value.ReportEventAsync(
+                        It.IsAny<ISystemContext>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
+                    .Returns((ISystemContext _, IFilterTarget _, CancellationToken _) =>
+                    {
+                        delivered++;
+                        return default;
+                    });
+
+                await root.ReportEventAsync(manager.SystemContext, new BaseEventState(null)).ConfigureAwait(false);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(delivered, Is.Zero);
+                    Assert.That(unpublished.Gate.ActiveCount, Is.Zero);
+                });
+            }
+        }
+
+        /// <summary>
         /// Explicit event provenance cannot authorize an unrelated notifier, generation or server.
         /// </summary>
         [Test]

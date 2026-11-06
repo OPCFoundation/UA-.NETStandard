@@ -148,7 +148,7 @@ namespace Opc.Ua.Server
             }
             else
             {
-                if (!master.m_nodeManagers.Revision.TryGetGeneration(
+                if (!master.m_nodeManagers.Revision.TryGetSourceGeneration(
                         nodeManager,
                         out NodeManagerGeneration? currentGeneration))
                 {

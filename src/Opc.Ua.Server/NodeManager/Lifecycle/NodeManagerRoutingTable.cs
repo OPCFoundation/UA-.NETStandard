@@ -1269,6 +1269,54 @@ namespace Opc.Ua.Server
             }
 
             /// <summary>
+            /// Resolves an unbound event source through a visible facade over the same resource.
+            /// </summary>
+            /// <param name="nodeManager">The event source.</param>
+            /// <param name="generation">The exact published generation, when present.</param>
+            /// <returns><c>true</c> if the source has an unambiguous owner in this view.</returns>
+            internal bool TryGetSourceGeneration(
+                IAsyncNodeManager nodeManager,
+                out NodeManagerGeneration? generation)
+            {
+                if (TryGetGeneration(nodeManager, out generation))
+                {
+                    return true;
+                }
+                if (!ReferenceEquals(GetIdentity(nodeManager), nodeManager))
+                {
+                    return false;
+                }
+                for (int ii = 0; ii < NodeManagers.Length; ii++)
+                {
+                    IAsyncNodeManager owner = NodeManagers[ii];
+                    if (!ReferenceEquals(GetIdentity(owner), nodeManager))
+                    {
+                        continue;
+                    }
+                    bool hidden = false;
+                    foreach (IAsyncNodeManager hiddenOwner in HiddenNodeManagers)
+                    {
+                        if (ReferenceEquals(hiddenOwner, owner))
+                        {
+                            hidden = true;
+                            break;
+                        }
+                    }
+                    if (hidden)
+                    {
+                        continue;
+                    }
+                    if (generation is not null)
+                    {
+                        generation = null;
+                        return false;
+                    }
+                    generation = Generations[ii];
+                }
+                return generation is not null;
+            }
+
+            /// <summary>
             /// Attempts to acquire a request pin while this view remains published.
             /// </summary>
             /// <param name="slot">The epoch counter slot on success.</param>
