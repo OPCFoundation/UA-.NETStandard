@@ -568,7 +568,7 @@ namespace Opc.Ua.AMB.Tests
                 return Task.FromCanceled<ManagedSession>(token);
             });
 
-            await FailureAsync<OperationCanceledException>(
+            await FailureAsync<TaskCanceledException>(
                 () => CollectSubAssetsAcrossServersAsync(client, s_asset, cancellation.Token)).ConfigureAwait(false);
 
             Assert.That(resolved, Is.True);

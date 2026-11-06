@@ -1195,16 +1195,24 @@ namespace Opc.Ua.AMB.Tests
             Mock<ISession> session = CreateSession();
             var alias = new NodeId("alias", 4);
             var remote = new ExpandedNodeId(new NodeId("remote", 4), null, 2);
-            NodeId category = ExpandedNodeId.ToNodeId(
-                ObjectIds.AssetsByProductInstanceUri, session.Object.NamespaceUris);
+            SetupCall(session, _ => new CallMethodResult
+            {
+                OutputArguments =
+                [
+                    Variant.FromStructure((ArrayOf<AliasNameDataType>)
+                    [
+                        new AliasNameDataType
+                        {
+                            AliasName = new QualifiedName("asset"),
+                            ReferencedNodes = [remote]
+                        }
+                    ])
+                ]
+            });
             var browsed = new List<NodeId>();
             SetupBrowse(session, request =>
             {
                 browsed.Add(request.NodeId);
-                if (request.NodeId == category)
-                {
-                    return new BrowseResult { References = [Reference(alias)] };
-                }
                 if (request.NodeId == s_asset)
                 {
                     return new BrowseResult { References = [Reference(remote)] };
@@ -1221,7 +1229,13 @@ namespace Opc.Ua.AMB.Tests
 
             Assert.That(found, Is.EqualTo(new[] { remote }));
             Assert.That(browsed, Does.Not.Contain(new NodeId("remote", 4)));
-            VerifyNoMutationOrDisposal(session);
+            session.Verify(s => s.CallAsync(
+                It.IsAny<RequestHeader?>(), It.IsAny<ArrayOf<CallMethodRequest>>(),
+                It.IsAny<CancellationToken>()), Times.Once);
+            session.Verify(s => s.WriteAsync(
+                It.IsAny<RequestHeader?>(), It.IsAny<ArrayOf<WriteValue>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+            session.Verify(s => s.Dispose(), Times.Never);
         }
 
         [Test]
