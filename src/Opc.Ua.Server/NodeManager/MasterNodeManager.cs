@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -903,18 +904,36 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Removes a published manager's references and forgets its deleted-node contributions.
         /// </summary>
+        /// <remarks>
+        /// Node deletion must not wait for mutation admission: a lifecycle mutation that holds admission
+        /// or a decision window can await a deletion running on another flow. When admission is not
+        /// immediately available, a published owner removes its serving references at once and the
+        /// contribution pruning is queued for the next flow that holds admission.
+        /// </remarks>
         internal async ValueTask RemoveManagedNodeReferencesAsync(
             AsyncCustomNodeManager owner,
             List<LocalReference> referencesToRemove,
             CancellationToken cancellationToken)
         {
-            bool mutationAdmissionHeld = await AcquireDynamicMutationAdmissionAsync(cancellationToken)
-                .ConfigureAwait(false);
+            ThrowIfNodeManagementFromDecision();
+            if (!TryEnterDynamicMutationAdmission(out bool mutationAdmissionHeld))
+            {
+                if (GetPublishedRootNotifierOwner(owner) is not null)
+                {
+                    await RemoveReferencesAsync(referencesToRemove, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    owner.RetainRemovedExternalReferences(referencesToRemove);
+                }
+                m_deferredReferencePrunes.Enqueue((owner, [.. referencesToRemove]));
+                ChangePreparer.GetServer(owner)?.DiscardCapturedReferences(referencesToRemove);
+                return;
+            }
             try
             {
-                IAsyncNodeManager identity = GetReferenceOwnerIdentity(owner);
-                IAsyncNodeManager? registeredOwner = m_dynamicExternalReferences.Keys.FirstOrDefault(manager =>
-                    ReferenceEquals(GetReferenceOwnerIdentity(manager), identity));
+                ApplyDeferredReferencePrunes();
+                IAsyncNodeManager? registeredOwner = FindRegisteredReferenceOwner(owner);
                 if (registeredOwner is null)
                 {
                     owner.RetainRemovedExternalReferences(referencesToRemove);
@@ -924,48 +943,7 @@ namespace Opc.Ua.Server
                     m_lifecycleCallbackPermit,
                     NodeManagerAdmissionCapability.AddressSpaceMutation).ConfigureAwait(false);
                 await RemoveReferencesAsync(referencesToRemove, cancellationToken).ConfigureAwait(false);
-
-                var removed = new HashSet<(NodeId SourceId, NodeId ReferenceTypeId, bool IsInverse, NodeId TargetId)>();
-                foreach (LocalReference reference in referencesToRemove)
-                {
-                    removed.Add(
-                        (reference.SourceId, reference.ReferenceTypeId, reference.IsInverse, reference.TargetId));
-                }
-
-                if (m_dynamicExternalReferences.TryGetValue(
-                    registeredOwner, out Dictionary<NodeId, IList<IReference>>? contributed))
-                {
-                    var remaining = new Dictionary<NodeId, IList<IReference>>(contributed.Count);
-                    bool changed = false;
-                    foreach (KeyValuePair<NodeId, IList<IReference>> source in contributed)
-                    {
-                        var retained = new List<IReference>(source.Value.Count);
-                        foreach (IReference reference in source.Value)
-                        {
-                            if (!reference.TargetId.IsAbsolute &&
-                                removed.Contains(
-                                    (source.Key, reference.ReferenceTypeId, reference.IsInverse,
-                                        (NodeId)reference.TargetId)))
-                            {
-                                changed = true;
-                            }
-                            else
-                            {
-                                retained.Add(reference);
-                            }
-                        }
-                        remaining.Add(source.Key, retained);
-                    }
-                    if (changed)
-                    {
-                        var next = new Dictionary<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>>(
-                            m_dynamicExternalReferences)
-                        {
-                            [registeredOwner] = remaining
-                        };
-                        m_dynamicExternalReferences = next;
-                    }
-                }
+                PruneDynamicExternalReferences(registeredOwner, referencesToRemove);
                 ChangePreparer.GetServer(owner)?.DiscardCapturedReferences(referencesToRemove);
             }
             finally
@@ -974,6 +952,117 @@ namespace Opc.Ua.Server
                 {
                     m_dynamicMutationSemaphore.Release();
                 }
+            }
+        }
+
+        /// <summary>
+        /// Enters mutation admission without waiting for another holder or a pending lifecycle decision.
+        /// </summary>
+        /// <param name="semaphoreHeld">True when this call acquired the mutation semaphore.</param>
+        /// <returns>True when the caller may mutate dynamic external references.</returns>
+        private bool TryEnterDynamicMutationAdmission(out bool semaphoreHeld)
+        {
+            semaphoreHeld = false;
+            if (Volatile.Read(ref m_lifecycleDecisionCompletion) is not null)
+            {
+                return false;
+            }
+            if (HasActiveCallbackPermit(
+                    CaptureLifecycleCallbackPermit(),
+                    NodeManagerAdmissionCapability.AddressSpaceMutation))
+            {
+                return true;
+            }
+            if (!m_dynamicMutationSemaphore.Wait(0))
+            {
+                return false;
+            }
+            if (Volatile.Read(ref m_lifecycleDecisionCompletion) is not null)
+            {
+                m_dynamicMutationSemaphore.Release();
+                return false;
+            }
+            semaphoreHeld = true;
+            return true;
+        }
+
+        /// <summary>
+        /// Applies contribution pruning queued by deletions that could not enter mutation admission.
+        /// </summary>
+        /// <remarks>
+        /// The caller must hold mutation admission or run inside the exclusive publication callback.
+        /// </remarks>
+        private void ApplyDeferredReferencePrunes()
+        {
+            while (m_deferredReferencePrunes.TryDequeue(
+                out (AsyncCustomNodeManager Owner, List<LocalReference> References) prune))
+            {
+                IAsyncNodeManager? registeredOwner = FindRegisteredReferenceOwner(prune.Owner);
+                if (registeredOwner is not null)
+                {
+                    PruneDynamicExternalReferences(registeredOwner, prune.References);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Finds the registered contribution key that shares the owner's resource identity.
+        /// </summary>
+        private IAsyncNodeManager? FindRegisteredReferenceOwner(AsyncCustomNodeManager owner)
+        {
+            IAsyncNodeManager identity = GetReferenceOwnerIdentity(owner);
+            return m_dynamicExternalReferences.Keys.FirstOrDefault(manager =>
+                ReferenceEquals(GetReferenceOwnerIdentity(manager), identity));
+        }
+
+        /// <summary>
+        /// Removes deleted references from a registered owner's contributions without mutating the published copy.
+        /// </summary>
+        private void PruneDynamicExternalReferences(
+            IAsyncNodeManager registeredOwner,
+            List<LocalReference> referencesToRemove)
+        {
+            if (!m_dynamicExternalReferences.TryGetValue(
+                registeredOwner, out Dictionary<NodeId, IList<IReference>>? contributed))
+            {
+                return;
+            }
+            var removed = new HashSet<(NodeId SourceId, NodeId ReferenceTypeId, bool IsInverse, NodeId TargetId)>();
+            foreach (LocalReference reference in referencesToRemove)
+            {
+                removed.Add(
+                    (reference.SourceId, reference.ReferenceTypeId, reference.IsInverse, reference.TargetId));
+            }
+
+            var remaining = new Dictionary<NodeId, IList<IReference>>(contributed.Count);
+            bool changed = false;
+            foreach (KeyValuePair<NodeId, IList<IReference>> source in contributed)
+            {
+                var retained = new List<IReference>(source.Value.Count);
+                foreach (IReference reference in source.Value)
+                {
+                    if (!reference.TargetId.IsAbsolute &&
+                        removed.Contains(
+                            (source.Key, reference.ReferenceTypeId, reference.IsInverse,
+                                (NodeId)reference.TargetId)))
+                    {
+                        changed = true;
+                    }
+                    else
+                    {
+                        retained.Add(reference);
+                    }
+                }
+                remaining.Add(source.Key, retained);
+            }
+            if (changed)
+            {
+                m_dynamicExternalReferences =
+                    new Dictionary<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>>(
+                        m_dynamicExternalReferences)
+                    {
+                        [registeredOwner] = remaining
+                    };
             }
         }
 
@@ -1038,6 +1127,7 @@ namespace Opc.Ua.Server
                 .ConfigureAwait(false);
             try
             {
+                ApplyDeferredReferencePrunes();
                 if (!IsPublishedNodeManager(registeredFacade) || owner.IsRootNotifier(notifierId) ||
                     HasOtherRootNotifierContribution(registeredFacade, notifierId))
                 {
@@ -1989,6 +2079,11 @@ namespace Opc.Ua.Server
 
         private readonly ILogger m_logger;
         private readonly SemaphoreSlim m_dynamicMutationSemaphore = new(1, 1);
+
+        /// <summary>Contribution pruning deferred by deletions that could not enter mutation admission.</summary>
+        private readonly ConcurrentQueue<(AsyncCustomNodeManager Owner, List<LocalReference> References)>
+            m_deferredReferencePrunes = new();
+
         private readonly SemaphoreSlim m_startupShutdownSemaphoreSlim = new(1, 1);
         private readonly SemaphoreSlim m_namespaceRegistrationSemaphore = new(1, 1);
         private readonly NodeManagerRoutingTable m_nodeManagers;

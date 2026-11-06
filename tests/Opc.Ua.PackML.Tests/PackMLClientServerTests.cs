@@ -2441,6 +2441,93 @@ namespace Opc.Ua.PackML.Tests
         }
 
         /// <summary>
+        /// Completes a serving unit's deletion awaited by another batch's decision callback and keeps
+        /// its contributions pruned after that batch publishes.
+        /// </summary>
+        /// <param name="facade">The facade returned by the candidate factory.</param>
+        [TestCase(ManagerFacadeKind.Direct)]
+        [TestCase(ManagerFacadeKind.Adapted)]
+        [TestCase(ManagerFacadeKind.Forwarded)]
+        public async Task LiveDeletionDuringLifecycleDecisionDoesNotWaitForAdmission(ManagerFacadeKind facade)
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            CancellationToken ct = deadline.Token;
+            INodeManagerLifecycle lifecycle = m_services.GetRequiredService<INodeManagerLifecycle>();
+            var core = m_manager.Server.NodeManager.CoreNodeManager as CoreNodeManager
+                ?? throw new InvalidOperationException("The core node manager is unavailable.");
+            NodeState objects = core.FindPredefinedNode<NodeState>(Ua.ObjectIds.ObjectsFolder)
+                ?? throw new InvalidOperationException("Objects folder is unavailable.");
+            NodeState enumeration = core.FindPredefinedNode<NodeState>(Ua.DataTypeIds.Enumeration)
+                ?? throw new InvalidOperationException("Enumeration type is unavailable.");
+            var factory = new PreparedPackMLManagerFactory(
+                failFirstUnit: false,
+                namespaceUri: "urn:opcfoundation:tests:packml:decision-deletion",
+                facade: facade);
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false);
+            NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            Assert.That(committed.CleanupFailure, Is.Null);
+            PreparedPackMLManager candidate = factory.Manager
+                ?? throw new InvalidOperationException("The candidate manager was not created.");
+            Assert.That(committed.Registrations[0].NodeManager, Is.SameAs(factory.RegisteredManager));
+            Assert.That(factory.RegisteredManager!.SyncNodeManager, Is.SameAs(candidate.SyncNodeManager));
+            NodeId unitId = candidate.CreatedUnit.Node.NodeId;
+            NodeId modeId = candidate.CreatedUnit.ModeDataType.NodeId;
+            AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: true);
+            Assert.That(candidate.Server.ServerObject.ReferenceExists(
+                Ua.ReferenceTypeIds.HasNotifier, false, unitId), Is.True);
+
+            var decidingFactory = new ComposedNodeManagerFactory(
+                _ => { },
+                "urn:opcfoundation:tests:packml:deciding");
+            await using IPreparedNodeManagerBatch deciding = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(decidingFactory)], ct).ConfigureAwait(false);
+            NodeManagerBatchResult decided = await deciding.CommitAsync(async token =>
+            {
+                Task<bool> deletion;
+                // The deletion runs on a flow without the decision context, as a WoT mutation would.
+                using (ExecutionContext.SuppressFlow())
+                {
+                    deletion = Task.Run(async () =>
+                        await candidate.DeleteNodeAsync(candidate.SystemContext, unitId, token)
+                            .ConfigureAwait(false) &&
+                        await candidate.DeleteNodeAsync(candidate.SystemContext, modeId, token)
+                            .ConfigureAwait(false), token);
+                }
+                Assert.That(
+                    await deletion.WaitAsync(TimeSpan.FromSeconds(10), token).ConfigureAwait(false),
+                    Is.True);
+                AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: false);
+                Assert.That(candidate.Server.ServerObject.ReferenceExists(
+                    Ua.ReferenceTypeIds.HasNotifier, false, unitId), Is.False);
+            }, ct).ConfigureAwait(false);
+            Assert.That(decided.CleanupFailure, Is.Null);
+            Assert.That(candidate.Find(unitId), Is.Null);
+            Assert.That(candidate.Find(modeId), Is.Null);
+            AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: false);
+            Assert.That(candidate.Server.ServerObject.ReferenceExists(
+                Ua.ReferenceTypeIds.HasNotifier, false, unitId), Is.False);
+
+            await RetirePackMLManagerAsync(lifecycle, decided, ct).ConfigureAwait(false);
+            AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: false);
+
+            await using (var replacementRuntime = new PackMLRuntime(candidate))
+            {
+                Unit replacement = await replacementRuntime.AddUnitAsync(
+                    new QualifiedName("PreparedUnit", candidate.NamespaceIndexes[0]),
+                    new EquipmentProvider(),
+                    cancellationToken: ct).ConfigureAwait(false);
+                Assert.That(replacement.Node.NodeId, Is.EqualTo(unitId));
+                AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: true);
+            }
+
+            await RetirePackMLManagerAsync(lifecycle, committed, ct).ConfigureAwait(false);
+            AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: false);
+            Assert.That(candidate.Server.ServerObject.ReferenceExists(
+                Ua.ReferenceTypeIds.HasNotifier, false, unitId), Is.False);
+        }
+
+        /// <summary>
         /// Does not transfer a staged external reference to an unrelated replacement with the same NodeId.
         /// </summary>
         [Test]
@@ -2662,15 +2749,18 @@ namespace Opc.Ua.PackML.Tests
             /// <summary>
             /// Initializes the factory with the callback that receives the created manager.
             /// </summary>
-            public ComposedNodeManagerFactory(Action<ComposedNodeManager> created)
+            public ComposedNodeManagerFactory(
+                Action<ComposedNodeManager> created,
+                string namespaceUri = "urn:opcfoundation:tests:packml:composed")
             {
                 m_created = created;
+                NamespacesUris = [namespaceUri];
             }
 
             /// <summary>
             /// Gets the namespace owned by the composed manager.
             /// </summary>
-            public ArrayOf<string> NamespacesUris { get; } = ["urn:opcfoundation:tests:packml:composed"];
+            public ArrayOf<string> NamespacesUris { get; }
 
             /// <inheritdoc/>
             public ValueTask<IAsyncNodeManager> CreateAsync(

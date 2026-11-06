@@ -220,6 +220,7 @@ namespace Opc.Ua.Server
                         throw new NodeManagerRoutingConflictException(
                             "The address space changed before reference discovery.", view);
                     }
+                    ApplyDeferredReferencePrunes();
                     previous = m_dynamicExternalReferences;
                     previousSnapshot = previous.ToDictionary(entry => entry.Key, entry => entry.Value);
                     foreach (PreparedNodeManager candidate in candidates)
@@ -525,6 +526,8 @@ namespace Opc.Ua.Server
                             {
                                 commit.Publish(historianRegistrationsChanged);
                                 m_dynamicExternalReferences = nextReferences;
+                                // Deletions during the decision window queued pruning against the prepared image.
+                                ApplyDeferredReferencePrunes();
                                 TrackRetiringEventGenerations(retiringGenerations);
                                 foreach (PreparedNodeManager candidate in candidates)
                                 {
