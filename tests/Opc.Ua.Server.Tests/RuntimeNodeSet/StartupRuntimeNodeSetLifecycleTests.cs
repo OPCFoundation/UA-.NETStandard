@@ -77,9 +77,8 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         public async Task OneTimeSetUpAsync()
         {
             m_pkiRoot = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                nameof(StartupRuntimeNodeSetLifecycleTests),
-                Guid.NewGuid().ToString("N"));
+                Path.GetTempPath(),
+                "ua-rns-startup-" + Guid.NewGuid().ToString("N"));
 
             m_fixture = new ServerFixture<StartupRuntimeNodeSetServer>(
                 telemetry => new StartupRuntimeNodeSetServer(telemetry, m_includeArgumentParentHints))
@@ -481,9 +480,8 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         public async Task ServerRestartRecreatesStartupRegistrationsAsync()
         {
             string pkiRoot = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                nameof(ServerRestartRecreatesStartupRegistrationsAsync),
-                Guid.NewGuid().ToString("N"));
+                Path.GetTempPath(),
+                "ua-rns-restart-" + Guid.NewGuid().ToString("N"));
             var fixture = new ServerFixture<StartupRuntimeNodeSetServer>(
                 telemetry => new StartupRuntimeNodeSetServer(telemetry))
             {

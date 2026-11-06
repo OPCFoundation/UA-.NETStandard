@@ -67,9 +67,8 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         public async Task SetUpAsync()
         {
             m_pkiRoot = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                nameof(RuntimeNodeSetDataTypeDefinitionTests),
-                Guid.NewGuid().ToString("N"));
+                Path.GetTempPath(),
+                "ua-rns-types-" + Guid.NewGuid().ToString("N"));
 
             m_fixture = new ServerFixture<ReferenceServer>(t => new ReferenceServer(t))
             {
