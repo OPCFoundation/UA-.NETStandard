@@ -10,6 +10,7 @@ If you are new here, read the sections in order: [Prerequisites](#prerequisites)
 - [Repository layout](#repository-layout)
 - [Building](#building)
 - [Running tests](#running-tests)
+  - [Testing NodeManager lifecycle components](#testing-nodemanager-lifecycle-components)
   - [Testing UaLens](#testing-ualens)
 - [Coding standards (dos and don'ts)](#coding-standards-dos-and-donts)
 - [How-to guides](#how-to-guides)
@@ -105,6 +106,14 @@ Conventions and requirements:
   repository assets there; no asset or assembly copying is needed. An invalid
   configured root fails explicitly instead of falling back to another checkout.
 - **NUnit 5 async assertions.** Always await `Assert.ThrowsAsync`, `Assert.CatchAsync`, and `Assert.DoesNotThrowAsync`; these methods return tasks and no longer block until the assertion completes. The enclosing test or helper must return `Task`.
+- **WoT registry test storage.** File-backed registry and certificate fixtures
+  create unique directories under `Path.GetTempPath()` and delete their own
+  directories during cleanup. On Windows, select a short writable temporary
+  root before starting the runner (for example, set `TEMP` and `TMP` to
+  `D:\temp`). Registry staging keys and certificate names can otherwise exceed
+  the .NET Framework path limit when appended to a long checkout directory.
+  Keep repository assets in their existing locations; only writable test
+  storage belongs under the temporary root.
 - **Ordered NUnit fixtures.** Use `DependsOnTest` rather than the obsolete `Order` attribute. Existing sequencing-only dependencies use `AllowFailure = true` so one failed test does not suppress later tests. Filtering a dependent test also runs its prerequisites; dependency chains must not use fixture-level `Parallelizable`.
 - **Coverage.** Coverage is measured with **Coverlet** and must not regress; every non-application, non-test project should stay at or above **80 %**. Two gates enforce this in CI — see [Continuous integration](#continuous-integration).
 - **Integration tests.** Client/server and pub/sub features need integration tests as well as unit tests. A feature library's integration tests normally live with its unit tests in `<Component>.Tests`, for example `Opc.Ua.Robotics.Tests`, and every test project name ends in `.Tests`. Split integration tests into a separate project only when they run long, destabilise the unit tests, or the suite needs further division. Keep them deterministic: allocate a free port per fixture rather than hard-coding one, wait on the actual signal instead of using `Thread.Sleep` as a synchronisation primitive, and dispose every session, subscription and server in teardown including on failure. A flaky integration test is worse than none.
@@ -216,6 +225,42 @@ sleeps. Keep every phase wait bounded. When checking the recreate/drain wiring,
 disable the managed-session channel deadline so outer takeover cannot mask a
 broken drain, and verify the parked Publish attempt has unwound before allowing
 replacement-session creation to finish.
+
+### Testing NodeManager lifecycle components
+
+Lifecycle tests are in `tests\Opc.Ua.Server.Tests\NodeManager`, under the
+`Opc.Ua.Server.Tests.NodeManager` namespace. Choose a fixture by the behavior
+you need to exercise:
+
+| Fixture | Scope |
+| --- | --- |
+| `ChangePreparerTests` | Private metadata and candidate ownership |
+| `NodeManagerGenerationTests` | Admission, retirement, quiescence and deferred-event delivery |
+| `StripedCounterTests` | Balanced entries and cross-thread exits |
+| `NodeManagerRegistrationTests` | Registration metadata and namespace copying |
+| `NodeManagerLifecycleCompatibilityTests` | Convenience-adapter retry and failure behavior |
+| `NodeManagerLifecycleTests` | Hosted publication, concurrent candidate claims and startup behavior |
+
+The first five fixtures run without a server. Use them for isolated component
+behavior; use `NodeManagerLifecycleTests` when the test needs real routing,
+publication or server startup. To run the server-free selection:
+
+```powershell
+dotnet test tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj -f net10.0 --filter "FullyQualifiedName~ChangePreparerTests|FullyQualifiedName~NodeManagerGenerationTests|FullyQualifiedName~StripedCounterTests|FullyQualifiedName~NodeManagerRegistrationTests|FullyQualifiedName~NodeManagerLifecycleCompatibilityTests"
+dotnet test tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj -f net48 --filter "FullyQualifiedName~ChangePreparerTests|FullyQualifiedName~NodeManagerGenerationTests|FullyQualifiedName~StripedCounterTests|FullyQualifiedName~NodeManagerRegistrationTests|FullyQualifiedName~NodeManagerLifecycleCompatibilityTests"
+```
+
+Use fully qualified fixture or method names to select a narrower regression.
+The `Server` and `NodeManagerLifecycle` categories include both component and
+hosted lifecycle tests.
+
+`NodeManagerLifecycleChangeSetCleanupTests` constructs an unstarted server and
+captures its actual lifecycle writer through the internal constructor factory.
+The factory must pass the lifecycle's cleanup-completion policy to the writer.
+Keep the exact active-operation counts and inspect the writer's shutdown-drain
+signal before disposing the caller's prepared unit; caller disposal could
+otherwise conceal an admission leak. Do not inspect private writer fields or
+replace the running server's master manager.
 
 ### Testing UaLens
 
@@ -573,6 +618,8 @@ GitHub refuses to start a run whose matrices expand past 256 jobs, and the limit
 The executor fails a project when its build fails, when the TRX counters report any failure, when a test fixture's setup or teardown fails, when it produces **no** TRX at all, when nothing in it actually ran, or when it outlives its per-project ceiling. A "no tests ran" outcome is a failure, not a pass — and that includes a suite whose tests were *all* skipped, which records a non-zero total while verifying nothing.
 
 Each project or filtered shard has a **45-minute test-execution budget**.
+Server.Tests runs the native NodeManager lifecycle fixture separately from the
+remaining tests on net8.0, net9.0 and net10.0; net48 uses finer-grained shards.
 Long-running WoT/sample suites use exhaustive, non-overlapping filters instead
 of larger project-specific timeouts. For example, the modern WoT sample suite
 separates ordinary cases, full generation replacement, and native comparisons.

@@ -406,6 +406,53 @@ namespace Opc.Ua.WotCon.Tests
             await AssertPeerReferenceAsync(fixture, asset.AssetId, peer, inverse: true, present: false);
         }
 
+        /// <summary>
+        /// Holds actual old reciprocal deletion while the restart attempts to restore the same asset identity.
+        /// </summary>
+        [Test]
+        public async Task NativePeerRestartWaitsForActualReciprocalDeletion()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            var checkpoint = new NativeReferenceRetirementCheckpoint();
+            await using Fixture fixture = await CreatePeerFixtureAsync().ConfigureAwait(false);
+            WotAssetClient asset = await fixture.Client.CreateAssetAsync("mapped").ConfigureAwait(false);
+            NodeId peer = await fixture.AddRejectingPeerAsync(
+                StatusCodes.Good, throws: false, checkpoint: checkpoint).ConfigureAwait(false);
+            ByteString content = PeerReferenceDocument(
+                WotNodeSetPreservationMode.Always, true, false, rejectingPeer: true);
+            await asset.UploadThingDescriptionAsync(content.Span.ToArray()).ConfigureAwait(false);
+            await AssertPeerReferenceAsync(fixture, asset.AssetId, peer, inverse: true, present: true)
+                .ConfigureAwait(false);
+
+            var replacement = new DirectAssetManagerFactory(fixture.Options, checkpoint);
+            Task restart = fixture.RestartManagerAsync(factory: replacement);
+            try
+            {
+                await checkpoint.Entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(checkpoint.Completed.Task.IsCompleted, Is.False, "Old deletion remains held");
+                    Assert.That(replacement.Created.Task.IsCompleted, Is.False, "Replacement has not been created");
+                    Assert.That(restart.IsCompleted, Is.False, "Restart waits for actual old retirement");
+                });
+            }
+            finally
+            {
+                checkpoint.Release.TrySetResult(true);
+            }
+            await restart.WaitAsync(timeout.Token).ConfigureAwait(false);
+            ServiceResult deleted = await checkpoint.Completed.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(deleted), Is.True, "Actual old reciprocal deletion");
+            Assert.That(replacement.Created.Task.IsCompleted, Is.True);
+            await AssertPeerReferenceAsync(fixture, asset.AssetId, peer, inverse: true, present: true)
+                .ConfigureAwait(false);
+            await AssertOwnerReferenceAsync(fixture, asset.AssetId, peer, inverse: true, present: true)
+                .ConfigureAwait(false);
+            WotAssetClient restored = await fixture.Client.OpenAssetAsync(asset.AssetId).ConfigureAwait(false);
+            Assert.That(await restored.DownloadThingDescriptionAsync().ConfigureAwait(false),
+                Is.EqualTo(content.Span.ToArray()));
+        }
+
         private static Task<Fixture> CreatePeerFixtureAsync()
         {
             return Fixture.CreateAsync(modelXml: CreateInverseReferenceModel().ToString(SaveOptions.DisableFormatting));
@@ -490,15 +537,27 @@ namespace Opc.Ua.WotCon.Tests
             /// <param name="status">The status code.</param>
             /// <param name="throws">The throws flag supplied by the caller.</param>
             /// <param name="adapted">The adapted flag supplied by the caller.</param>
-            public async Task<NodeId> AddRejectingPeerAsync(StatusCode status, bool throws, bool adapted = false)
+            /// <param name="checkpoint">The optional actual reference-deletion checkpoint.</param>
+            public async Task<NodeId> AddRejectingPeerAsync(
+                StatusCode status, bool throws, bool adapted = false,
+                NativeReferenceRetirementCheckpoint? checkpoint = null)
             {
-                await m_server.NodeManagerLifecycle.AddAsync(new RejectingPeerFactory(status, throws, adapted), null);
+                await m_server.NodeManagerLifecycle.AddAsync(
+                    new RejectingPeerFactory(status, throws, adapted, checkpoint), null).ConfigureAwait(false);
                 await Session.FetchNamespaceTablesAsync();
                 return new NodeId(4040u, Session.NamespaceUris.GetIndexOrAppend(RejectingPeerNamespaceUri));
             }
         }
 
-        private sealed class RejectingPeerFactory(StatusCode status, bool throws, bool adapted)
+        /// <summary>
+        /// Creates a real peer with optional publication failure and retirement-deletion controls.
+        /// </summary>
+        /// <param name="status">The publication status returned by the peer.</param>
+        /// <param name="throws">Whether publication throws instead of returning its status.</param>
+        /// <param name="adapted">Whether to return the peer through a stack adapter.</param>
+        /// <param name="checkpoint">The optional actual reference-deletion checkpoint.</param>
+        private sealed class RejectingPeerFactory(
+            StatusCode status, bool throws, bool adapted, NativeReferenceRetirementCheckpoint? checkpoint = null)
             : IAsyncNodeManagerFactory
         {
             public ArrayOf<string> NamespacesUris => [RejectingPeerNamespaceUri];
@@ -513,18 +572,31 @@ namespace Opc.Ua.WotCon.Tests
                 IServerInternal server, ApplicationConfiguration configuration,
                 CancellationToken cancellationToken = default)
             {
-                var manager = new RejectingPeerNodeManager(server, configuration, status, throws);
+                var manager = new RejectingPeerNodeManager(server, configuration, status, throws, checkpoint);
                 return new ValueTask<IAsyncNodeManager>(
                     adapted ? manager.SyncNodeManager.ToAsyncNodeManager() : manager);
             }
         }
 
-        private sealed class DirectAssetManagerFactory(WotConnectivityServerOptions options) : IAsyncNodeManagerFactory
+        /// <summary>
+        /// Creates the replacement asset manager after any required peer-deletion checkpoint has completed.
+        /// </summary>
+        /// <param name="options">The asset manager configuration.</param>
+        /// <param name="checkpoint">The optional completed-deletion requirement.</param>
+        private sealed class DirectAssetManagerFactory(
+            WotConnectivityServerOptions options, NativeReferenceRetirementCheckpoint? checkpoint = null)
+            : IAsyncNodeManagerFactory
         {
             public ArrayOf<string> NamespacesUris => [options.AssetNamespaceUri, Namespaces.WotCon];
 
             /// <summary>
-            /// Creates the rejecting peer node manager.
+            /// Gets the signal that replacement construction was attempted.
+            /// </summary>
+            public TaskCompletionSource<bool> Created { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>
+            /// Creates the replacement asset node manager.
             /// </summary>
             /// <param name="server">The server internal.</param>
             /// <param name="configuration">The application configuration.</param>
@@ -534,6 +606,12 @@ namespace Opc.Ua.WotCon.Tests
                 CancellationToken cancellationToken = default)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                Created.TrySetResult(true);
+                if (checkpoint is not null)
+                {
+                    Assert.That(checkpoint.Completed.Task.IsCompleted, Is.True,
+                        "Replacement construction follows actual old reciprocal deletion");
+                }
                 return new ValueTask<IAsyncNodeManager>(new WotConnectivityNodeManager(server, configuration, options));
             }
         }
@@ -547,13 +625,16 @@ namespace Opc.Ua.WotCon.Tests
             /// <param name="configuration">The configuration used to initialize the instance.</param>
             /// <param name="status">The status used to initialize the instance.</param>
             /// <param name="throws">The throws flag used to initialize <c>RejectingPeerNodeManager</c>.</param>
+            /// <param name="checkpoint">The optional actual reference-deletion checkpoint.</param>
             public RejectingPeerNodeManager(
-                IServerInternal server, ApplicationConfiguration configuration, StatusCode status, bool throws)
+                IServerInternal server, ApplicationConfiguration configuration, StatusCode status, bool throws,
+                NativeReferenceRetirementCheckpoint? checkpoint = null)
                 : base(server, configuration, server.Telemetry.CreateLogger<RejectingPeerNodeManager>(),
                     RejectingPeerNamespaceUri)
             {
                 m_status = status;
                 m_throws = throws;
+                m_checkpoint = checkpoint;
             }
 
             /// <summary>
@@ -595,8 +676,76 @@ namespace Opc.Ua.WotCon.Tests
                 return new ValueTask<ServiceResult>(new ServiceResult(m_status));
             }
 
+            /// <inheritdoc/>
+            public override ValueTask<ServiceResult> DeleteReferenceAsync(
+                OperationContext context, DeleteReferencesItem item, CancellationToken cancellationToken = default)
+            {
+                return m_checkpoint is null
+                    ? base.DeleteReferenceAsync(context, item, cancellationToken)
+                    : m_checkpoint.DeleteAsync(
+                        () => base.DeleteReferenceAsync(context, item, cancellationToken), cancellationToken);
+            }
+
+            /// <inheritdoc/>
+            public override ValueTask<ServiceResult> DeleteReferenceAsync(
+                object sourceHandle, NodeId referenceTypeId, bool isInverse, ExpandedNodeId targetId,
+                bool deleteBidirectional, CancellationToken cancellationToken = default)
+            {
+                return m_checkpoint is null
+                    ? base.DeleteReferenceAsync(
+                        sourceHandle, referenceTypeId, isInverse, targetId, deleteBidirectional, cancellationToken)
+                    : m_checkpoint.DeleteAsync(
+                        () => base.DeleteReferenceAsync(
+                            sourceHandle, referenceTypeId, isInverse, targetId, deleteBidirectional, cancellationToken),
+                        cancellationToken);
+            }
+
             private readonly StatusCode m_status;
             private readonly bool m_throws;
+            /// <summary>Controls the first real peer deletion during old-generation retirement.</summary>
+            private readonly NativeReferenceRetirementCheckpoint? m_checkpoint;
+        }
+
+        /// <summary>
+        /// Pauses the first real peer deletion before it changes the peer's reference table.
+        /// </summary>
+        private sealed class NativeReferenceRetirementCheckpoint
+        {
+            /// <summary>
+            /// Gets the signal that actual old-generation cleanup reached peer deletion.
+            /// </summary>
+            public TaskCompletionSource<bool> Entered { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>
+            /// Gets the signal permitting the actual deletion to proceed.
+            /// </summary>
+            public TaskCompletionSource<bool> Release { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>
+            /// Gets the actual result after the peer reference table has been changed.
+            /// </summary>
+            public TaskCompletionSource<ServiceResult> Completed { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>
+            /// Runs the actual peer operation after the first cleanup checkpoint is released.
+            /// </summary>
+            /// <param name="delete">The real peer deletion.</param>
+            /// <param name="cancellationToken">The cleanup cancellation token.</param>
+            public async ValueTask<ServiceResult> DeleteAsync(
+                Func<ValueTask<ServiceResult>> delete, CancellationToken cancellationToken)
+            {
+                if (!Entered.TrySetResult(true))
+                {
+                    return await delete().ConfigureAwait(false);
+                }
+                await Release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                ServiceResult result = await delete().ConfigureAwait(false);
+                Completed.TrySetResult(result);
+                return result;
+            }
         }
 
         private const string RejectingPeerNamespaceUri = "urn:test:r42-rejecting-peer";

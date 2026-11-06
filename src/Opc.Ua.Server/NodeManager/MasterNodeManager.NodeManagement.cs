@@ -40,8 +40,8 @@ namespace Opc.Ua.Server
     /// DeleteNodes, AddReferences and DeleteReferences services (OPC 10000-4 §5.8)
     /// plus the NodeId-based cross-manager reference plumbing, with per-item routing,
     /// authorization, and rollback compensation.
-    /// Code in this file may acquire <c>m_dynamicMutationSemaphore</c> (AddNodesAsync
-    /// and DeleteNodesAsync only) so address-space mutation serializes with NodeManager
+    /// Code in this file acquires <c>m_dynamicMutationSemaphore</c> for the four TAP
+    /// node-mutation services so address-space mutation serializes with NodeManager
     /// lifecycle operations, and it reads the routing snapshot for dispatch. It must
     /// not acquire the startup/shutdown semaphore, touch retired-generation or
     /// preparing-NodeManager state, or use <see cref="IDynamicNodeManagerHost"/>.
@@ -122,14 +122,21 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public async ValueTask RemoveReferencesAsync(List<LocalReference> referencesToRemove, CancellationToken cancellationToken = default)
+        public async ValueTask RemoveReferencesAsync(
+            List<LocalReference> referencesToRemove,
+            CancellationToken cancellationToken = default)
         {
+            using var context = new OperationContext(
+                new RequestHeader(), null, RequestType.DeleteReferences, RequestLifetime.None);
+            context.PinRouting(m_nodeManagers);
+
             for (int ii = 0; ii < referencesToRemove.Count; ii++)
             {
                 LocalReference reference = referencesToRemove[ii];
 
                 // find source node.
-                (object? sourceHandle, IAsyncNodeManager? nodeManager) = await GetManagerHandleAsync(
+                (object? sourceHandle, IAsyncNodeManager? nodeManager) = await m_serviceDispatch.GetManagerHandleAsync(
+                        context,
                         reference.SourceId,
                         cancellationToken)
                     .ConfigureAwait(false);
@@ -156,23 +163,79 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public virtual async ValueTask<(ArrayOf<AddNodesResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)>
+        public virtual ValueTask<(ArrayOf<AddNodesResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)>
             AddNodesAsync(
                 OperationContext context,
                 ArrayOf<AddNodesItem> nodesToAdd,
                 CancellationToken cancellationToken = default)
         {
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
+            ValueTask<(ArrayOf<AddNodesResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)> response =
+                AddNodesCoreAsync(context, nodesToAdd, cancellationToken);
+            m_hostBoundary?.AddNodesDispatched();
+            return response;
+        }
 
-            await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+        /// <summary>
+        /// Dispatches AddNodes under address-space mutation admission.
+        /// </summary>
+        private async ValueTask<(ArrayOf<AddNodesResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)>
+            AddNodesCoreAsync(
+                OperationContext context,
+                ArrayOf<AddNodesItem> nodesToAdd,
+                CancellationToken cancellationToken)
+        {
+            bool isLifecycleDecision = m_currentLifecycleDecision.Value is { IsCompleted: false };
+            if (isLifecycleDecision &&
+                TryCreatePreRoutingAddNodesResponse(context, nodesToAdd, out var decisionResponse))
+            {
+                return decisionResponse;
+            }
+            ThrowIfNodeManagementFromDecision(isLifecycleDecision);
+            bool mutationAdmissionHeld = false;
+            bool invalidatePermissionCache = false;
+            if (HasActiveCallbackPermit(
+                    CaptureLifecycleCallbackPermit(),
+                    NodeManagerAdmissionCapability.AddressSpaceMutation))
+            {
+                await AcquireDynamicMutationAdmissionAsync(cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                while (true)
+                {
+                    await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    Task? decisionWindow = Volatile.Read(ref m_lifecycleDecisionCompletion)?.Task;
+                    if (decisionWindow is null)
+                    {
+                        mutationAdmissionHeld = true;
+                        break;
+                    }
+                    try
+                    {
+                        if (TryCreatePreRoutingAddNodesResponse(context, nodesToAdd, out var preRoutingResponse))
+                        {
+                            return preRoutingResponse;
+                        }
+                    }
+                    finally
+                    {
+                        m_dynamicMutationSemaphore.Release();
+                    }
+                    await decisionWindow.WaitAsync(cancellationToken).ConfigureAwait(false);
+                }
+            }
             try
             {
+                using OperationContext.RoutingScope requestRouting = m_serviceDispatch.CaptureRouting(context);
+
                 var results = new AddNodesResult[nodesToAdd.Count];
                 var diagnosticInfos = new DiagnosticInfo[nodesToAdd.Count];
                 bool anyDiagnostics = false;
+                invalidatePermissionCache = nodesToAdd.Count > 0;
+                if (invalidatePermissionCache)
+                {
+                    NodeState.InvalidateRolePermissionsCache();
+                }
 
                 for (int ii = 0; ii < nodesToAdd.Count; ii++)
                 {
@@ -198,7 +261,6 @@ namespace Opc.Ua.Server
                         StatusCode = result.StatusCode,
                         AddedNodeId = addedNodeId
                     };
-
                     if (ServiceResult.IsBad(result) &&
                         (context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                     {
@@ -216,7 +278,15 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                m_dynamicMutationSemaphore.Release();
+                if (invalidatePermissionCache)
+                {
+                    // Retire verdicts resolved while the address-space mutation was in progress.
+                    NodeState.InvalidateRolePermissionsCache();
+                }
+                if (mutationAdmissionHeld)
+                {
+                    m_dynamicMutationSemaphore.Release();
+                }
             }
         }
 
@@ -227,17 +297,21 @@ namespace Opc.Ua.Server
                 ArrayOf<DeleteNodesItem> nodesToDelete,
                 CancellationToken cancellationToken = default)
         {
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
-
-            await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            bool mutationAdmissionHeld = await AcquireDynamicMutationAdmissionAsync(cancellationToken)
+                .ConfigureAwait(false);
+            bool invalidatePermissionCache = false;
             try
             {
+                using OperationContext.RoutingScope requestRouting = m_serviceDispatch.CaptureRouting(context);
+
                 var results = new StatusCode[nodesToDelete.Count];
                 var diagnosticInfos = new DiagnosticInfo[nodesToDelete.Count];
                 bool anyDiagnostics = false;
+                invalidatePermissionCache = nodesToDelete.Count > 0;
+                if (invalidatePermissionCache)
+                {
+                    NodeState.InvalidateRolePermissionsCache();
+                }
 
                 for (int ii = 0; ii < nodesToDelete.Count; ii++)
                 {
@@ -258,7 +332,6 @@ namespace Opc.Ua.Server
                     }
 
                     results[ii] = result.StatusCode;
-
                     if (ServiceResult.IsBad(result) &&
                         (context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                     {
@@ -276,7 +349,15 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                m_dynamicMutationSemaphore.Release();
+                if (invalidatePermissionCache)
+                {
+                    // Retire verdicts resolved while the address-space mutation was in progress.
+                    NodeState.InvalidateRolePermissionsCache();
+                }
+                if (mutationAdmissionHeld)
+                {
+                    m_dynamicMutationSemaphore.Release();
+                }
             }
         }
 
@@ -287,10 +368,8 @@ namespace Opc.Ua.Server
                 ArrayOf<AddReferencesItem> referencesToAdd,
                 CancellationToken cancellationToken = default)
         {
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
+            await WaitForLifecycleDecisionAsync(cancellationToken).ConfigureAwait(false);
+            using OperationContext.RoutingScope requestRouting = m_serviceDispatch.CaptureRouting(context);
 
             var results = new StatusCode[referencesToAdd.Count];
             var diagnosticInfos = new DiagnosticInfo[referencesToAdd.Count];
@@ -339,10 +418,8 @@ namespace Opc.Ua.Server
                 ArrayOf<DeleteReferencesItem> referencesToDelete,
                 CancellationToken cancellationToken = default)
         {
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
+            await WaitForLifecycleDecisionAsync(cancellationToken).ConfigureAwait(false);
+            using OperationContext.RoutingScope requestRouting = m_serviceDispatch.CaptureRouting(context);
 
             var results = new StatusCode[referencesToDelete.Count];
             var diagnosticInfos = new DiagnosticInfo[referencesToDelete.Count];
@@ -393,15 +470,82 @@ namespace Opc.Ua.Server
                     "The node manager failed a node-management operation.");
         }
 
+        private bool TryCreatePreRoutingAddNodesResponse(
+            OperationContext context,
+            ArrayOf<AddNodesItem> nodesToAdd,
+            out (ArrayOf<AddNodesResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) response)
+        {
+            if (nodesToAdd.Count == 0)
+            {
+                response = default;
+                return false;
+            }
+
+            for (int index = 0; index < nodesToAdd.Count; index++)
+            {
+                if (GetPreRoutingAddNodeStatus(nodesToAdd[index]) == StatusCodes.Good)
+                {
+                    response = default;
+                    return false;
+                }
+            }
+
+            var results = new AddNodesResult[nodesToAdd.Count];
+            var diagnosticInfos = new DiagnosticInfo[nodesToAdd.Count];
+            bool anyDiagnostics = false;
+            for (int index = 0; index < nodesToAdd.Count; index++)
+            {
+                ServiceResult result = new(GetPreRoutingAddNodeStatus(nodesToAdd[index]));
+                results[index] = new AddNodesResult
+                {
+                    StatusCode = result.StatusCode,
+                    AddedNodeId = NodeId.Null
+                };
+                if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                {
+                    anyDiagnostics = true;
+                    diagnosticInfos[index] = new DiagnosticInfo(
+                        result,
+                        context.DiagnosticsMask,
+                        false,
+                        context.StringTable,
+                        m_logger);
+                }
+            }
+
+            response = (
+                results.ToArrayOf(),
+                anyDiagnostics ? diagnosticInfos.ToArrayOf() : default);
+            return true;
+        }
+
+        private static StatusCode GetPreRoutingAddNodeStatus(AddNodesItem item)
+        {
+            if (item is null)
+            {
+                return StatusCodes.BadNothingToDo;
+            }
+
+            if (item.BrowseName.IsNull || string.IsNullOrEmpty(item.BrowseName.Name))
+            {
+                return StatusCodes.BadBrowseNameInvalid;
+            }
+
+            return item.ParentNodeId.IsNull
+                ? StatusCodes.BadParentNodeIdInvalid
+                : StatusCodes.Good;
+        }
+
         /// <summary>
         /// Returns true when the ReferenceType is abstract. No Reference of an abstract
         /// ReferenceType shall exist (Part 3 5.3.1), so AddNodes and AddReferences reject it.
         /// </summary>
         private async ValueTask<bool> IsAbstractReferenceTypeAsync(
+            OperationContext context,
             NodeId referenceTypeId,
             CancellationToken cancellationToken)
         {
-            return await m_serviceDispatch.FindNodeInAddressSpaceAsync(referenceTypeId, cancellationToken)
+            return await m_serviceDispatch.FindNodeInAddressSpaceAsync(context, referenceTypeId, cancellationToken)
                 .ConfigureAwait(false) is ReferenceTypeState { IsAbstract: true };
         }
 
@@ -410,19 +554,10 @@ namespace Opc.Ua.Server
             AddNodesItem item,
             CancellationToken cancellationToken)
         {
-            if (item == null)
+            StatusCode preRoutingStatus = GetPreRoutingAddNodeStatus(item);
+            if (preRoutingStatus != StatusCodes.Good)
             {
-                return (new ServiceResult(StatusCodes.BadNothingToDo), NodeId.Null);
-            }
-
-            if (item.BrowseName.IsNull || string.IsNullOrEmpty(item.BrowseName.Name))
-            {
-                return (new ServiceResult(StatusCodes.BadBrowseNameInvalid), NodeId.Null);
-            }
-
-            if (item.ParentNodeId.IsNull)
-            {
-                return (new ServiceResult(StatusCodes.BadParentNodeIdInvalid), NodeId.Null);
+                return (new ServiceResult(preRoutingStatus), NodeId.Null);
             }
 
             if (item.ReferenceTypeId.IsNull ||
@@ -432,7 +567,7 @@ namespace Opc.Ua.Server
                 return (new ServiceResult(StatusCodes.BadReferenceTypeIdInvalid), NodeId.Null);
             }
 
-            if (await IsAbstractReferenceTypeAsync(item.ReferenceTypeId, cancellationToken)
+            if (await IsAbstractReferenceTypeAsync(context, item.ReferenceTypeId, cancellationToken)
                 .ConfigureAwait(false))
             {
                 return (new ServiceResult(StatusCodes.BadReferenceTypeIdInvalid), NodeId.Null);
@@ -485,7 +620,8 @@ namespace Opc.Ua.Server
             }
 
             (object? parentHandle, IAsyncNodeManager? parentOwner) =
-                await GetManagerHandleAsync(parentNodeId, cancellationToken).ConfigureAwait(false);
+                await m_serviceDispatch.GetManagerHandleAsync(context, parentNodeId, cancellationToken)
+                    .ConfigureAwait(false);
             if (parentHandle == null || parentOwner == null)
             {
                 return (new ServiceResult(StatusCodes.BadParentNodeIdInvalid), NodeId.Null);
@@ -559,6 +695,9 @@ namespace Opc.Ua.Server
 
             try
             {
+                await using var callbackPermit = new NodeManagerCallbackPermit(
+                    m_lifecycleCallbackPermit,
+                    NodeManagerAdmissionCapability.AddressSpaceMutation).ConfigureAwait(false);
                 return await nodeManagement.AddNodeAsync(context, item, cancellationToken)
                     .ConfigureAwait(false);
             }
@@ -584,7 +723,8 @@ namespace Opc.Ua.Server
             }
 
             (object? handle, IAsyncNodeManager? owner) =
-                await GetManagerHandleAsync(item.NodeId, cancellationToken).ConfigureAwait(false);
+                await m_serviceDispatch.GetManagerHandleAsync(context, item.NodeId, cancellationToken)
+                    .ConfigureAwait(false);
             if (handle == null || owner == null)
             {
                 return new ServiceResult(StatusCodes.BadNodeIdUnknown);
@@ -610,6 +750,9 @@ namespace Opc.Ua.Server
 
             try
             {
+                await using var callbackPermit = new NodeManagerCallbackPermit(
+                    m_lifecycleCallbackPermit,
+                    NodeManagerAdmissionCapability.AddressSpaceMutation).ConfigureAwait(false);
                 return await owner.DeleteNodeAsync(context, item, cancellationToken)
                     .ConfigureAwait(false);
             }
@@ -646,14 +789,15 @@ namespace Opc.Ua.Server
                 return new ServiceResult(StatusCodes.BadReferenceTypeIdInvalid);
             }
 
-            if (await IsAbstractReferenceTypeAsync(item.ReferenceTypeId, cancellationToken)
+            if (await IsAbstractReferenceTypeAsync(context, item.ReferenceTypeId, cancellationToken)
                 .ConfigureAwait(false))
             {
                 return new ServiceResult(StatusCodes.BadReferenceTypeIdInvalid);
             }
 
             (object? sourceHandle, IAsyncNodeManager? sourceOwner) =
-                await GetManagerHandleAsync(item.SourceNodeId, cancellationToken).ConfigureAwait(false);
+                await m_serviceDispatch.GetManagerHandleAsync(context, item.SourceNodeId, cancellationToken)
+                    .ConfigureAwait(false);
             if (sourceHandle == null || sourceOwner == null)
             {
                 return new ServiceResult(StatusCodes.BadSourceNodeIdInvalid);
@@ -688,7 +832,8 @@ namespace Opc.Ua.Server
                 out NodeId targetNodeId))
             {
                 object? targetHandle;
-                (targetHandle, targetOwner) = await GetManagerHandleAsync(
+                (targetHandle, targetOwner) = await m_serviceDispatch.GetManagerHandleAsync(
+                    context,
                     targetNodeId,
                     cancellationToken).ConfigureAwait(false);
                 if (targetHandle == null || targetOwner == null)
@@ -834,14 +979,15 @@ namespace Opc.Ua.Server
             }
 
             // Part 3 5.3.1: no Reference of an abstract ReferenceType exists to delete.
-            if (await IsAbstractReferenceTypeAsync(item.ReferenceTypeId, cancellationToken)
+            if (await IsAbstractReferenceTypeAsync(context, item.ReferenceTypeId, cancellationToken)
                 .ConfigureAwait(false))
             {
                 return new ServiceResult(StatusCodes.BadReferenceTypeIdInvalid);
             }
 
             (object? sourceHandle, IAsyncNodeManager? sourceOwner) =
-                await GetManagerHandleAsync(item.SourceNodeId, cancellationToken).ConfigureAwait(false);
+                await m_serviceDispatch.GetManagerHandleAsync(context, item.SourceNodeId, cancellationToken)
+                    .ConfigureAwait(false);
             if (sourceHandle == null || sourceOwner == null)
             {
                 return new ServiceResult(StatusCodes.BadSourceNodeIdInvalid);
@@ -879,7 +1025,8 @@ namespace Opc.Ua.Server
             if (explicitlyLocalTarget)
             {
                 object? targetHandle;
-                (targetHandle, targetOwner) = await GetManagerHandleAsync(
+                (targetHandle, targetOwner) = await m_serviceDispatch.GetManagerHandleAsync(
+                    context,
                     targetNodeId,
                     cancellationToken).ConfigureAwait(false);
                 if (targetHandle == null || targetOwner == null)

@@ -1,0 +1,284 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using NUnit.Framework;
+using Opc.Ua.Server.RuntimeNodeSet;
+
+namespace Opc.Ua.Server.Tests.NodeManager
+{
+    public sealed partial class NodeManagerLifecycleTests
+    {
+        /// <summary>
+        /// Asynchronous namespace changes wait for a durable decision without blocking a caller thread.
+        /// </summary>
+        [TestCase(false, false, false)]
+        [TestCase(true, false, false)]
+        [TestCase(false, true, false)]
+        [TestCase(true, true, false)]
+        [TestCase(false, false, true)]
+        [TestCase(true, false, true)]
+        [TestCase(false, true, true)]
+        [TestCase(true, true, true)]
+        public async Task AsyncNamespaceRegistrationWaitsForDurableDecisionAsync(
+            bool namespaceAlreadyExists,
+            bool unregister,
+            bool decisionFails)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            TrackingLifecycleNodeManager? manager = null;
+            await m_server.NodeManagerLifecycle.AddAsync(
+                CreateTrackingNodeManagementFactory(kGeneration1Value, value => manager = value),
+                null,
+                timeout.Token).ConfigureAwait(false);
+            AssertLifecycleValue(manager);
+            IServerInternal server = m_server.CurrentInstance;
+            IMasterNodeManager master = server.NodeManager;
+            var host = (IDynamicNodeManagerBatchHost)master;
+            const string AliasUri = kModelNamespaceUri + ":AsyncDecisionAlias";
+            if (namespaceAlreadyExists)
+            {
+                server.NamespaceUris.GetIndexOrAppend(AliasUri);
+                if (unregister)
+                {
+                    master.RegisterNamespaceManager(AliasUri, manager);
+                }
+            }
+
+            var decisionFailure = new InvalidOperationException("The durable decision was rejected.");
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            await using IPreparedNodeManagerBatch prepared =
+                await ((INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle).PrepareAsync(
+                    [NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
+                        CreateOptions(kSecondModelNamespaceUri, kGeneration2Value)))],
+                    null,
+                    timeout.Token).ConfigureAwait(false);
+            Task<NodeManagerBatchResult> commit = prepared.CommitAsync(async token =>
+            {
+                entered.TrySetResult(true);
+                await release.Task.WaitAsync(token).ConfigureAwait(false);
+                if (decisionFails)
+                {
+                    throw decisionFailure;
+                }
+            }, timeout.Token).AsTask();
+
+            Task<bool>? unregistration = null;
+            Task registration;
+            bool completedBeforeRelease = false;
+            try
+            {
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                if (unregister)
+                {
+                    unregistration = master.UnregisterNamespaceManagerAsync(AliasUri, manager).AsTask();
+                    registration = unregistration;
+                }
+                else
+                {
+                    registration = master.RegisterNamespaceManagerAsync(AliasUri, manager).AsTask();
+                }
+                await Task.WhenAny(registration, Task.Delay(TimeSpan.FromSeconds(1), timeout.Token))
+                    .ConfigureAwait(false);
+                completedBeforeRelease = registration.IsCompleted;
+                Assert.That(commit.IsCompleted, Is.False);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                try
+                {
+                    NodeManagerBatchResult result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    Assert.That(decisionFails, Is.False);
+                    Assert.That(result.CleanupFailure, Is.Null);
+                }
+                catch (InvalidOperationException decisionError) when (ReferenceEquals(decisionError, decisionFailure))
+                {
+                    Assert.That(decisionFails, Is.True);
+                }
+            }
+
+            Assert.That(completedBeforeRelease, Is.False,
+                "Namespace changes must remain pending until the durable decision releases reservations.");
+            bool unregistered = false;
+            if (unregistration is null)
+            {
+                await registration.WaitAsync(timeout.Token).ConfigureAwait(false);
+            }
+            else
+            {
+                unregistered = await unregistration.WaitAsync(timeout.Token).ConfigureAwait(false);
+            }
+            int namespaceIndex = server.NamespaceUris.GetIndex(AliasUri);
+            if (unregister)
+            {
+                Assert.That(unregistered, Is.EqualTo(namespaceAlreadyExists));
+                Assert.That(namespaceIndex < 0 ||
+                    !host.RoutingRevision.NamespaceManagers.TryGetValue(namespaceIndex, out var managers) ||
+                    !managers.Contains(manager), Is.True);
+            }
+            else
+            {
+                Assert.That(namespaceIndex, Is.GreaterThanOrEqualTo(0));
+                Assert.That(host.RoutingRevision.NamespaceManagers[namespaceIndex], Does.Contain(manager));
+                Assert.That(master.UnregisterNamespaceManager(AliasUri, manager), Is.True);
+            }
+        }
+
+        /// <summary>
+        /// Asynchronous namespace mutations return a pending operation instead of blocking their caller.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AsyncNamespaceMutationReturnsPendingOperationWithoutBlockingAsync(bool unregister)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            TrackingLifecycleNodeManager? manager = null;
+            await m_server.NodeManagerLifecycle.AddAsync(
+                CreateTrackingNodeManagementFactory(kGeneration1Value, value => manager = value),
+                null,
+                timeout.Token).ConfigureAwait(false);
+            AssertLifecycleValue(manager);
+            IMasterNodeManager master = m_server.CurrentInstance.NodeManager;
+            const string AliasUri = kModelNamespaceUri + ":AsyncDecisionAlias";
+            if (unregister)
+            {
+                master.RegisterNamespaceManager(AliasUri, manager);
+            }
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            await using IPreparedNodeManagerBatch prepared =
+                await ((INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle).PrepareAsync(
+                    [NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
+                        CreateOptions(kSecondModelNamespaceUri, kGeneration2Value)))],
+                    null,
+                    timeout.Token).ConfigureAwait(false);
+            Task<NodeManagerBatchResult> commit = prepared.CommitAsync(async token =>
+            {
+                entered.TrySetResult(true);
+                await release.Task.WaitAsync(token).ConfigureAwait(false);
+            }, timeout.Token).AsTask();
+
+            Task<Task>? invocation = null;
+            Task registration = Task.CompletedTask;
+            try
+            {
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+#pragma warning disable CA2025 // TODO: Remove when CA2025 recognizes the finally drain; tasks finish before lifecycle disposal.
+                invocation = RunWithoutExecutionContext(
+                    () =>
+                    {
+                        Task pending = unregister
+                            ? master.UnregisterNamespaceManagerAsync(AliasUri, manager).AsTask()
+                            : master.RegisterNamespaceManagerAsync(AliasUri, manager).AsTask();
+                        return Task.FromResult(pending);
+                    });
+#pragma warning restore CA2025
+                registration = await invocation.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(registration.IsCompleted, Is.False,
+                    "The async API must return its pending wait without blocking the caller.");
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                try
+                {
+                    NodeManagerBatchResult result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    Assert.That(result.CleanupFailure, Is.Null);
+                }
+                finally
+                {
+                    if (invocation is not null)
+                    {
+                        registration = await invocation.ConfigureAwait(false);
+                    }
+                    await registration.WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
+            }
+
+            int namespaceIndex = m_server.CurrentInstance.NamespaceUris.GetIndex(AliasUri);
+            Assert.That(namespaceIndex, Is.GreaterThanOrEqualTo(0));
+            bool stillRegistered =
+                ((IDynamicNodeManagerBatchHost)master).RoutingRevision.NamespaceManagers.TryGetValue(
+                    namespaceIndex,
+                    out var managers) && managers.Contains(manager);
+            Assert.That(stillRegistered, Is.EqualTo(!unregister));
+            if (!unregister)
+            {
+                Assert.That(master.UnregisterNamespaceManager(AliasUri, manager), Is.True);
+            }
+        }
+
+        /// <summary>
+        /// Asynchronous namespace mutation rejects re-entry from its own durable decision.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AsyncNamespaceMutationFromDurableDecisionIsRejectedAsync(bool unregister)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            TrackingLifecycleNodeManager? manager = null;
+            await m_server.NodeManagerLifecycle.AddAsync(
+                CreateTrackingNodeManagementFactory(kGeneration1Value, value => manager = value),
+                null,
+                timeout.Token).ConfigureAwait(false);
+            AssertLifecycleValue(manager);
+            IMasterNodeManager master = m_server.CurrentInstance.NodeManager;
+            const string AliasUri = kModelNamespaceUri + ":AsyncOwnDecisionAlias";
+            await using IPreparedNodeManagerBatch prepared =
+                await ((INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle).PrepareAsync(
+                    [NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
+                        CreateOptions(kSecondModelNamespaceUri, kGeneration2Value)))],
+                    null,
+                    timeout.Token).ConfigureAwait(false);
+            NodeManagerBatchResult result = await prepared.CommitAsync(async _ =>
+            {
+                await Task.Yield();
+                InvalidOperationException? failure = await Assert.ThrowsAsync<InvalidOperationException>(
+                    async () =>
+                    {
+                        if (unregister)
+                        {
+                            await master.UnregisterNamespaceManagerAsync(AliasUri, manager).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            await master.RegisterNamespaceManagerAsync(AliasUri, manager).ConfigureAwait(false);
+                        }
+                    }).ConfigureAwait(false);
+                Assert.That(failure!.Message, Does.Contain("durable decision callback"));
+            }, timeout.Token).ConfigureAwait(false);
+            Assert.That(result.CleanupFailure, Is.Null);
+        }
+    }
+}

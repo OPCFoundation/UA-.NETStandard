@@ -574,7 +574,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         }
 
         /// <summary>
-        /// An unknown reference type has a null OPC UA qualified name.
+        /// An unknown reference type has an OPC UA null browse name on every target framework.
         /// </summary>
         [Test]
         public void FindReferenceTypeNameReturnsNullForUnknownType()

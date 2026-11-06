@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using NUnit.Framework;
 
@@ -39,6 +40,258 @@ namespace Opc.Ua.Types.Tests
     [Parallelizable]
     public sealed class LocalizedTextTranslationTests
     {
+        /// <summary>
+        /// Copy retains selected templates, all translations and deferred fallback without provider aliases.
+        /// </summary>
+        [Test]
+        public void CopyRetainsDeferredTranslationState()
+        {
+            object[] args = [12.5m];
+            var translations = new Dictionary<string, string>
+            {
+                ["en-US"] = "Value: {0:N1}",
+                ["de-DE"] = "Wert: {0:N1}"
+            };
+            var info = new TranslationInfo("quantity", "en-US", "Fallback: {0:N1}", args);
+            LocalizedText source = new LocalizedText(translations, info).FilterByPreferredLocales(["de-DE"]);
+            LocalizedText copy = source.Copy();
+            Assert.That(copy.Locale, Is.EqualTo(source.Locale));
+            Assert.That(copy.Text, Is.EqualTo("Wert: 12,5"));
+            Assert.That(copy.TranslationInfo.Key, Is.EqualTo("quantity"));
+            Assert.That(copy.TranslationInfo.Locale, Is.EqualTo("en-US"));
+            Assert.That(copy.TranslationInfo.Text, Is.EqualTo("Fallback: {0:N1}"));
+            Assert.That(copy.TranslationInfo.Args, Is.Not.SameAs(args));
+            Assert.That(copy.Translations, Is.Not.SameAs(translations));
+            Assert.That(copy.Translations, Is.EquivalentTo(translations));
+            Assert.That(copy.FilterByPreferredLocales(["mul"]).Translations, Is.EquivalentTo(translations));
+            Assert.That(copy.FilterByPreferredLocales(["qst"]).Translations, Is.EquivalentTo(translations));
+            Assert.That(copy.FilterByPreferredLocales(["EN-us"]).Text, Is.EqualTo("Value: 12.5"));
+            Assert.That(copy.FilterByPreferredLocales(["de-AT"]).Text, Is.EqualTo("Wert: 12,5"));
+            args[0] = 99m;
+            translations["de-DE"] = "Changed";
+            Assert.That(source.Text, Is.EqualTo("Wert: 99,0"));
+            Assert.That(copy.Text, Is.EqualTo("Wert: 12,5"));
+            Assert.That(copy.FilterByPreferredLocales(["de-DE"]).Text, Is.EqualTo("Wert: 12,5"));
+            copy.TranslationInfo.Args![0] = 14m;
+            Assert.That(copy.Text, Is.EqualTo("Wert: 14,0"));
+            Assert.That(copy.FilterByPreferredLocales(["en-US"]).Text, Is.EqualTo("Value: 14.0"));
+        }
+
+        /// <summary>
+        /// Direct dictionary lookup retains requested locale spelling and ordered fallback behavior.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void CopyPreservesDictionaryLookupLocale(bool ignoreCase)
+        {
+            var translations = new Dictionary<string, string>(
+                ignoreCase ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal)
+            {
+                ["en-US"] = "Hello",
+                ["de-DE"] = "Hallo"
+            };
+            var source = new LocalizedText(translations);
+            LocalizedText copy = source.Copy();
+            Assert.That(copy.FilterByPreferredLocales(["EN-us"]).Locale,
+                Is.EqualTo(source.FilterByPreferredLocales(["EN-us"]).Locale));
+            Assert.That(copy.FilterByPreferredLocales(["EN-us"]).Locale,
+                Is.EqualTo(ignoreCase ? "EN-us" : "en-US"));
+            Assert.That(copy.FilterByPreferredLocales(["en-GB"]).Locale, Is.EqualTo("en-US"));
+            Assert.That(copy.FilterByPreferredLocales(["it-IT"]).Locale, Is.EqualTo("en-US"));
+            Assert.That(copy.Translations, Is.EquivalentTo(translations));
+            translations["en-US"] = "Changed";
+            Assert.That(copy.FilterByPreferredLocales(["EN-us"]).Text, Is.EqualTo("Hello"));
+        }
+
+        /// <summary>
+        /// Eagerly decoded SDK-owned multi-language templates retain deferred arguments without aliasing them.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void CopyRetainsMultiLanguageTranslationInfoArguments(bool selectLocale)
+        {
+            const string json = "{\"t\":[[\"en-US\",\"Hello {0}\"],[\"de-DE\",\"Hallo {0}\"]]}";
+            object[] args = ["Original"];
+            var source = new LocalizedText(new TranslationInfo("greeting", "mul", json, args));
+            if (selectLocale)
+            {
+                source = source.FilterByPreferredLocales(["de-DE"]);
+            }
+            LocalizedText copy = source.Copy();
+            Assert.That(copy.Locale, Is.EqualTo(source.Locale));
+            Assert.That(copy.Text, Is.EqualTo(source.Text));
+            Assert.That(copy.TranslationInfo.Key, Is.EqualTo("greeting"));
+            Assert.That(copy.TranslationInfo.Locale, Is.EqualTo("mul"));
+            Assert.That(copy.TranslationInfo.Text, Is.EqualTo(json));
+            Assert.That(source.Translations, Is.Not.Null);
+            Assert.That(copy.Translations, Is.EquivalentTo(source.Translations!));
+            Assert.That(copy.Translations, Is.Not.SameAs(source.Translations));
+            Assert.That(copy.TranslationInfo.Args, Is.Not.SameAs(args));
+            Assert.That(copy.FilterByPreferredLocales(["EN-us"]).Locale,
+                Is.EqualTo(source.FilterByPreferredLocales(["EN-us"]).Locale));
+            Assert.That(copy.FilterByPreferredLocales(["de-DE"]).Text, Is.EqualTo("Hallo Original"));
+            args[0] = "Changed";
+            Assert.That(source.FilterByPreferredLocales(["de-DE"]).Text, Is.EqualTo("Hallo Changed"));
+            Assert.That(copy.FilterByPreferredLocales(["de-DE"]).Text, Is.EqualTo("Hallo Original"));
+            Assert.That(copy.Copy().FilterByPreferredLocales(["en-US"]).Text, Is.EqualTo("Hello Original"));
+        }
+
+        /// <summary>
+        /// Replacing deferred information retains only the provenance of the forwarded dictionary.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void CopyRetainsMultiLanguageWithTranslationInfoArguments(bool selectLocale)
+        {
+            const string json = "{\"t\":[[\"en-US\",\"Hello {0}\"],[\"de-DE\",\"Hallo {0}\"]]}";
+            object[] args = ["Original"];
+            var decoded = new LocalizedText("mul", json);
+            if (selectLocale)
+            {
+                decoded = decoded.FilterByPreferredLocales(["de-DE"]);
+            }
+            LocalizedText source = decoded.WithTranslationInfo(
+                new TranslationInfo("greeting", "en-US", "Fallback {0}", args));
+            Assert.That(source.Translations, Is.SameAs(decoded.Translations));
+            LocalizedText copy = source.Copy();
+            Assert.That(copy.Locale, Is.EqualTo(source.Locale));
+            Assert.That(copy.Text, Is.EqualTo(source.Text));
+            Assert.That(copy.TranslationInfo.Key, Is.EqualTo("greeting"));
+            Assert.That(copy.TranslationInfo.Locale, Is.EqualTo("en-US"));
+            Assert.That(copy.TranslationInfo.Text, Is.EqualTo("Fallback {0}"));
+            Assert.That(copy.Translations, Is.EquivalentTo(source.Translations));
+            Assert.That(copy.Translations, Is.Not.SameAs(source.Translations));
+            Assert.That(copy.TranslationInfo.Args, Is.Not.SameAs(args));
+            Assert.That(copy.FilterByPreferredLocales(["de-DE"]).Text, Is.EqualTo("Hallo Original"));
+            args[0] = "Changed";
+            Assert.That(source.FilterByPreferredLocales(["de-DE"]).Text, Is.EqualTo("Hallo Changed"));
+            Assert.That(copy.FilterByPreferredLocales(["de-DE"]).Text, Is.EqualTo("Hallo Original"));
+            Assert.That(copy.WithTranslationInfo(copy.TranslationInfo).Copy()
+                .FilterByPreferredLocales(["en-US"]).Text, Is.EqualTo("Hello Original"));
+        }
+
+        /// <summary>
+        /// Unknown dictionary lookup and custom comparer behavior are rejected instead of changed.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void CopyRejectsUnsupportedDictionaryLookup(bool customComparer)
+        {
+            var translations = new Dictionary<string, string>(
+                customComparer ? StringComparer.InvariantCultureIgnoreCase : StringComparer.Ordinal)
+            {
+                ["en-US"] = "Hello"
+            };
+            IReadOnlyDictionary<string, string> dictionary = customComparer
+                ? translations
+                : new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(translations);
+            var source = new LocalizedText(dictionary);
+            Assert.That(() => source.Copy(),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo((StatusCode)StatusCodes.BadNotSupported));
+            LocalizedText replaced = source.WithTranslationInfo(
+                new TranslationInfo("greeting", "en-US", "Hello"));
+            Assert.That(() => replaced.Copy(),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo((StatusCode)StatusCodes.BadNotSupported));
+            Assert.That(source.FilterByPreferredLocales(["en-US"]).Text, Is.EqualTo("Hello"));
+        }
+
+        /// <summary>
+        /// Null, empty, encoded multi-language and malformed multi-language values retain behavior.
+        /// </summary>
+        [TestCase(null, null)]
+        [TestCase("", "")]
+        [TestCase("en-US", "")]
+        [TestCase("en-US", null)]
+        [TestCase("mul", "{\"t\":[[\"en-US\",\"Hello\"],[\"de-DE\",\"Hallo\"]]}")]
+        [TestCase("mul", "{malformed")]
+        public void CopyRetainsNullEmptyAndMultiLanguage(string? locale, string? text)
+        {
+            var source = new LocalizedText(locale, text);
+            LocalizedText copy = source.Copy();
+            Assert.That(copy.IsNull, Is.EqualTo(source.IsNull));
+            Assert.That(copy.Locale, Is.EqualTo(source.Locale));
+            Assert.That(copy.Text, Is.EqualTo(source.Text));
+            Assert.That(copy.FilterByPreferredLocales(["de-DE"]), Is.EqualTo(
+                source.FilterByPreferredLocales(["de-DE"])));
+            Assert.That(copy.AsMultiLanguage(), Is.EqualTo(source.AsMultiLanguage()));
+            LocalizedText filtered = source.FilterByPreferredLocales(["de-DE"]);
+            Assert.That(filtered.Copy(), Is.EqualTo(filtered));
+        }
+
+        /// <summary>
+        /// Copy preserves invalid-format fallback rather than materializing a new representation.
+        /// </summary>
+        [TestCase("Value: {0}", "unknown-locale")]
+        [TestCase("Value: {1}", "en-US")]
+        [TestCase("", "en-US")]
+        public void CopyRetainsFormattingFallback(string template, string locale)
+        {
+            var source = new LocalizedText(locale, template,
+                new TranslationInfo("key", "en-US", "Fallback", "argument"));
+            LocalizedText copy = source.Copy();
+            Assert.That(copy.Text, Is.EqualTo(source.Text));
+            Assert.That(copy.Locale, Is.EqualTo(source.Locale));
+            Assert.That(copy.TranslationInfo.Text, Is.EqualTo("Fallback"));
+            Assert.That(copy.TranslationInfo.Key, Is.EqualTo("key"));
+        }
+
+        /// <summary>
+        /// Copy accepts only the documented immutable argument types without converting their values.
+        /// </summary>
+        [Test]
+        public void CopyRetainsSupportedImmutableArguments()
+        {
+            object[] args =
+            [
+                null!, "text", true, 'a', (sbyte)1, (byte)2, (short)3, (ushort)4, 5, 6u, 7L, 8UL,
+                9f, 10d, 11m, new DateTime(2026, 1, 1), new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
+                TimeSpan.FromSeconds(1), Guid.Empty
+            ];
+            var source = new LocalizedText("key", "en-US", "{1}", args);
+            LocalizedText copy = source.Copy();
+            Assert.That(copy.TranslationInfo.Args, Is.EqualTo(args));
+            Assert.That(copy.TranslationInfo.Args, Is.Not.SameAs(args));
+            args[1] = "changed";
+            Assert.That(copy.Text, Is.EqualTo("text"));
+        }
+
+        /// <summary>
+        /// Unsupported formatting arguments are rejected without executing cloning or formatting code.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void CopyRejectsUnknownArgumentWithoutCallingUserCode(bool multiLanguage)
+        {
+            var argument = new Moq.Mock<ICloneable>();
+            argument.Setup(value => value.Clone()).Throws(new InvalidOperationException("Clone invoked"));
+            argument.Setup(value => value.ToString()).Throws(new InvalidOperationException("ToString invoked"));
+            var source = multiLanguage
+                ? new LocalizedText(new TranslationInfo("key", "mul",
+                    "{\"t\":[[\"en-US\",\"Hello {0}\"]]}", argument.Object))
+                : new LocalizedText("key", "en-US", "{0}", argument.Object);
+            Assert.That(() => source.Copy(),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo((StatusCode)StatusCodes.BadNotSupported));
+            argument.Verify(value => value.Clone(), Moq.Times.Never);
+            argument.Verify(value => value.ToString(), Moq.Times.Never);
+        }
+
+        /// <summary>
+        /// Mutable built-in containers are not accepted as deferred formatting arguments.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void CopyRejectsMutableFormattingContainers(bool array)
+        {
+            object argument = array ? new byte[] { 1, 2 } : new System.Text.StringBuilder("Original");
+            var source = new LocalizedText("key", "en-US", "{0}", argument);
+            Assert.That(() => source.Copy(),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo((StatusCode)StatusCodes.BadNotSupported));
+        }
+
         [Test]
         public void SelectedTextRetainsOriginalFallback()
         {
