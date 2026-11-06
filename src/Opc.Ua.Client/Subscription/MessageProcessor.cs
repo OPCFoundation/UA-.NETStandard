@@ -591,8 +591,11 @@ namespace Opc.Ua.Client.Subscriptions
                 // grace decide; RecoverBeforeFirstMessageAsync then walks only
                 // the published AvailableInRetransmissionQueue so the
                 // cost is bounded by the server's queue size, not the
-                // raw gap. Mirrors the V1 fix in PR #3565.
+                // raw gap. Mirrors the V1 fix in PR #3565. What earlier
+                // responses advertised counts too, so a response that
+                // advertises less cannot end the wait for an older message.
                 if (HasOlderSequenceNumber(curSeqNum, incoming.AvailableSequenceNumbers) ||
+                    HasOlderSequenceNumber(curSeqNum, m_gapAvailableSequenceNumbers) ||
                     HasOlderSequenceNumber(curSeqNum, m_pendingMessages.Keys))
                 {
                     BufferDataMessage(incoming);

@@ -2280,6 +2280,72 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
+        /// <summary>
+        /// A second copy of the buffered first message that advertises less
+        /// must not end the grace, or the older original would be discarded
+        /// when it arrives.
+        /// </summary>
+        [Test]
+        public async Task DuplicateFirstMessageWithReducedAvailabilityStaysBufferedAsync()
+        {
+            SetupRepublish();
+            var timeProvider = new FakeTimeProvider();
+            var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_completion, m_telemetry, timeProvider)
+            {
+                Id = 80
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(3), [2, 3], [])
+                    .ConfigureAwait(false);
+                await WaitForKeepAliveBarrierAsync(sut, 4).ConfigureAwait(false);
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(3), [], [])
+                    .ConfigureAwait(false);
+                await WaitForKeepAliveBarrierAsync(sut, 4).ConfigureAwait(false);
+                Assert.That(sut.DataSequenceNumbers, Is.Empty);
+
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(2), [2], [])
+                    .ConfigureAwait(false);
+                await WaitForDataSeqNumberAsync(sut, 3).ConfigureAwait(false);
+
+                Assert.That(sut.DataSequenceNumbers, Is.EqualTo(new uint[] { 2, 3 }));
+                VerifyNoRepublish();
+            }
+        }
+
+        /// <summary>
+        /// An overtaken first message that advertises nothing still waits for
+        /// the older message an earlier response advertised.
+        /// </summary>
+        [Test]
+        public async Task OlderMessageWithoutAvailabilityKeepsAdvertisedGapOfFirstMessageAsync()
+        {
+            SetupRepublish();
+            var timeProvider = new FakeTimeProvider();
+            var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_completion, m_telemetry, timeProvider)
+            {
+                Id = 81
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(3), [1, 2, 3], [])
+                    .ConfigureAwait(false);
+                await WaitForKeepAliveBarrierAsync(sut, 4).ConfigureAwait(false);
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(2), [], [])
+                    .ConfigureAwait(false);
+                await WaitForKeepAliveBarrierAsync(sut, 4).ConfigureAwait(false);
+                Assert.That(sut.DataSequenceNumbers, Is.Empty);
+
+                await AdvanceUntilAsync(timeProvider, () => sut.DataSequenceNumbers.Contains(3),
+                    TimeSpan.FromMilliseconds(100)).ConfigureAwait(false);
+
+                Assert.That(sut.DataSequenceNumbers, Is.EqualTo(new uint[] { 1, 2, 3 }));
+                Assert.That(sut.RepublishMessageCount, Is.EqualTo(1));
+            }
+        }
+
         [Test]
         public async Task FirstMessageRecoveryCrossesSequenceNumberWrapAsync()
         {
