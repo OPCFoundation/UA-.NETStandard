@@ -64,7 +64,7 @@ namespace Opc.Ua.Core.Tests.Redundancy
             Assert.That(token.OwnerIdentity, Is.EqualTo("owner"));
             Assert.That(token.Epoch, Is.EqualTo(1));
             Assert.That(() => new LeasePublicationToken(" ", "owner", 1), Throws.ArgumentException);
-            Assert.That(() => new LeasePublicationToken("group", "", 1), Throws.ArgumentException);
+            Assert.That(() => new LeasePublicationToken("group", string.Empty, 1), Throws.ArgumentException);
             Assert.That(() => new LeasePublicationToken("group", "owner", 0),
                 Throws.TypeOf<ArgumentOutOfRangeException>());
             Assert.That(() => new LeasePublicationToken("group", "owner", -1),
