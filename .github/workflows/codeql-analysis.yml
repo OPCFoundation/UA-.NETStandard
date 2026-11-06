@@ -2,23 +2,10 @@
 name: "CodeQL"
 
 on:
-  # master is analyzed by the daily schedule below rather than on every push.
-  # Each analysis takes about three hours, and with a per-branch concurrency
-  # group most push runs on master were cancelled by the next merge before they
-  # finished (49 of 76 over two weeks in October 2026), burning runner time
-  # without ever uploading a result. A daily run always completes, and it is
-  # the base-branch analysis that pull request results are compared against.
-  # The other long-lived branches change rarely and keep their push trigger.
-  push:
-    branches: [ master378, release/*, develop/* ]
-  pull_request:
-    # master is not in the push list above; the schedule provides its base
-    # analysis.
-    branches: [ master, main, master378 ]
-    paths:
-    - '**.cs'
+  # Scan the default branch daily, without starting an analysis for each PR or push.
   schedule:
     - cron: '30 6 * * *'
+  # Scan a selected branch independently of the CI and nightly workflows.
   workflow_dispatch:
 
 permissions:
@@ -27,12 +14,11 @@ permissions:
   packages: read
   security-events: write
 
-# A superseded pull request analysis is cancelled. A push or scheduled run is
-# never cancelled, so a branch analysis always finishes and uploads; a newer
-# one queues behind it, replacing any run already waiting.
+# Keep a running scheduled or manual analysis until it finishes and uploads.
+# A newer run for the same ref queues behind it, replacing any run already waiting.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   analyze:
