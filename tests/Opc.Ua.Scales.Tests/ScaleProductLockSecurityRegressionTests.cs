@@ -805,14 +805,14 @@ namespace Opc.Ua.Scales.Tests
                 }
             }
 
-            ServiceResult result = await WriteAsync(harness.Owner, variable, Variant.From(3u))
+            ServiceResult result = await WriteAsync(harness.Owner, variable, Variant.From(4u))
                 .ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo((StatusCode)(
                 policy == "native" ? StatusCodes.Good : StatusCodes.BadNotSupported)));
             Assert.That(synchronousCalls, Is.Zero);
             Assert.That(nativeCalls, Is.EqualTo(policy == "native" ? 1 : 0));
-            Assert.That(variable.Value.GetUInt32(), Is.EqualTo(policy == "native" ? 3u : 1u));
+            Assert.That(variable.Value.GetUInt32(), Is.EqualTo(policy == "native" ? 4u : 1u));
             Assert.That(variable.ValueAsText!.Value.Text, Is.EqualTo("initial"));
             if (policy == "late")
             {
@@ -1163,7 +1163,7 @@ namespace Opc.Ua.Scales.Tests
                 _ => 4
             };
             Assert.That(counting.CurrentPieceCount, Is.EqualTo(expected));
-            Assert.That(product.CurrentItemCount.WrappedValue.TryGetValue(out ulong productCount), Is.True);
+            Assert.That(product.CurrentItemCount.WrappedValue.TryGetValue(out uint productCount), Is.True);
             Assert.That(productCount, Is.EqualTo(expected));
             if (command == ScaleCommand.RegisterWeight)
             {
@@ -1186,7 +1186,7 @@ namespace Opc.Ua.Scales.Tests
                 {
                     var product = (PieceCountingProductState)state;
                     product.AddCurrentItemCount(context);
-                    product.CurrentItemCount!.WrappedValue = Variant.From(100UL);
+                    product.CurrentItemCount!.WrappedValue = Variant.From(100u);
                 });
             ScaleProductionPreset preset = scale.ProductionPreset!;
             var first = (PieceCountingProductState)preset.Find("A")!;
@@ -1200,9 +1200,9 @@ namespace Opc.Ua.Scales.Tests
                 .ConfigureAwait(false));
 
             Assert.That(preset.ActiveProduct, Is.SameAs(locked), "the selection changed during weight publication");
-            Assert.That(first.CurrentItemCount!.WrappedValue.TryGetValue(out ulong firstCount), Is.True);
+            Assert.That(first.CurrentItemCount!.WrappedValue.TryGetValue(out uint firstCount), Is.True);
             Assert.That(firstCount, Is.Zero);
-            Assert.That(locked.CurrentItemCount!.WrappedValue.TryGetValue(out ulong lockedCount), Is.True);
+            Assert.That(locked.CurrentItemCount!.WrappedValue.TryGetValue(out uint lockedCount), Is.True);
             Assert.That(lockedCount, Is.EqualTo(100));
             Assert.That(harness.Locks.GetState(locked.NodeId).Locked, Is.True);
         }
@@ -1723,7 +1723,7 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(ReadDouble(product.ReferencePieceWeight!), Is.EqualTo(weight));
             Assert.That(ReadUInt32(product.NumberOfReferencePieces!), Is.EqualTo(pieces));
             Assert.That(counting.CurrentPieceCount, Is.EqualTo(count));
-            Assert.That(counting.Scale.CurrentPieceCount!.WrappedValue.TryGetValue(out ulong publishedCount), Is.True);
+            Assert.That(counting.Scale.CurrentPieceCount!.WrappedValue.TryGetValue(out uint publishedCount), Is.True);
             Assert.That(publishedCount, Is.EqualTo(count));
         }
 

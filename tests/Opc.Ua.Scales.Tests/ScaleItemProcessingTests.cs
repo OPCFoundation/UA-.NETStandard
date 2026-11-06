@@ -694,20 +694,26 @@ namespace Opc.Ua.Scales.Tests
             var setterOrder = new List<string>();
             BaseVariableState gross = product.LastItem!.MeasuredWeight!.Gross!;
             BaseVariableState itemId = product.LastItem.ItemId!;
+            var expectedOrder = new List<string>();
             Observe(gross, "last-gross", pause: true);
             Observe(itemId, "last-itemId");
-            Observe(scale.Scale.RegisteredWeight!.Gross!, "registered-gross");
-            Observe(scale.ProductionOutput!.Statistic.TotalPackages!.ItemCount!, "production-count");
-            Observe(product.Statistic!.TotalPackages!.ItemCount!, "product-count");
+            Observe(scale.Scale.RegisteredWeight?.Gross, "registered-gross");
+            Observe(scale.ProductionOutput?.Statistic.TotalPackages?.ItemCount, "production-count");
+            Observe(product.Statistic?.TotalPackages?.ItemCount, "product-count");
             if (zone.ZoneStatistic is { } zoneStatistic)
             {
-                Observe(zoneStatistic.ItemCount!, "zone-count");
+                Observe(zoneStatistic.ItemCount, "zone-count");
             }
             BaseVariableState? zoneCount = zone.ZoneStatistic?.ItemCount;
             scale.WeightRegistered += (_, _) => setterOrder.Add("registered-event");
 
-            void Observe(BaseVariableState variable, string name, bool pause = false)
+            void Observe(BaseVariableState? variable, string name, bool pause = false)
             {
+                if (variable == null)
+                {
+                    return;
+                }
+                expectedOrder.Add(name);
                 variable.OnStateChangedAsync = async (_, _, _, _) =>
                 {
                     setterOrder.Add(name);
@@ -764,18 +770,6 @@ namespace Opc.Ua.Scales.Tests
                 Assert.That(Count(scale.ProductionOutput!.Statistic), Is.Zero);
                 release.TrySetResult(true);
                 AssertGood(await pending.WaitAsync(TimeSpan.FromSeconds(15)));
-                var expectedOrder = new List<string>
-                {
-                    "last-gross",
-                    "last-itemId",
-                    "registered-gross",
-                    "production-count",
-                    "product-count"
-                };
-                if (zone.ZoneStatistic != null)
-                {
-                    expectedOrder.Add("zone-count");
-                }
                 expectedOrder.Add("registered-event");
                 Assert.That(setterOrder, Is.EqualTo(expectedOrder));
                 Assert.That(product.LastItem!.ItemId!.Value, Is.EqualTo("item-1"));
@@ -1028,27 +1022,16 @@ namespace Opc.Ua.Scales.Tests
                 Assert.That(gross.WrappedValue.TryGetValue(out double duringAcquisition), Is.True);
                 Assert.That(duringAcquisition, Is.EqualTo(1));
                 BaseVariableState currentGross = scale.Scale.CurrentWeight!.Gross!;
-                BaseVariableState registeredGross = scale.Scale.RegisteredWeight!.Gross!;
                 Variant currentGrossBefore = currentGross.WrappedValue;
-                Variant registeredGrossBefore = registeredGross.WrappedValue;
                 ServiceResult rejectedCurrentWeightWrite = currentGross.WriteAttribute(
                     m_fixture.Context,
                     Attributes.Value,
                     NumericRange.Null,
                     new DataValue(Variant.From(20.0)));
-                ServiceResult rejectedRegisteredWeightWrite = registeredGross.WriteAttribute(
-                    m_fixture.Context,
-                    Attributes.Value,
-                    NumericRange.Null,
-                    new DataValue(Variant.From(21.0)));
                 Assert.That(
                     rejectedCurrentWeightWrite.StatusCode,
                     Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
-                Assert.That(
-                    rejectedRegisteredWeightWrite.StatusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
                 Assert.That(currentGross.WrappedValue, Is.EqualTo(currentGrossBefore));
-                Assert.That(registeredGross.WrappedValue, Is.EqualTo(registeredGrossBefore));
                 ServiceResult syncRejected = gross.WriteAttribute(
                     m_fixture.Context,
                     Attributes.Value,

@@ -842,6 +842,8 @@ namespace Opc.Ua.Scales.Server.Runtime
 
         private void BindZones(CatchweigherProductState product)
         {
+            product.AddAddZone(m_services.Context);
+            product.AddRemoveZone(m_services.Context);
             product.AddZone?.OnCall = (
                     context,
                     method,

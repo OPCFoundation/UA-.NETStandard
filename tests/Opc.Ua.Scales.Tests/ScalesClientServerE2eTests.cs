@@ -432,7 +432,7 @@ namespace Opc.Ua.Scales.Tests
             var browser = new Browser(m_session, new BrowserOptions
             {
                 BrowseDirection = BrowseDirection.Forward,
-                ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent,
+                ReferenceTypeId = Opc.Ua.ReferenceTypeIds.Organizes,
                 IncludeSubtypes = false,
                 NodeClassMask = (int)NodeClass.Object,
                 ResultMask = (uint)BrowseResultMask.All
@@ -965,7 +965,9 @@ namespace Opc.Ua.Scales.Tests
             ScaleHandle scale = await m_runtime.CreateScaleAsync(
                 new QualifiedName("VehicleTotals" + aggregation, m_runtime.InstanceNamespaceIndex),
                 ScaleKind.Vehicle,
-                builder => builder.WithTypeFeatures()
+                builder => builder.WithIdentification(
+                        ScalesNodeManagerTests.Identity("VehicleTotals" + aggregation))
+                    .WithTypeFeatures()
                     .WithWeighingRange(new WeighingRangeDefinition(0, 60000, 20, 20))
                     .WithVehicleTotals(_ => aggregation)
                     .WithProductionPreset(preset => preset.AddProduct("V", new LocalizedText("Vehicle"))));
@@ -1020,7 +1022,9 @@ namespace Opc.Ua.Scales.Tests
             ScaleHandle scale = await m_runtime.CreateScaleAsync(
                 new QualifiedName("VehicleWithoutTotals", m_runtime.InstanceNamespaceIndex),
                 ScaleKind.Vehicle,
-                builder => builder.WithTypeFeatures()
+                builder => builder.WithIdentification(
+                        ScalesNodeManagerTests.Identity("VehicleWithoutTotals"))
+                    .WithTypeFeatures()
                     .WithWeighingRange(new WeighingRangeDefinition(0, 60000, 20, 20))
                     .WithProductionPreset(preset => preset.AddProduct("V", new LocalizedText("Vehicle"))));
             ProductState vehicle = scale.ProductionPreset!.Find("V")!;
@@ -1039,10 +1043,10 @@ namespace Opc.Ua.Scales.Tests
         public async Task ClientRecipeStartRequiresExplicitReleaseOrAllowingCallbackAsync(bool callback)
         {
             ScaleHandle scale = await m_runtime.CreateScaleAsync(
-                new QualifiedName("NoReleaseCheck", m_runtime.InstanceNamespaceIndex),
+                new QualifiedName($"NoReleaseCheck{callback}", m_runtime.InstanceNamespaceIndex),
                 ScaleKind.Recipe,
                 builder => builder
-                    .WithIdentification(ScalesNodeManagerTests.Identity("NoReleaseCheck"))
+                    .WithIdentification(ScalesNodeManagerTests.Identity($"NoReleaseCheck{callback}"))
                     .WithWeighingRange(new WeighingRangeDefinition(0, 3, 0.001, 0.001))
                     .WithTypeFeatures()
                     .WithProductionPreset(preset => preset
@@ -1052,7 +1056,7 @@ namespace Opc.Ua.Scales.Tests
             ushort scalesNamespaceIndex = m_session.NamespaceUris.GetIndexOrAppend(Namespaces.Scales);
             NodeId recipe = await m_client.AddRecipeAsync(
                 scale.NodeId,
-                "NoReleaseCheck",
+                $"NoReleaseCheck{callback}",
                 new LocalizedText("No release check"));
             await m_client.AddRecipeElementAsync(
                 recipe,

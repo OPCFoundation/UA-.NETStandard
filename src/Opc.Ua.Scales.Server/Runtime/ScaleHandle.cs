@@ -745,49 +745,50 @@ namespace Opc.Ua.Scales.Server.Runtime
             CancellationToken cancellationToken)
         {
             ScaleReading? registered = null;
-            ServiceResult result = await m_writeGate.ExecuteAsynchronouslyAsync(ct =>
+            ServiceResult result = await m_writeGate.ExecuteAsynchronouslyAsync(async ct =>
             {
                 ct.ThrowIfCancellationRequested();
                 ServiceResult veto = CommandInterceptor?.Invoke(ScaleCommand.RegisterWeight) ?? ServiceResult.Good;
                 if (ServiceResult.IsBad(veto))
                 {
-                    return new ValueTask<ServiceResult>(veto);
+                    return veto;
                 }
-                ServiceResult committed;
+                ServiceResult committed = ServiceResult.Good;
+                PieceCountingProductState? product;
+                WeighingResult registeredWeight = default;
+                using ScaleProductionPreset.ActiveProductReservation? reservation =
+                    ProductionPreset?.ReserveActiveProduct();
                 lock (m_lock)
                 {
-                    ScaleProductionPreset.ActiveProductReservation? reservation =
-                        ProductionPreset?.ReserveActiveProduct();
-                    try
+                    product = reservation?.Product as PieceCountingProductState;
+                    if (callContext != null && product != null)
                     {
-                        PieceCountingProductState? product = reservation?.Product as PieceCountingProductState;
-                        if (callContext != null && product != null)
+                        ServiceResult access = ScaleValues.CheckLock(m_services, callContext, product.NodeId);
+                        if (ServiceResult.IsBad(access))
                         {
-                            ServiceResult access = ScaleValues.CheckLock(m_services, callContext, product.NodeId);
-                            if (ServiceResult.IsBad(access))
-                            {
-                                committed = access;
-                            }
-                            else
-                            {
-                                committed = RegisterWeightCore(product, out registered);
-                            }
+                            committed = access;
                         }
                         else
                         {
-                            committed = RegisterWeightCore(product, out registered);
-                        }
-                        if (ServiceResult.IsGood(committed))
-                        {
-                            PublishCore(product);
+                            committed = RegisterWeightCore(
+                                product, out registered, out registeredWeight, recordStatistics: false);
                         }
                     }
-                    finally
+                    else
                     {
-                        reservation?.Dispose();
+                        committed = RegisterWeightCore(
+                            product, out registered, out registeredWeight, recordStatistics: false);
+                    }
+                    if (ServiceResult.IsGood(committed))
+                    {
+                        PublishCore(product);
                     }
                 }
-                return new ValueTask<ServiceResult>(committed);
+                if (ServiceResult.IsGood(committed) && registered != null && ProductionOutput is { } statistics)
+                {
+                    await statistics.RecordAsync(registeredWeight.Net, registered.WeightId).ConfigureAwait(false);
+                }
+                return committed;
             }, cancellationToken).ConfigureAwait(false);
             if (registered != null)
             {
@@ -857,9 +858,12 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// </summary>
         private ServiceResult RegisterWeightCore(
             PieceCountingProductState? product,
-            out ScaleReading? registered)
+            out ScaleReading? registered,
+            out WeighingResult registeredWeight,
+            bool recordStatistics = true)
         {
             registered = null;
+            registeredWeight = default;
             ServiceResult check = m_engine.CanRegister();
             if (ServiceResult.IsBad(check))
             {
@@ -871,6 +875,7 @@ namespace Opc.Ua.Scales.Server.Runtime
             {
                 return pieceResult;
             }
+            registeredWeight = current;
             m_weightCounter++;
             m_weightId = m_weightCounter.ToString(CultureInfo.InvariantCulture);
             registered = ToReading(current, m_weightId);
@@ -879,7 +884,10 @@ namespace Opc.Ua.Scales.Server.Runtime
             {
                 PublishWeight(Scale.RegisteredWeight, current, m_weightId);
             }
-            ProductionOutput?.Record(current.Net, m_weightId);
+            if (recordStatistics)
+            {
+                ProductionOutput?.Record(current.Net, m_weightId);
+            }
             return ServiceResult.Good;
         }
 
@@ -1072,7 +1080,8 @@ namespace Opc.Ua.Scales.Server.Runtime
                             return access;
                         }
                     }
-                    ServiceResult result = RegisterWeightCore(product, out registered);
+                    ServiceResult result = RegisterWeightCore(
+                        product, out registered, out _, recordStatistics: true);
                     if (ServiceResult.IsGood(result))
                     {
                         PublishCore(product);

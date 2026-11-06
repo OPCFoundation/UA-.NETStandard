@@ -843,6 +843,7 @@ namespace Opc.Ua.Scales.Tests
             m_scale = scale;
             m_controller = scale.Recipes!;
             m_recipe = m_controller.AddRecipe("Admission", new LocalizedText("Admission recipe"));
+            await m_controller.SetApplicationReleaseAsync(true).ConfigureAwait(false);
             Enable(BuiltInType.Double);
             Publish(10.0);
             AnalogConditionSleepState element = Analog(0, 10.0);
@@ -981,6 +982,7 @@ namespace Opc.Ua.Scales.Tests
                         .AddProduct("B", new LocalizedText("Second")).Select("A")));
             m_controller = scale.Recipes!;
             m_recipe = m_controller.AddRecipe("Owned", new LocalizedText("Owned recipe"));
+            await m_controller.SetApplicationReleaseAsync(true).ConfigureAwait(false);
             Enable(BuiltInType.Double);
             AnalogConditionSleepState element = Analog(0, 10.0);
             element.AddTimeout(m_fixture.Context);
@@ -1731,37 +1733,90 @@ namespace Opc.Ua.Scales.Tests
 
             public bool Change(TimeSpan dueTime, TimeSpan period)
             {
-                m_due = dueTime == Timeout.InfiniteTimeSpan
-                    ? DateTimeOffset.MaxValue
-                    : m_clock.GetUtcNow() + dueTime;
+                lock (m_lock)
+                {
+                    m_due = dueTime == Timeout.InfiniteTimeSpan
+                        ? DateTimeOffset.MaxValue
+                        : m_clock.GetUtcNow() + dueTime;
+                }
                 return true;
             }
 
             public void Fire()
             {
-                if (!m_disposed && m_clock.GetUtcNow() >= m_due)
+                lock (m_lock)
                 {
+                    if (m_disposed || m_clock.GetUtcNow() < m_due)
+                    {
+                        return;
+                    }
                     m_due = DateTimeOffset.MaxValue;
+                    m_runningCallbacks++;
+                    m_callbacksDrained ??= new TaskCompletionSource<bool>(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
+                }
+                try
+                {
                     m_callback();
+                }
+                finally
+                {
+                    TaskCompletionSource<bool>? drained = null;
+                    lock (m_lock)
+                    {
+                        m_runningCallbacks--;
+                        if (m_runningCallbacks == 0)
+                        {
+                            drained = m_callbacksDrained;
+                            m_callbacksDrained = null;
+                        }
+                    }
+                    drained?.TrySetResult(true);
                 }
             }
 
             public void Dispose()
             {
-                m_disposed = true;
+                lock (m_lock)
+                {
+                    m_disposed = true;
+                }
             }
 
             public ValueTask DisposeAsync()
             {
-                Dispose();
+                Task? callbacksDrained;
+                lock (m_lock)
+                {
+                    m_disposed = true;
+                    callbacksDrained = m_callbacksDrained?.Task;
+                }
                 Task? gate = m_clock.TimerDisposalGate;
-                return gate == null ? default : new ValueTask(gate);
+                if (gate != null && callbacksDrained != null)
+                {
+                    return new ValueTask(Task.WhenAll(gate, callbacksDrained));
+                }
+                if (gate != null)
+                {
+                    return new ValueTask(gate);
+                }
+                return callbacksDrained == null ? default : new ValueTask(callbacksDrained);
             }
 
+            /// <summary>The clock that schedules this callback.</summary>
             private readonly RecipeClock m_clock;
+            /// <summary>The callback invoked when this timer fires.</summary>
             private readonly Action m_callback;
+            /// <summary>Protects the timer state and callback drain.</summary>
+            private readonly Lock m_lock = new();
+            /// <summary>The next scheduled firing time.</summary>
             private DateTimeOffset m_due;
+            /// <summary>Whether this timer has stopped.</summary>
             private bool m_disposed;
+            /// <summary>The number of callbacks currently running.</summary>
+            private int m_runningCallbacks;
+            /// <summary>Completes when the active timer callbacks have returned.</summary>
+            private TaskCompletionSource<bool>? m_callbacksDrained;
         }
 
         /// <summary>

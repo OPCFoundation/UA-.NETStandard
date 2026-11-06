@@ -129,6 +129,18 @@ namespace Opc.Ua.Scales.Server.Runtime
         }
 
         /// <summary>
+        /// Records one weighed item while the owning scale already holds asynchronous write admission.
+        /// </summary>
+        /// <param name="weight">The weight of the item.</param>
+        /// <param name="itemId">The item id published on <c>LastItem</c>.</param>
+        internal async ValueTask RecordAsync(double weight, string? itemId = null)
+        {
+            await CountAsync(Statistic.TotalPackages, weight).ConfigureAwait(false);
+            await CountAsync(Statistic.TotalPackagesWeighed, weight).ConfigureAwait(false);
+            await PublishLastItemAsync(weight, itemId).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Records one package a checkweigher accepted.
         /// </summary>
         /// <param name="weight">The package weight.</param>
@@ -430,6 +442,27 @@ namespace Opc.Ua.Scales.Server.Runtime
             if (itemId != null)
             {
                 ScaleValues.Set(m_context, item.ItemId, itemId);
+            }
+        }
+
+        private async ValueTask PublishLastItemAsync(double weight, string? itemId)
+        {
+            WeighingItemState? item = Statistic.LastItem;
+            if (item == null)
+            {
+                return;
+            }
+            if (item.MeasuredWeight != null)
+            {
+                await ScaleValues.SetAsync(
+                    m_context,
+                    item.MeasuredWeight,
+                    Variant.From(new ExtensionObject(new WeightType { Gross = weight, Net = weight, Tare = 0 })))
+                    .ConfigureAwait(false);
+            }
+            if (itemId != null)
+            {
+                await ScaleValues.SetAsync(m_context, item.ItemId, Variant.From(itemId)).ConfigureAwait(false);
             }
         }
 

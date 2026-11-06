@@ -131,9 +131,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                 if (node is BaseVariableState variable &&
                     (variable.AccessLevel & AccessLevels.CurrentWrite) != 0 &&
                     variable.OnWriteValueAsync == null &&
-                    variable.OnSimpleWriteValueAsync == null &&
-                    variable.OnWriteValue == null &&
-                    variable.OnSimpleWriteValue == null)
+                    variable.OnSimpleWriteValueAsync == null)
                 {
                     if (IsOrdinaryCacheVariable(variable))
                     {
@@ -142,6 +140,10 @@ namespace Opc.Ua.Scales.Server.Runtime
                     else if (IsNativeEnumerationVariable(variable))
                     {
                         variable.OnWriteValueAsync = MultiStateValueDiscreteState.WriteCachedValueAsync;
+                    }
+                    else
+                    {
+                        variable.OnWriteValueAsync = RejectUnsupportedWriteAsync;
                     }
                 }
             }
@@ -237,6 +239,24 @@ namespace Opc.Ua.Scales.Server.Runtime
                 : ServiceResult.Good;
             return new ValueTask<AttributeWriteResult>(
                 new AttributeWriteResult(result) { UseOrdinaryCacheWrite = true });
+        }
+
+        /// <summary>
+        /// Preserves product-lock denial for custom variables whose native write behavior is not known.
+        /// </summary>
+        private ValueTask<AttributeWriteResult> RejectUnsupportedWriteAsync(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            Variant value,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            ServiceResult access = m_product is { } product
+                ? ScaleValues.CheckLock(m_services, context, product.NodeId)
+                : ServiceResult.Good;
+            return new ValueTask<AttributeWriteResult>(new AttributeWriteResult(
+                ServiceResult.IsBad(access) ? access : new ServiceResult(StatusCodes.BadNotSupported)));
         }
 
         /// <summary>
