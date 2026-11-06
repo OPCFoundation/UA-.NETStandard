@@ -451,6 +451,13 @@ is retained. Direct hosts can continue constructing and injecting their own
 `DeviceRegistrarAuditReporter`; the hosted adapter supports one registrar per
 service collection.
 
+Enable server auditing with
+`options.ConfigureBuilder = server => server.SetAuditingEnabled(true)` when
+configuring the GDS host. Registering the hosted reporter does not enable
+auditing; when auditing is disabled, the reporter rejects delivery with
+`BadInvalidState`. The registrar sample enables auditing before startup so its
+ticket, identity and approval operations can report their required events.
+
 `UpdateSoftwareStatus` requires the host's SoftwareUpdateAdmin role. Part 21
 names this role, but the published onboarding model assigns no standard NodeId
 to it. Select the actual host role with

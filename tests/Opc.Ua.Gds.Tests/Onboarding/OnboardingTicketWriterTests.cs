@@ -99,7 +99,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             using var decoder = new JsonDecoder(
                 Encoding.UTF8.GetString(DecodeBase64Url(payloadText)), m_messageContext);
-            DeviceIdentityTicketType decoded = decoder.ReadEncodeable<DeviceIdentityTicketType>(null)!;
+            var decoded = new DeviceIdentityTicketType();
+            decoded.Decode(decoder);
             Assert.That(decoded.ManufacturerName, Is.EqualTo("Acme"));
             Assert.That(decoded.ModelName, Is.EqualTo("Pump"));
             Assert.That(decoded.SerialNumber, Is.EqualTo("SN-WRITER"));

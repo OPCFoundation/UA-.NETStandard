@@ -124,6 +124,18 @@ namespace Opc.Ua.Gds.Tests
                     options.EnableX509 = false;
                     options.EnableJwt = false;
                 })
+                .ConfigureRoles(options => options.Roles.Add(new RoleDefinitionOptions
+                {
+                    Name = "SecurityAdmin",
+                    Identities =
+                    {
+                        new RoleIdentityMappingOptions
+                        {
+                            CriteriaType = IdentityCriteriaType.UserName,
+                            Criteria = "administrator"
+                        }
+                    }
+                }))
                 .AddManagedApplicationPush(_ => applications.Object);
             ServiceProvider container = services.BuildServiceProvider();
             IHostedService? hosted = null;

@@ -183,7 +183,11 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     Opc.Ua.Onboarding.ObjectIds.WellKnownRole_RegistrarAdmin, context.NamespaceUris);
                 administration.RolePermissions =
                 [
-                    new RolePermissionType { RoleId = roleId, Permissions = (uint)PermissionType.Browse }
+                    new RolePermissionType
+                    {
+                        RoleId = roleId,
+                        Permissions = (uint)(PermissionType.Browse | PermissionType.Call)
+                    }
                 ];
                 ArrayOf<RolePermissionType> permissions =
                 [

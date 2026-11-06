@@ -32,6 +32,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Moq;
@@ -119,6 +120,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             var services = new ServiceCollection();
             services.AddLogging();
             services.AddSingleton(m_telemetry);
+            services.AddSingleton<ICertificateManager>(provider =>
+                new CertificateManager(provider.GetRequiredService<ITelemetryContext>()));
             services.AddSingleton<IDeviceRegistrarLifecycle>(m_lifecycle);
             services.AddSingleton<IDeviceRegistrarIdentityLifecycle>(m_lifecycle);
             services.AddSingleton<IDeviceRegistrarCertificateLifecycle>(m_lifecycle);
@@ -152,6 +155,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     options.IncludeSignAndEncryptPolicies = true;
                     options.IncludeUnsecurePolicyNone = false;
                     options.AutoApprove = true;
+                    options.ConfigureBuilder = server => server.SetAuditingEnabled(true);
                     options.EndpointUrls.Add(m_endpoint.AbsoluteUri);
                 })
                 .AddStartupTask((_, _, cancellationToken) =>
@@ -169,6 +173,14 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     options.EnableJwt = false;
                     options.EnableGdsApplicationSelfAdminProvider = false;
                 })
+                .ConfigureRoles(new ConfigurationBuilder().AddInMemoryCollection(
+                    new Dictionary<string, string?>
+                    {
+                        ["OpcUa:Roles:Roles:0:Name"] = "SecurityAdmin",
+                        ["OpcUa:Roles:Roles:0:Identities:0:CriteriaType"] = "UserName",
+                        ["OpcUa:Roles:Roles:0:Identities:0:Criteria"] = "software-admin"
+                    }).Build())
+                .AddIdentityAugmenter(_ => new OnboardingRegistrarAdminAugmenter("ticket-admin"))
                 .AddOnboardingTickets(trustedTickets, Path.Combine(m_root, "ticket-issuers"))
                 .AddOnboardingIdentities(
                     Path.Combine(m_root, "identity-trusted"), Path.Combine(m_root, "identity-issuers"))

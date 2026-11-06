@@ -275,7 +275,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             var validator = new OnboardingTicketValidator(trust.Object, m_messageContext);
 
             await AssertInvalidAsync(
-                validator, CreateTicket(CreateDeviceTicket(), ecdsa, "RS256")).ConfigureAwait(false);
+                validator, CreateTicket(
+                    CreateDeviceTicket(), ecdsa, "RS256", signingAlgorithm: "ES256")).ConfigureAwait(false);
             await AssertInvalidAsync(
                 validator, CreateTicket(CreateDeviceTicket(), weakRsa, "RS256")).ConfigureAwait(false);
 
@@ -796,7 +797,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             string algorithm,
             HashAlgorithmName? hash = null,
             RSASignaturePadding? padding = null,
-            string? compositeUri = null)
+            string? compositeUri = null,
+            string? signingAlgorithm = null)
         {
             string contentType = ticket is DeviceIdentityTicketType
                 ? "opc-ticket+json;type=DeviceIdentityTicketType"
@@ -805,7 +807,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             string payload = EncodeTicketPayload(ticket);
             string protectedText = Base64Url(Encoding.UTF8.GetBytes(header));
             byte[] input = Encoding.ASCII.GetBytes(protectedText + "." + Base64Url(Encoding.UTF8.GetBytes(payload)));
-            byte[] signature = Sign(certificate, algorithm, input, hash, padding);
+            byte[] signature = Sign(certificate, signingAlgorithm ?? algorithm, input, hash, padding);
             return EncodeEnvelope(
                 Base64Url(Encoding.UTF8.GetBytes(payload)), protectedText, Base64Url(signature));
         }

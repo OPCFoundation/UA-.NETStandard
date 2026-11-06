@@ -1298,12 +1298,12 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             using var security = Create();
             using var cancellation = new CancellationTokenSource();
             await cancellation.CancelAsync().ConfigureAwait(false);
-            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
                 await security.InstallAsync(Context(m_firstRegistrar), Credentials(), cancellation.Token)
                     .ConfigureAwait(false));
-            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
                 await security.RecoverAsync(cancellation.Token).ConfigureAwait(false));
-            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
                 await security.ResetToServerDefaultsAsync(cancellation.Token).ConfigureAwait(false));
             Assert.That(await security.GetStageAsync().ConfigureAwait(false),
                 Is.EqualTo(ProvisionableDeviceSecurityStage.Unconfigured));

@@ -1054,6 +1054,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             Assert.That(calls, Is.Zero);
             Assert.That(database.CertificateRequests, Is.Empty);
+            secrets.VerifyGet(value => value.StoreType, Times.Once);
             secrets.Verify(value => value.GetAsync(
                 It.IsAny<SecretIdentifier>(), It.IsAny<CancellationToken>()), Times.Once);
             secrets.VerifyNoOtherCalls();

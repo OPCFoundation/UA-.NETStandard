@@ -422,7 +422,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             validator.Setup(value => value.ValidateAsync(
                 It.IsAny<string>(), OnboardingTicketSource.OutOfBand, It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<ValidatedOnboardingTicket>(new ValidatedOnboardingTicket(
-                    new DeviceIdentityTicketType { ProductInstanceUri = "urn:test:device" }, string.Empty)));
+                    new DeviceIdentityTicketType
+                    {
+                        ManufacturerName = "Test Manufacturer",
+                        ProductInstanceUri = "urn:test:device"
+                    }, string.Empty)));
             registrar.BindToTicketStore(store, validator.Object);
             Mock<ISession> session = CreateSessionBridge(context, registrar);
             var client = new OnboardingClient(

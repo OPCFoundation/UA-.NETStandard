@@ -89,6 +89,13 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             var validated = new Dictionary<string, ValidatedOnboardingTicket> { ["ticket"] = DeviceTicket("device") };
             (OnboardingIdentitySelector selector, _, Mock<IOnboardingIdentityTrustProvider> trust) =
                 CreateSelector(store, validated);
+            int issuerCount = -1;
+            trust.Setup(value => value.IsTrustedAsync(
+                It.IsAny<Certificate>(), It.IsAny<CertificateCollection>(),
+                It.IsAny<BaseTicketType>(), It.IsAny<CancellationToken>()))
+                .Callback<Certificate, CertificateCollection, BaseTicketType, CancellationToken>(
+                    (_, issuers, _, _) => issuerCount = issuers.Count)
+                .ReturnsAsync(true);
 
             OnboardingIdentitySelection selection = await selector.SelectAsync(
                 [
@@ -104,8 +111,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(selection.SelectedIdentity.ToArray(), Is.EqualTo(certificate.RawData));
             trust.Verify(value => value.IsTrustedAsync(
                 It.IsAny<Certificate>(),
-                It.Is<CertificateCollection>(issuers => issuers.Count == 1),
+                It.IsAny<CertificateCollection>(),
                 It.IsAny<BaseTicketType>(), It.IsAny<CancellationToken>()), Times.Once);
+            Assert.That(issuerCount, Is.EqualTo(1));
         }
 
         /// <summary>

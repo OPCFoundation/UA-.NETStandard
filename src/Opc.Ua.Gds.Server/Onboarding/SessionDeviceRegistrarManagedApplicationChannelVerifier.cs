@@ -52,7 +52,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
             configuration.ThrowIfNull(nameof(configuration));
             m_configuration = new ApplicationConfiguration(configuration)
             {
-                ClientConfiguration = configuration.ClientConfiguration ?? new ClientConfiguration()
+                ClientConfiguration = configuration.ClientConfiguration ?? new ClientConfiguration(),
+                CertificateManager = configuration.CertificateManager
             };
             sessionFactory.ThrowIfNull(nameof(sessionFactory));
             if (!HasExplicitPinnedCertificateCapability(sessionFactory))
@@ -127,6 +128,11 @@ namespace Opc.Ua.Gds.Server.Onboarding
             EndpointDescription offered = endpoint.Description;
             string? securityPolicyUri = offered.SecurityPolicyUri;
             string? endpointUrl = offered.EndpointUrl;
+            if (!Uri.TryCreate(endpointUrl, UriKind.Absolute, out _))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed, "The selected endpoint URL must be absolute.");
+            }
             string transportProfile = TransportProfileIdentity.GetEffective(
                 offered.TransportProfileUri,
                 endpointUrl ?? string.Empty,

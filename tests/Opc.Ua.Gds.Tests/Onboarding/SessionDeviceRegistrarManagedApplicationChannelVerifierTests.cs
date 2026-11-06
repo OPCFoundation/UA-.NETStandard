@@ -60,7 +60,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         public void SetUp()
         {
             m_certificate = CertificateBuilder.Create("CN=Managed Application")
-                .AddExtension(new X509SubjectAltNameExtension(ApplicationUri, ["localhost"]))
+                .AddExtension(new X509SubjectAltNameExtension(ApplicationUri, ["localhost", Utils.GetHostName()]))
                 .SetRSAKeySize(2048).CreateForRSA();
         }
 
@@ -233,7 +233,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             bool pinTls)
         {
             ByteString applicationCertificate = ByteString.From(m_certificate.RawData.AsSpan());
-            using Certificate tlsCertificate = CertificateBuilder.Create("CN=TLS Terminator").CreateForRSA();
+            using Certificate tlsCertificate = CertificateBuilder.Create("CN=TLS Terminator")
+                .AddExtension(new X509SubjectAltNameExtension("urn:test:tls", ["localhost"]))
+                .CreateForRSA();
             ByteString tlsPin = pinTls ? ByteString.From(tlsCertificate.RawData.AsSpan()) : default;
             EndpointDescription endpoint = HttpsEndpoint(applicationCertificate);
             endpoint.TransportProfileUri = transportProfile;
@@ -304,23 +306,38 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         [TestCase("certificateUri")]
         [TestCase("missingSignature")]
         [TestCase("wrongSignature")]
+        [TestCase("certificateChain")]
+        [TestCase("wrongCertificateChain")]
         public async Task HttpsRealSessionRequiresPinnedApplicationUriAndLegacyProofBeforeCredentials(
             string proof)
         {
             StatusCode expectedStatus = proof switch
             {
-                "valid" => StatusCodes.Good,
-                "certificate" => StatusCodes.BadCertificateInvalid,
+                "valid" or "certificateChain" => StatusCodes.Good,
+                "certificate" or "wrongCertificateChain" => StatusCodes.BadCertificateInvalid,
                 "endpointUri" => StatusCodes.BadSecurityChecksFailed,
                 "certificateUri" => StatusCodes.BadCertificateUriInvalid,
                 "missingSignature" or "wrongSignature" => StatusCodes.BadApplicationSignatureInvalid,
                 _ => throw new ArgumentOutOfRangeException(nameof(proof))
             };
-            using Certificate tlsCertificate = CertificateBuilder.Create("CN=TLS Terminator").CreateForRSA();
+            using Certificate tlsCertificate = CertificateBuilder.Create("CN=TLS Terminator")
+                .AddExtension(new X509SubjectAltNameExtension("urn:test:tls", ["localhost"]))
+                .CreateForRSA();
             using Certificate wrongCertificate = CertificateBuilder.Create("CN=Other Application")
-                .AddExtension(new X509SubjectAltNameExtension("urn:other:application", ["localhost"]))
+                .AddExtension(new X509SubjectAltNameExtension(
+                    "urn:other:application", ["localhost", Utils.GetHostName()]))
                 .SetRSAKeySize(2048).CreateForRSA();
-            Certificate applicationCertificate = proof == "certificateUri" ? wrongCertificate : m_certificate;
+            using Certificate issuer = CertificateBuilder.Create("CN=Application Issuer")
+                .SetCAConstraint().CreateForRSA();
+            using Certificate issuedCertificate = CertificateBuilder.Create("CN=Issued Application")
+                .AddExtension(new X509SubjectAltNameExtension(ApplicationUri, ["localhost", Utils.GetHostName()]))
+                .SetIssuer(issuer).CreateForRSA();
+            Certificate applicationCertificate = proof switch
+            {
+                "certificateUri" => wrongCertificate,
+                "certificateChain" or "wrongCertificateChain" => issuedCertificate,
+                _ => m_certificate
+            };
             ByteString applicationPin = ByteString.From(applicationCertificate.RawData.AsSpan());
             EndpointDescription endpoint = HttpsEndpoint(applicationPin);
             var manager = new Mock<ICertificateManager>(MockBehavior.Strict);
@@ -375,9 +392,15 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                                 AuthenticationToken = NodeId.Parse("s=https-proof-token"),
                                 RevisedSessionTimeout = 60000,
                                 ServerNonce = ByteString.From(serverNonce),
-                                ServerCertificate = proof == "certificate"
-                                    ? ByteString.From(wrongCertificate.RawData.AsSpan())
-                                    : applicationPin,
+                                ServerCertificate = proof switch
+                                {
+                                    "certificate" => ByteString.From(wrongCertificate.RawData.AsSpan()),
+                                    "certificateChain" => ByteString.From(
+                                        issuedCertificate.RawData.Concat(issuer.RawData).ToArray()),
+                                    "wrongCertificateChain" => ByteString.From(
+                                        wrongCertificate.RawData.Concat(issuer.RawData).ToArray()),
+                                    _ => applicationPin
+                                },
                                 ServerEndpoints = [authenticatedEndpoint],
                                 ServerSignature = signature
                             };
@@ -985,7 +1008,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
                 ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await verifier.VerifyAsync(application, rotatedTarget, initialCertificate).ConfigureAwait(false));
-                Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadCertificateInvalid));
+                Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed),
+                    "The rotated server rejects the stale receiver certificate during OpenSecureChannel.");
             }
             catch (Exception error)
             {
@@ -1136,8 +1160,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     Assert.That(rejectedFactory.SessionConstructionCount, Is.Zero);
                     Assert.That(rejectedFactory.RejectionMessages.ToList(), Has.Some.Matches<string>(message =>
                         message != null &&
-                        message.Contains(chain[0].Thumbprint, StringComparison.OrdinalIgnoreCase) &&
-                        message.Contains("BadCertificateUntrusted", StringComparison.Ordinal)));
+                        message.Contains("validation failed with suppressible errors but was rejected",
+                            StringComparison.Ordinal)));
                 }
                 forwardingFactory.Verify(value => value.CreateChannelAsync(
                     It.IsAny<ApplicationConfiguration>(), It.IsAny<ITransportWaitingConnection>(),
@@ -1469,9 +1493,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(captured.Extensions.IsNull, Is.EqualTo(nullArray));
             Assert.That(captured.Extensions.Count, Is.Zero);
             Assert.That(captured.DiscoveryEndpoints.IsNull, Is.True);
-            Assert.That(captured.Description.Server.DiscoveryUrls.IsNull, Is.EqualTo(nullArray));
+            Assert.That(captured.Description.Server.DiscoveryUrls.IsNull,
+                Is.EqualTo(endpoint.Description.Server.DiscoveryUrls.IsNull));
             Assert.That(captured.Description.Server.DiscoveryUrls.Count, Is.Zero);
-            Assert.That(captured.Description.UserIdentityTokens.IsNull, Is.EqualTo(nullArray));
+            Assert.That(captured.Description.UserIdentityTokens.IsNull,
+                Is.EqualTo(endpoint.Description.UserIdentityTokens.IsNull));
             Assert.That(captured.Description.UserIdentityTokens.Count, Is.Zero);
         }
 

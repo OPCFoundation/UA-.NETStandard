@@ -1496,11 +1496,6 @@ namespace Opc.Ua.Client
                     certificateData,
                     m_telemetry);
 
-                if (serverCertificateChain.Count > 0)
-                {
-                    serverCertificate = serverCertificateChain[0].AddRef();
-                }
-
                 if (requireEncryption)
                 {
                     ICertificateValidatorEx validator = m_configuration.CertificateManager;
@@ -1518,6 +1513,11 @@ namespace Opc.Ua.Client
                     }
                     // save for reconnect
                     m_checkDomain = checkDomain;
+                }
+
+                if (serverCertificateChain.Count > 0)
+                {
+                    serverCertificate = serverCertificateChain[0].AddRef();
                 }
             }
 
@@ -6398,9 +6398,12 @@ namespace Opc.Ua.Client
                         Utils.ParseCertificateChainBlob(
                             m_endpoint.Description.ServerCertificate,
                             m_telemetry);
+                    using CertificateCollection returnedCertificateChain =
+                        Utils.ParseCertificateChainBlob(serverCertificateData, m_telemetry);
 
-                    if (serverCertificateChain.Count > 0 &&
-                        !Utils.IsEqual(serverCertificateData, serverCertificateChain[0].RawData))
+                    if (serverCertificateChain.Count == 0 || returnedCertificateChain.Count == 0 ||
+                        !serverCertificateChain[0].RawData.AsSpan()
+                            .SequenceEqual(returnedCertificateChain[0].RawData))
                     {
                         throw ServiceResultException.Create(
                             StatusCodes.BadCertificateInvalid,

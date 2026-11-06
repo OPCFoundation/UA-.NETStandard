@@ -123,7 +123,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             canceled.Cancel();
             if (scenario == 2)
             {
-                await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await Assert.CatchAsync<OperationCanceledException>(async () =>
                     await files.WriteAsync("receipt", new byte[] { 4 }, canceled.Token).ConfigureAwait(false));
             }
             else

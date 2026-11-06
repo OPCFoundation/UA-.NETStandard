@@ -369,6 +369,7 @@ namespace Opc.Ua.Configuration
             // that only see ApplicationConfiguration (e.g. Session) can
             // route validation through the new pipeline.
             ApplicationConfiguration!.CertificateManager = CertificateManager;
+            CertificateManager.MapFromSecurityConfiguration(securityConfiguration);
 
             // Note: The FindAsync method searches certificates in this order: thumbprint, subjectName, then applicationUri.
             // When SubjectName or Thumbprint is specified, certificates may be loaded even if their ApplicationUri

@@ -226,14 +226,15 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 async () => await restarted.CaptureAsync().ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
-            Assert.That(m_events, Is.Empty);
+            Assert.That(m_events, Is.EqualTo(s_expectedResetEvents));
+            m_events.Clear();
             ready = true;
 
             ProvisionableDeviceCredentials? captured = await restarted.CaptureAsync().ConfigureAwait(false);
 
             Assert.That(captured, Is.Not.Null);
             Assert.That(captured!.Certificate.Span.ToArray(), Is.EqualTo(replacement.RawData));
-            Assert.That(m_events, Is.Empty);
+            Assert.That(m_events, Is.EqualTo(s_expectedResetEvents));
             policy.Verify(value => value.RequireReadyAsync(kApplicationUri, It.IsAny<CancellationToken>()),
                 Times.Exactly(2));
             m_activator.Verify(value => value.ActivateAsync(
@@ -444,7 +445,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             {
                 Assert.That(captured, Is.Null);
             }
-            Assert.That(m_events, Is.Empty);
+            Assert.That(m_events, Is.EqualTo(s_expectedResetEvents));
             m_certificates.Verify(value => value.WriteTrustListAsync(
                 It.IsAny<TrustListIdentifier>(), It.IsAny<TrustListData>(), It.IsAny<TrustListMasks>(),
                 It.IsAny<CancellationToken>()), Times.Never);
@@ -485,7 +486,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 await installer.CaptureAsync().ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
-            Assert.That(m_events, Is.Empty);
+            Assert.That(m_events, Is.EqualTo(s_expectedResetEvents));
         }
 
         /// <summary>

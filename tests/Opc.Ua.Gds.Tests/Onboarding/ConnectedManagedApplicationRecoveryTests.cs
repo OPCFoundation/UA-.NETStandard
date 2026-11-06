@@ -340,6 +340,20 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 await OpenRegistrarStateAsync().ConfigureAwait(false);
                 Certificate ca = Signer.Authority!.Certificates[Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType]!;
                 await TrustAsync(ca.RawData.ToByteString()).ConfigureAwait(false);
+                using (ICertificateStore authority =
+                    new CertificateStoreIdentifier(Path.Combine(m_root, "authorities")).OpenStore(m_telemetry))
+                {
+                    X509CRLCollection crls = await authority.EnumerateCRLsAsync(ca, true).ConfigureAwait(false);
+                    Assert.That(crls, Is.Not.Empty);
+                    using ICertificateStore trusted = m_client.Config.CertificateManager
+                        .OpenTrustedStore(TrustListIdentifier.Peers);
+                    foreach (X509CRL crl in crls)
+                    {
+                        await trusted.AddCRLAsync(crl).ConfigureAwait(false);
+                    }
+                    m_client.Config.CertificateManager.NotifyTrustListChanged(
+                        TrustListIdentifier.Peers, trustChanged: false, crlChanged: true);
+                }
                 using CertificateEntry registrar = m_client.Config.CertificateManager!
                     .AcquireApplicationCertificateBySecurityPolicy(SecurityPolicies.Basic256Sha256)!;
                 using Certificate publicRegistrar = Certificate.FromRawData(registrar.Certificate.RawData);

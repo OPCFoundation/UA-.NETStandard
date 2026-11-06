@@ -737,6 +737,7 @@ namespace Opc.Ua.Server
             configNode.SupportsTransactions?.Value = true;
 
             ConfigureOptionalServerConfigurationSurface(systemContext, configNode, configuration);
+            GrantSecurityAdminCallPermissions(systemContext, configNode);
 
             configNode.ClearChangeMasks(systemContext, true);
             UpdateTransactionDiagnostics(systemContext);

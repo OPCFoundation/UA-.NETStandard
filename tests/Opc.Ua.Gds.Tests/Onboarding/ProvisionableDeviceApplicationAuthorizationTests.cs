@@ -232,9 +232,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(failure, Is.SameAs(expected));
             Assert.That(invoked, Is.False);
             security.Verify(value => value.CreateApplicationOperations(), Times.Once);
-            security.VerifyNoOtherCalls();
             operations.Verify(value => value.ExecuteAsync(effect, It.IsAny<CancellationToken>()), Times.Once);
             operations.VerifyNoOtherCalls();
+            security.VerifyNoOtherCalls();
         }
 
         /// <summary>

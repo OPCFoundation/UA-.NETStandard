@@ -88,7 +88,6 @@ namespace Opc.Ua.Server
                 node.ConfigurationFile = null;
             }
 
-            GrantSecurityAdminCallPermissions(context, node);
             CertificateGroupFolderState groups = node.CertificateGroups ??
                 throw new ArgumentException("The application has no certificate-groups folder.", nameof(node));
             var groupIds = new HashSet<NodeId>();
@@ -131,42 +130,42 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Grants the standard SecurityAdmin role the Call permission on each ServerConfiguration method.
+        /// Grants SecurityAdmin Browse and Call permissions on push methods and their containing objects.
         /// </summary>
         private static void GrantSecurityAdminCallPermissions(ISystemContext context, NodeState node)
         {
-            if (node is MethodState method)
+            if (node is MethodState or BaseObjectState)
             {
-                ArrayOf<RolePermissionType> permissions = method.RolePermissions;
+                ArrayOf<RolePermissionType> permissions = node.RolePermissions;
                 NodeId roleId = ObjectIds.WellKnownRole_SecurityAdmin;
                 for (int index = 0; index < permissions.Count; index++)
                 {
                     RolePermissionType permission = permissions[index];
                     if (permission.RoleId == roleId)
                     {
-                        permission.Permissions |= (uint)PermissionType.Call;
-                        method.RolePermissions = permissions;
+                        permission.Permissions |= (uint)(PermissionType.Browse | PermissionType.Call);
+                        node.RolePermissions = permissions;
                         break;
                     }
                     if (index == permissions.Count - 1)
                     {
-                        method.RolePermissions = ArrayOf.Combine(
+                        node.RolePermissions = ArrayOf.Combine(
                             permissions,
                             [new RolePermissionType
                             {
                                 RoleId = roleId,
-                                Permissions = (uint)PermissionType.Call
+                                Permissions = (uint)(PermissionType.Browse | PermissionType.Call)
                             }]);
                     }
                 }
                 if (permissions.IsEmpty)
                 {
-                    method.RolePermissions =
+                    node.RolePermissions =
                     [
                         new RolePermissionType
                         {
                             RoleId = roleId,
-                            Permissions = (uint)PermissionType.Call
+                            Permissions = (uint)(PermissionType.Browse | PermissionType.Call)
                         }
                     ];
                 }

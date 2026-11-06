@@ -126,6 +126,24 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     options.EnableX509 = false;
                     options.EnableJwt = false;
                 })
+                .ConfigureRoles(options =>
+                {
+                    foreach (string name in s_registrarRoles)
+                    {
+                        options.Roles.Add(new RoleDefinitionOptions
+                        {
+                            Name = name,
+                            Identities =
+                            {
+                                new RoleIdentityMappingOptions
+                                {
+                                    CriteriaType = IdentityCriteriaType.UserName,
+                                    Criteria = "registrar"
+                                }
+                            }
+                        });
+                    }
+                })
                 .AddProvisionableDeviceSecurity("channel-test", applicationUri);
 
             ServiceProvider provider = services.BuildServiceProvider();
@@ -261,6 +279,15 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 using Certificate issuer = CertificateBuilder.Create("CN=Onboarding Activation Issuer")
                     .SetCAConstraint().CreateForRSA();
                 X509CRL crl = DefaultCertificateIssuer.Instance.RevokeCertificates(issuer, null!, null!);
+                foreach (ClientFixture client in new[] { firstClient, nextClient })
+                {
+                    using ICertificateStore trusted = client.Config.CertificateManager
+                        .OpenTrustedStore(TrustListIdentifier.Peers);
+                    await trusted.AddAsync(issuer).ConfigureAwait(false);
+                    await trusted.AddCRLAsync(crl).ConfigureAwait(false);
+                    client.Config.CertificateManager.NotifyTrustListChanged(
+                        TrustListIdentifier.Peers, trustChanged: true, crlChanged: true);
+                }
                 var trust = new TrustListDataType
                 {
                     SpecifiedLists = (uint)TrustListMasks.All,
@@ -284,6 +311,13 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     try
                     {
                         await hosted.StartAsync(CancellationToken.None).ConfigureAwait(false);
+                        Task startup = ((BackgroundService)hosted).ExecuteTask ??
+                            throw new AssertionException("The server startup task was not scheduled.");
+                        Task completed = await Task.WhenAny(observed.Started.Task, startup)
+                            .WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                        await completed.ConfigureAwait(false);
+                        Assert.That(observed.Started.Task.IsCompleted, Is.True,
+                            "The server exited before the startup callback ran.");
                         var security = provider.GetRequiredService<ProvisionableDeviceSecurity>();
                         ICertificateManager certificates = provider.GetRequiredService<ICertificateManager>();
                         Assert.That(observed.CertificateManager, Is.SameAs(certificates));
@@ -494,6 +528,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         {
             var services = new ServiceCollection();
             services.AddLogging();
+            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
             services.AddSingleton(secrets);
             services.AddSingleton<ICertificateManager>(provider =>
                 new CertificateManager(provider.GetRequiredService<ITelemetryContext>()));
@@ -506,7 +541,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             services.AddSingleton<IUserDatabase>(users);
             services.AddSingleton<IUserManagement>(provider =>
                 new UserManagement(provider.GetRequiredService<IUserDatabase>()));
-            services.AddSingleton<IServerStartupTask>(observed);
+            services.AddSingleton<IServerStartupTask>(provider =>
+            {
+                observed.CertificateManager = provider.GetRequiredService<ICertificateManager>();
+                return observed;
+            });
             string pkiRoot = Path.Combine(root, "server");
             var identifier = new CertificateIdentifier
             {
@@ -548,6 +587,24 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     options.EnableJwt = false;
                 })
                 .ConfigureServerConfiguration(options => options.ResetShutdownDelay = TimeSpan.FromSeconds(1))
+                .ConfigureRoles(options =>
+                {
+                    foreach (string name in s_registrarRoles)
+                    {
+                        options.Roles.Add(new RoleDefinitionOptions
+                        {
+                            Name = name,
+                            Identities =
+                            {
+                                new RoleIdentityMappingOptions
+                                {
+                                    CriteriaType = IdentityCriteriaType.UserName,
+                                    Criteria = "registrar"
+                                }
+                            }
+                        });
+                    }
+                })
                 .AddProvisionableDeviceSecurity(
                     "activation-test", applicationUri,
                     new ProvisionableDeviceSecurityInstallerOptions
@@ -591,7 +648,13 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             /// <summary>
             /// Gets the certificate manager used by the running server.
             /// </summary>
-            public CertificateManager CertificateManager { get; private set; } = null!;
+            public ICertificateManager CertificateManager { get; set; } = null!;
+
+            /// <summary>
+            /// Completes when the host startup callback has run.
+            /// </summary>
+            public TaskCompletionSource<bool> Started { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
 
             /// <inheritdoc/>
             public ValueTask OnServerStartedAsync(
@@ -599,9 +662,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 CancellationToken cancellationToken = default)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                CertificateManager = (server as ServerBase)?.CertificateManager ??
-                    throw new InvalidOperationException("The server certificate manager was not initialized.");
                 Manager = server.FindNodeManagers<ConfigurationNodeManager>().Single();
+                Started.TrySetResult(true);
                 return default;
             }
         }
@@ -643,5 +705,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 string.Empty, true, Nonce.CreateRandomNonceData(32).ToByteString(), CancellationToken.None)
                 .ConfigureAwait(false);
         }
+
+        /// <summary>The configured roles needed by the registrar's push operations.</summary>
+        private static readonly string[] s_registrarRoles = ["SecurityAdmin", "ConfigureAdmin"];
     }
 }

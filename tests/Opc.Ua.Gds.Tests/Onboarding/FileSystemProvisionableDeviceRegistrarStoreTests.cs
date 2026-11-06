@@ -242,9 +242,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             else
             {
                 await cancellation.CancelAsync().ConfigureAwait(false);
-                await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await Assert.CatchAsync<OperationCanceledException>(async () =>
                     await store.ReplaceAsync([Registrar()], cancellation.Token).ConfigureAwait(false));
-                await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await Assert.CatchAsync<OperationCanceledException>(async () =>
                     await store.ReadAsync(cancellation.Token).ConfigureAwait(false));
                 Assert.That(files.Files, Is.Empty);
                 provider.VerifyNoOtherCalls();

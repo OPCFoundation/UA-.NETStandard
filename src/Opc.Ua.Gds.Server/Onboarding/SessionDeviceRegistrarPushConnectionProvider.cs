@@ -77,7 +77,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
             }
             m_configuration = new ApplicationConfiguration(configuration)
             {
-                ClientConfiguration = configuration.ClientConfiguration ?? new ClientConfiguration()
+                ClientConfiguration = configuration.ClientConfiguration ?? new ClientConfiguration(),
+                CertificateManager = configuration.CertificateManager
             };
             m_factory = sessionFactory ?? throw new ArgumentNullException(nameof(sessionFactory));
             m_selectTarget = selectTarget ?? throw new ArgumentNullException(nameof(selectTarget));

@@ -142,6 +142,7 @@ try
                 options.RejectSHA1Certificates = true;
                 options.MinCertificateKeySize = 2048;
                 options.IncludeSignAndEncryptPolicies = true;
+                options.ConfigureBuilder = server => server.SetAuditingEnabled(true);
                 options.IncludeUnsecurePolicyNone = false;
                 options.IncludeEccPolicies = false;
                 options.UserTokenPolicies.Add(new OpcUaUserTokenPolicy

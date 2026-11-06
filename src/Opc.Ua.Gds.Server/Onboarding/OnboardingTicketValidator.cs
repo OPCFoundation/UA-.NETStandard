@@ -209,12 +209,11 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 using var decoder = new JsonDecoder(s_utf8.GetString(payloadBytes), m_messageContext);
                 BaseTicketType ticket = kind switch
                 {
-                    TicketKind.DeviceIdentity =>
-                        decoder.ReadEncodeable<DeviceIdentityTicketType>(null),
-                    TicketKind.CompositeIdentity =>
-                        decoder.ReadEncodeable<CompositeIdentityTicketType>(null),
+                    TicketKind.DeviceIdentity => new DeviceIdentityTicketType(),
+                    TicketKind.CompositeIdentity => new CompositeIdentityTicketType(),
                     _ => throw InvalidTicket("Ticket content type is not supported.")
                 };
+                ticket.Decode(decoder);
                 string? identityUri = ticket switch
                 {
                     DeviceIdentityTicketType device => device.ProductInstanceUri,

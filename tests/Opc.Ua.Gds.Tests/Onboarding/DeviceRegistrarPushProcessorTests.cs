@@ -1987,7 +1987,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
             Assert.That(harness.CsrCalls, Is.Zero);
-            Assert.That(harness.CallMethods, Has.Count.EqualTo(1));
+            Assert.That(harness.CallMethods, Is.Empty);
             DeviceRegistrarDevice? state = await harness.Lifecycle.FindDeviceAsync(Harness.Product)
                 .ConfigureAwait(false);
             Assert.That(state!.DcaCertificate.IsEmpty, Is.True);

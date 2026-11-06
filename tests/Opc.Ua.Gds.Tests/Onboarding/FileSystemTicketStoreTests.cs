@@ -312,13 +312,13 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             using var cancellation = new CancellationTokenSource();
             using var store = new FileSystemTicketStore(kPath, provider.Object);
             cancellation.Cancel();
-            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
                 await store.AddAsync("one", [1], Metadata(), cancellation.Token).ConfigureAwait(false));
-            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
                 await store.GetAsync("one", cancellation.Token).ConfigureAwait(false));
-            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
                 await store.RemoveAsync("one", cancellation.Token).ConfigureAwait(false));
-            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
                 await store.FindByProductInstanceUriAsync("urn:device:one", cancellation.Token).ConfigureAwait(false));
             provider.VerifyNoOtherCalls();
             using var afterPublication = new CancellationTokenSource();
