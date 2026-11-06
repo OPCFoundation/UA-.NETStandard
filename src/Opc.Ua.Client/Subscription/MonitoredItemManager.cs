@@ -34,6 +34,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -492,7 +493,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         internal static void ReturnNotification<T>(ReadOnlyMemory<T> notification)
         {
             if (notification.Length > 0 &&
-                System.Runtime.InteropServices.MemoryMarshal.TryGetArray(notification, out ArraySegment<T> segment) &&
+                MemoryMarshal.TryGetArray(notification, out ArraySegment<T> segment) &&
                 segment.Array != null)
             {
                 ArrayPool<T>.Shared.Return(segment.Array, clearArray: true);
