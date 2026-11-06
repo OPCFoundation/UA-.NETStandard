@@ -271,7 +271,7 @@ support gap.
 | [MachineTool and WMTP](MachineTool.md), OPC 40501-1 and OPC 40505 | Full | Monitoring, tools, production, jobs, files, peripheral measurements/configuration/records and typed clients; physical CNC/Bluetooth behavior belongs to providers |
 | [GMS](GMS.md), OPC 40210 | Partial | Systems, sensors, calibration observations, jobs/parts and results; Production facet withheld because upstream leaves `GMS_ProductionStatisticsType` undefined |
 | [Cranes and Hoists](CranesHoists.md), OPC 40020-1 | Full | Robotics-derived topology, load/protection observations and authorized limit requests; not a motion or safety controller |
-| [Pumps](Pumps.md), OPC 40223 | Partial | Model, builders and typed clients; writable identification is not retained and pump-specific alarms, event notification and history are absent |
+| [Pumps](Pumps.md), OPC 40223 | Full | Fluent builders, typed identity writes, retained identification, DI NE107/limit conditions, event notification, shared raw/aggregate/event history and files; profile advertisement follows configured inherited facets; Table 155's Base dependency uses the Table 153 Pump Base URI while the CAS Base link remains a publication discrepancy; no physical pump executor |
 | [AutoID Devices](AutoID.md), OPC 30010 | Partial | Reader hosting, scanning, RFID access, RTLS, events and clients; Full facet lacks `ScanActive` control/RuntimeParameters, and the optical-verifier Scan declaration is inconsistent upstream |
 | [Scales](Scales.md), OPC 40200 | Partial | Weighing, zero/tare, products, statistics, recipes and clients; dedicated catchweigher, price-labeler and totalizing-hopper controllers are missing, as is server evaluation of recipe sleep thresholds |
 | [ISA-95](ISA95.md), OPC 10030 and OPC 10031-4 | Full | Common resources and Job Control V1/V2 server/client interfaces; providers supply execution, catalogues and persistence |
@@ -934,7 +934,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 40100-2: Machine Vision - Asset Management and Condition Monitoring](https://reference.opcfoundation.org/specs/OPC-40100-2) | 1.00.0 | Full | - |
 | [OPC 40200: Weighing Technology](https://reference.opcfoundation.org/specs/OPC-40200) | 2.00 | Partial | Catchweigher/price-labeler/hopper controllers and server recipe sleep-threshold evaluation missing |
 | [OPC 40210: Geometric Measurement Systems](https://reference.opcfoundation.org/specs/OPC-40210) | 1.0.1 | Partial | Production facet withheld: required GMS_ProductionStatisticsType undefined upstream |
-| [OPC 40223: Pumps and Vacuum Pumps](https://reference.opcfoundation.org/specs/OPC-40223) | 1.0 | Partial | Writable identification not retained; pump alarms, event notification and history missing |
+| [OPC 40223: Pumps and Vacuum Pumps](https://reference.opcfoundation.org/specs/OPC-40223) | 1.0 | Full | Pump Base and Advanced profiles follow verified configured capabilities; Table 155's dependency uses the Table 153 Pump Base URI, while the CAS Base link remains a publication discrepancy |
 | [OPC 40250-1: Compressed Air Systems - Main Control Systems](https://reference.opcfoundation.org/specs/OPC-40250-1) | 1.00.1 | No | - |
 | [OPC 40301: Flat Glass Processing](https://reference.opcfoundation.org/specs/OPC-40301) | 2.0 | No | - |
 | [OPC 40400-1: Powertrain - Asset Management](https://reference.opcfoundation.org/specs/OPC-40400-1) | 1.0 | No | - |
