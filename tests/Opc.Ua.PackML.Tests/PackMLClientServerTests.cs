@@ -1575,6 +1575,8 @@ namespace Opc.Ua.PackML.Tests
             }
             return ids;
         }
+
+        private void ConfigureServer(OpcUaServerOptions options)
         {
             if (TestContext.CurrentContext.Test.MethodName == nameof(PackMLMonitoredItemSupportsQueueSizeOfAtLeastFive))
             {
