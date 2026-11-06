@@ -910,7 +910,13 @@ namespace Opc.Ua.Server
                 .ConfigureAwait(false);
             try
             {
-                if (!m_dynamicExternalReferences.ContainsKey(owner))
+                IAsyncNodeManager identity = NodeManagerGenerationRegistry.GetIdentity(owner);
+                IAsyncNodeManager? registeredOwner = m_dynamicExternalReferences.Keys.FirstOrDefault(manager =>
+                    ReferenceEquals(NodeManagerGenerationRegistry.GetIdentity(manager), identity) ||
+                    (manager.SyncNodeManager is SyncNodeManagerAdapter synchronous &&
+                        ReferenceEquals(
+                            NodeManagerGenerationRegistry.GetIdentity(synchronous.AsyncNodeManager), identity)));
+                if (registeredOwner is null)
                 {
                     owner.RetainRemovedExternalReferences(referencesToRemove);
                     return;
@@ -928,7 +934,7 @@ namespace Opc.Ua.Server
                 }
 
                 if (m_dynamicExternalReferences.TryGetValue(
-                    owner, out Dictionary<NodeId, IList<IReference>>? contributed))
+                    registeredOwner, out Dictionary<NodeId, IList<IReference>>? contributed))
                 {
                     var remaining = new Dictionary<NodeId, IList<IReference>>(contributed.Count);
                     bool changed = false;
@@ -956,7 +962,7 @@ namespace Opc.Ua.Server
                         var next = new Dictionary<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>>(
                             m_dynamicExternalReferences)
                         {
-                            [owner] = remaining
+                            [registeredOwner] = remaining
                         };
                         m_dynamicExternalReferences = next;
                     }

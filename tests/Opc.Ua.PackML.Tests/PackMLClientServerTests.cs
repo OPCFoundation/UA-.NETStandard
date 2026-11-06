@@ -32,6 +32,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
@@ -2025,12 +2026,19 @@ namespace Opc.Ua.PackML.Tests
         }
 
         /// <summary>
-        /// Keeps a deleted prepared unit's references removed and cleans up a later unit with the same identifiers.
+        /// Removes a serving unit's references through its exact registered facade.
         /// </summary>
-        /// <param name="removeRootFirst">Whether the root's references were already removed.</param>
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task DeletedPreparedUnitReferencesDoNotReturnOrMaskLaterUnit(bool removeRootFirst)
+        /// <param name="facade">The facade returned by the candidate factory.</param>
+        /// <param name="addedAfterPublication">Whether the unit is added after its manager is published.</param>
+        [TestCase(ManagerFacadeKind.Direct, false)]
+        [TestCase(ManagerFacadeKind.Direct, true)]
+        [TestCase(ManagerFacadeKind.Adapted, false)]
+        [TestCase(ManagerFacadeKind.Adapted, true)]
+        [TestCase(ManagerFacadeKind.Forwarded, false)]
+        [TestCase(ManagerFacadeKind.Forwarded, true)]
+        public async Task LivePackMLUnitDeletionRemovesExternalReferences(
+            ManagerFacadeKind facade,
+            bool addedAfterPublication)
         {
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             CancellationToken ct = deadline.Token;
@@ -2041,13 +2049,83 @@ namespace Opc.Ua.PackML.Tests
                 ?? throw new InvalidOperationException("Objects folder is unavailable.");
             NodeState enumeration = core.FindPredefinedNode<NodeState>(Ua.DataTypeIds.Enumeration)
                 ?? throw new InvalidOperationException("Enumeration type is unavailable.");
-            var factory = new PreparedPackMLManagerFactory(failFirstUnit: false);
+            var factory = new PreparedPackMLManagerFactory(failFirstUnit: false, facade: facade);
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false);
             NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
             Assert.That(committed.CleanupFailure, Is.Null);
             PreparedPackMLManager candidate = factory.Manager
                 ?? throw new InvalidOperationException("The candidate manager was not created.");
+            Assert.That(committed.Registrations[0].NodeManager, Is.SameAs(factory.RegisteredManager));
+            Assert.That(ReferenceEquals(factory.RegisteredManager, candidate),
+                Is.EqualTo(facade == ManagerFacadeKind.Direct));
+            Assert.That(factory.RegisteredManager is AsyncNodeManagerAdapter,
+                Is.EqualTo(facade == ManagerFacadeKind.Adapted));
+            Assert.That(factory.RegisteredManager!.SyncNodeManager, Is.SameAs(candidate.SyncNodeManager));
+            Unit unit = addedAfterPublication
+                ? await candidate.Runtime.AddUnitAsync(
+                    new QualifiedName("LiveDeletion", candidate.NamespaceIndexes[0]),
+                    new EquipmentProvider(),
+                    cancellationToken: ct).ConfigureAwait(false)
+                : candidate.CreatedUnit;
+            NodeId unitId = unit.Node.NodeId;
+            NodeId modeId = unit.ModeDataType.NodeId;
+            AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: true);
+            Assert.That(candidate.Server.ServerObject.ReferenceExists(
+                Ua.ReferenceTypeIds.HasNotifier, false, unitId), Is.True);
+            Assert.That(unit.Node.OnReportEventAsync, Is.Not.Null);
+
+            Assert.That(await candidate.DeleteNodeAsync(candidate.SystemContext, unitId, ct).ConfigureAwait(false),
+                Is.True);
+            Assert.That(await candidate.DeleteNodeAsync(candidate.SystemContext, modeId, ct).ConfigureAwait(false),
+                Is.True);
+
+            Assert.That(candidate.Find(unitId), Is.Null);
+            Assert.That(candidate.Find(modeId), Is.Null);
+            AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: false);
+            Assert.That(candidate.Server.ServerObject.ReferenceExists(
+                Ua.ReferenceTypeIds.HasNotifier, false, unitId), Is.False);
+            Assert.That(unit.Node.OnReportEventAsync, Is.Null);
+            await RetirePackMLManagerAsync(lifecycle, committed, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Keeps a deleted prepared unit's references removed and cleans up a later unit with the same identifiers.
+        /// </summary>
+        /// <param name="removeRootFirst">Whether the root's references were already removed.</param>
+        /// <param name="facade">The facade returned by the candidate factory.</param>
+        [TestCase(false, ManagerFacadeKind.Direct)]
+        [TestCase(true, ManagerFacadeKind.Direct)]
+        [TestCase(false, ManagerFacadeKind.Adapted)]
+        [TestCase(true, ManagerFacadeKind.Adapted)]
+        [TestCase(false, ManagerFacadeKind.Forwarded)]
+        [TestCase(true, ManagerFacadeKind.Forwarded)]
+        public async Task DeletedPreparedUnitReferencesDoNotReturnOrMaskLaterUnit(
+            bool removeRootFirst,
+            ManagerFacadeKind facade)
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            CancellationToken ct = deadline.Token;
+            INodeManagerLifecycle lifecycle = m_services.GetRequiredService<INodeManagerLifecycle>();
+            var core = m_manager.Server.NodeManager.CoreNodeManager as CoreNodeManager
+                ?? throw new InvalidOperationException("The core node manager is unavailable.");
+            NodeState objects = core.FindPredefinedNode<NodeState>(Ua.ObjectIds.ObjectsFolder)
+                ?? throw new InvalidOperationException("Objects folder is unavailable.");
+            NodeState enumeration = core.FindPredefinedNode<NodeState>(Ua.DataTypeIds.Enumeration)
+                ?? throw new InvalidOperationException("Enumeration type is unavailable.");
+            var factory = new PreparedPackMLManagerFactory(failFirstUnit: false, facade: facade);
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false);
+            NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            Assert.That(committed.CleanupFailure, Is.Null);
+            PreparedPackMLManager candidate = factory.Manager
+                ?? throw new InvalidOperationException("The candidate manager was not created.");
+            Assert.That(committed.Registrations[0].NodeManager, Is.SameAs(factory.RegisteredManager));
+            Assert.That(ReferenceEquals(factory.RegisteredManager, candidate),
+                Is.EqualTo(facade == ManagerFacadeKind.Direct));
+            Assert.That(factory.RegisteredManager is AsyncNodeManagerAdapter,
+                Is.EqualTo(facade == ManagerFacadeKind.Adapted));
+            Assert.That(factory.RegisteredManager!.SyncNodeManager, Is.SameAs(candidate.SyncNodeManager));
             NodeId unitId = candidate.CreatedUnit.Node.NodeId;
             NodeId modeId = candidate.CreatedUnit.ModeDataType.NodeId;
 
@@ -2093,6 +2171,15 @@ namespace Opc.Ua.PackML.Tests
 
             await RetirePackMLManagerAsync(lifecycle, other, ct).ConfigureAwait(false);
             AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: true);
+            Assert.That(candidate.Server.ServerObject.ReferenceExists(
+                Ua.ReferenceTypeIds.HasNotifier, false, unitId), Is.True);
+            Assert.That(await candidate.DeleteNodeAsync(candidate.SystemContext, unitId, ct).ConfigureAwait(false),
+                Is.True);
+            Assert.That(await candidate.DeleteNodeAsync(candidate.SystemContext, modeId, ct).ConfigureAwait(false),
+                Is.True);
+            AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: false);
+            Assert.That(candidate.Server.ServerObject.ReferenceExists(
+                Ua.ReferenceTypeIds.HasNotifier, false, unitId), Is.False);
             await RetirePackMLManagerAsync(lifecycle, committed, ct).ConfigureAwait(false);
             AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: false);
             Assert.That(candidate.Server.ServerObject.ReferenceExists(
@@ -2387,6 +2474,27 @@ namespace Opc.Ua.PackML.Tests
         }
 
         /// <summary>
+        /// Selects the facade returned by a PackML candidate factory.
+        /// </summary>
+        public enum ManagerFacadeKind
+        {
+            /// <summary>
+            /// Returns the asynchronous manager itself.
+            /// </summary>
+            Direct,
+
+            /// <summary>
+            /// Returns an asynchronous adapter over the manager's synchronous adapter.
+            /// </summary>
+            Adapted,
+
+            /// <summary>
+            /// Returns a custom forwarding facade with the same synchronous resource.
+            /// </summary>
+            Forwarded
+        }
+
+        /// <summary>
         /// Creates a candidate that composes PackML during address-space preparation.
         /// </summary>
         private sealed class PreparedPackMLManagerFactory : IAsyncNodeManagerFactory
@@ -2397,13 +2505,16 @@ namespace Opc.Ua.PackML.Tests
             /// <param name="failFirstUnit">Whether to inject a failure during the first unit's registration.</param>
             /// <param name="failServingUnit">Whether the failed unit uses the serving unit's name.</param>
             /// <param name="namespaceUri">The namespace owned by the candidate.</param>
+            /// <param name="facade">The facade returned for the candidate.</param>
             public PreparedPackMLManagerFactory(
                 bool failFirstUnit,
                 bool failServingUnit = false,
-                string namespaceUri = "urn:opcfoundation:tests:packml:prepared")
+                string namespaceUri = "urn:opcfoundation:tests:packml:prepared",
+                ManagerFacadeKind facade = ManagerFacadeKind.Direct)
             {
                 m_failFirstUnit = failFirstUnit;
                 m_failServingUnit = failServingUnit;
+                m_facade = facade;
                 NamespacesUris = [namespaceUri];
             }
 
@@ -2411,6 +2522,11 @@ namespace Opc.Ua.PackML.Tests
             /// Gets the candidate manager.
             /// </summary>
             public PreparedPackMLManager? Manager { get; private set; }
+
+            /// <summary>
+            /// Gets the exact facade returned for registration.
+            /// </summary>
+            public IAsyncNodeManager? RegisteredManager { get; private set; }
 
             /// <inheritdoc/>
             public ArrayOf<string> NamespacesUris { get; }
@@ -2424,7 +2540,50 @@ namespace Opc.Ua.PackML.Tests
                 cancellationToken.ThrowIfCancellationRequested();
                 Manager = new PreparedPackMLManager(
                     server, configuration, NamespacesUris[0], m_failFirstUnit, m_failServingUnit);
-                return new ValueTask<IAsyncNodeManager>(Manager);
+                RegisteredManager = m_facade switch
+                {
+                    ManagerFacadeKind.Direct => Manager,
+                    ManagerFacadeKind.Adapted => new AsyncNodeManagerAdapter(Manager.SyncNodeManager),
+                    ManagerFacadeKind.Forwarded => CreateForwardingFacade(Manager),
+                    _ => throw new InvalidOperationException("The candidate facade is not supported.")
+                };
+                return new ValueTask<IAsyncNodeManager>(RegisteredManager);
+            }
+
+            /// <summary>
+            /// Forwards lifecycle and reference operations while retaining a distinct registration facade.
+            /// </summary>
+            private static IAsyncNodeManager CreateForwardingFacade(PreparedPackMLManager manager)
+            {
+                var facade = new Mock<IAsyncNodeManager>();
+                facade.SetupGet(value => value.NamespaceUris).Returns(() => manager.NamespaceUris);
+                facade.SetupGet(value => value.SyncNodeManager).Returns(manager.SyncNodeManager);
+                facade.Setup(value => value.CreateAddressSpaceAsync(
+                    It.IsAny<IDictionary<NodeId, IList<IReference>>>(), It.IsAny<CancellationToken>()))
+                    .Returns((IDictionary<NodeId, IList<IReference>> references, CancellationToken ct) =>
+                        manager.CreateAddressSpaceAsync(references, ct));
+                facade.Setup(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()))
+                    .Returns((CancellationToken ct) => manager.DeleteAddressSpaceAsync(ct));
+                facade.Setup(value => value.GetManagerHandleAsync(
+                    It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+                    .Returns((NodeId nodeId, CancellationToken ct) => manager.GetManagerHandleAsync(nodeId, ct));
+                facade.Setup(value => value.GetNodeMetadataAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<object>(), It.IsAny<BrowseResultMask>(),
+                    It.IsAny<CancellationToken>()))
+                    .Returns((OperationContext context, object handle, BrowseResultMask mask, CancellationToken ct) =>
+                        manager.GetNodeMetadataAsync(context, handle, mask, ct));
+                facade.Setup(value => value.AddReferencesAsync(
+                    It.IsAny<IDictionary<NodeId, IList<IReference>>>(), It.IsAny<CancellationToken>()))
+                    .Returns((IDictionary<NodeId, IList<IReference>> references, CancellationToken ct) =>
+                        manager.AddReferencesAsync(references, ct));
+                facade.Setup(value => value.DeleteReferenceAsync(
+                    It.IsAny<object>(), It.IsAny<NodeId>(), It.IsAny<bool>(), It.IsAny<ExpandedNodeId>(),
+                    It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+                    .Returns((object handle, NodeId referenceType, bool inverse, ExpandedNodeId target,
+                        bool bidirectional, CancellationToken ct) =>
+                        manager.DeleteReferenceAsync(handle, referenceType, inverse, target, bidirectional, ct));
+                facade.As<IAsyncDisposable>().Setup(value => value.DisposeAsync()).Returns(manager.DisposeAsync);
+                return facade.Object;
             }
 
             /// <summary>Whether to fail the first unit's registration.</summary>
@@ -2432,6 +2591,9 @@ namespace Opc.Ua.PackML.Tests
 
             /// <summary>Whether the failed unit uses the serving unit's name.</summary>
             private readonly bool m_failServingUnit;
+
+            /// <summary>The facade returned for registration.</summary>
+            private readonly ManagerFacadeKind m_facade;
         }
 
         /// <summary>
