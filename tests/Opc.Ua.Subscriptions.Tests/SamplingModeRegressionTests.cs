@@ -52,8 +52,10 @@ namespace Opc.Ua.Subscriptions.Tests
         [OneTimeSetUp]
         public async Task AddSamplingManagerAsync()
         {
-            await ReferenceServer.NodeManagerLifecycle.AddAsync(
-                new SamplingManagerFactory(), callerContext: null).ConfigureAwait(false);
+            await using IPreparedNodeManagerBatch prepared = await ReferenceServer.NodeManagerLifecycle
+                .PrepareAsync([NodeManagerBatchChange.Add(new SamplingManagerFactory())]).ConfigureAwait(false);
+            NodeManagerBatchResult result = await prepared.CommitAsync(static _ => default).ConfigureAwait(false);
+            Assert.That(result.CleanupFailure, Is.Null);
             await Session.FetchNamespaceTablesAsync().ConfigureAwait(false);
             int index = Session.NamespaceUris.GetIndex(kNamespaceUri);
             Assert.That(index, Is.GreaterThanOrEqualTo(0));

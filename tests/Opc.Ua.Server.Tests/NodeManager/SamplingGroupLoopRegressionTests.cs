@@ -49,6 +49,84 @@ namespace Opc.Ua.Server.Tests.NodeManager
     public sealed class SamplingGroupLoopRegressionTests
     {
         /// <summary>
+        /// The optimized sampling loop keeps its generation alive through a suspended read and releases on every exit.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SamplingLoopOwnsItsGenerationThroughReadAndQueueAsync(bool failRead)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queueFactory);
+            using (queueFactory)
+            {
+                var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var finished = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var manager = new Mock<IAsyncNodeManager>();
+                bool ambientDuringRead = false;
+                using MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(
+                    server, [manager.Object]);
+                manager.Setup(value => value.ReadAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<double>(), It.IsAny<ArrayOf<ReadValueId>>(),
+                    It.IsAny<IList<DataValue>>(), It.IsAny<IList<ServiceResult>>(), It.IsAny<CancellationToken>()))
+                    .Returns<OperationContext, double, ArrayOf<ReadValueId>, IList<DataValue>,
+                        IList<ServiceResult>, CancellationToken>(
+                        (_, _, _, values, _, _) => new ValueTask(ReadAsync(values)));
+                manager.Setup(value => value.ValidateRolePermissionsAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<NodeId>(), It.IsAny<PermissionType>(),
+                    It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(manager.Object);
+                using OperationContext context = CreateContext();
+                using var group = new SamplingGroup(
+                    server.Object, manager.Object, [new SamplingRateGroup(50, 50, 4)], context, 50);
+                Mock<ISampledDataChangeMonitoredItem> item = CreateItem(1, 50, manager.Object);
+                try
+                {
+                    Assert.That(group.StartMonitoring(context, item.Object, null, initialValueQueued: true), Is.True);
+                    Assert.That(group.ApplyChanges(), Is.False);
+                    await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+
+                    Assert.That(generation.Gate.ActiveCount, Is.EqualTo(1));
+                    generation.Gate.Retire();
+                    Task drain = generation.Gate.WaitForDrainAsync();
+                    Assert.That(drain.IsCompleted, Is.False, "An in-flight sample must delay physical retirement.");
+                    Assert.That(ambientDuringRead, Is.False);
+
+                    release.TrySetResult(true);
+                    await drain.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    Assert.That(QueuedCount(item), Is.EqualTo(failRead ? 0 : 1));
+                    Assert.That(generation.Gate.ActiveCount, Is.Zero);
+                }
+                finally
+                {
+                    group.StopMonitoring(item.Object);
+                    group.ApplyChanges();
+                    release.TrySetResult(true);
+                    await finished.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
+
+                async Task ReadAsync(IList<DataValue> values)
+                {
+                    try
+                    {
+                        ambientDuringRead = DeterministicServerMock.HasImplicitEventSource(server.Object, manager.Object);
+                        entered.TrySetResult(true);
+                        await release.Task.ConfigureAwait(false);
+                        if (failRead)
+                        {
+                            throw new InvalidOperationException("sample read failed");
+                        }
+                        values[0] = new DataValue(new Variant(555));
+                    }
+                    finally
+                    {
+                        finished.TrySetResult(true);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// A rate group with a count of 0 has no limit: intervals beyond its start are rounded up to a
         /// multiple of the increment, so distinct client intervals share one group.
         /// </summary>
@@ -64,9 +142,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 var rates = new List<SamplingRateGroup> { new(1000, 1000, 4), new(3600000, 900000, 0) };
                 using var group = new SamplingGroup(
                     server.Object, nodeManager.Object, rates, context, 3600001);
-                Mock<ISampledDataChangeMonitoredItem> first = CreateItem(1, 3600001);
-                Mock<ISampledDataChangeMonitoredItem> second = CreateItem(2, 3600002);
-                Mock<ISampledDataChangeMonitoredItem> later = CreateItem(3, 5400000);
+                Mock<ISampledDataChangeMonitoredItem> first = CreateItem(1, 3600001, nodeManager.Object);
+                Mock<ISampledDataChangeMonitoredItem> second = CreateItem(2, 3600002, nodeManager.Object);
+                Mock<ISampledDataChangeMonitoredItem> later = CreateItem(3, 5400000, nodeManager.Object);
 
                 Assert.That(group.StartMonitoring(context, first.Object), Is.True);
                 Assert.That(group.StartMonitoring(context, second.Object), Is.True);
@@ -115,7 +193,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 using OperationContext context = CreateContext();
                 var group = new SamplingGroup(
                     server.Object, nodeManager.Object, [new SamplingRateGroup(50, 50, 4)], context, 50);
-                Mock<ISampledDataChangeMonitoredItem> item = CreateItem(1, 50);
+                Mock<ISampledDataChangeMonitoredItem> item = CreateItem(1, 50, nodeManager.Object);
 
                 Assert.That(group.StartMonitoring(context, item.Object), Is.True);
                 Assert.That(group.ApplyChanges(), Is.False);
@@ -185,7 +263,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 using OperationContext context = CreateContext();
                 var group = new SamplingGroup(
                     server.Object, nodeManager.Object, [new SamplingRateGroup(50, 50, 4)], context, 50);
-                Mock<ISampledDataChangeMonitoredItem> item = CreateItem(1, 50);
+                Mock<ISampledDataChangeMonitoredItem> item = CreateItem(1, 50, nodeManager.Object);
 
                 Assert.That(group.StartMonitoring(context, item.Object, null, initialValueQueued: true), Is.True);
                 Assert.That(group.ApplyChanges(), Is.False);
@@ -582,9 +660,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 new RequestHeader(), null!, RequestType.CreateMonitoredItems, RequestLifetime.None, session.Object);
         }
 
-        private static Mock<ISampledDataChangeMonitoredItem> CreateItem(uint id, double samplingInterval)
+        private static Mock<ISampledDataChangeMonitoredItem> CreateItem(
+            uint id, double samplingInterval, IAsyncNodeManager nodeManager)
         {
             var item = new Mock<ISampledDataChangeMonitoredItem>();
+            var handle = new NodeHandle();
+            item.SetupGet(m => m.NodeManager).Returns(nodeManager);
+            item.SetupGet(m => m.ManagerHandle).Returns(handle);
             item.SetupGet(m => m.Id).Returns(id);
             item.SetupGet(m => m.MonitoredItemType).Returns(MonitoredItemTypeMask.DataChange);
             item.SetupGet(m => m.MonitoringMode).Returns(MonitoringMode.Reporting);
@@ -595,7 +677,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             item.Setup(m => m.GetReadValueId()).Returns(() => new ReadValueId
             {
                 NodeId = new NodeId(id, 1),
-                AttributeId = Attributes.Value
+                AttributeId = Attributes.Value,
+                Handle = handle
             });
             return item;
         }

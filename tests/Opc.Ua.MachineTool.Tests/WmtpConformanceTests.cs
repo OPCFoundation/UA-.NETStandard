@@ -352,7 +352,8 @@ namespace Opc.Ua.MachineTool.Tests
         /// </summary>
         private static ValueTask PublishAsync(WmtpTestFixture fixture)
         {
-            return fixture.Context.Manager.Server is ServerInternalData { ConformanceUnitsManager: { } catalog }
+            return fixture.Context.Manager.Server is
+                IConformanceUnitsManagerProvider { ConformanceUnitsManager: { } catalog }
                 ? catalog.PublishAsync()
                 : throw new InvalidOperationException("The fixture requires the standard conformance catalog.");
         }

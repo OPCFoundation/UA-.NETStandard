@@ -27,38 +27,20 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Collections.Generic;
-
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Provides internal ownership operations for a monitored-item manager.
+    /// Extends persisted monitored-item state with terminal invalidation without changing legacy implementations.
     /// </summary>
-    internal interface IMonitoredItemManagerLifecycle
+    public interface IStoredMonitoredItemInvalidation : IStoredMonitoredItem
     {
         /// <summary>
-        /// Returns a stable snapshot of the monitored items owned by the manager.
+        /// Gets or sets whether the client must recreate the item, including after server restart.
         /// </summary>
-        IReadOnlyList<IMonitoredItem> GetMonitoredItemsSnapshot(
-            IReadOnlyCollection<NodeId>? nodeIds);
-
-        /// <summary>
-        /// Removes an item from the manager without disposing it.
-        /// </summary>
-        (ServiceResult Result, bool Changed) DetachMonitoredItem(
-            ServerSystemContext context,
-            ISampledDataChangeMonitoredItem monitoredItem,
-            Action<ISystemContext, NodeHandle> removeNodeFromComponentCache);
-
-        /// <summary>
-        /// Adds an existing item to the manager and rebinds its ownership.
-        /// </summary>
-        (ServiceResult Result, bool Changed) AttachMonitoredItem(
-            ServerSystemContext context,
-            NodeHandle handle,
-            ISampledDataChangeMonitoredItem monitoredItem,
-            Func<ISystemContext, NodeHandle, NodeState, NodeState> addNodeToComponentCache,
-            Action<ISystemContext, NodeHandle> removeNodeFromComponentCache);
+        /// <remarks>
+        /// Terminal items also have IsDeleted and IsDetached set. Definitions without this capability
+        /// restore as nonterminal for compatibility.
+        /// </remarks>
+        bool IsTerminal { get; set; }
     }
 }

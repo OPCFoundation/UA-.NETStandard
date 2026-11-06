@@ -62,10 +62,14 @@ namespace Opc.Ua.Server.Tests
             {
                 await server.StopAsync(CancellationToken.None).ConfigureAwait(false);
             }
+            int timerCountAfterShutdown = scheduler.Timers.Count;
             queuedCallback();
 
-            Assert.That(scheduler.Timers, Has.Count.EqualTo(1));
-            scheduler.Timers[0].Verify(timer => timer.Dispose(), Times.Once);
+            Assert.That(scheduler.Timers, Has.Count.EqualTo(timerCountAfterShutdown));
+            foreach (Mock<ITimer> timer in scheduler.Timers)
+            {
+                timer.Verify(value => value.Dispose(), Times.Once);
+            }
             Assert.That(server.GetReverseConnections()[s_clientUrl].LastState, Is.EqualTo(ReverseConnectState.Closed));
         }
 

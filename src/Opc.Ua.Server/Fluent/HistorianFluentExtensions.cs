@@ -319,7 +319,9 @@ namespace Opc.Ua.Server.Fluent
             IHistorianRegistryProvider registry = RequireRegistryHost(server);
             HistorianBuilder managerBuilder = GetOrCreateBuilder(nodeManagerBuilder);
             IHistorianProvider? resolved =
-                registry.HistorianRegistry.Resolve(variable.NodeId);
+                registry.HistorianRegistry is StagedHistorianProviderRegistry candidateRegistry
+                    ? candidateRegistry.ResolveForHistorization(variable.NodeId)
+                    : registry.HistorianRegistry.Resolve(variable.NodeId);
             if (resolved != null &&
                 !ReferenceEquals(resolved, managerBuilder.Provider))
             {

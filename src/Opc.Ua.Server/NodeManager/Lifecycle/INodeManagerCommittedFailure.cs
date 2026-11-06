@@ -8,8 +8,8 @@
  * files (the "Software"), to deal in the Software without
  * restriction, including without limitation the rights to use,
  * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom
- * the Software is furnished to do so, subject to the following
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
  * conditions:
  *
  * The above copyright notice and this permission notice shall be
@@ -27,29 +27,18 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Represents a suspension of monitored item binding admission that is lifted when disposed.
+    /// Common recovery contract for legacy single-operation committed exceptions.
+    /// New change-set callers receive the same result directly instead of an exception after publication.
     /// </summary>
-    /// <param name="resume">The callback that restores admission, or null for an empty suspension.</param>
-    internal sealed class BindingAdmissionSuspension(Func<ValueTask>? resume) : IAsyncDisposable
+    public interface INodeManagerCommittedFailure
     {
         /// <summary>
-        /// Gets a suspension that does nothing when disposed.
+        /// Gets the authoritative committed result, or null only for a manually constructed legacy exception
+        /// that supplied no result. A missing result must not be interpreted as an aborted publication.
         /// </summary>
-        internal static BindingAdmissionSuspension Empty { get; } = new(null);
-
-        /// <inheritdoc/>
-        public ValueTask DisposeAsync()
-        {
-            return Interlocked.Exchange(ref m_resume, null)?.Invoke() ?? default;
-        }
-
-        private Func<ValueTask>? m_resume = resume;
+        LifecycleResult? CommittedResult { get; }
     }
 }

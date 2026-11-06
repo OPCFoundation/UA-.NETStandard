@@ -886,22 +886,33 @@ namespace Opc.Ua.Perf.ServerLoadHarness
     /// <summary>
     /// A server exposing the benchmark contract in addition to the standard nodes.
     /// </summary>
-    internal sealed class BenchmarkContractServer : StandardServer
+    internal sealed class BenchmarkContractServer : StandardServer, IAsyncNodeManagerFactory
     {
         public BenchmarkContractServer(ITelemetryContext telemetry, bool asyncNodeManager)
             : base(telemetry)
         {
             m_asyncNodeManager = asyncNodeManager;
+            AddNodeManager(this);
         }
 
-        protected override IMasterNodeManager CreateMasterNodeManager(
+        /// <inheritdoc/>
+        ArrayOf<string> IAsyncNodeManagerFactory.NamespacesUris => [NativeWorkerBenchmark.ContractServerUri];
+
+        /// <inheritdoc/>
+        // TODO: Remove when CA2000 recognizes lifecycle ownership through ValueTask<IAsyncNodeManager>.
+#pragma warning disable CA2000 // Canonical lifecycle preparation takes ownership of the manager and adapter.
+        ValueTask<IAsyncNodeManager> IAsyncNodeManagerFactory.CreateAsync(
             IServerInternal server,
-            ApplicationConfiguration configuration)
+            ApplicationConfiguration configuration,
+            CancellationToken cancellationToken)
         {
-            return m_asyncNodeManager
-                ? new MasterNodeManager(server, configuration, null, new AsyncBenchmarkContractNodeManager(server, configuration))
-                : new MasterNodeManager(server, configuration, null, new BenchmarkContractNodeManager(server, configuration));
+            cancellationToken.ThrowIfCancellationRequested();
+            IAsyncNodeManager manager = m_asyncNodeManager
+                ? new AsyncBenchmarkContractNodeManager(server, configuration)
+                : new BenchmarkContractNodeManager(server, configuration).ToAsyncNodeManager();
+            return new ValueTask<IAsyncNodeManager>(manager);
         }
+#pragma warning restore CA2000
 
         private readonly bool m_asyncNodeManager;
     }

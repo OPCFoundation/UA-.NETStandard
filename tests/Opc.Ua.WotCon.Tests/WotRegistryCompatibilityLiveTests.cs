@@ -35,7 +35,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
@@ -66,7 +65,7 @@ namespace Opc.Ua.WotCon.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             string pkiRoot = Path.Combine(
-                TestContext.CurrentContext.TestDirectory,
+                Path.GetTempPath(),
                 nameof(WotRegistryCompatibilityLiveTests),
                 Guid.NewGuid().ToString("N"));
             var fixture = new ServerFixture<ReferenceServer>(t => new ReferenceServer(t))

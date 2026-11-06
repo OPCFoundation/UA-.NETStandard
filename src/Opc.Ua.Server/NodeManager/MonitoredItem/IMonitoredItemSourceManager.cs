@@ -27,32 +27,35 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
+using System;
 
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Reattaches detached MonitoredItems from a synchronous NodeManager callback.
-    /// <para>
-    /// `CustomNodeManager2.AddPredefinedNode` is synchronous and cannot await, so this entry
-    /// point is kept separate from the asynchronous
-    /// <see cref="IDynamicNodeManagerHost.RecoverDetachedMonitoredItemsAsync"/> that every other
-    /// caller uses. The implementation still routes through the asynchronous
-    /// <see cref="INodeManagerMonitoredItemLifecycle"/> that `AsyncNodeManagerAdapter` exposes
-    /// for synchronous NodeManagers, and requires those operations to complete in memory rather
-    /// than blocking on them.
-    /// </para>
+    /// Commits native source ownership under the base manager's existing mutation gate.
+    /// Subscription ownership and unresolved policy remain outside the native item manager.
     /// </summary>
-    internal interface ISyncNodeManagerMonitoredItemRecovery
+    internal interface IMonitoredItemSourceManager
     {
         /// <summary>
-        /// Reattaches MonitoredItems that were detached because their Node disappeared, once a
-        /// compatible Node with the same NodeId is visible again.
+        /// Releases native registration without disposing the subscription item.
         /// </summary>
-        /// <param name="nodeManager">The NodeManager that gained the Nodes.</param>
-        /// <param name="nodeIds">The Nodes that became available.</param>
-        void RecoverDetachedMonitoredItems(
-            IAsyncNodeManager nodeManager,
-            IReadOnlyCollection<NodeId> nodeIds);
+        (ServiceResult Result, bool Changed) ReleaseSource(
+            ServerSystemContext context,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            long sourceRevision,
+            Action<ISystemContext, NodeHandle> removeNodeFromComponentCache);
+
+        /// <summary>
+        /// Adopts an item only while the caller's captured source incarnation is still current.
+        /// </summary>
+        (ServiceResult Result, bool Changed) AdoptSource(
+            ServerSystemContext context,
+            NodeHandle handle,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            Func<ISystemContext, NodeHandle, NodeState, NodeState> addNodeToComponentCache,
+            Action<ISystemContext, NodeHandle> removeNodeFromComponentCache,
+            long sourceRevision,
+            MonitoredItemAdoption? adoption = null);
     }
 }

@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Text;
 using System.Threading;
@@ -573,9 +572,7 @@ namespace Opc.Ua.Server.Historian
         /// implement <see cref="IHistorianProcessedProvider"/>.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="systemContext"/> is <c>null</c>.</exception>
-        [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
-            Justification = "HistorianContinuationState ownership is transferred to the session via " +
-                "ContinuationPoints.SaveHistory or disposed inline by EmitProcessedPage.")]
+#pragma warning disable CA2000 // State transfers to the session continuation or is disposed inline.
         public static async ValueTask<ServiceResult> DispatchProcessedReadAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -681,6 +678,7 @@ namespace Opc.Ua.Server.Historian
                     cancellationToken).ConfigureAwait(false);
             }
         }
+#pragma warning restore CA2000
 
         /// <summary>
         /// Validates aggregate inputs and pages processed history through the provider or a local aggregate calculator.
@@ -1182,9 +1180,7 @@ namespace Opc.Ua.Server.Historian
         /// <see cref="IHistorianAnnotationProvider"/>; otherwise the aggregate is reported as
         /// unsupported for the node.
         /// </summary>
-        [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
-            Justification = "HistorianContinuationState ownership is transferred to the session via " +
-                "ContinuationPoints.SaveHistory or disposed inline by EmitProcessedPage.")]
+#pragma warning disable CA2000 // State transfers to the session continuation or is disposed inline.
         private static async ValueTask<ServiceResult> ComputeAnnotationCountAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -1345,6 +1341,7 @@ namespace Opc.Ua.Server.Historian
                 cancellationToken).ConfigureAwait(false);
             return ServiceResult.Good;
         }
+#pragma warning restore CA2000
 
         private const int kProcessedPageSize = 1000;
 
@@ -1532,11 +1529,7 @@ namespace Opc.Ua.Server.Historian
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="systemContext"/> is <c>null</c>.</exception>
         // TODO: Remove this suppression when CA2000 recognizes the documented ownership transfer.
-        [SuppressMessage(
-            "Reliability",
-            "CA2000:Dispose objects before losing scope",
-            Justification = "SaveSuccessorOrCompleteAsync takes ownership of the initial continuation state " +
-                "on invocation and either saves it to the session or disposes it.")]
+#pragma warning disable CA2000 // Continuation state transfers to the session or is disposed inline.
         public static async ValueTask<ServiceResult> DispatchAnnotationReadAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -1750,6 +1743,7 @@ namespace Opc.Ua.Server.Historian
                 }
             }
         }
+#pragma warning restore CA2000
 
         /// <summary>
         /// Dispatches a HistoryUpdate on an Annotations property by
@@ -2091,11 +2085,7 @@ namespace Opc.Ua.Server.Historian
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="systemContext"/> is <c>null</c>.</exception>
         // TODO: Remove this suppression when CA2000 recognizes the documented ownership transfer.
-        [SuppressMessage(
-            "Reliability",
-            "CA2000:Dispose objects before losing scope",
-            Justification = "SaveSuccessorOrCompleteAsync takes ownership of the initial continuation state " +
-                "on invocation and either saves it to the session or disposes it.")]
+#pragma warning disable CA2000 // Continuation state transfers to the session or is disposed inline.
         public static async ValueTask<ServiceResult> DispatchEventReadAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -2303,6 +2293,7 @@ namespace Opc.Ua.Server.Historian
                 }
             }
         }
+#pragma warning restore CA2000
 
         /// <summary>
         /// Keeps the stored events whose EventType and SourceNode grant
@@ -2411,18 +2402,17 @@ namespace Opc.Ua.Server.Historian
                     operationContext,
                     nodeId,
                     cancellationToken).ConfigureAwait(false);
-                if (verdict == null &&
-                    systemContext.Server.NodeManager is IDynamicNodeManagerBatchHost routingHost)
+                if (verdict == null)
                 {
                     // A resumed page routes only to the owners its continuation retained. The EventType
                     // and SourceNode of a stored event can belong to other owners, so a node the
                     // retained routing cannot resolve is checked against the live routing instead.
-                    using IDisposable routing = routingHost.UseLiveRouting();
                     verdict = await TryGetReceiveEventsVerdictAsync(
                         systemContext,
                         operationContext,
                         nodeId,
-                        cancellationToken).ConfigureAwait(false);
+                        cancellationToken,
+                        useLiveRouting: true).ConfigureAwait(false);
                 }
                 granted = verdict == true;
             }
@@ -2440,18 +2430,21 @@ namespace Opc.Ua.Server.Historian
         }
 
         /// <summary>
-        /// Validates ReceiveEvents on a node through the routing active in the current flow.
+        /// Validates ReceiveEvents on a node through request routing or, when requested, current routing.
         /// </summary>
-        /// <returns>The verdict, or null if the active routing has no owner for the node.</returns>
+        /// <returns>The verdict, or null if the selected routing has no owner for the node.</returns>
         private static async ValueTask<bool?> TryGetReceiveEventsVerdictAsync(
             ServerSystemContext systemContext,
             OperationContext operationContext,
             NodeId nodeId,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool useLiveRouting = false)
         {
-            (object? handle, IAsyncNodeManager? nodeManager) = await systemContext.Server.NodeManager
-                .GetManagerHandleAsync(nodeId, cancellationToken)
-                .ConfigureAwait(false);
+            IMasterNodeManager master = systemContext.Server.NodeManager;
+            (object? handle, IAsyncNodeManager? nodeManager) = useLiveRouting
+                ? await master.GetManagerHandleAsync(nodeId, cancellationToken).ConfigureAwait(false)
+                : await master.ResolveManagerHandleAsync(operationContext, nodeId, cancellationToken)
+                    .ConfigureAwait(false);
             if (handle == null || nodeManager == null)
             {
                 return null;
@@ -2947,11 +2940,7 @@ namespace Opc.Ua.Server.Historian
         }
 
         // TODO: Remove this suppression when CA2000 recognizes the documented ownership transfer.
-        [SuppressMessage(
-            "Reliability",
-            "CA2000:Dispose objects before losing scope",
-            Justification = "SaveSuccessorOrCompleteAsync takes ownership of the initial continuation state " +
-                "on invocation and either saves it to the session or disposes it.")]
+#pragma warning disable CA2000 // Continuation state transfers to the session or is disposed inline.
         private static async ValueTask<ServiceResult> ReadRawPageAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -3066,13 +3055,10 @@ namespace Opc.Ua.Server.Historian
 
             return ServiceResult.Good;
         }
+#pragma warning restore CA2000
 
         // TODO: Remove this suppression when CA2000 recognizes the documented ownership transfer.
-        [SuppressMessage(
-            "Reliability",
-            "CA2000:Dispose objects before losing scope",
-            Justification = "SaveSuccessorOrCompleteAsync takes ownership of the initial continuation state " +
-                "on invocation and either saves it to the session or disposes it.")]
+#pragma warning disable CA2000 // Continuation state transfers to the session or is disposed inline.
         private static async ValueTask<ServiceResult> ReadModifiedPageAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -3177,6 +3163,7 @@ namespace Opc.Ua.Server.Historian
 
             return ServiceResult.Good;
         }
+#pragma warning restore CA2000
 
         private static async ValueTask<HistorianContinuationClaim?>
             TryClaimContinuationAsync(
@@ -3238,8 +3225,7 @@ namespace Opc.Ua.Server.Historian
                         nodeToRead.NodeId);
                 }
                 HistorianContinuationState claimedState = claim.State;
-                if (!claimedState.Ownership.HasCapturedDependencies &&
-                    !ReferenceEquals(claimedState.Provider, provider) &&
+                if (!ReferenceEquals(claimedState.Provider, provider) &&
                     (claimedState.Provider is not
                             IHistorianProviderIdentity savedIdentity ||
                         provider is not IHistorianProviderIdentity currentIdentity ||
@@ -3354,14 +3340,9 @@ namespace Opc.Ua.Server.Historian
                 ServiceResult admission = ServiceResult.Good;
                 if (systemContext.Server?.NodeManager is MasterNodeManager master)
                 {
-                    admission = await master.CaptureHistoryContinuationAsync(state, cancellationToken)
+                    admission = await master.CaptureHistoryContinuationAsync(
+                        systemContext.OperationContext!, state, validateSource: false, cancellationToken)
                         .ConfigureAwait(false);
-                    if (ServiceResult.IsGood(admission) &&
-                        state.Ownership.HasCapturedDependencies &&
-                        continuationPoints is not SessionContinuationPoints)
-                    {
-                        admission = StatusCodes.BadNotSupported;
-                    }
                 }
                 if (ServiceResult.IsBad(admission))
                 {
