@@ -58,6 +58,18 @@ namespace Opc.Ua.Server
             IServerInternal server,
             ApplicationConfiguration configuration,
             TimeProvider? timeProvider)
+            : this(server, configuration, timeProvider, publishWorkerDecorator: null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the manager with a decorator for the real subscription-publish worker task.
+        /// </summary>
+        internal SubscriptionManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            TimeProvider? timeProvider,
+            Func<Task, Task>? publishWorkerDecorator)
         {
             if (configuration == null)
             {
@@ -66,6 +78,7 @@ namespace Opc.Ua.Server
 
             m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_logger = server.Telemetry.CreateLogger<SubscriptionManager>();
+            m_publishWorkerDecorator = publishWorkerDecorator;
             m_timeProvider = timeProvider
                 ?? (server as ITimeProviderProvider)?.TimeProvider
                 ?? TimeProvider.System;
@@ -126,6 +139,13 @@ namespace Opc.Ua.Server
         /// is only logged and the subscriptions concerned are lost.
         /// </summary>
         public bool ContinueOnRestoreFailure { get; set; }
+
+        /// <summary>
+        /// Gets the cancellation token of the current subscription-publish worker.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">The subscription worker is not running.</exception>
+        internal CancellationToken PublishWorkerCancellationToken =>
+            (m_workerCts ?? throw new InvalidOperationException("The subscription worker is not running.")).Token;
 
         /// <summary>
         /// Frees any unmanaged resources.
@@ -303,7 +323,8 @@ namespace Opc.Ua.Server
                 m_workerCts?.Dispose();
                 m_workerCts = new CancellationTokenSource();
 
-                m_publishWorkerTask = StartPublishWorker(m_workerCts.Token);
+                Task worker = StartPublishWorker(m_workerCts.Token);
+                m_publishWorkerTask = m_publishWorkerDecorator is { } decorate ? decorate(worker) : worker;
                 m_conditionRefreshWorkerTask = StartConditionRefreshWorker();
             }
             finally
@@ -321,20 +342,46 @@ namespace Opc.Ua.Server
             // Expiration claims performed by a publish sweep take the same
             // semaphore synchronously.
             SignalConditionRefreshWorkerShutdown();
-            m_workerCts?.Cancel();
+            var failures = new List<Exception>();
+            try
+            {
+                m_workerCts?.Cancel();
+            }
+            catch (Exception failure) when (failure is not OutOfMemoryException)
+            {
+                failures.Add(failure);
+            }
 
             Task? publishWorkerTask = m_publishWorkerTask;
             if (publishWorkerTask is not null)
             {
-                await publishWorkerTask.ConfigureAwait(false);
+                try
+                {
+                    await publishWorkerTask.ConfigureAwait(false);
+                }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    failures.Add(failure);
+                }
                 m_publishWorkerTask = null;
             }
 
             Task? conditionRefreshWorkerTask = m_conditionRefreshWorkerTask;
             if (conditionRefreshWorkerTask is not null)
             {
-                await conditionRefreshWorkerTask.ConfigureAwait(false);
+                try
+                {
+                    await conditionRefreshWorkerTask.ConfigureAwait(false);
+                }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    failures.Add(failure);
+                }
                 m_conditionRefreshWorkerTask = null;
+            }
+            if (failures.Count != 0)
+            {
+                throw new AggregateException("Subscription workers failed during shutdown.", failures);
             }
 
             // Expired-subscription cleanups scheduled by the publish sweep still
@@ -3538,6 +3585,10 @@ namespace Opc.Ua.Server
         private readonly ILogger m_logger;
         private readonly IServerInternal m_server;
         private readonly TimeProvider m_timeProvider;
+
+        /// <summary>Decorates the real subscription-publish worker task at startup.</summary>
+        private readonly Func<Task, Task>? m_publishWorkerDecorator;
+
         private readonly double m_minPublishingInterval;
         private readonly double m_maxPublishingInterval;
         private readonly int m_publishingResolution;

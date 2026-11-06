@@ -113,6 +113,8 @@ Assumes [Getting started](GettingStarted.md).
    application.
 4. [Asynchronous server support](AsyncServerSupport.md) — implement service and
    node-manager callbacks asynchronously.
+5. [NodeManager change sets](NodeManagers.md#lifecycle-change-sets) — publish slot-targeted
+   changes, inspect committed issues, and await physical retirement independently.
 
 ### PubSub path
 

@@ -540,7 +540,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// successful version switch.
         /// </summary>
         public WotProjectionRetirementPolicy RetirementPolicy { get; set; } =
-            WotProjectionRetirementPolicy.Graceful;
+            WotProjectionRetirementPolicy.Migrate;
 
         /// <summary>
         /// Gets the binding capability snapshots advertised by the registered
@@ -1234,7 +1234,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         handle = await m_host.AddAsync(document, cancellationToken)
                             .ConfigureAwait(false);
                     }
-                    else if (capture.RetirementPolicy == WotProjectionRetirementPolicy.Immediate)
+                    else if (capture.RetirementPolicy == WotProjectionRetirementPolicy.Invalidate)
                     {
                         handle = await m_host.ImmediateReloadAsync(
                             tracked.Handle, document, cancellationToken).ConfigureAwait(false);
@@ -1528,13 +1528,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Returns <c>NodeId.Null</c> when there is no root or the namespace table is
         /// unavailable or does not yet contain the owning namespace.
         /// </summary>
-        private NodeId ResolveRootNodeId(ExpandedNodeId root)
+        private NodeId ResolveRootNodeId(ExpandedNodeId root, NamespaceTable? namespaceUris = null)
         {
             if (root.IsNull)
             {
                 return NodeId.Null;
             }
-            NamespaceTable? namespaces = ServerNamespaceUris;
+            NamespaceTable? namespaces = namespaceUris ?? ServerNamespaceUris;
             if (namespaces is null)
             {
                 return NodeId.Null;
