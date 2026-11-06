@@ -25,6 +25,7 @@
        Stacklight is typed by the OPC 10000-200 BasicStacklightType and that
        type definition has to be in the address space before Machinery loads. -->
   <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.AMB.Server\Opc.Ua.AMB.Server.csproj" />
     <ProjectReference Include="..\Opc.Ua.Server\Opc.Ua.Server.csproj" />
     <ProjectReference Include="..\Opc.Ua.Pumps\Opc.Ua.Pumps.csproj" />
     <ProjectReference Include="..\Opc.Ua.Di.Server\Opc.Ua.Di.Server.csproj" />
