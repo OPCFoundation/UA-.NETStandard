@@ -81,8 +81,9 @@ namespace Opc.Ua.Client
         /// </para>
         /// <para>
         /// Subscription updates in flight are not canceled, because the server may already have
-        /// applied them. Waiting for them takes at most the operation timeout of the session;
-        /// use <paramref name="ct"/> to bound it further.
+        /// applied them. An update can send several service requests in sequence, each with the
+        /// operation timeout of the session, so that timeout does not limit the whole wait; use
+        /// <paramref name="ct"/> to bound it.
         /// </para>
         /// <para>
         /// The handoff is valid until the server session times out, which is
