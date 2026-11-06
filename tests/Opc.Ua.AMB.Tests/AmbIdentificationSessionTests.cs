@@ -29,6 +29,7 @@
 
 using System;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -58,7 +59,9 @@ namespace Opc.Ua.AMB.Tests
         public async Task AClientSeesTheFacetAndConfiguresTheAssetIdAsync()
         {
             string state = Path.Combine(
-                Path.GetTempPath(),
+                RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                    ? Path.GetTempPath()
+                    : TestContext.CurrentContext.WorkDirectory,
                 "amb-identification-" + Guid.NewGuid().ToString("N"));
             DeviceState? device = null;
             await using AmbHostedServer server = await AmbHostedServer.StartAsync(
