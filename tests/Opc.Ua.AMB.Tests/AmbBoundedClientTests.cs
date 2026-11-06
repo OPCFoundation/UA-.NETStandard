@@ -1080,7 +1080,10 @@ namespace Opc.Ua.AMB.Tests
                 });
         }
 
-        private static void SetupBrowse(Mock<ISession> session, Func<BrowseDescription, BrowseResult> response)
+        private static void SetupBrowse(
+            Mock<ISession> session,
+            Func<BrowseDescription, BrowseResult> response,
+            uint minimumMaximumReferences = 1)
         {
             session.Setup(s => s.BrowseAsync(
                 It.IsAny<RequestHeader?>(), It.IsAny<ViewDescription?>(), It.IsAny<uint>(),
@@ -1089,7 +1092,7 @@ namespace Opc.Ua.AMB.Tests
                     CancellationToken _) =>
                 {
                     Assert.That(requests.Count, Is.EqualTo(1));
-                    Assert.That(maximum, Is.InRange(1u, 64u));
+                    Assert.That(maximum, Is.InRange(minimumMaximumReferences, 64u));
                     return new ValueTask<BrowseResponse>(new BrowseResponse
                     {
                         ResponseHeader = new ResponseHeader(),
@@ -1221,7 +1224,7 @@ namespace Opc.Ua.AMB.Tests
                     return new BrowseResult { References = [Reference(remote)] };
                 }
                 return new BrowseResult();
-            });
+            }, minimumMaximumReferences: 0);
 
             var found = new List<ExpandedNodeId>();
             var client = new AmbClient(session.Object, NUnitTelemetryContext.Create());
