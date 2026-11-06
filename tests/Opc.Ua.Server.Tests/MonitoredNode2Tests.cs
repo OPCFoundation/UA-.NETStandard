@@ -560,6 +560,47 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// An event denied to every item by the restrictions starts no source lookup, which
+        /// nothing would await.
+        /// </summary>
+        [Test]
+        public async Task EventDeniedByRestrictionsStartsNoSourceLookupAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var nodeManager = new Mock<IAsyncNodeManager>();
+                var notifier = new BaseObjectState(null)
+                {
+                    NodeId = ObjectIds.Server,
+                    AccessRestrictions = AccessRestrictionType.EncryptionRequired
+                };
+                Mock<IEventMonitoredItem> item = CreateEventMonitoredItemMock(1);
+                await using var monitored = new MonitoredNode2(nodeManager.Object, server.Object, notifier);
+                monitored.Add(item.Object);
+
+                var report = new BaseEventState(null);
+                report.EventType = new PropertyState<NodeId>.Implementation<VariantBuilder>(report)
+                {
+                    Value = ObjectTypeIds.BaseEventType
+                };
+                report.SourceNode = new PropertyState<NodeId>.Implementation<VariantBuilder>(report)
+                {
+                    Value = new NodeId("event-source", 1)
+                };
+
+                await monitored.OnReportEventAsync(
+                    server.Object.DefaultSystemContext, notifier, report).ConfigureAwait(false);
+                await monitored.WaitForPendingNotificationsAsync(CancellationToken.None).ConfigureAwait(false);
+
+                item.Verify(value => value.QueueEvent(It.IsAny<IFilterTarget>()), Times.Never);
+                Mock.Get(server.Object.NodeManager).Verify(
+                    value => value.FindNodeInAddressSpaceAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()),
+                    Times.Never);
+            }
+        }
+
+        /// <summary>
         /// Parallel delivery ranges share one lookup, so no discarded lookup can outlive the delivery.
         /// </summary>
         [Test]

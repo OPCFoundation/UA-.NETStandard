@@ -1310,6 +1310,18 @@ namespace Opc.Ua.Server
                 }
             }
 
+            public bool TryGetCompleted(out NodeState? sourceNode)
+            {
+                Task<NodeState?>? lookup = Volatile.Read(ref m_lookup);
+                if (lookup?.Status == TaskStatus.RanToCompletion)
+                {
+                    sourceNode = lookup.Result;
+                    return true;
+                }
+                sourceNode = null;
+                return false;
+            }
+
             private readonly Lock m_lock = new();
             private readonly IMasterNodeManager m_masterNodeManager;
             private readonly NodeId m_sourceNodeId;
@@ -1526,7 +1538,6 @@ namespace Opc.Ua.Server
                 eventTypeId,
                 sourceNodeId,
                 sourceLookup,
-                cancellationToken,
                 out ServiceResult? result,
                 out ISession? session,
                 out NotificationAuthorization? authorization)
@@ -1540,14 +1551,15 @@ namespace Opc.Ua.Server
         /// permission context of each item on the stack instead of copying it into a state
         /// machine through the GC write barrier. Anything else is left to
         /// <see cref="ValidateEventPermissionAsync"/>. No input is awaited here, so one check of
-        /// the restrictions and one recapture of the context cover the whole path.
+        /// the restrictions and one recapture of the context cover the whole path. It only uses a
+        /// source lookup that has completed: the async validation starts the lookup, and only
+        /// for an item that passed the restrictions and then awaits it.
         /// </summary>
         private bool TryGetCachedEventPermission(
             IEventMonitoredItem monitoredItem,
             NodeId eventTypeId,
             NodeId sourceNodeId,
             EventSourceLookup? sourceLookup,
-            CancellationToken cancellationToken,
             out ServiceResult? result,
             out ISession? session,
             out NotificationAuthorization? authorization)
@@ -1566,15 +1578,14 @@ namespace Opc.Ua.Server
                 return false;
             }
             authorization = NotificationAuthorization.Capture(context.Session);
-            Task<NodeState?> lookup = sourceLookup.GetAsync(cancellationToken);
-            if (lookup.Status != TaskStatus.RanToCompletion ||
-                lookup.Result == null ||
+            if (!sourceLookup.TryGetCompleted(out NodeState? sourceNode) ||
+                sourceNode == null ||
                 !m_eventPermissionCache.TryGetValue(
                     new EventPermissionCacheKey(monitoredItem.Id, eventTypeId, sourceNodeId),
                     out CachedEventPermission? cached) ||
                 !cached.Context.Matches(context) ||
                 !cached.SourceNode.TryGetTarget(out NodeState? cachedSourceNode) ||
-                !ReferenceEquals(cachedSourceNode, lookup.Result))
+                !ReferenceEquals(cachedSourceNode, sourceNode))
             {
                 return false;
             }
