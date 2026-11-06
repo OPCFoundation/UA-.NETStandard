@@ -56,9 +56,8 @@ namespace Opc.Ua.Server.Tests.Fluent
         public async Task SetUpAsync()
         {
             m_pkiRoot = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                nameof(EventMonitoredItemReadinessTests),
-                Guid.NewGuid().ToString("N"));
+                Path.GetTempPath(),
+                "ua-event-readiness-" + Guid.NewGuid().ToString("N"));
             m_fixture = new ServerFixture<StandardServer>(telemetry => new StandardServer(telemetry))
             {
                 SecurityNone = true,

@@ -68,9 +68,8 @@ namespace Opc.Ua.Server.Tests.Fluent
         public async Task SetUpAsync()
         {
             m_pkiRoot = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                nameof(NodeSetImportIntegrationTests),
-                Guid.NewGuid().ToString("N"));
+                Path.GetTempPath(),
+                "ua-nodeset-import-" + Guid.NewGuid().ToString("N"));
 
             m_fixture = new ServerFixture<NodeSetImportServer>(
                 telemetry => new NodeSetImportServer(telemetry))
