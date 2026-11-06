@@ -315,12 +315,6 @@ shipping a package.
 
 ## Client Profiles
 
-Part 22 applications can register `AddNetworkModelClient` for generated-proxy
-access, type/interface-based discovery, lower-layer mapping resolution, typed
-reads and subscription observations. Mapping methods preserve operation and
-argument results and do not replay commands. See
-[Base Network Model](BaseNetworkModel.md#discover-and-use-the-typed-client).
-
 The client (`Opc.Ua.Client`) supports the standard UA Client functionality
 through two coexisting paths:
 
@@ -333,6 +327,10 @@ through two coexisting paths:
 
 Client-side feature coverage:
 
+- **Base Network Model** (Part 22) — `AddNetworkModelClient` provides typed
+  discovery, reads, observations and mapping methods. Mapping calls preserve
+  operation and argument results without replaying commands. See
+  [Base Network Model](BaseNetworkModel.md#discover-and-use-the-typed-client).
 - **Subscriptions and monitored items** — Both the classic publish
   engine and the V2 subscription engine (`ISubscriptionManager` /
   `DefaultSubscriptionEngine`) are supported and selectable per session.
