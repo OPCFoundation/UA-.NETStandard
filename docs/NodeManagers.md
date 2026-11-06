@@ -1756,7 +1756,9 @@ requires a later breaking release.
 | `NodeManagerLifecycle(StandardServer)` | Creates an additional handle forwarding publication to the server's canonical lifecycle owner. Disposing this handle rejects new operations through it without disposing serving generations. | Prefer `StandardServer.NodeManagerLifecycle` or the injected `INodeManagerLifecycle`; constructing a handle does not create an independent publication domain. |
 | `ISyncNodeManagerReadinessNotification` | Allows an adapted synchronous manager to receive `OnServerReady`. The adapter prefers `INodeManagerReadinessNotification` when both are implemented. | New managers implement the awaited readiness interface. Existing synchronous callbacks remain supported. |
 | `IPreparedNodeManagerBatch`, `NodeManagerBatchResult` and exact-generation changes | Preserve the provider boundary and strong registration handles for existing consumers. | Use `IPreparedChanges`, `LifecycleChange` and `LifecycleResult` for slot-targeted application code; retain a legacy handle explicitly when strong ownership is required. |
-| Add/reload/remove extensions, `callerContext` overloads and committed exceptions | Preserve the existing convenience-operation and post-commit error contracts. The context arguments do not select publication ownership. | Use change sets for new code; inspect the committed result before attempting recovery. |
+| `INodeManagerReadImage`, `INodeManagerReadImageSource` and `NodeManagerReadImageExtensions` | Select immutable application state through the request's routing view, or live state without a request pin. A pinned view with no image for an owner does not fall back to newer live state. | Use the context-aware `GetReadImage` and `GetNodeManagers` extensions for request work. Bind new metadata through the [prepared unit](#publishing-typed-metadata); account for any strong references the image holds to its exact `Owner`. |
+| Add/reload/remove extensions and `callerContext` overloads | Preserve the existing convenience-operation contract. The context arguments do not select publication ownership. | Use change sets for new code. |
+| `NodeManagerAddCommittedException`, `NodeManagerReloadCommittedException`, `NodeManagerRemovalCommittedException` and `INodeManagerCommittedFailure` | Report failures after publication and expose the committed result when supplied. The exceptions retain their strong registration handles. | Inspect `CommittedResult` when present before attempting recovery. Do not repeat the durable decision; retaining the exception can retain its manager after retirement. |
 
 This inventory does not make the legacy handles non-owning. A
 `NodeManagerRegistration`, `NodeManagerSlotSnapshot` or legacy batch result can
@@ -1765,6 +1767,17 @@ retain a retired manager after cleanup. Modern result metadata uses
 Callers must also account for references carried by their own exception types,
 exception data and callbacks; exposing an exception does not detach its object
 graph.
+
+`INodeManagerCommittedFailure.CommittedResult` can be `null`: the legacy add and
+reload exception constructors accept a registration and failure without a
+transaction result. Those exceptions still describe a committed generation.
+When a result is available, use its reconciliation and retirement contracts;
+the exception's registration remains a separate strong reference.
+
+Retaining a read image that holds its `Owner` strongly, or a caller-held array of
+managers, can retain retired managers independently of the request's routing pin.
+Keeping an application image readable after retirement does not authorize new
+callbacks to its retired owner.
 
 #### Prepared Session and all-events bindings
 
