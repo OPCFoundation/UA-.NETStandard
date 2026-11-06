@@ -689,7 +689,7 @@ namespace Opc.Ua.Scales.Server.Builders
             }
 
             m_preset?.Finish();
-            if (m_itemProcessing || m_completedFills || m_vehicleAggregation != null)
+            if (m_itemProcessing || m_completedFills || m_vehicleAggregation != null || m_pieceCountingTotals)
             {
                 if (Scale.ProductionPreset?.Products == null)
                 {
@@ -706,6 +706,10 @@ namespace Opc.Ua.Scales.Server.Builders
                     if (m_vehicleAggregation != null && product is VehicleProductState vehicle)
                     {
                         VehicleController.InitializeTotals(Context, vehicle);
+                    }
+                    if (m_pieceCountingTotals && product is PieceCountingProductState pieceCounting)
+                    {
+                        PieceCountingController.InitializeProduct(Context, pieceCounting, true, m_unit);
                     }
                 }
                 if (Scale.ProductionOutput?.LastItem is { } lastItem)

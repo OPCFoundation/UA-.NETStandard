@@ -757,10 +757,7 @@ namespace Opc.Ua.Scales.Tests
                 Assert.That(gross.WrappedValue.TryGetValue(out published), Is.True);
                 Assert.That(published, Is.EqualTo(1));
                 AssertBadInvalidState(() => scale.PublishLoad(2));
-                MethodState setZero = scale.Scale.SetZero!;
-                ServiceResult commandResult = setZero.OnCallMethod2!(
-                    m_fixture.Context, setZero, scale.Scale.NodeId, [], []);
-                Assert.That(commandResult.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                Assert.That(scale.SetZero().StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
                 Assert.That(scale.CurrentReading.Net, Is.EqualTo(1));
                 Assert.That(scale.ProductionPreset!.Switch("B").StatusCode,
                     Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));

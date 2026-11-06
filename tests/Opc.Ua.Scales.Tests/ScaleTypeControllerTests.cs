@@ -325,7 +325,7 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(totalCount, Is.EqualTo(90u));
             Assert.That(first.TotalizedWeight.Value.Net, Is.EqualTo(0.09).Within(1e-12));
 
-            AssertGood(scale.ProductionPreset.Select("B"));
+            AssertGood(scale.ProductionPreset.Switch("B"));
             Assert.That(second.TotalizedItemCount!.WrappedValue.TryGetValue(out totalCount), Is.True);
             Assert.That(totalCount, Is.Zero, "selecting a product clears its previous totals");
             Assert.That(second.TotalizedWeight!.Value.Net, Is.Zero);
@@ -335,7 +335,7 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(second.TotalizedItemCount.WrappedValue.TryGetValue(out totalCount), Is.True);
             Assert.That(totalCount, Is.EqualTo(30u));
 
-            AssertGood(scale.ProductionPreset.Select("A"));
+            AssertGood(scale.ProductionPreset.Switch("A"));
             Assert.That(first.TotalizedItemCount.WrappedValue.TryGetValue(out totalCount), Is.True);
             Assert.That(totalCount, Is.Zero, "returning to a product starts a new production total");
             Assert.That(first.TotalizedWeight.Value.Net, Is.Zero);
@@ -349,7 +349,7 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(totalCount, Is.Zero);
             Assert.That(first.TotalizedWeight.Value.Net, Is.Zero);
 
-            AssertGood(scale.ProductionPreset.Select("B"));
+            AssertGood(scale.ProductionPreset.Switch("B"));
             Assert.That(second.TotalizedItemCount.WrappedValue.TryGetValue(out totalCount), Is.True);
             Assert.That(totalCount, Is.Zero, "selecting a product clears its previous accumulation");
             Assert.That(second.TotalizedWeight.Value.Net, Is.Zero);
@@ -398,7 +398,7 @@ namespace Opc.Ua.Scales.Tests
                 using var cancellation = new CancellationTokenSource();
                 Task<ServiceResult> pendingRegistration = scale.RegisterWeightAsync(cancellation.Token).AsTask();
                 cancellation.Cancel();
-                await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await Assert.CatchAsync<OperationCanceledException>(async () =>
                     await pendingRegistration.ConfigureAwait(false));
                 release.TrySetResult(true);
                 AssertGood(await pendingReset.ConfigureAwait(false));

@@ -344,7 +344,7 @@ namespace Opc.Ua.Scales.Tests
                 Task<ServiceResult> pending = controller.ResetTotalWeightAsync("A", cancelled.Token).AsTask();
                 Assert.That(pending.IsCompleted, Is.False);
                 cancelled.Cancel();
-                await Assert.ThrowsAsync<OperationCanceledException>(async () => await pending);
+                await Assert.CatchAsync<OperationCanceledException>(async () => await pending);
                 AssertTotal(vehicle, 0);
                 release.TrySetResult(true);
                 AssertGood(await native.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false));
