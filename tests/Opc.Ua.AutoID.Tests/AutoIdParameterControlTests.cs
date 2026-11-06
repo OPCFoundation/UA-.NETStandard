@@ -251,6 +251,47 @@ namespace Opc.Ua.AutoID.Tests
             });
         }
 
+        /// <summary>
+        /// Notification failure cannot reject an applied write or prevent subsequent parameter commits.
+        /// </summary>
+        [TestCase("service")]
+        [TestCase("unexpected")]
+        [TestCase("cancellation")]
+        public async Task ParameterNotificationFailurePreservesCommittedWriteAndAllowsRetryAsync(string failure)
+        {
+            (AutoIdReader reader, ParameterProvider provider) = await CreateAsync().ConfigureAwait(false);
+            BaseVariableState cycles = Parameter(reader, "Cycles");
+            Exception error = failure switch
+            {
+                "service" => new ServiceResultException(StatusCodes.BadUnexpectedError),
+                "cancellation" => new OperationCanceledException(),
+                _ => new InvalidOperationException("Notification unavailable.")
+            };
+            cycles.OnStateChangedAsync = (_, _, _, _) => throw error;
+            ServiceResult result = await WriteAsync(cycles, Variant.From(4));
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                Assert.That(provider.Writes, Is.EqualTo(1));
+                Assert.That(provider.Parameters.Cycles, Is.EqualTo(4));
+                Assert.That(cycles.WrappedValue, Is.EqualTo(Variant.From(4)));
+                Assert.That(cycles.StatusCode, Is.EqualTo(StatusCodes.Good));
+            });
+            cycles.OnStateChangedAsync = null;
+            Assert.That(ServiceResult.IsGood(
+                await WriteAsync(reader.Device.ScanActive!, Variant.From(true))), Is.True);
+            Assert.That(provider.StartSettings!.Cycles, Is.EqualTo(4));
+            await WriteAsync(reader.Device.ScanActive!, Variant.From(false));
+            ServiceResult retried = await WriteAsync(cycles, Variant.From(5));
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(retried), Is.True);
+                Assert.That(provider.Writes, Is.EqualTo(2));
+                Assert.That(provider.Parameters.Cycles, Is.EqualTo(5));
+                Assert.That(cycles.WrappedValue, Is.EqualTo(Variant.From(5)));
+            });
+        }
+
         [Test]
         public async Task ParameterCommitSerializesStartAndCancelledCommitLeavesPreviousValuesAsync()
         {

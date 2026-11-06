@@ -335,9 +335,18 @@ namespace Opc.Ua.AutoID.Server
                         };
                         variable.Timestamp = DateTimeUtc.Now;
                         variable.StatusCode = StatusCodes.Good;
-                        await variable
-                            .ClearChangeMasksAsync(Runtime.SystemContext, false, CancellationToken.None)
-                            .ConfigureAwait(false);
+                        try
+                        {
+                            await variable
+                                .ClearChangeMasksAsync(Runtime.SystemContext, false, CancellationToken.None)
+                                .ConfigureAwait(false);
+                        }
+                        catch (Exception ex)
+                        {
+                            StatusCode statusCode = ex is ServiceResultException serviceError
+                                ? serviceError.StatusCode : StatusCodes.BadUnexpectedError;
+                            m_logger.ParameterNotificationFailed(statusCode);
+                        }
                         return ServiceResult.Good;
                     }
                     catch (ServiceResultException ex)

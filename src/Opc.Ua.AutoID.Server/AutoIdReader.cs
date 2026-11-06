@@ -493,5 +493,15 @@ namespace Opc.Ua.AutoID.Server
             Message = "The parameter provider failed to commit with status '{StatusCode}'; " +
                 "published settings are unchanged.")]
         public static partial void ParameterCommitFailed(this ILogger logger, StatusCode statusCode);
+
+        /// <summary>
+        /// Reports a notification failure after a parameter write has already been applied.
+        /// </summary>
+        [LoggerMessage(
+            EventId = AutoIdServerEventIds.AutoIdReader + 5,
+            Level = LogLevel.Error,
+            Message = "Parameter change notification failed with status '{StatusCode}'; " +
+                "the parameter write remains committed.")]
+        public static partial void ParameterNotificationFailed(this ILogger logger, StatusCode statusCode);
     }
 }
