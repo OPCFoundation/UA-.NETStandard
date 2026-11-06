@@ -1529,11 +1529,12 @@ namespace Opc.Ua.Gds.Tests
                     CertificateIdentifier identifier =
                         target.Configuration.SecurityConfiguration.ApplicationCertificates[0];
                     using ICertificateStore store = new CertificateStoreIdentifier(
-                        identifier.StorePath!, identifier.StoreType!).OpenStore(s_telemetry)!;
+                        identifier.StorePath!, identifier.StoreType!, noPrivateKeys: false).OpenStore(s_telemetry)!;
                     await store.AddAsync(certificate).ConfigureAwait(false);
                     identifier.Thumbprint = certificate.Thumbprint;
                     await target.m_certificates.UpdateAsync(target.Configuration.SecurityConfiguration, applicationUri)
                         .ConfigureAwait(false);
+                    Assert.That(target.CurrentThumbprint(), Is.EqualTo(certificate.Thumbprint));
                     return target;
                 }
                 catch
