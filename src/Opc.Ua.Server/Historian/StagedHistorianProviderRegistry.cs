@@ -77,7 +77,7 @@ namespace Opc.Ua.Server.Historian
                 EnsureOwnerSupportForMutation();
                 RemoveRetainedNodeBinding(nodeId);
                 m_candidateRegistry.RegisterForNode(
-                    nodeId, provider, OwnsProviderForCandidate(provider), rejectDuplicate: true);
+                    nodeId, provider, OwnsProviderForCandidate(provider), rejectDuplicate: !m_published);
                 UpdateServingRegistrations();
             }
         }

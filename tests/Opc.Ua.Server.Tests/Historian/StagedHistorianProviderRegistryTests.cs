@@ -46,6 +46,60 @@ namespace Opc.Ua.Server.Tests.Historian
         private const string kNamespaceUri = "urn:test:staged-historian";
 
         /// <summary>
+        /// Live exact-node registrations supersede scoped ownership without allowing its release to undo the successor.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PublishedExactReplacementSurvivesPreviousScopedReleaseAsync(bool sameProvider)
+        {
+            var namespaceTable = new NamespaceTable();
+            using var serving = new HistorianProviderRegistry(namespaceTable);
+            using var candidate = new StagedHistorianProviderRegistry(namespaceTable, serving, new object());
+            var previous = new TrackingProvider();
+            var replacement = sameProvider ? previous : new TrackingProvider();
+            var node = new BaseDataVariableState(null)
+            {
+                NodeId = new NodeId("live-exact-replacement", 0),
+                AccessLevel = AccessLevels.CurrentRead,
+                UserAccessLevel = AccessLevels.CurrentRead
+            };
+            Assert.That(candidate.TryRegisterForNode(node, previous, out IDisposable? binding), Is.True);
+            Assert.That(binding, Is.InstanceOf<IHistorianNodeBinding>());
+            using (binding)
+            {
+                Assert.That(() => candidate.RegisterForNode(node.NodeId, replacement),
+                    Throws.InvalidOperationException);
+                candidate.Publish();
+                candidate.RegisterForNode(node.NodeId, replacement);
+                node.Historizing = true;
+                node.AccessLevel = AccessLevels.HistoryRead | AccessLevels.HistoryWrite;
+                node.UserAccessLevel = AccessLevels.HistoryRead | AccessLevels.HistoryWrite;
+                int cleanupCalls = 0;
+                await ((IHistorianNodeBinding)binding!).ReleaseAsync(() =>
+                {
+                    cleanupCalls++;
+                    return default;
+                }).ConfigureAwait(false);
+
+                Assert.That(cleanupCalls, Is.Zero);
+                Assert.That(candidate.Resolve(node.NodeId), Is.SameAs(replacement));
+                Assert.That(serving.Resolve(node.NodeId), Is.SameAs(replacement));
+                Assert.That(serving.Providers.Contains(replacement), Is.True);
+                Assert.That(node.Historizing, Is.True);
+                Assert.That(node.AccessLevel, Is.EqualTo(AccessLevels.HistoryRead | AccessLevels.HistoryWrite));
+                Assert.That(node.UserAccessLevel, Is.EqualTo(AccessLevels.HistoryRead | AccessLevels.HistoryWrite));
+            }
+
+            Assert.That(serving.Resolve(node.NodeId), Is.SameAs(replacement));
+            candidate.Dispose();
+            Assert.That(previous.DisposeCount, Is.Zero);
+            Assert.That(replacement.DisposeCount, Is.Zero);
+            serving.Dispose();
+            Assert.That(previous.DisposeCount, Is.EqualTo(1));
+            Assert.That(replacement.DisposeCount, Is.EqualTo(1));
+        }
+
+        /// <summary>
         /// Scoped bindings stay private until publication and restore attributes when released.
         /// </summary>
         [TestCase(false)]
