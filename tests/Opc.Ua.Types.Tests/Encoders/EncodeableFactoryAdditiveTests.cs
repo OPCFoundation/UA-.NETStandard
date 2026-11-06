@@ -230,38 +230,28 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         /// <summary>
-        /// Additive commits target the selected serving image without changing its independent source.
+        /// Additive commits update the owning factory without changing an independent snapshot.
         /// </summary>
         [Test]
-        public void AdditiveCommitUsesSelectedFactoryImage()
+        public void AdditiveCommitUsesOwningFactoryImage()
         {
             var factory = new EncodeableFactory();
-            EncodeableFactory selected = factory.Fork();
+            EncodeableFactory snapshot = factory.Fork();
             var id = new ExpandedNodeId(10321);
             IEncodeableType structure = CreateStructure("SelectedSubstance");
-            EncodeableFactory.ViewOwner owner = factory.SetViewSelector(() => selected);
-            try
-            {
-                factory.Builder.AddEncodeableType(id, structure).CommitIfAbsent();
+            factory.Builder.AddEncodeableType(id, structure).CommitIfAbsent();
 
-                Assert.That(selected.TryGetEncodeableType(id, out IEncodeableType? actual), Is.True);
-                Assert.That(actual, Is.SameAs(structure));
-                selected = new EncodeableFactory();
-                Assert.That(factory.TryGetEncodeableType(id, out _), Is.False);
-            }
-            finally
-            {
-                owner.Release(selected);
-            }
-            Assert.That(factory.TryGetEncodeableType(id, out _), Is.False);
+            Assert.That(factory.TryGetEncodeableType(id, out IEncodeableType? actual), Is.True);
+            Assert.That(actual, Is.SameAs(structure));
+            Assert.That(snapshot.TryGetEncodeableType(id, out _), Is.False);
         }
 
         /// <summary>
-        /// Additive commits obey the same pending and retired publication checks as ordinary commits.
+        /// Additive commits are blocked only while publication owns the factory.
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
-        public void AdditiveCommitRespectsPublicationOwnership(bool publish)
+        public void AdditiveCommitIsBlockedOnlyDuringPublication(bool publish)
         {
             var factory = new EncodeableFactory();
             _ = factory.CaptureSnapshot(out EncodeableFactory source, out long revision);
@@ -274,20 +264,12 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Assert.That(factory.TryGetEncodeableType(id, out _), Is.False);
                 if (publish)
                 {
-                    publication.Complete();
+                    publication.Complete(factory);
                 }
             }
-            if (publish)
-            {
-                Assert.Throws<InvalidOperationException>(builder.CommitIfAbsent);
-                Assert.That(factory.TryGetEncodeableType(id, out _), Is.False);
-            }
-            else
-            {
-                builder.CommitIfAbsent();
-                Assert.That(factory.TryGetEncodeableType(id, out IEncodeableType? actual), Is.True);
-                Assert.That(actual, Is.SameAs(structure));
-            }
+            builder.CommitIfAbsent();
+            Assert.That(factory.TryGetEncodeableType(id, out IEncodeableType? actual), Is.True);
+            Assert.That(actual, Is.SameAs(structure));
         }
 
         /// <summary>

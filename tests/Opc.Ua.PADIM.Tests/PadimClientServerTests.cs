@@ -749,8 +749,10 @@ namespace Opc.Ua.PADIM.Tests
                 };
                 await fixture.LoadClientConfigurationAsync(Path.Combine(root, "client-pki"));
                 using ISession session = await fixture.ConnectAsync(new Uri(endpoint), SecurityPolicies.None);
-                Assert.That(device.Manager.Server, Is.InstanceOf<ServerInternalData>());
-                ConformanceUnitsManager catalog = ((ServerInternalData)device.Manager.Server).ConformanceUnitsManager;
+                Assert.That(device.Manager.Server, Is.InstanceOf<IConformanceUnitsManagerProvider>());
+                IConformanceUnitsManagerProvider managerProvider =
+                    (IConformanceUnitsManagerProvider)device.Manager.Server;
+                ConformanceUnitsManager? catalog = managerProvider.ConformanceUnitsManager;
                 Assert.That(catalog, Is.Not.Null, "The connected host has completed conformance-manager startup.");
                 await AssertPublicationAsync([], [], false);
 
@@ -767,7 +769,7 @@ namespace Opc.Ua.PADIM.Tests
                     Does.Contain("http://opcfoundation.org/UA-Profile/PADIM/Server/TwoStateDiscreteSignal"));
                 Assert.That(expectedUnits, Does.Contain(unit));
                 await AssertPublicationAsync([], [], false);
-                await catalog.PublishAsync(timeout.Token);
+                await catalog!.PublishAsync(timeout.Token);
                 await AssertPublicationAsync(expectedProfiles, expectedUnits, true);
 
                 await device.DisposeAsync();
@@ -799,7 +801,7 @@ namespace Opc.Ua.PADIM.Tests
                         Assert.That(liveUnits.ToList().Where(value =>
                             value.Name?.StartsWith("PA-DIM ", StringComparison.Ordinal) == true),
                             Is.EquivalentTo(units));
-                        Assert.That(catalog.IsSupported(unit), Is.EqualTo(supported));
+                        Assert.That(catalog!.IsSupported(unit), Is.EqualTo(supported));
                     });
                 }
             }
