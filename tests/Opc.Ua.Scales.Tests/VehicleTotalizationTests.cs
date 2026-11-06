@@ -435,7 +435,8 @@ namespace Opc.Ua.Scales.Tests
             return m_fixture.Manager.CreateScaleAsync(
                 m_fixture.Name("Vehicle"), ScaleKind.Vehicle, builder =>
                 {
-                    builder.WithTypeFeatures()
+                    builder.WithIdentification(ScalesNodeManagerTests.Identity("Vehicle"))
+                        .WithTypeFeatures()
                         .WithWeighingRange(new WeighingRangeDefinition(0, 60000, 20, 20))
                         .WithProductionPreset(preset => preset
                             .AddProduct("A", new LocalizedText("A"), ConfigureVehicle)

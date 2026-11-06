@@ -424,7 +424,7 @@ namespace Opc.Ua.Scales.Server.Runtime
             {
                 double existing = product.TotalizedWeight.Value.Net;
                 double total = existing + current.Net;
-                if (!double.IsFinite(total))
+                if (double.IsNaN(total) || double.IsInfinity(total))
                 {
                     return ServiceResult.Create(
                         StatusCodes.BadOutOfRange, "The totalized weight is not finite.");
@@ -583,12 +583,12 @@ namespace Opc.Ua.Scales.Server.Runtime
             double referenceWeight = product != null && TryReadReference(product, out double productReference)
                 ? productReference
                 : product == null ? m_referencePieceWeight : 0;
-            if (!(referenceWeight > 0) || !double.IsFinite(referenceWeight))
+            if (!(referenceWeight > 0) || double.IsNaN(referenceWeight) || double.IsInfinity(referenceWeight))
             {
                 return false;
             }
             double count = Math.Max(0, Math.Round(current.HighResolutionNet / referenceWeight));
-            if (!double.IsFinite(count) || count > uint.MaxValue)
+            if (double.IsNaN(count) || double.IsInfinity(count) || count > uint.MaxValue)
             {
                 return false;
             }
@@ -604,7 +604,7 @@ namespace Opc.Ua.Scales.Server.Runtime
             referenceWeight = 0;
             return product.ReferencePieceWeight != null &&
                 product.ReferencePieceWeight.WrappedValue.TryGetValue(out referenceWeight) &&
-                double.IsFinite(referenceWeight) && referenceWeight > 0;
+                !double.IsNaN(referenceWeight) && !double.IsInfinity(referenceWeight) && referenceWeight > 0;
         }
 
         /// <summary>
