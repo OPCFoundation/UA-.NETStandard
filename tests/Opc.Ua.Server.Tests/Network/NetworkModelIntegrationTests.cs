@@ -335,6 +335,106 @@ namespace Opc.Ua.Server.Tests.Network
         }
 
         /// <summary>
+        /// Aborted private replacements do not mutate diagnostics-owned LLDP values or optional properties.
+        /// </summary>
+        [TestCase(false, true, false)]
+        [TestCase(true, false, false)]
+        [TestCase(true, true, false)]
+        [TestCase(true, true, true)]
+        [CancelAfter(60_000)]
+        public async Task AbortedPreparationPreservesLiveLldpAsync(
+            bool liveCapabilities, bool candidateCapabilities, bool initialFailure, CancellationToken cancellationToken)
+        {
+            NetworkModelSnapshot initial = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            NetworkLldpSnapshot lldp = initial.Lldp ?? throw new AssertionException("The scenario requires LLDP.");
+            DateTime timestamp = initial.Timestamp.AddSeconds(1);
+            m_provider.Publish(initial with
+            {
+                Timestamp = timestamp,
+                Lldp = lldp with
+                {
+                    SystemCapabilitiesSupported = liveCapabilities ? 4u : null,
+                    SystemCapabilitiesEnabled = liveCapabilities ? 4u : null
+                }
+            });
+            await WaitForAsync(async () =>
+            {
+                ArrayOf<NetworkParameterValue> values = await m_client.ReadParametersAsync(
+                    ObjectIds.LLDP_LocalSystemData, cancellationToken).ConfigureAwait(false);
+                return values.Count == (liveCapabilities ? 6 : 4) &&
+                    values.ToList().All(value =>
+                    value.DataValue.SourceTimestamp == (DateTimeUtc)timestamp) &&
+                    values.ToList().Any(value =>
+                        value.BrowseName == new QualifiedName(BrowseNames.SystemCapabilitiesSupported, 0)) ==
+                    liveCapabilities &&
+                    values.ToList().Any(value =>
+                        value.BrowseName == new QualifiedName(BrowseNames.SystemCapabilitiesEnabled, 0)) ==
+                    liveCapabilities;
+            }, cancellationToken).ConfigureAwait(false);
+
+            ArrayOf<NetworkParameterValue> before = await m_client.ReadParametersAsync(
+                ObjectIds.LLDP_LocalSystemData, cancellationToken).ConfigureAwait(false);
+            LldpLocalSystemState local = m_server.Server.CurrentInstance.DiagnosticsNodeManager
+                .FindPredefinedNode<LldpLocalSystemState>(ObjectIds.LLDP_LocalSystemData)
+                ?? throw new AssertionException("The live LLDP local system is missing.");
+            PropertyState<uint>? supported = local.SystemCapabilitiesSupported;
+            PropertyState<uint>? enabled = local.SystemCapabilitiesEnabled;
+            var candidate = new FaultInjectingProvider(m_provider)
+            {
+                ReadTransform = snapshot => initialFailure
+                    ? throw new ServiceResultException(StatusCodes.BadNoCommunication)
+                    : snapshot with
+                    {
+                        Timestamp = timestamp.AddSeconds(1),
+                        Lldp = lldp with
+                        {
+                            ChassisId = "candidate-chassis",
+                            SystemName = "candidate-system",
+                            SystemDescription = "private candidate",
+                            SystemCapabilitiesSupported = candidateCapabilities ? 8u : null,
+                            SystemCapabilitiesEnabled = candidateCapabilities ? 8u : null
+                        }
+                    }
+            };
+            INodeManagerLifecycle lifecycle = m_server.Server.NodeManagerLifecycle;
+            NodeManagerSlot slot = lifecycle.Registrations.ToList()
+                .Single(registration => registration.NodeManager is NetworkModelNodeManager).Slot;
+            long revision = lifecycle.Revision;
+            await using ILifecycleWriter writer = await lifecycle.BeginAsync(cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+            await using (IPreparedChanges prepared = await writer.PrepareAsync(
+                [LifecycleChange.Reload(slot, new NetworkModelNodeManagerFactory(candidate, _ => false))],
+                cancellationToken).ConfigureAwait(false))
+            {
+                Assert.That(prepared.IsCommitted, Is.False);
+                await AssertLiveLldpUnchangedAsync().ConfigureAwait(false);
+            }
+            await AssertLiveLldpUnchangedAsync().ConfigureAwait(false);
+            Assert.That(lifecycle.Revision, Is.EqualTo(revision));
+            Assert.That(candidate.WatchCount, Is.Zero);
+
+            async Task AssertLiveLldpUnchangedAsync()
+            {
+                ArrayOf<NetworkParameterValue> after = await m_client.ReadParametersAsync(
+                    ObjectIds.LLDP_LocalSystemData, cancellationToken).ConfigureAwait(false);
+                Assert.That(after.ToList().Select(value => value.NodeId),
+                    Is.EquivalentTo(before.ToList().Select(value => value.NodeId)));
+                foreach (NetworkParameterValue expected in before.ToList())
+                {
+                    NetworkParameterValue actual = after.ToList().Single(value => value.NodeId == expected.NodeId);
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(actual.DataValue.WrappedValue, Is.EqualTo(expected.DataValue.WrappedValue));
+                        Assert.That(actual.DataValue.StatusCode, Is.EqualTo(expected.DataValue.StatusCode));
+                        Assert.That(actual.DataValue.SourceTimestamp, Is.EqualTo(expected.DataValue.SourceTimestamp));
+                    });
+                }
+                Assert.That(local.SystemCapabilitiesSupported, Is.SameAs(supported));
+                Assert.That(local.SystemCapabilitiesEnabled, Is.SameAs(enabled));
+            }
+        }
+
+        /// <summary>
         /// Reads and sampling use the complete acquisition even while the separate attribute cache is inconsistent.
         /// </summary>
         [TestCase(false)]

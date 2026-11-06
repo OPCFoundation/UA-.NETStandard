@@ -106,6 +106,17 @@ namespace Opc.Ua.Server.Network
             {
                 if (m_watchCancellation is null)
                 {
+                    if (m_initialSnapshot is { } initial)
+                    {
+                        await ApplyLldpLocalValuesAsync(initial, cancellationToken).ConfigureAwait(false);
+                    }
+                    if (m_initialFailure is { } failure)
+                    {
+                        await MarkLldpUnavailableAsync(failure, cancellationToken).ConfigureAwait(false);
+                    }
+                    m_initialSnapshot = null;
+                    m_initialFailure = null;
+                    m_isReady = true;
                     m_watchCancellation = new CancellationTokenSource();
                     m_watchTask = WatchProviderAsync(m_watchCancellation.Token);
                 }
@@ -212,35 +223,50 @@ namespace Opc.Ua.Server.Network
                     await entity.Root.ClearChangeMasksAsync(SystemContext, true, cancellationToken)
                         .ConfigureAwait(false);
                 }
-                foreach (NodeId id in s_lldpLocalVariableIds)
+                if (!m_isReady)
                 {
-                    BaseVariableState? variable = Server.DiagnosticsNodeManager
-                        .FindPredefinedNode<BaseVariableState>(id);
-                    if (variable is not null)
-                    {
-                        PublishValue(variable, variable.Value, failure, variable.Timestamp);
-                        await variable.ClearChangeMasksAsync(SystemContext, false, cancellationToken)
-                            .ConfigureAwait(false);
-                    }
+                    m_initialFailure = failure;
                 }
-                LldpLocalSystemState? localSystem = Server.DiagnosticsNodeManager
-                    .FindPredefinedNode<LldpLocalSystemState>(ObjectIds.LLDP_LocalSystemData);
-                if (localSystem?.SystemCapabilitiesSupported is { } supported)
+                else
                 {
-                    PublishValue(supported, supported.Value, failure, supported.Timestamp);
-                    await supported.ClearChangeMasksAsync(SystemContext, false, cancellationToken)
-                        .ConfigureAwait(false);
-                }
-                if (localSystem?.SystemCapabilitiesEnabled is { } enabled)
-                {
-                    PublishValue(enabled, enabled.Value, failure, enabled.Timestamp);
-                    await enabled.ClearChangeMasksAsync(SystemContext, false, cancellationToken)
-                        .ConfigureAwait(false);
+                    await MarkLldpUnavailableAsync(failure, cancellationToken).ConfigureAwait(false);
                 }
             }
             finally
             {
                 m_applyGate.Release();
+            }
+        }
+
+        /// <summary>
+        /// Marks diagnostics-owned LLDP values unavailable after this generation is published.
+        /// </summary>
+        private async ValueTask MarkLldpUnavailableAsync(StatusCode failure, CancellationToken cancellationToken)
+        {
+            foreach (NodeId id in s_lldpLocalVariableIds)
+            {
+                BaseVariableState? variable = Server.DiagnosticsNodeManager
+                    .FindPredefinedNode<BaseVariableState>(id);
+                if (variable is not null)
+                {
+                    PublishValue(variable, variable.Value, failure, variable.Timestamp);
+                    await variable.ClearChangeMasksAsync(SystemContext, false, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+            }
+            LldpLocalSystemState? localSystem = Server.DiagnosticsNodeManager
+                .FindPredefinedNode<LldpLocalSystemState>(ObjectIds.LLDP_LocalSystemData);
+            if (localSystem?.SystemCapabilitiesSupported is { } supported)
+            {
+                PublishValue(supported, supported.Value, failure, supported.Timestamp);
+                await supported.ClearChangeMasksAsync(SystemContext, false, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            if (localSystem?.SystemCapabilitiesEnabled is { } enabled)
+            {
+                PublishValue(enabled, enabled.Value, failure, enabled.Timestamp);
+                await enabled.ClearChangeMasksAsync(SystemContext, false, cancellationToken)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -325,7 +351,14 @@ namespace Opc.Ua.Server.Network
                     await m_entities[key].Root.ClearChangeMasksAsync(SystemContext, true, cancellationToken)
                         .ConfigureAwait(false);
                 }
-                await ApplyLldpLocalValuesAsync(snapshot, cancellationToken).ConfigureAwait(false);
+                if (m_isReady)
+                {
+                    await ApplyLldpLocalValuesAsync(snapshot, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    m_initialSnapshot = snapshot;
+                }
                 m_revision = snapshot.Revision;
                 m_timestamp = snapshot.Timestamp;
                 m_hasAppliedRevision = true;
@@ -1566,6 +1599,21 @@ namespace Opc.Ua.Server.Network
         /// Whether a provider acquisition has been applied.
         /// </summary>
         private bool m_hasAppliedRevision;
+
+        /// <summary>
+        /// Whether shared LLDP state can be updated by this published generation.
+        /// </summary>
+        private bool m_isReady;
+
+        /// <summary>
+        /// Initial acquisition retained privately until readiness.
+        /// </summary>
+        private NetworkModelSnapshot? m_initialSnapshot;
+
+        /// <summary>
+        /// Initial acquisition failure retained privately until readiness.
+        /// </summary>
+        private StatusCode? m_initialFailure;
 
         /// <summary>
         /// Acquisition timestamp of the most recently applied provider revision.
