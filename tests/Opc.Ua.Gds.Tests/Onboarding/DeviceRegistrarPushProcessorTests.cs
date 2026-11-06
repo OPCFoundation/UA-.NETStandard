@@ -2466,7 +2466,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     .Returns<NodeId, NodeId, Func<CancellationToken, ValueTask<CertificateRequestIssuance>>,
                         CancellationToken>((_, _, create, ct) =>
                         MissingReceipt ? create(ct) : new ValueTask<CertificateRequestIssuance>(
-                            new CertificateRequestIssuance("DefaultApplicationGroup", "RsaSha256",
+                            new CertificateRequestIssuance(
+                                "DefaultApplicationGroup",
+                                nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType),
                                 EnrollmentMutation == "trailing-certificate"
                                     ? ByteString.From([.. Issued.ToArray(), 0])
                                     : Issued,
@@ -3265,7 +3267,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             private DeviceRegistrarPushEnrollment Enrollment()
             {
                 var enrollment = new DeviceRegistrarPushEnrollment(Identity, ApplicationId, RequestId,
-                    "DefaultApplicationGroup", "RsaSha256",
+                    "DefaultApplicationGroup",
+                    nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType),
                     new TrustListDataType { SpecifiedLists = (uint)TrustListMasks.All }, m_csr);
                 return EnrollmentMutation switch
                 {

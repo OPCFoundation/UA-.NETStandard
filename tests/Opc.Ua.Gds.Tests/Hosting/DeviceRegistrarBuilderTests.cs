@@ -546,7 +546,14 @@ namespace Opc.Ua.Gds.Tests.Hosting
             services.AddSingleton(lifecycle.Object);
             services.AddDeviceRegistrarRuntime(_ => { });
             using ServiceProvider provider = services.BuildServiceProvider();
-            var application = new ApplicationRecordDataType { ApplicationUri = "urn:application:test" };
+            var application = new ApplicationRecordDataType
+            {
+                ApplicationUri = "urn:application:test",
+                ApplicationNames = [new LocalizedText("Application")],
+                ProductUri = "urn:product:test",
+                ApplicationType = ApplicationType.Server,
+                DiscoveryUrls = ["opc.tcp://localhost:4840"]
+            };
             var context = new SystemContext(NUnitTelemetryContext.Create());
             NodeId actual = await provider.GetRequiredService<IDeviceRegistrarRuntime>()
                 .RegisterManagedApplicationAsync(context, application, string.Empty).ConfigureAwait(false);

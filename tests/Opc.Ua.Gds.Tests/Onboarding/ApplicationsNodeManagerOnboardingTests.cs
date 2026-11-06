@@ -1027,6 +1027,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             using ApplicationsNodeManager manager = await CreateSelectionManagerAsync(database).ConfigureAwait(false);
             NodeId applicationId = database.RegisterApplication(CreateTestApplicationRecord("UnsupportedPushType"));
             var secrets = new Mock<ISecretStore>(MockBehavior.Strict);
+            secrets.SetupGet(value => value.StoreType).Returns("InMemory");
             secrets.Setup(value => value.GetAsync(It.IsAny<SecretIdentifier>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync((ISecret?)null);
             var lifecycle = new MemoryDeviceRegistrarLifecycle();

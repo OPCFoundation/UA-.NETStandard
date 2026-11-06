@@ -1531,6 +1531,7 @@ namespace Opc.Ua.Gds.Tests
                     using ICertificateStore store = new CertificateStoreIdentifier(
                         identifier.StorePath!, identifier.StoreType!).OpenStore(s_telemetry)!;
                     await store.AddAsync(certificate).ConfigureAwait(false);
+                    identifier.Thumbprint = certificate.Thumbprint;
                     await target.m_certificates.UpdateAsync(target.Configuration.SecurityConfiguration, applicationUri)
                         .ConfigureAwait(false);
                     return target;

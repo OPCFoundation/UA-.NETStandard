@@ -88,6 +88,7 @@ namespace Opc.Ua.Server
                 node.ConfigurationFile = null;
             }
 
+            GrantSecurityAdminCallPermissions(context, node);
             CertificateGroupFolderState groups = node.CertificateGroups ??
                 throw new ArgumentException("The application has no certificate-groups folder.", nameof(node));
             var groupIds = new HashSet<NodeId>();
@@ -126,6 +127,57 @@ namespace Opc.Ua.Server
             if (node.ConfigurationFile != null)
             {
                 WrapConfigurationFileCalls(node.ConfigurationFile, binding);
+            }
+        }
+
+        /// <summary>
+        /// Grants the standard SecurityAdmin role the Call permission on each ServerConfiguration method.
+        /// </summary>
+        private static void GrantSecurityAdminCallPermissions(ISystemContext context, NodeState node)
+        {
+            if (node is MethodState method)
+            {
+                ArrayOf<RolePermissionType> permissions = method.RolePermissions;
+                NodeId roleId = ObjectIds.WellKnownRole_SecurityAdmin;
+                for (int index = 0; index < permissions.Count; index++)
+                {
+                    RolePermissionType permission = permissions[index];
+                    if (permission.RoleId == roleId)
+                    {
+                        permission.Permissions |= (uint)PermissionType.Call;
+                        permissions[index] = permission;
+                        method.RolePermissions = permissions;
+                        break;
+                    }
+                    if (index == permissions.Count - 1)
+                    {
+                        method.RolePermissions = ArrayOf.Combine(
+                            permissions,
+                            [new RolePermissionType
+                            {
+                                RoleId = roleId,
+                                Permissions = (uint)PermissionType.Call
+                            }]);
+                    }
+                }
+                if (permissions.IsEmpty)
+                {
+                    method.RolePermissions =
+                    [
+                        new RolePermissionType
+                        {
+                            RoleId = roleId,
+                            Permissions = (uint)PermissionType.Call
+                        }
+                    ];
+                }
+            }
+
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(context, children);
+            foreach (BaseInstanceState child in children)
+            {
+                GrantSecurityAdminCallPermissions(context, child);
             }
         }
 
