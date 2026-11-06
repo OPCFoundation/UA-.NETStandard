@@ -93,7 +93,7 @@ namespace AmbSample.Client
                         break;
                     case "--remote-server" when ii + 1 < args.Length:
                         string mapping = args[++ii];
-                        int separator = mapping.IndexOf('=');
+                        int separator = mapping.IndexOf('=', StringComparison.Ordinal);
                         if (separator <= 0 ||
                             separator == mapping.Length - 1 ||
                             !Uri.TryCreate(mapping[..separator], UriKind.Absolute, out _) ||
