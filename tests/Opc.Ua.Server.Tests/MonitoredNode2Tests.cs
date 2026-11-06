@@ -560,6 +560,68 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Parallel delivery ranges share one lookup, so no discarded lookup can outlive the delivery.
+        /// </summary>
+        [Test]
+        public async Task ParallelDeliveryRangesShareOneEventSourceLookupAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                NodeId sourceNodeId = new(10, 1);
+                NodeState source = new BaseObjectState(null) { NodeId = sourceNodeId };
+                int lookups = 0;
+                Mock.Get(server.Object.NodeManager)
+                    .Setup(value => value.FindNodeInAddressSpaceAsync(sourceNodeId, It.IsAny<CancellationToken>()))
+                    .Returns(() =>
+                    {
+                        Interlocked.Increment(ref lookups);
+                        // holds the first lookup open until the other ranges have reached it.
+                        Thread.Sleep(50);
+                        return new ValueTask<NodeState?>(source);
+                    });
+                var nodeManager = new Mock<IAsyncNodeManager>();
+                nodeManager.Setup(value => value.ValidateEventRolePermissionsAsync(
+                        It.IsAny<IEventMonitoredItem>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
+                    .Returns(() => new ValueTask<ServiceResult>(ServiceResult.Good));
+
+                var node = new BaseObjectState(null) { NodeId = ObjectIds.Server };
+                await using var monitored = new MonitoredNode2(nodeManager.Object, server.Object, node)
+                {
+                    ParallelEventDeliveryBudget = -1,
+                    MinItemsPerEventDeliveryRange = 1
+                };
+                var items = new List<Mock<IEventMonitoredItem>>();
+                for (uint id = 1; id <= 16; id++)
+                {
+                    Mock<IEventMonitoredItem> item = CreateEventMonitoredItemMock(id);
+                    items.Add(item);
+                    monitored.Add(item.Object);
+                }
+
+                var report = new BaseEventState(null);
+                report.EventType = new PropertyState<NodeId>.Implementation<VariantBuilder>(report)
+                {
+                    Value = ObjectTypeIds.BaseEventType
+                };
+                report.SourceNode = new PropertyState<NodeId>.Implementation<VariantBuilder>(report)
+                {
+                    Value = sourceNodeId
+                };
+
+                await monitored.OnReportEventAsync(
+                    server.Object.DefaultSystemContext, node, report).ConfigureAwait(false);
+                await monitored.WaitForPendingNotificationsAsync(CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(lookups, Is.EqualTo(1));
+                foreach (Mock<IEventMonitoredItem> item in items)
+                {
+                    item.Verify(value => value.QueueEvent(It.IsAny<IFilterTarget>()), Times.Once);
+                }
+            }
+        }
+
+        /// <summary>
         /// A notifier restriction tightened during permission validation must be applied before event delivery.
         /// </summary>
         [Test]

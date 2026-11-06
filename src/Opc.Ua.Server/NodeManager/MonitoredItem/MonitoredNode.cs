@@ -1277,8 +1277,9 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <remarks>
         /// A permission verdict is validated after the lookup it is bound to, so it never
-        /// describes an older node than the instance it is cached for. Items that race for the
-        /// first lookup may each run it; they then all use the one that was published first.
+        /// describes an older node than the instance it is cached for. Parallel delivery ranges
+        /// start one lookup between them, so each of them awaits it and none is left running
+        /// after the delivery ended.
         /// </remarks>
         private sealed class EventSourceLookup
         {
@@ -1290,14 +1291,26 @@ namespace Opc.Ua.Server
 
             public Task<NodeState?> GetAsync(CancellationToken cancellationToken)
             {
-                return Volatile.Read(ref m_lookup) ??
-                    Interlocked.CompareExchange(
-                        ref m_lookup,
-                        m_masterNodeManager.FindNodeInAddressSpaceAsync(m_sourceNodeId, cancellationToken).AsTask(),
-                        null) ??
-                    m_lookup!;
+                Task<NodeState?>? lookup = Volatile.Read(ref m_lookup);
+                if (lookup != null)
+                {
+                    return lookup;
+                }
+                lock (m_lock)
+                {
+                    lookup = m_lookup;
+                    if (lookup == null)
+                    {
+                        lookup = m_masterNodeManager
+                            .FindNodeInAddressSpaceAsync(m_sourceNodeId, cancellationToken)
+                            .AsTask();
+                        Volatile.Write(ref m_lookup, lookup);
+                    }
+                    return lookup;
+                }
             }
 
+            private readonly Lock m_lock = new();
             private readonly IMasterNodeManager m_masterNodeManager;
             private readonly NodeId m_sourceNodeId;
             private Task<NodeState?>? m_lookup;
