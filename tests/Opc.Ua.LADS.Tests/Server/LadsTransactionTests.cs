@@ -730,24 +730,38 @@ namespace Opc.Ua.LADS.Tests.Server
             Task first = modeFirst
                 ? device.SetOperationModeAsync(target).AsTask() : device.GotoSleepAsync().AsTask();
             Task? queued = null;
+            Task? quarantine = null;
             try
             {
                 await entered.Task.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
                 queued = modeFirst
                     ? device.GotoSleepAsync().AsTask() : device.SetOperationModeAsync(target).AsTask();
                 Assert.That(queued.IsCompleted, Is.False);
-                await QuarantineAsync(device, nodes).ConfigureAwait(false);
+                quarantine = Task.Run(() => QuarantineAsync(device, nodes));
+                await WaitForStorageQuarantineAsync(device, 30000).ConfigureAwait(false);
+                Assert.That(first.IsCompleted, Is.False);
+                Assert.That(queued.IsCompleted, Is.False);
+                if (!modeFirst)
+                {
+                    Assert.That(quarantine.IsCompleted, Is.False);
+                }
             }
             finally
             {
                 release.TrySetResult(true);
-                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                    await first.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false));
+                var cleanup = new List<Task>
+                {
+                    AssertQuarantinedAsync(first)
+                };
                 if (queued != null)
                 {
-                    await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                        await queued.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false));
+                    cleanup.Add(AssertQuarantinedAsync(queued));
                 }
+                if (quarantine != null)
+                {
+                    cleanup.Add(quarantine.WaitAsync(TimeSpan.FromSeconds(30)));
+                }
+                await Task.WhenAll(cleanup).ConfigureAwait(false);
             }
             Assert.That(calls, Is.EqualTo(1));
             Assert.That(device.State, Is.EqualTo(LadsDeviceStateValue.Shutdown));
@@ -896,17 +910,27 @@ namespace Opc.Ua.LADS.Tests.Server
                         break;
                 }
             });
+            Task? quarantine = null;
             try
             {
                 await entered.Task.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
-                await QuarantineAsync(device, nodes, "Second").ConfigureAwait(false);
+                quarantine = Task.Run(() => QuarantineAsync(device, nodes, "Second"));
+                await WaitForStorageQuarantineAsync(device, 30000).ConfigureAwait(false);
+                Assert.That(pending.IsCompleted, Is.False);
             }
             finally
             {
                 release.Set();
-                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                    await pending.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false));
-                machine.OnBeforeTransition = null;
+                try
+                {
+                    await Task.WhenAll(
+                        AssertQuarantinedAsync(pending),
+                        quarantine?.WaitAsync(TimeSpan.FromSeconds(30)) ?? Task.CompletedTask).ConfigureAwait(false);
+                }
+                finally
+                {
+                    machine.OnBeforeTransition = null;
+                }
             }
             Assert.That(device.State, Is.EqualTo(LadsDeviceStateValue.Shutdown));
             Assert.That(device.OperationMode, Is.EqualTo(originalMode));
@@ -1645,6 +1669,15 @@ namespace Opc.Ua.LADS.Tests.Server
             Assert.That(failure!.Flatten().InnerExceptions.Select(error => error.Message),
                 Does.Contain("Node add failed.").And.Contain("Node remove failed."));
             Assert.That(device.State, Is.EqualTo(LadsDeviceStateValue.Shutdown));
+        }
+
+        /// <summary>
+        /// Observes a command's quarantine rejection with a bounded wait.
+        /// </summary>
+        private static async Task AssertQuarantinedAsync(Task command)
+        {
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await command.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false)).ConfigureAwait(false);
         }
 
         /// <summary>
