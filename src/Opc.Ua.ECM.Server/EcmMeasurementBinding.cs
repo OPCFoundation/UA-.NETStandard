@@ -160,7 +160,13 @@ namespace Opc.Ua.ECM.Server
                 {
                     m_logger.MeasurementProviderFailed(exception.ToString());
                 }
-                await MarkUnavailableAsync().ConfigureAwait(false);
+                Exception? notificationFailure = await MarkUnavailableAsync().ConfigureAwait(false);
+                if (notificationFailure is not null &&
+                    !ReferenceEquals(exception, notificationFailure) &&
+                    m_logger.IsEnabled(LogLevel.Error))
+                {
+                    m_logger.UnavailableStateNotificationFailed(notificationFailure.ToString());
+                }
                 throw;
             }
         }
@@ -630,17 +636,40 @@ namespace Opc.Ua.ECM.Server
         /// <summary>
         /// Marks published values unavailable while retaining their last values and timestamps.
         /// </summary>
-        private async ValueTask MarkUnavailableAsync()
+        private async ValueTask<Exception?> MarkUnavailableAsync()
         {
             foreach (EnergyMeasurementValueState node in m_measurements.Values)
             {
                 node.StatusCode = StatusCodes.BadNoCommunication;
-                await node.ClearChangeMasksAsync(m_context, true, CancellationToken.None).ConfigureAwait(false);
             }
             Required(MeasurementPoint.ApplicationTag).StatusCode = StatusCodes.BadNoCommunication;
-            // Unavailable state is committed and must be reported before the triggering failure escapes.
-            await MeasurementPoint.ClearChangeMasksAsync(
-                m_context, true, CancellationToken.None).ConfigureAwait(false);
+            var failures = new List<Exception>();
+            foreach (EnergyMeasurementValueState node in m_measurements.Values)
+            {
+                try
+                {
+                    await node.ClearChangeMasksAsync(m_context, true, CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception exception)
+                {
+                    failures.Add(exception);
+                }
+            }
+            try
+            {
+                await MeasurementPoint.ClearChangeMasksAsync(
+                    m_context, true, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception exception)
+            {
+                failures.Add(exception);
+            }
+            return failures.Count switch
+            {
+                0 => null,
+                1 => failures[0],
+                _ => new AggregateException("Unavailable-state notifications failed.", failures)
+            };
         }
 
         /// <summary>
@@ -985,6 +1014,17 @@ namespace Opc.Ua.ECM.Server
             Level = LogLevel.Warning,
             Message = "The ECM measurement topology cleanup failed: {Error}")]
         public static partial void MeasurementTopologyCleanupFailed(
+            this ILogger logger,
+            [SensitiveText] string error);
+
+        /// <summary>
+        /// Reports a notification failure while publishing unavailable measurements.
+        /// </summary>
+        [LoggerMessage(
+            EventId = EcmServerEventIds.EcmMeasurementBinding + 2,
+            Level = LogLevel.Error,
+            Message = "The ECM unavailable-state notification failed: {Error}")]
+        public static partial void UnavailableStateNotificationFailed(
             this ILogger logger,
             [SensitiveText] string error);
     }

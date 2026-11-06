@@ -418,9 +418,13 @@ namespace Opc.Ua.ECM.Tests
             await using EcmNodeManager manager = CreateManager(telemetry, queues);
             var context = manager.SystemContext;
             var acquired = new DateTime(2026, 8, 14, 9, 10, 11, DateTimeKind.Utc);
+            EcmMeasurementSnapshot initial = E2Snapshot(10f, 100f, 200f, acquired, acquired);
+            EcmMeasurementReading[] resetReadings = initial.Measurements.Span.ToArray()
+                .Where(static reading => reading.BrowseName != nameof(BrowseNames.AcActivePowerTotal))
+                .ToArray();
             var provider = new StatisticsProvider(
-                E2Snapshot(10f, 100f, 200f, acquired, acquired),
-                new EcmStatisticsSnapshot((DateTimeUtc)acquired, default));
+                initial,
+                new EcmStatisticsSnapshot((DateTimeUtc)acquired, resetReadings.ToArrayOf()));
             var parent = new BaseObjectState(null)
             {
                 NodeId = new NodeId("Device", manager.InstanceNamespaceIndex),
@@ -1575,7 +1579,7 @@ namespace Opc.Ua.ECM.Tests
             factory.Builder.AddOpcUaECM().Commit();
             server.SetupGet(value => value.NamespaceUris).Returns(namespaces);
             server.SetupGet(value => value.ServerUris).Returns(new StringTable());
-            server.SetupGet(value => value.TypeTree).Returns(new TypeTable(namespaces));
+            server.SetupGet(value => value.TypeTree).Returns(EcmTestTypeTable.Create(namespaces));
             server.SetupGet(value => value.Factory).Returns(factory);
             server.SetupGet(value => value.Telemetry).Returns(telemetry);
             server.SetupGet(value => value.MonitoredItemQueueFactory).Returns(queues);

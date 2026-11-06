@@ -83,10 +83,12 @@ namespace Opc.Ua.Client
             NodeId found = NodeId.Null;
             ExpandedNodeId foundTarget = default;
             bool foundReference = false;
+            // A node reached by distinct hierarchical edge types is still one child; repeated edges remain invalid.
+            var foundReferenceTypes = new HashSet<NodeId>();
             foreach (ReferenceDescription reference in
                 await BrowseAsync(session, parent, 0, cancellationToken).ConfigureAwait(false))
             {
-                if (reference.BrowseName != name)
+                if (reference.BrowseName != name || reference.NodeId.IsNull)
                 {
                     continue;
                 }
@@ -95,6 +97,11 @@ namespace Opc.Ua.Client
                     ? foundTarget == reference.NodeId
                     : found == candidate;
                 if (foundReference && !sameTarget)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadBrowseNameDuplicated, "The server exposes an ambiguous standard child.");
+                }
+                if (!candidate.IsNull && !foundReferenceTypes.Add(reference.ReferenceTypeId))
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadBrowseNameDuplicated, "The server exposes an ambiguous standard child.");

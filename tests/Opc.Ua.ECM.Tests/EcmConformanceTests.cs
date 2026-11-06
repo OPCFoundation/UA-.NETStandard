@@ -455,7 +455,7 @@ namespace Opc.Ua.ECM.Tests
             factory.Builder.AddOpcUaECM().Commit();
             server.SetupGet(value => value.NamespaceUris).Returns(namespaces);
             server.SetupGet(value => value.ServerUris).Returns(new StringTable());
-            server.SetupGet(value => value.TypeTree).Returns(new TypeTable(namespaces));
+            server.SetupGet(value => value.TypeTree).Returns(EcmTestTypeTable.Create(namespaces));
             server.SetupGet(value => value.Factory).Returns(factory);
             server.SetupGet(value => value.Telemetry).Returns(telemetry);
             server.SetupGet(value => value.MonitoredItemQueueFactory).Returns(queues);

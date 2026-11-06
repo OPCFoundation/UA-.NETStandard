@@ -369,7 +369,7 @@ namespace Opc.Ua.ECM.Tests
         }
 
         /// <summary>
-        /// Refresh awaits gated notifications without blocking its caller and queues reentrant writes.
+        /// Refresh queues a reentrant tag write without reacquiring the measurement snapshot.
         /// </summary>
         [Test]
         public async Task RefreshAwaitsGatedNotificationAndSerializesReentrantWrite()
@@ -380,14 +380,11 @@ namespace Opc.Ua.ECM.Tests
             ushort ecmNamespace = manager.SystemContext.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
             var firstTime = new DateTime(2026, 8, 14, 9, 10, 11, DateTimeKind.Utc);
             var secondTime = new DateTime(2026, 8, 14, 9, 10, 12, DateTimeKind.Utc);
-            var thirdTime = new DateTime(2026, 8, 14, 9, 10, 13, DateTimeKind.Utc);
             var provider = new TestMeasurementProvider(
                 Snapshot("meter/initial",
                     FloatReading(nameof(BrowseNames.DcCurrent), 10f, StatusCodes.Good, firstTime)),
                 Snapshot("meter/refreshed",
-                    FloatReading(nameof(BrowseNames.DcCurrent), 12f, StatusCodes.Good, secondTime)),
-                Snapshot("meter/reentrant",
-                    FloatReading(nameof(BrowseNames.DcCurrent), 15f, StatusCodes.Good, thirdTime)));
+                    FloatReading(nameof(BrowseNames.DcCurrent), 12f, StatusCodes.Good, secondTime)));
             BaseObjectState parent = await AddParentAsync(manager, "AsyncRefreshDevice");
             EcmMeasurementBinding binding = await manager.CreateMeasurementAsync(
                 new QualifiedName("AsyncRefreshMeter", manager.InstanceNamespaceIndex),
@@ -441,10 +438,10 @@ namespace Opc.Ua.ECM.Tests
                 .ConfigureAwait(false);
             Assert.That(write.Result.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(provider.PersistedApplicationTag, Is.EqualTo("meter/reentrant"));
-            Assert.That(provider.ReadCount, Is.EqualTo(3));
+            Assert.That(provider.ReadCount, Is.EqualTo(2));
             Assert.That(measurement.WrappedValue.TryGetValue(out float finalValue), Is.True);
-            Assert.That(finalValue, Is.EqualTo(15f));
-            Assert.That(measurement.Timestamp, Is.EqualTo((DateTimeUtc)thirdTime));
+            Assert.That(finalValue, Is.EqualTo(12f));
+            Assert.That(measurement.Timestamp, Is.EqualTo((DateTimeUtc)secondTime));
         }
 
         /// <summary>
@@ -2133,7 +2130,7 @@ namespace Opc.Ua.ECM.Tests
             factory.Builder.AddOpcUaECM().Commit();
             server.SetupGet(value => value.NamespaceUris).Returns(namespaces);
             server.SetupGet(value => value.ServerUris).Returns(new StringTable());
-            server.SetupGet(value => value.TypeTree).Returns(new TypeTable(namespaces));
+            server.SetupGet(value => value.TypeTree).Returns(EcmTestTypeTable.Create(namespaces));
             server.SetupGet(value => value.Factory).Returns(factory);
             server.SetupGet(value => value.Telemetry).Returns(telemetry);
             server.SetupGet(value => value.MonitoredItemQueueFactory).Returns(queues);
