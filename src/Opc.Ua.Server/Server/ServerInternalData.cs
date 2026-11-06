@@ -1628,9 +1628,13 @@ namespace Opc.Ua.Server
                 cancellationToken).ConfigureAwait(false);
 
             var configurationNodeManager = DiagnosticsNodeManager as ConfigurationNodeManager;
-            configurationNodeManager?.CreateServerConfiguration(
+            if (configurationNodeManager != null)
+            {
+                await configurationNodeManager.CreateServerConfigurationAsync(
                     DefaultSystemContext,
-                m_configuration);
+                    m_configuration,
+                    cancellationToken).ConfigureAwait(false);
+            }
             if (configurationNodeManager != null)
             {
                 await configurationNodeManager.RecoverConfigurationFileUpdateAsync(cancellationToken)

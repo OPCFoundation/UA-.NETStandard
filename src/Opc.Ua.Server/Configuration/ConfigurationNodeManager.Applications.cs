@@ -142,6 +142,52 @@ namespace Opc.Ua.Server
                 {
                     NamespaceDefaultPermissions defaults = NamespaceDefaultPermissionReader.Read(
                         Server, SystemContext, node.NodeId.NamespaceIndex);
+                    // Unresolved metadata is handled by the async startup pass; keep inheriting defaults here.
+                    if (defaults.Status != StatusCodes.BadWouldBlock)
+                    {
+                        if (!StatusCode.IsGood(defaults.Status))
+                        {
+                            throw new ServiceResultException(defaults.Status);
+                        }
+
+                        hasRolePermissionRestrictions = defaults.HasDefaultRolePermissions;
+                        if (hasRolePermissionRestrictions)
+                        {
+                            permissions = defaults.DefaultRolePermissions;
+                        }
+                    }
+                }
+
+                if (hasRolePermissionRestrictions)
+                {
+                    node.RolePermissions = AddSecurityAdminCallPermissions(permissions);
+                }
+            }
+
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(context, children);
+            foreach (BaseInstanceState child in children)
+            {
+                GrantSecurityAdminCallPermissions(context, child);
+            }
+        }
+
+        /// <summary>
+        /// Adds SecurityAdmin Browse and Call permissions after asynchronously resolving namespace defaults.
+        /// </summary>
+        private async ValueTask GrantSecurityAdminCallPermissionsAsync(
+            ServerSystemContext context,
+            NodeState node,
+            CancellationToken cancellationToken)
+        {
+            if (node is MethodState or BaseObjectState)
+            {
+                ArrayOf<RolePermissionType> permissions = node.RolePermissions;
+                bool hasRolePermissionRestrictions = !permissions.IsEmpty;
+                if (!hasRolePermissionRestrictions)
+                {
+                    NamespaceDefaultPermissions defaults = await NamespaceDefaultPermissionReader.ReadAsync(
+                        Server, context, node.NodeId.NamespaceIndex, cancellationToken).ConfigureAwait(false);
                     if (!StatusCode.IsGood(defaults.Status))
                     {
                         throw new ServiceResultException(defaults.Status);
@@ -156,34 +202,7 @@ namespace Opc.Ua.Server
 
                 if (hasRolePermissionRestrictions)
                 {
-                    const uint addedPermissions = (uint)(PermissionType.Browse | PermissionType.Call);
-                    NodeId roleId = ObjectIds.WellKnownRole_SecurityAdmin;
-                    var updatedPermissions = new List<RolePermissionType>(permissions.Count + 1);
-                    bool foundSecurityAdmin = false;
-                    for (int index = 0; index < permissions.Count; index++)
-                    {
-                        RolePermissionType permission = permissions[index];
-                        var updatedPermission = new RolePermissionType
-                        {
-                            RoleId = permission.RoleId,
-                            Permissions = permission.Permissions
-                        };
-                        if (updatedPermission.RoleId == roleId)
-                        {
-                            updatedPermission.Permissions |= addedPermissions;
-                            foundSecurityAdmin = true;
-                        }
-                        updatedPermissions.Add(updatedPermission);
-                    }
-                    if (!foundSecurityAdmin)
-                    {
-                        updatedPermissions.Add(new RolePermissionType
-                        {
-                            RoleId = roleId,
-                            Permissions = addedPermissions
-                        });
-                    }
-                    node.RolePermissions = updatedPermissions.ToArrayOf();
+                    node.RolePermissions = AddSecurityAdminCallPermissions(permissions);
                 }
             }
 
@@ -191,8 +210,46 @@ namespace Opc.Ua.Server
             node.GetChildren(context, children);
             foreach (BaseInstanceState child in children)
             {
-                GrantSecurityAdminCallPermissions(context, child);
+                await GrantSecurityAdminCallPermissionsAsync(context, child, cancellationToken)
+                    .ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// Adds SecurityAdmin Browse and Call permissions without replacing other role permissions.
+        /// </summary>
+        private static ArrayOf<RolePermissionType> AddSecurityAdminCallPermissions(
+            ArrayOf<RolePermissionType> permissions)
+        {
+            const uint addedPermissions = (uint)(PermissionType.Browse | PermissionType.Call);
+            NodeId roleId = ObjectIds.WellKnownRole_SecurityAdmin;
+            var updatedPermissions = new List<RolePermissionType>(permissions.Count + 1);
+            bool foundSecurityAdmin = false;
+            for (int index = 0; index < permissions.Count; index++)
+            {
+                RolePermissionType permission = permissions[index];
+                var updatedPermission = new RolePermissionType
+                {
+                    RoleId = permission.RoleId,
+                    Permissions = permission.Permissions
+                };
+                if (updatedPermission.RoleId == roleId)
+                {
+                    updatedPermission.Permissions |= addedPermissions;
+                    foundSecurityAdmin = true;
+                }
+                updatedPermissions.Add(updatedPermission);
+            }
+            if (!foundSecurityAdmin)
+            {
+                updatedPermissions.Add(new RolePermissionType
+                {
+                    RoleId = roleId,
+                    Permissions = addedPermissions
+                });
+            }
+
+            return updatedPermissions.ToArrayOf();
         }
 
         /// <summary>

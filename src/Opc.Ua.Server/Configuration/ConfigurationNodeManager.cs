@@ -681,6 +681,44 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Creates the server configuration and resolves namespace permissions asynchronously.
+        /// </summary>
+        /// <param name="systemContext">The server system context.</param>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        internal async ValueTask CreateServerConfigurationAsync(
+            ServerSystemContext systemContext,
+            ApplicationConfiguration configuration,
+            CancellationToken cancellationToken = default)
+        {
+            ConfigurePushConfiguration(systemContext, configuration);
+            await GrantSecurityAdminCallPermissionsAsync(
+                systemContext,
+                m_serverConfigurationNode!,
+                cancellationToken).ConfigureAwait(false);
+
+            // Namespace metadata and user management belong to the hosting server,
+            // not to independently managed ApplicationConfiguration instances.
+            m_namespaceMetadata.Attach(systemContext);
+
+            if (Server.UserManagement != null)
+            {
+                m_userManagementBinding?.Dispose();
+                m_userManagementBinding = UserManagement.UserManagementBinding.Bind(
+                    this,
+                    Server.UserManagement,
+                    Server.SessionManager);
+            }
+            else
+            {
+                m_userManagementBinding?.Dispose();
+                m_userManagementBinding = null;
+                await DeleteNodeAsync(systemContext, new NodeId(Objects.UserManagement), cancellationToken)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
         /// Wires certificate and trust management without binding host-only configuration services.
         /// </summary>
         private void ConfigurePushConfiguration(
