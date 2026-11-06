@@ -62,9 +62,9 @@ namespace Opc.Ua.ECM.Tests
             string[] expectedProfiles = ["E0", "E1", "E2", "E3", "D0", "D1"];
             Assert.That(profiles.Keys, Is.EquivalentTo(expectedProfiles));
             Assert.That(profiles["E2"].Members.Count(member => member.IsStatistic), Is.EqualTo(2));
-            Assert.That(profiles["E3"].Members.Count, Is.EqualTo(10));
+            Assert.That(profiles["E3"].Members, Has.Count.EqualTo(10));
             Assert.That(profiles["E3"].Members.Count(member => member.IsStatistic), Is.EqualTo(4));
-            Assert.That(profiles["D1"].Members.Count, Is.EqualTo(7));
+            Assert.That(profiles["D1"].Members, Has.Count.EqualTo(7));
             Assert.That(profiles["D1"].Members.Count(member => member.IsStatistic), Is.EqualTo(4));
         }
 
@@ -219,8 +219,8 @@ namespace Opc.Ua.ECM.Tests
             hostile.Arm();
 
             Assert.That(() => EcmOwnership.Own(value), Throws.TypeOf<ArgumentException>());
-            Assert.That(hostile.Touched, Is.EqualTo(0));
-            Assert.That(hostile.TypeIdReads, Is.EqualTo(0));
+            Assert.That(hostile.Touched, Is.Zero);
+            Assert.That(hostile.TypeIdReads, Is.Zero);
         }
 
         /// <summary>
@@ -298,7 +298,7 @@ namespace Opc.Ua.ECM.Tests
             EnergyMeasurementValueState export = (EnergyMeasurementValueState)point.FindChild(
                 context, new QualifiedName(nameof(BrowseNames.AcActiveEnergyTotalExportLp), ecmNamespace))!;
             Assert.That(export.WrappedValue.TryGetValue(out float exported), Is.True);
-            Assert.That(exported, Is.EqualTo(0f));
+            Assert.That(exported, Is.Zero);
         }
 
         /// <summary>
@@ -1248,8 +1248,8 @@ namespace Opc.Ua.ECM.Tests
                 Throws.InstanceOf<InvalidOperationException>()
                     .And.Message.Contains("ECM measurement"));
 
-            Assert.That(hostile.Touched, Is.EqualTo(0));
-            Assert.That(hostile.TypeIdReads, Is.EqualTo(0));
+            Assert.That(hostile.Touched, Is.Zero);
+            Assert.That(hostile.TypeIdReads, Is.Zero);
             EnergyMeasurementValueState voltage = Child(binding, context, nameof(BrowseNames.AcVoltagePe));
             Assert.That(voltage.WrappedValue.TryGetStructure<AcPeDataType>(out AcPeDataType? retained), Is.True);
             Assert.That(retained!.L1, Is.EqualTo(0.8f));

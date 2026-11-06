@@ -538,7 +538,7 @@ namespace Opc.Ua.ECM.IntegrationTests
             StatisticsMeasurementProvider provider,
             CancellationToken cancellationToken)
         {
-            m_measurement = await m_manager.CreateMeasurementAsync(
+            EcmMeasurementBinding measurement = await m_manager.CreateMeasurementAsync(
                 new QualifiedName("StatisticsMeter", m_manager.InstanceNamespaceIndex),
                 provider,
                 authorize: static (_, ct) =>
@@ -551,7 +551,7 @@ namespace Opc.Ua.ECM.IntegrationTests
             await foreach (EcmMeasurementClient candidate in EcmMeasurementClient.DiscoverAsync(
                 m_session, deviceSet, NUnitTelemetryContext.Create(), cancellationToken).ConfigureAwait(false))
             {
-                if (candidate.MeasurementPoint.ObjectId == m_measurement.MeasurementPoint.NodeId)
+                if (candidate.MeasurementPoint.ObjectId == measurement.MeasurementPoint.NodeId)
                 {
                     return candidate;
                 }
@@ -595,8 +595,6 @@ namespace Opc.Ua.ECM.IntegrationTests
             return Opc.Ua.DataTypeIds.Double;
         }
 
-        /// <summary>The measurement created by the current test.</summary>
-        private EcmMeasurementBinding m_measurement = null!;
         /// <summary>The fixture's dedicated PKI directory.</summary>
         private string m_pkiRoot = string.Empty;
 

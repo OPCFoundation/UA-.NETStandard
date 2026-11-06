@@ -546,10 +546,10 @@ namespace Opc.Ua.ECM.Tests
             };
             var provider = new ConformanceMeasurementProvider(snapshot);
             ISystemContext context = manager.SystemContext;
+            string measurementName = "Meter" + string.Join(string.Empty, profileNames) +
+                Interlocked.Increment(ref s_measurementInstanceId);
             EnergyMeasurementState point = context.CreateInstanceOfEnergyMeasurementType(
-                browseName: new QualifiedName(
-                    "Meter" + string.Join("", profileNames) + Interlocked.Increment(ref s_measurementInstanceId),
-                    manager.InstanceNamespaceIndex));
+                browseName: new QualifiedName(measurementName, manager.InstanceNamespaceIndex));
             var binding = new EcmMeasurementBinding(context, point, provider);
             await binding.RefreshAsync().ConfigureAwait(false);
             return binding;
@@ -631,11 +631,11 @@ namespace Opc.Ua.ECM.Tests
             string[] actualProfiles = contributor.ServerProfiles.Span.ToArray();
 
             Assert.That(actualUnits.Select(unit => unit.Name), Is.EquivalentTo(expectedUnits));
-            Assert.That(actualUnits.Length, Is.EqualTo(expectedUnits.Length));
+            Assert.That(actualUnits, Has.Length.EqualTo(expectedUnits.Length));
             Assert.That(actualUnits.Distinct().Count(), Is.EqualTo(actualUnits.Length));
             Assert.That(actualUnits.All(unit => unit.NamespaceIndex == 0), Is.True);
             Assert.That(actualProfiles, Is.EquivalentTo(expectedProfileArray));
-            Assert.That(actualProfiles.Length, Is.EqualTo(expectedProfileArray.Length));
+            Assert.That(actualProfiles, Has.Length.EqualTo(expectedProfileArray.Length));
             Assert.That(actualProfiles.Distinct().Count(), Is.EqualTo(actualProfiles.Length));
         }
 

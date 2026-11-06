@@ -316,7 +316,10 @@ namespace Opc.Ua.Aot.Tests
             var acquired = new DateTime(2026, 8, 14, 9, 10, 11, DateTimeKind.Utc);
             var restarted = new DateTime(2026, 8, 14, 10, 0, 0, DateTimeKind.Utc);
             var phases = new AcPeDataType { L1 = 1f, L2 = 2f, L3 = 3f };
-            var provider = new StatisticsProvider(acquired, restarted) { Current = phases };
+            var provider = new StatisticsProvider(acquired, restarted)
+            {
+                Current = Variant.FromStructure(phases)
+            };
             await using var binding = new EcmMeasurementBinding(
                 context, measurement, provider,
                 authorize: static (_, _) => new ValueTask<bool>(true));
@@ -340,7 +343,7 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(current.StatusCode).IsEqualTo(StatusCodes.Good);
 
             var hostile = new HostileAcPe { L1 = 5f };
-            provider.Current = hostile;
+            provider.Current = Variant.FromStructure(hostile);
             hostile.Arm();
             InvalidOperationException? failure = null;
             try
@@ -455,7 +458,7 @@ namespace Opc.Ua.Aot.Tests
         /// </summary>
         private sealed class StatisticsProvider(DateTime acquired, DateTime restarted) : IEcmStatisticsProvider
         {
-            public AcPeDataType? Current { get; set; }
+            public Variant? Current { get; set; }
 
             public int ResetCount { get; private set; }
 
@@ -467,11 +470,11 @@ namespace Opc.Ua.Aot.Tests
                     Float(ECM.BrowseNames.AcActiveEnergyTotalExportLp, ResetCount == 0 ? 100f : 0f),
                     Float(ECM.BrowseNames.AcActiveEnergyTotalImportLp, ResetCount == 0 ? 200f : 0f)
                 };
-                if (Current != null)
+                if (Current is Variant current)
                 {
                     readings.Add(new EcmMeasurementReading(
                         ECM.BrowseNames.AcCurrentPe,
-                        new Variant(new ExtensionObject(ECM.DataTypeIds.AcPeDataType, Current)),
+                        current,
                         ECM.DataTypeIds.AcPeDataType,
                         StatusCodes.Good,
                         acquired));
