@@ -3321,8 +3321,16 @@ namespace Opc.Ua.Server.Tests.Network
             {
                 ArrayOf<NetworkParameterValue> values = await m_client.ReadParametersAsync(
                     lldpPort, cancellationToken).ConfigureAwait(false);
+                ArrayOf<NetworkParameterValue> local = await m_client.ReadParametersAsync(
+                    ObjectIds.LLDP_LocalSystemData, cancellationToken).ConfigureAwait(false);
                 return Parameter(values, BrowseNames.ManagementAddressTxPort).DataValue.SourceTimestamp ==
-                    (DateTimeUtc)configuredTimestamp;
+                    (DateTimeUtc)configuredTimestamp &&
+                    local.ToList().Any(value =>
+                        value.BrowseName == new QualifiedName(BrowseNames.SystemCapabilitiesSupported, 0) &&
+                        value.DataValue.SourceTimestamp == (DateTimeUtc)configuredTimestamp) &&
+                    local.ToList().Any(value =>
+                        value.BrowseName == new QualifiedName(BrowseNames.SystemCapabilitiesEnabled, 0) &&
+                        value.DataValue.SourceTimestamp == (DateTimeUtc)configuredTimestamp);
             }, cancellationToken).ConfigureAwait(false);
 
             ArrayOf<NetworkParameterValue> localValues = await m_client.ReadParametersAsync(
@@ -3427,8 +3435,15 @@ namespace Opc.Ua.Server.Tests.Network
             {
                 ArrayOf<ReferenceDescription> children = await m_client.BrowseObjectsAsync(
                     ObjectIds.LLDP, cancellationToken).ConfigureAwait(false);
+                ArrayOf<NetworkParameterValue> local = await m_client.ReadParametersAsync(
+                    ObjectIds.LLDP_LocalSystemData, cancellationToken).ConfigureAwait(false);
                 return children.ToList().All(value =>
-                    value.BrowseName != new QualifiedName(BrowseNames.RemoteStatistics, 0));
+                    value.BrowseName != new QualifiedName(BrowseNames.RemoteStatistics, 0)) &&
+                    Parameter(local, BrowseNames.SystemName).DataValue.SourceTimestamp ==
+                    (DateTimeUtc)clearedTimestamp &&
+                    local.ToList().All(value =>
+                        value.BrowseName != new QualifiedName(BrowseNames.SystemCapabilitiesSupported, 0) &&
+                        value.BrowseName != new QualifiedName(BrowseNames.SystemCapabilitiesEnabled, 0));
             }, cancellationToken).ConfigureAwait(false);
             ArrayOf<NetworkParameterValue> clearedLocal = await m_client.ReadParametersAsync(
                 ObjectIds.LLDP_LocalSystemData, cancellationToken).ConfigureAwait(false);
