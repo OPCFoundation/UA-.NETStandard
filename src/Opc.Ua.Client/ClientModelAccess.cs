@@ -81,6 +81,8 @@ namespace Opc.Ua.Client
             }
             var name = new QualifiedName(browseName, (ushort)index);
             NodeId found = NodeId.Null;
+            ExpandedNodeId foundTarget = default;
+            bool foundReference = false;
             foreach (ReferenceDescription reference in
                 await BrowseAsync(session, parent, 0, cancellationToken).ConfigureAwait(false))
             {
@@ -88,12 +90,18 @@ namespace Opc.Ua.Client
                 {
                     continue;
                 }
-                if (!found.IsNull)
+                NodeId candidate = ExpandedNodeId.ToNodeId(reference.NodeId, session.NamespaceUris);
+                bool sameTarget = found.IsNull || candidate.IsNull
+                    ? foundTarget == reference.NodeId
+                    : found == candidate;
+                if (foundReference && !sameTarget)
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadBrowseNameDuplicated, "The server exposes an ambiguous standard child.");
                 }
-                found = ExpandedNodeId.ToNodeId(reference.NodeId, session.NamespaceUris);
+                found = candidate;
+                foundTarget = reference.NodeId;
+                foundReference = true;
             }
             return found;
         }

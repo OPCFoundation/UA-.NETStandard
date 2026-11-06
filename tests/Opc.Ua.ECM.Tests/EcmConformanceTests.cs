@@ -517,11 +517,12 @@ namespace Opc.Ua.ECM.Tests
             EcmNodeManager manager,
             params string[] profileNames)
         {
+            bool allProfiles = profileNames.Length == 1 && profileNames[0] == "All";
             var selected = new HashSet<string>(profileNames, StringComparer.Ordinal);
-            EcmProfileDefinition[] definitions = EcmMeasurementProfiles.All
-                .Where(profile => selected.Contains(profile.Name))
-                .ToArray();
-            if (definitions.Length != selected.Count)
+            EcmProfileDefinition[] definitions = allProfiles
+                ? EcmMeasurementProfiles.All.ToArray()
+                : EcmMeasurementProfiles.All.Where(profile => selected.Contains(profile.Name)).ToArray();
+            if (!allProfiles && definitions.Length != selected.Count)
             {
                 throw new ArgumentException("Every requested profile must be in the ECM catalogue.", nameof(profileNames));
             }

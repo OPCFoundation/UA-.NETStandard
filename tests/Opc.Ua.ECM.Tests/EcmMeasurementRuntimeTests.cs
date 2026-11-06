@@ -428,7 +428,7 @@ namespace Opc.Ua.ECM.Tests
                 {
                     Assert.That(measurement.WrappedValue.TryGetValue(out float value), Is.True);
                     Assert.That(value, Is.EqualTo(12f));
-                    Assert.That(applicationTag.Value, Is.EqualTo("meter/initial"));
+                    Assert.That(applicationTag.Value, Is.EqualTo("meter/refreshed"));
                     Assert.That(provider.WriteCount, Is.Zero);
                     Assert.That(reentrantWrite, Is.Not.Null);
                     Assert.That(reentrantWrite!.IsCompleted, Is.False);
@@ -722,6 +722,7 @@ namespace Opc.Ua.ECM.Tests
             source.DisplayName = nullText ? LocalizedText.Null : new LocalizedText("de", "Ampere");
             source.Description = nullText ? LocalizedText.Null : new LocalizedText("en", "Current");
             string? expectedNamespace = source.NamespaceUri;
+            int expectedUnitId = source.UnitId;
             LocalizedText expectedName = source.DisplayName;
             LocalizedText expectedDescription = source.Description;
             DateTime acquired = new(2026, 8, 14, 9, 20, 0, DateTimeKind.Utc);
@@ -746,7 +747,7 @@ namespace Opc.Ua.ECM.Tests
             Assert.That(published, Is.Not.SameAs(source));
             Assert.That(published.GetType(), Is.EqualTo(typeof(EUInformation)));
             Assert.That(published.NamespaceUri, Is.EqualTo(expectedNamespace));
-            Assert.That(published.UnitId, Is.EqualTo(42));
+            Assert.That(published.UnitId, Is.EqualTo(expectedUnitId));
             Assert.That(published.DisplayName, Is.EqualTo(expectedName));
             Assert.That(published.Description, Is.EqualTo(expectedDescription));
             Assert.That(measurement.Timestamp, Is.EqualTo((DateTimeUtc)acquired));
@@ -1953,6 +1954,7 @@ namespace Opc.Ua.ECM.Tests
                         StatusCodes.Good, new DateTime(2026, 8, 14, 11, 40, 1, DateTimeKind.Utc))));
             BaseObjectState parent = await AddParentAsync(manager, "QueuedTagDevice");
             var locks = new Mock<ILockService>(MockBehavior.Strict);
+            Mock<ILockOwnershipService> ownership = locks.As<ILockOwnershipService>();
             EcmMeasurementBinding binding = await manager.CreateMeasurementAsync(
                 new QualifiedName("QueuedTagMeter", manager.InstanceNamespaceIndex),
                 provider,
@@ -1970,7 +1972,7 @@ namespace Opc.Ua.ECM.Tests
             int ownershipChecks = 0;
             var firstOwnershipCheck = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            locks.As<ILockOwnershipService>().Setup(service =>
+            ownership.Setup(service =>
                 service.IsLockOwner(manager.SystemContext, binding.MeasurementPoint.NodeId))
                 .Returns(() =>
                 {
@@ -2009,7 +2011,7 @@ namespace Opc.Ua.ECM.Tests
             Assert.That(provider.PersistedApplicationTag, Is.EqualTo("meter/initial"));
             Assert.That(applicationTag.Value, Is.EqualTo("meter/initial"));
             Assert.That(ownershipChecks, Is.EqualTo(2));
-            locks.As<ILockOwnershipService>().Verify(service =>
+            ownership.Verify(service =>
                 service.IsLockOwner(manager.SystemContext, binding.MeasurementPoint.NodeId),
                 Times.Exactly(2));
         }
