@@ -403,7 +403,10 @@ namespace Opc.Ua.Server.Tests.Network
             await using ILifecycleWriter writer = await lifecycle.BeginAsync(cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
             await using (IPreparedChanges prepared = await writer.PrepareAsync(
-                [LifecycleChange.Reload(slot, new NetworkModelNodeManagerFactory(candidate, _ => false))],
+                [
+                    LifecycleChange.Remove(slot),
+                    LifecycleChange.Add(new NetworkModelNodeManagerFactory(candidate, _ => false))
+                ],
                 cancellationToken).ConfigureAwait(false))
             {
                 Assert.That(prepared.IsCommitted, Is.False);
