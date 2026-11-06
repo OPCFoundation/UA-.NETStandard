@@ -1653,6 +1653,20 @@ namespace Opc.Ua
             }
 
             /// <summary>
+            /// A snapshot of the worker tasks started by this queue.
+            /// </summary>
+            internal Task[] Workers
+            {
+                get
+                {
+                    lock (m_workers)
+                    {
+                        return [.. m_workers];
+                    }
+                }
+            }
+
+            /// <summary>
             /// Frees any unmanaged resources.
             /// </summary>
             public void Dispose()
@@ -1680,10 +1694,12 @@ namespace Opc.Ua
                     {
                         m_queueSignal.Release(m_totalThreadCount); // Unblock all workers
                     }
-                    Utils.SilentDispose(m_queueSignal);
 
+                    // m_queueSignal and m_cts are deliberately not disposed: workers stop
+                    // asynchronously and may still be starting or inside WaitAsync, which on
+                    // .NET Framework fails with ArgumentNullException on a disposed semaphore.
+                    // Neither owns unmanaged resources, as their wait handles are never used.
                     DrainQueue();
-                    Utils.SilentDispose(m_cts);
                 }
             }
 
@@ -1757,14 +1773,7 @@ namespace Opc.Ua
                     DrainQueue();
                     return;
                 }
-                try
-                {
-                    m_queueSignal.Release();
-                }
-                catch (ObjectDisposedException)
-                {
-                    DrainQueue();
-                }
+                m_queueSignal.Release();
             }
 
             /// <summary>
@@ -1817,10 +1826,6 @@ namespace Opc.Ua
                 catch (OperationCanceledException)
                 {
                     // Graceful shutdown
-                }
-                catch (ObjectDisposedException)
-                {
-                    // Graceful shutdown: the queue signal was disposed while waiting
                 }
                 finally
                 {
