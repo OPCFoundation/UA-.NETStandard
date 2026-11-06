@@ -182,7 +182,9 @@ namespace Opc.Ua.Server.Tests
                         if (node is MethodState or BaseObjectState)
                         {
                             bool explicitNode = explicitPermissions && ReferenceEquals(node, harness.Node);
-                            if (restricted || explicitNode)
+                            // Dynamic alarm nodes use their own namespace, not namespace zero's defaults.
+                            bool namespaceRestricted = restricted && node.NodeId.NamespaceIndex == 0;
+                            if (namespaceRestricted || explicitNode)
                             {
                                 Assert.That(node.RolePermissions.Count, Is.EqualTo(2), node.BrowseName.ToString());
                                 Assert.Multiple(() =>
