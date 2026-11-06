@@ -230,22 +230,47 @@ namespace Opc.Ua.Server.Fluent
         /// <see cref="StatusCodes.BadInvalidState"/> — the builder is sealed
         /// or the staged graph was already registered.
         /// </exception>
-        public async ValueTask RegisterAuthoredNodesAsync(
+        public ValueTask RegisterAuthoredNodesAsync(
             Func<NodeState, CancellationToken, ValueTask> register,
             CancellationToken cancellationToken = default)
+        {
+            return RegisterAuthoredNodesCoreAsync(register, resumeAfterFailure: false, cancellationToken);
+        }
+
+        /// <summary>
+        /// Resumes interrupted root registration without replaying completed roots or reopening graph authoring.
+        /// </summary>
+        internal ValueTask ResumeAuthoredNodesRegistrationAsync(
+            Func<NodeState, CancellationToken, ValueTask> register,
+            CancellationToken cancellationToken)
+        {
+            return RegisterAuthoredNodesCoreAsync(register, resumeAfterFailure: true, cancellationToken);
+        }
+
+        /// <summary>
+        /// Hands off staged roots, retaining the completed-root cursor only for an explicitly resumable owner.
+        /// </summary>
+        private async ValueTask RegisterAuthoredNodesCoreAsync(
+            Func<NodeState, CancellationToken, ValueTask> register,
+            bool resumeAfterFailure,
+            CancellationToken cancellationToken)
         {
             ThrowIfSealed();
             if (register is null)
             {
                 throw new ArgumentNullException(nameof(register));
             }
-            ThrowIfAuthoredNodesRegistered();
+            if (!resumeAfterFailure || m_registeredAuthoredRoots == m_authoredRoots.Count)
+            {
+                ThrowIfAuthoredNodesRegistered();
+            }
 
             m_authoredNodesRegistered = true;
-            foreach (NodeState root in m_authoredRoots)
+            while (m_registeredAuthoredRoots < m_authoredRoots.Count)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                await register(root, cancellationToken).ConfigureAwait(false);
+                await register(m_authoredRoots[m_registeredAuthoredRoots], cancellationToken).ConfigureAwait(false);
+                m_registeredAuthoredRoots++;
             }
         }
 
@@ -815,5 +840,8 @@ namespace Opc.Ua.Server.Fluent
         private readonly Dictionary<NodeId, NodeState> m_authoredNodes = [];
         private readonly List<NodeState> m_authoredRoots = [];
         private bool m_authoredNodesRegistered;
+
+        /// <summary>The number of fully registered roots; the current interrupted root remains retryable.</summary>
+        private int m_registeredAuthoredRoots;
     }
 }
