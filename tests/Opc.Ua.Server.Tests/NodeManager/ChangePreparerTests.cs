@@ -31,6 +31,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using NUnit.Framework;
 
@@ -451,6 +452,54 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// A custom facade over a synchronous candidate resolves the same staging server as its adapter.
+        /// </summary>
+        /// <remarks>
+        /// MasterNodeManager uses this lookup to capture a private candidate's external references and to
+        /// skip removing serving namespace registrations and references during private rollback. A manager
+        /// bound to the serving server has no staging server, so rollback still cleans its live entries.
+        /// </remarks>
+        [Test]
+        public async Task GetServerResolvesSynchronousCandidateThroughCustomFacadeAsync()
+        {
+            Mock<IServerInternal> server = CreateServer();
+            await using ChangePreparer.StagingServer staging = new ChangePreparer(server.Object).CreateServer();
+            await using var alternateAdapter = new AsyncNodeManagerAdapter(
+                new SynchronousManager(staging, kStagedNamespaceUri));
+            await using var serving = new SynchronousManager(server.Object, kBaseNamespaceUri);
+            INodeManager candidate = alternateAdapter.SyncNodeManager;
+            IAsyncNodeManager adapter = candidate.ToAsyncNodeManager();
+            var candidateFacade = new Mock<IAsyncNodeManager>();
+            candidateFacade.SetupGet(value => value.SyncNodeManager).Returns(candidate);
+            var servingFacade = new Mock<IAsyncNodeManager>();
+            servingFacade.SetupGet(value => value.SyncNodeManager).Returns(serving);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(adapter, Is.InstanceOf<AsyncNodeManagerAdapter>());
+                Assert.That(ChangePreparer.GetServer(adapter), Is.SameAs(staging));
+                Assert.That(alternateAdapter, Is.Not.SameAs(adapter));
+                Assert.That(ChangePreparer.GetServer(alternateAdapter), Is.SameAs(staging));
+                Assert.That(ChangePreparer.GetServer(candidateFacade.Object), Is.SameAs(staging));
+                Assert.That(staging.IsStaging, Is.True);
+                Assert.That(staging.NamespaceUris.GetIndex(kStagedNamespaceUri), Is.GreaterThanOrEqualTo(0));
+                Assert.That(server.Object.NamespaceUris.GetIndex(kStagedNamespaceUri), Is.EqualTo(-1));
+                Assert.That(ChangePreparer.GetServer(serving.ToAsyncNodeManager()), Is.Null);
+                Assert.That(ChangePreparer.GetServer(servingFacade.Object), Is.Null);
+            });
+
+            ChangePreparer.Bind(candidateFacade.Object);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(staging.IsStaging, Is.False);
+                Assert.That(ChangePreparer.GetServer(adapter), Is.SameAs(staging));
+                Assert.That(ChangePreparer.GetServer(alternateAdapter), Is.SameAs(staging));
+                Assert.That(ChangePreparer.GetServer(candidateFacade.Object), Is.SameAs(staging));
+            });
+        }
+
+        /// <summary>
         /// Creates isolated serving metadata and context without starting a server.
         /// </summary>
         private static Mock<IServerInternal> CreateServer()
@@ -513,5 +562,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>The serving registration added after candidate detachment.</summary>
         private static readonly ExpandedNodeId s_postDetachRegistrationId =
             new(99004, "urn:opcfoundation.org:Tests:ChangePreparer:Encodeables");
+
+        /// <summary>
+        /// A synchronous NodeManager bound to the server it is constructed with.
+        /// </summary>
+        private sealed class SynchronousManager : CustomNodeManager2
+        {
+            /// <summary>
+            /// Creates the NodeManager for one namespace.
+            /// </summary>
+            public SynchronousManager(IServerInternal server, string namespaceUri)
+                : base(server, NullLogger.Instance, namespaceUri)
+            {
+            }
+        }
     }
 }
