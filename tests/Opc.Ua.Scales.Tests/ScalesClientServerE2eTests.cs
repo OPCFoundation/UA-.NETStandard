@@ -343,7 +343,7 @@ namespace Opc.Ua.Scales.Tests
                 devices.Select(scale => scale.NodeId).Distinct().Count(),
                 Is.EqualTo(devices.Length),
                 "organized twice, reported once");
-            Assert.That(devices.Length, Is.GreaterThanOrEqualTo(m_scales.Count));
+            Assert.That(devices, Has.Length.GreaterThanOrEqualTo(m_scales.Count));
             foreach (ScaleHandle expected in m_scales.Values)
             {
                 Assert.That(devices.Count(scale => scale.NodeId == expected.NodeId), Is.EqualTo(1));

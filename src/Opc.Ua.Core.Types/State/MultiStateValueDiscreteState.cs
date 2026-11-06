@@ -113,11 +113,6 @@ namespace Opc.Ua
             NumericRange indexRange,
             Variant value)
         {
-            bool hasApplicationWriteHandler =
-                OnWriteValue != null ||
-                OnSimpleWriteValue != null ||
-                OnWriteValueAsync != null ||
-                OnSimpleWriteValueAsync != null;
             LocalizedText matchedText = LocalizedText.Null;
             bool matched = false;
             if (indexRange.IsNull &&
@@ -143,9 +138,7 @@ namespace Opc.Ua
 
             return new AttributeWriteResult(ServiceResult.Good)
             {
-                AfterOrdinaryCacheCommit = matched && !hasApplicationWriteHandler
-                    ? () => UpdateValueAsText(matchedText)
-                    : null
+                AfterOrdinaryCacheCommit = matched ? () => UpdateValueAsText(matchedText) : null
             };
         }
 

@@ -813,7 +813,8 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(synchronousCalls, Is.Zero);
             Assert.That(nativeCalls, Is.EqualTo(policy == "native" ? 1 : 0));
             Assert.That(variable.Value.GetUInt32(), Is.EqualTo(policy == "native" ? 4u : 1u));
-            Assert.That(variable.ValueAsText!.Value.Text, Is.EqualTo("initial"));
+            Assert.That(variable.ValueAsText!.Value.Text,
+                Is.EqualTo(policy == "native" ? "four" : "initial"));
             if (policy == "late")
             {
                 variable.OnSimpleWriteValue = null;
