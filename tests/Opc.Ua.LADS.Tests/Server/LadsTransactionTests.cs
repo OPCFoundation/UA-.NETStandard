@@ -554,6 +554,13 @@ namespace Opc.Ua.LADS.Tests.Server
             await programs.AddTemplateAsync(Template("Start")).ConfigureAwait(false);
             MethodState startProgram = unit.Node.FunctionalUnitState!.StartProgram ??
                 throw new AssertionException("The StartProgram method is missing.");
+            BaseVariableState activeProgramId = programs.Node.ActiveProgram!.DeviceProgramRunId!;
+            NodeStateChangedAsyncHandler? previousActiveProgram = activeProgramId.OnStateChangedAsync;
+            activeProgramId.OnStateChangedAsync = (_, _, _, _) =>
+            {
+                startProgram.UpdateChangeMasks(NodeStateChangeMasks.NonValue);
+                return default;
+            };
             NodeStateChangedAsyncHandler? previous = startProgram.OnStateChangedAsync;
             var notificationEntered = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
@@ -670,6 +677,7 @@ namespace Opc.Ua.LADS.Tests.Server
                     }
                 }
                 startProgram.OnStateChangedAsync = previous;
+                activeProgramId.OnStateChangedAsync = previousActiveProgram;
                 device.DeviceState.StateChangedAsync -= deviceHandler;
             }
 

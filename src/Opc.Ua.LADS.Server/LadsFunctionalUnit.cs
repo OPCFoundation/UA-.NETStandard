@@ -611,6 +611,10 @@ namespace Opc.Ua.LADS.Server
 
             if (cleanupFailure != null)
             {
+                if (operationFailure != null)
+                {
+                    throw new AggregateException(operationFailure, cleanupFailure);
+                }
                 ExceptionDispatchInfo.Capture(cleanupFailure).Throw();
             }
             if (operationFailure != null)

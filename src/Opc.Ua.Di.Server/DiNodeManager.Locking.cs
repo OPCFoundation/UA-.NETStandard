@@ -317,13 +317,17 @@ namespace Opc.Ua.Di.Server
                 {
                     m_lockRegistrations.TryGetValue(current.NodeId, out registration);
                 }
-                if (registration != null && !ReferenceEquals(registration.Element.Lock, lockMethods))
+                if (registration != null)
                 {
-                    IDisposable? activity = registration.Service.EnterActivity(
-                        context, registration.Element.NodeId, modifying);
-                    if (activity != null)
+                    registration.AttachSessionManager();
+                    if (!ReferenceEquals(registration.Element.Lock, lockMethods))
                     {
-                        activities.Add(activity);
+                        IDisposable? activity = registration.Service.EnterActivity(
+                            context, registration.Element.NodeId, modifying);
+                        if (activity != null)
+                        {
+                            activities.Add(activity);
+                        }
                     }
                 }
                 current = (current as BaseInstanceState)?.Parent;
@@ -387,8 +391,7 @@ namespace Opc.Ua.Di.Server
                 m_owner = owner;
                 Element = element;
                 Service = service;
-                m_sessions = owner.Server.SessionManager;
-                m_sessions.SessionClosing += OnSessionClosing;
+                AttachSessionManager();
             }
 
             /// <summary>
@@ -401,6 +404,26 @@ namespace Opc.Ua.Di.Server
             /// </summary>
             public ILockActivityService Service { get; }
 
+            /// <summary>
+            /// Attaches once the server has created its session manager, before the first lock request.
+            /// </summary>
+            public void AttachSessionManager()
+            {
+                DiNodeManager? owner = Volatile.Read(ref m_owner);
+                if (owner == null)
+                {
+                    return;
+                }
+                lock (owner.m_lockRegistrationsGate)
+                {
+                    if (m_owner != null && m_sessions == null && owner.Server.SessionManager is { } sessions)
+                    {
+                        m_sessions = sessions;
+                        sessions.SessionClosing += OnSessionClosing;
+                    }
+                }
+            }
+
             /// <inheritdoc/>
             public void Dispose()
             {
@@ -412,9 +435,13 @@ namespace Opc.Ua.Di.Server
                 Service.BreakLock(owner.SystemContext, Element.NodeId);
                 if (ReferenceEquals(Interlocked.CompareExchange(ref m_owner, null, owner), owner))
                 {
-                    m_sessions.SessionClosing -= OnSessionClosing;
                     lock (owner.m_lockRegistrationsGate)
                     {
+                        if (m_sessions != null)
+                        {
+                            m_sessions.SessionClosing -= OnSessionClosing;
+                            m_sessions = null;
+                        }
                         owner.m_lockRegistrations.Remove(Element.NodeId);
                     }
                 }
@@ -432,7 +459,7 @@ namespace Opc.Ua.Di.Server
             private DiNodeManager? m_owner;
 
             /// <summary>The session lifetime source retained by this registration.</summary>
-            private readonly ISessionManager m_sessions;
+            private ISessionManager? m_sessions;
         }
     }
 }

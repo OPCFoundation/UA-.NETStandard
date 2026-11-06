@@ -36,6 +36,7 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.Di.Server;
 using Opc.Ua.LADS.Server.StateMachines;
 using Opc.Ua.Server;
+using Opc.Ua.Server.Fluent;
 
 namespace Opc.Ua.LADS.Server
 {
@@ -1110,6 +1111,13 @@ namespace Opc.Ua.LADS.Server
             {
                 case AnalogControlFunctionWithTotalizerState totalizer:
                     totalizer.AddResetTotalizer(context);
+                    totalizer.ResetTotalizer!.AddInputArguments(context, new Argument
+                    {
+                        Name = "Value",
+                        DataType = Opc.Ua.Types.DataTypeIds.Double,
+                        ValueRank = ValueRanks.Scalar,
+                        Description = new LocalizedText("The value to assign to the totalizer.")
+                    });
                     ConfigureAnalog(totalizer.TotalizedValue, options.EngineeringUnits, null);
                     Runtime.Update(totalizer.TotalizedValue, Variant.From(0.0));
                     Runtime.Bind(

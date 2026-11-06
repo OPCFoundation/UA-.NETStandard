@@ -336,8 +336,8 @@ namespace Opc.Ua.LADS.Tests.Server
                 await entered.Task.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
                 await device.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
                 Assert.That(exited.Task.Status, Is.EqualTo(TaskStatus.RanToCompletion));
-                await Assert.ThrowsAsync<OperationCanceledException>(async () =>
-                    await start.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false));
+                await Assert.ThatAsync(() => start.WaitAsync(TimeSpan.FromSeconds(30)),
+                    Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
                 Assert.That(device.RequiresReadinessConfirmation, Is.True);
                 LadsStoredDeviceData saved = (await store.LoadAsync(kIdentity).ConfigureAwait(false))!;
                 Assert.That(saved.FunctionalUnits[0].InterruptedRunId, Is.EqualTo(kRun));

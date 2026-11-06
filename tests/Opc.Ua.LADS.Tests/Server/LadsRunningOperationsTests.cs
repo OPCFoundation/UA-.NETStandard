@@ -1383,20 +1383,27 @@ namespace Opc.Ua.LADS.Tests.Server
                 }
                 observations.Add($"{observer}:{state}");
             }
-            unit.Running.StateChanged += state => Observe("typed", state);
-            unit.Running.Driver.StateChanged += _ => Observe("raw", unit.Running.Current);
+            void ObserveTyped(LadsRunningStateValue state) => Observe("typed", state);
+            void ObserveRaw(uint _) => Observe("raw", unit.Running.Current);
+            unit.Running.StateChanged += ObserveTyped;
+            unit.Running.Driver.StateChanged += ObserveRaw;
 
-            Assert.That(
-                await unit.Running.TransitionToAsync(LadsRunningStateValue.Holding).ConfigureAwait(false),
-                Is.True);
-            Assert.That(
-                await unit.Running.TransitionToAsync(LadsRunningStateValue.Held).ConfigureAwait(false),
-                Is.True);
-            await unit.Running.SetStateAsync(LadsRunningStateValue.Execute).ConfigureAwait(false);
-
-            Assert.That(
-                observations,
-                Is.EqualTo(s_expectedRunningStateObservations));
+            try
+            {
+                Assert.That(
+                    await unit.Running.TransitionToAsync(LadsRunningStateValue.Holding).ConfigureAwait(false),
+                    Is.True);
+                Assert.That(
+                    await unit.Running.TransitionToAsync(LadsRunningStateValue.Held).ConfigureAwait(false),
+                    Is.True);
+                await unit.Running.SetStateAsync(LadsRunningStateValue.Execute).ConfigureAwait(false);
+                Assert.That(observations, Is.EqualTo(s_expectedRunningStateObservations));
+            }
+            finally
+            {
+                unit.Running.StateChanged -= ObserveTyped;
+                unit.Running.Driver.StateChanged -= ObserveRaw;
+            }
         }
 
         /// <summary>

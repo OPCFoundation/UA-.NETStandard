@@ -84,15 +84,15 @@ namespace Opc.Ua.LADS.Tests.Integration
             await hardware!.ReportStateAsync(LadsCoverStateValue.Opened).ConfigureAwait(false);
             LadsFunctionSnapshot observed = await cover.ReadAsync().ConfigureAwait(false);
             Assert.That(observed.State, Is.EqualTo("Opened"));
-            await LadsAssert.ThrowsStatusAsync(StatusCodes.BadMethodInvalid, () => cover.OpenAsync())
+            await LadsAssert.ThrowsStatusAsync(StatusCodes.BadNotImplemented, () => cover.OpenAsync())
                 .ConfigureAwait(false);
-            await LadsAssert.ThrowsStatusAsync(StatusCodes.BadMethodInvalid, () => cover.CloseAsync())
+            await LadsAssert.ThrowsStatusAsync(StatusCodes.BadNotImplemented, () => cover.CloseAsync())
                 .ConfigureAwait(false);
-            await LadsAssert.ThrowsStatusAsync(StatusCodes.BadMethodInvalid, () => cover.ResetAsync())
+            await LadsAssert.ThrowsStatusAsync(StatusCodes.BadNotImplemented, () => cover.ResetAsync())
                 .ConfigureAwait(false);
-            await LadsAssert.ThrowsStatusAsync(StatusCodes.BadMethodInvalid, () => cover.LockAsync())
+            await LadsAssert.ThrowsStatusAsync(StatusCodes.BadNotImplemented, () => cover.LockAsync())
                 .ConfigureAwait(false);
-            await LadsAssert.ThrowsStatusAsync(StatusCodes.BadMethodInvalid, () => cover.UnlockAsync())
+            await LadsAssert.ThrowsStatusAsync(StatusCodes.BadNotImplemented, () => cover.UnlockAsync())
                 .ConfigureAwait(false);
             Assert.That(hardware.State, Is.EqualTo(LadsCoverStateValue.Opened));
             Assert.That((await cover.ReadAsync().ConfigureAwait(false)).State, Is.EqualTo("Opened"));
@@ -130,7 +130,7 @@ namespace Opc.Ua.LADS.Tests.Integration
             else
             {
                 await LadsAssert.ThrowsStatusAsync(
-                    StatusCodes.BadMethodInvalid, () => unit.DownloadProgramTemplateAsync("Seed"))
+                    StatusCodes.BadNotImplemented, () => unit.DownloadProgramTemplateAsync("Seed"))
                     .ConfigureAwait(false);
             }
             ArrayOf<KeyValueType> parameters = [new KeyValueType { Key = "TemplateId", Value = "Copy" }];
@@ -143,7 +143,7 @@ namespace Opc.Ua.LADS.Tests.Integration
             else
             {
                 await LadsAssert.ThrowsStatusAsync(
-                    StatusCodes.BadMethodInvalid, () => unit.UploadProgramTemplateAsync(content, parameters))
+                    StatusCodes.BadNotImplemented, () => unit.UploadProgramTemplateAsync(content, parameters))
                     .ConfigureAwait(false);
                 Assert.That(programs.Templates.ToList().Select(value => value.Id), Does.Not.Contain("Copy"));
             }
@@ -155,7 +155,7 @@ namespace Opc.Ua.LADS.Tests.Integration
             else
             {
                 await LadsAssert.ThrowsStatusAsync(
-                    StatusCodes.BadMethodInvalid, () => unit.RemoveProgramTemplateAsync("Seed")).ConfigureAwait(false);
+                    StatusCodes.BadNotImplemented, () => unit.RemoveProgramTemplateAsync("Seed")).ConfigureAwait(false);
                 Assert.That(programs.Templates.ToList().Select(value => value.Id), Does.Contain("Seed"));
             }
         }

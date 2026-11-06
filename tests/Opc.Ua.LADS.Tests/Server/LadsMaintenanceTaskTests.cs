@@ -719,7 +719,7 @@ namespace Opc.Ua.LADS.Tests.Server
                 if (failureStage != "Condition")
                 {
                     await report.Entered.Task.WaitAsync(LadsNotificationTestSupport.Timeout).ConfigureAwait(false);
-                    expectedOrder.Add("event");
+                    expectedOrder.AddRange(["event-sync", "event"]);
                     Assert.That(order, Is.EqualTo(expectedOrder));
                     Assert.That(operation.IsCompleted, Is.False);
                     Assert.That(save.Entered.Task.IsCompleted, Is.False);
