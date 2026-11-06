@@ -57,10 +57,9 @@ namespace Opc.Ua.ECM.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queues = new MonitoredItemQueueFactory(telemetry);
             await using EcmNodeManager manager = CreateManager(telemetry, queues);
-            ISystemContext context = manager.SystemContext;
+            var context = manager.SystemContext;
             EnergyMeasurementState measurementPoint = context.CreateInstanceOfEnergyMeasurementType(
-                null,
-                new QualifiedName("Meter", manager.InstanceNamespaceIndex));
+                browseName: new QualifiedName("Meter", manager.InstanceNamespaceIndex));
             var browseName = new QualifiedName("Power", manager.InstanceNamespaceIndex);
             var engineeringUnits = new EUInformation
             {
@@ -128,11 +127,10 @@ namespace Opc.Ua.ECM.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queues = new MonitoredItemQueueFactory(telemetry);
             await using EcmNodeManager manager = CreateManager(telemetry, queues);
-            ISystemContext context = manager.SystemContext;
+            var context = manager.SystemContext;
             ushort ecmNamespace = context.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
             EnergyMeasurementState measurementPoint = context.CreateInstanceOfEnergyMeasurementType(
-                null,
-                new QualifiedName("Meter", manager.InstanceNamespaceIndex));
+                browseName: new QualifiedName("Meter", manager.InstanceNamespaceIndex));
             byte[] identifier = [1, 2, 3];
             var accuracyDomain = new NodeId(new ByteString(identifier.AsMemory()), ecmNamespace);
             NodeId expected = new(ByteString.From(identifier.AsSpan()), ecmNamespace);

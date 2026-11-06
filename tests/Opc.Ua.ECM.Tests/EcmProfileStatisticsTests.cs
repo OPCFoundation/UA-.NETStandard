@@ -35,6 +35,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Di.Server;
 using Opc.Ua.ECM;
 using Opc.Ua.ECM.Server;
 using Opc.Ua.Server;
@@ -58,7 +59,8 @@ namespace Opc.Ua.ECM.Tests
             Dictionary<string, EcmProfileDefinition> profiles = EcmMeasurementProfiles.All
                 .ToDictionary(profile => profile.Name, StringComparer.Ordinal);
 
-            Assert.That(profiles.Keys, Is.EquivalentTo(new[] { "E0", "E1", "E2", "E3", "D0", "D1" }));
+            string[] expectedProfiles = ["E0", "E1", "E2", "E3", "D0", "D1"];
+            Assert.That(profiles.Keys, Is.EquivalentTo(expectedProfiles));
             Assert.That(profiles["E2"].Members.Count(member => member.IsStatistic), Is.EqualTo(2));
             Assert.That(profiles["E3"].Members.Count, Is.EqualTo(10));
             Assert.That(profiles["E3"].Members.Count(member => member.IsStatistic), Is.EqualTo(4));
@@ -175,7 +177,8 @@ namespace Opc.Ua.ECM.Tests
             List<EcmProfileDefinition> declared = EcmMeasurementProfiles.Declared(
                 D1Names().ToList());
 
-            Assert.That(declared.Select(profile => profile.Name), Is.EquivalentTo(new[] { "D0", "D1" }));
+            string[] expectedProfiles = ["D0", "D1"];
+            Assert.That(declared.Select(profile => profile.Name), Is.EquivalentTo(expectedProfiles));
         }
 
         /// <summary>
@@ -188,7 +191,7 @@ namespace Opc.Ua.ECM.Tests
 
             Variant owned = EcmOwnership.Own(Variant.FromStructure(source));
 
-            Assert.That(owned.TryGetStructure(out AcPeDataType? copy), Is.True);
+            Assert.That(owned.TryGetStructure<AcPeDataType>(out AcPeDataType? copy), Is.True);
             Assert.That(copy, Is.Not.SameAs(source));
             Assert.That(copy!.L2, Is.EqualTo(2f));
         }
@@ -199,8 +202,9 @@ namespace Opc.Ua.ECM.Tests
         [Test]
         public void OwnRejectsUnsupportedValue()
         {
+            ArrayOf<float> values = [1f, 2f];
             Assert.That(
-                () => EcmOwnership.Own(Variant.From(new[] { 1f, 2f }.ToArrayOf())),
+                () => EcmOwnership.Own(Variant.From(values)),
                 Throws.TypeOf<ArgumentException>());
         }
 
@@ -239,7 +243,7 @@ namespace Opc.Ua.ECM.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queues = new MonitoredItemQueueFactory(telemetry);
             await using EcmNodeManager manager = CreateManager(telemetry, queues);
-            ISystemContext context = manager.SystemContext;
+            var context = manager.SystemContext;
             ushort ecmNamespace = context.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
             var acquired = new DateTime(2026, 8, 14, 9, 10, 11, DateTimeKind.Utc);
             var started = new DateTime(2026, 8, 14, 8, 0, 0, DateTimeKind.Utc);
@@ -306,7 +310,7 @@ namespace Opc.Ua.ECM.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queues = new MonitoredItemQueueFactory(telemetry);
             await using EcmNodeManager manager = CreateManager(telemetry, queues);
-            ISystemContext context = manager.SystemContext;
+            var context = manager.SystemContext;
             var acquired = new DateTime(2026, 8, 14, 9, 10, 11, DateTimeKind.Utc);
             var provider = new StatisticsProvider(
                 E2Snapshot(10f, 100f, 200f, acquired, acquired),
@@ -348,7 +352,7 @@ namespace Opc.Ua.ECM.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queues = new MonitoredItemQueueFactory(telemetry);
             await using EcmNodeManager manager = CreateManager(telemetry, queues);
-            ISystemContext context = manager.SystemContext;
+            var context = manager.SystemContext;
             ushort ecmNamespace = context.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
             var acquired = new DateTime(2026, 8, 14, 9, 10, 11, DateTimeKind.Utc);
             var started = new DateTime(2026, 8, 14, 8, 0, 0, DateTimeKind.Utc);
@@ -412,7 +416,7 @@ namespace Opc.Ua.ECM.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queues = new MonitoredItemQueueFactory(telemetry);
             await using EcmNodeManager manager = CreateManager(telemetry, queues);
-            ISystemContext context = manager.SystemContext;
+            var context = manager.SystemContext;
             var acquired = new DateTime(2026, 8, 14, 9, 10, 11, DateTimeKind.Utc);
             var provider = new StatisticsProvider(
                 E2Snapshot(10f, 100f, 200f, acquired, acquired),
@@ -543,7 +547,7 @@ namespace Opc.Ua.ECM.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queues = new MonitoredItemQueueFactory(telemetry);
             await using EcmNodeManager manager = CreateManager(telemetry, queues);
-            ISystemContext context = manager.SystemContext;
+            var context = manager.SystemContext;
             ushort ecmNamespace = context.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
             var acquired = new DateTime(2026, 8, 14, 9, 10, 11, DateTimeKind.Utc);
             var provider = new StatisticsProvider(
@@ -565,12 +569,12 @@ namespace Opc.Ua.ECM.Tests
                 Is.True);
             var voltage = (EnergyMeasurementValueState)point.FindChild(
                 context, new QualifiedName(nameof(BrowseNames.AcVoltagePp), ecmNamespace))!;
-            Assert.That(voltage.WrappedValue.TryGetStructure(out AcPpDataType? lines), Is.True);
+            Assert.That(voltage.WrappedValue.TryGetStructure<AcPpDataType>(out AcPpDataType? lines), Is.True);
             Assert.That(lines!.L1L2, Is.EqualTo(400f));
             Assert.That(lines.L3L1, Is.EqualTo(402f));
             var factor = (EnergyMeasurementValueState)point.FindChild(
                 context, new QualifiedName(nameof(BrowseNames.AcPowerFactorPe), ecmNamespace))!;
-            Assert.That(factor.WrappedValue.TryGetStructure(out AcPeDataType? phases), Is.True);
+            Assert.That(factor.WrappedValue.TryGetStructure<AcPeDataType>(out AcPeDataType? phases), Is.True);
             Assert.That(phases!.L2, Is.EqualTo(0.9f));
             Assert.That(factor.EngineeringUnits, Is.Null);
             var energy = (EnergyMeasurementValueState)point.FindChild(
@@ -594,7 +598,7 @@ namespace Opc.Ua.ECM.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queues = new MonitoredItemQueueFactory(telemetry);
             await using EcmNodeManager manager = CreateManager(telemetry, queues);
-            ISystemContext context = manager.SystemContext;
+            var context = manager.SystemContext;
             ushort ecmNamespace = context.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
             var acquired = new DateTime(2026, 8, 14, 9, 10, 11, DateTimeKind.Utc);
             var provider = new StatisticsProvider(
@@ -631,7 +635,7 @@ namespace Opc.Ua.ECM.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queues = new MonitoredItemQueueFactory(telemetry);
             await using EcmNodeManager manager = CreateManager(telemetry, queues);
-            ISystemContext context = manager.SystemContext;
+            var context = manager.SystemContext;
             var acquired = new DateTime(2026, 8, 14, 9, 10, 11, DateTimeKind.Utc);
             var provider = new StatisticsProvider(
                 E2Snapshot(10f, 100f, 200f, acquired, acquired),
@@ -683,11 +687,11 @@ namespace Opc.Ua.ECM.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queues = new MonitoredItemQueueFactory(telemetry);
             await using EcmNodeManager manager = CreateManager(telemetry, queues);
-            ISystemContext context = manager.SystemContext;
+            var context = manager.SystemContext;
             ushort ecmNamespace = context.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
             var acquired = new DateTime(2026, 8, 14, 9, 10, 11, DateTimeKind.Utc);
             EcmMeasurementSnapshot snapshot = E2Snapshot(10f, 100f, 200f, acquired, acquired);
-            EcmMeasurementReading[] readings = snapshot.Measurements.ToArray();
+            EcmMeasurementReading[] readings = snapshot.Measurements.Span.ToArray();
             int index = Array.FindIndex(
                 readings, reading => reading.BrowseName == nameof(BrowseNames.AcActiveEnergyTotalExportLp));
             readings[index] = readings[index] with { Value = default, StatusCode = StatusCodes.UncertainInitialValue };
@@ -749,7 +753,7 @@ namespace Opc.Ua.ECM.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queues = new MonitoredItemQueueFactory(telemetry);
             await using EcmNodeManager manager = CreateManager(telemetry, queues);
-            ISystemContext context = manager.SystemContext;
+            var context = manager.SystemContext;
             var first = new DateTime(2026, 8, 14, 9, 10, 11, DateTimeKind.Utc);
             var second = first.AddMinutes(1);
             var provider = new StatisticsProvider(
@@ -801,7 +805,7 @@ namespace Opc.Ua.ECM.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queues = new MonitoredItemQueueFactory(telemetry);
             await using EcmNodeManager manager = CreateManager(telemetry, queues);
-            ISystemContext context = manager.SystemContext;
+            var context = manager.SystemContext;
             var first = new DateTime(2026, 8, 14, 9, 10, 11, DateTimeKind.Utc);
             var second = first.AddMinutes(1);
             var provider = new StatisticsProvider(
@@ -866,7 +870,7 @@ namespace Opc.Ua.ECM.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queues = new MonitoredItemQueueFactory(telemetry);
             await using EcmNodeManager manager = CreateManager(telemetry, queues);
-            ISystemContext context = manager.SystemContext;
+            var context = manager.SystemContext;
             var acquired = new DateTime(2026, 8, 14, 9, 10, 11, DateTimeKind.Utc);
             EcmMeasurementReading unknownExport = Float(
                 nameof(BrowseNames.AcActiveEnergyTotalExportLp), 0f, acquired) with
@@ -884,7 +888,7 @@ namespace Opc.Ua.ECM.Tests
                         Float(nameof(BrowseNames.AcActiveEnergyTotalImportLp), 0f, acquired)
                     }.ToArrayOf()));
             EcmMeasurementBinding binding = await CreateE2BindingAsync(manager, provider);
-            EcmMeasurementReading[] readings = provider.Snapshot.Measurements.ToArray();
+            EcmMeasurementReading[] readings = provider.Snapshot.Measurements.Span.ToArray();
             int power = Array.FindIndex(readings, r => r.BrowseName == nameof(BrowseNames.AcActivePowerTotal));
             readings[power] = readings[power] with { Value = default, StatusCode = StatusCodes.UncertainInitialValue };
             provider.Snapshot = provider.Snapshot with { Measurements = readings.ToArrayOf() };
@@ -916,7 +920,7 @@ namespace Opc.Ua.ECM.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queues = new MonitoredItemQueueFactory(telemetry);
             await using EcmNodeManager manager = CreateManager(telemetry, queues);
-            ISystemContext context = manager.SystemContext;
+            var context = manager.SystemContext;
             var first = new DateTime(2026, 8, 14, 9, 10, 11, DateTimeKind.Utc);
             var provider = new StatisticsProvider(
                 E2Snapshot(10f, 100f, 200f, first, first),
@@ -926,7 +930,7 @@ namespace Opc.Ua.ECM.Tests
             {
                 ApplicationTag = "tag2"
             };
-            EcmMeasurementReading[] readings = invalid.Measurements.ToArray();
+            EcmMeasurementReading[] readings = invalid.Measurements.Span.ToArray();
             readings[1] = readings[1] with { Value = Variant.From(1.0) };
             provider.Snapshot = invalid with { Measurements = readings.ToArrayOf() };
 
@@ -955,7 +959,7 @@ namespace Opc.Ua.ECM.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queues = new MonitoredItemQueueFactory(telemetry);
             await using EcmNodeManager manager = CreateManager(telemetry, queues);
-            ISystemContext context = manager.SystemContext;
+            var context = manager.SystemContext;
             var first = new DateTime(2026, 8, 14, 9, 10, 11, DateTimeKind.Utc);
             var second = first.AddMinutes(1);
             var provider = new StatisticsProvider(
@@ -992,7 +996,7 @@ namespace Opc.Ua.ECM.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queues = new MonitoredItemQueueFactory(telemetry);
             await using EcmNodeManager manager = CreateManager(telemetry, queues);
-            ISystemContext context = manager.SystemContext;
+            var context = manager.SystemContext;
             var first = new DateTime(2026, 8, 14, 9, 10, 11, DateTimeKind.Utc);
             BaseObjectState parent = await AddParentAsync(manager);
             EnergyMeasurementState point = context.CreateInstanceOfEnergyMeasurementType(
@@ -1034,7 +1038,7 @@ namespace Opc.Ua.ECM.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queues = new MonitoredItemQueueFactory(telemetry);
             await using EcmNodeManager manager = CreateManager(telemetry, queues);
-            ISystemContext context = manager.SystemContext;
+            var context = manager.SystemContext;
             var first = new DateTime(2026, 8, 14, 9, 10, 11, DateTimeKind.Utc);
             BaseObjectState parent = await AddParentAsync(manager);
             var point = new StickyMeasurementState(parent);
@@ -1082,7 +1086,7 @@ namespace Opc.Ua.ECM.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queues = new MonitoredItemQueueFactory(telemetry);
             await using EcmNodeManager manager = CreateManager(telemetry, queues);
-            ISystemContext context = manager.SystemContext;
+            var context = manager.SystemContext;
             var first = new DateTime(2026, 8, 14, 9, 10, 11, DateTimeKind.Utc);
             BaseObjectState parent = await AddParentAsync(manager);
             EnergyMeasurementState point = context.CreateInstanceOfEnergyMeasurementType(
@@ -1123,7 +1127,7 @@ namespace Opc.Ua.ECM.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queues = new MonitoredItemQueueFactory(telemetry);
             await using EcmNodeManager manager = CreateManager(telemetry, queues);
-            ISystemContext context = manager.SystemContext;
+            var context = manager.SystemContext;
             var acquired = new DateTime(2026, 8, 14, 9, 10, 11, DateTimeKind.Utc);
             EcmMeasurementSnapshot snapshot = E3Snapshot(acquired);
             var provider = new StatisticsProvider(
@@ -1134,26 +1138,26 @@ namespace Opc.Ua.ECM.Tests
                 new QualifiedName("Meter", manager.InstanceNamespaceIndex),
                 provider,
                 parent);
-            EcmMeasurementReading source = snapshot.Measurements.Single(
+            EcmMeasurementReading source = snapshot.Measurements.ToList().Single(
                 reading => reading.BrowseName == nameof(BrowseNames.AcVoltagePe));
-            Assert.That(source.Value.TryGetStructure(out AcPeDataType? original), Is.True);
+            Assert.That(source.Value.TryGetStructure<AcPeDataType>(out AcPeDataType? original), Is.True);
             original!.L1 = 999f;
 
             EnergyMeasurementValueState voltage = Child(binding, context, nameof(BrowseNames.AcVoltagePe));
-            Assert.That(voltage.WrappedValue.TryGetStructure(out AcPeDataType? published), Is.True);
+            Assert.That(voltage.WrappedValue.TryGetStructure<AcPeDataType>(out AcPeDataType? published), Is.True);
             Assert.That(published, Is.Not.SameAs(original));
             Assert.That(published!.L1, Is.EqualTo(0.8f));
 
-            EcmMeasurementReading lineSource = snapshot.Measurements.Single(
+            EcmMeasurementReading lineSource = snapshot.Measurements.ToList().Single(
                 reading => reading.BrowseName == nameof(BrowseNames.AcVoltagePp));
-            Assert.That(lineSource.Value.TryGetStructure(out AcPpDataType? lineOriginal), Is.True);
+            Assert.That(lineSource.Value.TryGetStructure<AcPpDataType>(out AcPpDataType? lineOriginal), Is.True);
             float l1l2 = lineOriginal!.L1L2;
             lineOriginal.L1L2 = 999f;
             lineOriginal.L2L3 = 999f;
             lineOriginal.L3L1 = 999f;
 
             EnergyMeasurementValueState lineVoltage = Child(binding, context, nameof(BrowseNames.AcVoltagePp));
-            Assert.That(lineVoltage.WrappedValue.TryGetStructure(out AcPpDataType? lines), Is.True);
+            Assert.That(lineVoltage.WrappedValue.TryGetStructure<AcPpDataType>(out AcPpDataType? lines), Is.True);
             Assert.That(lines, Is.Not.SameAs(lineOriginal));
             Assert.That(lines!.L1L2, Is.EqualTo(l1l2));
             Assert.That(lines.L2L3, Is.Not.EqualTo(999f));
@@ -1170,7 +1174,7 @@ namespace Opc.Ua.ECM.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queues = new MonitoredItemQueueFactory(telemetry);
             await using EcmNodeManager manager = CreateManager(telemetry, queues);
-            ISystemContext context = manager.SystemContext;
+            var context = manager.SystemContext;
             var first = new DateTime(2026, 8, 14, 9, 10, 11, DateTimeKind.Utc);
             var second = first.AddMinutes(1);
             EcmMeasurementSnapshot WithCurrent(EcmMeasurementSnapshot e2, AcPeDataType phases, DateTime at)
@@ -1181,7 +1185,7 @@ namespace Opc.Ua.ECM.Tests
                     DataTypeIds.AcPeDataType,
                     StatusCodes.Good,
                     at);
-                return e2 with { Measurements = e2.Measurements.ToArray().Append(current).ToArray().ToArrayOf() };
+                return e2 with { Measurements = e2.Measurements.ToList().Append(current).ToArray().ToArrayOf() };
             }
             var provider = new StatisticsProvider(
                 WithCurrent(E2Snapshot(10f, 100f, 200f, first, first), new AcPeDataType { L1 = 1f }, first),
@@ -1191,7 +1195,7 @@ namespace Opc.Ua.ECM.Tests
             var observations = new List<(float L1, string Tag, DateTimeUtc CurrentTime)>();
             NodeStateChangedAsyncHandler sink = (_, _, _, _) =>
             {
-                current.WrappedValue.TryGetStructure(out AcPeDataType? seen);
+                current.WrappedValue.TryGetStructure<AcPeDataType>(out AcPeDataType? seen);
                 observations.Add((seen!.L1, binding.MeasurementPoint.ApplicationTag!.Value ?? string.Empty,
                     current.Timestamp));
                 return default;
@@ -1209,7 +1213,7 @@ namespace Opc.Ua.ECM.Tests
             Assert.That(observations[0].L1, Is.EqualTo(7f));
             Assert.That(observations[0].Tag, Is.EqualTo("tag2"));
             Assert.That(observations[0].CurrentTime, Is.EqualTo((DateTimeUtc)second));
-            Assert.That(current.WrappedValue.TryGetStructure(out AcPeDataType? published), Is.True);
+            Assert.That(current.WrappedValue.TryGetStructure<AcPeDataType>(out AcPeDataType? published), Is.True);
             Assert.That(published!.L1, Is.EqualTo(7f));
         }
 
@@ -1222,7 +1226,7 @@ namespace Opc.Ua.ECM.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queues = new MonitoredItemQueueFactory(telemetry);
             await using EcmNodeManager manager = CreateManager(telemetry, queues);
-            ISystemContext context = manager.SystemContext;
+            var context = manager.SystemContext;
             var acquired = new DateTime(2026, 8, 14, 9, 10, 11, DateTimeKind.Utc);
             var provider = new StatisticsProvider(
                 E3Snapshot(acquired),
@@ -1233,7 +1237,7 @@ namespace Opc.Ua.ECM.Tests
                 provider,
                 parent);
             var hostile = new HostileAcPe { L1 = 5f, L2 = 6f, L3 = 7f };
-            EcmMeasurementReading[] readings = E3Snapshot(acquired.AddMinutes(1)).Measurements.ToArray();
+            EcmMeasurementReading[] readings = E3Snapshot(acquired.AddMinutes(1)).Measurements.Span.ToArray();
             int index = Array.FindIndex(readings, r => r.BrowseName == nameof(BrowseNames.AcVoltagePe));
             readings[index] = readings[index] with { Value = Variant.FromStructure(hostile) };
             provider.Snapshot = E3Snapshot(acquired.AddMinutes(1)) with { Measurements = readings.ToArrayOf() };
@@ -1247,7 +1251,7 @@ namespace Opc.Ua.ECM.Tests
             Assert.That(hostile.Touched, Is.EqualTo(0));
             Assert.That(hostile.TypeIdReads, Is.EqualTo(0));
             EnergyMeasurementValueState voltage = Child(binding, context, nameof(BrowseNames.AcVoltagePe));
-            Assert.That(voltage.WrappedValue.TryGetStructure(out AcPeDataType? retained), Is.True);
+            Assert.That(voltage.WrappedValue.TryGetStructure<AcPeDataType>(out AcPeDataType? retained), Is.True);
             Assert.That(retained!.L1, Is.EqualTo(0.8f));
             Assert.That(voltage.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
             Assert.That(binding.MeasurementPoint.ApplicationTag!.Value, Is.EqualTo("tag"));
@@ -1262,7 +1266,7 @@ namespace Opc.Ua.ECM.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queues = new MonitoredItemQueueFactory(telemetry);
             await using EcmNodeManager manager = CreateManager(telemetry, queues);
-            ISystemContext context = manager.SystemContext;
+            var context = manager.SystemContext;
             var first = new DateTime(2026, 8, 14, 9, 10, 11, DateTimeKind.Utc);
             var phases = new AcPeDataType { L1 = 1f, L2 = 2f, L3 = 3f };
             EcmMeasurementSnapshot e2 = E2Snapshot(10f, 100f, 200f, first, first);
@@ -1273,7 +1277,7 @@ namespace Opc.Ua.ECM.Tests
                 StatusCodes.Good,
                 first);
             var provider = new StatisticsProvider(
-                e2 with { Measurements = e2.Measurements.ToArray().Append(current).ToArray().ToArrayOf() },
+                e2 with { Measurements = e2.Measurements.ToList().Append(current).ToArray().ToArrayOf() },
                 new EcmStatisticsSnapshot(
                     (DateTimeUtc)first.AddMinutes(5),
                     new[]
@@ -1285,7 +1289,7 @@ namespace Opc.Ua.ECM.Tests
             phases.L1 = 99f;
 
             EnergyMeasurementValueState published = Child(binding, context, nameof(BrowseNames.AcCurrentPe));
-            Assert.That(published.WrappedValue.TryGetStructure(out AcPeDataType? copy), Is.True);
+            Assert.That(published.WrappedValue.TryGetStructure<AcPeDataType>(out AcPeDataType? copy), Is.True);
             Assert.That(copy!.L1, Is.EqualTo(1f));
             Assert.That(
                 binding.MeasurementPoint.ReferenceExists(
@@ -1304,7 +1308,7 @@ namespace Opc.Ua.ECM.Tests
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(published.Timestamp, Is.EqualTo(currentTime));
-            Assert.That(published.WrappedValue.TryGetStructure(out AcPeDataType? retained), Is.True);
+            Assert.That(published.WrappedValue.TryGetStructure<AcPeDataType>(out AcPeDataType? retained), Is.True);
             Assert.That(retained!.L1, Is.EqualTo(1f));
         }
 

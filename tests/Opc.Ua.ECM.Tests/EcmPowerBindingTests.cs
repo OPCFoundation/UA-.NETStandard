@@ -629,7 +629,7 @@ namespace Opc.Ua.ECM.Tests
                 notificationCancelled = notificationToken.IsCancellationRequested;
                 if (Interlocked.Increment(ref notifications) == 1)
                 {
-                    reentrantRefresh = binding.RefreshAsync().AsTask();
+                    reentrantRefresh = binding.RefreshAsync(notificationToken).AsTask();
                     entered.TrySetResult(true);
                     await release.Task.ConfigureAwait(false);
                 }

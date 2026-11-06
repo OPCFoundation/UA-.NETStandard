@@ -127,7 +127,8 @@ namespace Opc.Ua.Aot.Tests
             {
                 NamespaceUris = message.NamespaceUris,
                 EncodeableFactory = message.Factory,
-                NodeIdFactory = new DefaultNodeIdFactory(NodeIdAssignmentMode.String, instances)
+                NodeIdFactory = new DefaultNodeIdFactory(NodeIdAssignmentMode.String, instances),
+                TypeTable = CreateTypeTable(message.NamespaceUris)
             };
             var nodes = new NodeStateCollection();
             nodes.AddOpcUaDi(context);
@@ -236,7 +237,8 @@ namespace Opc.Ua.Aot.Tests
             {
                 NamespaceUris = message.NamespaceUris,
                 EncodeableFactory = message.Factory,
-                NodeIdFactory = new DefaultNodeIdFactory(NodeIdAssignmentMode.String, instances)
+                NodeIdFactory = new DefaultNodeIdFactory(NodeIdAssignmentMode.String, instances),
+                TypeTable = CreateTypeTable(message.NamespaceUris)
             };
             var nodes = new NodeStateCollection();
             nodes.AddOpcUaDi(context);
@@ -303,7 +305,8 @@ namespace Opc.Ua.Aot.Tests
             {
                 NamespaceUris = message.NamespaceUris,
                 EncodeableFactory = message.Factory,
-                NodeIdFactory = new DefaultNodeIdFactory(NodeIdAssignmentMode.String, instances)
+                NodeIdFactory = new DefaultNodeIdFactory(NodeIdAssignmentMode.String, instances),
+                TypeTable = CreateTypeTable(message.NamespaceUris)
             };
             var nodes = new NodeStateCollection();
             nodes.AddOpcUaDi(context);
@@ -355,6 +358,21 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(current.WrappedValue.TryGetStructure(out AcPeDataType? kept)).IsTrue();
             await Assert.That(kept!.L1).IsEqualTo(1f);
             await Assert.That(current.StatusCode).IsEqualTo(StatusCodes.BadNoCommunication);
+        }
+
+        /// <summary>
+        /// Creates the ECM data type hierarchy needed to validate generated structure values.
+        /// </summary>
+        private static TypeTable CreateTypeTable(NamespaceTable namespaces)
+        {
+            var typeTable = new TypeTable(namespaces);
+            typeTable.AddSubtype(
+                ExpandedNodeId.ToNodeId(Opc.Ua.ECM.DataTypeIds.AcPeDataType, namespaces),
+                Opc.Ua.DataTypeIds.Structure);
+            typeTable.AddSubtype(
+                ExpandedNodeId.ToNodeId(Opc.Ua.ECM.DataTypeIds.AcPpDataType, namespaces),
+                Opc.Ua.DataTypeIds.Structure);
+            return typeTable;
         }
 
         /// <summary>

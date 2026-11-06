@@ -70,7 +70,7 @@ namespace Opc.Ua.ECM.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queues = new MonitoredItemQueueFactory(telemetry);
             await using EcmNodeManager manager = CreateManager(telemetry, queues);
-            ISystemContext context = manager.SystemContext;
+            var context = manager.SystemContext;
             ushort ecmNamespace = context.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
             var acquired = new DateTime(2026, 8, 14, 9, 10, 11, DateTimeKind.Utc);
             DateTimeUtc acquiredTimestamp = (DateTimeUtc)acquired;
@@ -100,7 +100,9 @@ namespace Opc.Ua.ECM.Tests
                 acCurrentPe.DataType,
                 Is.EqualTo(ExpandedNodeId.ToNodeId(DataTypeIds.AcPeDataType, context.NamespaceUris)));
             Assert.That(acCurrentPe.ValueRank, Is.EqualTo(Opc.Ua.ValueRanks.Scalar));
-            Assert.That(acCurrentPe.WrappedValue.TryGetStructure(out AcPeDataType phaseCurrent), Is.True);
+            Assert.That(
+                acCurrentPe.WrappedValue.TryGetStructure<AcPeDataType>(out AcPeDataType? phaseCurrent),
+                Is.True);
             Assert.That(phaseCurrent!.L1, Is.EqualTo(1.25f));
             Assert.That(phaseCurrent.L2, Is.EqualTo(2.5f));
             Assert.That(phaseCurrent.L3, Is.EqualTo(3.75f));
@@ -160,7 +162,7 @@ namespace Opc.Ua.ECM.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queues = new MonitoredItemQueueFactory(telemetry);
             await using EcmNodeManager manager = CreateManager(telemetry, queues);
-            ISystemContext context = manager.SystemContext;
+            var context = manager.SystemContext;
             ushort ecmNamespace = context.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
             var acquired = new DateTime(2026, 8, 14, 9, 20, 0, DateTimeKind.Utc);
             EcmMeasurementReading reading;
@@ -220,7 +222,9 @@ namespace Opc.Ua.ECM.Tests
                 Is.SameAs(binding.MeasurementPoint));
             if (profile == "E0")
             {
-                Assert.That(measurement.WrappedValue.TryGetStructure(out AcPeDataType phaseCurrent), Is.True);
+                Assert.That(
+                    measurement.WrappedValue.TryGetStructure<AcPeDataType>(out AcPeDataType? phaseCurrent),
+                    Is.True);
                 Assert.That(phaseCurrent!.L1, Is.EqualTo(2f));
                 Assert.That(phaseCurrent.L2, Is.EqualTo(4f));
                 Assert.That(phaseCurrent.L3, Is.EqualTo(6f));
@@ -676,7 +680,9 @@ namespace Opc.Ua.ECM.Tests
             firstUnits.UnitId = 999;
             firstUnits.DisplayName = new LocalizedText("changed");
 
-            Assert.That(measurement.WrappedValue.TryGetStructure(out AcPeDataType initialValue), Is.True);
+            Assert.That(
+                measurement.WrappedValue.TryGetStructure<AcPeDataType>(out AcPeDataType? initialValue),
+                Is.True);
             Assert.That(initialValue!.L1, Is.EqualTo(1.25f));
             Assert.That(measurement.EngineeringUnits!.Value.UnitId, Is.EqualTo(0x414D50));
             Assert.That(measurement.EngineeringUnits.Value.DisplayName.Text, Is.EqualTo("A"));
@@ -686,7 +692,9 @@ namespace Opc.Ua.ECM.Tests
             secondUnits.UnitId = 998;
             secondUnits.Description = new LocalizedText("changed");
 
-            Assert.That(measurement.WrappedValue.TryGetStructure(out AcPeDataType refreshedValue), Is.True);
+            Assert.That(
+                measurement.WrappedValue.TryGetStructure<AcPeDataType>(out AcPeDataType? refreshedValue),
+                Is.True);
             Assert.That(refreshedValue!.L1, Is.EqualTo(4f));
             Assert.That(refreshedValue.L2, Is.EqualTo(5f));
             Assert.That(measurement.EngineeringUnits!.Value.UnitId, Is.EqualTo(0x414D50));
@@ -704,7 +712,7 @@ namespace Opc.Ua.ECM.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queues = new MonitoredItemQueueFactory(telemetry);
             await using EcmNodeManager manager = CreateManager(telemetry, queues);
-            ISystemContext context = manager.SystemContext;
+            var context = manager.SystemContext;
             ushort ecmNamespace = context.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
             var units = new Mock<EUInformation> { CallBase = true };
             units.Setup(value => value.Clone()).Returns(() => units.Object);
@@ -920,7 +928,7 @@ namespace Opc.Ua.ECM.Tests
             Assert.That(powerValue, Is.EqualTo(10f));
             Assert.That(power.Timestamp, Is.EqualTo((DateTimeUtc)firstTimestamp));
             Assert.That(power.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
-            Assert.That(current.WrappedValue.TryGetStructure(out AcPeDataType currentValue), Is.True);
+            Assert.That(current.WrappedValue.TryGetStructure<AcPeDataType>(out AcPeDataType? currentValue), Is.True);
             Assert.That(currentValue!.L1, Is.EqualTo(20f));
             Assert.That(current.Timestamp, Is.EqualTo((DateTimeUtc)firstTimestamp));
             Assert.That(current.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
@@ -979,7 +987,7 @@ namespace Opc.Ua.ECM.Tests
             }
             else if (profile == "E0")
             {
-                Assert.That(measurement.WrappedValue.TryGetStructure(out AcPeDataType value), Is.True);
+                Assert.That(measurement.WrappedValue.TryGetStructure<AcPeDataType>(out AcPeDataType? value), Is.True);
                 Assert.That(value!.L1, Is.EqualTo(7f));
             }
             else
@@ -1089,7 +1097,7 @@ namespace Opc.Ua.ECM.Tests
             body.Object.L1 = 99f;
             EnergyMeasurementValueState measurement = RequiredMeasurement(
                 binding.MeasurementPoint, manager.SystemContext, nameof(BrowseNames.AcCurrentPe), ecmNamespace);
-            Assert.That(measurement.WrappedValue.TryGetStructure(out AcPeDataType published), Is.True);
+            Assert.That(measurement.WrappedValue.TryGetStructure<AcPeDataType>(out AcPeDataType? published), Is.True);
             Assert.That(published!.L1, Is.EqualTo(7f));
             Assert.That(published.L2, Is.EqualTo(8f));
             Assert.That(published.L3, Is.EqualTo(9f));
@@ -1108,7 +1116,7 @@ namespace Opc.Ua.ECM.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queues = new MonitoredItemQueueFactory(telemetry);
             await using EcmNodeManager manager = CreateManager(telemetry, queues);
-            ISystemContext context = manager.SystemContext;
+            var context = manager.SystemContext;
             ushort ecmNamespace = context.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
             await AddAccuracyDomainsFolderAsync(manager, ecmNamespace);
             ArrayOf<EnumValueType> classes = new EnumValueType[]
@@ -1163,14 +1171,13 @@ namespace Opc.Ua.ECM.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queues = new MonitoredItemQueueFactory(telemetry);
             await using EcmNodeManager manager = CreateManager(telemetry, queues);
-            ISystemContext context = manager.SystemContext;
+            var context = manager.SystemContext;
             ushort ecmNamespace = context.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
             byte[] identifier = [1, 2, 3];
             var accuracyDomainId = new NodeId(new ByteString(identifier.AsMemory()), ecmNamespace);
             NodeId expectedAccuracyDomainId = new(ByteString.From(identifier.AsSpan()), ecmNamespace);
             AccuracyDomainState domain = context.CreateInstanceOfAccuracyDomainType(
-                null,
-                new QualifiedName("OpaqueAccuracyDomain", ecmNamespace));
+                browseName: new QualifiedName("OpaqueAccuracyDomain", ecmNamespace));
             domain.NodeId = accuracyDomainId;
             domain.EnumValues!.Value =
                 new EnumValueType[]
@@ -1293,7 +1300,7 @@ namespace Opc.Ua.ECM.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queues = new MonitoredItemQueueFactory(telemetry);
             await using EcmNodeManager manager = CreateManager(telemetry, queues);
-            ISystemContext context = manager.SystemContext;
+            var context = manager.SystemContext;
             ushort ecmNamespace = context.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
             var translations = new Dictionary<string, string>
             {
@@ -1352,7 +1359,7 @@ namespace Opc.Ua.ECM.Tests
             }
             else
             {
-                ArrayOf<string> preferredLocales = new[] { "de" }.ToArrayOf();
+                ArrayOf<string> preferredLocales = ["de"];
                 Assert.That(source.FilterByPreferredLocales(preferredLocales).Text, Is.EqualTo("Geaendert"));
                 LocalizedText selected = published.FilterByPreferredLocales(preferredLocales);
                 Assert.That(selected.Text, Is.EqualTo("Klasse A"));
@@ -1370,7 +1377,7 @@ namespace Opc.Ua.ECM.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queues = new MonitoredItemQueueFactory(telemetry);
             await using EcmNodeManager manager = CreateManager(telemetry, queues);
-            ISystemContext context = manager.SystemContext;
+            var context = manager.SystemContext;
             ushort ecmNamespace = context.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
             await AddAccuracyDomainsFolderAsync(manager, ecmNamespace);
             object[] arguments = [new System.Text.StringBuilder("A")];
@@ -1546,7 +1553,7 @@ namespace Opc.Ua.ECM.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queues = new MonitoredItemQueueFactory(telemetry);
             await using EcmNodeManager manager = CreateManager(telemetry, queues);
-            ISystemContext context = manager.SystemContext;
+            var context = manager.SystemContext;
             ushort ecmNamespace = context.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
             await AddAccuracyDomainsFolderAsync(manager, ecmNamespace);
             var browseName = new QualifiedName("InvalidAccuracy", ecmNamespace);
@@ -1577,7 +1584,7 @@ namespace Opc.Ua.ECM.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queues = new MonitoredItemQueueFactory(telemetry);
             await using EcmNodeManager manager = CreateManager(telemetry, queues);
-            ISystemContext context = manager.SystemContext;
+            var context = manager.SystemContext;
             ushort ecmNamespace = context.NamespaceUris.GetIndexOrAppend(Namespaces.ECM);
             await AddAccuracyDomainsFolderAsync(manager, ecmNamespace);
             AccuracyDomainState domain = await manager.CreateAccuracyDomainAsync(
@@ -1808,7 +1815,7 @@ namespace Opc.Ua.ECM.Tests
                 Assert.That(notificationToken.IsCancellationRequested, Is.False);
                 if (Interlocked.Increment(ref notifications) == 1)
                 {
-                    reentrantRefresh = binding.RefreshAsync().AsTask();
+                    reentrantRefresh = binding.RefreshAsync(notificationToken).AsTask();
                     entered.TrySetResult(true);
                     await release.Task.ConfigureAwait(false);
                 }

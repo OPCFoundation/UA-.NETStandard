@@ -139,8 +139,8 @@ namespace Opc.Ua.IA.Tests.Calibration
 
             ((Dictionary<string, string>)binding.Configuration.Identification.Manufacturer.Translations!)
                 ["en-US"] = "Changed manufacturer";
-            binding.Configuration.Identification.Model.TranslationInfo.Args[0] = "Changed model";
-            binding.Configuration.Identification.ComponentName.TranslationInfo.Args[0] = "Changed component";
+            binding.Configuration.Identification.Model.TranslationInfo.Args![0] = "Changed model";
+            binding.Configuration.Identification.ComponentName.TranslationInfo.Args![0] = "Changed component";
 
             await binding.RefreshAsync().ConfigureAwait(false);
 

@@ -284,9 +284,9 @@ namespace Opc.Ua.Machinery.Tests
                     context.NamespaceUris)));
             Assert.That(
                 phaseCurrent.WrappedValue.TryGetStructure<Opc.Ua.ECM.AcPeDataType>(
-                    out Opc.Ua.ECM.AcPeDataType currentValue),
+                    out Opc.Ua.ECM.AcPeDataType? currentValue),
                 Is.True);
-            Assert.That(currentValue.L2, Is.EqualTo(2f));
+            Assert.That(currentValue!.L2, Is.EqualTo(2f));
 
             var lineVoltage = main.FindChild(
                 context,
@@ -300,9 +300,9 @@ namespace Opc.Ua.Machinery.Tests
                     context.NamespaceUris)));
             Assert.That(
                 lineVoltage.WrappedValue.TryGetStructure<Opc.Ua.ECM.AcPpDataType>(
-                    out Opc.Ua.ECM.AcPpDataType voltageValue),
+                    out Opc.Ua.ECM.AcPpDataType? voltageValue),
                 Is.True);
-            Assert.That(voltageValue.L2L3, Is.EqualTo(401f));
+            Assert.That(voltageValue!.L2L3, Is.EqualTo(401f));
 
             var measurementChildren = new List<BaseInstanceState>();
             publishedPower.GetChildren(context, measurementChildren);

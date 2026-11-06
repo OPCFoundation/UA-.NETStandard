@@ -425,6 +425,8 @@ namespace Opc.Ua.ECM.IntegrationTests
             Assert.That(power.Value, Is.EqualTo(15.5f));
             var tag = await client.ApplicationTag.ReadAsync(timeout.Token).ConfigureAwait(false);
             Assert.That(tag.Value, Is.EqualTo("statistics/initial"));
+        }
+
         /// <summary>
         /// Phase structures and high-precision statistics keep distinct values on a live session.
         /// </summary>
@@ -528,6 +530,7 @@ namespace Opc.Ua.ECM.IntegrationTests
             var voltage = await client.DcVoltage.ReadAsync(timeout.Token).ConfigureAwait(false);
             Assert.That(voltage.Value, Is.EqualTo(3f));
         }
+
         /// <summary>
         /// Creates and refreshes a statistics measurement, then discovers its typed client.
         /// </summary>

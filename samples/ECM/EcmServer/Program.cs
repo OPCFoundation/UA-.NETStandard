@@ -27,6 +27,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.Threading;
@@ -37,6 +38,8 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.ECM;
 using Opc.Ua.ECM.Server;
+using BrowseNames = Opc.Ua.ECM.BrowseNames;
+using DataTypeIds = Opc.Ua.ECM.DataTypeIds;
 
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 int? simulateWakeAfter = null;
@@ -61,9 +64,9 @@ builder.Services.AddSingleton(static _ => new SimulatedEcmPowerProvider(
     ByteString.From(new byte[] { 2, 0, 0, 0, 0, 1 }.AsSpan())));
 builder.Services.AddSingleton(services => new SamplePower(
     services.GetRequiredService<SimulatedEcmPowerProvider>(), simulateWakeAfter));
-builder.Services.AddSingleton<SampleMeasurementProvider>();
-builder.Services.AddSingleton<SampleEnergyProvider>();
-builder.Services.AddSingleton<SampleMeasurements>();
+builder.Services.AddSingleton(static _ => new SampleMeasurementProvider());
+builder.Services.AddSingleton(static _ => new SampleEnergyProvider());
+builder.Services.AddSingleton(static _ => new SampleMeasurements());
 builder.Services.AddOpcUa().AddServer(options =>
 {
     options.ApplicationName = "EcmSimulatedServer";
@@ -286,20 +289,20 @@ internal sealed class SampleMeasurementProvider : IEcmMeasurementProvider
                         {
                             UnitId = 0x414D50
                         },
-                        accuracyClass: 0,
-                        accuracyDomain: m_accuracyDomain),
+                        AccuracyClass: 0,
+                        AccuracyDomain: m_accuracyDomain),
                     new(
                         BrowseNames.AcActivePowerTotal,
-                        Variant.From(4.2f),
+                        Variant.From(4200f),
                         Opc.Ua.DataTypeIds.Float,
                         StatusCodes.Good,
                         timestamp,
-                        new EUInformation("kW", "kilowatt", "http://www.opcfoundation.org/UA/units/un/cefact")
+                        new EUInformation("W", "watt", "http://www.opcfoundation.org/UA/units/un/cefact")
                         {
-                            UnitId = 0x4B5754
+                            UnitId = 5_723_220
                         },
-                        accuracyClass: 0,
-                        accuracyDomain: m_accuracyDomain),
+                        AccuracyClass: 0,
+                        AccuracyDomain: m_accuracyDomain),
                     new(
                         BrowseNames.DcCurrent,
                         Variant.From(5.1f),
@@ -310,8 +313,8 @@ internal sealed class SampleMeasurementProvider : IEcmMeasurementProvider
                         {
                             UnitId = 0x414D50
                         },
-                        accuracyClass: 0,
-                        accuracyDomain: m_accuracyDomain)
+                        AccuracyClass: 0,
+                        AccuracyDomain: m_accuracyDomain)
                 ]));
         }
     }
@@ -536,9 +539,9 @@ internal sealed class SampleEnergyProvider : IEcmStatisticsProvider
             {
                 UnitId = unitId
             },
-            accuracyClass: 0,
-            accuracyDomain: m_accuracyDomain,
-            accuracyRange: range ? 1f : null);
+            AccuracyClass: 0,
+            AccuracyDomain: m_accuracyDomain,
+            AccuracyRange: range ? 1f : null);
     }
 
     /// <summary>Protects the in-memory sample state.</summary>

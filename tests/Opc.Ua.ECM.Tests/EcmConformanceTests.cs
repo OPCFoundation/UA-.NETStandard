@@ -303,7 +303,7 @@ namespace Opc.Ua.ECM.Tests
 
             manager.RegisterEcmBinding(binding);
 
-            Assert.That(binding.ProfileNames, Is.EquivalentTo(new[] { "E0" }));
+            Assert.That(binding.ProfileNames, Is.EquivalentTo(InputProfiles("E0")));
             AssertReport(
                 EcmConformanceContributor.For(manager),
                 WithProfiles(
@@ -547,8 +547,7 @@ namespace Opc.Ua.ECM.Tests
             var provider = new ConformanceMeasurementProvider(snapshot);
             ISystemContext context = manager.SystemContext;
             EnergyMeasurementState point = context.CreateInstanceOfEnergyMeasurementType(
-                null,
-                new QualifiedName(
+                browseName: new QualifiedName(
                     "Meter" + string.Join("", profileNames) + Interlocked.Increment(ref s_measurementInstanceId),
                     manager.InstanceNamespaceIndex));
             var binding = new EcmMeasurementBinding(context, point, provider);
@@ -570,7 +569,7 @@ namespace Opc.Ua.ECM.Tests
                     new AcPeDataType { L1 = 1.25f, L2 = 2.5f, L3 = 3.75f }),
                 EcmMeasurementKind.AcPp => Variant.FromStructure(
                     new AcPpDataType { L1L2 = 208f, L2L3 = 209f, L3L1 = 207f }),
-                _ => throw new ArgumentOutOfRangeException(nameof(member.Kind))
+                _ => throw new ArgumentOutOfRangeException(nameof(name), name, "Unknown ECM measurement kind.")
             };
             return new EcmMeasurementReading(
                 name,
