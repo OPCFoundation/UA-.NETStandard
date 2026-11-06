@@ -106,32 +106,11 @@ namespace Opc.Ua.Client.TestFramework
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
-            m_logger.LogInformation(
-                Utils.TraceMasks.StartStop,
-                "Creating the Reference Server Node Manager.");
-
-            var nodeManagers = new List<INodeManager>();
-
-            // create the custom node manager (ownership transfers to MasterNodeManager).
-#pragma warning disable CA2000 // Dispose objects before losing scope - ownership transfers to MasterNodeManagerWithLimits
-            var referenceNodeManager = new ReferenceNodeManager(
-                server,
-                configuration);
-#pragma warning restore CA2000
-            List<IAsyncNodeManager> asyncNodeManagers = [referenceNodeManager];
-
-            foreach (INodeManagerFactory nodeManagerFactory in NodeManagerFactories)
-            {
-                nodeManagers.Add(nodeManagerFactory.Create(server, configuration));
-            }
-            //this.MasterNodeManagerReference = new MasterNodeManager(server, configuration, null, nodeManagers.ToArray());
             MasterNodeManagerReference = new MasterNodeManagerWithLimits(
                 server,
                 configuration,
-                null!,
-                asyncNodeManagers,
-                [.. nodeManagers]);
-            // create master node manager.
+                null,
+                GetReferenceInitialNodeManagerFactories());
             return MasterNodeManagerReference;
         }
 
@@ -260,6 +239,34 @@ namespace Opc.Ua.Client.TestFramework
     /// </summary>
     public class MasterNodeManagerWithLimits : MasterNodeManager
     {
+        /// <summary>
+        /// Creates the system manager roles for a factory-configured reference server.
+        /// </summary>
+        public MasterNodeManagerWithLimits(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            string? dynamicNamespaceUri)
+            : this(server, configuration, dynamicNamespaceUri, [])
+        {
+        }
+
+        /// <summary>
+        /// Creates system roles after the configured application namespace declarations.
+        /// </summary>
+        public MasterNodeManagerWithLimits(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            string? dynamicNamespaceUri,
+            ArrayOf<IAsyncNodeManagerFactory> initialFactories)
+            : base(server, configuration, dynamicNamespaceUri, initialFactories)
+        {
+            m_logger = server.Telemetry.CreateLogger<MasterNodeManagerWithLimits>();
+        }
+
+        /// <summary>
+        /// Creates a standalone compatibility dispatcher with preconstructed managers.
+        /// </summary>
+        [Obsolete("Pass initial factories to the constructor for hosted managers.")]
         public MasterNodeManagerWithLimits(
             IServerInternal server,
             ApplicationConfiguration configuration,

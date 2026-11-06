@@ -32,3 +32,4 @@ MODELGEN035 | ModelSourceGenerator | Error | [NodeManager] namespace URI could n
 MODELGEN036 | ModelSourceGenerator | Error | [NodeManager] class is not supported
 MODELGEN037 | ModelSourceGenerator | Error | [DataType] type is not supported
 MODELGEN038 | ModelSourceGenerator | Warning | [DataType] base type definition cannot be resolved
+MODELGEN039 | ModelSourceGenerator | Error | ECM publication copy requires verified generated primitive fields

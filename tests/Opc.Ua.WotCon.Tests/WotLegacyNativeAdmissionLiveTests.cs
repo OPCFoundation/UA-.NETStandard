@@ -733,10 +733,21 @@ namespace Opc.Ua.WotCon.Tests
             /// </summary>
             /// <param name="replacement">The byte string.</param>
             /// <param name="factory">The async node manager factory.</param>
+            /// <exception cref="NodeManagerRemovalCommittedException">
+            /// Removal committed, but reconciliation failed before the replacement was created.
+            /// </exception>
             public async Task RestartManagerAsync(
                 ByteString replacement = default, IAsyncNodeManagerFactory? factory = null)
             {
-                await m_server.NodeManagerLifecycle.RemoveAsync(m_registration, null);
+                await using IPreparedNodeManagerBatch removal = await m_server.NodeManagerLifecycle.PrepareAsync(
+                    [NodeManagerBatchChange.Remove(m_registration)]).ConfigureAwait(false);
+                LifecycleResult result = (await removal.CommitAsync(static _ => default)
+                    .ConfigureAwait(false)).CommittedResult;
+                if (result.CleanupFailure is { } failure)
+                {
+                    throw new NodeManagerRemovalCommittedException(m_registration, result, failure);
+                }
+                await result.Retired.ConfigureAwait(false);
                 if (!replacement.IsNull)
                 {
                     Directory.CreateDirectory(Options.ThingDescriptionStorageFolder!);
@@ -824,7 +835,9 @@ namespace Opc.Ua.WotCon.Tests
                 m_directory = Path.Combine(Path.GetTempPath(), "r42-admission", Guid.NewGuid().ToString("N"));
                 m_serverFixture = new ServerFixture<ReferenceServer>(context => new ReferenceServer(context))
                 {
-                    UriScheme = Utils.UriSchemeOpcTcp, AutoAccept = true, SecurityNone = false
+                    UriScheme = Utils.UriSchemeOpcTcp,
+                    AutoAccept = true,
+                    SecurityNone = false
                 };
                 m_server = await m_serverFixture.StartAsync(m_directory);
                 await m_server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(new RuntimeNodeSetOptions

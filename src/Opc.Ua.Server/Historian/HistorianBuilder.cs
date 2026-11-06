@@ -62,7 +62,6 @@ namespace Opc.Ua.Server.Historian
                     "The supplied IServerInternal does not implement IHistorianRegistryProvider; " +
                     "the fluent HistorianBuilder requires the standard ServerInternalData host.");
             }
-            (server as IHistorianBuilderRegistry)?.RegisterHistorianBuilder(this);
         }
 
         /// <summary>
@@ -70,6 +69,48 @@ namespace Opc.Ua.Server.Historian
         /// <see cref="UseInMemory"/> or <see cref="UseProvider(IHistorianProvider)"/>.
         /// </summary>
         public IHistorianProvider? Provider { get; private set; }
+
+        /// <summary>
+        /// Creates a weak reference to the capture-handler target registered for a variable.
+        /// </summary>
+        /// <param name="variable">The historized variable.</param>
+        /// <returns>A weak reference to the target retained by the variable event subscription.</returns>
+        /// <exception cref="InvalidOperationException">
+        /// Thrown when the variable does not have exactly one capture handler with a target.
+        /// </exception>
+        /// <exception cref="ArgumentNullException"><paramref name="variable"/> is null.</exception>
+        internal WeakReference<object> CreateCaptureHandlerTargetReference(BaseVariableState variable)
+        {
+            if (variable == null)
+            {
+                throw new ArgumentNullException(nameof(variable));
+            }
+            WeakReference<object>? captureHandlerTarget = null;
+            lock (m_captureSinkLock)
+            {
+                foreach (CaptureHandlerRegistration registration in m_captureHandlers)
+                {
+                    if (ReferenceEquals(registration.Variable, variable))
+                    {
+                        if (captureHandlerTarget != null)
+                        {
+                            throw new InvalidOperationException(
+                                "The variable has multiple registered historian capture handlers.");
+                        }
+                        if (registration.Handler.Target is not object target)
+                        {
+                            throw new InvalidOperationException(
+                                "The registered historian capture handler has no target.");
+                        }
+                        captureHandlerTarget = new WeakReference<object>(target);
+                    }
+                }
+            }
+
+            return captureHandlerTarget ??
+                throw new InvalidOperationException(
+                "The variable does not have a registered historian capture handler.");
+        }
 
         /// <summary>
         /// Configures the builder to use the bundled
@@ -308,6 +349,8 @@ namespace Opc.Ua.Server.Historian
                 }
             }
 
+            EnsureRegisteredWithLifecycle();
+
             // Ownership transfers to m_eventCaptureHandlers and is released
             // by DisposeAsync.
 #pragma warning disable CA2000
@@ -367,6 +410,7 @@ namespace Opc.Ua.Server.Historian
                     "Historize(autoCapture: false) to disable.");
             }
 
+            EnsureRegisteredWithLifecycle();
             HistorianCaptureSink sink = GetOrCreateCaptureSink(serverContext, captureOptions);
             // The handler is a per-instance closure so the same NodeId
             // routes to its sink across multiple captures; detach when
@@ -412,6 +456,22 @@ namespace Opc.Ua.Server.Historian
                 m_captureSink ??= new HistorianCaptureSink(Provider!, serverContext, options);
 #pragma warning restore CA1508
                 return m_captureSink;
+            }
+        }
+
+        private void EnsureRegisteredWithLifecycle()
+        {
+            lock (m_captureSinkLock)
+            {
+                if (m_registeredWithLifecycle)
+                {
+                    return;
+                }
+                if (m_server is IHistorianBuilderRegistry registry)
+                {
+                    registry.RegisterHistorianBuilder(this);
+                    m_registeredWithLifecycle = true;
+                }
             }
         }
 
@@ -535,6 +595,7 @@ namespace Opc.Ua.Server.Historian
         private HistorianCaptureSink? m_captureSink;
         private readonly Lock m_captureSinkLock = new();
         private Task? m_disposal;
+        private bool m_registeredWithLifecycle;
 
         /// <summary>
         /// Ensures that <paramref name="variable"/> has an <c>Annotations</c>
@@ -596,6 +657,7 @@ namespace Opc.Ua.Server.Historian
         public HistorianBuilder RegisterAsDefault()
         {
             EnsureProvider();
+            EnsureRegisteredWithLifecycle();
             Registry.RegisterDefault(Provider!);
             return this;
         }
@@ -607,6 +669,7 @@ namespace Opc.Ua.Server.Historian
         public HistorianBuilder RegisterForNamespace(string namespaceUri)
         {
             EnsureProvider();
+            EnsureRegisteredWithLifecycle();
             Registry.RegisterForNamespace(namespaceUri, Provider!);
             return this;
         }
@@ -618,6 +681,7 @@ namespace Opc.Ua.Server.Historian
         public HistorianBuilder RegisterForNode(NodeId nodeId)
         {
             EnsureProvider();
+            EnsureRegisteredWithLifecycle();
             Registry.RegisterForNode(nodeId, Provider!);
             return this;
         }

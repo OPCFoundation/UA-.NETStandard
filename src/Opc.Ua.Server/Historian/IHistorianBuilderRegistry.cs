@@ -40,9 +40,9 @@ namespace Opc.Ua.Server.Historian
         void RegisterHistorianBuilder(HistorianBuilder builder);
 
         /// <summary>
-        /// Removes a builder that its owner disposed before server shutdown.
+        /// Removes a historian builder after its owner disposes it or its owning NodeManager generation retires.
         /// </summary>
-        /// <param name="builder">The disposed builder.</param>
+        /// <param name="builder">The builder whose capture pipeline has been drained.</param>
         void UnregisterHistorianBuilder(HistorianBuilder builder);
     }
 }

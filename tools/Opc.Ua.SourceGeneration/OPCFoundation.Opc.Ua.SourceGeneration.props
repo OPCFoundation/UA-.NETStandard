@@ -21,6 +21,7 @@
     <CompilerVisibleProperty Include="ModelSourceGeneratorClientAccessorNamespace" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorClientAccessorClassName" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorOmitEventRecords" />
+    <CompilerVisibleProperty Include="ModelSourceGeneratorEcmFieldCopies" />
   </ItemGroup>
   <ItemGroup>
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="ModelSourceGeneratorVersion" />

@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -135,8 +137,47 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Provides lifecycle-owned semantic resampling for monitored-item managers.
     /// </summary>
-    internal static class MonitoredItemManagerSemanticResampling
+    internal static class MonitoredItemManagerLifecycleOperations
     {
+        /// <summary>
+        /// Captures native membership while the caller holds its node-manager mutation gate.
+        /// </summary>
+        /// <param name="manager">The monitored-item manager whose membership is captured.</param>
+        /// <param name="nodeIds">The requested nodes, or null to capture all native items.</param>
+        /// <returns>A stable snapshot independent of subsequent membership changes.</returns>
+        internal static IReadOnlyList<IMonitoredItem> CaptureMonitoredItems(
+            this IMonitoredItemManager manager,
+            IReadOnlyCollection<NodeId>? nodeIds)
+        {
+            if (nodeIds is null)
+            {
+                return [.. manager.MonitoredItems.Values];
+            }
+            if (nodeIds.Count == 0)
+            {
+                return [];
+            }
+            var requestedNodeIds = new HashSet<NodeId>(nodeIds, NodeIdComparer.Default);
+            return [.. manager.MonitoredItems.Values.Where(item => requestedNodeIds.Contains(item.NodeId))];
+        }
+
+        /// <summary>
+        /// Captures a notification fence without acquiring another lifetime admission.
+        /// </summary>
+        /// <param name="manager">The monitored-item manager.</param>
+        /// <param name="nodeId">The NodeId whose notifications must drain.</param>
+        /// <returns>The consumer's fence, or null when the node has no consumer.</returns>
+        internal static Func<CancellationToken, ValueTask>? GetNotificationDrain(
+            this IMonitoredItemManager manager,
+            NodeId nodeId)
+        {
+            if (manager.MonitoredNodes.TryGetValue(nodeId, out MonitoredNode2? monitoredNode))
+            {
+                return monitoredNode.WaitForPendingNotificationsAsync;
+            }
+            return null;
+        }
+
         /// <summary>
         /// Queues a force-resample for the exact node and monitored item currently owned by the manager.
         /// </summary>
@@ -183,5 +224,6 @@ namespace Opc.Ua.Server
                 _ => default
             };
         }
+
     }
 }

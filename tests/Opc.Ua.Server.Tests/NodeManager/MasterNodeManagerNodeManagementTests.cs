@@ -121,6 +121,27 @@ namespace Opc.Ua.Server.Tests
                     cancellation.Token).ConfigureAwait(false));
         }
 
+        [TestCase(RequestType.AddNodes, false)]
+        [TestCase(RequestType.DeleteNodes, false)]
+        [TestCase(RequestType.AddReferences, false)]
+        [TestCase(RequestType.DeleteReferences, false)]
+        [TestCase(RequestType.Browse, true)]
+        public void RequestRoutingPinningRespectsNodeManagementAdmission(
+            RequestType requestType,
+            bool shouldPin)
+        {
+            using var context = new OperationContext(
+                new RequestHeader(),
+                null,
+                requestType,
+                RequestLifetime.None);
+            var routing = (IRequestRouting)((ServerInternalData)m_server.CurrentInstance).NodeManager;
+
+            routing.PinRequest(context);
+
+            Assert.That(context.RoutingSnapshot is not null, Is.EqualTo(shouldPin));
+        }
+
         [TestCase("")]
         [TestCase(null)]
         public void InvalidPathBrowseNameReturnsOperationStatus(string? name)
@@ -140,7 +161,7 @@ namespace Opc.Ua.Server.Tests
         public async Task AddNodesAsync_NullItem_ReturnsBadNothingToDoAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             (ArrayOf<AddNodesResult> results, _) = await sut.AddNodesAsync(
                 ctx,
@@ -155,7 +176,7 @@ namespace Opc.Ua.Server.Tests
         public async Task AddNodesAsync_NullBrowseName_ReturnsBadBrowseNameInvalidAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             var item = new AddNodesItem
             {
@@ -174,7 +195,7 @@ namespace Opc.Ua.Server.Tests
         public async Task AddNodesAsync_NullParentNodeId_ReturnsBadParentNodeIdInvalidAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             var item = new AddNodesItem
             {
@@ -193,7 +214,7 @@ namespace Opc.Ua.Server.Tests
         public async Task AddNodesAsync_NullReferenceTypeId_ReturnsBadReferenceTypeIdInvalidAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             var item = new AddNodesItem
             {
@@ -212,7 +233,7 @@ namespace Opc.Ua.Server.Tests
         public async Task AddNodesAsync_NonHierarchicalReferenceType_ReturnsBadReferenceNotAllowedAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             var item = new AddNodesItem
             {
@@ -232,7 +253,7 @@ namespace Opc.Ua.Server.Tests
         public async Task AddNodesAsyncRequestedIdInUnownedNamespaceReturnsBadNodeIdRejectedAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
             var item = new AddNodesItem
             {
                 ParentNodeId = ObjectIds.RootFolder,
@@ -265,8 +286,9 @@ namespace Opc.Ua.Server.Tests
                 NodeClass = NodeClass.Object
             };
 
+            using OperationContext context = CreateContext();
             (ArrayOf<AddNodesResult> results, _) = await sut.AddNodesAsync(
-                CreateContext(),
+                context,
                 new AddNodesItem[] { item }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
@@ -296,8 +318,9 @@ namespace Opc.Ua.Server.Tests
                 NodeClass = NodeClass.Object
             };
 
+            using OperationContext context = CreateContext();
             (ArrayOf<AddNodesResult> results, _) = await sut.AddNodesAsync(
-                CreateContext(),
+                context,
                 new AddNodesItem[] { item }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
@@ -329,8 +352,9 @@ namespace Opc.Ua.Server.Tests
                 NodeClass = NodeClass.Object
             };
 
+            using OperationContext context = CreateContext();
             (ArrayOf<AddNodesResult> results, _) = await sut.AddNodesAsync(
-                CreateContext(),
+                context,
                 new AddNodesItem[] { item }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
@@ -348,9 +372,10 @@ namespace Opc.Ua.Server.Tests
                 NodeClass = NodeClass.Variable
             };
 
+            using OperationContext context = CreateContext();
             (ArrayOf<AddNodesResult> results, _) =
                 await m_server.CurrentInstance.NodeManager.AddNodesAsync(
-                    CreateContext(),
+                    context,
                     new AddNodesItem[] { item }.ToArrayOf(),
                     CancellationToken.None).ConfigureAwait(false);
 
@@ -389,8 +414,9 @@ namespace Opc.Ua.Server.Tests
                 NodeClass = nodeClass
             };
 
+            using OperationContext context = CreateContext();
             (ArrayOf<AddNodesResult> results, _) = await sut.AddNodesAsync(
-                CreateContext(),
+                context,
                 new AddNodesItem[] { item }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
@@ -401,7 +427,7 @@ namespace Opc.Ua.Server.Tests
         public async Task DeleteNodesAsync_NullItem_ReturnsBadNothingToDoAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             (ArrayOf<StatusCode> results, _) = await sut.DeleteNodesAsync(
                 ctx,
@@ -415,7 +441,7 @@ namespace Opc.Ua.Server.Tests
         public async Task DeleteNodesAsync_NullNodeId_ReturnsBadNodeIdInvalidAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             var item = new DeleteNodesItem
             {
@@ -432,7 +458,7 @@ namespace Opc.Ua.Server.Tests
         public async Task DeleteNodesAsync_UnknownNodeId_ReturnsBadNodeIdUnknownAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             var item = new DeleteNodesItem
             {
@@ -450,7 +476,7 @@ namespace Opc.Ua.Server.Tests
         public async Task AddReferencesAsync_NullItem_ReturnsBadNothingToDoAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             (ArrayOf<StatusCode> results, _) = await sut.AddReferencesAsync(
                 ctx,
@@ -464,7 +490,7 @@ namespace Opc.Ua.Server.Tests
         public async Task AddReferencesAsync_NullSourceNodeId_ReturnsBadSourceNodeIdInvalidAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             var item = new AddReferencesItem
             {
@@ -482,7 +508,7 @@ namespace Opc.Ua.Server.Tests
         public async Task AddReferencesAsync_NullTargetNodeId_ReturnsBadTargetNodeIdInvalidAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             var item = new AddReferencesItem
             {
@@ -500,7 +526,7 @@ namespace Opc.Ua.Server.Tests
         public async Task AddReferencesAsync_NullReferenceTypeId_ReturnsBadReferenceTypeIdInvalidAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             var item = new AddReferencesItem
             {
@@ -524,7 +550,7 @@ namespace Opc.Ua.Server.Tests
             uint typeId)
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
             var referenceTypeId = new NodeId(typeId);
 
             (ArrayOf<StatusCode> addResults, _) = await sut.AddReferencesAsync(
@@ -587,7 +613,7 @@ namespace Opc.Ua.Server.Tests
             uint typeId)
         {
             IMasterNodeManager sut = m_server.CurrentInstance.NodeManager;
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
             var referenceTypeId = new NodeId(typeId);
 
             (ArrayOf<StatusCode> addResults, _) = await sut.AddReferencesAsync(
@@ -640,7 +666,7 @@ namespace Opc.Ua.Server.Tests
         public async Task DeleteReferencesAsync_NullItem_ReturnsBadNothingToDoAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             (ArrayOf<StatusCode> results, _) = await sut.DeleteReferencesAsync(
                 ctx,
@@ -654,7 +680,7 @@ namespace Opc.Ua.Server.Tests
         public async Task DeleteReferencesAsync_NullSourceNodeId_ReturnsBadSourceNodeIdInvalidAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             var item = new DeleteReferencesItem
             {
@@ -672,7 +698,7 @@ namespace Opc.Ua.Server.Tests
         public async Task DeleteReferencesAsync_NullReferenceTypeId_ReturnsBadReferenceTypeIdInvalidAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             var item = new DeleteReferencesItem
             {
@@ -690,7 +716,7 @@ namespace Opc.Ua.Server.Tests
         public async Task DeleteReferencesAsync_BadItem_OmitsDiagnostics_WhenNotRequestedAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext(DiagnosticsMasks.None);
+            using OperationContext ctx = CreateContext(DiagnosticsMasks.None);
 
             var item = new DeleteReferencesItem
             {
@@ -711,7 +737,7 @@ namespace Opc.Ua.Server.Tests
         public async Task DeleteReferencesAsync_BadItem_ReturnsDiagnostics_WhenRequestedAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext(DiagnosticsMasks.OperationAll);
+            using OperationContext ctx = CreateContext(DiagnosticsMasks.OperationAll);
 
             var item = new DeleteReferencesItem
             {
@@ -732,7 +758,7 @@ namespace Opc.Ua.Server.Tests
         public async Task AddNodesAsync_BadItem_OmitsDiagnostics_WhenNotRequestedAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext(DiagnosticsMasks.None);
+            using OperationContext ctx = CreateContext(DiagnosticsMasks.None);
 
             (ArrayOf<AddNodesResult> results, ArrayOf<DiagnosticInfo> diagnostics) =
                 await sut.AddNodesAsync(
@@ -748,7 +774,7 @@ namespace Opc.Ua.Server.Tests
         public async Task AddNodesAsync_BadItem_ReturnsDiagnostics_WhenRequestedAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext(DiagnosticsMasks.OperationAll);
+            using OperationContext ctx = CreateContext(DiagnosticsMasks.OperationAll);
 
             (ArrayOf<AddNodesResult> results, ArrayOf<DiagnosticInfo> diagnostics) =
                 await sut.AddNodesAsync(
@@ -764,7 +790,7 @@ namespace Opc.Ua.Server.Tests
         public async Task AddNodesAsync_EmptyBatch_ReturnsEmptyResultsAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
-            OperationContext ctx = CreateContext();
+            using OperationContext ctx = CreateContext();
 
             (ArrayOf<AddNodesResult> results, ArrayOf<DiagnosticInfo> diagnostics) = await sut.AddNodesAsync(
                 ctx,
@@ -942,7 +968,7 @@ namespace Opc.Ua.Server.Tests
             harness.SetAddNodePermissions(PermissionType.AddNode);
             harness.SourceMetadata.AccessRestrictions = AccessRestrictionType.SigningRequired;
             AddNodesItem item = harness.CreateAddNodesItem();
-            OperationContext insecureContext = harness.CreateContext(
+            using OperationContext insecureContext = harness.CreateContext(
                 RequestType.AddNodes,
                 MessageSecurityMode.None);
 
@@ -1029,7 +1055,7 @@ namespace Opc.Ua.Server.Tests
                 harness.TargetNamespaceIndex,
                 AccessRestrictionType.SigningRequired);
             AddNodesItem item = harness.CreateAddNodesItem(harness.TargetNamespaceIndex);
-            OperationContext insecureContext = harness.CreateContext(
+            using OperationContext insecureContext = harness.CreateContext(
                 RequestType.AddNodes,
                 MessageSecurityMode.None);
 
@@ -1112,7 +1138,7 @@ namespace Opc.Ua.Server.Tests
             {
                 NodeId = harness.SourceNodeId
             };
-            OperationContext signedContext = harness.CreateContext(
+            using OperationContext signedContext = harness.CreateContext(
                 RequestType.DeleteNodes,
                 MessageSecurityMode.Sign);
 
@@ -1163,7 +1189,7 @@ namespace Opc.Ua.Server.Tests
             using var harness = new AuthorizationHarness();
             harness.TargetMetadata.AccessRestrictions = AccessRestrictionType.SigningRequired;
             AddReferencesItem item = harness.CreateAddReferencesItem();
-            OperationContext insecureContext = harness.CreateContext(
+            using OperationContext insecureContext = harness.CreateContext(
                 RequestType.AddReferences,
                 MessageSecurityMode.None);
 
@@ -1480,7 +1506,7 @@ namespace Opc.Ua.Server.Tests
             using var harness = new AuthorizationHarness();
             harness.TargetMetadata.AccessRestrictions = AccessRestrictionType.SigningRequired;
             DeleteReferencesItem item = harness.CreateDeleteReferencesItem();
-            OperationContext insecureContext = harness.CreateContext(
+            using OperationContext insecureContext = harness.CreateContext(
                 RequestType.DeleteReferences,
                 MessageSecurityMode.None);
 
@@ -1703,7 +1729,7 @@ namespace Opc.Ua.Server.Tests
             harness.SetAddNodePermissions(PermissionType.Browse);
             harness.SetSourcePermissions(PermissionType.Browse);
             AddNodesItem item = harness.CreateAddNodesItem();
-            var contextWithoutSession = new OperationContext(
+            using var contextWithoutSession = new OperationContext(
                 new RequestHeader(),
                 null,
                 RequestType.AddNodes,
@@ -1787,7 +1813,7 @@ namespace Opc.Ua.Server.Tests
                 targetNodeId);
 
             using MasterNodeManager sut = CreateMasterNodeManager(manager.Object);
-            OperationContext context = CreateContext();
+            using OperationContext context = CreateContext();
             var item = new AddReferencesItem
             {
                 SourceNodeId = sourceNodeId,
@@ -2063,7 +2089,7 @@ namespace Opc.Ua.Server.Tests
                 targetNodeId);
 
             using MasterNodeManager sut = CreateMasterNodeManager(manager.Object);
-            OperationContext context = CreateContext();
+            using OperationContext context = CreateContext();
             var item = new DeleteReferencesItem
             {
                 SourceNodeId = sourceNodeId,
@@ -2422,8 +2448,9 @@ namespace Opc.Ua.Server.Tests
                 ResultMask = (uint)BrowseResultMask.All
             };
 
+            using OperationContext context = CreateContext();
             return await sut.BrowseAsync(
-                CreateContext(),
+                context,
                 new ViewDescription(),
                 0u,
                 new[] { browseDescription }.ToArrayOf(),
@@ -2905,6 +2932,10 @@ namespace Opc.Ua.Server.Tests
 
             public void Dispose()
             {
+                AddNodesContext.Dispose();
+                DeleteNodesContext.Dispose();
+                AddReferencesContext.Dispose();
+                DeleteReferencesContext.Dispose();
                 Sut.Dispose();
             }
 

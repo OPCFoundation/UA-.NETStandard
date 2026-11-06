@@ -573,11 +573,14 @@ namespace Opc.Ua.Types.Tests.Nodes
                 Is.False);
         }
 
+        /// <summary>
+        /// An unknown reference type has an OPC UA null browse name on every target framework.
+        /// </summary>
         [Test]
-        public void FindReferenceTypeNameReturnsDefaultForUnknownType()
+        public void FindReferenceTypeNameReturnsNullForUnknownType()
         {
             QualifiedName result = m_typeTable.FindReferenceTypeName(s_unknownTypeId);
-            Assert.That(result, Is.Default);
+            Assert.That(result.IsNull, Is.True);
         }
 
         [Test]
