@@ -46,6 +46,201 @@ namespace Opc.Ua.Server.Tests.Historian
         private const string kNamespaceUri = "urn:test:staged-historian";
 
         /// <summary>
+        /// Scoped bindings stay private until publication and restore attributes when released.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ScopedBindingPublishesAndRestoresOwnedAttributes(bool publishBeforeBinding)
+        {
+            var namespaceTable = new NamespaceTable();
+            using var serving = new HistorianProviderRegistry(namespaceTable);
+            using var candidate = new StagedHistorianProviderRegistry(namespaceTable, serving, new object());
+            var provider = new TrackingProvider();
+            var node = new BaseDataVariableState(null)
+            {
+                NodeId = new NodeId("scoped-node", 0),
+                AccessLevel = AccessLevels.CurrentRead,
+                UserAccessLevel = AccessLevels.CurrentRead
+            };
+            if (publishBeforeBinding)
+            {
+                candidate.Publish();
+            }
+
+            Assert.That(candidate.TryRegisterForNode(node, provider, out IDisposable? binding), Is.True);
+            using (binding)
+            {
+                Assert.That(candidate.Resolve(node.NodeId), Is.SameAs(provider));
+                Assert.That(serving.Resolve(node.NodeId), Is.SameAs(publishBeforeBinding ? provider : null));
+                Assert.That(candidate.TryRegisterForNode(node, provider, out IDisposable? duplicate), Is.False);
+                Assert.That(duplicate, Is.Null);
+                node.Historizing = true;
+                node.AccessLevel |= AccessLevels.HistoryRead;
+                node.UserAccessLevel |= AccessLevels.HistoryRead;
+                candidate.Publish();
+                Assert.That(serving.Resolve(node.NodeId), Is.SameAs(provider));
+            }
+
+            Assert.That(candidate.Resolve(node.NodeId), Is.Null);
+            Assert.That(serving.Resolve(node.NodeId), Is.Null);
+            Assert.That(node.Historizing, Is.False);
+            Assert.That(node.AccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
+            Assert.That(node.UserAccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
+            Assert.That(provider.DisposeCount, Is.Zero);
+            candidate.Dispose();
+            Assert.That(provider.DisposeCount, Is.Zero);
+            serving.Dispose();
+            Assert.That(provider.DisposeCount, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Asynchronous scoped release reserves the node and shares its cleanup failure with every caller.
+        /// </summary>
+        [Test]
+        public async Task ScopedReleaseSharesFailureAndWithdrawsPublishedBindingAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var namespaceTable = new NamespaceTable();
+            using var serving = new HistorianProviderRegistry(namespaceTable);
+            using var candidate = new StagedHistorianProviderRegistry(namespaceTable, serving, new object());
+            var provider = new TrackingProvider();
+            var nodeId = new NodeId("async-scoped-node", 0);
+            Assert.That(candidate.TryRegisterForNode(nodeId, provider, out IDisposable? binding), Is.True);
+            Assert.That(binding, Is.InstanceOf<IHistorianNodeBinding>());
+            using (binding)
+            {
+                var scoped = (IHistorianNodeBinding)binding!;
+                candidate.Publish();
+                int cleanupCalls = 0;
+                var finish = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var failure = new InvalidOperationException("Scoped metadata cleanup failed.");
+                Task first = scoped.ReleaseAsync(async () =>
+                {
+                    cleanupCalls++;
+                    await finish.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    throw failure;
+                }).AsTask();
+                try
+                {
+                    Task second = scoped.ReleaseAsync(() => throw new InvalidOperationException(
+                        "A second cleanup must not run.")).AsTask();
+                    Assert.That(second, Is.SameAs(first));
+                    Assert.That(cleanupCalls, Is.EqualTo(1));
+                    binding!.Dispose();
+                    Assert.That(serving.Resolve(nodeId), Is.SameAs(provider));
+                    Assert.That(candidate.TryRegisterForNode(nodeId, provider, out IDisposable? duplicate), Is.False);
+                    Assert.That(duplicate, Is.Null);
+                }
+                finally
+                {
+                    finish.TrySetResult(true);
+                }
+
+                InvalidOperationException? caught = null;
+                try
+                {
+                    await first.ConfigureAwait(false);
+                }
+                catch (InvalidOperationException exception)
+                {
+                    caught = exception;
+                }
+                Assert.That(caught, Is.SameAs(failure));
+                Assert.That(async () => await scoped.ReleaseAsync(() => default).ConfigureAwait(false),
+                    Throws.Exception.SameAs(failure));
+                Assert.That(cleanupCalls, Is.EqualTo(1));
+                Assert.That(candidate.Resolve(nodeId), Is.Null);
+                Assert.That(serving.Resolve(nodeId), Is.Null);
+            }
+        }
+
+        /// <summary>
+        /// A staged replacement preserves the previous binding until commit and restores it on rollback.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ScopedReplacementPublishesOnlyCommittedProvider(bool commit)
+        {
+            var namespaceTable = new NamespaceTable();
+            using var serving = new HistorianProviderRegistry(namespaceTable);
+            using var candidate = new StagedHistorianProviderRegistry(namespaceTable, serving, new object());
+            var previous = new TrackingProvider();
+            var replacement = new TrackingProvider();
+            var node = new BaseDataVariableState(null)
+            {
+                NodeId = new NodeId("replacement-node", 0),
+                AccessLevel = AccessLevels.CurrentRead,
+                UserAccessLevel = AccessLevels.CurrentRead
+            };
+            Assert.That(candidate.TryRegisterForNode(node, previous, out IDisposable? binding), Is.True);
+            using (binding)
+            {
+                candidate.Publish();
+                using (IHistorianNodeReplacement transaction =
+                    ((IHistorianNodeReplacementRegistry)candidate).BeginNodeReplacement(node, replacement))
+                {
+                    node.Historizing = true;
+                    Assert.That(candidate.Resolve(node.NodeId), Is.SameAs(previous));
+                    Assert.That(serving.Resolve(node.NodeId), Is.SameAs(previous));
+                    if (commit)
+                    {
+                        transaction.Commit();
+                    }
+                }
+
+                Assert.That(node.Historizing, Is.EqualTo(commit));
+                Assert.That(candidate.Resolve(node.NodeId), Is.SameAs(commit ? replacement : previous));
+                Assert.That(serving.Resolve(node.NodeId), Is.SameAs(commit ? replacement : previous));
+            }
+
+            Assert.That(node.Historizing, Is.EqualTo(commit));
+            Assert.That(candidate.Resolve(node.NodeId), Is.SameAs(commit ? replacement : null));
+            Assert.That(serving.Resolve(node.NodeId), Is.SameAs(commit ? replacement : null));
+            Assert.That(previous.DisposeCount, Is.Zero);
+            candidate.Dispose();
+            serving.Dispose();
+            Assert.That(previous.DisposeCount, Is.EqualTo(1));
+            Assert.That(replacement.DisposeCount, Is.EqualTo(commit ? 1 : 0));
+        }
+
+        /// <summary>
+        /// Scoped registration and replacement do not transfer a borrowed serving provider's disposal lifetime.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ScopedPublicationPreservesBorrowedProviderOwnership(bool replace)
+        {
+            var namespaceTable = new NamespaceTable();
+            using var provider = new BorrowedSingletonProvider();
+            using var serving = new HistorianProviderRegistry(namespaceTable);
+            serving.RegisterDefault(provider, ownsProvider: false);
+            using var candidate = new StagedHistorianProviderRegistry(namespaceTable, serving, new object());
+            var node = new BaseDataVariableState(null) { NodeId = new NodeId("borrowed-scoped-node", 0) };
+            if (replace)
+            {
+                using IHistorianNodeReplacement transaction =
+                    ((IHistorianNodeReplacementRegistry)candidate).BeginNodeReplacement(node, provider);
+                transaction.Commit();
+            }
+            else
+            {
+                Assert.That(candidate.TryRegisterForNode(node, provider, out IDisposable? binding), Is.True);
+                using (binding)
+                {
+                    candidate.Publish();
+                    Assert.That(serving.Resolve(node.NodeId), Is.SameAs(provider));
+                    Assert.That(((IHistorianOwnedProviderRegistry)serving).OwnsProvider(provider), Is.False);
+                }
+            }
+
+            candidate.Publish();
+            Assert.That(((IHistorianOwnedProviderRegistry)serving).OwnsProvider(provider), Is.False);
+            candidate.Dispose();
+            serving.Dispose();
+            Assert.That(provider.DisposeCount, Is.Zero);
+        }
+
+        /// <summary>
         /// Fluent historization borrows a direct serving default without creating staged state.
         /// </summary>
         [Test]

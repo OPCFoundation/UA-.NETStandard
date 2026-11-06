@@ -82,20 +82,6 @@ namespace Opc.Ua.Server.Historian
             }
         }
 
-        /// <summary>
-        /// Commits a node replacement while the candidate is still mutable and republishes its registration set.
-        /// </summary>
-        /// <param name="replacement">The candidate replacement transaction.</param>
-        private void CommitNodeReplacement(IHistorianNodeReplacement replacement)
-        {
-            lock (m_lock)
-            {
-                EnsureMutable();
-                replacement.Commit();
-                UpdateServingRegistrations();
-            }
-        }
-
         /// <inheritdoc/>
         public void RegisterForNamespace(string namespaceUri, IHistorianProvider provider)
         {
@@ -145,12 +131,20 @@ namespace Opc.Ua.Server.Historian
             BaseVariableState node,
             IHistorianProvider provider)
         {
+            if (node == null)
+            {
+                throw new ArgumentNullException(nameof(node));
+            }
+            if (provider == null)
+            {
+                throw new ArgumentNullException(nameof(provider));
+            }
             lock (m_lock)
             {
                 EnsureMutable();
                 EnsureOwnerSupportForMutation();
                 IHistorianNodeReplacement replacement =
-                    ((IHistorianNodeReplacementRegistry)m_candidateRegistry).BeginNodeReplacement(node, provider);
+                    m_candidateRegistry.BeginNodeReplacement(node, provider, OwnsProviderForCandidate(provider));
                 return new StagedNodeReplacement(this, replacement);
             }
         }
@@ -404,16 +398,8 @@ namespace Opc.Ua.Server.Historian
                 EnsureMutable();
                 EnsureOwnerSupportForMutation();
                 RemoveRetainedNodeBinding(nodeId);
-                IDisposable? candidateBinding;
-                bool registered;
-                if (node == null)
-                {
-                    registered = m_candidateRegistry.TryRegisterForNode(nodeId, provider, out candidateBinding);
-                }
-                else
-                {
-                    registered = m_candidateRegistry.TryRegisterForNode(node, provider, out candidateBinding);
-                }
+                bool registered = m_candidateRegistry.TryRegisterForNode(
+                    nodeId, provider, node, OwnsProviderForCandidate(provider), out IDisposable? candidateBinding);
                 if (!registered)
                 {
                     binding = null;
@@ -486,6 +472,20 @@ namespace Opc.Ua.Server.Historian
                 {
                     UpdateServingRegistrations();
                 }
+            }
+        }
+
+        /// <summary>
+        /// Commits a node replacement while the candidate is still mutable and republishes its registration set.
+        /// </summary>
+        /// <param name="replacement">The candidate replacement transaction.</param>
+        private void CommitNodeReplacement(IHistorianNodeReplacement replacement)
+        {
+            lock (m_lock)
+            {
+                EnsureMutable();
+                replacement.Commit();
+                UpdateServingRegistrations();
             }
         }
 
@@ -716,13 +716,38 @@ namespace Opc.Ua.Server.Historian
                 {
                     throw new ArgumentNullException(nameof(cleanup));
                 }
-                Task release;
+                TaskCompletionSource<bool> completion;
+                bool start;
                 lock (m_releaseLock)
                 {
-                    m_release ??= ReleaseCoreAsync(cleanup);
-                    release = m_release;
+                    start = m_release == null;
+                    completion = m_release ??=
+                        new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                 }
-                return new ValueTask(release);
+                if (start)
+                {
+                    _ = CompleteReleaseAsync(cleanup, completion);
+                }
+                return new ValueTask(completion.Task);
+            }
+
+            /// <summary>
+            /// Publishes the first release's outcome without running application cleanup during acquisition.
+            /// </summary>
+            /// <param name="cleanup">The metadata cleanup owned by this binding.</param>
+            /// <param name="completion">The outcome shared by every release caller.</param>
+            /// <returns>The completion of outcome publication.</returns>
+            private async Task CompleteReleaseAsync(Func<ValueTask> cleanup, TaskCompletionSource<bool> completion)
+            {
+                try
+                {
+                    await ReleaseCoreAsync(cleanup).ConfigureAwait(false);
+                    completion.TrySetResult(true);
+                }
+                catch (Exception failure)
+                {
+                    completion.TrySetException(failure);
+                }
             }
 
             /// <summary>
@@ -773,7 +798,7 @@ namespace Opc.Ua.Server.Historian
             /// <summary>
             /// The first asynchronous release operation, if started.
             /// </summary>
-            private Task? m_release;
+            private TaskCompletionSource<bool>? m_release;
         }
 
         /// <summary>

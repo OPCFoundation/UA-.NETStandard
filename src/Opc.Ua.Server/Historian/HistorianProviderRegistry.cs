@@ -190,7 +190,7 @@ namespace Opc.Ua.Server.Historian
         /// <inheritdoc/>
         public bool TryRegisterForNode(NodeId nodeId, IHistorianProvider provider, out IDisposable? binding)
         {
-            return TryRegisterForNode(nodeId, provider, null, out binding);
+            return TryRegisterForNode(nodeId, provider, null, true, out binding);
         }
 
         /// <inheritdoc/>
@@ -200,7 +200,7 @@ namespace Opc.Ua.Server.Historian
             {
                 throw new ArgumentNullException(nameof(node));
             }
-            return TryRegisterForNode(node.NodeId, provider, node, out binding);
+            return TryRegisterForNode(node.NodeId, provider, node, true, out binding);
         }
 
         /// <inheritdoc/>
@@ -208,7 +208,7 @@ namespace Opc.Ua.Server.Historian
             BaseVariableState node,
             IHistorianProvider provider)
         {
-            return BeginNodeReplacement(node, provider);
+            return BeginNodeReplacement(node, provider, ownsProvider: true);
         }
 
         /// <inheritdoc/>
@@ -828,7 +828,14 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Reserves a replacement before fluent setup changes attributes, restoring the prior owner if setup fails.
         /// </summary>
-        private NodeReplacement BeginNodeReplacement(BaseVariableState node, IHistorianProvider provider)
+        /// <param name="node">The variable whose binding is being replaced.</param>
+        /// <param name="provider">The replacement provider.</param>
+        /// <param name="ownsProvider">Whether this registry owns the replacement provider's disposal lifetime.</param>
+        /// <returns>The reservation to commit or roll back.</returns>
+        internal IHistorianNodeReplacement BeginNodeReplacement(
+            BaseVariableState node,
+            IHistorianProvider provider,
+            bool ownsProvider)
         {
             if (node == null)
             {
@@ -849,17 +856,25 @@ namespace Opc.Ua.Server.Historian
                 m_nodeBindings.TryGetValue(node.NodeId, out NodeBinding? previousBinding);
                 var current = new NodeBinding(this, node.NodeId, node);
                 m_pendingReplacements.Add(node.NodeId, current);
-                return new NodeReplacement(this, node.NodeId, current, provider, previousProvider, previousBinding);
+                return new NodeReplacement(
+                    this, node.NodeId, current, provider, previousProvider, previousBinding, ownsProvider);
             }
         }
 
         /// <summary>
         /// Acquires a registration identity and, when supplied, its node attributes in one operation.
         /// </summary>
-        private bool TryRegisterForNode(
+        /// <param name="nodeId">The exact node to bind.</param>
+        /// <param name="provider">The provider to register.</param>
+        /// <param name="node">The node whose historian attributes belong to this binding, if available.</param>
+        /// <param name="ownsProvider">Whether this registry owns the provider's disposal lifetime.</param>
+        /// <param name="binding">The owned registration, or null when an exact binding already exists.</param>
+        /// <returns>Whether a new binding was installed.</returns>
+        internal bool TryRegisterForNode(
             NodeId nodeId,
             IHistorianProvider provider,
             NodeState? node,
+            bool ownsProvider,
             out IDisposable? binding)
         {
             if (nodeId.IsNull)
@@ -885,7 +900,7 @@ namespace Opc.Ua.Server.Historian
                 m_nodes.Add(nodeId, provider);
                 m_nodeBindings.Add(nodeId, registration);
                 m_nodeRegistrationOrder[nodeId] = ++m_registrationOrder;
-                AddProvider(provider, ownsProvider: true);
+                AddProvider(provider, ownsProvider);
                 binding = registration;
                 return true;
             }
@@ -978,6 +993,7 @@ namespace Opc.Ua.Server.Historian
             IHistorianProvider provider,
             IHistorianProvider? previousProvider,
             NodeBinding? previousBinding,
+            bool ownsProvider,
             bool commit)
         {
             try
@@ -1017,7 +1033,7 @@ namespace Opc.Ua.Server.Historian
                         m_nodes[nodeId] = provider;
                         m_nodeBindings.Remove(nodeId);
                         m_nodeRegistrationOrder[nodeId] = ++m_registrationOrder;
-                        AddProvider(provider, ownsProvider: true);
+                        AddProvider(provider, ownsProvider);
                         if (previousProvider != null)
                         {
                             RebuildProviderSet(previousProvider);
@@ -1260,7 +1276,8 @@ namespace Opc.Ua.Server.Historian
                 NodeBinding current,
                 IHistorianProvider provider,
                 IHistorianProvider? previousProvider,
-                NodeBinding? previousBinding)
+                NodeBinding? previousBinding,
+                bool ownsProvider)
             {
                 m_registry = registry;
                 m_nodeId = nodeId;
@@ -1268,6 +1285,7 @@ namespace Opc.Ua.Server.Historian
                 m_provider = provider;
                 m_previousProvider = previousProvider;
                 m_previousBinding = previousBinding;
+                m_ownsProvider = ownsProvider;
             }
 
             /// <inheritdoc/>
@@ -1292,7 +1310,7 @@ namespace Opc.Ua.Server.Historian
                 if (Interlocked.Exchange(ref m_completed, 1) == 0)
                 {
                     m_registry.CompleteNodeReplacement(
-                        m_nodeId, m_current, m_provider, m_previousProvider, m_previousBinding, commit);
+                        m_nodeId, m_current, m_provider, m_previousProvider, m_previousBinding, m_ownsProvider, commit);
                 }
             }
 
@@ -1313,6 +1331,9 @@ namespace Opc.Ua.Server.Historian
 
             /// <summary>The prior detachable owner, if any.</summary>
             private readonly NodeBinding? m_previousBinding;
+
+            /// <summary>Whether this reservation transfers ownership of the replacement provider.</summary>
+            private readonly bool m_ownsProvider;
 
             /// <summary>Whether this reservation has committed or rolled back.</summary>
             private int m_completed;
