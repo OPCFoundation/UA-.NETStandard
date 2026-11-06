@@ -373,10 +373,10 @@ namespace Opc.Ua.ECM.Server
         {
             lock (m_gate)
             {
-                if (m_server is not ServerInternalData)
+                if (m_server is not IConformanceUnitsManagerProvider)
                 {
                     throw new InvalidOperationException(
-                        "Runtime ECM capability publication requires a ServerInternalData context.");
+                        "Runtime ECM capability publication requires an IConformanceUnitsManagerProvider.");
                 }
             }
         }
@@ -392,16 +392,12 @@ namespace Opc.Ua.ECM.Server
             {
                 server = m_server;
             }
-            if (server is not ServerInternalData serverData)
+            if (server is not IConformanceUnitsManagerProvider
+                { ConformanceUnitsManager: { } manager })
             {
-                throw new InvalidOperationException(
-                    "Runtime ECM capability publication requires a ServerInternalData context.");
+                return default;
             }
-            if (serverData.ConformanceUnitsManager is { } manager)
-            {
-                return manager.PublishAsync(cancellationToken);
-            }
-            return default;
+            return manager.PublishAsync(cancellationToken);
         }
 
         /// <summary>

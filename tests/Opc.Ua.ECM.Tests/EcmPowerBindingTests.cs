@@ -769,7 +769,7 @@ namespace Opc.Ua.ECM.Tests
             var provider = new Mock<IEcmStandbyProvider>(MockBehavior.Strict);
             provider.SetupSequence(service => service.ReadAsync(It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<EcmPowerSnapshot>(snapshot))
-                .Returns(new ValueTask<EcmPowerSnapshot>(snapshot));
+                .Returns(new ValueTask<EcmPowerSnapshot>(snapshot with { PauseTime = 1234 }));
             provider.Setup(service => service.StartPauseAsync(10000, It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<EcmControlResult>(new EcmControlResult(StatusCodes.Good, 0)));
             await using EcmPowerBinding binding = CreateBinding(context, provider.Object);
@@ -804,6 +804,7 @@ namespace Opc.Ua.ECM.Tests
             StartPauseMethodStateResult result = await command.WaitAsync(TimeSpan.FromSeconds(10))
                 .ConfigureAwait(false);
             Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+            Assert.That(pauseTime.Value, Is.EqualTo(1234));
             Assert.That(pauseTime.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
             provider.Verify(service => service.StartPauseAsync(10000, It.IsAny<CancellationToken>()), Times.Once);
         }
