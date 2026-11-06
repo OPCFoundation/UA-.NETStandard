@@ -295,11 +295,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// Resource aliases resolve the same generation without replacing its owning facade.
+        /// Custom resource facades retain distinct continuation owners until explicitly registered as aliases.
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
-        public void SharedSynchronousFacadesResolveOneGeneration(bool standardAdapter)
+        public void SharedSynchronousFacadesRetainDistinctUnregisteredGenerations(bool standardAdapter)
         {
             INodeManager resource = Mock.Of<INodeManager>();
             IAsyncNodeManager owner = CreateResourceFacade(resource, standardAdapter);
@@ -307,14 +307,21 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(owner);
 
-            Assert.That(NodeManagerGenerationRegistry.GetOrCreate(alias), Is.SameAs(generation));
+            NodeManagerGeneration aliased = NodeManagerGenerationRegistry.GetOrCreate(alias);
+
+            Assert.That(aliased, Is.Not.SameAs(generation));
+            Assert.That(aliased.NodeManager, Is.SameAs(alias));
+            Assert.That(NodeManagerGenerationRegistry.GetIdentity(alias),
+                Is.SameAs(NodeManagerGenerationRegistry.GetIdentity(owner)));
             Assert.That(
                 NodeManagerGenerationRegistry.TryGet(
                     resource.ToAsyncNodeManager(), out NodeManagerGeneration? found),
-                Is.True);
-            Assert.That(found, Is.SameAs(generation));
+                Is.EqualTo(standardAdapter));
+            Assert.That(found, standardAdapter ? Is.SameAs(generation) : Is.Null);
             Assert.That(generation.NodeManager, Is.SameAs(owner));
             Assert.That(generation.Slot.Current, Is.SameAs(generation));
+            using var point = new ContinuationPoint { Manager = alias };
+            Assert.That(point.Manager, Is.SameAs(alias));
         }
 
         /// <summary>
@@ -355,6 +362,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(prepared.Generation, Is.SameAs(generation));
             Assert.That(generation.NodeManager, Is.SameAs(owner));
             Assert.That(generation.Gate.State, Is.EqualTo(NodeManagerGenerationState.Prepared));
+            Assert.That(NodeManagerGenerationRegistry.GetOrCreate(alias), Is.SameAs(generation));
         }
 
         /// <summary>

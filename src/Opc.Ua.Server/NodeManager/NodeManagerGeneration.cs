@@ -1260,7 +1260,8 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(nodeManager));
             }
-            IAsyncNodeManager identity = GetIdentity(nodeManager);
+            IAsyncNodeManager identity = GetGenerationIdentity(nodeManager);
+            IAsyncNodeManager resource = GetIdentity(nodeManager);
             lock (s_lock)
             {
                 if (s_generations.TryGetValue(identity, out NodeManagerGeneration? generation))
@@ -1271,6 +1272,7 @@ namespace Opc.Ua.Server
                 generation = new NodeManagerGeneration(
                     slot, 1, nodeManager, NodeManagerGenerationState.Live);
                 s_generations.Add(identity, generation);
+                s_resourceGenerations.GetValue(resource, _ => generation);
                 slot.Publish(generation);
                 return generation;
             }
@@ -1284,7 +1286,7 @@ namespace Opc.Ua.Server
         /// <returns>Whether the manager already has a generation.</returns>
         internal static bool TryGet(IAsyncNodeManager nodeManager, out NodeManagerGeneration? generation)
         {
-            IAsyncNodeManager identity = GetIdentity(nodeManager);
+            IAsyncNodeManager identity = GetGenerationIdentity(nodeManager);
             lock (s_lock)
             {
                 return s_generations.TryGetValue(identity, out generation);
@@ -1309,14 +1311,16 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(replacement));
             }
-            IAsyncNodeManager identity = GetIdentity(replacement);
+            IAsyncNodeManager identity = GetGenerationIdentity(replacement);
+            IAsyncNodeManager resource = GetIdentity(replacement);
             lock (s_lock)
             {
-                if (s_generations.TryGetValue(identity, out NodeManagerGeneration? existing))
+                if (s_resourceGenerations.TryGetValue(resource, out NodeManagerGeneration? existing))
                 {
                     if (ReferenceEquals(existing.Slot, current.Slot) &&
                         existing.Gate.State == NodeManagerGenerationState.Prepared)
                     {
+                        AssociateGeneration(identity, resource, existing);
                         return existing;
                     }
                     if (existing.Gate.State == NodeManagerGenerationState.Live)
@@ -1329,6 +1333,7 @@ namespace Opc.Ua.Server
                     {
                         if (existing.TryRestoreBeforeShutdown())
                         {
+                            AssociateGeneration(identity, resource, existing);
                             return existing;
                         }
                         throw new InvalidOperationException(
@@ -1345,14 +1350,13 @@ namespace Opc.Ua.Server
                     {
                         existing.Gate.Abort();
                     }
-                    s_generations.Remove(identity);
                 }
                 var generation = new NodeManagerGeneration(
                     current.Slot,
                     current.Number + 1,
                     replacement,
                     NodeManagerGenerationState.Prepared);
-                s_generations.Add(identity, generation);
+                AssociateGeneration(identity, resource, generation);
                 return generation;
             }
         }
@@ -1368,13 +1372,15 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(nodeManager));
             }
-            IAsyncNodeManager identity = GetIdentity(nodeManager);
+            IAsyncNodeManager identity = GetGenerationIdentity(nodeManager);
+            IAsyncNodeManager resource = GetIdentity(nodeManager);
             lock (s_lock)
             {
-                if (s_generations.TryGetValue(identity, out NodeManagerGeneration? existing))
+                if (s_resourceGenerations.TryGetValue(resource, out NodeManagerGeneration? existing))
                 {
                     if (existing.Gate.State == NodeManagerGenerationState.Prepared)
                     {
+                        AssociateGeneration(identity, resource, existing);
                         return existing;
                     }
                     if (existing.Gate.State is NodeManagerGenerationState.Retiring or
@@ -1385,16 +1391,51 @@ namespace Opc.Ua.Server
                     }
                     if (existing.Gate.State != NodeManagerGenerationState.Aborted)
                     {
+                        AssociateGeneration(identity, resource, existing);
                         return existing;
                     }
-                    s_generations.Remove(identity);
                 }
                 var slot = new NodeManagerSlot();
                 var generation = new NodeManagerGeneration(
                     slot, 1, nodeManager, NodeManagerGenerationState.Prepared);
-                s_generations.Add(identity, generation);
+                AssociateGeneration(identity, resource, generation);
                 return generation;
             }
+        }
+
+        /// <summary>
+        /// Resolves ownership aliases supplied by the stack without equating unrelated custom facades.
+        /// </summary>
+        /// <param name="nodeManager">The manager whose generation owns an operation or continuation.</param>
+        /// <returns>The exact owner, normalized only through explicit stack adapters.</returns>
+        private static IAsyncNodeManager GetGenerationIdentity(IAsyncNodeManager nodeManager)
+        {
+            if (nodeManager is not AsyncNodeManagerAdapter adapter)
+            {
+                return nodeManager;
+            }
+            if (adapter.SyncNodeManager is SyncNodeManagerAdapter synchronous)
+            {
+                return GetGenerationIdentity(synchronous.AsyncNodeManager);
+            }
+            return adapter.SyncNodeManager.ToAsyncNodeManager();
+        }
+
+        /// <summary>
+        /// Associates an accepted registration facade with the generation reserved for its physical resource.
+        /// </summary>
+        /// <param name="identity">The exact facade identity.</param>
+        /// <param name="resource">The physical resource identity.</param>
+        /// <param name="generation">The accepted generation.</param>
+        private static void AssociateGeneration(
+            IAsyncNodeManager identity,
+            IAsyncNodeManager resource,
+            NodeManagerGeneration generation)
+        {
+            s_generations.Remove(identity);
+            s_generations.Add(identity, generation);
+            s_resourceGenerations.Remove(resource);
+            s_resourceGenerations.Add(resource, generation);
         }
 
         /// <summary>
@@ -1443,6 +1484,10 @@ namespace Opc.Ua.Server
 
         /// <summary>Associates each manager instance with its current generation identity.</summary>
         private static readonly ConditionalWeakTable<IAsyncNodeManager, NodeManagerGeneration> s_generations = new();
+
+        /// <summary>Prevents a facade from registering a physical resource in incompatible generations.</summary>
+        private static readonly ConditionalWeakTable<IAsyncNodeManager, NodeManagerGeneration> s_resourceGenerations =
+            new();
 
         /// <summary>Scopes restored ownerless items to the lifetime and identity of their server.</summary>
         private static readonly ConditionalWeakTable<IServerInternal, NodeManagerSlot> s_ownerlessSlots = new();
