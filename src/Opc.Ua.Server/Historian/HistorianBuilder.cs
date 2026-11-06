@@ -480,8 +480,51 @@ namespace Opc.Ua.Server.Historian
         /// per-builder <see cref="HistorianCaptureSink"/>, detaching the
         /// <see cref="NodeState.StateChanged"/> handlers it installed.
         /// </summary>
+        /// <remarks>
+        /// The first call starts the drain; every concurrent or later call, including the one the
+        /// server makes during shutdown, awaits that same drain and observes its failure. The
+        /// builder leaves the server's shutdown list only after the drain has finished, so server
+        /// shutdown cannot dispose the historian registry while a drain is still running.
+        /// </remarks>
         /// <exception cref="AggregateException"></exception>
-        public async ValueTask DisposeAsync()
+        public ValueTask DisposeAsync()
+        {
+            var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task? inFlight = Interlocked.CompareExchange(ref m_disposal, completion.Task, null);
+            return new ValueTask(inFlight ?? RunDisposalAsync(completion));
+        }
+
+        /// <summary>
+        /// Drains the capture pipelines once, unregisters from the server, then publishes the outcome.
+        /// </summary>
+        private async Task RunDisposalAsync(TaskCompletionSource<bool> completion)
+        {
+            Exception? failure = null;
+            try
+            {
+                await DrainCapturePipelinesAsync().ConfigureAwait(false);
+            }
+            catch (Exception exception)
+            {
+                failure = exception;
+            }
+            (m_server as IHistorianBuilderRegistry)?.UnregisterHistorianBuilder(this);
+            if (failure != null)
+            {
+                completion.TrySetException(failure);
+            }
+            else
+            {
+                completion.TrySetResult(true);
+            }
+            await completion.Task.ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Detaches capture handlers, then drains event captures and the raw capture sink.
+        /// </summary>
+        /// <exception cref="AggregateException"></exception>
+        private async ValueTask DrainCapturePipelinesAsync()
         {
             CaptureHandlerRegistration[] handlers;
             EventCaptureHandlerRegistration[] eventHandlers;
@@ -551,6 +594,7 @@ namespace Opc.Ua.Server.Historian
         private readonly List<EventCaptureHandlerRegistration> m_eventCaptureHandlers = [];
         private HistorianCaptureSink? m_captureSink;
         private readonly Lock m_captureSinkLock = new();
+        private Task? m_disposal;
         private bool m_registeredWithLifecycle;
 
         /// <summary>
