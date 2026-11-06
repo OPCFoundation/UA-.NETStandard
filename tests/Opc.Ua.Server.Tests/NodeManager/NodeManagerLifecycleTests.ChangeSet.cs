@@ -834,6 +834,115 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Malformed provider cleanup preserves the construction failure when disposal also fails.
+        /// </summary>
+        [Test]
+        public async Task SlotChangeSetMalformedProviderCleanupFailurePreservesBothFailuresAsync()
+        {
+            var cleanupFailure = new InvalidOperationException("Provider cleanup failed.");
+            var provider = new Mock<INodeManagerLifecycle>();
+            var prepared = new Mock<IPreparedNodeManagerBatch>();
+            prepared.SetupGet(value => value.Registrations).Returns([]);
+            prepared.Setup(value => value.DisposeAsync())
+                .Returns(new ValueTask(Task.FromException(cleanupFailure)));
+            provider.Setup(value => value.PrepareAsync(
+                It.IsAny<ArrayOf<NodeManagerBatchChange>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(prepared.Object);
+
+            Exception? observed = null;
+            try
+            {
+                _ = await provider.Object.PrepareAsync(
+                    [LifecycleChange.Add(CreateTrackingNodeManagementFactory(kGeneration1Value, _ => { }))])
+                    .ConfigureAwait(false);
+            }
+            catch (Exception failure)
+            {
+                observed = failure;
+            }
+
+            AssertAdapterCleanupFailures(
+                observed,
+                "The provider returned a different number of candidate registrations.",
+                cleanupFailure);
+            prepared.Verify(value => value.DisposeAsync(), Times.Once);
+            prepared.Verify(value => value.CommitAsync(
+                It.IsAny<Func<CancellationToken, ValueTask>>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// The read-image adapter preserves validation and cleanup failures with one disposal attempt.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SlotChangeSetReadImageAdapterPreservesFailuresAndDisposesOnceAsync(bool cleanupFails)
+        {
+            const string ExpectedValidationFailure =
+                "A prepared read image owner has no registered NodeManager generation.";
+            var owner = new Mock<IAsyncNodeManager>().Object;
+            var image = new Mock<INodeManagerReadImage>();
+            image.SetupGet(value => value.Owner).Returns(owner);
+            var prepared = new Mock<IPreparedNodeManagerBatch>();
+            prepared.SetupGet(value => value.Registrations).Returns([]);
+            InvalidOperationException? cleanupFailure = cleanupFails
+                ? new InvalidOperationException("Read-image provider cleanup failed.")
+                : null;
+            prepared.Setup(value => value.DisposeAsync()).Returns(cleanupFailure is null
+                ? default
+                : new ValueTask(Task.FromException(cleanupFailure)));
+            var publication = new Mock<INodeManagerPublication>();
+            publication.Setup(value => value.PrepareReadImagesAsync(
+                It.IsAny<ArrayOf<INodeManagerReadImage>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(prepared.Object);
+
+            Exception? observed = null;
+            try
+            {
+                _ = await new LifecyclePublicationWriter(publication.Object)
+                    .PrepareReadImagesAsync([image.Object])
+                    .ConfigureAwait(false);
+            }
+            catch (Exception failure)
+            {
+                observed = failure;
+            }
+
+            if (cleanupFailure is null)
+            {
+                Assert.That(observed, Is.TypeOf<InvalidOperationException>());
+                Assert.That(observed!.Message, Is.EqualTo(ExpectedValidationFailure));
+            }
+            else
+            {
+                AssertAdapterCleanupFailures(observed, ExpectedValidationFailure, cleanupFailure);
+            }
+            prepared.Verify(value => value.DisposeAsync(), Times.Once);
+            prepared.Verify(value => value.CommitAsync(
+                It.IsAny<Func<CancellationToken, ValueTask>>(), It.IsAny<CancellationToken>()), Times.Never);
+            publication.Verify(value => value.PrepareReadImagesAsync(
+                It.IsAny<ArrayOf<INodeManagerReadImage>>(), It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
+        /// Asserts that adapter construction and its single cleanup attempt both remain observable.
+        /// </summary>
+        /// <param name="observed">The exception returned by the adapter.</param>
+        /// <param name="validationFailureMessage">The original adapter validation failure message.</param>
+        /// <param name="cleanupFailure">The cleanup failure that must be preserved.</param>
+        private static void AssertAdapterCleanupFailures(
+            Exception? observed,
+            string validationFailureMessage,
+            Exception cleanupFailure)
+        {
+            Assert.That(observed, Is.TypeOf<AggregateException>());
+            AggregateException aggregate = (AggregateException)observed!;
+            Assert.That(aggregate.InnerExceptions, Has.Count.EqualTo(2));
+            Assert.That(aggregate.InnerExceptions[0], Is.TypeOf<InvalidOperationException>());
+            Assert.That(aggregate.InnerExceptions[0].Message, Is.EqualTo(validationFailureMessage));
+            Assert.That(aggregate.InnerExceptions[1], Is.SameAs(cleanupFailure));
+        }
+
+        /// <summary>
         /// An old provider cannot turn a slot reload into an unrelated addition without failing before decision.
         /// </summary>
         [Test]
