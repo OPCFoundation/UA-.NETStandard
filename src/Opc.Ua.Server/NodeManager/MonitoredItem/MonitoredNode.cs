@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Channels;
@@ -166,7 +167,27 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets the current list of data change MonitoredItems.
         /// </summary>
-        public ConcurrentDictionary<uint, IDataChangeMonitoredItem2> DataChangeMonitoredItems { get; } = new();
+        /// <remarks>
+        /// Whoever holds the dictionary can change it without <see cref="Add(IDataChangeMonitoredItem2)"/>
+        /// or <see cref="Remove(IDataChangeMonitoredItem2)"/>, so after the first access every change copies
+        /// the items instead of sharing the cached array.
+        /// </remarks>
+        public ConcurrentDictionary<uint, IDataChangeMonitoredItem2> DataChangeMonitoredItems
+        {
+            get
+            {
+                Volatile.Write(ref m_dataChangeItemsExposed, true);
+                return m_dataChangeMonitoredItems;
+            }
+        }
+
+        /// <summary>
+        /// Gets a data change item without exposing the dictionary.
+        /// </summary>
+        internal bool TryGetDataChangeItem(uint id, [NotNullWhen(true)] out IDataChangeMonitoredItem2? item)
+        {
+            return m_dataChangeMonitoredItems.TryGetValue(id, out item);
+        }
 
         /// <summary>
         /// Gets the current list of event MonitoredItems.
@@ -183,7 +204,7 @@ namespace Opc.Ua.Server
         {
             get
             {
-                if (DataChangeMonitoredItems != null && !DataChangeMonitoredItems.IsEmpty)
+                if (m_dataChangeMonitoredItems != null && !m_dataChangeMonitoredItems.IsEmpty)
                 {
                     return true;
                 }
@@ -211,7 +232,7 @@ namespace Opc.Ua.Server
                     throw new ObjectDisposedException(nameof(MonitoredNode2));
                 }
                 bool wasEmpty = !HasMonitoredItems;
-                DataChangeMonitoredItems.TryAdd(datachangeItem.Id, datachangeItem);
+                m_dataChangeMonitoredItems.TryAdd(datachangeItem.Id, datachangeItem);
                 m_dataChangeItems = null;
 
                 Node.OnStateChangedAsync = OnMonitoredNodeChangedAsync;
@@ -232,14 +253,14 @@ namespace Opc.Ua.Server
         {
             lock (m_rebindLock)
             {
-                if (DataChangeMonitoredItems.TryRemove(datachangeItem.Id, out _))
+                if (m_dataChangeMonitoredItems.TryRemove(datachangeItem.Id, out _))
                 {
                     m_dataChangeItems = null;
                     Interlocked.Increment(ref m_permissionGeneration);
                     m_permissionCache.TryRemove(datachangeItem.Id, out _);
                 }
 
-                if (DataChangeMonitoredItems.IsEmpty)
+                if (m_dataChangeMonitoredItems.IsEmpty)
                 {
                     Node.OnStateChangedAsync = null;
 
@@ -270,7 +291,7 @@ namespace Opc.Ua.Server
                 if (m_disposed ||
                     m_draining ||
                     !ReferenceEquals(source, Node) ||
-                    !DataChangeMonitoredItems.TryGetValue(item.Id, out IDataChangeMonitoredItem2? current) ||
+                    !m_dataChangeMonitoredItems.TryGetValue(item.Id, out IDataChangeMonitoredItem2? current) ||
                     !ReferenceEquals(current, item))
                 {
                     return false;
@@ -328,7 +349,7 @@ namespace Opc.Ua.Server
                 if (EventMonitoredItems.IsEmpty)
                 {
                     Node.OnReportEventAsync = null;
-                    if (DataChangeMonitoredItems.IsEmpty)
+                    if (m_dataChangeMonitoredItems.IsEmpty)
                     {
                         m_server.ConfigurationNodeManager?.DefaultPermissionsChanged -= OnDefaultPermissionsChanged;
                     }
@@ -375,7 +396,7 @@ namespace Opc.Ua.Server
                 Node = node;
                 InvalidatePermissionCaches();
 
-                if (!DataChangeMonitoredItems.IsEmpty)
+                if (!m_dataChangeMonitoredItems.IsEmpty)
                 {
                     Node.OnStateChangedAsync = OnMonitoredNodeChangedAsync;
                 }
@@ -523,7 +544,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            if (DataChangeMonitoredItems == null || DataChangeMonitoredItems.IsEmpty)
+            if (m_dataChangeMonitoredItems == null || m_dataChangeMonitoredItems.IsEmpty)
             {
                 return;
             }
@@ -1653,7 +1674,7 @@ namespace Opc.Ua.Server
             DataChangeSnapshot snapshot,
             CancellationToken cancellationToken)
         {
-            if (DataChangeMonitoredItems == null)
+            if (m_dataChangeMonitoredItems == null)
             {
                 return;
             }
@@ -1872,7 +1893,7 @@ namespace Opc.Ua.Server
                 return !m_disposed &&
                     ReferenceEquals(request.Source, Node) &&
                     IsInCurrentGeneration(request.Item) &&
-                    DataChangeMonitoredItems.TryGetValue(request.Item.Id, out IDataChangeMonitoredItem2? current) &&
+                    m_dataChangeMonitoredItems.TryGetValue(request.Item.Id, out IDataChangeMonitoredItem2? current) &&
                     ReferenceEquals(current, request.Item);
             }
         }
@@ -2144,7 +2165,7 @@ namespace Opc.Ua.Server
         public void InvalidatePermissionCacheForSession(NodeId sessionId)
         {
             bool invalidated = false;
-            foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> kvp in DataChangeMonitoredItems)
+            foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> kvp in m_dataChangeMonitoredItems)
             {
                 IDataChangeMonitoredItem2 monitoredItem = kvp.Value;
 
@@ -2264,6 +2285,11 @@ namespace Opc.Ua.Server
 
         private DataChangeItemSet GetDataChangeItemSet()
         {
+            if (Volatile.Read(ref m_dataChangeItemsExposed))
+            {
+                return new DataChangeItemSet(m_dataChangeMonitoredItems.ToArray());
+            }
+
             DataChangeItemSet? itemSet = Volatile.Read(ref m_dataChangeItems);
             if (itemSet != null)
             {
@@ -2279,7 +2305,7 @@ namespace Opc.Ua.Server
                 if (itemSet == null)
                 {
                     itemSet = new DataChangeItemSet(
-                        DataChangeMonitoredItems.IsEmpty ? [] : DataChangeMonitoredItems.ToArray());
+                        m_dataChangeMonitoredItems.IsEmpty ? [] : m_dataChangeMonitoredItems.ToArray());
                     Volatile.Write(ref m_dataChangeItems, itemSet);
                 }
                 return itemSet;
@@ -2372,7 +2398,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        private readonly ConcurrentDictionary<uint, IDataChangeMonitoredItem2> m_dataChangeMonitoredItems = new();
         private DataChangeItemSet? m_dataChangeItems;
+        private bool m_dataChangeItemsExposed;
 
         /// <summary>
         /// Delivered snapshots kept for reuse: as many as the channel holds plus the one the
@@ -2471,7 +2499,7 @@ namespace Opc.Ua.Server
                     }
                     InvalidatePermissionCaches();
 
-                    DataChangeMonitoredItems.Clear();
+                    m_dataChangeMonitoredItems.Clear();
                     m_dataChangeItems = null;
                     EventMonitoredItems.Clear();
                 }

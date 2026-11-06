@@ -241,6 +241,40 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Items added to or removed from the public dictionary directly take effect on the next
+        /// change, also after an earlier change has cached the items.
+        /// </summary>
+        [Test]
+        public async Task ItemsChangedThroughPublicDictionaryTakeEffectAsync()
+        {
+            BaseDataVariableState node = CreateNode();
+            var monitoredNode = new MonitoredNode2(CreateNodeManager().Object, CreateServer().Object, node);
+            Mock<IDataChangeMonitoredItem2> removed = CreateItem(1u, Attributes.Value);
+            Mock<IDataChangeMonitoredItem2> added = CreateItem(2u, Attributes.Value);
+            monitoredNode.Add(removed.Object);
+
+            node.Value = 1;
+            await monitoredNode.OnMonitoredNodeChangedAsync(
+                s_context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
+            await monitoredNode.WaitForPendingNotificationsAsync(CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(monitoredNode.DataChangeMonitoredItems.TryAdd(added.Object.Id, added.Object), Is.True);
+            Assert.That(monitoredNode.DataChangeMonitoredItems.TryRemove(removed.Object.Id, out _), Is.True);
+
+            node.Value = 2;
+            await monitoredNode.OnMonitoredNodeChangedAsync(
+                s_context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(
+                QueuedValues(removed).Select(v => v.WrappedValue.AsBoxedObject()),
+                Is.EqualTo(new object[] { 1 }));
+            Assert.That(
+                QueuedValues(added).Select(v => v.WrappedValue.AsBoxedObject()),
+                Is.EqualTo(new object[] { 2 }));
+        }
+
+        /// <summary>
         /// The consumer stops after Dispose even when it waits on an empty channel.
         /// </summary>
         [Test]
