@@ -1316,6 +1316,8 @@ namespace Opc.Ua.Server.Historian
 
             /// <summary>Whether this reservation has committed or rolled back.</summary>
             private int m_completed;
+        }
+
         private bool TryGetOwnedNode(
             NodeId nodeId,
             out IHistorianProvider? provider,
