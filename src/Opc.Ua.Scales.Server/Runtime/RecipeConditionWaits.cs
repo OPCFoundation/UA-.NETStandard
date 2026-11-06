@@ -363,22 +363,55 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// </summary>
         private void QueueConditionFaultEvent(LocalizedText message)
         {
+            TaskCompletionSource<bool> completion;
             lock (m_conditionWorkLock)
             {
                 if (m_conditionWorkStopped)
                 {
                     return;
                 }
-                if (m_owner.Notifications.TryRaiseEvent(ScaleNotificationId.GeneralProcessFault, message))
+                if (m_conditionWorkRunning)
                 {
+                    EnqueueConditionWorkLocked(CreateConditionFaultEventWork(message));
                     return;
                 }
-                EnqueueConditionWorkLocked(async cancellationToken =>
-                    await m_owner.Notifications.RaiseEventAsync(
-                        ScaleNotificationId.GeneralProcessFault,
-                        message,
-                        cancellationToken).ConfigureAwait(false));
+                m_conditionWorkRunning = true;
+                completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                m_conditionWorkTask = completion.Task;
             }
+
+            bool raised = false;
+            bool attemptCompleted = false;
+            try
+            {
+                raised = m_owner.Notifications.TryRaiseEvent(ScaleNotificationId.GeneralProcessFault, message);
+                attemptCompleted = true;
+            }
+            finally
+            {
+                lock (m_conditionWorkLock)
+                {
+                    if (attemptCompleted && !raised && !m_conditionWorkStopped)
+                    {
+                        m_conditionWorkQueue.Enqueue(CreateConditionFaultEventWork(message));
+                    }
+                    m_conditionWorkRunning = false;
+                    StartConditionWorkQueueLocked();
+                }
+                completion.TrySetResult(true);
+            }
+        }
+
+        /// <summary>
+        /// Creates a deferred event raise for condition work that cannot be handled synchronously.
+        /// </summary>
+        private Func<CancellationToken, ValueTask> CreateConditionFaultEventWork(LocalizedText message)
+        {
+            return async cancellationToken =>
+                await m_owner.Notifications.RaiseEventAsync(
+                    ScaleNotificationId.GeneralProcessFault,
+                    message,
+                    cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -387,7 +420,15 @@ namespace Opc.Ua.Scales.Server.Runtime
         private void EnqueueConditionWorkLocked(Func<CancellationToken, ValueTask> work)
         {
             m_conditionWorkQueue.Enqueue(work);
-            if (!m_conditionWorkRunning)
+            StartConditionWorkQueueLocked();
+        }
+
+        /// <summary>
+        /// Starts queued condition work while the condition-work lock is held.
+        /// </summary>
+        private void StartConditionWorkQueueLocked()
+        {
+            if (!m_conditionWorkStopped && !m_conditionWorkRunning && m_conditionWorkQueue.Count > 0)
             {
                 m_conditionWorkRunning = true;
                 m_conditionWorkTask = Task.Run(DrainConditionWorkQueueAsync);

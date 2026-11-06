@@ -1119,13 +1119,13 @@ namespace Opc.Ua.Scales.Server.Runtime
             {
                 PublishWeight(Scale.CurrentWeight, current, weightId: null);
             }
-            Notifications.SetAlarm(
+            Notifications.SetAlarmAdmitted(
                 ScaleNotificationId.OverloadFault,
                 current.Overload,
                 new LocalizedText(current.Overload
                     ? "The maximum capacity of the scale is exceeded."
                     : "The scale is back within its capacity."));
-            Notifications.SetAlarm(
+            Notifications.SetAlarmAdmitted(
                 ScaleNotificationId.UnderloadFault,
                 current.Underload,
                 new LocalizedText(current.Underload

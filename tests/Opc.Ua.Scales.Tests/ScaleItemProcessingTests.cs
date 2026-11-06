@@ -978,7 +978,14 @@ namespace Opc.Ua.Scales.Tests
         [Test]
         public async Task ProductValueWriteAsyncWaitsForAcquisitionAndRejectsSyncOverlapAsync()
         {
-            ScaleHandle scale = await CreateAsync(ScaleKind.Catchweigher);
+            ScaleHandle scale = await m_fixture.Manager.CreateScaleAsync(
+                m_fixture.Name("Acquisition" + ++m_scaleId),
+                ScaleKind.Catchweigher,
+                builder =>
+                {
+                    Configure(builder, ScaleKind.Catchweigher, null);
+                    builder.WithWeightDetails();
+                });
             var product = (CatchweigherProductState)scale.ProductionPreset!.ActiveProduct!;
             BaseVariableState gross = product.LastItem!.MeasuredWeight!.Gross!;
             var acquisitionEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);

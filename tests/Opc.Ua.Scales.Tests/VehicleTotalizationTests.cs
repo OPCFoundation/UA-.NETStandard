@@ -331,15 +331,10 @@ namespace Opc.Ua.Scales.Tests
                 entered.TrySetResult(true);
                 await release.Task.ConfigureAwait(false);
             };
-            Task<OutboundWeighingMethodStateResult>? native = null;
+            Task<ServiceResult>? native = null;
             try
             {
-                native = controller.Scale.OutboundWeighing!.OnCallAsync!(
-                    m_fixture.Context,
-                    controller.Scale.OutboundWeighing,
-                    controller.Scale.NodeId,
-                    "A",
-                    CancellationToken.None).AsTask();
+                native = controller.OutboundWeighingAsync("A").AsTask();
                 Assert.That(await entered.Task.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false), Is.True);
                 Assert.That(native.IsCompleted, Is.False);
                 Assert.That(vehicle.DeltaWeight.Value.Net, Is.EqualTo(25000));
@@ -352,9 +347,7 @@ namespace Opc.Ua.Scales.Tests
                 await Assert.ThrowsAsync<OperationCanceledException>(async () => await pending);
                 AssertTotal(vehicle, 0);
                 release.TrySetResult(true);
-                OutboundWeighingMethodStateResult result =
-                    await native.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
-                AssertGood(result.ServiceResult);
+                AssertGood(await native.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false));
                 AssertTotal(vehicle, 25000);
             }
             finally

@@ -222,49 +222,67 @@ namespace Opc.Ua.Scales.Server.Runtime
             LocalizedText message,
             EventSeverity severity = EventSeverity.High)
         {
-            return ExecuteSynchronous(() =>
-            {
-                lock (m_lock)
-                {
-                    if (!m_alarms.TryGetValue(notificationId, out ScaleAlarmState? alarm))
-                    {
-                        if (!active)
-                        {
-                            // An alarm that never activated has nothing to clear.
-                            return false;
-                        }
-                        alarm = CreateAlarm(notificationId);
-                        m_alarms[notificationId] = alarm;
-                    }
+            return ExecuteSynchronous(() => SetAlarmCore(notificationId, active, message, severity));
+        }
 
-                    bool wasActive = alarm.ActiveState?.Id?.Value == true;
-                    if (wasActive == active)
+        /// <summary>
+        /// Updates an alarm while the caller already owns scale-write admission.
+        /// </summary>
+        internal bool SetAlarmAdmitted(
+            ScaleNotificationId notificationId,
+            bool active,
+            LocalizedText message,
+            EventSeverity severity = EventSeverity.High)
+        {
+            return SetAlarmCore(notificationId, active, message, severity);
+        }
+
+        private bool SetAlarmCore(
+            ScaleNotificationId notificationId,
+            bool active,
+            LocalizedText message,
+            EventSeverity severity)
+        {
+            lock (m_lock)
+            {
+                if (!m_alarms.TryGetValue(notificationId, out ScaleAlarmState? alarm))
+                {
+                    if (!active)
                     {
+                        // An alarm that never activated has nothing to clear.
                         return false;
                     }
-
-                    alarm.SetActiveState(m_context, active);
-                    if (active)
-                    {
-                        alarm.SetAcknowledgedState(m_context, false);
-                    }
-                    alarm.Retain!.Value = active || alarm.AckedState?.Id?.Value != true;
-                    alarm.SetSeverity(m_context, active ? severity : EventSeverity.Low);
-                    alarm.Message!.Value = message;
-                    alarm.Time!.Value = DateTimeUtc.Now;
-                    alarm.ReceiveTime!.Value = alarm.Time.Value;
-                    alarm.EventId!.Value = Uuid.NewUuid().ToByteString();
-                    alarm.ClearChangeMasks(m_context, true);
-
-                    if (alarm.EnabledState?.Id?.Value == true)
-                    {
-                        var snapshot = new InstanceStateSnapshot();
-                        snapshot.Initialize(m_context, alarm);
-                        alarm.ReportEvent(m_context, snapshot);
-                    }
-                    return true;
+                    alarm = CreateAlarm(notificationId);
+                    m_alarms[notificationId] = alarm;
                 }
-            });
+
+                bool wasActive = alarm.ActiveState?.Id?.Value == true;
+                if (wasActive == active)
+                {
+                    return false;
+                }
+
+                alarm.SetActiveState(m_context, active);
+                if (active)
+                {
+                    alarm.SetAcknowledgedState(m_context, false);
+                }
+                alarm.Retain!.Value = active || alarm.AckedState?.Id?.Value != true;
+                alarm.SetSeverity(m_context, active ? severity : EventSeverity.Low);
+                alarm.Message!.Value = message;
+                alarm.Time!.Value = DateTimeUtc.Now;
+                alarm.ReceiveTime!.Value = alarm.Time.Value;
+                alarm.EventId!.Value = Uuid.NewUuid().ToByteString();
+                alarm.ClearChangeMasks(m_context, true);
+
+                if (alarm.EnabledState?.Id?.Value == true)
+                {
+                    var snapshot = new InstanceStateSnapshot();
+                    snapshot.Initialize(m_context, alarm);
+                    alarm.ReportEvent(m_context, snapshot);
+                }
+                return true;
+            }
         }
 
         /// <summary>

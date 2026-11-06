@@ -131,7 +131,9 @@ namespace Opc.Ua.Scales.Server.Runtime
                 if (node is BaseVariableState variable &&
                     (variable.AccessLevel & AccessLevels.CurrentWrite) != 0 &&
                     variable.OnWriteValueAsync == null &&
-                    variable.OnSimpleWriteValueAsync == null)
+                    variable.OnSimpleWriteValueAsync == null &&
+                    variable.OnWriteValue == null &&
+                    variable.OnSimpleWriteValue == null)
                 {
                     if (IsOrdinaryCacheVariable(variable))
                     {
@@ -140,12 +142,6 @@ namespace Opc.Ua.Scales.Server.Runtime
                     else if (IsNativeEnumerationVariable(variable))
                     {
                         variable.OnWriteValueAsync = MultiStateValueDiscreteState.WriteCachedValueAsync;
-                    }
-                    else
-                    {
-                        variable.OnWriteValueAsync = (context, writeNode, indexRange, value, cancellationToken) =>
-                            RejectUnsupportedWriteAsync(
-                                services, product, context, writeNode, indexRange, value, cancellationToken);
                     }
                 }
             }
@@ -182,6 +178,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                 type == typeof(PropertyState) ||
                 type == typeof(DataItemState) ||
                 type == typeof(AnalogItemState) ||
+                type == typeof(AnalogUnitState) ||
                 type == typeof(AnalogUnitRangeState) ||
                 type == typeof(TwoStateDiscreteState) ||
                 type == typeof(TargetItemState) ||
@@ -199,6 +196,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                 definition == typeof(PropertyState<>.Implementation<>) ||
                 definition == typeof(DataItemState<>.Implementation<>) ||
                 definition == typeof(AnalogItemState<>.Implementation<>) ||
+                definition == typeof(AnalogUnitState<>.Implementation<>) ||
                 definition == typeof(AnalogUnitRangeState<>.Implementation<>) ||
                 definition == typeof(TargetItemState<>.Implementation<>) ||
                 definition == typeof(MeasuredItemState<>.Implementation<>);
@@ -241,26 +239,6 @@ namespace Opc.Ua.Scales.Server.Runtime
                 : ServiceResult.Good;
             return new ValueTask<AttributeWriteResult>(
                 new AttributeWriteResult(result) { UseOrdinaryCacheWrite = true });
-        }
-
-        /// <summary>
-        /// Preserves product-lock denial for custom variables whose native write behavior is not known.
-        /// </summary>
-        private static ValueTask<AttributeWriteResult> RejectUnsupportedWriteAsync(
-            ScaleRuntimeServices services,
-            ProductState? product,
-            ISystemContext context,
-            NodeState node,
-            NumericRange indexRange,
-            Variant value,
-            CancellationToken cancellationToken)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            ServiceResult access = product is { } owner
-                ? ScaleValues.CheckLock(services, context, owner.NodeId)
-                : ServiceResult.Good;
-            return new ValueTask<AttributeWriteResult>(new AttributeWriteResult(
-                ServiceResult.IsBad(access) ? access : new ServiceResult(StatusCodes.BadNotSupported)));
         }
 
         /// <summary>

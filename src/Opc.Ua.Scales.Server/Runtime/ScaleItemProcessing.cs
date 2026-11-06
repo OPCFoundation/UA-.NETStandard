@@ -568,6 +568,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                         "A price-labeler product requires a PriceItemType LastItem.");
                 }
                 price.AddItemPrice(context);
+                InitializeObservation(context, price);
                 Missing(price.ItemPrice);
             }
             if (product is CatchweigherProductState catchweigher)
@@ -600,6 +601,8 @@ namespace Opc.Ua.Scales.Server.Runtime
             item.MeasuredWeight.AddInsideZero(context);
             item.MeasuredWeight.AddCurrentRangeId(context);
             item.MeasuredWeight.AddWeightId(context);
+            Missing(item.ItemId);
+            Missing(item.ZoneName);
             Missing(item.MeasuredWeight);
             Missing(item.MeasuredHeight);
             Missing(item.MeasuredLength);

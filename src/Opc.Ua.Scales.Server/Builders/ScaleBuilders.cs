@@ -689,7 +689,7 @@ namespace Opc.Ua.Scales.Server.Builders
             }
 
             m_preset?.Finish();
-            if (m_itemProcessing || m_completedFills)
+            if (m_itemProcessing || m_completedFills || m_vehicleAggregation != null)
             {
                 if (Scale.ProductionPreset?.Products == null)
                 {
@@ -699,7 +699,14 @@ namespace Opc.Ua.Scales.Server.Builders
                 Scale.ProductionPreset.Products.GetChildren(Context, products);
                 foreach (ProductState product in products.OfType<ProductState>())
                 {
-                    ScaleItemPublisher.Initialize(Context, product);
+                    if (m_itemProcessing || m_completedFills)
+                    {
+                        ScaleItemPublisher.Initialize(Context, product);
+                    }
+                    if (m_vehicleAggregation != null && product is VehicleProductState vehicle)
+                    {
+                        VehicleController.InitializeTotals(Context, vehicle);
+                    }
                 }
                 if (Scale.ProductionOutput?.LastItem is { } lastItem)
                 {

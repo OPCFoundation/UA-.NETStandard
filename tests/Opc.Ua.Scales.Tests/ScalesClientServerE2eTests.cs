@@ -338,7 +338,16 @@ namespace Opc.Ua.Scales.Tests
         {
             Assert.That(m_client.IsSupported, Is.True);
             ScaleEntry[] scales = (await m_client.DiscoverScalesAsync()).ToArray()!;
-            Assert.That(scales.Count(s => !s.IsScaleSystem), Is.EqualTo(9), "organized twice, reported once");
+            ScaleEntry[] devices = [.. scales.Where(s => !s.IsScaleSystem)];
+            Assert.That(
+                devices.Select(scale => scale.NodeId).Distinct().Count(),
+                Is.EqualTo(devices.Length),
+                "organized twice, reported once");
+            Assert.That(devices.Length, Is.GreaterThanOrEqualTo(m_scales.Count));
+            foreach (ScaleHandle expected in m_scales.Values)
+            {
+                Assert.That(devices.Count(scale => scale.NodeId == expected.NodeId), Is.EqualTo(1));
+            }
             Assert.That(scales.Single(s => s.IsScaleSystem).BrowseName.Name, Is.EqualTo("Line"));
             Assert.That(scales.Single(s => s.BrowseName.Name == "Truck").Kind, Is.EqualTo(ScaleKind.Vehicle));
             Assert.That(scales.Single(s => s.BrowseName.Name == "Hopper").Kind, Is.EqualTo(ScaleKind.LossInWeight));
@@ -432,7 +441,7 @@ namespace Opc.Ua.Scales.Tests
             var browser = new Browser(m_session, new BrowserOptions
             {
                 BrowseDirection = BrowseDirection.Forward,
-                ReferenceTypeId = Opc.Ua.ReferenceTypeIds.Organizes,
+                ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent,
                 IncludeSubtypes = false,
                 NodeClassMask = (int)NodeClass.Object,
                 ResultMask = (uint)BrowseResultMask.All
@@ -931,7 +940,7 @@ namespace Opc.Ua.Scales.Tests
             var browser = new Browser(m_session, new BrowserOptions
             {
                 BrowseDirection = BrowseDirection.Forward,
-                ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent,
+                ReferenceTypeId = Opc.Ua.ReferenceTypeIds.Organizes,
                 IncludeSubtypes = false,
                 NodeClassMask = (int)NodeClass.Object,
                 ResultMask = (uint)BrowseResultMask.All
