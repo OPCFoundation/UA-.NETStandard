@@ -2151,6 +2151,7 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 await sut.OnPublishReceivedAsync(BuildDataChangeMessage(2), [1, 2], [])
                     .ConfigureAwait(false);
+                await WaitForKeepAliveBarrierAsync(sut, 3).ConfigureAwait(false);
                 await sut.OnPublishReceivedAsync(BuildDataChangeMessage(1), [1], [])
                     .ConfigureAwait(false);
                 await WaitForDataSeqNumberAsync(sut, 2).ConfigureAwait(false);
@@ -2215,12 +2216,19 @@ namespace Opc.Ua.Client.Subscriptions
                     .ConfigureAwait(false);
                 await WaitForMissingCountAsync(sut, 1).ConfigureAwait(false);
 
+                // The stale keep-alive sorts before 3, so it is only read once
+                // 3 is buffered and the gap has its start time.
+                await WaitForKeepAliveBarrierAsync(sut, 1).ConfigureAwait(false);
+
                 timeProvider.Advance(TimeSpan.FromMilliseconds(99));
                 await Task.Delay(50).ConfigureAwait(false);
                 Assert.That(sut.DataSequenceNumbers, Is.EqualTo(new uint[] { 1 }));
                 VerifyNoRepublish();
 
-                timeProvider.Advance(TimeSpan.FromMilliseconds(1));
+                // The worker may arm its timer after the advance above, so keep
+                // stepping rather than rely on one exact advance.
+                await AdvanceUntilAsync(timeProvider, () => sut.LastDataSequenceNumberProcessed == 3,
+                    TimeSpan.FromMilliseconds(1)).ConfigureAwait(false);
                 await WaitForDataSeqNumberAsync(sut, 3).ConfigureAwait(false);
 
                 Assert.That(sut.DataSequenceNumbers, Is.EqualTo(new uint[] { 1, 2, 3 }));
@@ -2259,7 +2267,7 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 await sut.OnPublishReceivedAsync(BuildDataChangeMessage(5), [4, 3, 5], [])
                     .ConfigureAwait(false);
-                await Task.Delay(50).ConfigureAwait(false);
+                await WaitForKeepAliveBarrierAsync(sut, 6).ConfigureAwait(false);
                 Assert.That(sut.DataSequenceNumbers, Is.Empty);
                 VerifyNoRepublish();
 
@@ -2314,7 +2322,7 @@ namespace Opc.Ua.Client.Subscriptions
                     .ConfigureAwait(false);
                 await sut.OnPublishReceivedAsync(BuildDataChangeMessage(4), [], [])
                     .ConfigureAwait(false);
-                await Task.Delay(50).ConfigureAwait(false);
+                await WaitForKeepAliveBarrierAsync(sut, 5).ConfigureAwait(false);
                 Assert.That(sut.DataSequenceNumbers, Is.Empty);
 
                 await AdvanceUntilAsync(timeProvider, () => sut.DataSequenceNumbers.Contains(4),
@@ -2364,7 +2372,7 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 await sut.OnPublishReceivedAsync(BuildDataChangeMessage(3), [2, 3], [])
                     .ConfigureAwait(false);
-                await Task.Delay(50).ConfigureAwait(false);
+                await WaitForKeepAliveBarrierAsync(sut, 4).ConfigureAwait(false);
 
                 await sut.RecoverTransferredMessagesAsync([2, 3], CancellationToken.None)
                     .ConfigureAwait(false);
@@ -2382,6 +2390,27 @@ namespace Opc.Ua.Client.Subscriptions
                 Assert.That(sut.DataSequenceNumbers, Is.EqualTo(new uint[] { 2, 3 }));
                 Assert.That(sut.RepublishMessageCount, Is.EqualTo(1));
             }
+        }
+
+        /// <summary>
+        /// Wait until the worker has handled everything queued with a lower
+        /// sequence number. The queue orders by sequence number, so a
+        /// keep-alive is read after those messages.
+        /// </summary>
+        private static async Task WaitForKeepAliveBarrierAsync(
+            TestMessageProcessor sut,
+            uint sequenceNumber)
+        {
+            sut.KeepAliveNotificationReceived.Reset();
+            await sut.OnPublishReceivedAsync(
+                new NotificationMessage { SequenceNumber = sequenceNumber },
+                [],
+                []).ConfigureAwait(false);
+            await sut.KeepAliveNotificationReceived.WaitAsync()
+                .WaitAsync(TimeSpan.FromSeconds(5))
+                .ConfigureAwait(false);
+            sut.KeepAliveNotificationReceived.Reset();
+            sut.PublishState = PublishState.None;
         }
 
         private void VerifyNoRepublish()
