@@ -749,19 +749,27 @@ namespace Opc.Ua.LADS.Tests.Server
             finally
             {
                 release.TrySetResult(true);
-                var cleanup = new List<Task>
+                try
                 {
-                    AssertQuarantinedAsync(first)
-                };
-                if (queued != null)
-                {
-                    cleanup.Add(AssertQuarantinedAsync(queued));
+                    await AssertQuarantinedAsync(first).ConfigureAwait(false);
                 }
-                if (quarantine != null)
+                finally
                 {
-                    cleanup.Add(quarantine.WaitAsync(TimeSpan.FromSeconds(30)));
+                    try
+                    {
+                        if (queued != null)
+                        {
+                            await AssertQuarantinedAsync(queued).ConfigureAwait(false);
+                        }
+                    }
+                    finally
+                    {
+                        if (quarantine != null)
+                        {
+                            await quarantine.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                        }
+                    }
                 }
-                await Task.WhenAll(cleanup).ConfigureAwait(false);
             }
             Assert.That(calls, Is.EqualTo(1));
             Assert.That(device.State, Is.EqualTo(LadsDeviceStateValue.Shutdown));
