@@ -183,6 +183,68 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(GetBranchRegistration(lifecycle, added.Id), Is.SameAs(added));
         }
 
+        /// <summary>
+        /// Validation reports both the inspection and candidate cleanup failures without publishing.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PrivateValidationPreservesInspectionAndCleanupFailuresAsync(bool slotTargeted)
+        {
+            var inspectionFailure = new InvalidOperationException("The private inspection failed.");
+            var cleanupFailure = new InvalidOperationException("The private candidate cleanup failed.");
+            Mock<IAsyncNodeManager> manager = CreateLifecycleNodeManager(kModelNamespaceUri);
+            Mock<IAsyncDisposable> disposable = manager.As<IAsyncDisposable>();
+            disposable.Setup(value => value.DisposeAsync())
+                .Returns(new ValueTask(Task.FromException(cleanupFailure)));
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory.Setup(value => value.CreateAsync(
+                It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IAsyncNodeManager>(manager.Object));
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+            long revision = lifecycle.Revision;
+            int inspections = 0;
+            Exception? observed;
+
+            if (slotTargeted)
+            {
+                await using ILifecycleWriter writer = await lifecycle.BeginAsync().ConfigureAwait(false);
+                observed = await Assert.CatchAsync<Exception>(async () => await writer.ValidateAsync(
+                    [LifecycleChange.Add(factory.Object)], (_, _) =>
+                    {
+                        inspections++;
+                        throw inspectionFailure;
+                    })
+                    .ConfigureAwait(false)).ConfigureAwait(false);
+                Assert.That(writer.IsCurrent, Is.True);
+            }
+            else
+            {
+                await using INodeManagerPublication publication =
+                    await lifecycle.CapturePublication().BeginAsync(null).ConfigureAwait(false);
+                observed = await Assert.CatchAsync<Exception>(async () => await publication.ValidateAsync(
+                    [NodeManagerBatchChange.Add(factory.Object)], (_, _) =>
+                    {
+                        inspections++;
+                        throw inspectionFailure;
+                    })
+                    .ConfigureAwait(false)).ConfigureAwait(false);
+                Assert.That(publication.IsCurrent, Is.True);
+            }
+
+            Assert.That(inspections, Is.EqualTo(1));
+            manager.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
+            disposable.Verify(value => value.DisposeAsync(), Times.Once);
+            Assert.That(GetBranchRegistrations(lifecycle).IsEmpty, Is.True);
+            Assert.That(lifecycle.Revision, Is.EqualTo(revision));
+            Assert.That(observed, Is.TypeOf<AggregateException>());
+            AggregateException failures = RequireLifecycleValue(observed as AggregateException);
+            Assert.That(failures.InnerExceptions[0], Is.SameAs(inspectionFailure));
+            Assert.That(failures.InnerExceptions, Has.Count.EqualTo(2));
+            AggregateException cleanup = RequireLifecycleValue(failures.InnerExceptions[1] as AggregateException);
+            Assert.That(cleanup.Flatten().InnerExceptions, Has.Count.EqualTo(1));
+            Assert.That(cleanup.Flatten().InnerExceptions[0], Is.SameAs(cleanupFailure));
+        }
+
         [Test]
         public async Task PrivateValidationRequiresAnInspectorBeforeCreatingCandidates()
         {
