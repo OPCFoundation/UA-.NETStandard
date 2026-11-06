@@ -43,6 +43,8 @@ namespace Opc.Ua.ECM.Tests
         {
             _ = namespaces.GetIndexOrAppend(Opc.Ua.ECM.Namespaces.ECM);
             var typeTable = new TypeTable(namespaces);
+            typeTable.AddSubtype(Opc.Ua.DataTypeIds.BaseDataType, NodeId.Null);
+            typeTable.AddSubtype(Opc.Ua.DataTypeIds.Structure, Opc.Ua.DataTypeIds.BaseDataType);
             typeTable.AddSubtype(
                 ExpandedNodeId.ToNodeId(Opc.Ua.ECM.DataTypeIds.AcPeDataType, namespaces),
                 Opc.Ua.DataTypeIds.Structure);

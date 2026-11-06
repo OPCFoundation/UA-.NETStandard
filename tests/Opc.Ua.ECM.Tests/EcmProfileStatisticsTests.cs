@@ -418,13 +418,9 @@ namespace Opc.Ua.ECM.Tests
             await using EcmNodeManager manager = CreateManager(telemetry, queues);
             var context = manager.SystemContext;
             var acquired = new DateTime(2026, 8, 14, 9, 10, 11, DateTimeKind.Utc);
-            EcmMeasurementSnapshot initial = E2Snapshot(10f, 100f, 200f, acquired, acquired);
-            EcmMeasurementReading[] resetReadings = initial.Measurements.Span.ToArray()
-                .Where(static reading => reading.BrowseName != nameof(BrowseNames.AcActivePowerTotal))
-                .ToArray();
             var provider = new StatisticsProvider(
-                initial,
-                new EcmStatisticsSnapshot((DateTimeUtc)acquired, resetReadings.ToArrayOf()));
+                E2Snapshot(10f, 100f, 200f, acquired, acquired),
+                new EcmStatisticsSnapshot((DateTimeUtc)acquired, default));
             var parent = new BaseObjectState(null)
             {
                 NodeId = new NodeId("Device", manager.InstanceNamespaceIndex),
@@ -643,7 +639,13 @@ namespace Opc.Ua.ECM.Tests
             var acquired = new DateTime(2026, 8, 14, 9, 10, 11, DateTimeKind.Utc);
             var provider = new StatisticsProvider(
                 E2Snapshot(10f, 100f, 200f, acquired, acquired),
-                new EcmStatisticsSnapshot((DateTimeUtc)acquired, default));
+                new EcmStatisticsSnapshot(
+                    (DateTimeUtc)acquired,
+                    new[]
+                    {
+                        Float(nameof(BrowseNames.AcActiveEnergyTotalExportLp), 0f, acquired),
+                        Float(nameof(BrowseNames.AcActiveEnergyTotalImportLp), 0f, acquired)
+                    }.ToArrayOf()));
             var locks = new Mock<ILockService>();
             bool owner = false;
             locks.As<ILockOwnershipService>().Setup(service => service.IsLockOwner(
