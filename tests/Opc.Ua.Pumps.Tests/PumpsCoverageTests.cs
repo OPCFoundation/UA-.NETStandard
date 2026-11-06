@@ -318,9 +318,8 @@ namespace Opc.Ua.Pumps.Tests
                 using var clientFixture = new ClientFixture(NUnitTelemetryContext.Create());
                 await clientFixture.LoadClientConfigurationAsync(
                     System.IO.Path.Combine(
-                        TestContext.CurrentContext.WorkDirectory,
-                        nameof(ClientRuntimeReadsCoverDiscoveryGroupsAndFactoryAsync),
-                        "client-pki"));
+                        System.IO.Path.GetTempPath(),
+                        "ua-pumps-coverage-client-" + Guid.NewGuid().ToString("N")));
 
                 ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -654,9 +653,8 @@ namespace Opc.Ua.Pumps.Tests
         {
             string applicationName = nameof(PumpsCoverageTests);
             string testRoot = System.IO.Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                applicationName,
-                Guid.NewGuid().ToString("N"));
+                System.IO.Path.GetTempPath(),
+                "ua-pumps-coverage-server-" + Guid.NewGuid().ToString("N"));
             options.ApplicationName = applicationName;
             options.ApplicationUri = "urn:localhost:" + applicationName;
             options.ProductUri = "urn:localhost:" + applicationName + ":product";

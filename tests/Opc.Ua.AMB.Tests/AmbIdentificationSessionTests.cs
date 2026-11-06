@@ -58,9 +58,8 @@ namespace Opc.Ua.AMB.Tests
         public async Task AClientSeesTheFacetAndConfiguresTheAssetIdAsync()
         {
             string state = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                nameof(AmbIdentificationSessionTests),
-                Guid.NewGuid().ToString("N"));
+                Path.GetTempPath(),
+                "amb-identification-" + Guid.NewGuid().ToString("N"));
             DeviceState? device = null;
             await using AmbHostedServer server = await AmbHostedServer.StartAsync(
                 nameof(AmbIdentificationSessionTests),
