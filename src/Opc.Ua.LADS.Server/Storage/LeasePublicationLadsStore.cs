@@ -166,10 +166,13 @@ namespace Opc.Ua.LADS.Server
 
         /// <summary>The authority owning all publications.</summary>
         private readonly ILeasePublicationAuthority m_authority;
+
         /// <summary>The fixed lease group for this store.</summary>
         private readonly string m_groupIdentity;
+
         /// <summary>Supplies the current caller-owned fencing identity.</summary>
         private readonly Func<LeasePublicationToken> m_tokenProvider;
+
         /// <summary>The complete encoded snapshot size limit.</summary>
         private readonly int m_maxBytes;
     }

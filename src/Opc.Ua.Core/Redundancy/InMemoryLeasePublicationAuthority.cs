@@ -380,12 +380,16 @@ namespace Opc.Ua.Redundancy
 
         /// <summary>The authority's monotonic clock.</summary>
         private readonly TimeProvider m_timeProvider;
+
         /// <summary>Protects leases, epochs and snapshot publication together.</summary>
         private readonly Lock m_lock = new();
+
         /// <summary>The current lease for each group.</summary>
         private readonly Dictionary<string, LeaseRecord> m_leases = new(StringComparer.Ordinal);
+
         /// <summary>Retains fencing epochs after lease release.</summary>
         private readonly Dictionary<string, long> m_epochs = new(StringComparer.Ordinal);
+
         /// <summary>Detached complete snapshots scoped to lease groups.</summary>
         private readonly Dictionary<(string Group, string Key), byte[]> m_snapshots = new();
 
