@@ -27,14 +27,17 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.ExceptionServices;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server.Historian
 {
     /// <summary>
     /// Stages candidate historian registrations and retains serving bindings during replacement readiness.
     /// </summary>
-    internal sealed class StagedHistorianProviderRegistry : IHistorianProviderRegistry, IDisposable
+    internal sealed class StagedHistorianProviderRegistry :
+        IHistorianProviderRegistry, IHistorianNodeBindingRegistry, IHistorianNodeReplacementRegistry, IDisposable
     {
         /// <summary>
         /// Creates a candidate registry layered over the current serving registry.
@@ -79,6 +82,20 @@ namespace Opc.Ua.Server.Historian
             }
         }
 
+        /// <summary>
+        /// Commits a node replacement while the candidate is still mutable and republishes its registration set.
+        /// </summary>
+        /// <param name="replacement">The candidate replacement transaction.</param>
+        private void CommitNodeReplacement(IHistorianNodeReplacement replacement)
+        {
+            lock (m_lock)
+            {
+                EnsureMutable();
+                replacement.Commit();
+                UpdateServingRegistrations();
+            }
+        }
+
         /// <inheritdoc/>
         public void RegisterForNamespace(string namespaceUri, IHistorianProvider provider)
         {
@@ -104,6 +121,37 @@ namespace Opc.Ua.Server.Historian
                 m_candidateRegistry.RegisterDefault(
                     provider, OwnsProviderForCandidate(provider), rejectDuplicate: true);
                 UpdateServingRegistrations();
+            }
+        }
+
+        /// <inheritdoc/>
+        public bool TryRegisterForNode(NodeId nodeId, IHistorianProvider provider, out IDisposable? binding)
+        {
+            return TryRegisterForNode(nodeId, null, provider, out binding);
+        }
+
+        /// <inheritdoc/>
+        public bool TryRegisterForNode(NodeState node, IHistorianProvider provider, out IDisposable? binding)
+        {
+            if (node == null)
+            {
+                throw new ArgumentNullException(nameof(node));
+            }
+            return TryRegisterForNode(node.NodeId, node, provider, out binding);
+        }
+
+        /// <inheritdoc/>
+        IHistorianNodeReplacement IHistorianNodeReplacementRegistry.BeginNodeReplacement(
+            BaseVariableState node,
+            IHistorianProvider provider)
+        {
+            lock (m_lock)
+            {
+                EnsureMutable();
+                EnsureOwnerSupportForMutation();
+                IHistorianNodeReplacement replacement =
+                    ((IHistorianNodeReplacementRegistry)m_candidateRegistry).BeginNodeReplacement(node, provider);
+                return new StagedNodeReplacement(this, replacement);
             }
         }
 
@@ -328,6 +376,83 @@ namespace Opc.Ua.Server.Historian
             }
         }
 
+        /// <summary>
+        /// Acquires a candidate-owned exact-node binding and updates any published candidate registration set.
+        /// </summary>
+        /// <param name="nodeId">The exact node to bind.</param>
+        /// <param name="node">The node whose historian attributes belong to this binding, if available.</param>
+        /// <param name="provider">The historian provider.</param>
+        /// <param name="binding">The binding that owns the registration, or null if one already exists.</param>
+        /// <returns>Whether a new binding was installed.</returns>
+        private bool TryRegisterForNode(
+            NodeId nodeId,
+            NodeState? node,
+            IHistorianProvider provider,
+            out IDisposable? binding)
+        {
+            if (nodeId.IsNull)
+            {
+                throw new ArgumentException("NodeId must not be null.", nameof(nodeId));
+            }
+            if (provider == null)
+            {
+                throw new ArgumentNullException(nameof(provider));
+            }
+
+            lock (m_lock)
+            {
+                EnsureMutable();
+                EnsureOwnerSupportForMutation();
+                RemoveRetainedNodeBinding(nodeId);
+                IDisposable? candidateBinding;
+                bool registered;
+                if (node == null)
+                {
+                    registered = m_candidateRegistry.TryRegisterForNode(nodeId, provider, out candidateBinding);
+                }
+                else
+                {
+                    registered = m_candidateRegistry.TryRegisterForNode(node, provider, out candidateBinding);
+                }
+                if (!registered)
+                {
+                    binding = null;
+                    UpdateServingRegistrations();
+                    return false;
+                }
+                if (candidateBinding is not IHistorianNodeBinding scopedBinding)
+                {
+                    candidateBinding?.Dispose();
+                    throw new InvalidOperationException(
+                        "The historian registry returned a binding without scoped release support.");
+                }
+
+                try
+                {
+                    UpdateServingRegistrations();
+                }
+                catch (Exception exception) when (exception is not OutOfMemoryException)
+                {
+                    try
+                    {
+                        scopedBinding.Dispose();
+                        UpdateServingRegistrations();
+                    }
+                    catch (Exception rollbackException) when (rollbackException is not OutOfMemoryException)
+                    {
+                        throw new AggregateException(
+                            "Publishing and rolling back a staged historian binding both failed.",
+                            exception,
+                            rollbackException);
+                    }
+                    throw;
+                }
+
+                binding = new StagedNodeBinding(this, scopedBinding);
+                return true;
+            }
+        }
+
         private void UpdateServingRegistrations()
         {
             if (m_published)
@@ -348,6 +473,33 @@ namespace Opc.Ua.Server.Historian
             {
                 PublishOwnedRegistrations(CaptureRetainedRegistrations());
             }
+        }
+
+        /// <summary>
+        /// Refreshes published registrations unless this candidate has already left routing.
+        /// </summary>
+        private void RefreshServingRegistrations()
+        {
+            lock (m_lock)
+            {
+                if (!m_disposed && !m_retired)
+                {
+                    UpdateServingRegistrations();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Combines a primary cleanup failure with a subsequent registration-refresh failure.
+        /// </summary>
+        /// <param name="failure">The first failure, if any.</param>
+        /// <param name="additionalFailure">The additional failure.</param>
+        /// <returns>The failure to report.</returns>
+        private static Exception CombineFailure(Exception? failure, Exception additionalFailure)
+        {
+            return failure == null
+                ? additionalFailure
+                : new AggregateException(failure, additionalFailure);
         }
 
         private HistorianProviderRegistration[] CaptureRetainedRegistrations()
@@ -505,17 +657,244 @@ namespace Opc.Ua.Server.Historian
             }
         }
 
+        /// <summary>
+        /// A staged binding that refreshes candidate publication after its one owned release.
+        /// </summary>
+        private sealed class StagedNodeBinding : IHistorianNodeBinding
+        {
+            /// <summary>
+            /// Creates a binding wrapper.
+            /// </summary>
+            /// <param name="owner">The candidate registry.</param>
+            /// <param name="binding">The candidate registry's scoped binding.</param>
+            internal StagedNodeBinding(
+                StagedHistorianProviderRegistry owner,
+                IHistorianNodeBinding binding)
+            {
+                m_owner = owner;
+                m_binding = binding;
+            }
+
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+                lock (m_releaseLock)
+                {
+                    if (m_release != null)
+                    {
+                        return;
+                    }
+
+                    Exception? failure = null;
+                    try
+                    {
+                        m_binding.Dispose();
+                    }
+                    catch (Exception exception) when (exception is not OutOfMemoryException)
+                    {
+                        failure = exception;
+                    }
+                    try
+                    {
+                        m_owner.RefreshServingRegistrations();
+                    }
+                    catch (Exception exception) when (exception is not OutOfMemoryException)
+                    {
+                        failure = StagedHistorianProviderRegistry.CombineFailure(failure, exception);
+                    }
+                    if (failure != null)
+                    {
+                        ExceptionDispatchInfo.Capture(failure).Throw();
+                    }
+                }
+            }
+
+            /// <inheritdoc/>
+            public ValueTask ReleaseAsync(Func<ValueTask> cleanup)
+            {
+                if (cleanup == null)
+                {
+                    throw new ArgumentNullException(nameof(cleanup));
+                }
+                Task release;
+                lock (m_releaseLock)
+                {
+                    m_release ??= ReleaseCoreAsync(cleanup);
+                    release = m_release;
+                }
+                return new ValueTask(release);
+            }
+
+            /// <summary>
+            /// Releases the inner binding once and refreshes the published candidate registrations.
+            /// </summary>
+            /// <param name="cleanup">The metadata cleanup owned by this binding.</param>
+            /// <returns>The completed release operation.</returns>
+            private async Task ReleaseCoreAsync(Func<ValueTask> cleanup)
+            {
+                Exception? failure = null;
+                try
+                {
+                    await m_binding.ReleaseAsync(cleanup).ConfigureAwait(false);
+                }
+                catch (Exception exception) when (exception is not OutOfMemoryException)
+                {
+                    failure = exception;
+                }
+                try
+                {
+                    m_owner.RefreshServingRegistrations();
+                }
+                catch (Exception exception) when (exception is not OutOfMemoryException)
+                {
+                    failure = StagedHistorianProviderRegistry.CombineFailure(failure, exception);
+                }
+                if (failure != null)
+                {
+                    ExceptionDispatchInfo.Capture(failure).Throw();
+                }
+            }
+
+            /// <summary>
+            /// Serializes disposal and memoizes the first asynchronous release.
+            /// </summary>
+            private readonly Lock m_releaseLock = new();
+
+            /// <summary>
+            /// The staged registry that republishes this binding's registration changes.
+            /// </summary>
+            private readonly StagedHistorianProviderRegistry m_owner;
+
+            /// <summary>
+            /// The scoped registration owned by the candidate registry.
+            /// </summary>
+            private readonly IHistorianNodeBinding m_binding;
+
+            /// <summary>
+            /// The first asynchronous release operation, if started.
+            /// </summary>
+            private Task? m_release;
+        }
+
+        /// <summary>
+        /// A staged replacement that republishes after commit or rollback.
+        /// </summary>
+        private sealed class StagedNodeReplacement : IHistorianNodeReplacement
+        {
+            /// <summary>
+            /// Creates a replacement wrapper.
+            /// </summary>
+            /// <param name="owner">The candidate registry.</param>
+            /// <param name="replacement">The candidate registry's replacement transaction.</param>
+            internal StagedNodeReplacement(
+                StagedHistorianProviderRegistry owner,
+                IHistorianNodeReplacement replacement)
+            {
+                m_owner = owner;
+                m_replacement = replacement;
+            }
+
+            /// <inheritdoc/>
+            public void Commit()
+            {
+                m_owner.CommitNodeReplacement(m_replacement);
+            }
+
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+                Exception? failure = null;
+                try
+                {
+                    m_replacement.Dispose();
+                }
+                catch (Exception exception) when (exception is not OutOfMemoryException)
+                {
+                    failure = exception;
+                }
+                try
+                {
+                    m_owner.RefreshServingRegistrations();
+                }
+                catch (Exception exception) when (exception is not OutOfMemoryException)
+                {
+                    failure = CombineFailure(failure, exception);
+                }
+                if (failure != null)
+                {
+                    ExceptionDispatchInfo.Capture(failure).Throw();
+                }
+            }
+
+            /// <summary>
+            /// The staged registry that republishes this replacement.
+            /// </summary>
+            private readonly StagedHistorianProviderRegistry m_owner;
+
+            /// <summary>
+            /// The replacement transaction owned by the candidate registry.
+            /// </summary>
+            private readonly IHistorianNodeReplacement m_replacement;
+        }
+
+        /// <summary>
+        /// Serializes candidate changes and publication.
+        /// </summary>
         private readonly Lock m_lock = new();
+
+        /// <summary>
+        /// Namespace table used to resolve candidate node namespaces.
+        /// </summary>
         private readonly NamespaceTable m_namespaceTable;
+
+        /// <summary>
+        /// Registry containing this candidate's local bindings.
+        /// </summary>
         private readonly HistorianProviderRegistry m_candidateRegistry;
+
+        /// <summary>
+        /// Server registry to which this candidate publishes.
+        /// </summary>
         private readonly IHistorianProviderRegistry m_servingRegistry;
+
+        /// <summary>
+        /// Stable identity used to own this candidate's serving registrations.
+        /// </summary>
         private readonly object m_owner;
+
+        /// <summary>
+        /// Node scopes retained from the serving registry during candidate configuration.
+        /// </summary>
         private readonly HashSet<NodeId> m_retainedNodeIds = [];
+
+        /// <summary>
+        /// Namespace scopes retained from the serving registry during candidate configuration.
+        /// </summary>
         private readonly HashSet<string> m_retainedNamespaceUris = new(StringComparer.Ordinal);
+
+        /// <summary>
+        /// Whether the candidate has published its registration set.
+        /// </summary>
         private bool m_published;
+
+        /// <summary>
+        /// Whether this candidate currently contributes registrations to the serving registry.
+        /// </summary>
         private bool m_servingHasRegistrations;
+
+        /// <summary>
+        /// Whether the serving default registration is retained by this candidate.
+        /// </summary>
         private bool m_retainedDefault;
+
+        /// <summary>
+        /// Whether this candidate has left routing.
+        /// </summary>
         private bool m_retired;
+
+        /// <summary>
+        /// Whether this candidate registry has been disposed.
+        /// </summary>
         private bool m_disposed;
     }
 }

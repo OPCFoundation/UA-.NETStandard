@@ -1066,7 +1066,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         [Category("Integration")]
         [Category("NativeTcp")]
-        public async Task ResumedEventHistoryKeepsRetainedOwnerDenialOverPermissiveReplacementAsync()
+        public async Task EventHistoryContinuationIsInvalidAfterOwnerReplacementAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             using var data = new InMemoryHistorianProvider(
@@ -1077,8 +1077,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 new NodeId(kRootNodeId, owner.Manager.NamespaceIndexes[0])) as BaseObjectState);
             notifier.EventNotifier |= EventNotifiers.HistoryRead;
             data.Register(notifier.NodeId);
-            ByteString firstId = new("retained-denial-first"u8.ToArray());
-            ByteString secondId = new("retained-denial-second"u8.ToArray());
+            ByteString firstId = new("replacement-first"u8.ToArray());
+            ByteString secondId = new("replacement-second"u8.ToArray());
             await InsertHistoryEventsAsync(data, notifier,
                 [
                     CreateHistoryEvent(firstId, "first", s_historyTime, notifier.NodeId),
@@ -1096,15 +1096,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(first.StatusCode, Is.EqualTo(StatusCodes.Good));
                 Assert.That(ReadEventIds(first), Is.EqualTo(new[] { firstId }));
                 Assert.That(first.ContinuationPoint.IsEmpty, Is.False);
-                notifier.RolePermissions =
-                [
-                    new RolePermissionType
-                    {
-                        RoleId = ObjectIds.WellKnownRole_Anonymous,
-                        Permissions = (uint)(PermissionType.Browse | PermissionType.Read |
-                            PermissionType.ReadHistory)
-                    }
-                ];
                 var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
                 await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                     [
@@ -1118,9 +1109,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
                 HistoryReadResult resumed = await ReadEventIdPageAsync(
                     session, notifier.NodeId, first.ContinuationPoint, timeout.Token).ConfigureAwait(false);
-                Assert.That(resumed.StatusCode, Is.EqualTo(StatusCodes.GoodNoData));
-                Assert.That(ReadEventIdsOrEmpty(resumed), Is.Empty,
-                    "a retained owner that denies ReceiveEvents must not defer to a permissive live replacement");
+                Assert.That(resumed.StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
+                Assert.That(resumed.HistoryData.IsNull, Is.True);
                 Assert.That(resumed.ContinuationPoint.IsEmpty, Is.True);
                 await owner.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(owner.Manager.DisposeCount, Is.EqualTo(1));
