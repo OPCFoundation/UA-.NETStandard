@@ -311,18 +311,24 @@ namespace Opc.Ua.Server.Tests
                 .GetField("m_rebindLock", BindingFlags.NonPublic | BindingFlags.Instance)!
                 .GetValue(monitoredNode)!;
 
-            Task change;
+            MethodInfo getItems = typeof(MonitoredNode2)
+                .GetMethod("GetDataChangeItems", BindingFlags.NonPublic | BindingFlags.Instance)!;
+
+            var rebuild = new Thread(() => getItems.Invoke(monitoredNode, null)) { IsBackground = true };
             lock (rebindLock)
             {
-                change = Task.Run(async () => await monitoredNode.OnMonitoredNodeChangedAsync(
-                    s_context, node, NodeStateChangeMasks.Value).ConfigureAwait(false));
+                rebuild.Start();
 
-                // Gives the change time to reach the lock. If it has not, the test passes without
-                // covering the race, so the delay cannot make it fail.
-                Thread.Sleep(200);
+                // The rebuild lock is the only thing the thread can wait on, so once it waits
+                // it has passed the check for an exposed dictionary.
+                Assert.That(
+                    SpinWait.SpinUntil(
+                        () => (rebuild.ThreadState & ThreadState.WaitSleepJoin) != 0,
+                        TimeSpan.FromSeconds(30)),
+                    Is.True);
                 _ = monitoredNode.DataChangeMonitoredItems;
             }
-            await change.ConfigureAwait(false);
+            Assert.That(rebuild.Join(TimeSpan.FromSeconds(30)), Is.True);
 
             Assert.That(CachedItemSet(monitoredNode), Is.Null);
 
