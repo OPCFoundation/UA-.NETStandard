@@ -635,6 +635,7 @@ namespace Opc.Ua.Server
             /// <inheritdoc/>
             public async ValueTask DisposeAsync()
             {
+                Volatile.Write(ref m_registeredFacade, null);
                 HistorianBuilder[] builders;
                 lock (m_historianBuildersLock)
                 {
@@ -1246,6 +1247,7 @@ namespace Opc.Ua.Server
                         return;
                     }
                     Volatile.Write(ref m_isDetached, true);
+                    Volatile.Write(ref m_registeredFacade, null);
                 }
                 RetireHistorianRegistrations();
                 RevokeServiceLevelControl();

@@ -1133,6 +1133,44 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Resolves a root's published owner while preserving exact prepared-facade ownership.
+        /// </summary>
+        internal IAsyncNodeManager? GetPublishedRootNotifierOwner(AsyncCustomNodeManager owner)
+        {
+            NodeManagerRoutingTable.RoutingSnapshot snapshot = m_nodeManagers.Revision;
+            ChangePreparer.StagingServer? staging = ChangePreparer.GetServer(owner);
+            if (staging is not null)
+            {
+                IAsyncNodeManager? registeredFacade = staging.RegisteredFacade;
+                foreach (IAsyncNodeManager published in snapshot.VisibleNodeManagers)
+                {
+                    if (ReferenceEquals(published, registeredFacade))
+                    {
+                        return published;
+                    }
+                }
+                return null;
+            }
+
+            IAsyncNodeManager identity = GetReferenceOwnerIdentity(owner);
+            IAsyncNodeManager? registered = null;
+            foreach (IAsyncNodeManager published in snapshot.VisibleNodeManagers)
+            {
+                if (!ReferenceEquals(GetReferenceOwnerIdentity(published), identity))
+                {
+                    continue;
+                }
+                if (registered is not null)
+                {
+                    throw new InvalidOperationException(
+                        "More than one published NodeManager facade owns the root-notifier resource.");
+                }
+                registered = published;
+            }
+            return registered;
+        }
+
+        /// <summary>
         /// Resolves the resource behind a registered facade for reference cleanup.
         /// </summary>
         internal static IAsyncNodeManager GetReferenceOwnerIdentity(IAsyncNodeManager manager)
