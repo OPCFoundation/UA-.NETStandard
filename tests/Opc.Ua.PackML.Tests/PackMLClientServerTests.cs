@@ -2528,6 +2528,79 @@ namespace Opc.Ua.PackML.Tests
         }
 
         /// <summary>
+        /// Removes a deleted unit's references from source nodes that a pending publication reserved,
+        /// once that publication's decision completes.
+        /// </summary>
+        /// <param name="facade">The facade returned by the candidate factory.</param>
+        [TestCase(ManagerFacadeKind.Direct)]
+        [TestCase(ManagerFacadeKind.Adapted)]
+        [TestCase(ManagerFacadeKind.Forwarded)]
+        public async Task LiveDeletionOfReservedSourceReferencesCompletesAfterDecision(ManagerFacadeKind facade)
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            CancellationToken ct = deadline.Token;
+            INodeManagerLifecycle lifecycle = m_services.GetRequiredService<INodeManagerLifecycle>();
+            var core = m_manager.Server.NodeManager.CoreNodeManager as CoreNodeManager
+                ?? throw new InvalidOperationException("The core node manager is unavailable.");
+            NodeState objects = core.FindPredefinedNode<NodeState>(Ua.ObjectIds.ObjectsFolder)
+                ?? throw new InvalidOperationException("Objects folder is unavailable.");
+            NodeState enumeration = core.FindPredefinedNode<NodeState>(Ua.DataTypeIds.Enumeration)
+                ?? throw new InvalidOperationException("Enumeration type is unavailable.");
+            var factory = new PreparedPackMLManagerFactory(
+                failFirstUnit: false,
+                namespaceUri: "urn:opcfoundation:tests:packml:reserved-deletion",
+                facade: facade);
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false);
+            NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            Assert.That(committed.CleanupFailure, Is.Null);
+            PreparedPackMLManager candidate = factory.Manager
+                ?? throw new InvalidOperationException("The candidate manager was not created.");
+            NodeId unitId = candidate.CreatedUnit.Node.NodeId;
+            NodeId modeId = candidate.CreatedUnit.ModeDataType.NodeId;
+            AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: true);
+
+            // The deciding candidate adds its own unit to the Objects folder and Enumeration type,
+            // so both source nodes are reserved while its decision is pending.
+            var decidingFactory = new PreparedPackMLManagerFactory(
+                failFirstUnit: false,
+                namespaceUri: "urn:opcfoundation:tests:packml:reserving");
+            await using IPreparedNodeManagerBatch deciding = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(decidingFactory)], ct).ConfigureAwait(false);
+            NodeManagerBatchResult decided = await deciding.CommitAsync(async token =>
+            {
+                Task<bool> deletion;
+                using (ExecutionContext.SuppressFlow())
+                {
+                    deletion = Task.Run(async () =>
+                        await candidate.DeleteNodeAsync(candidate.SystemContext, unitId, token)
+                            .ConfigureAwait(false) &&
+                        await candidate.DeleteNodeAsync(candidate.SystemContext, modeId, token)
+                            .ConfigureAwait(false), token);
+                }
+                Assert.That(
+                    await deletion.WaitAsync(TimeSpan.FromSeconds(10), token).ConfigureAwait(false),
+                    Is.True);
+            }, ct).ConfigureAwait(false);
+            Assert.That(decided.CleanupFailure, Is.Null);
+            Assert.That(candidate.Find(unitId), Is.Null);
+            Assert.That(candidate.Find(modeId), Is.Null);
+            Assert.That(
+                () => objects.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, unitId),
+                Is.False.After(10000, 20));
+            Assert.That(
+                () => enumeration.ReferenceExists(Ua.ReferenceTypeIds.HasSubtype, false, modeId),
+                Is.False.After(10000, 20));
+            Assert.That(candidate.Server.ServerObject.ReferenceExists(
+                Ua.ReferenceTypeIds.HasNotifier, false, unitId), Is.False);
+
+            await RetirePackMLManagerAsync(lifecycle, decided, ct).ConfigureAwait(false);
+            AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: false);
+            await RetirePackMLManagerAsync(lifecycle, committed, ct).ConfigureAwait(false);
+            AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: false);
+        }
+
+        /// <summary>
         /// Does not transfer a staged external reference to an unrelated replacement with the same NodeId.
         /// </summary>
         [Test]
