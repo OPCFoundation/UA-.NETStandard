@@ -123,7 +123,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 bool referencePublished = true;
                 bool monitored = true;
                 bool registrationCompleted = true;
-                m_server.HostBoundary.Publication = async (plan, publish) =>
+                m_server.HostBoundary.Publication = (plan, publish) =>
                 {
                     var commit = new Mock<INodeManagerPublicationCommit>();
                     commit.SetupGet(value => value.HasDecision).Returns(() => plan.Commit.HasDecision);
@@ -145,7 +145,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         monitored = lateRoot.AreEventsMonitored;
                         registrationCompleted = registration!.IsCompleted;
                     });
-                    return await publish(plan with { Commit = commit.Object }).ConfigureAwait(false);
+                    return publish(plan with { Commit = commit.Object });
                 };
 
                 NodeManagerBatchResult result = await prepared.CommitAsync(_ => default, timeout.Token)
