@@ -113,6 +113,8 @@ Assumes [Getting started](GettingStarted.md).
    application.
 4. [Asynchronous server support](AsyncServerSupport.md) — implement service and
    node-manager callbacks asynchronously.
+5. [NodeManager change sets](NodeManagers.md#lifecycle-change-sets) — publish slot-targeted
+   changes, inspect committed issues, and await physical retirement independently.
 
 ### PubSub path
 
@@ -193,6 +195,9 @@ models that each model depends on.
   model and job control.
 - [Positioning](Positioning.md) (OPC 10000-210 and OPC 10000-211; preview
   package) — relative frames and geographic positions.
+- [Industrial Automation](IndustrialAutomation.md) (OPC 10000-200) —
+  provider-backed stacklights, aggregate/rolling statistics, and
+  calibration-target information on an existing DI or companion owner.
 - [Machinery](Machinery.md) (OPC 40001-1, -2, -3, -4 and -101) —
   machines with identification, server-driven state machines,
   process values, job management, energy and result transfer, based on the

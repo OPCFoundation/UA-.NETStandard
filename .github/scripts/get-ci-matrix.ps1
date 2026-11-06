@@ -134,7 +134,8 @@ $RunnerArchitectures = @{
     macos   = 'arm64'
 }
 
-$LatestSdk = '10.0.402'
+$LatestSdk = (Get-Content -LiteralPath (Join-Path $RepositoryRoot 'global.json') -Raw |
+    ConvertFrom-Json).sdk.version
 
 # The category filter the fast legs use. Tiers that lift it declare so below.
 $DefaultFilter = 'TestCategory!=LongRunning&TestCategory!=Stress'
@@ -383,14 +384,14 @@ function Expand-BuildMatrix([string] $scope)
 
 <#
  .SYNOPSIS
-    Packs an ordered project list into contiguous batches whose weights add up
+    Packs an ordered project list into batches whose weights add up
     to at most $targetMinutes, never more than $MaxProjectsPerBatch projects.
 
  .DESCRIPTION
-    Contiguous rather than best-fit: path order keeps projects that share
-    dependencies together, and the result only depends on the list and the
-    table, so a run is reproducible. A project heavier than the target is
-    placed in a batch of its own rather than split or dropped.
+    Ordinary projects retain path order within their batches. Isolated suites
+    get their own jobs without flushing an unfinished ordinary batch, so they
+    do not consume extra jobs for partially filled batches. A project heavier
+    than the target is placed in a batch of its own rather than split or dropped.
 #>
 function Split-IntoBatches([string[]] $projects, [int] $targetMinutes)
 {
@@ -401,11 +402,6 @@ function Split-IntoBatches([string[]] $projects, [int] $targetMinutes)
         $minutes = Get-ProjectMinutes $project
         $stem = [System.IO.Path]::GetFileNameWithoutExtension($project)
         if ($stem -eq 'Opc.Ua.WotCon.Samples.Tests' -or $DedicatedTestProjects -contains $stem) {
-            if ($current.Count -gt 0) {
-                $batches += , @($current)
-                $current = @()
-                $currentMinutes = 0
-            }
             $batches += , @($project)
             continue
         }
@@ -475,7 +471,7 @@ function Get-TestProjectShards([string] $project, [string] $framework, [string] 
         }
         'Opc.Ua.WotCon.Tests' {
             $materialization = 'Opc.Ua.WotCon.Tests.Materialization.'
-            if ($framework -ne 'net48') {
+            if ($framework -ne 'net48' -and $os -ne 'macos') {
                 return @(
                     @{
                         id = 'wot-materialization'
@@ -487,6 +483,41 @@ function Get-TestProjectShards([string] $project, [string] $framework, [string] 
                         id = 'wot-other'
                         name = 'wot-other'
                         filter = "FullyQualifiedName!~${materialization}"
+                        hangTimeout = ''
+                    }
+                )
+            }
+            if ($framework -ne 'net48') {
+                $liveEvents = "${materialization}WotEventModesLiveTests."
+                return @(
+                    @{
+                        id = 'wot-materialization-core'
+                        name = 'wot-materialization-core'
+                        filter = "FullyQualifiedName~${materialization}&TestCategory!=Integration"
+                        hangTimeout = ''
+                    }
+                    @{
+                        id = 'wot-materialization-integration'
+                        name = 'wot-materialization-integration'
+                        filter = "FullyQualifiedName~${materialization}&TestCategory=Integration&FullyQualifiedName!~${liveEvents}"
+                        hangTimeout = ''
+                    }
+                    @{
+                        id = 'wot-materialization-live-events'
+                        name = 'wot-materialization-live-events'
+                        filter = "FullyQualifiedName~${liveEvents}&TestCategory=Integration"
+                        hangTimeout = ''
+                    }
+                    @{
+                        id = 'wot-other-core'
+                        name = 'wot-other-core'
+                        filter = "FullyQualifiedName!~${materialization}&TestCategory!=Integration"
+                        hangTimeout = ''
+                    }
+                    @{
+                        id = 'wot-other-integration'
+                        name = 'wot-other-integration'
+                        filter = "FullyQualifiedName!~${materialization}&TestCategory=Integration"
                         hangTimeout = ''
                     }
                 )
@@ -519,6 +550,8 @@ function Get-TestProjectShards([string] $project, [string] $framework, [string] 
             )
         }
         'Opc.Ua.Server.Tests' {
+            $nativeLifecycle = 'Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.'
+            # Shard macOS and net48 workloads within the per-project ceiling.
             if ($framework -ne 'net48' -and $os -ne 'macos') {
                 return @(
                     @{
@@ -529,22 +562,29 @@ function Get-TestProjectShards([string] $project, [string] $framework, [string] 
                     }
                 )
             }
-
             $groups = @(
+                @{
+                    id = 'server-node-lifecycle-prepared'
+                    name = 'server-node-lifecycle-prepared'
+                    terms = @("${nativeLifecycle}Prepared")
+                }
+                @{
+                    id = 'server-node-lifecycle'
+                    name = 'server-node-lifecycle'
+                    terms = @($nativeLifecycle)
+                }
                 @{
                     id = 'server-node-management'
                     name = 'server-node-management'
                     terms = @('NodeManager', 'SamplingGroup', 'SamplingInterval', 'NodeState', 'MonitoredNode')
                 }
+                # Historian and subscription tests share one shard: each runs in about
+                # ten minutes on net48, and every entry counts against the 256-job limit.
                 @{
-                    id = 'server-historian'
-                    name = 'server-historian'
-                    terms = @('Historian', 'Aggregate', 'History')
-                }
-                @{
-                    id = 'server-subscriptions'
-                    name = 'server-subscriptions'
-                    terms = @('Subscription', 'MonitoredItem', 'Publish', 'KeepAlive')
+                    id = 'server-history-subscriptions'
+                    name = 'server-history-subscriptions'
+                    terms = @('Historian', 'Aggregate', 'History', 'Subscription', 'MonitoredItem', 'Publish',
+                        'KeepAlive')
                 }
                 @{
                     id = 'server-sessions'
@@ -577,20 +617,14 @@ function Get-TestProjectShards([string] $project, [string] $framework, [string] 
 
             if ($os -eq 'macos' -and $framework -ne 'net48') {
                 $groups = @(
+                    $groups[0]
+                    $groups[1]
+                    $groups[2]
+                    $groups[3]
                     @{
-                        id = 'server-node-historian'
-                        name = 'server-node-historian'
-                        terms = @($groups[0].terms + $groups[1].terms)
-                    }
-                    @{
-                        id = 'server-subscriptions-sessions'
-                        name = 'server-subscriptions-sessions'
-                        terms = @($groups[2].terms + $groups[3].terms)
-                    }
-                    @{
-                        id = 'server-configuration-runtime'
-                        name = 'server-configuration-runtime'
-                        terms = @($groups[4].terms + $groups[5].terms)
+                        id = 'server-sessions-configuration-runtime'
+                        name = 'server-sessions-configuration-runtime'
+                        terms = @($groups[4].terms + $groups[5].terms + $groups[6].terms)
                     }
                     @{
                         id = 'server-other'

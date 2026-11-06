@@ -143,7 +143,25 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             {
                 if (handle is not null)
                 {
-                    await host.RemoveAsync(handle, CancellationToken.None).ConfigureAwait(false);
+                    var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    channels.Channels[0].BeforeDisposeAsync = () =>
+                    {
+                        entered.TrySetResult(true);
+                        return new ValueTask(release.Task);
+                    };
+                    Task removal = host.RemoveAsync(handle, CancellationToken.None).AsTask();
+                    try
+                    {
+                        await entered.Task.WaitAsync(ct).ConfigureAwait(false);
+                        Assert.That(removal.IsCompleted, Is.False,
+                            "Direct removal must await disposal, not only routing publication.");
+                    }
+                    finally
+                    {
+                        release.TrySetResult(true);
+                        await removal.ConfigureAwait(false);
+                    }
                 }
             }
             Assert.That(channels.Channels[0].DisposeCount, Is.EqualTo(1));
@@ -435,11 +453,26 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
             finally
             {
-                await host.RemoveAsync(active, CancellationToken.None).ConfigureAwait(false);
+                await RemoveAndRetireAsync(active).ConfigureAwait(false);
             }
             WotProjectionHandle recovered = await host.AddAsync(desired, ct).ConfigureAwait(false);
-            await host.RemoveAsync(recovered, CancellationToken.None).ConfigureAwait(false);
+            await RemoveAndRetireAsync(recovered).ConfigureAwait(false);
             Assert.That(channels.Channels.TrueForAll(channel => channel.DisposeCount == 1), Is.True);
+
+            async Task RemoveAndRetireAsync(WotProjectionHandle projection)
+            {
+                using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                NodeManagerRegistration? registration = destination.Server.NodeManagerLifecycle.Registrations.Find(
+                    value => value.Id == projection.Registration!.Id);
+                Assert.That(registration, Is.Not.Null);
+                var lifecycle = (INodeManagerBatchLifecycle)destination.Server.NodeManagerLifecycle;
+                await using IPreparedNodeManagerBatch removal = await lifecycle.PrepareAsync(
+                    [NodeManagerBatchChange.Remove(registration!)], null, cleanup.Token).ConfigureAwait(false);
+                NodeManagerBatchResult result = await removal.CommitAsync(_ => default, cleanup.Token)
+                    .ConfigureAwait(false);
+                Assert.That(result.CleanupFailure, Is.Null);
+                await result.Retirement.WaitAsync(cleanup.Token).ConfigureAwait(false);
+            }
         }
 
         private static UAVariable ActivationTypeProperty()
@@ -512,6 +545,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// Gets or sets the dispose count for <c>ActivationChannel</c>.
             /// </summary>
             public int DisposeCount { get; private set; }
+
+            /// <summary>
+            /// Gets or sets the callback that holds disposal before the inner channel is released.
+            /// </summary>
+            public Func<ValueTask>? BeforeDisposeAsync { get; set; }
 
             /// <inheritdoc/>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -609,6 +647,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             public async ValueTask DisposeAsync()
             {
                 DisposeCount++;
+                if (BeforeDisposeAsync is { } beforeDispose)
+                {
+                    await beforeDispose().ConfigureAwait(false);
+                }
                 await inner.DisposeAsync().ConfigureAwait(false);
             }
         }

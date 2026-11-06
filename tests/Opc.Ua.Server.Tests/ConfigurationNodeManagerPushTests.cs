@@ -2092,6 +2092,29 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task DrainPendingApplyChangesAsyncPropagatesCompletedFailureAsync()
+        {
+            FieldInfo pendingApplyChangesTaskField = typeof(ConfigurationNodeManager).GetField(
+                "m_pendingApplyChangesTask",
+                BindingFlags.NonPublic | BindingFlags.Instance)
+                ?? throw new InvalidOperationException("Field m_pendingApplyChangesTask not found.");
+            var failure = new InvalidOperationException("Deferred apply failed.");
+            pendingApplyChangesTaskField.SetValue(m_configManager, Task.FromException(failure));
+
+            try
+            {
+                InvalidOperationException actual = await Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await m_configManager.DrainPendingApplyChangesAsync().ConfigureAwait(false));
+
+                Assert.That(actual, Is.SameAs(failure));
+            }
+            finally
+            {
+                pendingApplyChangesTaskField.SetValue(m_configManager, Task.CompletedTask);
+            }
+        }
+
+        [Test]
         public async Task ValidatePushCertificateAndIssuerChainWithNullCertificateThrowsArgumentNullException()
         {
             using var issuerCertificates = new CertificateCollection();

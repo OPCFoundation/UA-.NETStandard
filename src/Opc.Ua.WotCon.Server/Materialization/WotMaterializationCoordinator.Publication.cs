@@ -159,10 +159,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         }
                         catch (InvalidOperationException failure) when (
                             !decisionStarted && attempt < 2 &&
-                            string.Equals(
-                                failure.Message,
-                                "Serving references changed during batch preparation.",
-                                StringComparison.Ordinal))
+                            failure.Message is
+                                "Serving references changed during batch preparation." or
+                                "Serving references changed during preparation.")
                         {
                             await Task.Yield();
                         }
@@ -676,7 +675,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             CancellationToken cancellationToken,
             WotRegistryMutationImage? mutation = null)
         {
-            BindPreparedSourceRoots(capture, result, snapshot);
+            BindPreparedSourceRoots(
+                capture, result, snapshot,
+                (prepared as IWotPreparedProjectionNamespaceSource)?.CapturedNamespaceUris ?? []);
             ByteString graph = prepared.ViewGraph is { } preparedGraph
                 ? preparedGraph.CanonicalViewGraphState
                 : default;
@@ -745,7 +746,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         private void BindDryRunResults(
-            WotRefreshResult result, PublicationCapture capture, WotPreparedViewGraphState? graph)
+            WotRefreshResult result,
+            PublicationCapture capture,
+            WotPreparedViewGraphState? graph)
         {
             foreach (WoTResourceLoadResultDataType row in result.Results)
             {
@@ -759,7 +762,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             StatusCodes.BadNodeIdInvalid, "The private View has no captured namespace mapping.");
                     }
                     var namespaces = new NamespaceTable(graph.CapturedNamespaceUris.ToArray()!);
-                    row.RootNodeId = ResolveRootNodeId(NodeId.ToExpandedNodeId(view.ViewNodeId, namespaces));
+                    row.RootNodeId = ResolveRootNodeId(
+                        NodeId.ToExpandedNodeId(view.ViewNodeId, namespaces));
                     row.MaterializedNodeCount = (uint)(view.MaterializedNodeCount +
                         GetLocalProjectionNodeCount(capture.Closures.Values, view.ResourceXid));
                     if (!view.Omissions.IsEmpty)
@@ -841,8 +845,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     capture.Projections.RemoveAll(projection =>
                         projection.GroupId == resource.GroupId && projection.ResourceId == resource.ResourceId);
                     WotResource? planned = desired?.FindResourceByXid(resource.Xid);
-                    WoTLoadStateEnum state = planned is { Enabled: false, LoadState: WoTLoadStateEnum.Failed or
-                        WoTLoadStateEnum.Retired } ? planned.LoadState : WoTLoadStateEnum.Unloaded;
+                    WoTLoadStateEnum state = planned is
+                    {
+                        Enabled: false, LoadState: WoTLoadStateEnum.Failed or
+                        WoTLoadStateEnum.Retired
+                    } ? planned.LoadState : WoTLoadStateEnum.Unloaded;
                     capture.Projections.Add(new WotResourceProjection(
                         resource.GroupId, resource.ResourceId, state, null,
                         checked(snapshot.RefreshGeneration + 1), 0, NodeId.Null, resource.DefaultVersion?.Validation,
@@ -1022,8 +1029,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         private void BindPreparedSourceRoots(
-            PublicationCapture capture, WotRefreshResult staged, WotRegistrySnapshot snapshot)
+            PublicationCapture capture,
+            WotRefreshResult staged,
+            WotRegistrySnapshot snapshot,
+            ArrayOf<string> namespaceUris)
         {
+            NamespaceTable? namespaces = namespaceUris.IsEmpty ? null : new NamespaceTable(namespaceUris.ToArray()!);
             for (int i = 0; i < capture.Projections.Count; i++)
             {
                 WotResourceProjection projection = capture.Projections[i];
@@ -1032,7 +1043,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     continue;
                 }
-                NodeId nodeId = ResolveRootNodeId(root);
+                NodeId nodeId = ResolveRootNodeId(root, namespaces);
                 if (nodeId.IsNull)
                 {
                     throw new ServiceResultException(
@@ -1265,62 +1276,62 @@ namespace Opc.Ua.WotCon.Server.Materialization
             /// </summary>
             public Dictionary<string, ClosureState> Closures { get; }
 
-                        /// <summary>
+            /// <summary>
             /// Gets the namespaces for <c>PublicationCapture</c>.
             /// </summary>
             public HashSet<string> Namespaces { get; }
 
-                        /// <summary>
+            /// <summary>
             /// Gets the changes for <c>PublicationCapture</c>.
             /// </summary>
             public List<CapturedProjection> Changes { get; } = [];
 
-                        /// <summary>
+            /// <summary>
             /// Gets the view updates for <c>PublicationCapture</c>.
             /// </summary>
             public List<WotViewProjectionRequest> ViewUpdates { get; } = [];
 
-                        /// <summary>
+            /// <summary>
             /// Gets the view removals for <c>PublicationCapture</c>.
             /// </summary>
             public List<WotViewProjectionHandle> ViewRemovals { get; } = [];
 
-                        /// <summary>
+            /// <summary>
             /// Gets the bindings for <c>PublicationCapture</c>.
             /// </summary>
             public List<BindingAction> Bindings { get; } = [];
 
-                        /// <summary>
+            /// <summary>
             /// Gets the events for <c>PublicationCapture</c>.
             /// </summary>
             public List<WotMaterializationEventArgs> Events { get; } = [];
 
-                        /// <summary>
+            /// <summary>
             /// Gets the projections for <c>PublicationCapture</c>.
             /// </summary>
             public List<WotResourceProjection> Projections { get; } = [];
 
-                        /// <summary>
+            /// <summary>
             /// Gets the retired resources for <c>PublicationCapture</c>.
             /// </summary>
             public List<WotResource> RetiredResources { get; } = [];
 
-                        /// <summary>
+            /// <summary>
             /// Gets the retired metadata for <c>PublicationCapture</c>.
             /// </summary>
             public Dictionary<(string GroupId, string ResourceId), WotResourceProjection> RetiredMetadata { get; } = [];
 
-                        /// <summary>
+            /// <summary>
             /// Gets the source roots for <c>PublicationCapture</c>.
             /// </summary>
             public Dictionary<string, ExpandedNodeId> SourceRoots { get; } = new(StringComparer.Ordinal);
 
-                        /// <summary>
+            /// <summary>
             /// Gets the preview units for <c>PublicationCapture</c>.
             /// </summary>
             public List<WotDependencyClosure> PreviewUnits { get; } = [];
 
-                        /// <summary>
+            /// <summary>
             /// Gets or sets the recovery generation for <c>PublicationCapture</c>.
             /// </summary>
             public uint? RecoveryGeneration { get; init; }
@@ -1403,7 +1414,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 return capture() is { } pending
                     ? Record(pending, WotProjectionChange.Replace(
-                        current, document, WotProjectionRetirementPolicy.Immediate))
+                        current, document, WotProjectionRetirementPolicy.Invalidate))
                     : inner.ImmediateReloadAsync(current, document, cancellationToken);
             }
 

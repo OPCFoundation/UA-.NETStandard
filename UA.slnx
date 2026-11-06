@@ -64,6 +64,10 @@
     <Project Path="samples/Scales/ScalesServer/ScalesServer.csproj" />
     <Project Path="samples/Scales/ScalesClient/ScalesClient.csproj" />
   </Folder>
+  <Folder Name="/samples/IA/">
+    <File Path="samples/IA/README.md" />
+    <Project Path="samples/IA/IndustrialAutomationSample.csproj" />
+  </Folder>
   <Folder Name="/samples/ISA95/">
     <File Path="samples/ISA95/README.md" />
     <Project Path="samples/ISA95/MinimalIsa95Server/MinimalIsa95Server.csproj" />
@@ -174,6 +178,8 @@
     <Project Path="src/Opc.Ua.GMS.Client/Opc.Ua.GMS.Client.csproj" />
     <Project Path="src/Opc.Ua.GMS.Server/Opc.Ua.GMS.Server.csproj" />
     <Project Path="src/Opc.Ua.GMS/Opc.Ua.GMS.csproj" />
+    <Project Path="src/Opc.Ua.IA.Client/Opc.Ua.IA.Client.csproj" />
+    <Project Path="src/Opc.Ua.IA.Server/Opc.Ua.IA.Server.csproj" />
     <Project Path="src/Opc.Ua.IA/Opc.Ua.IA.csproj" />
     <Project Path="src/Opc.Ua.ECM/Opc.Ua.ECM.csproj" />
     <Project Path="src/Opc.Ua.PADIM/Opc.Ua.PADIM.csproj" />
@@ -404,6 +410,7 @@
     <Project Path="tests/Opc.Ua.Features.Tests/Opc.Ua.Features.Tests.csproj" />
     <Project Path="tests/Opc.Ua.GMS.Tests/Opc.Ua.GMS.Tests.csproj" />
     <Project Path="tests/Opc.Ua.History.Tests/Opc.Ua.History.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.IA.Tests/Opc.Ua.IA.Tests.csproj" />
     <Project Path="tests/Opc.Ua.InformationModel.Tests/Opc.Ua.InformationModel.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Interop.Tests/Opc.Ua.Interop.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Lds.Tests/Opc.Ua.Lds.Tests.csproj" />
