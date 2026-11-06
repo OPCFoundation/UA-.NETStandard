@@ -31,6 +31,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -161,11 +162,14 @@ namespace Opc.Ua.ECM.Server
                     m_logger.MeasurementProviderFailed(exception.ToString());
                 }
                 Exception? notificationFailure = await MarkUnavailableAsync().ConfigureAwait(false);
-                if (notificationFailure is not null &&
-                    !ReferenceEquals(exception, notificationFailure) &&
-                    m_logger.IsEnabled(LogLevel.Error))
+                if (notificationFailure is not null)
                 {
-                    m_logger.UnavailableStateNotificationFailed(notificationFailure.ToString());
+                    if (!ReferenceEquals(exception, notificationFailure) &&
+                        m_logger.IsEnabled(LogLevel.Error))
+                    {
+                        m_logger.UnavailableStateNotificationFailed(notificationFailure.ToString());
+                    }
+                    ExceptionDispatchInfo.Capture(notificationFailure).Throw();
                 }
                 throw;
             }
@@ -657,8 +661,17 @@ namespace Opc.Ua.ECM.Server
             }
             try
             {
-                await MeasurementPoint.ClearChangeMasksAsync(
+                await Required(MeasurementPoint.ApplicationTag).ClearChangeMasksAsync(
                     m_context, true, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception exception)
+            {
+                failures.Add(exception);
+            }
+            try
+            {
+                await MeasurementPoint.ClearChangeMasksAsync(
+                    m_context, false, CancellationToken.None).ConfigureAwait(false);
             }
             catch (Exception exception)
             {
