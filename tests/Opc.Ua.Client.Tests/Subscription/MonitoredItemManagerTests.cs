@@ -341,13 +341,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             await using var manager = new MonitoredItemManager(m_context, m_telemetry);
             var first = new DiagnosticInfo { AdditionalInfo = "first wire diagnostic" };
             var second = new DiagnosticInfo { AdditionalInfo = "second wire diagnostic" };
-            var stale = new DiagnosticInfo { AdditionalInfo = "client-side annotation" };
             var notification = new DataChangeNotification
             {
                 MonitoredItems =
                 [
-                    new MonitoredItemNotification { ClientHandle = 1, DiagnosticInfo = stale },
-                    new MonitoredItemNotification { ClientHandle = 2, DiagnosticInfo = stale }
+                    new MonitoredItemNotification { ClientHandle = 1 },
+                    new MonitoredItemNotification { ClientHandle = 2 }
                 ],
                 DiagnosticInfos = includeDiagnostics ? [first, second] : []
             };
