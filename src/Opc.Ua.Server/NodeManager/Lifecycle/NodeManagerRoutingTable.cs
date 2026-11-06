@@ -42,10 +42,10 @@ namespace Opc.Ua.Server
     /// Routes Nodes to the NodeManagers that own them and lets NodeManagers be added, replaced,
     /// and removed while the server is running.
     /// <para>
-    /// Readers never take the lock. Every mutation builds a complete new
+    /// Routing reads do not take the writer lock. Every mutation builds a complete new
     /// <c>RoutingSnapshot</c> under the lock and publishes it with a single volatile write, so a
-    /// service call in flight always observes either the state before or the state after a
-    /// lifecycle operation, never a half updated table.
+    /// service call in flight observes either the state before or the state after a lifecycle operation.
+    /// Resolving an unregistered source takes the writer lock to coordinate its legacy generation with publication.
     /// </para>
     /// <para>
     /// A NodeManager can be registered but hidden. Hidden NodeManagers are resolvable by the
@@ -80,6 +80,30 @@ namespace Opc.Ua.Server
         /// <returns>The exact generation identity.</returns>
         internal NodeManagerGeneration GetGeneration(IAsyncNodeManager nodeManager)
             => ReadSnapshot.GetGeneration(nodeManager);
+
+        /// <summary>
+        /// Resolves an unregistered source against publication before creating its legacy generation.
+        /// </summary>
+        internal NodeManagerGeneration ResolveUnregisteredSource(
+            IAsyncNodeManager nodeManager,
+            RoutingSnapshot? requestSnapshot)
+        {
+            lock (m_lock)
+            {
+                RoutingSnapshot routing = requestSnapshot ?? m_snapshot;
+                if (routing.TryGetSourceGeneration(nodeManager, out NodeManagerGeneration? generation) ||
+                    routing.TryGetSourceGeneration(nodeManager, out generation, includeHidden: true))
+                {
+                    return generation!;
+                }
+                if (routing.ContainsSourceResource(nodeManager))
+                {
+                    throw new InvalidOperationException(
+                        "The monitored source does not have a unique registered owner.");
+                }
+                return GetOrCreateSource(nodeManager);
+            }
+        }
 
         /// <summary>
         /// Gets the visible NodeManagers in dispatch order and the namespace routes from one
@@ -1273,14 +1297,39 @@ namespace Opc.Ua.Server
             /// </summary>
             /// <param name="nodeManager">The event source.</param>
             /// <param name="generation">The exact published generation, when present.</param>
+            /// <param name="includeHidden">Whether a staged owner may be resolved for binding.</param>
             /// <returns><c>true</c> if the source has an unambiguous owner in this view.</returns>
             internal bool TryGetSourceGeneration(
                 IAsyncNodeManager nodeManager,
-                out NodeManagerGeneration? generation)
+                out NodeManagerGeneration? generation,
+                bool includeHidden = false)
             {
-                if (TryGetGeneration(nodeManager, out generation))
+                generation = null;
+                for (int ii = 0; ii < NodeManagers.Length; ii++)
                 {
-                    return true;
+                    IAsyncNodeManager owner = NodeManagers[ii];
+                    if (ReferenceEquals(owner, nodeManager))
+                    {
+                        if (includeHidden || !ContainsManager(HiddenNodeManagers, owner))
+                        {
+                            generation = Generations[ii];
+                            return true;
+                        }
+                        return false;
+                    }
+                }
+                if (nodeManager is AsyncNodeManagerAdapter)
+                {
+                    for (int ii = 0; ii < NodeManagers.Length; ii++)
+                    {
+                        IAsyncNodeManager owner = NodeManagers[ii];
+                        if ((includeHidden || !ContainsManager(HiddenNodeManagers, owner)) &&
+                            HasSameGenerationIdentity(owner, nodeManager))
+                        {
+                            generation = Generations[ii];
+                            return true;
+                        }
+                    }
                 }
                 if (!ReferenceEquals(GetIdentity(nodeManager), nodeManager))
                 {
@@ -1293,16 +1342,7 @@ namespace Opc.Ua.Server
                     {
                         continue;
                     }
-                    bool hidden = false;
-                    foreach (IAsyncNodeManager hiddenOwner in HiddenNodeManagers)
-                    {
-                        if (ReferenceEquals(hiddenOwner, owner))
-                        {
-                            hidden = true;
-                            break;
-                        }
-                    }
-                    if (hidden)
+                    if (!includeHidden && ContainsManager(HiddenNodeManagers, owner))
                     {
                         continue;
                     }
@@ -1314,6 +1354,22 @@ namespace Opc.Ua.Server
                     generation = Generations[ii];
                 }
                 return generation is not null;
+            }
+
+            /// <summary>
+            /// Checks whether any visible or hidden owner uses the specified physical resource.
+            /// </summary>
+            internal bool ContainsSourceResource(IAsyncNodeManager nodeManager)
+            {
+                IAsyncNodeManager resource = GetIdentity(nodeManager);
+                foreach (IAsyncNodeManager owner in NodeManagers)
+                {
+                    if (ReferenceEquals(GetIdentity(owner), resource))
+                    {
+                        return true;
+                    }
+                }
+                return false;
             }
 
             /// <summary>

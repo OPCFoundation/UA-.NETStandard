@@ -29,11 +29,14 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
@@ -219,6 +222,116 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// An existing Server subscriber receives root events through the exact published source generation.
+        /// </summary>
+        [Test]
+        public async Task ExistingServerSubscriberUsesPublishedRootGenerationAsync([Values] bool forwarded)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using var logs = new RecordingLoggerProvider();
+            using ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
+                builder.SetMinimumLevel(LogLevel.Trace).AddProvider(logs));
+            Mock.Get(server.Object.Telemetry).SetupGet(value => value.LoggerFactory).Returns(loggerFactory);
+            using var resources = new ResourceManager(new ApplicationConfiguration());
+            server.SetupGet(value => value.ResourceManager).Returns(resources);
+            using (queues)
+            using (var events = new EventManager(server.Object, 100, 100))
+            {
+                server.SetupGet(value => value.EventManager).Returns(events);
+                await using var manager = new TestableAsyncCustomNodeManager(
+                    server.Object,
+                    new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() },
+                    false, NullLogger.Instance, DeterministicServerMock.TestNamespaceUri);
+                var facade = new Mock<IAsyncNodeManager>();
+                facade.SetupGet(value => value.NamespaceUris).Returns(() => manager.NamespaceUris);
+                facade.SetupGet(value => value.SyncNodeManager).Returns(manager.SyncNodeManager);
+                IAsyncNodeManager registered = forwarded ? facade.Object : manager;
+                using MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(server, [registered]);
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(registered);
+                using var context = new OperationContext(
+                    new RequestHeader(), null, RequestType.CreateMonitoredItems, RequestLifetime.None);
+                var filter = new EventFilter();
+                filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.Message));
+                var item = (MonitoredItem)events.CreateMonitoredItem(
+                    context, master.CoreNodeManager!, null!, 1, new MonitoredItemIdFactory(),
+                    TimestampsToReturn.Both, 1000,
+                    new MonitoredItemCreateRequest
+                    {
+                        ItemToMonitor = new ReadValueId
+                        {
+                            NodeId = ObjectIds.Server,
+                            AttributeId = Attributes.EventNotifier
+                        },
+                        MonitoringMode = MonitoringMode.Reporting,
+                        RequestedParameters = new MonitoringParameters { QueueSize = 10 }
+                    },
+                    filter, false);
+                var root = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("forwarded-subscriber-root", manager.NamespaceIndex),
+                    BrowseName = new QualifiedName("forwarded-subscriber-root", manager.NamespaceIndex),
+                    EventNotifier = EventNotifiers.SubscribeToEvents
+                };
+                await manager.AddNodeAsync(manager.SystemContext, NodeId.Null, root).ConfigureAwait(false);
+                await manager.AddRootNotifierPublicAsync(root).ConfigureAwait(false);
+                MonitoredNode2 monitored = manager.MonitoredNodes[root.NodeId];
+                Assert.That(monitored.EventMonitoredItems[item.Id], Is.SameAs(item));
+                NodeManagerGenerationReference? reference = monitored.Generation;
+                Assert.That(reference, Is.Not.Null);
+                Assert.That(reference!.TryGetGeneration(out NodeManagerGeneration? bound), Is.True);
+                Assert.That(bound, Is.SameAs(generation));
+
+                var occurrence = new BaseEventState(null);
+                occurrence.Initialize(manager.SystemContext, root, EventSeverity.Medium,
+                    new LocalizedText("forwarded-before"));
+                ServiceResult permission = await manager.ValidateEventRolePermissionsAsync(item, occurrence)
+                    .ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(permission), Is.True, $"Event permission: {permission}");
+                await root.ReportEventAsync(manager.SystemContext, occurrence).ConfigureAwait(false);
+                await monitored.WaitForPendingNotificationsAsync(CancellationToken.None)
+                    .AsTask().WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                Assert.That(
+                    item.ItemsInQueue,
+                    Is.EqualTo(1),
+                    $"Event logs: {string.Join("; ", logs.Records.Select(record =>
+                        record.Exception?.ToString() ?? record.Message))}");
+                var notifications = new Queue<EventFieldList>();
+                _ = item.Publish(context, notifications, 10);
+                Assert.That(notifications, Has.Count.EqualTo(1));
+                Assert.That(notifications.Dequeue().EventFields[0].TryGetValue(out LocalizedText message), Is.True);
+                Assert.That(message.Text, Is.EqualTo("forwarded-before"));
+
+                Assert.That(MasterNodeManager.TryCaptureSourceEmission(
+                    server.Object, manager, out var admitted, monitored.Generation), Is.True);
+                Task drain;
+                using (MasterNodeManager.SourceEmissionOrigin? origin = admitted?.TransferToOrigin())
+                {
+                    Assert.That(admitted?.Generation, Is.SameAs(generation));
+                    Assert.That(origin, Is.Not.Null);
+                    generation.Gate.Retire();
+                    drain = generation.Gate.WaitForDrainAsync();
+                    Assert.That(drain.IsCompleted, Is.False);
+                    Assert.That(MasterNodeManager.TryCaptureSourceEmission(
+                        server.Object, manager, out var child, monitored.Generation,
+                        context: origin!.CreateContext(manager.SystemContext)), Is.True);
+                    using (child)
+                    {
+                        Assert.That(child?.Generation, Is.SameAs(generation));
+                    }
+                    var rejected = new BaseEventState(null);
+                    rejected.Initialize(manager.SystemContext, root, EventSeverity.Medium,
+                        new LocalizedText("forwarded-after"));
+                    await root.ReportEventAsync(manager.SystemContext, rejected).ConfigureAwait(false);
+                    await monitored.WaitForPendingNotificationsAsync(CancellationToken.None)
+                        .AsTask().WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    _ = item.Publish(context, notifications, 10);
+                    Assert.That(notifications, Is.Empty);
+                }
+                await drain.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
         /// An unpublished facade cannot borrow the generation published for the same resource.
         /// </summary>
         [Test]
@@ -245,6 +358,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     server.Object, unpublishedFacade.Object, out var rejectedAdmission);
                 bool admitted = MasterNodeManager.TryCaptureSourceEmission(
                     server.Object, manager, out var sourceAdmission);
+                bool rejectedBound = MasterNodeManager.TryCaptureSourceEmission(
+                    server.Object, unpublishedFacade.Object, out var rejectedBoundAdmission, published.Reference);
+                bool rejectedItem = MasterNodeManager.TryCaptureItemEmission(
+                    server.Object, unpublishedFacade.Object, published.Reference, out var rejectedItemAdmission);
                 try
                 {
                     Assert.Multiple(() =>
@@ -252,6 +369,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         Assert.That(unpublished, Is.Not.SameAs(published));
                         Assert.That(rejected, Is.False);
                         Assert.That(rejectedAdmission.HasValue, Is.False);
+                        Assert.That(rejectedBound, Is.False);
+                        Assert.That(rejectedBoundAdmission.HasValue, Is.False);
+                        Assert.That(rejectedItem, Is.False);
+                        Assert.That(rejectedItemAdmission.HasValue, Is.False);
                         Assert.That(admitted, Is.True);
                         Assert.That(sourceAdmission?.Generation, Is.SameAs(published));
                     });
@@ -259,9 +380,670 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 finally
                 {
                     rejectedAdmission?.Dispose();
+                    rejectedBoundAdmission?.Dispose();
+                    rejectedItemAdmission?.Dispose();
                     sourceAdmission?.Dispose();
                 }
             }
+        }
+
+        /// <summary>
+        /// Preparing another facade does not publish that facade as an event or data source.
+        /// </summary>
+        [Test]
+        public void PreparedUnpublishedFacadeCannotBorrowPublishedResourceGeneration()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var resource = new Mock<IAsyncNodeManager>();
+                var sync = new SyncNodeManagerAdapter(resource.Object);
+                resource.SetupGet(value => value.SyncNodeManager).Returns(sync);
+                var publishedFacade = new Mock<IAsyncNodeManager>();
+                var preparedFacade = new Mock<IAsyncNodeManager>();
+                publishedFacade.SetupGet(value => value.SyncNodeManager).Returns(sync);
+                preparedFacade.SetupGet(value => value.SyncNodeManager).Returns(sync);
+                using MasterNodeManager master =
+                    DeterministicServerMock.CreateMasterNodeManager(server, [publishedFacade.Object]);
+                NodeManagerGeneration published = NodeManagerGenerationRegistry.GetOrCreate(publishedFacade.Object);
+                Assert.That(NodeManagerGenerationRegistry.CreateAddition(preparedFacade.Object), Is.SameAs(published));
+
+                bool eventAccepted = MasterNodeManager.TryCaptureSourceEmission(
+                    server.Object, preparedFacade.Object, out var eventAdmission);
+                bool valueAccepted = MasterNodeManager.TryCaptureItemEmission(
+                    server.Object, preparedFacade.Object, null, out var valueAdmission);
+                eventAdmission?.Dispose();
+                valueAdmission?.Dispose();
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(eventAccepted, Is.False);
+                    Assert.That(valueAccepted, Is.False);
+                    Assert.That(published.Gate.ActiveCount, Is.Zero);
+                });
+            }
+        }
+
+        /// <summary>
+        /// An unregistered-source lookup rechecks publication before creating a legacy generation.
+        /// </summary>
+        [Test]
+        public void UnregisteredSourceResolutionRechecksPublishedRouting()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var routing = new NodeManagerRoutingTable();
+                var factory = new Mock<IMainNodeManagerFactory>();
+                factory.Setup(value => value.CreateConfigurationNodeManager())
+                    .Returns(server.Object.NodeManager.ConfigurationNodeManager!);
+                factory.Setup(value => value.CreateCoreNodeManager(It.IsAny<ushort>()))
+                    .Returns(server.Object.CoreNodeManager);
+                server.SetupGet(value => value.MainNodeManagerFactory).Returns(factory.Object);
+                using var master = new MasterNodeManager(
+                    server.Object,
+                    new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() },
+                    routing);
+                server.SetupGet(value => value.NodeManager).Returns(master);
+                var resource = new Mock<IAsyncNodeManager>();
+                var sync = new SyncNodeManagerAdapter(resource.Object);
+                resource.SetupGet(value => value.SyncNodeManager).Returns(sync);
+                var facade = new Mock<IAsyncNodeManager>();
+                facade.SetupGet(value => value.SyncNodeManager).Returns(sync);
+                NodeManagerRoutingTable.RoutingSnapshot earlier = routing.Revision;
+                Assert.That(earlier.TryGetSourceGeneration(resource.Object, out _), Is.False);
+
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.CreateAddition(facade.Object);
+                routing.Add(facade.Object, [1]);
+                NodeManagerGeneration resolved = routing.ResolveUnregisteredSource(resource.Object, null);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(resolved, Is.SameAs(generation));
+                    Assert.That(NodeManagerGenerationRegistry.TryGet(resource.Object, out _), Is.False);
+                    Assert.That(
+                        MasterNodeManager.GetSourceGeneration(server.Object, resource.Object),
+                        Is.SameAs(generation));
+                });
+            }
+        }
+
+        /// <summary>
+        /// A published facade receives emissions and dispatch when its resource already has a generation.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void PublishedFacadeAfterPriorResourceGenerationReceivesBoundEmissionsAndDispatches(bool legacyFirst)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var routing = new NodeManagerRoutingTable();
+                var factory = new Mock<IMainNodeManagerFactory>();
+                factory.Setup(value => value.CreateConfigurationNodeManager())
+                    .Returns(server.Object.NodeManager.ConfigurationNodeManager!);
+                factory.Setup(value => value.CreateCoreNodeManager(It.IsAny<ushort>()))
+                    .Returns(server.Object.CoreNodeManager);
+                server.SetupGet(value => value.MainNodeManagerFactory).Returns(factory.Object);
+                using var master = new MasterNodeManager(
+                    server.Object,
+                    new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() },
+                    routing);
+                server.SetupGet(value => value.NodeManager).Returns(master);
+
+                var resource = new Mock<IAsyncNodeManager>();
+                var sync = new SyncNodeManagerAdapter(resource.Object);
+                resource.SetupGet(value => value.SyncNodeManager).Returns(sync);
+                var facade = new Mock<IAsyncNodeManager>();
+                var unpublishedFacade = new Mock<IAsyncNodeManager>();
+                facade.SetupGet(value => value.SyncNodeManager).Returns(sync);
+                unpublishedFacade.SetupGet(value => value.SyncNodeManager).Returns(sync);
+
+                NodeManagerGenerationReference? legacyReference = null;
+                if (legacyFirst)
+                {
+                    NodeManagerGeneration legacy = routing.ResolveUnregisteredSource(resource.Object, null);
+                    legacyReference = legacy.Reference;
+                    Assert.That(legacy.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+                    bool legacyAccepted = MasterNodeManager.TryCaptureSourceEmission(
+                        server.Object, resource.Object, out var legacyAdmission, legacyReference);
+                    legacyAdmission?.Dispose();
+                    Assert.That(legacyAccepted, Is.True);
+                }
+                else
+                {
+                    NodeManagerGeneration prepared = NodeManagerGenerationRegistry.CreateAddition(
+                        unpublishedFacade.Object);
+                    Assert.That(prepared.Gate.State, Is.EqualTo(NodeManagerGenerationState.Prepared));
+                }
+
+                NodeManagerGeneration registered = NodeManagerGenerationRegistry.CreateAddition(facade.Object);
+                if (legacyFirst)
+                {
+                    NodeManagerGenerationRegistry.CreateAddition(unpublishedFacade.Object);
+                }
+                routing.Add(facade.Object, [1]);
+
+                MasterNodeManager.SourceEmissionAdmission? eventAdmission = null;
+                MasterNodeManager.SourceEmissionAdmission? itemAdmission = null;
+                MasterNodeManager.SourceEmissionAdmission? unpublishedAdmission = null;
+                MasterNodeManager.SourceEmissionAdmission? unpublishedItemAdmission = null;
+                MasterNodeManager.SourceEmissionAdmission? resourceAdmission = null;
+                MasterNodeManager.SourceEmissionAdmission? resourceItemAdmission = null;
+                MasterNodeManager.NotificationDispatchLease[] dispatches = [];
+                try
+                {
+                    bool eventAccepted = MasterNodeManager.TryCaptureSourceEmission(
+                        server.Object, facade.Object, out eventAdmission, registered.Reference);
+                    bool itemAccepted = MasterNodeManager.TryCaptureItemEmission(
+                        server.Object, facade.Object, registered.Reference, out itemAdmission);
+                    bool unpublishedAccepted = MasterNodeManager.TryCaptureSourceEmission(
+                        server.Object, unpublishedFacade.Object, out unpublishedAdmission, registered.Reference);
+                    bool unpublishedItemAccepted = MasterNodeManager.TryCaptureItemEmission(
+                        server.Object, unpublishedFacade.Object, registered.Reference, out unpublishedItemAdmission);
+                    bool resourceAccepted = MasterNodeManager.TryCaptureSourceEmission(
+                        server.Object, resource.Object, out resourceAdmission, legacyReference ?? registered.Reference);
+                    bool resourceItemAccepted = MasterNodeManager.TryCaptureItemEmission(
+                        server.Object,
+                        resource.Object,
+                        legacyReference ?? registered.Reference,
+                        out resourceItemAdmission);
+                    dispatches = master.GetAllEventNotificationDispatches([facade.Object]);
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(eventAccepted, Is.True);
+                        Assert.That(eventAdmission?.Generation, Is.SameAs(registered));
+                        Assert.That(itemAccepted, Is.True);
+                        Assert.That(itemAdmission?.Generation, Is.SameAs(registered));
+                        Assert.That(unpublishedAccepted, Is.False);
+                        Assert.That(unpublishedAdmission.HasValue, Is.False);
+                        Assert.That(unpublishedItemAccepted, Is.False);
+                        Assert.That(unpublishedItemAdmission.HasValue, Is.False);
+                        Assert.That(resourceAccepted, Is.True);
+                        Assert.That(resourceAdmission?.Generation, Is.SameAs(registered));
+                        Assert.That(resourceItemAccepted, Is.True);
+                        Assert.That(resourceItemAdmission?.Generation, Is.SameAs(registered));
+                        Assert.That(dispatches.Select(dispatch => dispatch.NodeManager),
+                            Is.EqualTo(new[] { facade.Object }));
+                    });
+                }
+                finally
+                {
+                    eventAdmission?.Dispose();
+                    itemAdmission?.Dispose();
+                    unpublishedAdmission?.Dispose();
+                    unpublishedItemAdmission?.Dispose();
+                    resourceAdmission?.Dispose();
+                    resourceItemAdmission?.Dispose();
+                    MasterNodeManager.DisposeNotificationDispatches(dispatches);
+                }
+            }
+        }
+
+        /// <summary>
+        /// A resource lookup and facade reservation converge on one generation regardless of their order.
+        /// </summary>
+        [Test]
+        public async Task UnregisteredSourceResolutionRacesFacadeReservationAsync()
+        {
+            for (int iteration = 0; iteration < 24; iteration++)
+            {
+                var routing = new NodeManagerRoutingTable();
+                var resource = new Mock<IAsyncNodeManager>();
+                var sync = new SyncNodeManagerAdapter(resource.Object);
+                resource.SetupGet(value => value.SyncNodeManager).Returns(sync);
+                var facade = new Mock<IAsyncNodeManager>();
+                facade.SetupGet(value => value.SyncNodeManager).Returns(sync);
+                var start = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                Task<NodeManagerGeneration> lookup = Task.Run(async () =>
+                {
+                    await start.Task.ConfigureAwait(false);
+                    return routing.ResolveUnregisteredSource(resource.Object, null);
+                });
+                Task<NodeManagerGeneration> publication = Task.Run(async () =>
+                {
+                    await start.Task.ConfigureAwait(false);
+                    NodeManagerGeneration reserved = NodeManagerGenerationRegistry.CreateAddition(facade.Object);
+                    routing.Add(facade.Object, [1]);
+                    return reserved;
+                });
+                start.TrySetResult(true);
+                await Task.WhenAll(lookup, publication).WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                Assert.That(await lookup.ConfigureAwait(false), Is.SameAs(await publication.ConfigureAwait(false)),
+                    $"Generation mismatch in iteration {iteration}.");
+            }
+        }
+
+        /// <summary>
+        /// A legacy owner outside the managed routes keeps its exact existing generation admission.
+        /// </summary>
+        [Test]
+        public void LegacyExternalOwnerRetainsBoundEmissionAdmission()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                using MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(server, []);
+                var external = new Mock<IAsyncNodeManager>();
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(external.Object);
+
+                bool eventAccepted = MasterNodeManager.TryCaptureSourceEmission(
+                    server.Object, external.Object, out var eventAdmission, generation.Reference);
+                bool valueAccepted = MasterNodeManager.TryCaptureItemEmission(
+                    server.Object, external.Object, generation.Reference, out var valueAdmission);
+                eventAdmission?.Dispose();
+                valueAdmission?.Dispose();
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(eventAccepted, Is.True);
+                    Assert.That(valueAccepted, Is.True);
+                    Assert.That(generation.Gate.ActiveCount, Is.Zero);
+                });
+            }
+        }
+
+        /// <summary>
+        /// Explicit stack adapters for one synchronous owner share its published emission generation.
+        /// </summary>
+        [Test]
+        public void ExplicitAdapterAliasUsesPublishedEmissionGeneration()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var sync = new Mock<INodeManager>();
+                sync.SetupGet(value => value.NamespaceUris).Returns(Array.Empty<string>());
+                using var owner = new AsyncNodeManagerAdapter(sync.Object);
+                using var alias = new AsyncNodeManagerAdapter(sync.Object);
+                using MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(server, [owner]);
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(owner);
+
+                bool eventAccepted = MasterNodeManager.TryCaptureSourceEmission(
+                    server.Object, alias, out var eventAdmission, generation.Reference);
+                bool valueAccepted = MasterNodeManager.TryCaptureItemEmission(
+                    server.Object, alias, generation.Reference, out var valueAdmission);
+                eventAdmission?.Dispose();
+                valueAdmission?.Dispose();
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(eventAccepted, Is.True);
+                    Assert.That(valueAccepted, Is.True);
+                    Assert.That(generation.Gate.ActiveCount, Is.Zero);
+                });
+            }
+        }
+
+        /// <summary>
+        /// A monitored node created before publication binds once the resource has one visible owner.
+        /// </summary>
+        [Test]
+        public void MonitoredResourceBindsOnlyAfterItsFacadeIsVisible()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var routing = new NodeManagerRoutingTable();
+                var factory = new Mock<IMainNodeManagerFactory>();
+                factory.Setup(value => value.CreateConfigurationNodeManager())
+                    .Returns(server.Object.NodeManager.ConfigurationNodeManager!);
+                factory.Setup(value => value.CreateCoreNodeManager(It.IsAny<ushort>()))
+                    .Returns(server.Object.CoreNodeManager);
+                server.SetupGet(value => value.MainNodeManagerFactory).Returns(factory.Object);
+                using var master = new MasterNodeManager(
+                    server.Object,
+                    new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() },
+                    routing);
+                server.SetupGet(value => value.NodeManager).Returns(master);
+                var resource = new Mock<IAsyncNodeManager>();
+                var sync = new SyncNodeManagerAdapter(resource.Object);
+                resource.SetupGet(value => value.SyncNodeManager).Returns(sync);
+                var facade = new Mock<IAsyncNodeManager>();
+                facade.SetupGet(value => value.SyncNodeManager).Returns(sync);
+                using var monitored = new MonitoredNode2(
+                    resource.Object, server.Object, new BaseObjectState(null) { NodeId = new NodeId("pending", 1) });
+
+                Assert.That(monitored.Generation, Is.Null);
+                routing.Add(facade.Object, [1], visible: false);
+                Assert.That(monitored.Generation, Is.Null);
+                Assert.That(master.TryGetSourceGeneration(facade.Object, out _), Is.False);
+                Assert.That(MasterNodeManager.TryCaptureSourceEmission(
+                    server.Object, resource.Object, out var before, monitored.Generation), Is.False);
+                Assert.That(before.HasValue, Is.False);
+
+                routing.SetVisible(facade.Object, visible: true);
+                NodeManagerGeneration published = routing.Revision.GetGeneration(facade.Object);
+                NodeManagerGenerationReference? reference = monitored.Generation;
+                Assert.That(reference, Is.SameAs(published.Reference));
+                Assert.That(MasterNodeManager.TryCaptureSourceEmission(
+                    server.Object, resource.Object, out var admitted, reference), Is.True);
+                admitted?.Dispose();
+
+                routing.Remove(facade.Object);
+                Assert.That(monitored.Generation, Is.SameAs(reference));
+                Assert.That(MasterNodeManager.TryCaptureSourceEmission(
+                    server.Object, resource.Object, out var after, reference), Is.False);
+                Assert.That(after.HasValue, Is.False);
+            }
+        }
+
+        /// <summary>
+        /// A monitored resource does not bind to either of two initial facades sharing that resource.
+        /// </summary>
+        [Test]
+        public void MonitoredResourceDoesNotBindAnAmbiguousFacade()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var resource = new Mock<IAsyncNodeManager>();
+                var sync = new SyncNodeManagerAdapter(resource.Object);
+                resource.SetupGet(value => value.SyncNodeManager).Returns(sync);
+                var first = new Mock<IAsyncNodeManager>();
+                var second = new Mock<IAsyncNodeManager>();
+                first.SetupGet(value => value.SyncNodeManager).Returns(sync);
+                second.SetupGet(value => value.SyncNodeManager).Returns(sync);
+                using MasterNodeManager master =
+                    DeterministicServerMock.CreateMasterNodeManager(server, [first.Object, second.Object]);
+                using var monitored = new MonitoredNode2(
+                    resource.Object, server.Object, new BaseObjectState(null) { NodeId = new NodeId("ambiguous", 1) });
+
+                Assert.That(monitored.Generation, Is.Null);
+                Assert.That(MasterNodeManager.TryCaptureSourceEmission(
+                    server.Object, resource.Object, out var admitted, monitored.Generation), Is.False);
+                Assert.That(admitted.HasValue, Is.False);
+                Assert.Throws<InvalidOperationException>(() => CreateDataItem(server.Object, resource.Object));
+            }
+        }
+
+        /// <summary>
+        /// An ambiguous source does not reserve a component, item, or monitored node during creation or restoration.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public void AmbiguousDataItemCreationOrRestoreDoesNotReserveNativeState(bool restore, bool reuseExisting)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var resource = new Mock<IAsyncNodeManager>();
+                var sync = new SyncNodeManagerAdapter(resource.Object);
+                resource.SetupGet(value => value.SyncNodeManager).Returns(sync);
+                var first = new Mock<IAsyncNodeManager>();
+                var second = new Mock<IAsyncNodeManager>();
+                first.SetupGet(value => value.SyncNodeManager).Returns(sync);
+                second.SetupGet(value => value.SyncNodeManager).Returns(sync);
+                using MasterNodeManager master =
+                    DeterministicServerMock.CreateMasterNodeManager(server, [first.Object, second.Object]);
+                using var manager = new MonitoredNodeMonitoredItemManager(resource.Object, server.Object);
+                var node = new BaseDataVariableState(null) { NodeId = new NodeId("ambiguous-value", 1) };
+                var handle = new NodeHandle(node.NodeId, node);
+                MonitoredNode2? existing = null;
+                if (reuseExisting)
+                {
+                    existing = new MonitoredNode2(resource.Object, server.Object, node);
+                    manager.MonitoredNodes[node.NodeId] = existing;
+                }
+                var request = new MonitoredItemCreateRequest
+                {
+                    ItemToMonitor = new ReadValueId { NodeId = node.NodeId, AttributeId = Attributes.Value },
+                    MonitoringMode = MonitoringMode.Reporting,
+                    RequestedParameters = new MonitoringParameters { QueueSize = 10 }
+                };
+                bool componentCacheTouched = false;
+                NodeState AddToCache(ISystemContext context, NodeHandle nodeHandle, NodeState cached)
+                {
+                    componentCacheTouched = true;
+                    return cached;
+                }
+
+                if (restore)
+                {
+                    Assert.Throws<InvalidOperationException>(() => manager.RestoreMonitoredItem(
+                        server.Object,
+                        resource.Object,
+                        server.Object.DefaultSystemContext,
+                        handle,
+                        new StoredMonitoredItem { Id = 1 },
+                        Mock.Of<IUserIdentity>(),
+                        AddToCache,
+                        out _));
+                }
+                else
+                {
+                    Assert.Throws<InvalidOperationException>(() => manager.CreateMonitoredItem(
+                        server.Object,
+                        resource.Object,
+                        server.Object.DefaultSystemContext,
+                        handle,
+                        subscriptionId: 1,
+                        publishingInterval: 1000,
+                        diagnosticsMasks: DiagnosticsMasks.None,
+                        timestampsToReturn: TimestampsToReturn.Both,
+                        itemToCreate: request,
+                        euRange: null!,
+                        filterToUse: null!,
+                        samplingInterval: 1000,
+                        revisedQueueSize: 10,
+                        createDurable: false,
+                        monitoredItemIdFactory: new MonitoredItemIdFactory(),
+                        addNodeToComponentCache: AddToCache));
+                }
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(manager.MonitoredItems, Is.Empty);
+                    Assert.That(componentCacheTouched, Is.False);
+                    Assert.That(handle.MonitoredNode, Is.Null);
+                    if (reuseExisting)
+                    {
+                        Assert.That(manager.MonitoredNodes[node.NodeId], Is.SameAs(existing));
+                    }
+                    else
+                    {
+                        Assert.That(manager.MonitoredNodes, Is.Empty);
+                    }
+                });
+            }
+        }
+
+        /// <summary>
+        /// A legacy monitored node can use its already established external owner.
+        /// </summary>
+        [Test]
+        public void LegacyMonitoredNodeUsesExistingExternalGeneration()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                using MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(server, []);
+                var external = new Mock<IAsyncNodeManager>();
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(external.Object);
+                using var monitored = new MonitoredNode2(
+                    external.Object, server.Object, new BaseObjectState(null) { NodeId = new NodeId("legacy", 1) });
+
+                Assert.That(monitored.Generation, Is.SameAs(generation.Reference));
+                Assert.That(MasterNodeManager.TryCaptureSourceEmission(
+                    server.Object, external.Object, out var admission, monitored.Generation), Is.True);
+                admission?.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// A data item keeps the staged owner's identity while emissions wait for publication.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ForwardedDataItemBindsStagedOwnerBeforePublication(bool registerHidden)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var routing = new NodeManagerRoutingTable();
+                var factory = new Mock<IMainNodeManagerFactory>();
+                factory.Setup(value => value.CreateConfigurationNodeManager())
+                    .Returns(server.Object.NodeManager.ConfigurationNodeManager!);
+                factory.Setup(value => value.CreateCoreNodeManager(It.IsAny<ushort>()))
+                    .Returns(server.Object.CoreNodeManager);
+                server.SetupGet(value => value.MainNodeManagerFactory).Returns(factory.Object);
+                using var master = new MasterNodeManager(
+                    server.Object, new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() },
+                    routing);
+                server.SetupGet(value => value.NodeManager).Returns(master);
+                var resource = new Mock<IAsyncNodeManager>();
+                var sync = new SyncNodeManagerAdapter(resource.Object);
+                resource.SetupGet(value => value.SyncNodeManager).Returns(sync);
+                var facade = new Mock<IAsyncNodeManager>();
+                facade.SetupGet(value => value.SyncNodeManager).Returns(sync);
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.CreateAddition(facade.Object);
+                if (registerHidden)
+                {
+                    routing.Add(facade.Object, [1], visible: false);
+                }
+                using MonitoredItem item = CreateDataItem(server.Object, resource.Object);
+
+                Assert.That(item.Generation, Is.SameAs(generation.Reference));
+                item.QueueValue(new DataValue(new Variant(41)), ServiceResult.Good);
+                Assert.That(item.ItemsInQueue, Is.Zero);
+
+                if (registerHidden)
+                {
+                    routing.SetVisible(facade.Object, visible: true);
+                }
+                else
+                {
+                    routing.Add(facade.Object, [1]);
+                }
+                item.QueueValue(new DataValue(new Variant(42)), ServiceResult.Good);
+                Assert.That(item.ItemsInQueue, Is.EqualTo(1));
+
+                routing.Remove(facade.Object);
+                Assert.That(item.Generation, Is.SameAs(generation.Reference));
+                item.QueueValue(new DataValue(new Variant(43)), ServiceResult.Good);
+                Assert.That(item.ItemsInQueue, Is.EqualTo(1));
+            }
+        }
+
+        /// <summary>
+        /// A data item created while the retired resource's request view is pinned retains its generation.
+        /// </summary>
+        [Test]
+        public void ForwardedDataItemRetainsRetiredResourceGeneration()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var routing = new NodeManagerRoutingTable();
+                var factory = new Mock<IMainNodeManagerFactory>();
+                factory.Setup(value => value.CreateConfigurationNodeManager())
+                    .Returns(server.Object.NodeManager.ConfigurationNodeManager!);
+                factory.Setup(value => value.CreateCoreNodeManager(It.IsAny<ushort>()))
+                    .Returns(server.Object.CoreNodeManager);
+                server.SetupGet(value => value.MainNodeManagerFactory).Returns(factory.Object);
+                using var master = new MasterNodeManager(
+                    server.Object, new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() },
+                    routing);
+                server.SetupGet(value => value.NodeManager).Returns(master);
+                var resource = new Mock<IAsyncNodeManager>();
+                var sync = new SyncNodeManagerAdapter(resource.Object);
+                resource.SetupGet(value => value.SyncNodeManager).Returns(sync);
+                var facade = new Mock<IAsyncNodeManager>();
+                facade.SetupGet(value => value.SyncNodeManager).Returns(sync);
+                routing.Add(facade.Object, [1]);
+                NodeManagerGeneration generation = routing.Revision.GetGeneration(facade.Object);
+                using var context = new OperationContext(
+                    new RequestHeader(), null, RequestType.CreateMonitoredItems, RequestLifetime.None);
+                using OperationContext.RoutingScope pinned = context.CaptureRouting(routing);
+                routing.Remove(facade.Object);
+
+                Assert.That(context.RoutingSnapshot!.TryGetSourceGeneration(
+                    resource.Object, out NodeManagerGeneration? pinnedGeneration), Is.True);
+                Assert.That(pinnedGeneration, Is.SameAs(generation));
+                using var manager = new MonitoredNodeMonitoredItemManager(resource.Object, server.Object);
+                var node = new BaseDataVariableState(null) { NodeId = new NodeId("pinned-value", 1) };
+                var handle = new NodeHandle(node.NodeId, node);
+                var request = new MonitoredItemCreateRequest
+                {
+                    ItemToMonitor = new ReadValueId { NodeId = node.NodeId, AttributeId = Attributes.Value },
+                    MonitoringMode = MonitoringMode.Reporting,
+                    RequestedParameters = new MonitoringParameters { QueueSize = 10 }
+                };
+                var item = (MonitoredItem)manager.CreateMonitoredItem(
+                    server.Object,
+                    resource.Object,
+                    new ServerSystemContext(server.Object, context),
+                    handle,
+                    subscriptionId: 1,
+                    publishingInterval: 1000,
+                    diagnosticsMasks: DiagnosticsMasks.None,
+                    timestampsToReturn: TimestampsToReturn.Both,
+                    itemToCreate: request,
+                    euRange: null!,
+                    filterToUse: null!,
+                    samplingInterval: 1000,
+                    revisedQueueSize: 10,
+                    createDurable: false,
+                    monitoredItemIdFactory: new MonitoredItemIdFactory(),
+                    addNodeToComponentCache: static (_, _, cached) => cached);
+                Assert.That(item.Generation, Is.SameAs(generation.Reference));
+                item.QueueValue(new DataValue(new Variant(42)), ServiceResult.Good);
+                Assert.That(item.ItemsInQueue, Is.Zero);
+            }
+        }
+
+        /// <summary>
+        /// A data item created by a forwarded resource belongs to the published generation.
+        /// </summary>
+        [Test]
+        public void ForwardedResourceDataItemUsesPublishedGeneration()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var resource = new Mock<IAsyncNodeManager>();
+                var sync = new SyncNodeManagerAdapter(resource.Object);
+                resource.SetupGet(value => value.SyncNodeManager).Returns(sync);
+                var facade = new Mock<IAsyncNodeManager>();
+                facade.SetupGet(value => value.SyncNodeManager).Returns(sync);
+                using MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(server, [facade.Object]);
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(facade.Object);
+                using MonitoredItem item = CreateDataItem(server.Object, resource.Object);
+                Assert.That(item.Generation, Is.SameAs(generation.Reference));
+
+                item.QueueValue(new DataValue(new Variant(42)), ServiceResult.Good);
+                Assert.That(item.ItemsInQueue, Is.EqualTo(1));
+                generation.Gate.Retire();
+                item.QueueValue(new DataValue(new Variant(43)), ServiceResult.Good);
+                Assert.That(item.ItemsInQueue, Is.EqualTo(1));
+            }
+        }
+
+        /// <summary>
+        /// Creates a data item bound to the specified source.
+        /// </summary>
+        private static MonitoredItem CreateDataItem(IServerInternal server, IAsyncNodeManager nodeManager)
+        {
+            return new MonitoredItem(
+                server,
+                nodeManager,
+                new NodeHandle(),
+                subscriptionId: 1,
+                id: 2,
+                itemToMonitor: new ReadValueId { NodeId = new NodeId("value", 1), AttributeId = Attributes.Value },
+                diagnosticsMasks: DiagnosticsMasks.None,
+                timestampsToReturn: TimestampsToReturn.Both,
+                monitoringMode: MonitoringMode.Reporting,
+                clientHandle: 3,
+                originalFilter: null,
+                filterToUse: null,
+                range: null,
+                samplingInterval: 1000,
+                queueSize: 10,
+                discardOldest: true,
+                sourceSamplingInterval: 1000);
         }
 
         /// <summary>
