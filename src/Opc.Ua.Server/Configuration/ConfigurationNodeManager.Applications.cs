@@ -145,7 +145,6 @@ namespace Opc.Ua.Server
                     if (permission.RoleId == roleId)
                     {
                         permission.Permissions |= (uint)PermissionType.Call;
-                        permissions[index] = permission;
                         method.RolePermissions = permissions;
                         break;
                     }
