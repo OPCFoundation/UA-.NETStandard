@@ -1415,8 +1415,9 @@ namespace Opc.Ua.PackML.Tests
             {
                 m_composed.RegistrationFault = fault;
                 m_composed.Registered = materialized.Add;
-                Exception? failure = Assert.CatchAsync(async () => await runtime.AddUnitAsync(
-                    browseName, new EquipmentProvider(), cancellationToken: ct).ConfigureAwait(false));
+                Exception? failure = await Assert.CatchAsync(async () => await runtime.AddUnitAsync(
+                    browseName, new EquipmentProvider(), cancellationToken: ct).ConfigureAwait(false))
+                    .ConfigureAwait(false);
                 m_composed.RegistrationFault = null;
                 m_composed.Registered = null;
 
