@@ -4094,7 +4094,7 @@ namespace Opc.Ua.Server.Tests
             if (m_managerType == AsyncCustomNodeManagerType.CustomNodeManager2ViaAdapter)
             {
                 // The sync CustomNodeManager2 binds items through an adapter wrapping it directly.
-                Assert.That(monitoredItem.NodeManager.SyncNodeManager, Is.SameAs(manager.SyncNodeManager));
+                Assert.That(monitoredItem.NodeManager?.SyncNodeManager, Is.SameAs(manager.SyncNodeManager));
             }
             else
             {
@@ -4107,13 +4107,8 @@ namespace Opc.Ua.Server.Tests
             // the sync manager once allocated a fresh adapter per created item.
             Assert.That(monitoredItems[1].NodeManager, Is.SameAs(monitoredItem.NodeManager));
 
-            // The bound NodeManager must expose the monitored-item lifecycle; a double-wrapped
-            // adapter chain hides it and reports an empty snapshot.
-            Assert.That(monitoredItem.NodeManager, Is.InstanceOf<INodeManagerMonitoredItemLifecycle>());
-            IReadOnlyList<IMonitoredItem> snapshot =
-                await ((INodeManagerMonitoredItemLifecycle)monitoredItem.NodeManager)
-                    .GetMonitoredItemsSnapshotAsync().ConfigureAwait(false);
-            Assert.That(snapshot, Does.Contain(monitoredItem));
+            Assert.That(monitoredItem.NodeManager, Is.InstanceOf<INodeManagerMonitoredItemSource>());
+            Assert.That(manager.MonitoredItems[monitoredItem.Id], Is.SameAs(monitoredItem));
         }
 
         /// <summary>
@@ -11118,6 +11113,16 @@ namespace Opc.Ua.Server.Tests
         internal int DetachedNotificationCount => Volatile.Read(ref m_detachedNotificationCount);
 
         /// <summary>
+        /// Gets or sets an injected post-native adoption callback.
+        /// </summary>
+        internal Func<CancellationToken, ValueTask>? MonitoredItemAttachedCallback { get; set; }
+
+        /// <summary>
+        /// Gets or sets an injected source-release callback.
+        /// </summary>
+        internal Func<CancellationToken, ValueTask>? MonitoredItemDetachedCallback { get; set; }
+
+        /// <summary>
         /// Replaces monitored-item management with a sampling-group manager that records calls and injects failures.
         /// </summary>
         internal TrackingSamplingGroupManager InstallTrackingSamplingGroupManager()
@@ -11155,6 +11160,18 @@ namespace Opc.Ua.Server.Tests
             return EventSubscriptionCallback?.Invoke(unsubscribe, cancellationToken) ?? default;
         }
 
+        /// <inheritdoc/>
+        protected override ValueTask OnMonitoredItemAttachedAsync(
+            ServerSystemContext context,
+            NodeHandle handle,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            CancellationToken cancellationToken = default)
+        {
+            return MonitoredItemAttachedCallback?.Invoke(cancellationToken) ??
+                base.OnMonitoredItemAttachedAsync(context, handle, monitoredItem, cancellationToken);
+        }
+
+        /// <inheritdoc/>
         protected override ValueTask OnMonitoredItemDetachedAsync(
             ServerSystemContext context,
             NodeHandle handle,
@@ -11162,7 +11179,8 @@ namespace Opc.Ua.Server.Tests
             CancellationToken cancellationToken = default)
         {
             Interlocked.Increment(ref m_detachedNotificationCount);
-            return base.OnMonitoredItemDetachedAsync(context, handle, monitoredItem, cancellationToken);
+            return MonitoredItemDetachedCallback?.Invoke(cancellationToken) ??
+                base.OnMonitoredItemDetachedAsync(context, handle, monitoredItem, cancellationToken);
         }
 
         protected override ValueTask OnNodeRemovedAsync(
@@ -12199,6 +12217,14 @@ namespace Opc.Ua.Server.Tests
         public void AddPredefinedNodePublic(ISystemContext context, NodeState node)
         {
             AddPredefinedNode(context, node);
+        }
+
+        /// <summary>
+        /// Exposes the startup reference-wiring pass for the legacy node manager.
+        /// </summary>
+        public void AddReverseReferencesPublic(IDictionary<NodeId, IList<IReference>> references)
+        {
+            AddReverseReferences(references);
         }
 
         protected override void OnSubscribeToEvents(

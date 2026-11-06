@@ -617,7 +617,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
             foreach ((MonitoredItem item, ISystemContext context) in items)
             {
-                IAsyncNodeManager owner = item.NodeManager;
+                if (item.NodeManager is not { } owner)
+                {
+                    continue;
+                }
                 ServiceResult permission;
                 try
                 {

@@ -98,7 +98,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                 throw new InvalidOperationException("No configuration was captured.");
 
             // Every setting captured at server start must come from the file.
-            Assert.That(configuration.SourceFilePath, Is.EqualTo(configurationFile));
+            Assert.That(configuration.SourceFilePath, Is.EqualTo(Path.GetFullPath(configurationFile)));
             Assert.That(configuration.ApplicationName, Is.EqualTo(applicationName));
             Assert.That(
                 configuration.ApplicationUri,
@@ -203,7 +203,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(configuration.ServerConfiguration!.MaxSessionCount, Is.EqualTo(4242));
             Assert.That(configuration.ServerConfiguration.MaxChannelCount, Is.EqualTo(4245));
             Assert.That(configuration.TransportQuotas!.MaxStringLength, Is.EqualTo(654321));
-            Assert.That(configuration.SourceFilePath, Is.EqualTo(configurationFile));
+            Assert.That(configuration.SourceFilePath, Is.EqualTo(Path.GetFullPath(configurationFile)));
         }
 
         [Test]
@@ -242,7 +242,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                 ConfigurationCaptureServer.StartedConfiguration ??
                 throw new InvalidOperationException("No configuration was captured.");
 
-            Assert.That(configuration.SourceFilePath, Is.EqualTo(configurationFile));
+            Assert.That(configuration.SourceFilePath, Is.EqualTo(Path.GetFullPath(configurationFile)));
             Assert.That(configuration.ApplicationName, Is.EqualTo(applicationName));
         }
 

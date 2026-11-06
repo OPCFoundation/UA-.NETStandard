@@ -48,10 +48,15 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public Task DrainPendingApplyChangesAsync(CancellationToken cancellationToken = default)
         {
-            Task pending;
+            Task? pending;
             lock (m_pendingApplyChangesLock)
             {
                 pending = m_pendingApplyChangesTask;
+            }
+
+            if (pending is null)
+            {
+                return Task.CompletedTask;
             }
 
             if (!cancellationToken.CanBeCanceled || pending.IsCompleted)

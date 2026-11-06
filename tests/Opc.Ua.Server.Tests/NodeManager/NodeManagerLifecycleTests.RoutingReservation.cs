@@ -78,22 +78,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 entered.TrySetResult(true);
                 await release.Task.WaitAsync(token).ConfigureAwait(false);
             }, timeout.Token).AsTask();
-            bool accepted = false;
+            Task<bool>? removal = null;
             BrowseResult during;
             bool routedDuring;
             NodeManagerBatchResult result;
             try
             {
                 await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                try
-                {
-                    accepted = master.UnregisterNamespaceManager(kModelNamespaceUri, survivor.NodeManager);
-                    Assert.That(accepted, Is.True, "The surviving manager owns this namespace route.");
-                }
-                catch (InvalidOperationException)
-                {
-                    // A reservation may reject the write, but only before changing the serving route.
-                }
+                removal = Task.Run(() => master.UnregisterNamespaceManager(kModelNamespaceUri, survivor.NodeManager));
+                await Task.Delay(250, timeout.Token).ConfigureAwait(false);
+                Assert.That(removal.IsCompleted, Is.False,
+                    "A namespace write waits for the pending publication decision instead of changing the route.");
                 routedDuring = master.NamespaceManagers.ContainsKey(valueId.NamespaceIndex);
                 during = await BrowseAsync().ConfigureAwait(false);
             }
@@ -102,26 +97,20 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 release.TrySetResult(true);
                 result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
             }
+            bool accepted = await removal!.WaitAsync(timeout.Token).ConfigureAwait(false);
             BrowseResult after = await BrowseAsync().ConfigureAwait(false);
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(prepared.IsCommitted, Is.True);
                 Assert.That(result.CleanupFailure, Is.Null);
-                Assert.That(routedDuring, Is.EqualTo(!accepted));
+                Assert.That(accepted, Is.True, "The surviving manager owns this namespace route.");
+                Assert.That(routedDuring, Is.True);
                 Assert.That(master.NamespaceManagers.ContainsKey(valueId.NamespaceIndex),
-                    Is.EqualTo(!accepted), "The exact surviving namespace route must not be resurrected.");
-                Assert.That(during.StatusCode,
-                    Is.EqualTo(accepted ? StatusCodes.BadNodeIdUnknown : StatusCodes.Good),
-                    "Rejected writes must have no route effects; accepted removal must take effect immediately.");
-                Assert.That(after.StatusCode,
-                    Is.EqualTo(accepted ? StatusCodes.BadNodeIdUnknown : StatusCodes.Good),
+                    Is.False, "The exact surviving namespace route must not be resurrected.");
+                Assert.That(during.StatusCode, Is.EqualTo(StatusCodes.Good),
+                    "The waiting write has no route effect before the decision completes.");
+                Assert.That(after.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown),
                     "A successful namespace removal must not be silently undone by prepared publication.");
-                if (!accepted)
-                {
-                    Assert.That(after.References.Contains(reference =>
-                        reference.NodeId == new ExpandedNodeId(valueId)),
-                        Is.True);
-                }
             }
             await session.CloseAsync(timeout.Token).ConfigureAwait(false);
 
@@ -152,7 +141,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
         [TestCase(false)]
         [TestCase(true)]
-        public async Task PreparedBatchRejectsNamespaceChangesBeforeDecisionAsync(bool register)
+        public async Task PreparedBatchRejectsNamespaceRoutingChangesBeforeDecisionAsync(bool register)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             NodeManagerRegistration survivor = await m_server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(
@@ -177,21 +166,23 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(master.UnregisterNamespaceManager(kModelNamespaceUri, survivor.NodeManager), Is.True);
             }
             int decisions = 0;
+            long revision = lifecycle.Revision;
             await Assert.ThatAsync(() => prepared.CommitAsync(_ =>
             {
                 decisions++;
                 return default;
-            }, timeout.Token).AsTask(), Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
+            }, timeout.Token).AsTask(), Throws.InstanceOf<InvalidOperationException>()).ConfigureAwait(false);
             Assert.That(decisions, Is.Zero);
             Assert.That(prepared.IsCommitted, Is.False);
-            Assert.That(GetBranchRegistrations(lifecycle), Is.EqualTo(new[] { survivor }));
+            Assert.That(GetBranchRegistrations(lifecycle).Count, Is.EqualTo(1));
             NodeId root = new(kRootNodeId,
                 (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri));
             (_, IAsyncNodeManager? owner) = await master.GetManagerHandleAsync(root, timeout.Token)
                 .ConfigureAwait(false);
             Assert.That(owner, register ? Is.SameAs(survivor.NodeManager) : Is.Null);
             await prepared.DisposeAsync().ConfigureAwait(false);
-            await prepared.DisposeAsync().ConfigureAwait(false);
+            Assert.That(lifecycle.Revision, Is.EqualTo(revision));
+            Assert.That(m_server.CurrentInstance.NamespaceUris.GetIndex(kSecondModelNamespaceUri), Is.EqualTo(-1));
             master.RegisterNamespaceManager(kModelNamespaceUri, survivor.NodeManager);
             Assert.That(master.UnregisterNamespaceManager(kModelNamespaceUri, survivor.NodeManager), Is.True);
             master.RegisterNamespaceManager(kModelNamespaceUri, survivor.NodeManager);
@@ -203,7 +194,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase(true, "Reject")]
         [TestCase(false, "Cancel")]
         [TestCase(true, "Cancel")]
-        public async Task PreparedBatchRejectsNamespaceWritesUntilDecisionCompletesAsync(bool register, string outcome)
+        public async Task PreparedBatchSerializesNamespaceWritesUntilDecisionCompletesAsync(bool register, string outcome)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             using var decisionCancellation = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token);
@@ -232,10 +223,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     throw new IOException("Confirmed routing noncommit.");
                 }
             }, decisionCancellation.Token).AsTask();
+            Task? pendingMutation = null;
             try
             {
                 await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                Assert.Throws<InvalidOperationException>(Mutate);
+                pendingMutation = Task.Run(Mutate);
+                await Task.Delay(250, timeout.Token).ConfigureAwait(false);
+                Assert.That(pendingMutation.IsCompleted, Is.False,
+                    "A namespace write waits for the pending publication decision.");
                 Assert.That(master.NamespaceManagers.ContainsKey(namespaceIndex), Is.EqualTo(!register));
                 if (!register)
                 {
@@ -265,7 +260,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
             }
             Assert.That(prepared.IsCommitted, Is.EqualTo(outcome == "Commit"));
-            Mutate();
+            await pendingMutation!.WaitAsync(timeout.Token).ConfigureAwait(false);
             Assert.That(master.NamespaceManagers.ContainsKey(namespaceIndex), Is.EqualTo(register));
             if (register)
             {

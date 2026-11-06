@@ -128,11 +128,16 @@ namespace Opc.Ua.Server.Tests
                 QualifiedName.From(BrowseNames.AggregateFunction_StandardDeviationPopulation)));
         }
 
+        /// <summary>
+        /// An unknown aggregate identifier has a null OPC UA qualified name.
+        /// </summary>
         [Test]
-        public void GetNameForStandardAggregateReturnsDefaultForUnknownId()
+        public void GetNameForStandardAggregateReturnsNullForUnknownId()
         {
             QualifiedName name = Aggregators.GetNameForStandardAggregate(new NodeId(999999));
-            Assert.That(name, Is.Default);
+            Assert.That(name.IsNull, Is.True);
+            Assert.That(name.Name, Is.Null);
+            Assert.That(name.NamespaceIndex, Is.Zero);
         }
 
         [Test]

@@ -788,55 +788,96 @@ namespace Opc.Ua.Gds.Server.Hosting
                 ApplicationConfiguration configuration,
                 CancellationToken cancellationToken = default)
             {
-                var applications = new ApplicationsNodeManager(
-                    server,
-                    configuration,
-                    m_database,
-                    m_request,
-                    m_certificateGroup,
-                    m_autoApprove)
+                cancellationToken.ThrowIfCancellationRequested();
+                var factories = new List<IAsyncNodeManagerFactory>
                 {
-                    DeviceRegistrarCertificateAuthorization = DeviceRegistrarCertificateAuthorization,
-                    CertificateRequestIssuanceStore = CertificateRequestIssuanceStore
+                    new ApplicationsStartupFactory(
+                        m_database, m_request, m_certificateGroup, m_autoApprove,
+                        m_accessTokenProvider, m_keyCredentialStore,
+                        applications =>
+                        {
+                            applications.DeviceRegistrarCertificateAuthorization =
+                                DeviceRegistrarCertificateAuthorization;
+                            applications.CertificateRequestIssuanceStore = CertificateRequestIssuanceStore;
+                            DeviceRegistrarPushEnrollments?.Bind(applications);
+                        })
                 };
-                DeviceRegistrarPushEnrollments?.Bind(applications);
-
-                if (m_accessTokenProvider != null)
-                {
-                    applications.AccessTokenProvider = m_accessTokenProvider;
-                }
-
-                if (m_keyCredentialStore != null)
-                {
-                    applications.KeyCredentialRequestStore = m_keyCredentialStore;
-                }
-
-                var nodeManagers = new List<IAsyncNodeManager> { applications };
-
                 if (DeviceRegistrarFactory != null)
                 {
-                    nodeManagers.Add(await DeviceRegistrarFactory.CreateAsync(
-                        server, configuration, cancellationToken).ConfigureAwait(false));
+                    factories.Add(DeviceRegistrarFactory);
                 }
-
                 if (ManagedApplicationPushProvider != null)
                 {
-                    nodeManagers.Add(new DefaultManagedApplicationsNodeManager(
-                        server,
-                        configuration,
-                        ManagedApplicationPushProvider));
+                    factories.Add(new ManagedApplicationsStartupFactory(ManagedApplicationPushProvider));
                 }
                 else if (m_configurationStore != null)
                 {
-                    nodeManagers.Add(new DefaultManagedApplicationsNodeManager(
-                        server,
-                        configuration,
-                        m_configurationStore));
+                    factories.Add(new ManagedApplicationsStartupFactory(m_configurationStore));
+                }
+                factories.AddRange(GetInitialNodeManagerFactories().ToList());
+
+                MasterNodeManager? master = null;
+                try
+                {
+                    master = new MasterNodeManager(server, configuration, null, factories.ToArrayOf());
+                    IMasterNodeManager result = await new ValueTask<IMasterNodeManager>(master).ConfigureAwait(false);
+                    master = null;
+                    return result;
+                }
+                finally
+                {
+                    master?.Dispose();
+                }
+            }
+
+            /// <summary>
+            /// Creates managed-application nodes privately with the selected host provider.
+            /// </summary>
+            private sealed class ManagedApplicationsStartupFactory : IAsyncNodeManagerFactory
+            {
+                public ManagedApplicationsStartupFactory(IConfigurationDataStore store)
+                {
+                    m_store = store ?? throw new ArgumentNullException(nameof(store));
                 }
 
-#pragma warning disable CA2000 // ownership of MasterNodeManager transfers to the caller via the returned ValueTask<IMasterNodeManager>
-                return new MasterNodeManager(server, configuration, null, nodeManagers, null);
-#pragma warning restore CA2000
+                public ManagedApplicationsStartupFactory(IManagedApplicationPushProvider provider)
+                {
+                    m_provider = provider ?? throw new ArgumentNullException(nameof(provider));
+                }
+
+                /// <inheritdoc/>
+                public ArrayOf<string> NamespacesUris =>
+                    [DefaultManagedApplicationsNodeManager.ManagedApplicationsNamespaceUri];
+
+                /// <inheritdoc/>
+                public async ValueTask<IAsyncNodeManager> CreateAsync(
+                    IServerInternal server,
+                    ApplicationConfiguration configuration,
+                    CancellationToken cancellationToken = default)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    DefaultManagedApplicationsNodeManager? manager = null;
+                    try
+                    {
+                        manager = m_provider is not null
+                            ? new DefaultManagedApplicationsNodeManager(server, configuration, m_provider)
+                            : new DefaultManagedApplicationsNodeManager(
+                                server,
+                                configuration,
+                                m_store ?? throw new InvalidOperationException(
+                                    "The configuration data store was not configured."));
+                        IAsyncNodeManager result = await new ValueTask<IAsyncNodeManager>(manager).ConfigureAwait(false);
+                        manager = null;
+                        return result;
+                    }
+                    finally
+                    {
+                        manager?.Dispose();
+                    }
+                }
+
+                private readonly IConfigurationDataStore? m_store;
+                private readonly IManagedApplicationPushProvider? m_provider;
             }
         }
     }
