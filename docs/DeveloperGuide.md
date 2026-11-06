@@ -580,8 +580,9 @@ the signed release workflow can promote an intentional mixed-version set.
 **GitHub Actions runs all CI for `master`.** [`.github/workflows/buildandtest.yml`](../.github/workflows/buildandtest.yml) runs the complete build and test workload on GitHub-hosted runners for every triggering branch, and [`.github/workflows/nightly.yml`](../.github/workflows/nightly.yml) runs the full-scope workload on the weekly schedule and on demand. [`.github/workflows/nuget-publish.yml`](../.github/workflows/nuget-publish.yml) builds, signs and publishes the packages. The other workflows in [`.github/workflows/`](../.github/workflows) cover CodeQL, container images and the opt-in stress, stability and long-haul suites.
 
 [`CodeQL`](../.github/workflows/codeql-analysis.yml) scans the default branch daily at 06:30 UTC.
-It does not run automatically on pull requests or pushes. To scan another branch, select that branch
-when running the CodeQL workflow from the Actions tab, or use
+This version of the workflow does not run on pull requests or pushes. Other branches retain their own
+workflow files and may still start CodeQL on those events until they are updated. To scan another
+branch, select that branch when running the CodeQL workflow from the Actions tab, or use
 `gh workflow run codeql-analysis.yml --ref <branch>`. This starts only CodeQL, independently of CI
 and the weekly full-validation workflow.
 
@@ -806,7 +807,7 @@ GitHub Actions applies its "Approve and run workflows" gate to outside contribut
 
 - Fork the repository (or, if you have write access, push a branch prefixed with your username) and open a pull request. You must agree to the [Contributor License Agreement](https://opcfoundation.org/license/cla/ContributorLicenseAgreementv1.0.pdf); the "I AGREE" prompt appears automatically on your first PR. See [CONTRIBUTING.md](../CONTRIBUTING.md).
 - Before submitting: relevant tests pass, code analysis is clean (no new warnings), the change keeps backward compatibility, and security implications are reviewed.
-- The pull-request template asks you to confirm the CLA, added tests/coverage, documentation, a warning-free build, green CI, and that all applicable CodeQL findings are fixed. CodeQL scans run on their daily schedule or by manual dispatch, not as PR checks. For a pull request that changes C# source files, the template also asks you to run the `UA.slnx` suite on **.NET Framework 4.8** and **.NET 10.0** before opening the pull request.
+- The pull-request template asks you to confirm the CLA, added tests/coverage, documentation, a warning-free build, green CI, and that all applicable CodeQL findings are fixed. On `master`, CodeQL scans run on their daily schedule or by manual dispatch, not as PR checks. For a pull request that changes C# source files, the template also asks you to run the `UA.slnx` suite on **.NET Framework 4.8** and **.NET 10.0** before opening the pull request.
 - You can run the `opc-ua-codestyle-enforcer` agent to drive analyzer warnings to zero before opening the PR.
 
 ## Related documentation
