@@ -531,7 +531,19 @@ namespace Opc.Ua.Bindings
             }
             if (socket != null)
             {
+#if NETFRAMEWORK
+                // On .NET Framework Socket.Dispose spins in cooperative GC mode
+                // until every pending operation has released the socket handle,
+                // and closes with the linger timeout. A close from the completion
+                // of a receive on this socket (the channel's receive loop faulting)
+                // then blocks every GC suspension and freezes the process (#4981).
+                // The shutdown ends the connection here; the dispose runs on the
+                // thread pool, once the current completion has unwound.
+                Shutdown(socket);
+                ThreadPool.UnsafeQueueUserWorkItem(static s => ((Socket)s!).Dispose(), socket);
+#else
                 ShutdownAndDispose(socket);
+#endif
             }
             m_sendCancellation.Cancel();
         }
@@ -693,6 +705,18 @@ namespace Opc.Ua.Bindings
         {
             try
             {
+                Shutdown(socket);
+            }
+            finally
+            {
+                socket.Dispose();
+            }
+        }
+
+        private void Shutdown(Socket socket)
+        {
+            try
+            {
                 if (socket.Connected)
                 {
                     socket.Shutdown(SocketShutdown.Both);
@@ -701,10 +725,6 @@ namespace Opc.Ua.Bindings
             catch (Exception e)
             {
                 m_logger.TcpByteTransportLogMessage1(e);
-            }
-            finally
-            {
-                socket.Dispose();
             }
         }
 
@@ -747,6 +767,12 @@ namespace Opc.Ua.Bindings
         private readonly CancellationTokenSource m_sendCancellation = new();
 
         private readonly Lock m_socketLock = new();
+#if NETFRAMEWORK
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Usage",
+            "CA2213:Disposable fields should be disposed",
+            Justification = "Close disposes the socket on the thread pool (#4981).")]
+#endif
         private Socket? m_socket;
         private bool m_closed;
     }

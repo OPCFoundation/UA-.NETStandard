@@ -47,5 +47,12 @@ namespace Opc.Ua
         /// A handle associated withe the event instance.
         /// </summary>
         public object? Handle { get; set; }
+
+        /// <summary>
+        /// The server's record of the admitted occurrence the fields were selected from. Set
+        /// and cleared by the server's event manager, which releases it before the fields are
+        /// reused, so the record lives exactly as long as the fields it belongs to.
+        /// </summary>
+        internal object? AdmissionStamp { get; set; }
     }
 }

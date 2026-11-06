@@ -47,7 +47,9 @@ across industrial control, manufacturing, energy, and IoT systems.
   Spatial Location and Global Positioning), OPC-10030 (ISA-95 Common
   Model) with OPC-10031-4 Job Control V1/V2, OPC 30270 / OPC UA for Asset
   Administration Shell V2 and V3, OPC 10100-1
-  (WoT Connectivity), Part 200 (Industrial Automation), OPC 40001-1/-2/-3/-4/-101
+  (WoT Connectivity), Part 200
+  ([Industrial Automation stacklights, statistics and calibration information](docs/IndustrialAutomation.md)),
+  OPC 40001-1/-2/-3/-4/-101
   (Machinery with Process Values, Job Management, Energy and Result
   Transfer), OPC 34100 (Energy Consumption Management), OPC 30081
   (PA-DIM), OPC 40010-1 (Robotics), OPC 40100-1/-2

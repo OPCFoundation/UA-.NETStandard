@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -46,19 +47,12 @@ namespace Opc.Ua
         public TypeTable(NamespaceTable namespaceUris)
         {
             m_namespaceUris = namespaceUris;
-            m_referenceTypes = [];
-            m_nodes = [];
-            m_encodings = [];
         }
 
         /// <inheritdoc/>
         /// <param name="typeId">The type identifier.</param>
         public bool IsKnown(ExpandedNodeId typeId)
         {
-            if (CurrentView is { } view)
-            {
-                return view.IsKnown(typeId);
-            }
             if (typeId.IsNull || typeId.ServerIndex != 0)
             {
                 return false;
@@ -81,10 +75,6 @@ namespace Opc.Ua
         /// <param name="typeId">The type identifier.</param>
         public bool IsKnown(NodeId typeId)
         {
-            if (CurrentView is { } view)
-            {
-                return view.IsKnown(typeId);
-            }
             if (typeId.IsNull)
             {
                 return false;
@@ -100,10 +90,6 @@ namespace Opc.Ua
         /// <param name="typeId">The type identifier.</param>
         public NodeId FindSuperType(ExpandedNodeId typeId)
         {
-            if (CurrentView is { } view)
-            {
-                return view.FindSuperType(typeId);
-            }
             if (typeId.IsNull || typeId.ServerIndex != 0)
             {
                 return NodeId.Null;
@@ -136,10 +122,6 @@ namespace Opc.Ua
         /// <param name="typeId">The type identifier.</param>
         public NodeId FindSuperType(NodeId typeId)
         {
-            if (CurrentView is { } view)
-            {
-                return view.FindSuperType(typeId);
-            }
             if (typeId.IsNull)
             {
                 return NodeId.Null;
@@ -177,10 +159,6 @@ namespace Opc.Ua
         /// <param name="typeId">The type identifier.</param>
         public ArrayOf<NodeId> FindSubTypes(ExpandedNodeId typeId)
         {
-            if (CurrentView is { } view)
-            {
-                return view.FindSubTypes(typeId);
-            }
             var subtypes = new List<NodeId>();
 
             if (typeId.IsNull)
@@ -211,10 +189,6 @@ namespace Opc.Ua
         /// <param name="superTypeId">The super type identifier.</param>
         public bool IsTypeOf(ExpandedNodeId subTypeId, ExpandedNodeId superTypeId)
         {
-            if (CurrentView is { } view)
-            {
-                return view.IsTypeOf(subTypeId, superTypeId);
-            }
             if (subTypeId.IsNull || subTypeId.ServerIndex != 0)
             {
                 return false;
@@ -266,10 +240,6 @@ namespace Opc.Ua
         /// <param name="superTypeId">The super type identifier.</param>
         public bool IsTypeOf(NodeId subTypeId, NodeId superTypeId)
         {
-            if (CurrentView is { } view)
-            {
-                return view.IsTypeOf(subTypeId, superTypeId);
-            }
             // check for null.
             if (subTypeId.IsNull || superTypeId.IsNull)
             {
@@ -297,10 +267,6 @@ namespace Opc.Ua
         /// <param name="referenceTypeId">The reference type identifier.</param>
         public QualifiedName FindReferenceTypeName(NodeId referenceTypeId)
         {
-            if (CurrentView is { } view)
-            {
-                return view.FindReferenceTypeName(referenceTypeId);
-            }
             lock (m_lock)
             {
                 if (!m_nodes.TryGetValue(referenceTypeId, out TypeInfo? typeInfo))
@@ -316,10 +282,6 @@ namespace Opc.Ua
         /// <param name="browseName">The browse name.</param>
         public NodeId FindReferenceType(QualifiedName browseName)
         {
-            if (CurrentView is { } view)
-            {
-                return view.FindReferenceType(browseName);
-            }
             // check for empty name.
             if (browseName.IsNull)
             {
@@ -342,10 +304,6 @@ namespace Opc.Ua
         /// <param name="datatypeId">The datatype identifier.</param>
         public bool IsEncodingOf(ExpandedNodeId encodingId, ExpandedNodeId datatypeId)
         {
-            if (CurrentView is { } view)
-            {
-                return view.IsEncodingOf(encodingId, datatypeId);
-            }
             // check for invalid ids.
             if (encodingId.IsNull || datatypeId.IsNull)
             {
@@ -404,10 +362,6 @@ namespace Opc.Ua
         /// <param name="value">The extension object.</param>
         public bool IsEncodingFor(NodeId expectedTypeId, ExtensionObject value)
         {
-            if (CurrentView is { } view)
-            {
-                return view.IsEncodingFor(expectedTypeId, value);
-            }
             // no match on null values.
             if (value.IsNull)
             {
@@ -438,10 +392,6 @@ namespace Opc.Ua
         /// <param name="value">The value whose encoding is checked.</param>
         public bool IsEncodingFor(NodeId expectedTypeId, Variant value)
         {
-            if (CurrentView is { } view)
-            {
-                return view.IsEncodingFor(expectedTypeId, value);
-            }
             // null actual datatype matches nothing.
             if (value.IsNull)
             {
@@ -501,10 +451,6 @@ namespace Opc.Ua
         /// <param name="encodingId">The encoding identifier.</param>
         public NodeId FindDataTypeId(ExpandedNodeId encodingId)
         {
-            if (CurrentView is { } view)
-            {
-                return view.FindDataTypeId(encodingId);
-            }
             var localId = ExpandedNodeId.ToNodeId(encodingId, m_namespaceUris);
 
             if (localId.IsNull)
@@ -527,10 +473,6 @@ namespace Opc.Ua
         /// <param name="encodingId">The encoding identifier.</param>
         public NodeId FindDataTypeId(NodeId encodingId)
         {
-            if (CurrentView is { } view)
-            {
-                return view.FindDataTypeId(encodingId);
-            }
             lock (m_lock)
             {
                 if (!m_encodings.TryGetValue(encodingId, out TypeInfo? typeInfo))
@@ -549,12 +491,8 @@ namespace Opc.Ua
         {
             lock (m_lock)
             {
-                if (CurrentView is { } view)
-                {
-                    view.Clear();
-                    return;
-                }
                 EnsureMutable();
+                EnsureWritableGraph();
                 m_revision++;
                 m_nodes.Clear();
                 m_encodings.Clear();
@@ -608,12 +546,8 @@ namespace Opc.Ua
 
             lock (m_lock)
             {
-                if (CurrentView is { } view)
-                {
-                    view.Add(node);
-                    return;
-                }
                 EnsureMutable();
+                EnsureWritableGraph();
                 // lookup the supertype.
                 TypeInfo? superTypeInfo = null;
 
@@ -625,12 +559,44 @@ namespace Opc.Ua
                         "A valid supertype identifier is required.");
                 }
 
+                IList<IReference> encodings = node.References
+                    .Find(ReferenceTypeIds.HasEncoding, false, false, null);
+                for (int ii = 0; ii < encodings.Count; ii++)
+                {
+                    NodeId encodingId = ExpandedNodeId.ToNodeId(
+                        encodings[ii].TargetId, m_namespaceUris);
+                    if (m_encodings.TryGetValue(encodingId, out TypeInfo? encodingOwner) &&
+                        encodingOwner.NodeId != node.NodeId &&
+                        ShouldRejectCandidateConflict(encodingOwner.NodeId))
+                    {
+                        throw new InvalidOperationException(
+                            $"Encoding '{encodingId}' cannot identify multiple data types.");
+                    }
+                }
+
+                if (m_nodes.TryGetValue(node.NodeId, out TypeInfo? capturedType) &&
+                    ShouldRejectCandidateConflict(node.NodeId))
+                {
+                    NodeId capturedSuperTypeId = capturedType.SuperType?.NodeId ?? NodeId.Null;
+                    NodeId proposedSuperTypeId = superTypeInfo?.NodeId ?? NodeId.Null;
+                    bool conflictingReferenceName =
+                        ((int)node.NodeClass & (int)NodeClass.ReferenceType) != 0 &&
+                        !capturedType.BrowseName.IsNull &&
+                        capturedType.BrowseName != node.BrowseName;
+                    if (capturedSuperTypeId != proposedSuperTypeId || conflictingReferenceName)
+                    {
+                        throw new InvalidOperationException(
+                            $"Type '{node.NodeId}' cannot be redefined within a prepared candidate.");
+                    }
+                }
+
                 // create the type info.
                 m_revision++;
                 if (!m_nodes.TryGetValue(node.NodeId, out TypeInfo? typeInfo))
                 {
                     typeInfo = new TypeInfo();
                     m_nodes.Add(node.NodeId, typeInfo);
+                    TrackCandidateType(node.NodeId);
                 }
                 else if (typeInfo.SuperType != null &&
                     !ReferenceEquals(typeInfo.SuperType, superTypeInfo))
@@ -657,9 +623,6 @@ namespace Opc.Ua
                 }
 
                 // any new encodings.
-                IList<IReference> encodings = node.References
-                    .Find(ReferenceTypeIds.HasEncoding, false, false, null);
-
                 if (encodings.Count > 0)
                 {
                     typeInfo.Encodings = new NodeId[encodings.Count];
@@ -735,13 +698,16 @@ namespace Opc.Ua
 
             lock (m_lock)
             {
-                if (CurrentView is { } view)
-                {
-                    return view.AddEncoding(dataTypeId, encodingId);
-                }
                 if (!m_nodes.TryGetValue(dataTypeId, out TypeInfo? typeInfo))
                 {
                     return false;
+                }
+                if (m_encodings.TryGetValue(localId, out TypeInfo? encodingOwner) &&
+                    encodingOwner.NodeId != dataTypeId &&
+                    ShouldRejectCandidateConflict(encodingOwner.NodeId))
+                {
+                    throw new InvalidOperationException(
+                        $"Encoding '{localId}' cannot identify multiple data types.");
                 }
 
                 if (typeInfo.Encodings is not null &&
@@ -752,6 +718,8 @@ namespace Opc.Ua
                     return true;
                 }
                 EnsureMutable();
+                EnsureWritableGraph();
+                typeInfo = m_nodes[dataTypeId];
                 if (typeInfo.Encodings == null)
                 {
                     typeInfo.Encodings = [localId];
@@ -784,12 +752,8 @@ namespace Opc.Ua
         {
             lock (m_lock)
             {
-                if (CurrentView is { } view)
-                {
-                    view.AddSubtype(subTypeId, superTypeId, browseName);
-                    return;
-                }
                 EnsureMutable();
+                EnsureWritableGraph();
                 // lookup the supertype.
                 TypeInfo? superTypeInfo = null;
 
@@ -801,12 +765,24 @@ namespace Opc.Ua
                         "A valid supertype identifier is required.");
                 }
 
+                if (ShouldRejectCandidateConflict(subTypeId) &&
+                    m_nodes.TryGetValue(subTypeId, out TypeInfo? capturedType) &&
+                    ((capturedType.SuperType?.NodeId ?? NodeId.Null) !=
+                        (superTypeInfo?.NodeId ?? NodeId.Null) ||
+                    (!browseName.IsNull && !capturedType.BrowseName.IsNull &&
+                        capturedType.BrowseName != browseName)))
+                {
+                    throw new InvalidOperationException(
+                        $"Type '{subTypeId}' cannot be redefined within a prepared candidate.");
+                }
+
                 // create the type info.
                 m_revision++;
                 if (!m_nodes.TryGetValue(subTypeId, out TypeInfo? typeInfo))
                 {
                     typeInfo = new TypeInfo();
                     m_nodes.Add(subTypeId, typeInfo);
+                    TrackCandidateType(subTypeId);
                 }
                 else if (typeInfo.SuperType != null &&
                     !ReferenceEquals(typeInfo.SuperType, superTypeInfo))
@@ -861,11 +837,6 @@ namespace Opc.Ua
 
             lock (m_lock)
             {
-                if (CurrentView is { } view)
-                {
-                    view.Remove(typeId);
-                    return;
-                }
                 // remove type.
 
                 if (!m_nodes.TryGetValue(localId, out TypeInfo? typeInfo))
@@ -874,6 +845,8 @@ namespace Opc.Ua
                 }
 
                 EnsureMutable();
+                EnsureWritableGraph();
+                typeInfo = m_nodes[localId];
                 m_revision++;
                 m_nodes.Remove(localId);
 
@@ -982,10 +955,10 @@ namespace Opc.Ua
             }
         }
 
-        private readonly Lock m_lock = new();
+        private Lock m_lock => m_storage.Gate;
         private readonly NamespaceTable m_namespaceUris;
-        private readonly SortedDictionary<QualifiedName, TypeInfo> m_referenceTypes;
-        private readonly NodeIdDictionary<TypeInfo> m_nodes;
-        private readonly NodeIdDictionary<TypeInfo> m_encodings;
+        private SortedDictionary<QualifiedName, TypeInfo> m_referenceTypes => m_storage.References;
+        private NodeIdDictionary<TypeInfo> m_nodes => m_storage.Nodes;
+        private NodeIdDictionary<TypeInfo> m_encodings => m_storage.Encodings;
     }
 }

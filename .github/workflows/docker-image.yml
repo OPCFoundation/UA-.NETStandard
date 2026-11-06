@@ -149,7 +149,7 @@ jobs:
     - name: Set up .NET 10
       uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: '10.0.402'
+        global-json-file: global.json
 
     - name: Set Version
       shell: pwsh
@@ -219,7 +219,7 @@ jobs:
     - name: Set up .NET 10
       uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: '10.0.402'
+        global-json-file: global.json
 
     - name: Set Version
       shell: pwsh

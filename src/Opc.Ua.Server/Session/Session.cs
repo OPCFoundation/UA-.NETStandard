@@ -181,6 +181,7 @@ namespace Opc.Ua.Server
 
             // use anonymous the default identity.
             Identity = new UserIdentity();
+            m_identityState = new IdentityState(Identity, 0, 0);
 
             // initialize diagnostics.
             DateTime now = m_timeProvider.GetUtcNow().UtcDateTime;
@@ -383,20 +384,18 @@ namespace Opc.Ua.Server
         {
             get
             {
-                lock (m_lock)
-                {
-                    return m_identityRefreshGeneration != m_identityGeneration;
-                }
+                // Every monitored item checks this per delivery; the published state avoids the lock.
+                IdentityState state = Volatile.Read(ref m_identityState);
+                return state.RefreshGeneration != state.Generation;
             }
         }
 
         /// <inheritdoc/>
         public IdentityRefreshSnapshot CaptureIdentityRefreshSnapshot()
         {
-            lock (m_lock)
-            {
-                return new IdentityRefreshSnapshot(Identity, m_identityGeneration);
-            }
+            // One published object carries the identity and its generation, so the pair stays atomic.
+            IdentityState state = Volatile.Read(ref m_identityState);
+            return new IdentityRefreshSnapshot(state.Identity, state.Generation);
         }
 
         /// <inheritdoc/>
@@ -407,9 +406,40 @@ namespace Opc.Ua.Server
                 lock (m_lock)
                 {
                     m_identityGeneration++;
+                    PublishIdentityStateLocked();
                     Volatile.Write(ref m_notificationAuthorization, null);
                 }
             }
+        }
+
+        /// <summary>
+        /// Publishes the identity, its generation and its refresh generation after a change under
+        /// <see cref="m_lock"/>, so the lock-free readers see them change together.
+        /// </summary>
+        private void PublishIdentityStateLocked()
+        {
+            Volatile.Write(
+                ref m_identityState,
+                new IdentityState(Identity, m_identityGeneration, m_identityRefreshGeneration));
+        }
+
+        /// <summary>
+        /// The identity state the lock-free readers see; replaced, never changed.
+        /// </summary>
+        private sealed class IdentityState
+        {
+            public IdentityState(IUserIdentity identity, long generation, long refreshGeneration)
+            {
+                Identity = identity;
+                Generation = generation;
+                RefreshGeneration = refreshGeneration;
+            }
+
+            public IUserIdentity Identity { get; }
+
+            public long Generation { get; }
+
+            public long RefreshGeneration { get; }
         }
 
         /// <inheritdoc/>
@@ -427,6 +457,7 @@ namespace Opc.Ua.Server
                     UpdateNotificationAuthorization(IdentityToken, Identity, effectiveIdentity);
                     EffectiveIdentity = effectiveIdentity;
                     m_identityRefreshGeneration = m_identityGeneration;
+                    PublishIdentityStateLocked();
                 }
             }
         }
@@ -460,6 +491,7 @@ namespace Opc.Ua.Server
                     UpdateNotificationAuthorization(IdentityToken, Identity, effectiveIdentity);
                     EffectiveIdentity = effectiveIdentity;
                     m_identityRefreshGeneration = m_identityGeneration;
+                    PublishIdentityStateLocked();
                     return true;
                 }
             }
@@ -1254,6 +1286,7 @@ namespace Opc.Ua.Server
                 if (rolesChanged)
                 {
                     m_identityGeneration++;
+                    PublishIdentityStateLocked();
                     Volatile.Write(ref m_notificationAuthorization, null);
                 }
 
@@ -1854,6 +1887,7 @@ namespace Opc.Ua.Server
                 m_identityGeneration++;
                 m_identityRefreshGeneration = m_identityGeneration;
                 EffectiveIdentity = effectiveIdentity!;
+                PublishIdentityStateLocked();
 
                 // update diagnostics.
                 lock (m_diagnosticsLock)
@@ -2249,6 +2283,7 @@ namespace Opc.Ua.Server
         private string m_secureChannelId = null!;
         private long m_identityGeneration;
         private long m_identityRefreshGeneration;
+        private IdentityState m_identityState;
     }
 
     /// <summary>

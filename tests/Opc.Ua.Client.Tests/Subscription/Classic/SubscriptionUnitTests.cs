@@ -354,6 +354,50 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
+        /// Classic whole-message delivery preserves Publish metadata and marks Republish metadata unknown.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        [CancelAfter(10_000)]
+        public async Task WholeMessageDeliveryPreservesSplitMetadataAsync(
+            bool republished, bool moreNotifications, CancellationToken ct)
+        {
+            var delivered = new TaskCompletionSource<SubscriptionNotificationMessage>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var handler = new Mock<ISubscriptionNotificationMessageHandler>();
+            handler.Setup(value => value.OnNotificationMessageAsync(
+                    It.IsAny<SubscriptionNotificationMessage>(), It.IsAny<CancellationToken>()))
+                .Callback((SubscriptionNotificationMessage message, CancellationToken _) =>
+                    delivered.TrySetResult(message))
+                .Returns(default(ValueTask));
+            using var subscription = new Subscription(
+                NUnitTelemetryContext.Create(), new() { PublishingEnabled = true })
+            {
+                NotificationMessageHandler = handler.Object,
+                Session = BuildSessionMock()
+            };
+            await subscription.CreateAsync(ct).ConfigureAwait(false);
+            var wire = new NotificationMessage
+            {
+                SequenceNumber = 1,
+                MoreNotifications = moreNotifications,
+                NotificationData = [new(new DataChangeNotification())]
+            };
+            if (republished)
+            {
+                subscription.SaveRepublishedMessageInCache(wire, subscription.GetAcknowledgementScope());
+            }
+            else
+            {
+                subscription.SaveMessageInCache([1], wire, subscription.GetAcknowledgementScope());
+            }
+            SubscriptionNotificationMessage message = await delivered.Task.WaitAsync(ct).ConfigureAwait(false);
+            Assert.That(message.MoreNotifications, Is.EqualTo(republished ? (bool?)null : moreNotifications));
+        }
+
+        /// <summary>
         /// A notification carries the acknowledgement handle captured when its message was
         /// received, even if the subscription lifetime changes before the message is
         /// dispatched, so it matches the acknowledgement the engine tracks.
