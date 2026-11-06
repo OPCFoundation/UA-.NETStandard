@@ -216,8 +216,10 @@ namespace Opc.Ua.Server.Tests.Network
                 Path.GetTempPath(), "OpcUaNetworkTests", Guid.NewGuid().ToString("N")[..8]);
             ReferenceNetworkModelProvider provider = NetworkScenario.Create();
             var delivered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var watchRelease = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var boundary = new FaultInjectingProvider(provider)
             {
+                WatchRelease = watchRelease,
                 WatchTransform = snapshot => snapshot with
                 {
                     Revision = snapshot.Revision + 1,
@@ -229,7 +231,7 @@ namespace Opc.Ua.Server.Tests.Network
                 AfterDelivery = _ => delivered.TrySetResult(true)
             };
             bool watchedDuringCreation = false;
-            var pendingReferences = new Dictionary<NodeId, ExpandedNodeId[]>();
+            var publishedReferences = new Dictionary<NodeId, ExpandedNodeId[]>();
             NodeId[] parents =
             [
                 ObjectIds.NetworkInterfaces,
@@ -240,15 +242,9 @@ namespace Opc.Ua.Server.Tests.Network
             {
                 var standardServer = new StandardServer(telemetry);
                 standardServer.AddNodeManager(new NetworkModelNodeManagerFactory(boundary, _ => false));
-                standardServer.AddNodeManager(new StartupProbeFactory(references =>
+                standardServer.AddNodeManager(new StartupProbeFactory(_ =>
                 {
                     watchedDuringCreation = boundary.WatchCount != 0;
-                    foreach (NodeId parent in parents)
-                    {
-                        pendingReferences[parent] = references.TryGetValue(parent, out IList<IReference>? entries)
-                            ? entries.Select(reference => reference.TargetId).ToArray()
-                            : [];
-                    }
                 }));
                 return standardServer;
             })
@@ -262,18 +258,41 @@ namespace Opc.Ua.Server.Tests.Network
             {
                 await server.LoadConfigurationAsync(pkiRoot).ConfigureAwait(false);
                 await server.StartAsync(pkiRoot).ConfigureAwait(false);
-                await delivered.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
                 Assert.That(watchedDuringCreation, Is.False);
-                Assert.That(pendingReferences[ObjectIds.NetworkInterfaces], Has.Length.EqualTo(2));
-                Assert.That(pendingReferences[ObjectTypeIds.IIetfBaseNetworkInterfaceType], Is.Not.Empty);
-                Assert.That(pendingReferences[ObjectTypeIds.IIeeeBaseEthernetPortType], Is.Not.Empty);
                 clientFixture = new ClientFixture(NUnitTelemetryContext.Create());
                 await clientFixture.LoadClientConfigurationAsync(pkiRoot).ConfigureAwait(false);
                 ConfiguredEndpoint endpoint = await clientFixture.GetEndpointAsync(
                     new Uri("opc.tcp://localhost:" + server.Port.ToString(CultureInfo.InvariantCulture)),
                     SecurityPolicies.None).ConfigureAwait(false);
                 session = await clientFixture.ConnectAsync(endpoint).ConfigureAwait(false);
-                foreach ((NodeId parent, ExpandedNodeId[] removed) in pendingReferences)
+                ushort networkNamespace = session.NamespaceUris.GetIndexOrAppend(NetworkModelNodeManager.NamespaceUri);
+                foreach (NodeId parent in parents)
+                {
+                    BrowseResponse initial = await session.BrowseAsync(null, null, 0,
+                        [
+                            new BrowseDescription
+                            {
+                                NodeId = parent,
+                                ReferenceTypeId = ReferenceTypeIds.References,
+                                BrowseDirection = BrowseDirection.Both,
+                                IncludeSubtypes = true,
+                                ResultMask = (uint)BrowseResultMask.All
+                            }
+                        ], cancellationToken).ConfigureAwait(false);
+                    Assert.That(initial.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(initial.Results[0].ContinuationPoint.IsEmpty, Is.True);
+                    publishedReferences[parent] = initial.Results[0].References.ToList()
+                        .Select(reference => reference.NodeId)
+                        .Where(id =>
+                            ExpandedNodeId.ToNodeId(id, session.NamespaceUris).NamespaceIndex == networkNamespace)
+                        .ToArray();
+                }
+                Assert.That(publishedReferences[ObjectIds.NetworkInterfaces], Has.Length.EqualTo(2));
+                Assert.That(publishedReferences[ObjectTypeIds.IIetfBaseNetworkInterfaceType], Is.Not.Empty);
+                Assert.That(publishedReferences[ObjectTypeIds.IIeeeBaseEthernetPortType], Is.Not.Empty);
+                watchRelease.TrySetResult(true);
+                await delivered.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                foreach ((NodeId parent, ExpandedNodeId[] removed) in publishedReferences)
                 {
                     BrowseResponse remaining = await session.BrowseAsync(null, null, 0,
                         [
@@ -4113,7 +4132,7 @@ namespace Opc.Ua.Server.Tests.Network
         private FaultInjectingProvider m_providerBoundary = null!;
 
         /// <summary>
-        /// Observes address-space preparation after the network manager has staged its external references.
+        /// Observes address-space preparation independently of provider observation.
         /// </summary>
         private sealed class StartupProbeFactory(
             Action<IDictionary<NodeId, IList<IReference>>> inspect) : IAsyncNodeManagerFactory
@@ -4132,7 +4151,7 @@ namespace Opc.Ua.Server.Tests.Network
         }
 
         /// <summary>
-        /// Inspects the shared reference graph before startup installs it.
+        /// Inspects the candidate's reference contributions before startup publishes them.
         /// </summary>
         private sealed class StartupProbeNodeManager(
             IServerInternal server,
