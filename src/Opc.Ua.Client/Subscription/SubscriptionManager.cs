@@ -1693,7 +1693,22 @@ namespace Opc.Ua.Client.Subscriptions
             SetPublishingQuiesced(paused, sessionRecovery: true);
         }
 
-        private void SetPublishingQuiesced(bool quiesced, bool sessionRecovery = false)
+        /// <summary>
+        /// Stops publishing and new subscription updates before the server session is handed
+        /// over. Unlike <see cref="SetSessionRecoveryPaused"/> the updates in flight are not
+        /// canceled: the channel still works, and the server may already have applied them, so
+        /// canceling would lose the results the new owner needs. <see cref="DrainAsync"/> waits
+        /// for them.
+        /// </summary>
+        internal void PauseForSessionHandoff()
+        {
+            SetPublishingQuiesced(true, sessionRecovery: true, abortSubscriptionUpdates: false);
+        }
+
+        private void SetPublishingQuiesced(
+            bool quiesced,
+            bool sessionRecovery = false,
+            bool abortSubscriptionUpdates = true)
         {
             bool? paused;
             CancellationTokenSource[] attempts = [];
@@ -1705,7 +1720,10 @@ namespace Opc.Ua.Client.Subscriptions
                     if (quiesced)
                     {
                         m_sessionAvailable.Reset();
-                        attempts = [.. m_activeSubscriptionUpdates];
+                        if (abortSubscriptionUpdates)
+                        {
+                            attempts = [.. m_activeSubscriptionUpdates];
+                        }
                     }
                     else
                     {

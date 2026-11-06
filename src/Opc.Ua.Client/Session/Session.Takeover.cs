@@ -80,6 +80,11 @@ namespace Opc.Ua.Client
         /// later call on it fails.
         /// </para>
         /// <para>
+        /// Subscription updates in flight are not canceled, because the server may already have
+        /// applied them. Waiting for them takes at most the operation timeout of the session;
+        /// use <paramref name="ct"/> to bound it further.
+        /// </para>
+        /// <para>
         /// The handoff is valid until the server session times out, which is
         /// <see cref="SessionHandoff.RevisedSessionTimeout"/> after the last request the
         /// previous owner sent.
