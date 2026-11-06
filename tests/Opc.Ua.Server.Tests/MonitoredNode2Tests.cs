@@ -34,7 +34,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Server.Tests.NodeManager;
+using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -614,6 +616,83 @@ namespace Opc.Ua.Server.Tests
                 await monitored.WaitForPendingNotificationsAsync(CancellationToken.None).ConfigureAwait(false);
 
                 item.Verify(value => value.QueueEvent(It.IsAny<IFilterTarget>()), Times.Never);
+            }
+        }
+
+        /// <summary>
+        /// A native session has an endpoint with a kept restriction verdict, so repeated events
+        /// take the synchronous cached path. That path must still honor changed restrictions
+        /// and invalidated grants.
+        /// </summary>
+        [Test]
+        public async Task CachedEventPermissionHonorsRestrictionsAndInvalidationOnNativeSessionAsync()
+        {
+            var fixture = new ServerFixture<StandardServer>(t => new ReferenceServer(t));
+            StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
+            try
+            {
+                (RequestHeader requestHeader, SecureChannelContext _) =
+                    await server.CreateAndActivateSessionAsync("EventPermissionCache").ConfigureAwait(false);
+                ISession? session = server.CurrentInstance.SessionManager.GetSession(requestHeader.AuthenticationToken);
+                Assert.That(session, Is.InstanceOf<global::Opc.Ua.Server.Session>());
+
+                int validations = 0;
+                var nodeManager = new Mock<IAsyncNodeManager>();
+                nodeManager.Setup(value => value.ValidateEventRolePermissionsAsync(
+                        It.IsAny<IEventMonitoredItem>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
+                    .Returns(() =>
+                    {
+                        Interlocked.Increment(ref validations);
+                        return new ValueTask<ServiceResult>(ServiceResult.Good);
+                    });
+                var item = new Mock<IEventMonitoredItem>();
+                item.Setup(value => value.Id).Returns(1);
+                item.Setup(value => value.Session).Returns(session);
+
+                var notifier = new BaseObjectState(null)
+                {
+                    NodeId = ObjectIds.Server,
+                    AccessRestrictions = AccessRestrictionType.None
+                };
+                await using var monitored = new MonitoredNode2(nodeManager.Object, server.CurrentInstance, notifier);
+                monitored.Add(item.Object);
+
+                var notification = new BaseEventState(null);
+                notification.EventType = new PropertyState<NodeId>.Implementation<VariantBuilder>(notification)
+                {
+                    Value = ObjectTypeIds.BaseEventType
+                };
+                notification.SourceNode = new PropertyState<NodeId>.Implementation<VariantBuilder>(notification)
+                {
+                    Value = ObjectIds.Server
+                };
+
+                async Task ReportAsync()
+                {
+                    await monitored.OnReportEventAsync(
+                        server.CurrentInstance.DefaultSystemContext, notifier, notification).ConfigureAwait(false);
+                    await monitored.WaitForPendingNotificationsAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+
+                await ReportAsync().ConfigureAwait(false);
+                await ReportAsync().ConfigureAwait(false);
+                Assert.That(validations, Is.EqualTo(1));
+                item.Verify(value => value.QueueEvent(It.IsAny<IFilterTarget>()), Times.Exactly(2));
+
+                // the test session has no security, so requiring encryption denies the event.
+                notifier.AccessRestrictions = AccessRestrictionType.EncryptionRequired;
+                await ReportAsync().ConfigureAwait(false);
+                item.Verify(value => value.QueueEvent(It.IsAny<IFilterTarget>()), Times.Exactly(2));
+
+                notifier.AccessRestrictions = AccessRestrictionType.None;
+                monitored.InvalidatePermissionCacheForSession(session!.Id);
+                await ReportAsync().ConfigureAwait(false);
+                Assert.That(validations, Is.EqualTo(2));
+                item.Verify(value => value.QueueEvent(It.IsAny<IFilterTarget>()), Times.Exactly(3));
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
             }
         }
 
