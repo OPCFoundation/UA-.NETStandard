@@ -143,7 +143,9 @@ namespace Opc.Ua.Scales.Server.Runtime
                     }
                     else
                     {
-                        variable.OnWriteValueAsync = RejectUnsupportedWriteAsync;
+                        variable.OnWriteValueAsync = (context, writeNode, indexRange, value, cancellationToken) =>
+                            RejectUnsupportedWriteAsync(
+                                services, product, context, writeNode, indexRange, value, cancellationToken);
                     }
                 }
             }
@@ -244,7 +246,9 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <summary>
         /// Preserves product-lock denial for custom variables whose native write behavior is not known.
         /// </summary>
-        private ValueTask<AttributeWriteResult> RejectUnsupportedWriteAsync(
+        private static ValueTask<AttributeWriteResult> RejectUnsupportedWriteAsync(
+            ScaleRuntimeServices services,
+            ProductState? product,
             ISystemContext context,
             NodeState node,
             NumericRange indexRange,
@@ -252,8 +256,8 @@ namespace Opc.Ua.Scales.Server.Runtime
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            ServiceResult access = m_product is { } product
-                ? ScaleValues.CheckLock(m_services, context, product.NodeId)
+            ServiceResult access = product is { } owner
+                ? ScaleValues.CheckLock(services, context, owner.NodeId)
                 : ServiceResult.Good;
             return new ValueTask<AttributeWriteResult>(new AttributeWriteResult(
                 ServiceResult.IsBad(access) ? access : new ServiceResult(StatusCodes.BadNotSupported)));
