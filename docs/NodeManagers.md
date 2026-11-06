@@ -1768,6 +1768,15 @@ Recompiled callers can use the extensions, but custom lifecycle providers also
 need to implement the current interface's revision, slot, capability and
 transaction members. The release-compatibility disposition remains open.
 
+The 2.0.1 implementation checked `callerContext` when deciding whether a request
+callback could enter lifecycle work; the current extensions ignore that argument.
+The public `NodeManagerLifecycle(StandardServer)` signature remains, but an
+additional handle now forwards to the server's canonical registration owner
+instead of maintaining its own registration collection. The batch and publication
+markers and `ISyncNodeManagerReadinessNotification` were not declared or
+forwarded by the 2.0.1 Server assembly on net48 or net10.0. Compatibility with
+consumers of later previews has not been assessed.
+
 This inventory does not make the legacy handles non-owning. A
 `NodeManagerRegistration`, `NodeManagerSlotSnapshot` or legacy batch result can
 retain a retired manager after cleanup. Modern result metadata uses
