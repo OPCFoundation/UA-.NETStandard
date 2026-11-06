@@ -733,17 +733,21 @@ namespace Opc.Ua.WotCon.Tests
             /// </summary>
             /// <param name="replacement">The byte string.</param>
             /// <param name="factory">The async node manager factory.</param>
+            /// <exception cref="NodeManagerRemovalCommittedException">
+            /// Removal committed, but reconciliation failed before the replacement was created.
+            /// </exception>
             public async Task RestartManagerAsync(
                 ByteString replacement = default, IAsyncNodeManagerFactory? factory = null)
             {
                 await using IPreparedNodeManagerBatch removal = await m_server.NodeManagerLifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Remove(m_registration)]);
-                LifecycleResult result = (await removal.CommitAsync(static _ => default)).CommittedResult;
+                    [NodeManagerBatchChange.Remove(m_registration)]).ConfigureAwait(false);
+                LifecycleResult result = (await removal.CommitAsync(static _ => default)
+                    .ConfigureAwait(false)).CommittedResult;
                 if (result.CleanupFailure is { } failure)
                 {
                     throw new NodeManagerRemovalCommittedException(m_registration, result, failure);
                 }
-                await result.Retired;
+                await result.Retired.ConfigureAwait(false);
                 if (!replacement.IsNull)
                 {
                     Directory.CreateDirectory(Options.ThingDescriptionStorageFolder!);

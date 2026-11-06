@@ -414,20 +414,21 @@ namespace Opc.Ua.WotCon.Tests
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             var checkpoint = new NativeReferenceRetirementCheckpoint();
-            await using Fixture fixture = await CreatePeerFixtureAsync();
-            WotAssetClient asset = await fixture.Client.CreateAssetAsync("mapped");
+            await using Fixture fixture = await CreatePeerFixtureAsync().ConfigureAwait(false);
+            WotAssetClient asset = await fixture.Client.CreateAssetAsync("mapped").ConfigureAwait(false);
             NodeId peer = await fixture.AddRejectingPeerAsync(
-                StatusCodes.Good, throws: false, checkpoint: checkpoint);
+                StatusCodes.Good, throws: false, checkpoint: checkpoint).ConfigureAwait(false);
             ByteString content = PeerReferenceDocument(
                 WotNodeSetPreservationMode.Always, true, false, rejectingPeer: true);
-            await asset.UploadThingDescriptionAsync(content.Span.ToArray());
-            await AssertPeerReferenceAsync(fixture, asset.AssetId, peer, inverse: true, present: true);
+            await asset.UploadThingDescriptionAsync(content.Span.ToArray()).ConfigureAwait(false);
+            await AssertPeerReferenceAsync(fixture, asset.AssetId, peer, inverse: true, present: true)
+                .ConfigureAwait(false);
 
             var replacement = new DirectAssetManagerFactory(fixture.Options, checkpoint);
             Task restart = fixture.RestartManagerAsync(factory: replacement);
             try
             {
-                await checkpoint.Entered.Task.WaitAsync(timeout.Token);
+                await checkpoint.Entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.Multiple(() =>
                 {
                     Assert.That(checkpoint.Completed.Task.IsCompleted, Is.False, "Old deletion remains held");
@@ -439,14 +440,17 @@ namespace Opc.Ua.WotCon.Tests
             {
                 checkpoint.Release.TrySetResult(true);
             }
-            await restart.WaitAsync(timeout.Token);
-            ServiceResult deleted = await checkpoint.Completed.Task.WaitAsync(timeout.Token);
+            await restart.WaitAsync(timeout.Token).ConfigureAwait(false);
+            ServiceResult deleted = await checkpoint.Completed.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
             Assert.That(ServiceResult.IsGood(deleted), Is.True, "Actual old reciprocal deletion");
             Assert.That(replacement.Created.Task.IsCompleted, Is.True);
-            await AssertPeerReferenceAsync(fixture, asset.AssetId, peer, inverse: true, present: true);
-            await AssertOwnerReferenceAsync(fixture, asset.AssetId, peer, inverse: true, present: true);
-            WotAssetClient restored = await fixture.Client.OpenAssetAsync(asset.AssetId);
-            Assert.That(await restored.DownloadThingDescriptionAsync(), Is.EqualTo(content.Span.ToArray()));
+            await AssertPeerReferenceAsync(fixture, asset.AssetId, peer, inverse: true, present: true)
+                .ConfigureAwait(false);
+            await AssertOwnerReferenceAsync(fixture, asset.AssetId, peer, inverse: true, present: true)
+                .ConfigureAwait(false);
+            WotAssetClient restored = await fixture.Client.OpenAssetAsync(asset.AssetId).ConfigureAwait(false);
+            Assert.That(await restored.DownloadThingDescriptionAsync().ConfigureAwait(false),
+                Is.EqualTo(content.Span.ToArray()));
         }
 
         private static Task<Fixture> CreatePeerFixtureAsync()
@@ -539,7 +543,7 @@ namespace Opc.Ua.WotCon.Tests
                 NativeReferenceRetirementCheckpoint? checkpoint = null)
             {
                 await m_server.NodeManagerLifecycle.AddAsync(
-                    new RejectingPeerFactory(status, throws, adapted, checkpoint), null);
+                    new RejectingPeerFactory(status, throws, adapted, checkpoint), null).ConfigureAwait(false);
                 await Session.FetchNamespaceTablesAsync();
                 return new NodeId(4040u, Session.NamespaceUris.GetIndexOrAppend(RejectingPeerNamespaceUri));
             }
@@ -735,10 +739,10 @@ namespace Opc.Ua.WotCon.Tests
             {
                 if (!Entered.TrySetResult(true))
                 {
-                    return await delete();
+                    return await delete().ConfigureAwait(false);
                 }
-                await Release.Task.WaitAsync(cancellationToken);
-                ServiceResult result = await delete();
+                await Release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                ServiceResult result = await delete().ConfigureAwait(false);
                 Completed.TrySetResult(result);
                 return result;
             }
