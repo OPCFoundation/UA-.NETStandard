@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -935,14 +936,23 @@ namespace Opc.Ua.Server
         /// Removes a published manager's references and forgets its deleted-node contributions.
         /// </summary>
         /// <remarks>
+        /// <para>
         /// Node deletion must not wait for mutation admission: a lifecycle mutation that holds admission
         /// or a decision window can await a deletion running on another flow. When admission is not
         /// immediately available, the contribution pruning is queued before any await, so the next
-        /// publication or admitted mutation sees it. A published owner then tries to remove its serving
-        /// references at once. A source node reserved by a pending publication rejects that removal and
-        /// would reinstall its prepared references when the decision completes, so those references are
-        /// queued as well. A background drain enters admission after the decision window closes, applies
-        /// the queued pruning and removes the queued serving references.
+        /// publication or admitted mutation sees it. The queued pruning names the exact registered facade
+        /// rather than the resource, so a later generation of the same resource keeps its contribution.
+        /// </para>
+        /// <para>
+        /// A published owner then removes its serving references at once. A source node reserved by a
+        /// pending publication rejects a removal with <see cref="NodeReferencesReservedException"/> and
+        /// would reinstall its prepared references when the decision completes. Those references are
+        /// queued for a background drain that enters admission after the decision window closes. Any other
+        /// failure is returned to the caller. If the queued pruning has not been applied, it is withdrawn,
+        /// so the contribution stays registered and retirement cleanup still owns the references, as when
+        /// the admitted path fails. If publication already applied the pruning, the references that were
+        /// not removed are queued for the drain before the failure is returned.
+        /// </para>
         /// </remarks>
         internal async ValueTask RemoveManagedNodeReferencesAsync(
             AsyncCustomNodeManager owner,
@@ -952,9 +962,10 @@ namespace Opc.Ua.Server
             ThrowIfNodeManagementFromDecision();
             if (!TryEnterDynamicMutationAdmission(out bool mutationAdmissionHeld))
             {
-                List<LocalReference> deferred = [.. referencesToRemove];
-                m_deferredReferencePrunes.Enqueue((owner, deferred));
-                ChangePreparer.GetServer(owner)?.DiscardCapturedReferences(referencesToRemove);
+                ChangePreparer.StagingServer? staging = ChangePreparer.GetServer(owner);
+                var prune = new DeferredReferencePrune(staging?.RegisteredFacade, [.. referencesToRemove]);
+                m_deferredReferencePrunes.Enqueue(prune);
+                staging?.DiscardCapturedReferences(referencesToRemove);
                 try
                 {
                     if (GetPublishedRootNotifierOwner(owner) is null)
@@ -962,14 +973,18 @@ namespace Opc.Ua.Server
                         owner.RetainRemovedExternalReferences(referencesToRemove);
                         return;
                     }
+                    var unremoved = new List<LocalReference>();
                     try
                     {
-                        await RemoveReferencesAsync(referencesToRemove, cancellationToken).ConfigureAwait(false);
+                        await RemoveServingReferencesAsync(referencesToRemove, unremoved, cancellationToken)
+                            .ConfigureAwait(false);
                     }
-                    catch (InvalidOperationException)
+                    catch (Exception) when (!prune.TryWithdraw())
                     {
-                        m_deferredServingRemovals.Enqueue(deferred);
+                        EnqueueDeferredServingRemoval(owner, unremoved);
+                        throw;
                     }
+                    EnqueueDeferredServingRemoval(owner, unremoved);
                 }
                 finally
                 {
@@ -980,8 +995,8 @@ namespace Opc.Ua.Server
             try
             {
                 ApplyDeferredReferencePrunes();
-                IAsyncNodeManager? registeredOwner = FindRegisteredReferenceOwner(owner);
-                if (registeredOwner is null)
+                IAsyncNodeManager? registeredFacade = GetRegisteredReferenceFacade(owner);
+                if (registeredFacade is null)
                 {
                     owner.RetainRemovedExternalReferences(referencesToRemove);
                     return;
@@ -989,9 +1004,16 @@ namespace Opc.Ua.Server
                 await using var callbackPermit = new NodeManagerCallbackPermit(
                     m_lifecycleCallbackPermit,
                     NodeManagerAdmissionCapability.AddressSpaceMutation).ConfigureAwait(false);
-                await RemoveReferencesAsync(referencesToRemove, cancellationToken).ConfigureAwait(false);
-                PruneDynamicExternalReferences(registeredOwner, referencesToRemove);
+                var unremoved = new List<LocalReference>();
+                await RemoveServingReferencesAsync(referencesToRemove, unremoved, cancellationToken)
+                    .ConfigureAwait(false);
+                PruneDynamicExternalReferences(registeredFacade, referencesToRemove);
                 ChangePreparer.GetServer(owner)?.DiscardCapturedReferences(referencesToRemove);
+                EnqueueDeferredServingRemoval(owner, unremoved);
+                if (!m_deferredServingRemovals.IsEmpty)
+                {
+                    ScheduleDeferredReferenceDrain();
+                }
             }
             finally
             {
@@ -1000,6 +1022,68 @@ namespace Opc.Ua.Server
                     m_dynamicMutationSemaphore.Release();
                 }
             }
+        }
+
+        /// <summary>
+        /// Removes serving references one at a time and records those that were not removed.
+        /// </summary>
+        /// <param name="references">The references to remove.</param>
+        /// <param name="unremoved">
+        /// Receives each reference whose source node is reserved by a pending publication. When another
+        /// failure stops the removal, it also receives the failed reference and every later one.
+        /// </param>
+        /// <param name="cancellationToken">The cancellation token for the deleting operation.</param>
+        private async ValueTask RemoveServingReferencesAsync(
+            List<LocalReference> references,
+            List<LocalReference> unremoved,
+            CancellationToken cancellationToken)
+        {
+            for (int ii = 0; ii < references.Count; ii++)
+            {
+                try
+                {
+                    await RemoveReferencesAsync([references[ii]], cancellationToken).ConfigureAwait(false);
+                }
+                catch (NodeReferencesReservedException)
+                {
+                    unremoved.Add(references[ii]);
+                }
+                catch (Exception)
+                {
+                    unremoved.AddRange(references.GetRange(ii, references.Count - ii));
+                    throw;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets the owner's registered facade when it still has a registered contribution.
+        /// </summary>
+        /// <remarks>
+        /// Only the exact facade that registered the contribution qualifies. Another facade or generation
+        /// of the same resource registers its own contribution, which this deletion must not prune.
+        /// </remarks>
+        private IAsyncNodeManager? GetRegisteredReferenceFacade(AsyncCustomNodeManager owner)
+        {
+            IAsyncNodeManager? facade = ChangePreparer.GetServer(owner)?.RegisteredFacade;
+            return facade is not null && m_dynamicExternalReferences.ContainsKey(facade) ? facade : null;
+        }
+
+        /// <summary>
+        /// Queues serving removals for the drain with the target node instance each one was captured for.
+        /// </summary>
+        private void EnqueueDeferredServingRemoval(AsyncCustomNodeManager owner, List<LocalReference> references)
+        {
+            if (references.Count == 0)
+            {
+                return;
+            }
+            var pending = new List<DeferredServingReference>(references.Count);
+            foreach (LocalReference reference in references)
+            {
+                pending.Add(new DeferredServingReference(reference, owner.Find(reference.TargetId)));
+            }
+            m_deferredServingRemovals.Enqueue(new DeferredServingRemoval(owner, pending));
         }
 
         /// <summary>
@@ -1038,19 +1122,23 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <remarks>
         /// The caller must hold mutation admission or run inside the exclusive publication callback.
-        /// A deleted node belongs to its resource, whichever facade registered the contribution, so the
-        /// entry is matched by resource identity. An owner without a registered contribution is dropped,
-        /// which releases the queue's reference to a retired owner.
+        /// An entry is applied only to the exact facade that registered the contribution, and only if the
+        /// deleting flow has not withdrawn it after a failed removal. An entry whose facade is no longer
+        /// registered is dropped, so the queue does not keep a retired facade alive.
         /// </remarks>
         private void ApplyDeferredReferencePrunes()
         {
-            while (m_deferredReferencePrunes.TryDequeue(
-                out (AsyncCustomNodeManager Owner, List<LocalReference> References) prune))
+            while (m_deferredReferencePrunes.TryDequeue(out DeferredReferencePrune? prune))
             {
-                IAsyncNodeManager? registeredOwner = FindRegisteredReferenceOwner(prune.Owner);
-                if (registeredOwner is not null)
+                if (prune.TryGetFacade(out IAsyncNodeManager? facade) &&
+                    m_dynamicExternalReferences.ContainsKey(facade) &&
+                    prune.TryComplete())
                 {
-                    PruneDynamicExternalReferences(registeredOwner, prune.References);
+                    PruneDynamicExternalReferences(facade, prune.References);
+                }
+                else
+                {
+                    prune.TryComplete();
                 }
             }
         }
@@ -1096,40 +1184,74 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Enters mutation admission after any decision window closes and applies the deferred deletion work.
         /// </summary>
+        /// <remarks>
+        /// A removal still rejected by a reserved source node is retried after a delay that doubles up to
+        /// one second. Any other failure is logged and its removal stays queued; the drain then stops, and
+        /// the next deletion or publication starts a new one. Every exit clears the scheduled flag, so a
+        /// faulted drain never prevents a later one.
+        /// </remarks>
         /// <param name="cancellationToken">Cancelled when the node managers are disposed.</param>
         private async Task DrainDeferredReferenceChangesAsync(CancellationToken cancellationToken)
         {
-            while (true)
+            bool scheduled = true;
+            try
             {
-                try
+                TimeSpan delay = TimeSpan.Zero;
+                while (true)
                 {
-                    await ApplyDeferredReferenceChangesAsync(cancellationToken).ConfigureAwait(false);
+                    if (delay > TimeSpan.Zero)
+                    {
+                        await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+                    }
+                    DeferredReferenceDrainOutcome outcome =
+                        await ApplyDeferredReferenceChangesAsync(cancellationToken).ConfigureAwait(false);
+                    lock (m_deferredReferenceDrainLock)
+                    {
+                        if (m_deferredReferenceDrainStopped ||
+                            outcome == DeferredReferenceDrainOutcome.Faulted ||
+                            (m_deferredReferencePrunes.IsEmpty && m_deferredServingRemovals.IsEmpty))
+                        {
+                            m_deferredReferenceDrainScheduled = false;
+                            scheduled = false;
+                            return;
+                        }
+                    }
+                    delay = outcome == DeferredReferenceDrainOutcome.Reserved
+                        ? TimeSpan.FromMilliseconds(Math.Min(
+                            Math.Max(delay.TotalMilliseconds * 2, kDeferredReferenceRetryDelayMs),
+                            kDeferredReferenceMaxRetryDelayMs))
+                        : TimeSpan.Zero;
                 }
-                catch (Exception ex) when (ex is OperationCanceledException or ObjectDisposedException)
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+            }
+            catch (ObjectDisposedException) when (cancellationToken.IsCancellationRequested)
+            {
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                m_logger.DeferredReferenceRemovalFailed(ex);
+            }
+            finally
+            {
+                if (scheduled)
                 {
                     lock (m_deferredReferenceDrainLock)
                     {
                         m_deferredReferenceDrainScheduled = false;
-                    }
-                    return;
-                }
-                lock (m_deferredReferenceDrainLock)
-                {
-                    if (m_deferredReferenceDrainStopped ||
-                        (m_deferredReferencePrunes.IsEmpty && m_deferredServingRemovals.IsEmpty))
-                    {
-                        m_deferredReferenceDrainScheduled = false;
-                        return;
                     }
                 }
             }
         }
 
         /// <summary>
-        /// Applies queued contribution pruning and retries serving removals rejected by a reserved source node.
+        /// Applies queued contribution pruning and retries the queued serving removals.
         /// </summary>
         /// <param name="cancellationToken">Cancelled when the node managers are disposed.</param>
-        private async Task ApplyDeferredReferenceChangesAsync(CancellationToken cancellationToken)
+        /// <returns>Whether every queued removal completed, or why some remain queued.</returns>
+        private async Task<DeferredReferenceDrainOutcome> ApplyDeferredReferenceChangesAsync(
+            CancellationToken cancellationToken)
         {
             bool mutationAdmissionHeld = await AcquireDynamicMutationAdmissionAsync(cancellationToken)
                 .ConfigureAwait(false);
@@ -1138,22 +1260,42 @@ namespace Opc.Ua.Server
                 ApplyDeferredReferencePrunes();
                 if (m_deferredServingRemovals.IsEmpty)
                 {
-                    return;
+                    return DeferredReferenceDrainOutcome.Completed;
                 }
                 await using var callbackPermit = new NodeManagerCallbackPermit(
                     m_lifecycleCallbackPermit,
                     NodeManagerAdmissionCapability.AddressSpaceMutation).ConfigureAwait(false);
-                while (m_deferredServingRemovals.TryDequeue(out List<LocalReference>? references))
+                var outcome = DeferredReferenceDrainOutcome.Completed;
+                var retained = new List<DeferredServingRemoval>();
+                try
                 {
-                    try
+                    while (m_deferredServingRemovals.TryDequeue(out DeferredServingRemoval? removal))
                     {
-                        await RemoveReferencesAsync(references, cancellationToken).ConfigureAwait(false);
-                    }
-                    catch (Exception ex) when (ex is not OperationCanceledException)
-                    {
-                        m_logger.DeferredReferenceRemovalFailed(ex);
+                        (DeferredServingRemoval? remaining, bool faulted) =
+                            await RetryDeferredServingRemovalAsync(removal, cancellationToken).ConfigureAwait(false);
+                        if (remaining is null)
+                        {
+                            continue;
+                        }
+                        retained.Add(remaining);
+                        if (faulted)
+                        {
+                            outcome = DeferredReferenceDrainOutcome.Faulted;
+                        }
+                        else if (outcome == DeferredReferenceDrainOutcome.Completed)
+                        {
+                            outcome = DeferredReferenceDrainOutcome.Reserved;
+                        }
                     }
                 }
+                finally
+                {
+                    foreach (DeferredServingRemoval removal in retained)
+                    {
+                        m_deferredServingRemovals.Enqueue(removal);
+                    }
+                }
+                return outcome;
             }
             finally
             {
@@ -1165,13 +1307,195 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Finds the registered contribution key that shares the owner's resource identity.
+        /// Retries one queued serving removal and returns the part that must stay queued.
         /// </summary>
-        private IAsyncNodeManager? FindRegisteredReferenceOwner(AsyncCustomNodeManager owner)
+        /// <remarks>
+        /// A reference is skipped when its target is no longer the node incarnation it was queued for:
+        /// the owner holds a different node under the identifier, a removed root notifier was registered
+        /// again, a deleted target was added again, or the identifier now routes to another resource.
+        /// </remarks>
+        /// <param name="removal">The queued removal.</param>
+        /// <param name="cancellationToken">Cancelled when the node managers are disposed.</param>
+        /// <returns>The references to keep queued and whether a failure other than a reservation occurred.</returns>
+        private async ValueTask<(DeferredServingRemoval? Remaining, bool Faulted)> RetryDeferredServingRemovalAsync(
+            DeferredServingRemoval removal,
+            CancellationToken cancellationToken)
         {
-            IAsyncNodeManager identity = GetReferenceOwnerIdentity(owner);
-            return m_dynamicExternalReferences.Keys.FirstOrDefault(manager =>
-                ReferenceEquals(GetReferenceOwnerIdentity(manager), identity));
+            using var context = new OperationContext(
+                new RequestHeader(), null, RequestType.DeleteReferences, RequestLifetime.None);
+            context.PinRouting(m_nodeManagers);
+            IAsyncNodeManager ownerIdentity = GetReferenceOwnerIdentity(removal.Owner);
+            List<DeferredServingReference>? remaining = null;
+            bool faulted = false;
+            foreach (DeferredServingReference pending in removal.References)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                LocalReference reference = pending.Reference;
+                try
+                {
+                    if (!await IsDeferredServingTargetCurrentAsync(
+                            context, removal.Owner, ownerIdentity, pending, cancellationToken).ConfigureAwait(false))
+                    {
+                        continue;
+                    }
+                    (object? sourceHandle, IAsyncNodeManager? sourceManager) =
+                        await m_serviceDispatch.GetManagerHandleAsync(context, reference.SourceId, cancellationToken)
+                            .ConfigureAwait(false);
+                    if (sourceHandle is null)
+                    {
+                        continue;
+                    }
+                    ServiceResult result = await sourceManager!.DeleteReferenceAsync(
+                            sourceHandle,
+                            reference.ReferenceTypeId,
+                            reference.IsInverse,
+                            reference.TargetId,
+                            false,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                    if (ServiceResult.IsBad(result))
+                    {
+                        throw new ServiceResultException(result);
+                    }
+                }
+                catch (NodeReferencesReservedException)
+                {
+                    (remaining ??= []).Add(pending);
+                }
+                catch (Exception ex) when (
+                    ex is not OutOfMemoryException &&
+                    !(ex is OperationCanceledException && cancellationToken.IsCancellationRequested))
+                {
+                    m_logger.DeferredReferenceRemovalFailed(ex);
+                    (remaining ??= []).Add(pending);
+                    faulted = true;
+                }
+            }
+            return (remaining is null ? null : new DeferredServingRemoval(removal.Owner, remaining), faulted);
+        }
+
+        /// <summary>
+        /// Checks whether a queued removal still targets the node incarnation it was queued for.
+        /// </summary>
+        private async ValueTask<bool> IsDeferredServingTargetCurrentAsync(
+            OperationContext context,
+            AsyncCustomNodeManager owner,
+            IAsyncNodeManager ownerIdentity,
+            DeferredServingReference pending,
+            CancellationToken cancellationToken)
+        {
+            LocalReference reference = pending.Reference;
+            if (!ReferenceEquals(owner.Find(reference.TargetId), pending.Target))
+            {
+                return false;
+            }
+            if (pending.Target is not null &&
+                reference.SourceId == ObjectIds.Server &&
+                reference.ReferenceTypeId == ReferenceTypeIds.HasNotifier &&
+                !reference.IsInverse &&
+                owner.IsCurrentRootNotifier(pending.Target))
+            {
+                return false;
+            }
+            (object? targetHandle, IAsyncNodeManager? targetManager) =
+                await m_serviceDispatch.GetManagerHandleAsync(context, reference.TargetId, cancellationToken)
+                    .ConfigureAwait(false);
+            if (pending.Target is null)
+            {
+                return targetHandle is null;
+            }
+            return targetHandle is not null &&
+                ReferenceEquals(GetReferenceOwnerIdentity(targetManager!), ownerIdentity);
+        }
+
+        /// <summary>
+        /// Contribution pruning queued by a deletion that could not enter mutation admission.
+        /// </summary>
+        /// <remarks>
+        /// The entry refers to the exact registered facade weakly, so a queued entry never keeps a retired
+        /// facade or its resource alive. A registered facade is held strongly by its contribution.
+        /// </remarks>
+        private sealed class DeferredReferencePrune
+        {
+            /// <summary>
+            /// Creates an entry for the facade that registered the deleted references.
+            /// </summary>
+            /// <param name="facade">The registered facade, or null when the owner has none.</param>
+            /// <param name="references">A copy of the deleted references.</param>
+            public DeferredReferencePrune(IAsyncNodeManager? facade, List<LocalReference> references)
+            {
+                m_facade = facade is null ? null : new WeakReference<IAsyncNodeManager>(facade);
+                References = references;
+            }
+
+            /// <summary>
+            /// Gets the deleted references to prune from the contribution.
+            /// </summary>
+            public List<LocalReference> References { get; }
+
+            /// <summary>
+            /// Gets the registered facade if it is still alive.
+            /// </summary>
+            public bool TryGetFacade([NotNullWhen(true)] out IAsyncNodeManager? facade)
+            {
+                facade = null;
+                return m_facade?.TryGetTarget(out facade) == true;
+            }
+
+            /// <summary>
+            /// Marks the entry as applied or dropped unless the deleting flow withdrew it first.
+            /// </summary>
+            /// <returns>True when this call settled the entry.</returns>
+            public bool TryComplete()
+            {
+                return Interlocked.CompareExchange(ref m_state, kCompleted, kPending) == kPending;
+            }
+
+            /// <summary>
+            /// Withdraws the entry after a failed removal unless it was already applied or dropped.
+            /// </summary>
+            /// <returns>True when the contribution stays registered.</returns>
+            public bool TryWithdraw()
+            {
+                return Interlocked.CompareExchange(ref m_state, kWithdrawn, kPending) == kPending;
+            }
+
+            private const int kPending = 0;
+            private const int kCompleted = 1;
+            private const int kWithdrawn = 2;
+            private readonly WeakReference<IAsyncNodeManager>? m_facade;
+            private int m_state;
+        }
+
+        /// <summary>
+        /// Serving removals that must be retried after a pending publication or a failed retry.
+        /// </summary>
+        /// <param name="Owner">The manager whose deleted nodes the references target.</param>
+        /// <param name="References">The references to remove with their captured targets.</param>
+        private sealed record DeferredServingRemoval(
+            AsyncCustomNodeManager Owner,
+            List<DeferredServingReference> References);
+
+        /// <summary>
+        /// A queued serving removal and the target node instance it was queued for.
+        /// </summary>
+        /// <param name="Reference">The reference to remove.</param>
+        /// <param name="Target">The owner's target node when queued, or null when it was deleted.</param>
+        private sealed record DeferredServingReference(LocalReference Reference, NodeState? Target);
+
+        /// <summary>
+        /// Describes the result of one deferred deletion pass.
+        /// </summary>
+        private enum DeferredReferenceDrainOutcome
+        {
+            /// <summary>Every queued removal completed or was skipped.</summary>
+            Completed,
+
+            /// <summary>A reserved source node rejected at least one removal.</summary>
+            Reserved,
+
+            /// <summary>At least one removal failed for another reason.</summary>
+            Faulted
         }
 
         /// <summary>
@@ -2239,12 +2563,17 @@ namespace Opc.Ua.Server
         private readonly ILogger m_logger;
         private readonly SemaphoreSlim m_dynamicMutationSemaphore = new(1, 1);
 
-        /// <summary>Contribution pruning deferred by deletions that could not enter mutation admission.</summary>
-        private readonly ConcurrentQueue<(AsyncCustomNodeManager Owner, List<LocalReference> References)>
-            m_deferredReferencePrunes = new();
+        /// <summary>The first delay before retrying a removal rejected by a reserved source node.</summary>
+        private const double kDeferredReferenceRetryDelayMs = 10;
 
-        /// <summary>Serving removals rejected because a pending publication reserved the source node.</summary>
-        private readonly ConcurrentQueue<List<LocalReference>> m_deferredServingRemovals = new();
+        /// <summary>The longest delay between retries of a removal rejected by a reserved source node.</summary>
+        private const double kDeferredReferenceMaxRetryDelayMs = 1000;
+
+        /// <summary>Contribution pruning deferred by deletions that could not enter mutation admission.</summary>
+        private readonly ConcurrentQueue<DeferredReferencePrune> m_deferredReferencePrunes = new();
+
+        /// <summary>Serving removals that a reserved source node or a failed retry left unfinished.</summary>
+        private readonly ConcurrentQueue<DeferredServingRemoval> m_deferredServingRemovals = new();
 
         /// <summary>Guards scheduling and stopping of the deferred deletion drain.</summary>
         private readonly Lock m_deferredReferenceDrainLock = new();

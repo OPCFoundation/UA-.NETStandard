@@ -173,7 +173,7 @@ namespace Opc.Ua.Types.Tests.State
                 [], [new NodeStateReference(ReferenceTypeIds.Organizes, false, new NodeId(1000))]))
             {
                 update.Reserve();
-                Assert.Throws<InvalidOperationException>(() =>
+                Assert.Throws<NodeReferencesReservedException>(() =>
                     node.RemoveReference(ReferenceTypeIds.Organizes, false, new NodeId(1000)));
                 Assert.Throws<InvalidOperationException>(() => update.Notify(_ => Assert.Fail()));
             }

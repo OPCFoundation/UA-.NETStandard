@@ -2601,6 +2601,137 @@ namespace Opc.Ua.PackML.Tests
         }
 
         /// <summary>
+        /// Reports a provider failure that is not a reservation conflict to the deleting caller and keeps
+        /// the contribution for retirement instead of dropping it.
+        /// </summary>
+        [Test]
+        public async Task LiveDeletionWithUnrelatedSourceFailureKeepsContributionForRetirement()
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            CancellationToken ct = deadline.Token;
+            INodeManagerLifecycle lifecycle = m_services.GetRequiredService<INodeManagerLifecycle>();
+            FolderState source = await AddComposedSourceFolderAsync("UnrelatedFailureSource", ct)
+                .ConfigureAwait(false);
+            var factory = new ExternalProbeManagerFactory(
+                "urn:opcfoundation:tests:packml:unrelated-failure", source.NodeId);
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false);
+            NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            Assert.That(committed.CleanupFailure, Is.Null);
+            ExternalProbeManager probe = factory.Manager
+                ?? throw new InvalidOperationException("The probe manager was not created.");
+            NodeId probeId = probe.ProbeId;
+            Assert.That(source.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, probeId), Is.True);
+
+            var decidingFactory = new ComposedNodeManagerFactory(
+                _ => { },
+                "urn:opcfoundation:tests:packml:unrelated-deciding");
+            await using IPreparedNodeManagerBatch deciding = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(decidingFactory)], ct).ConfigureAwait(false);
+            NodeManagerBatchResult decided = await deciding.CommitAsync(async token =>
+            {
+                m_composed.FailReferenceDeletes = true;
+                try
+                {
+                    Task<bool> deletion;
+                    using (ExecutionContext.SuppressFlow())
+                    {
+                        deletion = Task.Run(async () =>
+                            await probe.DeleteNodeAsync(probe.SystemContext, probeId, token)
+                                .ConfigureAwait(false), token);
+                    }
+                    InvalidOperationException? failure = null;
+                    try
+                    {
+                        await deletion.WaitAsync(TimeSpan.FromSeconds(10), token).ConfigureAwait(false);
+                    }
+                    catch (InvalidOperationException ex)
+                    {
+                        failure = ex;
+                    }
+                    Assert.That(failure, Is.SameAs(m_composed.ReferenceDeleteFault));
+                }
+                finally
+                {
+                    m_composed.FailReferenceDeletes = false;
+                }
+                Assert.That(source.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, probeId), Is.True);
+            }, ct).ConfigureAwait(false);
+            Assert.That(decided.CleanupFailure, Is.Null);
+            Assert.That(probe.Find(probeId), Is.Null);
+            Assert.That(m_composed.FailedReferenceDeletes, Is.EqualTo(1));
+            Assert.That(source.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, probeId), Is.True);
+
+            await RetirePackMLManagerAsync(lifecycle, committed, ct).ConfigureAwait(false);
+            Assert.That(source.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, probeId), Is.False);
+            await RetirePackMLManagerAsync(lifecycle, decided, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Keeps a deferred removal queued when its drain fails and completes it after a later
+        /// publication restarts the drain.
+        /// </summary>
+        [Test]
+        public async Task DeferredReservedRemovalRetriesAfterDrainFault()
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            CancellationToken ct = deadline.Token;
+            INodeManagerLifecycle lifecycle = m_services.GetRequiredService<INodeManagerLifecycle>();
+            FolderState source = await AddComposedSourceFolderAsync("DrainFaultSource", ct)
+                .ConfigureAwait(false);
+            var factory = new ExternalProbeManagerFactory(
+                "urn:opcfoundation:tests:packml:drain-fault-1", source.NodeId);
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false);
+            NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            Assert.That(committed.CleanupFailure, Is.Null);
+            ExternalProbeManager probe = factory.Manager
+                ?? throw new InvalidOperationException("The probe manager was not created.");
+            NodeId probeId = probe.ProbeId;
+            Assert.That(source.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, probeId), Is.True);
+
+            // The deciding candidate references the same source folder, so the folder is reserved
+            // while its decision is pending and the deletion's removal is queued.
+            var decidingFactory = new ExternalProbeManagerFactory(
+                "urn:opcfoundation:tests:packml:drain-fault-2", source.NodeId);
+            await using IPreparedNodeManagerBatch deciding = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(decidingFactory)], ct).ConfigureAwait(false);
+            NodeManagerBatchResult decided = await deciding.CommitAsync(async token =>
+            {
+                Task<bool> deletion;
+                using (ExecutionContext.SuppressFlow())
+                {
+                    deletion = Task.Run(async () =>
+                        await probe.DeleteNodeAsync(probe.SystemContext, probeId, token)
+                            .ConfigureAwait(false), token);
+                }
+                Assert.That(
+                    await deletion.WaitAsync(TimeSpan.FromSeconds(10), token).ConfigureAwait(false),
+                    Is.True);
+                m_composed.FailReferenceDeletes = true;
+            }, ct).ConfigureAwait(false);
+            try
+            {
+                Assert.That(decided.CleanupFailure, Is.Null);
+                Assert.That(probe.Find(probeId), Is.Null);
+                Assert.That(() => m_composed.FailedReferenceDeletes, Is.GreaterThan(0).After(10000, 20));
+                Assert.That(source.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, probeId), Is.True);
+            }
+            finally
+            {
+                m_composed.FailReferenceDeletes = false;
+            }
+
+            // Retiring the deciding candidate publishes a view, which restarts the faulted drain.
+            await RetirePackMLManagerAsync(lifecycle, decided, ct).ConfigureAwait(false);
+            Assert.That(
+                () => source.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, probeId),
+                Is.False.After(10000, 20));
+            await RetirePackMLManagerAsync(lifecycle, committed, ct).ConfigureAwait(false);
+            Assert.That(source.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, probeId), Is.False);
+        }
+
+        /// <summary>
         /// Does not transfer a staged external reference to an unrelated replacement with the same NodeId.
         /// </summary>
         [Test]
@@ -2669,6 +2800,23 @@ namespace Opc.Ua.PackML.Tests
             NodeManagerBatchResult removed = await removal.CommitAsync(_ => default, ct).ConfigureAwait(false);
             Assert.That(removed.CleanupFailure, Is.Null);
             await removed.Retirement.WaitAsync(ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Adds a serving folder to the composed manager for use as an external reference source.
+        /// </summary>
+        private async Task<FolderState> AddComposedSourceFolderAsync(string name, CancellationToken ct)
+        {
+            ushort namespaceIndex = m_composed.NamespaceIndexes[0];
+            var source = new FolderState(null)
+            {
+                NodeId = new NodeId(name, namespaceIndex),
+                BrowseName = new QualifiedName(name, namespaceIndex),
+                DisplayName = new LocalizedText(name),
+                TypeDefinitionId = Ua.ObjectTypeIds.FolderType
+            };
+            await m_composed.AddPredefinedNodeAsync(source, ct).ConfigureAwait(false);
+            return source;
         }
 
         private async Task<uint> SubscribeToServerEventsAsync(CancellationToken ct)
@@ -2851,7 +2999,7 @@ namespace Opc.Ua.PackML.Tests
 
         /// <summary>
         /// Ordinary asynchronous node manager that can inject a root registration failure
-        /// after the registration has been applied.
+        /// after the registration has been applied, or a failure when a reference is deleted.
         /// </summary>
         private sealed class ComposedNodeManager : AsyncCustomNodeManager
         {
@@ -2876,6 +3024,49 @@ namespace Opc.Ua.PackML.Tests
             /// </summary>
             public Action<NodeId>? Registered { get; set; }
 
+            /// <summary>
+            /// Gets the failure thrown by reference deletions while <see cref="FailReferenceDeletes"/> is set.
+            /// </summary>
+            public InvalidOperationException ReferenceDeleteFault { get; } =
+                new("Injected reference deletion failure.");
+
+            /// <summary>
+            /// Gets or sets whether deleting a reference from one of this manager's nodes fails.
+            /// </summary>
+            public bool FailReferenceDeletes
+            {
+                get => Volatile.Read(ref m_failReferenceDeletes);
+                set => Volatile.Write(ref m_failReferenceDeletes, value);
+            }
+
+            /// <summary>
+            /// Gets the number of reference deletions that failed by injection.
+            /// </summary>
+            public int FailedReferenceDeletes => Volatile.Read(ref m_failedReferenceDeletes);
+
+            /// <inheritdoc/>
+            public override async ValueTask<ServiceResult> DeleteReferenceAsync(
+                object sourceHandle,
+                NodeId referenceTypeId,
+                bool isInverse,
+                ExpandedNodeId targetId,
+                bool deleteBidirectional,
+                CancellationToken cancellationToken = default)
+            {
+                if (FailReferenceDeletes)
+                {
+                    Interlocked.Increment(ref m_failedReferenceDeletes);
+                    throw ReferenceDeleteFault;
+                }
+                return await base.DeleteReferenceAsync(
+                    sourceHandle,
+                    referenceTypeId,
+                    isInverse,
+                    targetId,
+                    deleteBidirectional,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
             /// <inheritdoc/>
             protected override async ValueTask AddRootNotifierAsync(
                 NodeState notifier,
@@ -2888,6 +3079,92 @@ namespace Opc.Ua.PackML.Tests
                     throw fault;
                 }
             }
+
+            private bool m_failReferenceDeletes;
+            private int m_failedReferenceDeletes;
+        }
+
+        /// <summary>
+        /// Creates a candidate whose only node is referenced from a node of another manager.
+        /// </summary>
+        private sealed class ExternalProbeManagerFactory : IAsyncNodeManagerFactory
+        {
+            /// <summary>
+            /// Initializes the factory with the candidate namespace and the external source node.
+            /// </summary>
+            /// <param name="namespaceUri">The namespace owned by the candidate.</param>
+            /// <param name="sourceId">The external node that organizes the candidate's probe.</param>
+            public ExternalProbeManagerFactory(string namespaceUri, NodeId sourceId)
+            {
+                m_sourceId = sourceId;
+                NamespacesUris = [namespaceUri];
+            }
+
+            /// <summary>
+            /// Gets the candidate manager.
+            /// </summary>
+            public ExternalProbeManager? Manager { get; private set; }
+
+            /// <inheritdoc/>
+            public ArrayOf<string> NamespacesUris { get; }
+
+            /// <inheritdoc/>
+            public ValueTask<IAsyncNodeManager> CreateAsync(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                Manager = new ExternalProbeManager(server, configuration, NamespacesUris[0], m_sourceId);
+                return new ValueTask<IAsyncNodeManager>(Manager);
+            }
+
+            private readonly NodeId m_sourceId;
+        }
+
+        /// <summary>
+        /// Stages one probe node and its reference from an external source node during preparation.
+        /// </summary>
+        private sealed class ExternalProbeManager : AsyncCustomNodeManager
+        {
+            /// <summary>
+            /// Initializes the manager for one namespace and the external source node.
+            /// </summary>
+            public ExternalProbeManager(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                string namespaceUri,
+                NodeId sourceId)
+                : base(server, configuration, namespaceUri)
+            {
+                m_sourceId = sourceId;
+            }
+
+            /// <summary>
+            /// Gets the identifier of the probe node.
+            /// </summary>
+            public NodeId ProbeId => new("Probe", NamespaceIndexes[0]);
+
+            /// <inheritdoc/>
+            public override async ValueTask CreateAddressSpaceAsync(
+                IDictionary<NodeId, IList<IReference>> externalReferences,
+                CancellationToken cancellationToken = default)
+            {
+                await base.CreateAddressSpaceAsync(externalReferences, cancellationToken).ConfigureAwait(false);
+                var probe = new BaseObjectState(null)
+                {
+                    NodeId = ProbeId,
+                    BrowseName = new QualifiedName("Probe", NamespaceIndexes[0]),
+                    DisplayName = new LocalizedText("Probe"),
+                    TypeDefinitionId = Ua.ObjectTypeIds.BaseObjectType
+                };
+                await AddPredefinedNodeAsync(probe, cancellationToken).ConfigureAwait(false);
+                await AddExternalReferenceAsync(
+                    probe, m_sourceId, Ua.ReferenceTypeIds.Organizes, false, cancellationToken).ConfigureAwait(false);
+                await AddReverseReferencesAsync(externalReferences, cancellationToken).ConfigureAwait(false);
+            }
+
+            private readonly NodeId m_sourceId;
         }
 
         /// <summary>
