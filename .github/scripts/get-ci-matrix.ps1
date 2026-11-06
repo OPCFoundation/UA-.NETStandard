@@ -478,15 +478,9 @@ function Get-TestProjectShards([string] $project, [string] $framework)
             if ($framework -ne 'net48') {
                 return @(
                     @{
-                        id = 'wot-materialization-core'
-                        name = 'wot-materialization-core'
-                        filter = "FullyQualifiedName~${materialization}&TestCategory!=Integration"
-                        hangTimeout = ''
-                    }
-                    @{
-                        id = 'wot-materialization-integration'
-                        name = 'wot-materialization-integration'
-                        filter = "FullyQualifiedName~${materialization}&TestCategory=Integration"
+                        id = 'wot-materialization'
+                        name = 'wot-materialization'
+                        filter = "FullyQualifiedName~${materialization}"
                         hangTimeout = ''
                     }
                     @{
