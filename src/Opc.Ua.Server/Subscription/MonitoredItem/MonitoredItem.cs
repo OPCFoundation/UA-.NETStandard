@@ -182,6 +182,54 @@ namespace Opc.Ua.Server
             double sourceSamplingInterval,
             bool createDurable,
             TimeProvider? timeProvider)
+            : this(
+                server,
+                nodeManager,
+                managerHandle,
+                subscriptionId,
+                id,
+                itemToMonitor,
+                diagnosticsMasks,
+                timestampsToReturn,
+                monitoringMode,
+                clientHandle,
+                originalFilter,
+                filterToUse,
+                range,
+                samplingInterval,
+                queueSize,
+                discardOldest,
+                sourceSamplingInterval,
+                createDurable,
+                timeProvider,
+                null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes an item with a source generation resolved before native registration.
+        /// </summary>
+        internal MonitoredItem(
+            IServerInternal server,
+            IAsyncNodeManager nodeManager,
+            object managerHandle,
+            uint subscriptionId,
+            uint id,
+            ReadValueId itemToMonitor,
+            DiagnosticsMasks diagnosticsMasks,
+            TimestampsToReturn timestampsToReturn,
+            MonitoringMode monitoringMode,
+            uint clientHandle,
+            MonitoringFilter? originalFilter,
+            MonitoringFilter? filterToUse,
+            Range? range,
+            double samplingInterval,
+            uint queueSize,
+            bool discardOldest,
+            double sourceSamplingInterval,
+            bool createDurable,
+            TimeProvider? timeProvider,
+            NodeManagerGeneration? sourceGeneration)
         {
             if (itemToMonitor == null)
             {
@@ -196,7 +244,7 @@ namespace Opc.Ua.Server
             Initialize();
 
             m_server = server;
-            NodeManager = nodeManager;
+            SetNodeManager(nodeManager, sourceGeneration);
             ManagerHandle = managerHandle;
             SourceMetadata = CaptureSourceMetadata(server, managerHandle);
             SubscriptionId = subscriptionId;
@@ -292,7 +340,21 @@ namespace Opc.Ua.Server
             TimeProvider? timeProvider)
             : this(
                 server, storedMonitoredItem, timeProvider,
-                nodeManager ?? throw new ArgumentNullException(nameof(nodeManager)), managerHandle)
+                nodeManager ?? throw new ArgumentNullException(nameof(nodeManager)), managerHandle, null)
+        {
+        }
+
+        /// <summary>
+        /// Restores an item with a source generation resolved before native registration.
+        /// </summary>
+        internal MonitoredItem(
+            IServerInternal server,
+            IAsyncNodeManager nodeManager,
+            object managerHandle,
+            IStoredMonitoredItem storedMonitoredItem,
+            TimeProvider? timeProvider,
+            NodeManagerGeneration sourceGeneration)
+            : this(server, storedMonitoredItem, timeProvider, nodeManager, managerHandle, sourceGeneration)
         {
         }
 
@@ -306,7 +368,7 @@ namespace Opc.Ua.Server
             IServerInternal server,
             IStoredMonitoredItem storedMonitoredItem,
             TimeProvider? timeProvider = null)
-            : this(server, storedMonitoredItem, timeProvider, null, null)
+            : this(server, storedMonitoredItem, timeProvider, null, null, null)
         {
         }
 
@@ -318,7 +380,8 @@ namespace Opc.Ua.Server
             IStoredMonitoredItem storedMonitoredItem,
             TimeProvider? timeProvider,
             IAsyncNodeManager? nodeManager,
-            object? managerHandle)
+            object? managerHandle,
+            NodeManagerGeneration? sourceGeneration)
         {
             if (storedMonitoredItem == null)
             {
@@ -337,11 +400,11 @@ namespace Opc.Ua.Server
                 if (storedMonitoredItem.IsDetached ||
                     storedMonitoredItem is IStoredMonitoredItemInvalidation { IsTerminal: true })
                 {
-                    m_slot = NodeManagerGenerationRegistry.GetOrCreate(nodeManager).Slot;
+                    m_slot = (sourceGeneration ?? MasterNodeManager.GetSourceGeneration(server, nodeManager)).Slot;
                 }
                 else
                 {
-                    NodeManager = nodeManager;
+                    SetNodeManager(nodeManager, sourceGeneration);
                 }
             }
             else
@@ -464,26 +527,7 @@ namespace Opc.Ua.Server
         public IAsyncNodeManager? NodeManager
         {
             get => m_nodeManager;
-            private set
-            {
-                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(
-                    value ?? throw new ArgumentNullException(nameof(value)));
-                if (Generation?.TryGetGeneration(out NodeManagerGeneration? previous) == true)
-                {
-                    previous!.MonitoredItems.TryRemove(this, out _);
-                }
-                if (m_slot is { } previousSlot && !ReferenceEquals(previousSlot, generation.Slot))
-                {
-                    previousSlot.UnresolvedItems.TryRemove(this, out _);
-                }
-                m_slot = generation.Slot;
-                m_nodeManager = value;
-                Generation = generation.Reference;
-                if (m_subscriptionOwnership == SubscriptionOwnership.Bound)
-                {
-                    generation.MonitoredItems[this] = m_subscription!;
-                }
-            }
+            private set => SetNodeManager(value, null);
         }
 
         /// <summary>
@@ -882,6 +926,10 @@ namespace Opc.Ua.Server
                 {
                     previous!.MonitoredItems.TryRemove(this, out _);
                 }
+                if (Generation is not null)
+                {
+                    m_releasedGeneration = Generation;
+                }
                 m_nodeManager = null;
                 Generation = null;
                 ManagerHandle = null;
@@ -919,7 +967,8 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                return new MonitoredItemSourceSnapshot(Generation, ManagerHandle as NodeHandle, m_sourceRevision);
+                return new MonitoredItemSourceSnapshot(
+                    Generation, ManagerHandle as NodeHandle, m_sourceRevision, m_releasedGeneration);
             }
         }
 
@@ -928,9 +977,23 @@ namespace Opc.Ua.Server
             long sourceRevision,
             IAsyncNodeManager nodeManager,
             object managerHandle,
+            out long boundRevision,
+            MonitoredItemAdoption? adoption)
+        {
+            return BindSource(nodeManager, managerHandle, sourceRevision, out boundRevision, adoption: adoption);
+        }
+
+        /// <summary>
+        /// Binds a native source using the generation resolved before registration.
+        /// </summary>
+        internal bool TryBindSource(
+            long sourceRevision,
+            IAsyncNodeManager nodeManager,
+            object managerHandle,
+            NodeManagerGeneration sourceGeneration,
             out long boundRevision)
         {
-            return BindSource(nodeManager, managerHandle, sourceRevision, out boundRevision);
+            return BindSource(nodeManager, managerHandle, sourceRevision, out boundRevision, sourceGeneration);
         }
 
         /// <summary>
@@ -940,7 +1003,9 @@ namespace Opc.Ua.Server
             IAsyncNodeManager nodeManager,
             object managerHandle,
             long sourceRevision,
-            out long boundRevision)
+            out long boundRevision,
+            NodeManagerGeneration? sourceGeneration = null,
+            MonitoredItemAdoption? adoption = null)
         {
             NodeState? metadata = CaptureSourceMetadata(m_server, managerHandle);
             lock (m_lock)
@@ -958,12 +1023,17 @@ namespace Opc.Ua.Server
                 {
                     throw new InvalidOperationException("A terminal monitored item cannot be rebound.");
                 }
-                NodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
+                NodeManagerGeneration generation = SetNodeManager(nodeManager, sourceGeneration);
                 ManagerHandle = managerHandle;
                 SourceMetadata = metadata;
                 SetLostNodeState(isDeleted: false);
                 m_finalValuePublished = false;
                 boundRevision = m_sourceRevision = unchecked(m_sourceRevision + 1);
+                if (adoption is not null)
+                {
+                    adoption.SourceRevision = boundRevision;
+                    adoption.Generation = generation;
+                }
                 return true;
             }
         }
@@ -3248,6 +3318,35 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Installs a source binding, optionally using an already resolved generation.
+        /// </summary>
+        private NodeManagerGeneration SetNodeManager(
+            IAsyncNodeManager? nodeManager,
+            NodeManagerGeneration? sourceGeneration)
+        {
+            IAsyncNodeManager source = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
+            NodeManagerGeneration generation = sourceGeneration ??
+                MasterNodeManager.GetSourceGeneration(m_server, source);
+            if (Generation?.TryGetGeneration(out NodeManagerGeneration? previous) == true)
+            {
+                previous!.MonitoredItems.TryRemove(this, out _);
+            }
+            if (m_slot is { } previousSlot && !ReferenceEquals(previousSlot, generation.Slot))
+            {
+                previousSlot.UnresolvedItems.TryRemove(this, out _);
+            }
+            m_slot = generation.Slot;
+            m_nodeManager = source;
+            Generation = generation.Reference;
+            m_releasedGeneration = null;
+            if (m_subscriptionOwnership == SubscriptionOwnership.Bound)
+            {
+                generation.MonitoredItems[this] = m_subscription!;
+            }
+            return generation;
+        }
+
+        /// <summary>
         /// Captures a detached copy of the source node metadata needed to revise and validate item modifications.
         /// </summary>
         /// <param name="server">The server providing the type tree and system context.</param>
@@ -3881,6 +3980,9 @@ namespace Opc.Ua.Server
 
         /// <summary>Changes only when a native source binding is installed, never when sampling or queuing.</summary>
         private long m_sourceRevision;
+
+        /// <summary>Weakly identifies the last released source for retrying its unfinished cleanup.</summary>
+        private NodeManagerGenerationReference? m_releasedGeneration;
         private string? m_indexRange;
         private NumericRange m_parsedIndexRange;
         private TimestampsToReturn m_timestampsToReturn;
