@@ -127,7 +127,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             using var manager = CreateManager(database, requests.Object);
             ServiceResult result = await InvokeAsync(
                 manager, handler, CreateContext(GdsRole.CertificateAuthorityAdmin),
-                new NodeId("unknown", manager.ApplicationsNamespaceIndex)).ConfigureAwait(false);
+                new NodeId(Guid.NewGuid(), manager.ApplicationsNamespaceIndex)).ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
             requests.VerifyNoOtherCalls();
