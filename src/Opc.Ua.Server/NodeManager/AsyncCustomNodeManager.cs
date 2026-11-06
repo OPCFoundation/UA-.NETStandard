@@ -595,6 +595,32 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Registers a node owned by this manager as a root notifier and waits until
+        /// subscribers of the Server object can receive its events.
+        /// </summary>
+        /// <remarks>
+        /// Unlike <see cref="AddRootNotifier"/>, this publishes the forward
+        /// HasNotifier reference on the Server object and attaches monitored items
+        /// that already subscribe to all Server events. Deleting the node through
+        /// this manager removes the registration, so there is no separate removal
+        /// API. If registration fails, delete the node to discard any partial
+        /// registration.
+        /// </remarks>
+        /// <param name="notifier">The notifier to register.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="notifier"/> is <c>null</c>.</exception>
+        public ValueTask RegisterRootNotifierAsync(
+            NodeState notifier,
+            CancellationToken cancellationToken = default)
+        {
+            if (notifier == null)
+            {
+                throw new ArgumentNullException(nameof(notifier));
+            }
+            return AddRootNotifierAsync(notifier, cancellationToken);
+        }
+
+        /// <summary>
         /// Follows the NodeId factory onto the manager's new default
         /// namespace, unless it was deliberately pointed somewhere else.
         /// </summary>

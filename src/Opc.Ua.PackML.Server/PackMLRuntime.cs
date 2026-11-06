@@ -157,9 +157,11 @@ namespace Opc.Ua.PackML.Server
                         [new NodeStateReference(Ua.ReferenceTypeIds.Organizes, false, unit.Node.NodeId)],
                         cancellationToken).ConfigureAwait(false);
                 }
-                if (m_manager is PackMLNodeManager standalone)
+                // Parentless units have no notifier to propagate through, so they
+                // become Server roots. The standalone owner keeps registering every unit.
+                if (parent is null || m_manager is PackMLNodeManager)
                 {
-                    await standalone.RegisterUnitNotifierAsync(unit.Node, cancellationToken).ConfigureAwait(false);
+                    await m_manager.RegisterRootNotifierAsync(unit.Node, cancellationToken).ConfigureAwait(false);
                 }
                 if (parent is not null)
                 {

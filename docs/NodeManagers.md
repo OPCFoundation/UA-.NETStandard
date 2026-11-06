@@ -2354,6 +2354,12 @@ builder.Boilers.Boiler__1.DrumX001
 
 The `Server` Object (`i=2253`) is the aggregate event subscription point
 (OPC UA Part 5 [8.3.2](https://reference.opcfoundation.org/Core/Part5/v105/docs/8.3.2)).
+A node added at runtime without a parent notifier reaches Server subscribers only
+after `await manager.RegisterRootNotifierAsync(node, ct)`. The call publishes the
+Server object's `HasNotifier` reference and attaches monitored items that already
+subscribe to Server events. Deleting the node through its manager removes the
+registration, so there is no removal API. If registration throws, delete the node
+to discard any partial registration.
 Server-wide fan-out treats an individual root or manager's `BadNotSupported` as
 non-participation, not as a failure of every other source. Root registration
 does not silently set `EventNotifier.SubscribeToEvents`; declare the capability

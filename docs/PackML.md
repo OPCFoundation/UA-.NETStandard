@@ -87,10 +87,17 @@ Objects. Keep the runtime until the owner shuts down, then await
 `DisposeAsync` before deleting its nodes. This path does not require Machinery,
 DI, Scales or a PackML-specific global folder.
 
-For a parentless unit in an ordinary `AsyncCustomNodeManager`, the owner must
-register the unit as a Server event root. Otherwise, a subscription to Server
-does not receive its transition events. `PackMLNodeManager` registers its units
-as event roots.
+A parentless unit has no parent notifier to carry its events, so `AddUnitAsync`
+registers it as a Server event root through
+`AsyncCustomNodeManager.RegisterRootNotifierAsync`. That call adds the Server
+object's `HasNotifier` reference and attaches monitored items that already
+subscribe to Server events. A subscription to Server therefore receives the
+unit's transition events, whether it was created before or after the unit. If
+registration fails, `AddUnitAsync` deletes the unit and its `ModeDataType`, which
+also discards any partial registration, and rethrows the failure. Deleting the
+unit through its node manager removes the Server root; there is no separate
+removal call. A unit with a parent reports through that parent's notifier
+chain. `PackMLNodeManager` registers every unit as an event root.
 
 The direct `PackMLUnit.CreateAsync` path creates an unregistered unit and its
 `ModeDataType`. Its owner must register both nodes, attach the unit to its

@@ -58,6 +58,7 @@ namespace Opc.Ua.PackML.Tests
         private ManagedSession m_session = null!;
         private PackMLClient m_client = null!;
         private PackMLNodeManager m_manager = null!;
+        private ComposedNodeManager m_composed = null!;
         private Unit m_unit = null!;
         private EquipmentProvider m_equipment = null!;
         private string m_endpoint = string.Empty;
@@ -81,7 +82,7 @@ namespace Opc.Ua.PackML.Tests
                         cancellationToken: ct);
                     ready.TrySetResult(true);
                 };
-            });
+            }).AddNodeManager(new ComposedNodeManagerFactory(manager => m_composed = manager));
             m_services = services.BuildServiceProvider();
             m_host = m_services.GetServices<IHostedService>().Single();
             await m_host.StartAsync(CancellationToken.None);
@@ -166,14 +167,14 @@ namespace Opc.Ua.PackML.Tests
                             new ReadValueId
                             {
                                 NodeId =
-                                    global::Opc.Ua.VariableIds
+                                    Ua.VariableIds
                                         .Server_ServerCapabilities_MaxMonitoredItems,
                                 AttributeId = Attributes.Value
                             },
                             new ReadValueId
                             {
                                 NodeId =
-                                    global::Opc.Ua.VariableIds
+                                    Ua.VariableIds
                                         .Server_ServerCapabilities_MaxMonitoredItemsPerSubscription,
                                 AttributeId = Attributes.Value
                             }
@@ -1348,7 +1349,232 @@ namespace Opc.Ua.PackML.Tests
             await Assert.ThatAsync(() => secondRequest, Throws.InstanceOf<OperationCanceledException>());
         }
 
-        private void ConfigureServer(OpcUaServerOptions options)
+        /// <summary>
+        /// Verifies a parentless unit in an ordinary node manager reaches Server-object event subscribers,
+        /// whether the subscription exists before or after the unit is registered.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task ComposedParentlessUnitEventsReachServerObjectSubscribers(bool subscribeFirst)
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            CancellationToken ct = deadline.Token;
+            var runtime = new PackMLRuntime(m_composed);
+            uint subscriptionId = 0;
+            try
+            {
+                if (subscribeFirst)
+                {
+                    subscriptionId = await SubscribeToServerEventsAsync(ct).ConfigureAwait(false);
+                }
+                Unit unit = await runtime.AddUnitAsync(
+                    new QualifiedName("ComposedEvents", m_composed.NamespaceIndexes[0]), new EquipmentProvider(),
+                    cancellationToken: ct).ConfigureAwait(false);
+                Assert.That(m_composed.Server.ServerObject.ReferenceExists(
+                    Ua.ReferenceTypeIds.HasNotifier, false, unit.Node.NodeId), Is.True);
+                if (!subscribeFirst)
+                {
+                    subscriptionId = await SubscribeToServerEventsAsync(ct).ConfigureAwait(false);
+                }
+                HashSet<NodeId> sources = CollectSubtree(m_composed.SystemContext, unit.Node);
+
+                ServiceResult reset = await unit.RequestAsync(
+                    m_composed.SystemContext,
+                    new PackMLRequest { Operation = PackMLOperation.Command, Command = PackMLCommand.Reset },
+                    ct).ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(reset), Is.True, reset.ToString());
+
+                NodeId source = await PublishUnitEventAsync(subscriptionId, sources, ct).ConfigureAwait(false);
+                Assert.That(sources, Does.Contain(source));
+            }
+            finally
+            {
+                if (subscriptionId != 0)
+                {
+                    await m_session.DeleteSubscriptionsAsync(null, [subscriptionId], CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+                await runtime.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Verifies a failed root registration deletes the materialized unit together with its partial
+        /// Server registration, and that the same unit can be composed afterwards.
+        /// </summary>
+        [Test]
+        public async Task ComposedUnitRootRegistrationFailureRollsBackUnit()
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            CancellationToken ct = deadline.Token;
+            var runtime = new PackMLRuntime(m_composed);
+            var fault = new InvalidOperationException("Root registration failed.");
+            var browseName = new QualifiedName("ComposedRollback", m_composed.NamespaceIndexes[0]);
+            var materialized = new List<NodeId>();
+            try
+            {
+                m_composed.RegistrationFault = fault;
+                m_composed.Registered = materialized.Add;
+                Exception? failure = Assert.CatchAsync(async () => await runtime.AddUnitAsync(
+                    browseName, new EquipmentProvider(), cancellationToken: ct).ConfigureAwait(false));
+                m_composed.RegistrationFault = null;
+                m_composed.Registered = null;
+
+                Assert.That(failure, Is.SameAs(fault));
+                Assert.That(materialized, Has.Count.EqualTo(1));
+                NodeId rolledBack = materialized[0];
+                Assert.That(runtime.Units.Count, Is.Zero);
+                Assert.That(m_composed.Find(rolledBack), Is.Null);
+                Assert.That(m_composed.Server.ServerObject.ReferenceExists(
+                    Ua.ReferenceTypeIds.HasNotifier, false, rolledBack), Is.False);
+
+                Unit unit = await runtime.AddUnitAsync(browseName, new EquipmentProvider(), cancellationToken: ct)
+                    .ConfigureAwait(false);
+                Assert.That(runtime.Units.Count, Is.EqualTo(1));
+                Assert.That(m_composed.Find(unit.Node.NodeId), Is.SameAs(unit.Node));
+                Assert.That(m_composed.Server.ServerObject.ReferenceExists(
+                    Ua.ReferenceTypeIds.HasNotifier, false, unit.Node.NodeId), Is.True);
+            }
+            finally
+            {
+                m_composed.RegistrationFault = null;
+                m_composed.Registered = null;
+                await runtime.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Verifies deleting a composed parentless unit removes its Server root registration.
+        /// </summary>
+        [Test]
+        public async Task DeletingComposedUnitRemovesServerRootNotifier()
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            CancellationToken ct = deadline.Token;
+            var runtime = new PackMLRuntime(m_composed);
+            Unit unit;
+            try
+            {
+                unit = await runtime.AddUnitAsync(
+                    new QualifiedName("ComposedDeletion", m_composed.NamespaceIndexes[0]), new EquipmentProvider(),
+                    cancellationToken: ct).ConfigureAwait(false);
+                Assert.That(m_composed.Server.ServerObject.ReferenceExists(
+                    Ua.ReferenceTypeIds.HasNotifier, false, unit.Node.NodeId), Is.True);
+                Assert.That(unit.Node.OnReportEventAsync, Is.Not.Null);
+            }
+            finally
+            {
+                await runtime.DisposeAsync().ConfigureAwait(false);
+            }
+
+            Assert.That(await m_composed.DeleteNodeAsync(m_composed.SystemContext, unit.Node.NodeId, ct)
+                .ConfigureAwait(false), Is.True);
+
+            Assert.That(m_composed.Find(unit.Node.NodeId), Is.Null);
+            Assert.That(m_composed.Server.ServerObject.ReferenceExists(
+                Ua.ReferenceTypeIds.HasNotifier, false, unit.Node.NodeId), Is.False);
+            Assert.That(unit.Node.OnReportEventAsync, Is.Null);
+        }
+
+        private async Task<uint> SubscribeToServerEventsAsync(CancellationToken ct)
+        {
+            CreateSubscriptionResponse subscription = await m_session.CreateSubscriptionAsync(
+                null, 100, 100, 10, 0, true, 0, ct).ConfigureAwait(false);
+            Assert.That(StatusCode.IsGood(subscription.ResponseHeader.ServiceResult), Is.True);
+            CreateMonitoredItemsResponse response = await m_session.CreateMonitoredItemsAsync(
+                null,
+                subscription.SubscriptionId,
+                TimestampsToReturn.Both,
+                [
+                    new MonitoredItemCreateRequest
+                    {
+                        ItemToMonitor = new ReadValueId
+                        {
+                            NodeId = Ua.ObjectIds.Server,
+                            AttributeId = Attributes.EventNotifier
+                        },
+                        MonitoringMode = MonitoringMode.Reporting,
+                        RequestedParameters = new MonitoringParameters
+                        {
+                            ClientHandle = 1,
+                            SamplingInterval = 0,
+                            QueueSize = 100,
+                            DiscardOldest = true,
+                            Filter = new ExtensionObject(new EventFilter
+                            {
+                                SelectClauses =
+                                [
+                                    new SimpleAttributeOperand
+                                    {
+                                        TypeDefinitionId = Ua.ObjectTypeIds.BaseEventType,
+                                        BrowsePath = [new QualifiedName(Ua.BrowseNames.SourceNode)],
+                                        AttributeId = Attributes.Value
+                                    }
+                                ]
+                            })
+                        }
+                    }
+                ],
+                ct).ConfigureAwait(false);
+            Assert.That(response.Results.Count, Is.EqualTo(1));
+            Assert.That(StatusCode.IsGood(response.Results[0].StatusCode), Is.True);
+            return subscription.SubscriptionId;
+        }
+
+        private async Task<NodeId> PublishUnitEventAsync(
+            uint subscriptionId, HashSet<NodeId> sources, CancellationToken ct)
+        {
+            ArrayOf<SubscriptionAcknowledgement> acknowledgements = default;
+            while (true)
+            {
+                PublishResponse published = await m_session.PublishAsync(null, acknowledgements, ct)
+                    .ConfigureAwait(false);
+                Assert.That(StatusCode.IsGood(published.ResponseHeader.ServiceResult), Is.True);
+                acknowledgements = published.NotificationMessage.NotificationData.Count == 0
+                    ? default
+                    : [
+                        new SubscriptionAcknowledgement
+                        {
+                            SubscriptionId = published.SubscriptionId,
+                            SequenceNumber = published.NotificationMessage.SequenceNumber
+                        }
+                    ];
+                if (published.SubscriptionId != subscriptionId)
+                {
+                    continue;
+                }
+                foreach (ExtensionObject extension in published.NotificationMessage.NotificationData)
+                {
+                    if (!extension.TryGetValue(out EventNotificationList? events) || events == null)
+                    {
+                        continue;
+                    }
+                    foreach (EventFieldList fields in events.Events)
+                    {
+                        if (fields.EventFields.Count > 0 &&
+                            fields.EventFields[0].TryGetValue(out NodeId source) &&
+                            sources.Contains(source))
+                        {
+                            return source;
+                        }
+                    }
+                }
+            }
+        }
+
+        private static HashSet<NodeId> CollectSubtree(ISystemContext context, NodeState root)
+        {
+            var nodes = new List<NodeState> { root };
+            var ids = new HashSet<NodeId>();
+            for (int index = 0; index < nodes.Count; index++)
+            {
+                ids.Add(nodes[index].NodeId);
+                var children = new List<BaseInstanceState>();
+                nodes[index].GetChildren(context, children);
+                nodes.AddRange(children);
+            }
+            return ids;
+        }
         {
             if (TestContext.CurrentContext.Test.MethodName == nameof(PackMLMonitoredItemSupportsQueueSizeOfAtLeastFive))
             {
@@ -1390,5 +1616,78 @@ namespace Opc.Ua.PackML.Tests
 
         private static readonly bool[] s_materialReadiness = [true, false];
         private static readonly int[] s_stateDimensions = [2, 20];
+
+        /// <summary>
+        /// Creates the ordinary node manager that composes PackML units without owning PackML types.
+        /// </summary>
+        private sealed class ComposedNodeManagerFactory : IAsyncNodeManagerFactory
+        {
+            /// <summary>
+            /// Initializes the factory with the callback that receives the created manager.
+            /// </summary>
+            public ComposedNodeManagerFactory(Action<ComposedNodeManager> created)
+            {
+                m_created = created;
+            }
+
+            /// <summary>
+            /// Gets the namespace owned by the composed manager.
+            /// </summary>
+            public ArrayOf<string> NamespacesUris { get; } = ["urn:opcfoundation:tests:packml:composed"];
+
+            /// <inheritdoc/>
+            public ValueTask<IAsyncNodeManager> CreateAsync(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                CancellationToken cancellationToken = default)
+            {
+                var manager = new ComposedNodeManager(server, configuration, NamespacesUris[0]);
+                m_created(manager);
+                return new ValueTask<IAsyncNodeManager>(manager);
+            }
+
+            private readonly Action<ComposedNodeManager> m_created;
+        }
+
+        /// <summary>
+        /// Ordinary asynchronous node manager that can inject a root registration failure
+        /// after the registration has been applied.
+        /// </summary>
+        private sealed class ComposedNodeManager : AsyncCustomNodeManager
+        {
+            /// <summary>
+            /// Initializes the manager for one namespace.
+            /// </summary>
+            public ComposedNodeManager(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                string namespaceUri)
+                : base(server, configuration, namespaceUri)
+            {
+            }
+
+            /// <summary>
+            /// Gets or sets the failure thrown after a root notifier is registered.
+            /// </summary>
+            public Exception? RegistrationFault { get; set; }
+
+            /// <summary>
+            /// Gets or sets the callback observing each registered root notifier.
+            /// </summary>
+            public Action<NodeId>? Registered { get; set; }
+
+            /// <inheritdoc/>
+            protected override async ValueTask AddRootNotifierAsync(
+                NodeState notifier,
+                CancellationToken cancellationToken = default)
+            {
+                await base.AddRootNotifierAsync(notifier, cancellationToken).ConfigureAwait(false);
+                Registered?.Invoke(notifier.NodeId);
+                if (RegistrationFault is { } fault)
+                {
+                    throw fault;
+                }
+            }
+        }
     }
 }

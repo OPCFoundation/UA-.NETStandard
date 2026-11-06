@@ -103,16 +103,6 @@ namespace Opc.Ua.PackML.Server
         }
 
         /// <summary>
-        /// Connects units created at startup or later to the server event notifier.
-        /// </summary>
-        internal ValueTask RegisterUnitNotifierAsync(
-            PackMLBaseObjectState node,
-            CancellationToken cancellationToken)
-        {
-            return AddRootNotifierAsync(node, cancellationToken);
-        }
-
-        /// <summary>
         /// Validates namespace ownership before base initialization.
         /// </summary>
         private static string[] GetNamespaces(PackMLServerOptions options)
