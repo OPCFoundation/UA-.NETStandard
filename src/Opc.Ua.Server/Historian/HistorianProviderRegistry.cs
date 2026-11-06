@@ -1522,6 +1522,7 @@ namespace Opc.Ua.Server.Historian
         private readonly HashSet<IHistorianProvider> m_providers = [];
         private readonly HashSet<IHistorianProvider> m_ownedProviders = [];
         private IHistorianProvider? m_default;
+
         /// <summary>Whether shutdown invalidated all registrations and pending replacements.</summary>
         private bool m_disposed;
         private long m_defaultRegistrationOrder;
