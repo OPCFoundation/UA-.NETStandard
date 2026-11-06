@@ -332,6 +332,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 .Setup(value => value.UnregisterHistorianBuilder(It.IsAny<HistorianBuilder>()))
                 .Callback<HistorianBuilder>(builder => builders.Remove(builder));
             var builder = new HistorianBuilder(server);
+            Assert.That(builders, Is.Empty);
+            using var provider = new InMemoryHistorianProvider();
+            builder.UseProvider(provider).RegisterAsDefault();
             Assert.That(builders, Has.Count.EqualTo(1));
             Assert.That(builders[0], Is.SameAs(builder));
 
