@@ -1114,6 +1114,18 @@ namespace Opc.Ua
             // Allow a length of -1 to support legacy devices that don't fill the length correctly
             int length = SafeReadInt32();
 
+            // A notification body is only needed when it is dispatched: keep the bytes
+            // flat until then, so that messages waiting for dispatch cost the GC nothing.
+            // A forward-only stream cannot tell that the length is available up front.
+            if (activator != null &&
+                length > 0 &&
+                DeferredExtensionObjectBody.IsDeferred(Context, typeId) &&
+                m_namespaceMappings == null &&
+                m_serverMappings == null &&
+                (m_hasBuffer || BaseStream.CanSeek))
+            {
+                return ReadDeferredExtensionObject(extension.TypeId, activator, length);
+            }
             if (!m_hasBuffer && !BaseStream.CanSeek)
             {
                 if (length < 0)
@@ -1161,6 +1173,39 @@ namespace Opc.Ua
             return ReadBinaryExtensionObject(typeId, extension, activator, length);
         }
 
+        /// <summary>
+        /// Copies a body that is decoded on first use into a rented buffer.
+        /// </summary>
+        private ExtensionObject ReadDeferredExtensionObject(
+            ExpandedNodeId typeId,
+            IEncodeableType activator,
+            int length)
+        {
+            // never rent a length the input cannot satisfy.
+            CheckRemainingBytes(length, nameof(ReadExtensionObject));
+            if (Context.MaxMessageSize > 0 && Context.MaxMessageSize < length)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxMessageSize exceeded in ExtensionObject: {0} < {1}",
+                    Context.MaxMessageSize,
+                    length);
+            }
+            byte[] buffer = DeferredExtensionObjectBody.Rent(length);
+            try
+            {
+                ReadRawBytes(buffer.AsSpan(0, length));
+            }
+            catch
+            {
+                DeferredExtensionObjectBody.Return(buffer);
+                throw;
+            }
+            return new ExtensionObject(
+                typeId,
+                new DeferredExtensionObjectBody(
+                    typeId, buffer, length, activator, Context, m_nestingLevel + 1));
+        }
         /// <summary>
         /// Decodes a binary body on seekable input, retaining the original
         /// namespace-zero failure and bounded recovery policy.

@@ -147,6 +147,26 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         /// <summary>
+        /// Deferred notification decoding is on for the V2 engine by default, delivers the
+        /// same notifications either way, and stays off for the classic engine.
+        /// </summary>
+        [TestCase(false, true, true)]
+        [TestCase(false, false, false)]
+        [TestCase(true, true, false)]
+        [CancelAfter(90_000)]
+        public async Task DeferredNotificationDecodingFollowsTheOptionAsync(
+            bool classic, bool defer, bool expected, CancellationToken ct)
+        {
+            var observer = new RecordingObserver();
+            await using ManagedSessionType session = await ConnectAsync(
+                nameof(DeferredNotificationDecodingFollowsTheOptionAsync), observer, classic, defer, ct)
+                .ConfigureAwait(false);
+
+            Assert.That(session.MessageContext, Is.InstanceOf<ServiceMessageContext>());
+            Assert.That(((ServiceMessageContext)session.MessageContext).DeferNotificationBodies, Is.EqualTo(expected));
+        }
+
+        /// <summary>
         /// Classic subscriptions retain live split markers through either session engine.
         /// </summary>
         [TestCase(false)]
@@ -331,6 +351,16 @@ namespace Opc.Ua.Subscriptions.Tests
             bool classic,
             CancellationToken ct)
         {
+            return await ConnectAsync(name, observer, classic, deferNotificationDecoding: true, ct).ConfigureAwait(false);
+        }
+
+        private async Task<ManagedSessionType> ConnectAsync(
+            string name,
+            RecordingObserver observer,
+            bool classic,
+            bool deferNotificationDecoding,
+            CancellationToken ct)
+        {
             ConfiguredEndpoint endpoint = await ClientFixture
                 .GetEndpointAsync(ServerUrl, SecurityPolicies.None)
                 .ConfigureAwait(false);
@@ -344,6 +374,7 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 builder.UseSubscriptionEngine(ClassicSubscriptionEngineFactory.Instance);
             }
+            builder.WithDeferredNotificationDecoding(deferNotificationDecoding);
             return await builder.ConnectAsync(ct).ConfigureAwait(false);
         }
 

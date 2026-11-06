@@ -100,6 +100,56 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// A body kept as bytes reaches the handler decoded, and the message does not keep the
+        /// decoded notification alive after the dispatch.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [CancelAfter(10_000)]
+        public async Task DeferredBodyIsDispatchedAndDroppedAfterHandlerAsync(bool pooled, CancellationToken ct)
+        {
+            var delivered = new List<EventNotification>();
+            m_mockNotificationDataHandler.Setup(value => value.OnEventDataNotificationAsync(
+                    It.IsAny<ISubscription>(), It.IsAny<uint>(), It.IsAny<DateTime>(),
+                    It.IsAny<ReadOnlyMemory<EventNotification>>(), It.IsAny<PublishState>(),
+                    It.IsAny<IReadOnlyList<string>>()))
+                .Callback((ISubscription _, uint _, DateTime _, ReadOnlyMemory<EventNotification> events,
+                    PublishState _, IReadOnlyList<string> _) => delivered.AddRange(events.ToArray()))
+                .Returns(default(ValueTask));
+            m_completion.PoolNotifications = pooled;
+            await using var subscription = new TestSubscription(
+                m_session, m_mockNotificationDataHandler.Object, m_completion, m_options, m_telemetry, 7);
+
+            ExtensionObject body = DecodeDeferred(new EventNotificationList
+            {
+                Events = [new EventFieldList { ClientHandle = 12, EventFields = [Variant.From("event")] }]
+            });
+            var message = new NotificationMessage
+            {
+                SequenceNumber = 3,
+                PublishTime = DateTime.UtcNow,
+                NotificationData = [body]
+            };
+            await subscription.OnPublishReceivedAsync(message, [3], []).ConfigureAwait(false);
+            await m_completion.WaitForQueuedAckAsync(1).WaitAsync(ct).ConfigureAwait(false);
+
+            Assert.That(delivered, Has.Count.EqualTo(1));
+            Assert.That(delivered[0].ClientHandle, Is.EqualTo(12));
+            Assert.That(delivered[0].Fields[0], Is.EqualTo(Variant.From("event")));
+            Assert.That(body.TryGetValue(out EventNotificationList? _), Is.False);
+        }
+
+        private ExtensionObject DecodeDeferred(EventNotificationList notification)
+        {
+            ServiceMessageContext context = ServiceMessageContext.Create(m_telemetry);
+            context.DeferNotificationBodies = true;
+            using var encoder = new BinaryEncoder(context);
+            encoder.WriteExtensionObject(null, new ExtensionObject(notification));
+            using var decoder = new BinaryDecoder(encoder.CloseAndReturnBuffer()!, context);
+            return decoder.ReadExtensionObject(null);
+        }
+
+        /// <summary>
         /// The original constructor and deconstruction remain usable without continuation metadata.
         /// </summary>
         [TestCase(null)]
