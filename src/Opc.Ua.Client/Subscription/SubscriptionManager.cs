@@ -3509,6 +3509,8 @@ namespace Opc.Ua.Client.Subscriptions
                         }
                         batch = await m_outer.PrepareAcknowledgementsToSendAsync(batch, attemptToken)
                             .ConfigureAwait(false);
+                        // Pool size and revised settings may change while waiting for acknowledgements.
+                        _ = CalculateTimeouts(currentLatencyMs, ref timeoutHint);
                         if (batch.Count != 0)
                         {
                             var wireAcknowledgements = new SubscriptionAcknowledgement[batch.Count];
@@ -3812,7 +3814,8 @@ namespace Opc.Ua.Client.Subscriptions
                             statusCode == StatusCodes.BadRequestTimeout)
                         {
                             // Timed out - retry with larger timeout
-                            timeoutHint += 1000; // Increase by seconds
+                            timeoutHint = (uint)Math.Min(
+                                (long)timeoutHint + 1000, (long)s_maxOperationTimeout.TotalMilliseconds);
                             m_logger.TimedOutIncreasingTimeout(Index, handle, timeoutHint);
                             moreNotifications = true;
                         }
@@ -4095,25 +4098,16 @@ namespace Opc.Ua.Client.Subscriptions
                         minPublishInterval = pi;
                     }
                 }
-                //
-                // The timeout while publishing should be twice the
-                // value for PublishingInterval * KeepAliveCount
-                // TODO: Validate this against spec
-                //
-                timeout = SaturatingTimeSpan.Multiply(timeout, 2);
-                if (timeout < s_minOperationTimeout)
-                {
-                    timeout = s_minOperationTimeout;
-                }
-                if (timeout > s_maxOperationTimeout)
-                {
-                    timeout = s_maxOperationTimeout;
-                }
-                uint newTimeout = (uint)timeout.TotalMilliseconds;
-                if (newTimeout > currentTimeout)
-                {
-                    currentTimeout = newTimeout;
-                }
+                // A quiet subscription serves one queued request per keepalive. Budget the
+                // whole worker pool plus a spare period (at least one second) for scheduling.
+                // The queue's server-side grace does not extend the enclosing request deadline.
+                TimeSpan margin = timeout < s_minOperationTimeout ? s_minOperationTimeout : timeout;
+                timeout = SaturatingTimeSpan.Multiply(timeout, Math.Max(1, m_outer.PublishWorkerCount));
+                uint newTimeout = (uint)Math.Min(
+                    Math.Ceiling(timeout.TotalMilliseconds + margin.TotalMilliseconds),
+                    s_maxOperationTimeout.TotalMilliseconds);
+                currentTimeout = Math.Min(
+                    Math.Max(newTimeout, currentTimeout), (uint)s_maxOperationTimeout.TotalMilliseconds);
                 if (minPublishInterval < latency)
                 {
                     return 0;

@@ -42,7 +42,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [Parallelizable]
-    public class MultiStateValueDiscreteStateTests
+    public partial class MultiStateValueDiscreteStateTests
     {
         // Deliberately sparse / non-zero-based to exercise the EnumValues lookup.
         private static readonly (long Value, string Name)[] s_states =
