@@ -4084,15 +4084,19 @@ namespace Opc.Ua.Server
             List<LocalReference> referencesToRemove,
             CancellationToken cancellationToken = default)
         {
-            if (!PredefinedNodes.TryRemove(node.NodeId, out NodeState? removed))
+            TypeTable typeTree = Server.TypeTree;
+            long registrationVersion = node is BaseTypeState ? typeTree.GetRegistrationVersion(node.NodeId) : 0;
+            ChangePreparer.StagingServer? stagingServer = ChangePreparer.GetServer(this);
+            bool wasServing = stagingServer is null ||
+                (!stagingServer.IsStaging && !stagingServer.IsDetached);
+            if (!PredefinedNodes.TryRemove(node.NodeId, node))
             {
                 return;
             }
 
-            ChangePreparer.StagingServer? stagingServer = ChangePreparer.GetServer(this);
             if (stagingServer?.IsStaging == true)
             {
-                stagingServer.DiscardNodeReferences(removed);
+                stagingServer.DiscardNodeReferences(node);
             }
             DisposeValueReadAuthorization(node);
             // Drop any cached component view so a later resolution does not
@@ -4126,10 +4130,11 @@ namespace Opc.Ua.Server
 
             // remove from type table.
 
-            if (node is BaseTypeState type &&
+            if (node is BaseTypeState type && registrationVersion != 0 &&
                 !IsTypeOwnedByAnotherNodeManager(type.NodeId))
             {
-                Server.TypeTree.Remove(type.NodeId);
+                MasterNodeManager.RemoveTypeRegistration(
+                    Server, typeTree, type.NodeId, registrationVersion, stagingServer, wasServing);
             }
 
             // remove inverse references.
@@ -4540,17 +4545,23 @@ namespace Opc.Ua.Server
 
             foreach (NodeState node in nodes)
             {
-                if (!PredefinedNodes.TryRemove(node.NodeId, out _))
+                TypeTable typeTree = Server.TypeTree;
+                long registrationVersion = node is BaseTypeState ? typeTree.GetRegistrationVersion(node.NodeId) : 0;
+                ChangePreparer.StagingServer? stagingServer = ChangePreparer.GetServer(this);
+                bool wasServing = stagingServer is null ||
+                    (!stagingServer.IsStaging && !stagingServer.IsDetached);
+                if (!PredefinedNodes.TryRemove(node.NodeId, node))
                 {
                     continue;
                 }
 
                 DisposeValueReadAuthorization(node);
                 await OnNodeRemovedAsync(node, cancellationToken).ConfigureAwait(false);
-                if (node is BaseTypeState type &&
+                if (node is BaseTypeState type && registrationVersion != 0 &&
                     !IsTypeOwnedByAnotherNodeManager(type.NodeId))
                 {
-                    Server.TypeTree.Remove(type.NodeId);
+                    MasterNodeManager.RemoveTypeRegistration(
+                        Server, typeTree, type.NodeId, registrationVersion, stagingServer, wasServing);
                 }
 
                 var references = new List<IReference>();

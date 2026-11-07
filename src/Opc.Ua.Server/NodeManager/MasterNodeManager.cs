@@ -449,6 +449,9 @@ namespace Opc.Ua.Server
             while (m_deferredServingRemovals.TryDequeue(out _))
             {
             }
+            while (m_deferredTypeRemovals.TryDequeue(out _))
+            {
+            }
         }
 
         /// <summary>
@@ -1087,6 +1090,50 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Schedules removal of a type registration reserved by a lifecycle decision.
+        /// </summary>
+        internal void DeferTypeRemoval(NodeId typeId, long registrationVersion)
+        {
+            lock (m_deferredReferenceDrainLock)
+            {
+                if (m_deferredReferenceDrainStopped)
+                {
+                    throw new ObjectDisposedException(nameof(MasterNodeManager));
+                }
+                m_deferredTypeRemovals.Enqueue(new DeferredTypeRemoval(typeId, registrationVersion));
+            }
+            ScheduleDeferredReferenceDrain();
+        }
+
+        /// <summary>
+        /// Removes a captured type registration or queues it until the serving publication completes.
+        /// </summary>
+        internal static void RemoveTypeRegistration(
+            IServerInternal server,
+            TypeTable typeTree,
+            NodeId typeId,
+            long registrationVersion,
+            ChangePreparer.StagingServer? staging,
+            bool wasServing)
+        {
+            if (typeTree.TryRemoveRegistration(typeId, registrationVersion))
+            {
+                return;
+            }
+            if ((wasServing || staging is { IsStaging: false, IsDetached: false }) &&
+                server.NodeManager is MasterNodeManager master)
+            {
+                master.DeferTypeRemoval(typeId, registrationVersion);
+                return;
+            }
+            if (!typeTree.TryRemoveRegistration(typeId, registrationVersion))
+            {
+                throw new InvalidOperationException(
+                    "The type table has a pending publication and cannot be changed.");
+            }
+        }
+
+        /// <summary>
         /// Enters mutation admission without waiting for another holder or a pending lifecycle decision.
         /// </summary>
         /// <param name="semaphoreHeld">True when this call acquired the mutation semaphore.</param>
@@ -1221,7 +1268,9 @@ namespace Opc.Ua.Server
                     lock (m_deferredReferenceDrainLock)
                     {
                         if (m_deferredReferenceDrainStopped ||
-                            (m_deferredReferencePrunes.IsEmpty && m_deferredServingRemovals.IsEmpty) ||
+                            (m_deferredReferencePrunes.IsEmpty &&
+                                m_deferredServingRemovals.IsEmpty &&
+                                m_deferredTypeRemovals.IsEmpty) ||
                             (outcome == DeferredReferenceDrainOutcome.Faulted && !m_deferredReferenceDrainRequested))
                         {
                             m_deferredReferenceDrainScheduled = false;
@@ -1257,11 +1306,11 @@ namespace Opc.Ua.Server
                         restart = m_deferredReferenceDrainRequested && !m_deferredReferenceDrainStopped;
                         m_deferredReferenceDrainRequested = false;
                     }
+                    if (restart)
+                    {
+                        ScheduleDeferredReferenceDrain();
+                    }
                 }
-            }
-            if (restart)
-            {
-                ScheduleDeferredReferenceDrain();
             }
         }
 
@@ -1278,7 +1327,7 @@ namespace Opc.Ua.Server
             try
             {
                 ApplyDeferredReferencePrunes();
-                if (m_deferredServingRemovals.IsEmpty)
+                if (m_deferredServingRemovals.IsEmpty && m_deferredTypeRemovals.IsEmpty)
                 {
                     return DeferredReferenceDrainOutcome.Completed;
                 }
@@ -1286,30 +1335,67 @@ namespace Opc.Ua.Server
                     m_lifecycleCallbackPermit,
                     NodeManagerAdmissionCapability.AddressSpaceMutation).ConfigureAwait(false);
                 var outcome = DeferredReferenceDrainOutcome.Completed;
+                var retainedTypes = new List<DeferredTypeRemoval>();
                 var retained = new List<DeferredServingRemoval>();
                 try
                 {
+                    while (m_deferredTypeRemovals.TryDequeue(out DeferredTypeRemoval? typeRemoval))
+                    {
+                        bool completed = false;
+                        try
+                        {
+                            if (!Server.TypeTree.TryRemoveRegistration(
+                                typeRemoval.TypeId, typeRemoval.RegistrationVersion))
+                            {
+                                retainedTypes.Add(typeRemoval);
+                                outcome = DeferredReferenceDrainOutcome.Reserved;
+                            }
+                            completed = true;
+                        }
+                        finally
+                        {
+                            if (!completed)
+                            {
+                                m_deferredTypeRemovals.Enqueue(typeRemoval);
+                            }
+                        }
+                    }
                     while (m_deferredServingRemovals.TryDequeue(out DeferredServingRemoval? removal))
                     {
-                        (DeferredServingRemoval? remaining, bool faulted) =
-                            await RetryDeferredServingRemovalAsync(removal, cancellationToken).ConfigureAwait(false);
-                        if (remaining is null)
+                        bool completed = false;
+                        try
                         {
-                            continue;
+                            (DeferredServingRemoval? remaining, bool faulted) =
+                                await RetryDeferredServingRemovalAsync(removal, cancellationToken).ConfigureAwait(false);
+                            if (remaining is not null)
+                            {
+                                retained.Add(remaining);
+                                if (faulted)
+                                {
+                                    outcome = DeferredReferenceDrainOutcome.Faulted;
+                                }
+                                else if (outcome == DeferredReferenceDrainOutcome.Completed)
+                                {
+                                    outcome = DeferredReferenceDrainOutcome.Reserved;
+                                }
+                            }
+                            completed = true;
                         }
-                        retained.Add(remaining);
-                        if (faulted)
+                        finally
                         {
-                            outcome = DeferredReferenceDrainOutcome.Faulted;
-                        }
-                        else if (outcome == DeferredReferenceDrainOutcome.Completed)
-                        {
-                            outcome = DeferredReferenceDrainOutcome.Reserved;
+                            if (!completed)
+                            {
+                                m_deferredServingRemovals.Enqueue(removal);
+                            }
                         }
                     }
                 }
                 finally
                 {
+                    foreach (DeferredTypeRemoval typeRemoval in retainedTypes)
+                    {
+                        m_deferredTypeRemovals.Enqueue(typeRemoval);
+                    }
                     foreach (DeferredServingRemoval removal in retained)
                     {
                         m_deferredServingRemovals.Enqueue(removal);
@@ -1502,6 +1588,11 @@ namespace Opc.Ua.Server
         /// <param name="Reference">The reference to remove.</param>
         /// <param name="Target">The owner's target node when queued, or null when it was deleted.</param>
         private sealed record DeferredServingReference(LocalReference Reference, NodeState? Target);
+
+        /// <summary>
+        /// Identifies a captured type registration without retaining its node manager.
+        /// </summary>
+        private sealed record DeferredTypeRemoval(NodeId TypeId, long RegistrationVersion);
 
         /// <summary>
         /// Describes the result of one deferred deletion pass.
@@ -2594,6 +2685,9 @@ namespace Opc.Ua.Server
 
         /// <summary>Serving removals that a reserved source node or a failed retry left unfinished.</summary>
         private readonly ConcurrentQueue<DeferredServingRemoval> m_deferredServingRemovals = new();
+
+        /// <summary>Type removals waiting for a lifecycle publication decision.</summary>
+        private readonly ConcurrentQueue<DeferredTypeRemoval> m_deferredTypeRemovals = new();
 
         /// <summary>Guards scheduling and stopping of the deferred deletion drain.</summary>
         private readonly Lock m_deferredReferenceDrainLock = new();

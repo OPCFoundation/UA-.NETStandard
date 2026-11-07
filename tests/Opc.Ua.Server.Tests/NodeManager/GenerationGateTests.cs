@@ -101,6 +101,377 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Bound raw sources use a single visible adapter, adapter aliases of the same resource share
+        /// its routed generation, and unrelated generations are rejected.
+        /// </summary>
+        [TestCase(0, false)]
+        [TestCase(1, true)]
+        [TestCase(2, false)]
+        public void BoundRawSourceRequiresOneVisibleAdapter(int facadeCount, bool expected)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var source = new Mock<IAsyncNodeManager>();
+                source.SetupGet(manager => manager.NamespaceUris).Returns(Array.Empty<string>());
+                var facade = new AsyncNodeManagerAdapter(new SyncNodeManagerAdapter(source.Object));
+                var otherFacade = new AsyncNodeManagerAdapter(new SyncNodeManagerAdapter(source.Object));
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(facade);
+                var managers = new List<IAsyncNodeManager>();
+                if (facadeCount > 0)
+                {
+                    managers.Add(facade);
+                }
+                if (facadeCount > 1)
+                {
+                    managers.Add(otherFacade);
+                }
+                using MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(
+                    server, [.. managers]);
+
+                bool itemAccepted = MasterNodeManager.TryCaptureItemEmission(
+                    server.Object, source.Object, generation.Reference, out var item);
+                bool eventAccepted = MasterNodeManager.TryCaptureSourceEmission(
+                    server.Object, source.Object, out var notification, generation.Reference);
+                bool otherFacadeAccepted = MasterNodeManager.TryCaptureSourceEmission(
+                    server.Object, otherFacade, out var otherFacadeAdmission, generation.Reference);
+                NodeManagerGeneration unrelated = NodeManagerGenerationRegistry.GetOrCreate(
+                    Mock.Of<IAsyncNodeManager>());
+                bool unrelatedAccepted = MasterNodeManager.TryCaptureSourceEmission(
+                    server.Object, source.Object, out var other, unrelated.Reference);
+                try
+                {
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(itemAccepted, Is.EqualTo(expected));
+                        Assert.That(eventAccepted, Is.EqualTo(expected));
+                        Assert.That(item?.Generation, Is.SameAs(expected ? generation : null));
+                        Assert.That(notification?.Generation, Is.SameAs(expected ? generation : null));
+                        Assert.That(otherFacadeAccepted, Is.EqualTo(facadeCount > 0));
+                        Assert.That(
+                            otherFacadeAdmission?.Generation,
+                            Is.SameAs(facadeCount > 0 ? generation : null));
+                        Assert.That(unrelatedAccepted, Is.False);
+                    });
+                }
+                finally
+                {
+                    item?.Dispose();
+                    notification?.Dispose();
+                    otherFacadeAdmission?.Dispose();
+                    other?.Dispose();
+                }
+            }
+        }
+
+        /// <summary>
+        /// A live bound owner outside the routing table remains eligible to emit.
+        /// </summary>
+        [Test]
+        public void UnroutedExactBoundOwnerCanEmit()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var source = new Mock<IAsyncNodeManager>();
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(source.Object);
+                using MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(server, []);
+
+                bool eventAccepted = MasterNodeManager.TryCaptureSourceEmission(
+                    server.Object, source.Object, out var notification, generation.Reference);
+                bool itemAccepted = MasterNodeManager.TryCaptureItemEmission(
+                    server.Object, source.Object, generation.Reference, out var item);
+                try
+                {
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(eventAccepted, Is.True);
+                        Assert.That(notification?.Generation, Is.SameAs(generation));
+                        Assert.That(itemAccepted, Is.True);
+                        Assert.That(item?.Generation, Is.SameAs(generation));
+                    });
+                }
+                finally
+                {
+                    notification?.Dispose();
+                    item?.Dispose();
+                }
+            }
+        }
+
+        /// <summary>
+        /// A hidden adapter authorizes neither itself nor its raw source, even while its generation is live.
+        /// </summary>
+        [Test]
+        public void HiddenAdapterDoesNotAdmitBoundRawSource()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var source = new Mock<IAsyncNodeManager>();
+                source.SetupGet(manager => manager.NamespaceUris).Returns(Array.Empty<string>());
+                var facade = new AsyncNodeManagerAdapter(new SyncNodeManagerAdapter(source.Object));
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(facade);
+                var factory = new Mock<IMainNodeManagerFactory>();
+                factory.Setup(value => value.CreateConfigurationNodeManager())
+                    .Returns(server.Object.NodeManager.ConfigurationNodeManager!);
+                factory.Setup(value => value.CreateCoreNodeManager(It.IsAny<ushort>()))
+                    .Returns(server.Object.CoreNodeManager);
+                server.SetupGet(value => value.MainNodeManagerFactory).Returns(factory.Object);
+                var routing = new NodeManagerRoutingTable();
+                using var master = new MasterNodeManager(
+                    server.Object,
+                    new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() },
+                    routing);
+                server.SetupGet(value => value.NodeManager).Returns(master);
+                routing.Add(facade, [], visible: false);
+
+                bool accepted = MasterNodeManager.TryCaptureSourceEmission(
+                    server.Object, source.Object, out var admission, generation.Reference);
+                admission?.Dispose();
+                bool ownerAccepted = MasterNodeManager.TryCaptureSourceEmission(
+                    server.Object, facade, out var ownerAdmission, generation.Reference);
+                ownerAdmission?.Dispose();
+                bool ownerItemAccepted = MasterNodeManager.TryCaptureItemEmission(
+                    server.Object, facade, generation.Reference, out var ownerItem);
+                ownerItem?.Dispose();
+                Assert.Multiple(() =>
+                {
+                    Assert.That(generation.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+                    Assert.That(accepted, Is.False);
+                    Assert.That(ownerAccepted, Is.False);
+                    Assert.That(ownerItemAccepted, Is.False);
+                });
+            }
+        }
+
+        /// <summary>
+        /// A hidden stack adapter cannot borrow a visible sibling's route, while an unregistered alias uses
+        /// the first visible stack adapter and the raw resource still needs a unique visible facade.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void StackAdapterAliasesFollowVisibleRoutes(bool secondVisible)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var source = new Mock<IAsyncNodeManager>();
+                source.SetupGet(manager => manager.NamespaceUris).Returns(Array.Empty<string>());
+                var facade = new AsyncNodeManagerAdapter(new SyncNodeManagerAdapter(source.Object));
+                var second = new AsyncNodeManagerAdapter(new SyncNodeManagerAdapter(source.Object));
+                var alias = new AsyncNodeManagerAdapter(new SyncNodeManagerAdapter(source.Object));
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(facade);
+                NodeManagerRoutingTable routing = CreateRoutedMaster(server, out MasterNodeManager master);
+                using (master)
+                {
+                    routing.Add(facade, []);
+                    routing.Add(second, [], visible: secondVisible);
+
+                    bool secondAccepted = MasterNodeManager.TryCaptureSourceEmission(
+                        server.Object, second, out var secondAdmission, generation.Reference);
+                    secondAdmission?.Dispose();
+                    bool aliasAccepted = MasterNodeManager.TryCaptureSourceEmission(
+                        server.Object, alias, out var aliasAdmission, generation.Reference);
+                    NodeManagerGeneration? aliasGeneration = aliasAdmission?.Generation;
+                    aliasAdmission?.Dispose();
+                    bool rawAccepted = MasterNodeManager.TryCaptureSourceEmission(
+                        server.Object, source.Object, out var rawAdmission, generation.Reference);
+                    rawAdmission?.Dispose();
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(secondAccepted, Is.EqualTo(secondVisible));
+                        Assert.That(aliasAccepted, Is.True);
+                        Assert.That(aliasGeneration, Is.SameAs(generation));
+                        Assert.That(rawAccepted, Is.EqualTo(!secondVisible));
+                    });
+                }
+            }
+        }
+
+        /// <summary>
+        /// Explicit stack adapters over the same synchronous manager share the published generation.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ExplicitSynchronousAdapterAliasUsesPublishedGeneration(bool cachedOwner)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var synchronous = new Mock<INodeManager>();
+                synchronous.SetupGet(manager => manager.NamespaceUris).Returns(Array.Empty<string>());
+                IAsyncNodeManager published = cachedOwner
+                    ? synchronous.Object.ToAsyncNodeManager()
+                    : new AsyncNodeManagerAdapter(synchronous.Object);
+                var alias = new AsyncNodeManagerAdapter(synchronous.Object);
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(published);
+                using MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(
+                    server, [published]);
+
+                bool publishedAccepted = MasterNodeManager.TryCaptureSourceEmission(
+                    server.Object, published, out var publishedAdmission, generation.Reference);
+                publishedAdmission?.Dispose();
+                bool aliasAccepted = MasterNodeManager.TryCaptureSourceEmission(
+                    server.Object, alias, out var aliasAdmission, generation.Reference);
+                NodeManagerGeneration? eventGeneration = aliasAdmission?.Generation;
+                aliasAdmission?.Dispose();
+                bool aliasItemAccepted = MasterNodeManager.TryCaptureItemEmission(
+                    server.Object, alias, generation.Reference, out var aliasItem);
+                NodeManagerGeneration? itemGeneration = aliasItem?.Generation;
+                aliasItem?.Dispose();
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        NodeManagerGenerationRegistry.GetIdentity(alias),
+                        Is.SameAs(NodeManagerGenerationRegistry.GetIdentity(published)));
+                    Assert.That(publishedAccepted, Is.True);
+                    Assert.That(aliasAccepted, Is.True);
+                    Assert.That(eventGeneration, Is.SameAs(generation));
+                    Assert.That(aliasItemAccepted, Is.True);
+                    Assert.That(itemGeneration, Is.SameAs(generation));
+                });
+            }
+        }
+
+        /// <summary>
+        /// An unrelated async facade cannot borrow a generation by exposing its synchronous manager.
+        /// </summary>
+        [Test]
+        public void UnpublishedCustomFacadeDoesNotBorrowPublishedGeneration()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var synchronous = new Mock<INodeManager>();
+                synchronous.SetupGet(manager => manager.NamespaceUris).Returns(Array.Empty<string>());
+                var published = new AsyncNodeManagerAdapter(synchronous.Object);
+                var unpublished = new Mock<IAsyncNodeManager>();
+                unpublished.SetupGet(manager => manager.SyncNodeManager).Returns(synchronous.Object);
+                unpublished.SetupGet(manager => manager.NamespaceUris).Returns(Array.Empty<string>());
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(published);
+                using MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(
+                    server, [published]);
+
+                bool publishedAccepted = MasterNodeManager.TryCaptureSourceEmission(
+                    server.Object, published, out var publishedAdmission, generation.Reference);
+                publishedAdmission?.Dispose();
+                bool eventAccepted = MasterNodeManager.TryCaptureSourceEmission(
+                    server.Object, unpublished.Object, out var notification, generation.Reference);
+                bool itemAccepted = MasterNodeManager.TryCaptureItemEmission(
+                    server.Object, unpublished.Object, generation.Reference, out var item);
+                try
+                {
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(unpublished.Object.SyncNodeManager, Is.SameAs(published.SyncNodeManager));
+                        Assert.That(publishedAccepted, Is.True);
+                        Assert.That(eventAccepted, Is.False);
+                        Assert.That(notification, Is.Null);
+                        Assert.That(itemAccepted, Is.False);
+                        Assert.That(item, Is.Null);
+                    });
+                }
+                finally
+                {
+                    notification?.Dispose();
+                    item?.Dispose();
+                }
+            }
+        }
+
+        /// <summary>
+        /// An admitted raw source may complete its own event fan-out after its generation retires.
+        /// </summary>
+        [Test]
+        public void AdaptedRawSourceFanoutRetainsItsAdmittedGeneration()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var source = new Mock<IAsyncNodeManager>();
+                source.SetupGet(manager => manager.NamespaceUris).Returns(Array.Empty<string>());
+                var facade = new AsyncNodeManagerAdapter(new SyncNodeManagerAdapter(source.Object));
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(facade);
+                using MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(server, [facade]);
+                Assert.That(MasterNodeManager.TryCaptureItemEmission(
+                    server.Object, source.Object, generation.Reference, out var parent), Is.True);
+                using MasterNodeManager.SourceEmissionOrigin? origin = parent?.TransferToOrigin();
+                ISystemContext context = origin!.CreateContext(server.Object.DefaultSystemContext);
+                generation.Gate.Retire();
+
+                bool accepted = MasterNodeManager.TryCaptureSourceEmission(
+                    server.Object, source.Object, out var child, generation.Reference, context: context);
+                try
+                {
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(accepted, Is.True);
+                        Assert.That(child?.Generation, Is.SameAs(generation));
+                        Assert.That(generation.Gate.ActiveCount, Is.EqualTo(2));
+                    });
+                }
+                finally
+                {
+                    child?.Dispose();
+                }
+            }
+        }
+
+        /// <summary>
+        /// An admitted source can fan out through an explicit synchronous adapter alias after retirement.
+        /// </summary>
+        [Test]
+        public void ExplicitAdapterAliasFanoutRequiresTheBoundGeneration()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var synchronous = new Mock<INodeManager>();
+                synchronous.SetupGet(manager => manager.NamespaceUris).Returns(Array.Empty<string>());
+                var published = new AsyncNodeManagerAdapter(synchronous.Object);
+                var alias = new AsyncNodeManagerAdapter(synchronous.Object);
+                var unrelatedFacade = new Mock<IAsyncNodeManager>();
+                unrelatedFacade.SetupGet(manager => manager.SyncNodeManager).Returns(synchronous.Object);
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(published);
+                NodeManagerGeneration unrelated = NodeManagerGenerationRegistry.GetOrCreate(
+                    Mock.Of<IAsyncNodeManager>());
+                using MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(server, [published]);
+                Assert.That(MasterNodeManager.TryCaptureItemEmission(
+                    server.Object, published, generation.Reference, out var parent), Is.True);
+                using MasterNodeManager.SourceEmissionOrigin? origin = parent?.TransferToOrigin();
+                ISystemContext context = origin!.CreateContext(server.Object.DefaultSystemContext);
+                generation.Gate.Retire();
+
+                bool aliasAccepted = MasterNodeManager.TryCaptureSourceEmission(
+                    server.Object, alias, out var child, generation.Reference, context: context);
+                bool wrongGenerationAccepted = MasterNodeManager.TryCaptureSourceEmission(
+                    server.Object, alias, out var wrongGeneration, unrelated.Reference, context: context);
+                bool unrelatedFacadeAccepted = MasterNodeManager.TryCaptureSourceEmission(
+                    server.Object, unrelatedFacade.Object, out var other, generation.Reference, context: context);
+                try
+                {
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(aliasAccepted, Is.True);
+                        Assert.That(child?.Generation, Is.SameAs(generation));
+                        Assert.That(wrongGenerationAccepted, Is.False);
+                        Assert.That(wrongGeneration, Is.Null);
+                        Assert.That(unrelatedFacadeAccepted, Is.False);
+                        Assert.That(other, Is.Null);
+                        Assert.That(generation.Gate.ActiveCount, Is.EqualTo(2));
+                    });
+                }
+                finally
+                {
+                    child?.Dispose();
+                    wrongGeneration?.Dispose();
+                    other?.Dispose();
+                }
+            }
+        }
+
+        /// <summary>
         /// Prepared generations refuse entry, while retirement closes a live gate and drains prior work.
         /// </summary>
         [Test]
@@ -594,6 +965,29 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(secondDrained.IsCompleted, Is.False);
             secondView.Epoch.Exit(currentPin);
             await secondDrained.ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Creates a master node manager over an empty routing table that a test populates directly.
+        /// </summary>
+        private static NodeManagerRoutingTable CreateRoutedMaster(
+            Mock<IServerInternal> server,
+            out MasterNodeManager master)
+        {
+            var factory = new Mock<IMainNodeManagerFactory>();
+            factory.Setup(value => value.CreateConfigurationNodeManager())
+                .Returns(server.Object.NodeManager.ConfigurationNodeManager!);
+            factory.Setup(value => value.CreateCoreNodeManager(It.IsAny<ushort>()))
+                .Returns(server.Object.CoreNodeManager);
+            server.SetupGet(value => value.MainNodeManagerFactory).Returns(factory.Object);
+            var routing = new NodeManagerRoutingTable();
+            master = new MasterNodeManager(
+                server.Object,
+                new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() },
+                routing);
+            MasterNodeManager created = master;
+            server.SetupGet(value => value.NodeManager).Returns(created);
+            return routing;
         }
 
         private static NodeManagerRoutingTable.RoutingSnapshot CreateView(IAsyncNodeManager manager)

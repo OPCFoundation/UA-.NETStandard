@@ -528,7 +528,7 @@ namespace Opc.Ua.Server
                                 m_dynamicExternalReferences = nextReferences;
                                 // Deletions during the decision window queued pruning against the prepared image.
                                 ApplyDeferredReferencePrunes();
-                                if (!m_deferredServingRemovals.IsEmpty)
+                                if (!m_deferredServingRemovals.IsEmpty || !m_deferredTypeRemovals.IsEmpty)
                                 {
                                     // Restarts a drain that stopped after a failed retry kept its removals queued.
                                     ScheduleDeferredReferenceDrain();

@@ -2441,14 +2441,20 @@ namespace Opc.Ua.PackML.Tests
         }
 
         /// <summary>
-        /// Completes a serving unit's deletion awaited by another batch's decision callback and keeps
-        /// its contributions pruned after that batch publishes.
+        /// Completes a serving unit's deletion during another batch's decision and removes its type
+        /// after the decision commits or aborts.
         /// </summary>
         /// <param name="facade">The facade returned by the candidate factory.</param>
-        [TestCase(ManagerFacadeKind.Direct)]
-        [TestCase(ManagerFacadeKind.Adapted)]
-        [TestCase(ManagerFacadeKind.Forwarded)]
-        public async Task LiveDeletionDuringLifecycleDecisionDoesNotWaitForAdmission(ManagerFacadeKind facade)
+        /// <param name="publish">Whether the deciding batch publishes.</param>
+        [TestCase(ManagerFacadeKind.Direct, false)]
+        [TestCase(ManagerFacadeKind.Direct, true)]
+        [TestCase(ManagerFacadeKind.Adapted, false)]
+        [TestCase(ManagerFacadeKind.Adapted, true)]
+        [TestCase(ManagerFacadeKind.Forwarded, false)]
+        [TestCase(ManagerFacadeKind.Forwarded, true)]
+        public async Task LiveDeletionDuringLifecycleDecisionDoesNotWaitForAdmission(
+            ManagerFacadeKind facade,
+            bool publish)
         {
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             CancellationToken ct = deadline.Token;
@@ -2482,7 +2488,7 @@ namespace Opc.Ua.PackML.Tests
                 "urn:opcfoundation:tests:packml:deciding");
             await using IPreparedNodeManagerBatch deciding = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Add(decidingFactory)], ct).ConfigureAwait(false);
-            NodeManagerBatchResult decided = await deciding.CommitAsync(async token =>
+            async ValueTask DecideAsync(CancellationToken token)
             {
                 Task<bool> deletion;
                 // The deletion runs on a flow without the decision context, as a WoT mutation would.
@@ -2500,15 +2506,36 @@ namespace Opc.Ua.PackML.Tests
                 AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: false);
                 Assert.That(candidate.Server.ServerObject.ReferenceExists(
                     Ua.ReferenceTypeIds.HasNotifier, false, unitId), Is.False);
-            }, ct).ConfigureAwait(false);
-            Assert.That(decided.CleanupFailure, Is.Null);
+                Assert.That(candidate.Server.TypeTree.IsKnown(modeId), Is.True);
+                if (!publish)
+                {
+                    throw new IOException("Reject the deciding batch.");
+                }
+            }
+
+            NodeManagerBatchResult? decided = null;
+            if (publish)
+            {
+                decided = await deciding.CommitAsync(DecideAsync, ct).ConfigureAwait(false);
+                Assert.That(decided.CleanupFailure, Is.Null);
+            }
+            else
+            {
+                await Assert.ThrowsAsync<IOException>(
+                    async () => await deciding.CommitAsync(DecideAsync, ct).ConfigureAwait(false))
+                    .ConfigureAwait(false);
+            }
             Assert.That(candidate.Find(unitId), Is.Null);
             Assert.That(candidate.Find(modeId), Is.Null);
+            Assert.That(() => candidate.Server.TypeTree.IsKnown(modeId), Is.False.After(10000, 20));
             AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: false);
             Assert.That(candidate.Server.ServerObject.ReferenceExists(
                 Ua.ReferenceTypeIds.HasNotifier, false, unitId), Is.False);
 
-            await RetirePackMLManagerAsync(lifecycle, decided, ct).ConfigureAwait(false);
+            if (decided is not null)
+            {
+                await RetirePackMLManagerAsync(lifecycle, decided, ct).ConfigureAwait(false);
+            }
             AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: false);
 
             await using (var replacementRuntime = new PackMLRuntime(candidate))
@@ -2532,10 +2559,16 @@ namespace Opc.Ua.PackML.Tests
         /// once that publication's decision completes.
         /// </summary>
         /// <param name="facade">The facade returned by the candidate factory.</param>
-        [TestCase(ManagerFacadeKind.Direct)]
-        [TestCase(ManagerFacadeKind.Adapted)]
-        [TestCase(ManagerFacadeKind.Forwarded)]
-        public async Task LiveDeletionOfReservedSourceReferencesCompletesAfterDecision(ManagerFacadeKind facade)
+        /// <param name="publish">Whether the deciding batch publishes.</param>
+        [TestCase(ManagerFacadeKind.Direct, false)]
+        [TestCase(ManagerFacadeKind.Direct, true)]
+        [TestCase(ManagerFacadeKind.Adapted, false)]
+        [TestCase(ManagerFacadeKind.Adapted, true)]
+        [TestCase(ManagerFacadeKind.Forwarded, false)]
+        [TestCase(ManagerFacadeKind.Forwarded, true)]
+        public async Task LiveDeletionOfReservedSourceReferencesCompletesAfterDecision(
+            ManagerFacadeKind facade,
+            bool publish)
         {
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             CancellationToken ct = deadline.Token;
@@ -2567,7 +2600,7 @@ namespace Opc.Ua.PackML.Tests
                 namespaceUri: "urn:opcfoundation:tests:packml:reserving");
             await using IPreparedNodeManagerBatch deciding = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Add(decidingFactory)], ct).ConfigureAwait(false);
-            NodeManagerBatchResult decided = await deciding.CommitAsync(async token =>
+            async ValueTask DecideAsync(CancellationToken token)
             {
                 Task<bool> deletion;
                 using (ExecutionContext.SuppressFlow())
@@ -2581,10 +2614,28 @@ namespace Opc.Ua.PackML.Tests
                 Assert.That(
                     await deletion.WaitAsync(TimeSpan.FromSeconds(10), token).ConfigureAwait(false),
                     Is.True);
-            }, ct).ConfigureAwait(false);
-            Assert.That(decided.CleanupFailure, Is.Null);
+                Assert.That(candidate.Server.TypeTree.IsKnown(modeId), Is.True);
+                if (!publish)
+                {
+                    throw new IOException("Reject the deciding batch.");
+                }
+            }
+
+            NodeManagerBatchResult? decided = null;
+            if (publish)
+            {
+                decided = await deciding.CommitAsync(DecideAsync, ct).ConfigureAwait(false);
+                Assert.That(decided.CleanupFailure, Is.Null);
+            }
+            else
+            {
+                await Assert.ThrowsAsync<IOException>(
+                    async () => await deciding.CommitAsync(DecideAsync, ct).ConfigureAwait(false))
+                    .ConfigureAwait(false);
+            }
             Assert.That(candidate.Find(unitId), Is.Null);
             Assert.That(candidate.Find(modeId), Is.Null);
+            Assert.That(() => candidate.Server.TypeTree.IsKnown(modeId), Is.False.After(10000, 20));
             Assert.That(
                 () => objects.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, unitId),
                 Is.False.After(10000, 20));
@@ -2594,7 +2645,10 @@ namespace Opc.Ua.PackML.Tests
             Assert.That(candidate.Server.ServerObject.ReferenceExists(
                 Ua.ReferenceTypeIds.HasNotifier, false, unitId), Is.False);
 
-            await RetirePackMLManagerAsync(lifecycle, decided, ct).ConfigureAwait(false);
+            if (decided is not null)
+            {
+                await RetirePackMLManagerAsync(lifecycle, decided, ct).ConfigureAwait(false);
+            }
             AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: false);
             await RetirePackMLManagerAsync(lifecycle, committed, ct).ConfigureAwait(false);
             AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: false);

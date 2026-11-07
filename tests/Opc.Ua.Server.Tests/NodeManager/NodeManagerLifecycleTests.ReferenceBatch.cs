@@ -469,8 +469,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
                     Assert.That(added, Is.Empty);
-                    Assert.Throws<InvalidOperationException>(() =>
-                        objects.AddReference(ReferenceTypeIds.Organizes, false, concurrent));
+                    Assert.That(
+                        () => objects.AddReference(ReferenceTypeIds.Organizes, false, concurrent),
+                        Throws.TypeOf<NodeReferencesReservedException>());
                     await AssertNativeReferenceAsync(
                         session, ObjectIds.ObjectsFolder, root, ReferenceTypeIds.Organizes, false, timeout.Token)
                         .ConfigureAwait(false);
