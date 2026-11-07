@@ -1191,14 +1191,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
         private const string kNamespaceUri = "urn:test:change-set-cleanup";
 
         /// <summary>
-        /// Completed disposal tasks and their ordinary failures do not retain a private candidate.
+        /// A retained prepared unit and cleanup task do not own a candidate after provider disposal completes.
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task CompletedPreparedDisposalTasksDoNotRetainPrivateCandidatesAsync(bool failCleanup)
         {
-            (WeakReference candidate, Task disposal) = await CompletePrivateCandidateDisposalAsync(failCleanup)
-                .ConfigureAwait(false);
+            (WeakReference candidate, WeakReference metadata, Task disposal, IPreparedChanges prepared) =
+                await CompletePrivateCandidateDisposalAsync(failCleanup).ConfigureAwait(false);
             // Do not run collection inline in the producer's completion callback.
             await Task.Yield();
             try
@@ -1209,16 +1209,27 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     GC.WaitForPendingFinalizers();
                     GC.Collect();
                 }
+                NodeManagerRegistrationSnapshot snapshot = prepared.Registrations[0];
                 using (Assert.EnterMultipleScope())
                 {
                     Assert.That(candidate.IsAlive, Is.False);
+                    Assert.That(metadata.IsAlive, Is.False);
                     Assert.That(disposal.Status, Is.EqualTo(
                         failCleanup ? TaskStatus.Faulted : TaskStatus.RanToCompletion));
+                    Assert.That(prepared.IsCommitted, Is.False);
+                    Assert.That(prepared.Registrations.Count, Is.EqualTo(1));
+                    Assert.That(prepared.Slots.Count, Is.EqualTo(1));
+                    Assert.That(snapshot.Slot, Is.SameAs(prepared.Slots[0]));
+                    Assert.That(snapshot.TryGetNodeManager(out _), Is.False);
+                    Assert.That(snapshot.TryGetRegistration(out _), Is.False);
+                    Assert.That(snapshot.Slot.TryGetCurrent(out _), Is.False);
                 }
+                await prepared.DisposeAsync().ConfigureAwait(false);
             }
             finally
             {
                 GC.KeepAlive(disposal);
+                GC.KeepAlive(prepared);
             }
         }
 
@@ -1482,8 +1493,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// Finishes candidate cleanup outside the collection test's stack while retaining its disposal task.
         /// </summary>
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private static async Task<(WeakReference Candidate, Task Disposal)> CompletePrivateCandidateDisposalAsync(
-            bool failCleanup)
+        private static async Task<(
+            WeakReference Candidate,
+            WeakReference Metadata,
+            Task Disposal,
+            IPreparedChanges Prepared)> CompletePrivateCandidateDisposalAsync(bool failCleanup)
         {
             await using var harness = new ChangeSetCleanupHarness();
             Mock<IAsyncNodeManager> candidate = CreateManager(kNamespaceUri);
@@ -1501,6 +1515,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 });
             IPreparedChanges prepared = await harness.Lifecycle.PrepareAsync(
                 [LifecycleChange.Add(CreateFactory(candidate))]).ConfigureAwait(false);
+            var metadata = new Mock<INodeManagerReadImage>();
+            metadata.SetupGet(value => value.Owner).Returns(candidate.Object);
+            var metadataReference = new WeakReference(metadata.Object);
+            prepared.SetMetadata(prepared.Slots[0], metadata.Object);
             Task disposal = prepared.DisposeAsync().AsTask();
             try
             {
@@ -1522,7 +1540,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await prepared.DisposeAsync().ConfigureAwait(false);
             candidate.As<IDisposable>().Verify(value => value.Dispose(), Times.Once);
             candidate.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
-            return (reference, disposal);
+            return (reference, metadataReference, disposal, prepared);
         }
 
         private static Mock<IAsyncNodeManager> CreateManager(string namespaceUri)
