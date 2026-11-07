@@ -229,7 +229,7 @@ you need to exercise:
 | `NodeManagerGenerationTests` | Admission, retirement, quiescence and deferred-event delivery |
 | `StripedCounterTests` | Balanced entries and cross-thread exits |
 | `NodeManagerRegistrationTests` | Registration metadata and namespace copying |
-| `NodeManagerLifecycleCompatibilityTests` | Convenience-adapter retry and failure behavior |
+| `NodeManagerLifecycleCompatibilityTests` | Convenience-adapter retry, prepared-owner cleanup and retirement status |
 | `NodeManagerLifecycleBatchConflictTests` | Shared type-image conflicts and candidate historian binding cleanup |
 | `NodeManagerLifecycleChangeSetCleanupTests` | Failed and stale commits, candidate disposal and actual writer drain |
 | `NodeManagerLifecycleTests` | Hosted publication, concurrent candidate claims and startup behavior |
