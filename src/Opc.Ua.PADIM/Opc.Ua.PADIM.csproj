@@ -15,6 +15,9 @@
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.PADIM.Server" />
+    <InternalsVisibleTo Include="Opc.Ua.PADIM.Client" />
+    <InternalsVisibleTo Include="Opc.Ua.PADIM.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Machinery.ProcessValues" />
     <InternalsVisibleTo Include="Opc.Ua.Machinery.Server" />
     <InternalsVisibleTo Include="Opc.Ua.Machinery.Client" />
