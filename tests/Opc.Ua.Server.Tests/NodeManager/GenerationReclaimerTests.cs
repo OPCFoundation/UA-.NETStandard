@@ -45,7 +45,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
     /// </summary>
     [TestFixture]
     [Parallelizable(ParallelScope.All)]
-    public sealed class GenerationReclaimerTests
+    public sealed partial class GenerationReclaimerTests
     {
         /// <summary>
         /// Consumer disposal uses the existing gate and remains observable and retryable at retirement.
