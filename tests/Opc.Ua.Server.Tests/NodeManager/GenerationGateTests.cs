@@ -134,6 +134,65 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Retirement waits for admitted work in every stripe before disposal.
+        /// </summary>
+        [Test]
+        public async Task RetirementWaitsForEveryCounterStripeAsync()
+        {
+            const int stripeStride = 16;
+            var counter = new StripedCounter();
+            var gate = new GenerationGate(NodeManagerGenerationState.Live, counter);
+            var leases = new List<GenerationGate.Lease>();
+            GenerationGate.Lease? rejected = null;
+            for (int slot = stripeStride; slot <= counter.LastSlot; slot += stripeStride)
+            {
+                counter.Enter(slot);
+                leases.Add(new GenerationGate.Lease(gate, slot));
+            }
+
+            try
+            {
+                Assert.That(leases, Is.Not.Empty);
+                Assert.That(gate.ActiveCount, Is.EqualTo(leases.Count));
+                gate.Retire();
+                Task drained = gate.WaitForDrainAsync();
+                bool admittedAfterRetirement = gate.TryEnter(out rejected);
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(drained.IsCompleted, Is.False);
+                    Assert.That(gate.WaitForDrainAsync(), Is.SameAs(drained));
+                    Assert.That(gate.DisposeGeneration, Throws.InvalidOperationException);
+                    Assert.That(admittedAfterRetirement, Is.False);
+                    Assert.That(rejected, Is.Null);
+                }
+
+                for (int ii = 0; ii < leases.Count; ii++)
+                {
+                    leases[ii].Dispose();
+                    int remaining = leases.Count - ii - 1;
+                    Assert.That(gate.ActiveCount, Is.EqualTo(remaining));
+                    Assert.That(drained.IsCompleted, Is.EqualTo(remaining == 0));
+                    if (remaining > 0)
+                    {
+                        Assert.That(gate.DisposeGeneration, Throws.InvalidOperationException);
+                    }
+                }
+
+                await drained.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                gate.DisposeGeneration();
+                Assert.That(gate.State, Is.EqualTo(NodeManagerGenerationState.Disposed));
+            }
+            finally
+            {
+                rejected?.Dispose();
+                foreach (GenerationGate.Lease lease in leases)
+                {
+                    lease.Dispose();
+                }
+            }
+        }
+
+        /// <summary>
         /// Only an active parent can extend admitted work, and each child independently delays retirement.
         /// </summary>
         [TestCase(false)]

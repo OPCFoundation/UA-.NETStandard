@@ -44,6 +44,41 @@ namespace Opc.Ua.Server.Tests.NodeManager
     public sealed class StripedCounterTests
     {
         /// <summary>
+        /// Every stripe contributes to the total until its entries are released.
+        /// </summary>
+        [Test]
+        public void ExplicitEntriesAreCountedAcrossEveryStripe()
+        {
+            const int stripeStride = 16;
+            var counter = new StripedCounter();
+            int lastSlot = counter.LastSlot;
+            Assert.That(lastSlot, Is.GreaterThanOrEqualTo(stripeStride));
+            Assert.That(lastSlot % stripeStride, Is.Zero);
+
+            long expected = 0;
+            for (int slot = stripeStride; slot <= lastSlot; slot += stripeStride)
+            {
+                counter.Enter(slot);
+                counter.Enter(slot);
+                expected += 2;
+                Assert.That(counter.Count, Is.EqualTo(expected), $"After entering stripe {slot}.");
+            }
+
+            for (int slot = lastSlot; slot >= stripeStride; slot -= stripeStride)
+            {
+                counter.Exit(slot);
+                expected--;
+                Assert.That(counter.Count, Is.EqualTo(expected), $"After the first exit from stripe {slot}.");
+                counter.Exit(slot);
+                expected--;
+                Assert.That(counter.Count, Is.EqualTo(expected), $"After the second exit from stripe {slot}.");
+            }
+
+            Assert.That(expected, Is.Zero);
+            Assert.That(counter.Count, Is.Zero);
+        }
+
+        /// <summary>
         /// Concurrent workers can retain and exit many entries without losing the outstanding count.
         /// </summary>
         [Test]
