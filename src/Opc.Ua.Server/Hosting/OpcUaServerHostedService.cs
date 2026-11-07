@@ -416,6 +416,7 @@ namespace Opc.Ua.Server.Hosting
                 OpcUaServerApplicationConfigurationFeature.Configure(
                     m_application.Build(m_options.ApplicationUri, m_options.ProductUri),
                     m_options);
+            ApplyDependencyInjectedCertificateManager(certificateManager);
             ArrayOf<CertificateIdentifier> certificates =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                     subject,
@@ -432,7 +433,6 @@ namespace Opc.Ua.Server.Hosting
             }
 
             await securityOptions.CreateAsync(ct).ConfigureAwait(false);
-            ApplyDependencyInjectedCertificateManager(certificateManager);
         }
 
         /// <summary>

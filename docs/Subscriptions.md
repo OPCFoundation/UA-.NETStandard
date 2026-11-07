@@ -383,6 +383,25 @@ successful-message counter advances only when a message is returned.
 
 ## Publish acknowledgements
 
+V2 Publish request timeouts account for concurrent workers waiting on a quiet
+subscription. With `K` equal to the largest server-revised publishing interval
+times keep-alive count, and `W` equal to the current worker count (at least one),
+the initial budget is `W * K + max(K, 1 second)`, capped at 30 minutes and rounded
+up to whole milliseconds. The extra period, with a one-second minimum, provides
+scheduling headroom rather than assuming queued keepalives arrive exactly on
+their deadlines. Each worker retains its larger budget across subsequent
+requests; timeout retries add one second without exceeding the same cap.
+Settings and worker count are checked again after acknowledgement preparation.
+
+The server's enclosing request lifetime still enforces the Publish timeout hint.
+The session Publish queue's separate 500 ms timer grace does not extend it.
+Acknowledgements are processed before waiting for a response, so a timed-out
+request may already have removed the acknowledged message. Its later absence
+from the retransmission queue is not proof of a successful acknowledgement
+result at the client. Cancellation and `NotRetained` outcomes are unchanged.
+Scheduling delays beyond the margin, or keepalive/worker configurations whose
+required budget exceeds the cap, can still time out.
+
 V2 Publish workers select at least one queued acknowledgement when the queue is
 non-empty, even when there are more workers than pending acknowledgements.
 Progress does not depend on the worker entering its wait-for-ack path: that wait
@@ -1221,7 +1240,7 @@ reconciliation, etc.) along with the recommended V2 alternative.
 
 | Classic | V2 |
 |---|---|
-| `s.RepublishAsync(seq, ct)` | Not on V2. The V2 engine auto-republishes on gap detection via `MessageProcessor.TryRepublishAsync`; there is no user-driven variant. Callers needing raw access can call `session.RepublishAsync(null, subscriptionId, seq, ct)`. |
+| `s.RepublishAsync(seq, ct)` | Not on V2. The V2 engine auto-republishes on gap detection via `MessageProcessor.TryRepublishAsync`, about 100 ms after the gap opens so that a response overtaken on another publish worker is not fetched again; there is no user-driven variant. Callers needing raw access can call `session.RepublishAsync(null, subscriptionId, seq, ct)`. |
 | `s.ResendDataAsync(ct)` | Not on V2. Callers needing raw access call `session.CallAsync(null, ResendData methodId, ...)`. |
 | `s.ConditionRefreshAsync(ct)` | `s.ConditionRefreshAsync(ct)` — same shape. |
 | `s.ConditionRefresh2Async(monitoredItemId, ct)` | `item.ConditionRefreshAsync(ct)` on `IMonitoredItem` (per-item; no `monitoredItemId` arg needed). |

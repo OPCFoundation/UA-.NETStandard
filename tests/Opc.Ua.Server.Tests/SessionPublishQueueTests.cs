@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Time.Testing;
@@ -778,6 +779,37 @@ namespace Opc.Ua.Server.Tests
             timeProvider.Advance(TimeSpan.FromSeconds(2));
             ServiceResultException ex = await Assert.CatchAsync<ServiceResultException>(() => task);
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
+        }
+
+        /// <summary>
+        /// The enclosing request lifetime cancels Publish before the queue's timer grace expires.
+        /// </summary>
+        [Test]
+        public async Task EnclosingDeadlineCancelsPublishBeforeQueueGraceAsync()
+        {
+            var clock = new FakeTimeProvider();
+            long timestamp = 0;
+            using var monitor = new RequestDeadlineMonitor(
+                TimeSpan.FromMilliseconds(20), () => timestamp, automatic: false);
+            using var lifetime = new RequestLifetime(monitor, TimeSpan.FromSeconds(2), default, default);
+            using var queue = new SessionPublishQueue(
+                m_serverMock.Object, m_sessionMock.Object, kMaxPublishRequests, clock);
+            var subscription = new Mock<ISubscriptionPublishPipeline>();
+            subscription.Setup(value => value.Id).Returns(1);
+            queue.Add(subscription.Object);
+
+            Task<ISubscriptionPublishPipeline> publish = queue.PublishAsync(
+                "channel1", clock.GetUtcNow().UtcDateTime.AddSeconds(2), false, null,
+                lifetime.CancellationToken);
+
+            clock.Advance(TimeSpan.FromMilliseconds(2025));
+            Assert.That(publish.IsCompleted, Is.False, "The queue's 500 ms grace has not expired.");
+            timestamp = Stopwatch.Frequency * 2025 / 1000;
+            Assert.That(monitor.Sweep(), Is.EqualTo(1));
+            await Assert.ThrowsAsync<TaskCanceledException>(async () => await publish.ConfigureAwait(false))
+                .ConfigureAwait(false);
+            Assert.That(lifetime.CancellationToken.IsCancellationRequested, Is.True);
+            Assert.That(monitor.Sweep(), Is.Zero, "A request has only one terminal completion.");
         }
 
         [Test]

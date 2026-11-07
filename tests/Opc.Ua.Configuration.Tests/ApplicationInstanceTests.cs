@@ -121,6 +121,75 @@ namespace Opc.Ua.Configuration.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that a loaded certificate manager remains owned after configuration replacement.
+        /// </summary>
+        [Test]
+        public async Task LoadedCertificateManagerRemainsOwnedAfterConfigurationOverrideAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            string? configPath = Utils.GetAbsoluteFilePath(
+                "Opc.Ua.Configuration.Tests.Config.xml",
+                checkCurrentDirectory: true,
+                createAlways: false);
+            Assert.That(configPath, Is.Not.Null);
+            CertificateManager loadedManager;
+            SecurityConfiguration securityConfiguration;
+
+            await using (applicationInstance.ConfigureAwait(false))
+            {
+                ApplicationConfiguration configuration = await applicationInstance
+                    .LoadApplicationConfigurationAsync(configPath!, true)
+                    .ConfigureAwait(false);
+                loadedManager = configuration.CertificateManager as CertificateManager ??
+                    throw new InvalidOperationException("Configuration loading did not create a certificate manager.");
+                securityConfiguration = configuration.SecurityConfiguration;
+                Assert.That(applicationInstance.CertificateManager, Is.SameAs(loadedManager));
+
+                configuration.CertificateManager = Mock.Of<ICertificateManager>();
+            }
+
+            await Assert.ThrowsAsync<ObjectDisposedException>(
+                () => loadedManager.LoadApplicationCertificatesAsync(securityConfiguration)).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Verifies that a validated certificate manager remains owned after configuration replacement.
+        /// </summary>
+        [Test]
+        public async Task CreatedCertificateManagerRemainsOwnedAfterConfigurationOverrideAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            CertificateManager createdManager;
+            SecurityConfiguration securityConfiguration;
+
+            await using (applicationInstance.ConfigureAwait(false))
+            {
+                ArrayOf<CertificateIdentifier> applicationCertificates =
+                    ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                        SubjectName,
+                        CertificateStoreType.Directory,
+                        m_pkiRoot);
+                ApplicationConfiguration configuration = await applicationInstance
+                    .Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfiguration(applicationCertificates, m_pkiRoot)
+                    .CreateAsync()
+                    .ConfigureAwait(false);
+                createdManager = configuration.CertificateManager as CertificateManager ??
+                    throw new InvalidOperationException("Configuration validation did not create a certificate manager.");
+                securityConfiguration = configuration.SecurityConfiguration;
+                Assert.That(applicationInstance.CertificateManager, Is.SameAs(createdManager));
+
+                configuration.CertificateManager = Mock.Of<ICertificateManager>();
+            }
+
+            await Assert.ThrowsAsync<ObjectDisposedException>(
+                () => createdManager.LoadApplicationCertificatesAsync(securityConfiguration)).ConfigureAwait(false);
+        }
+
         [Test]
         public async Task TestNoFileConfigAsClientAsync()
         {

@@ -195,6 +195,16 @@ That local behavior does not implement the required transfer sequence, and
 the handling of shorter replacement content by other servers has not been
 established. ConfigurationFile transfer support therefore remains Partial.
 
+[Part 12 §7.8.5.1](https://reference.opcfoundation.org/specs/OPC-10000-12/v1.05.07/7.8.5.1)
+permits only Open modes `0x01` and `0x03`, so the Part 20 `EraseExisting` bit
+cannot truncate a `ConfigurationFile`. [Part 20 §4.2.5](https://reference.opcfoundation.org/specs/OPC-10000-20/v1.05.06/4.2.5)
+defines positional writes but not how a shorter replacement truncates a file.
+[Part 12 §7.8.5.2](https://reference.opcfoundation.org/specs/OPC-10000-12/v1.05.07/7.8.5.2)
+describes how a server handles configuration contents that the update does not
+target. It does not establish that the server may ignore trailing bytes in the
+targeted file.
+The shorter-replacement behavior remains unresolved.
+
 [OPC 10000-20 v1.05.06 §4.2.2](https://reference.opcfoundation.org/specs/OPC-10000-20/v1.05.06/4.2.2)
 permits multiple read handles, requires a write-open to return
 `Bad_NotWritable` while any handle is open, and requires a read-open to return
@@ -961,11 +971,12 @@ by a managed Server.
 
 `AddDeviceRegistrarPush` selects the bounded host-owned queue and one processor;
 register it before `AddDeviceRegistrarRuntime`. Queue acceptance remains
-process-local. A durable deployment must also retain accepted work or arrange
-for an explicit retry after restart. The device-side installer below supplies
-local credential activation and reset, and the standard push methods bind the
-security transition and transaction-completion providers. Connected recovery
-fixtures are present; their execution status is tracked separately.
+process-local. After a restart or interrupted attempt, the host must reconcile
+retained registrar and device state before retrying. The queue cannot show
+whether accepted work completed. The device-side installer below supplies local
+credential activation and reset, and the standard push methods bind the security
+transition and transaction-completion providers. Connected recovery fixtures
+are present; their execution status is tracked separately.
 
 The processor also serializes direct calls through installed-certificate proof,
 so a second call cannot replace the first attempt's pending device key or trust
@@ -1419,11 +1430,11 @@ without deleting installed software. Corrupt checkpoints are reported without
 being erased. The connected `OnboardingDevice` sample selects the concrete
 installer and retained factory identity, with public-only security checkpoints,
 standard network reset and an explicit local reset option. Its factory adds a
-Part 22 `Resources` parent reference to the singleton device, but shared Base
-Network integration remains a source gap. Connected recovery/reset fixtures
-are present; their execution status is tracked separately, and source
-composition alone does not establish successful endpoint switching, restart or
-reset over real connections. See the
+Part 22 `Resources` parent reference to the singleton device under the shared
+Base Network manager. Connected recovery/reset fixtures are present; their
+execution status is tracked separately, and source composition alone does not
+establish successful endpoint switching, restart or reset over real
+connections. See the
 [device host procedure](../samples/Gds/README.md#host-the-connected-device).
 
 For a single-host registrar, `FileSystemDeviceRegistrarLifecycle` retains
@@ -1587,7 +1598,7 @@ gap.
 | §§9.2.2-9.2.8: registrar methods and application ownership | registrar runtime, async bindings, shared GDS database and certificate authorization | `DeviceRegistrarRuntimeTests`, `ProvideIdentitiesRuntimeTests`, `ApplicationsNodeManagerOnboardingTests`; database/lifecycle publication is not a distributed transaction |
 | §§9.2.9-9.2.15: administration, managed authorities and restricted audit delivery | ticket administration bindings, managed authority file services, `DeviceRegistrarAuditReporter` | administration, authority-list and audit-reporter fixtures; connected authorized/unauthorized event delivery still needs remote execution |
 | §§6.4, 9.2.11-9.2.12: accepted ticket retention across restart | `FileSystemTicketStore`, `AddFileSystemOnboardingTicketStore` | `FileSystemTicketStoreTests`; one instance owns the path, and remote execution remains required |
-| §§9.3.1-9.3.5: provisionable resource, singleton layout, tickets and registrar endpoints | `ProvisionableDeviceRuntime`, `ProvisionableDeviceNodeManagerFactory`, `AddProvisionableDeviceApplications` and generated node bindings | `ProvisionableDeviceRuntimeTests` cover fluent registration; `ManagedApplicationPushTests` exercise the actual device factory, configuration-file recovery and authorization. A full hosted composition test remains absent; shared Part 22 `Resources` integration remains a source gap. |
+| §§9.3.1-9.3.5: provisionable resource, singleton layout, tickets and registrar endpoints | `ProvisionableDeviceRuntime`, `ProvisionableDeviceNodeManagerFactory`, `AddProvisionableDeviceApplications` and generated node bindings | `ProvisionableDeviceRuntimeTests` cover fluent registration; `ManagedApplicationPushTests` exercise the actual device factory, configuration-file recovery and authorization. The Part 22 manager owns the shared `Resources` object; a full hosted composition test remains absent. |
 
 [Section 8.1](https://reference.opcfoundation.org/specs/OPC-10000-21/v1.05.04/8.1)
 permits vendor-specific unprotected metadata, including an RFC 3161
@@ -2300,7 +2311,7 @@ conformance units separately.
 | `ManagedApplications` / `ApplicationConfigurationType` proxy (§7.10.14–§7.10.16) | 🔲 provider-gated | Runtime-backed entries bind independent certificate and trust management plus an optional per-application `ConfigurationFile` provider with update, confirmation and restart recovery. `UpdateApplicationConfigurationFileAsync` selects the same application after reconnecting. Metadata-only `IConfigurationDataStore` entries have no push handlers. The shared ConfigurationFile transfer and open-handle limitations above apply to application files too |
 | KeyCredential authentication `ProfileUris` — AMQP SASL Plain / MQTT UserName / UA transport UserName (§8, optional CUs) | 🔲 provider-defined | The push binding is implemented; the concrete ProfileUri set advertised is defined by the credential provider, not fixed by the stack. |
 | A & C CertificateExpiration optional CUs — *Comment* / *Confirm* / *Shelving* | 🔲 inherited | Available through the standard OPC 10000-9 condition model on the alarm instances; not separately exercised by the certificate-alarm tests. |
-| Onboarding / OPC 10000-21 device setup interplay with `ResetToServerDefaults` / `InApplicationSetup` (§7.10.13, Annex G) | ⚠️ partial | Ticket administration, signing, ticket-scoped identity trust, composite-aware selection and registrar runtime bindings are implemented. GDS issuance receipts and the file-backed registrar lifecycle provider retain state across restart for a single-host deployment. Push queue acceptance remains process-local, so a deployment must retry or reconcile accepted work after restart. Connected recovery fixtures are present; their execution and interoperability results are not asserted here. |
+| Onboarding / OPC 10000-21 device setup interplay with `ResetToServerDefaults` / `InApplicationSetup` (§7.10.13, Annex G) | ⚠️ partial | Ticket administration, signing, ticket-scoped identity trust, composite-aware selection and registrar runtime bindings are implemented. GDS issuance receipts and the file-backed registrar lifecycle provider retain state across restart for a single-host deployment. Push queue acceptance remains process-local. After a restart or interruption, the host must reconcile registrar and device state before retrying because the queue cannot show whether an accepted attempt completed. Connected recovery fixtures are present; their execution and interoperability results are not asserted here. |
 
 ## LDS / LDS-ME (§4–5)
 

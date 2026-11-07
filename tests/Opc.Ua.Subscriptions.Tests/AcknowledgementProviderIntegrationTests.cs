@@ -85,6 +85,64 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         /// <summary>
+        /// A static monitored value becomes quiet after its initial notification. Its acknowledgement
+        /// and subsequent keepalives must survive multiple queued Publish requests.
+        /// </summary>
+        [TestCase(2)]
+        [TestCase(4)]
+        [CancelAfter(90_000)]
+        public async Task QuietSubscriptionAcknowledgementSurvivesConcurrentPublishesAsync(
+            int workers, CancellationToken ct)
+        {
+            var observer = new RecordingObserver();
+            ManagedSessionType session = await ConnectAsync(
+                nameof(QuietSubscriptionAcknowledgementSurvivesConcurrentPublishesAsync),
+                observer, classic: false, ct).ConfigureAwait(false);
+            try
+            {
+                if (workers != 2)
+                {
+                    session.MinPublishRequestCount = workers;
+                }
+                var handler = new HandleCollectingHandler();
+                await using ISubscription subscription = session.AddSubscription(handler,
+                    new Client.Subscriptions.SubscriptionOptions
+                    {
+                        PublishingInterval = TimeSpan.FromMilliseconds(100),
+                        KeepAliveCount = 10,
+                        LifetimeCount = 100,
+                        PublishingEnabled = true
+                    });
+                Assert.That(subscription.TryAddMonitoredItem(
+                    "StartTime", VariableIds.Server_ServerStatus_StartTime,
+                    options => options with { SamplingInterval = TimeSpan.FromMilliseconds(100) },
+                    out _), Is.True);
+                await WaitForAsync(() => !handler.Handles.IsEmpty && handler.KeepAliveCount >= workers, ct)
+                    .ConfigureAwait(false);
+
+                AcknowledgementHandle handle = handler.Handles.Single();
+                Assert.That(subscription.CurrentPublishingInterval, Is.EqualTo(TimeSpan.FromMilliseconds(100)));
+                Assert.That(subscription.CurrentKeepAliveCount, Is.EqualTo(10));
+                Assert.That(observer.WasAcknowledged(handle), Is.False);
+                ISubscriptionEngine engine = session.InnerSession.SubscriptionEngine;
+                Assert.That(engine.PublishWorkerCount, Is.EqualTo(workers));
+                session.Confirm(handle);
+                await WaitForAsync(
+                    () => observer.WasAcknowledged(handle) && handler.KeepAliveCount >= workers + 4, ct)
+                    .ConfigureAwait(false);
+
+                Assert.That(observer.Outcomes.Count(outcome => outcome.Handle == handle), Is.EqualTo(1));
+                Assert.That(engine.BadPublishRequestCount, Is.Zero);
+                Assert.That(engine.PublishWorkerCount, Is.EqualTo(workers));
+            }
+            finally
+            {
+                await session.CloseAsync().ConfigureAwait(false);
+                await session.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
         /// A split server Publish burst preserves its response markers through native partition forwarding.
         /// </summary>
         [TestCase(false)]
@@ -109,7 +167,11 @@ namespace Opc.Ua.Subscriptions.Tests
                     DisableUnboundedItemMode = !partitioned
                 });
             Assert.That(session.TryGetSubscriptionManager(out ISubscriptionManager? manager), Is.True);
-            await using ISubscription subscription = manager!.Add(handler, options);
+            // Concurrent publish workers can deliver the responses out of order. A message overtaken
+            // that way is republished, and a Republish response has no MoreNotifications to preserve.
+            manager!.MinPublishWorkerCount = 1;
+            manager.MaxPublishWorkerCount = 1;
+            await using ISubscription subscription = manager.Add(handler, options);
             var items = new List<Client.Subscriptions.MonitoredItems.IMonitoredItem>();
             int expected = partitioned ? 6 : 3;
             for (int i = 0; i < expected; i++)
@@ -122,19 +184,31 @@ namespace Opc.Ua.Subscriptions.Tests
                 items.Add(item!);
             }
             await WaitForAsync(() => items.All(item => item.Created), ct).ConfigureAwait(false);
+            uint initialRepublishCount = GetServerRepublishCount(session);
             options.CurrentValue = options.CurrentValue with { PublishingEnabled = true };
-            // Republish responses intentionally have no MoreNotifications marker.
-            await WaitForAsync(
-                () => handler.Messages.Count(message => message.MoreNotifications.HasValue) >= expected,
-                ct).ConfigureAwait(false);
+            int expectedGroups = partitioned ? 2 : 1;
+            // A terminal marker closes each subscription's Publish burst. The server diagnostic
+            // check below confirms that Republish did not supply any collected messages.
+            await WaitForAsync(() =>
+            {
+                SubscriptionNotificationMessage[] observed = [.. handler.Messages];
+                if (observed.Length < expected)
+                {
+                    return false;
+                }
+                IGrouping<uint, SubscriptionNotificationMessage>[] observedGroups =
+                    [.. observed.GroupBy(message => message.Acknowledgement.SubscriptionId)];
+                return observedGroups.Length == expectedGroups &&
+                    observedGroups.All(group => group.Any(message => message.MoreNotifications == false));
+            }, ct).ConfigureAwait(false);
 
-            SubscriptionNotificationMessage[] observedMessages = [.. handler.Messages];
-            SubscriptionNotificationMessage[] messages =
-                [.. observedMessages.Where(message => message.MoreNotifications.HasValue).Take(expected)];
+            SubscriptionNotificationMessage[] messages = [.. handler.Messages];
+            Assert.That(GetServerRepublishCount(session), Is.EqualTo(initialRepublishCount));
             Assert.That(messages, Has.Length.EqualTo(expected));
+            Assert.That(manager.PublishWorkerCount, Is.EqualTo(1));
             IGrouping<uint, SubscriptionNotificationMessage>[] groups =
                 [.. messages.GroupBy(message => message.Acknowledgement.SubscriptionId)];
-            Assert.That(groups, Has.Length.EqualTo(partitioned ? 2 : 1));
+            Assert.That(groups, Has.Length.EqualTo(expectedGroups));
             foreach (IGrouping<uint, SubscriptionNotificationMessage> group in groups)
             {
                 SubscriptionNotificationMessage[] ordered =
@@ -142,20 +216,17 @@ namespace Opc.Ua.Subscriptions.Tests
                 Assert.That(ordered.Select(message => message.MoreNotifications),
                     Is.EqualTo(new bool?[] { true, true, false }));
                 Assert.That(ordered.All(message => message.Notifications[0].DataChanges.Count == 1), Is.True);
-                foreach (SubscriptionNotificationMessage message in ordered)
-                {
-                    Assert.That(observer.WasAcknowledged(message.Acknowledgement), Is.False);
-                    session.Confirm(message.Acknowledgement);
-                }
             }
             var acknowledgements = new HashSet<AcknowledgementHandle>();
-            foreach (SubscriptionNotificationMessage message in observedMessages)
+            foreach (SubscriptionNotificationMessage message in messages)
             {
-                if (acknowledgements.Add(message.Acknowledgement) &&
-                    !observer.WasAcknowledged(message.Acknowledgement))
-                {
-                    session.Confirm(message.Acknowledgement);
-                }
+                acknowledgements.Add(message.Acknowledgement);
+            }
+            Assert.That(acknowledgements, Has.Count.EqualTo(expected));
+            foreach (AcknowledgementHandle acknowledgement in acknowledgements)
+            {
+                Assert.That(observer.WasAcknowledged(acknowledgement), Is.False);
+                session.Confirm(acknowledgement);
             }
             await WaitForAsync(
                 () => acknowledgements.All(observer.WasAcknowledged),
@@ -376,8 +447,25 @@ namespace Opc.Ua.Subscriptions.Tests
             }
         }
 
+        /// <summary>
+        /// Gets the server-side Republish request count for the client session.
+        /// </summary>
+        private uint GetServerRepublishCount(ManagedSessionType session)
+        {
+            Opc.Ua.Server.ISession serverSession =
+                ReferenceServer.CurrentInstance?.SessionManager.GetSession(
+                    session.SaveSessionConfiguration().AuthenticationToken) ??
+                throw new InvalidOperationException("The reference server did not create the client session.");
+            return serverSession.ReadDiagnostics(diagnostics => diagnostics.RepublishCount.TotalCount);
+        }
+
         private sealed class RecordingObserver : ISubscriptionAcknowledgementObserver
         {
+            /// <summary>
+            /// Gets all terminal acknowledgement results.
+            /// </summary>
+            public ConcurrentQueue<AcknowledgementOutcome> Outcomes { get; } = new();
+
             public bool WasAcknowledged(AcknowledgementHandle handle)
             {
                 return m_acknowledged.ContainsKey(handle);
@@ -389,6 +477,7 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 foreach (AcknowledgementOutcome outcome in outcomes)
                 {
+                    Outcomes.Enqueue(outcome);
                     if (outcome.Disposition == AcknowledgementDisposition.Acknowledged)
                     {
                         m_acknowledged.TryAdd(outcome.Handle, 0);
@@ -418,6 +507,11 @@ namespace Opc.Ua.Subscriptions.Tests
         private sealed class HandleCollectingHandler : ISubscriptionNotificationHandler
         {
             public ConcurrentQueue<AcknowledgementHandle> Handles { get; } = new();
+
+            /// <summary>
+            /// Gets the number of keepalives received after the initial notification.
+            /// </summary>
+            public int KeepAliveCount => Volatile.Read(ref m_keepAliveCount);
 
             public ValueTask OnDataChangeNotificationAsync(
                 ISubscription subscription,
@@ -451,6 +545,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 DateTime publishTime,
                 PublishState publishStateMask)
             {
+                Interlocked.Increment(ref m_keepAliveCount);
                 return default;
             }
 
@@ -462,6 +557,8 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 return default;
             }
+
+            private int m_keepAliveCount;
         }
     }
 }

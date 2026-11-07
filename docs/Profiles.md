@@ -28,30 +28,17 @@ The SDK provides full or partial support for these core areas:
   and key credentials, with the [documented GDS gaps](GDS.md#remaining-optional--unsupported-part-12-items).
 - Part 14: [PubSub](PubSub.md), including UADP/JSON, broker and datagram
   transports, with platform-dependent DTLS profile limits.
-- Parts 16-19 and 23: state machines, aliases, roles, dictionary references
-  and common reference types.
-- Part 20: [file transfer](FileSystemClient.md); the shared file handler
-  rejects combined Read + Write opens and can return `Bad_InvalidState` for a
-  conflicting write-only open.
+- Parts 16-20 and 23: state machines, aliases, roles, dictionary references,
+  file transfer and common reference types.
 - Part 21: [ticket validation, registrar runtime and pull/push workflows](GDS.md#opc-10000-21-onboardingclient),
-  with retained device credentials, security reset and provider-backed managed
-  Server/ClientAndServer push. The default managed-application verifier supports
-  UA-TCP and HTTPS, with separate TLS trust/pin and application-identity checks.
-  Provider registration and provider-backed address-space behavior
-  have regression tests, but a full hosted composition test is not present. The
-  registrar uses its configured certificate type by default; the host can select
-  a different advertised type for each managed application.
-  Per-entry remote `ConfigurationFile` update/confirm is optional Part 12
-  functionality backed by application-scoped providers; shared `ConfigurationFile` transfer
-  has separate Part 12/20 gaps. The device factory adds a Part 22 `Resources`
-  parent reference, but shared Base Network integration remains a source gap.
-  The optional externally authenticated DCA handoff validates dedicated CA trust
-  and configured product/application approval, then reuses registrar/Part 12
-  lifecycle operations. FDO authentication and credential installation remain
-  external.
-  Connected recovery fixtures are present; their execution status is separate
-  from this implementation rating.
-- Parts 22, 25 and 26: generated Base Network, Object Serialization and
+  with retained device credentials, security reset, managed Client provisioning,
+  provider-backed Server/ClientAndServer push and a Part 22 `Resources` parent reference.
+  FDO protocols and credential installation remain external; the GDS guide
+  describes the remaining recovery and `ConfigurationFile` gaps.
+- Part 22: [Base Network Model](BaseNetworkModel.md) runtime, typed clients and
+  an in-memory simulator, including defined optional capabilities when supplied
+  by the provider; applications supply production network providers.
+- Parts 25 and 26: generated Object Serialization and
   LogObject declarations, without complete runtime services for those models.
 
 The [companion and extension catalogue](#companion-and-extension-models)
@@ -204,6 +191,13 @@ canonical URI string before claiming a facet):
   / `LastChange`. The reference server wires the standard Aliases and
   Topics nodes via `ConfigureAliasNameStore`. See
   [Alias Names](AliasNames.md).
+- **Base Network Model** (Part 22) — `AddNetworkModel` binds application-owned
+  providers to standard Resources entry points, interfaces, priority mappings,
+  TSN streams and LLDP, including defined optional capabilities when supplied.
+  The reference provider simulates state; it does not configure host interfaces
+  or reserve TSN bandwidth. No profile URI is synthesized from the
+  specification's conformance-unit names. See
+  [Base Network Model](BaseNetworkModel.md).
 - **WoT Connectivity** (OPC 10100-1) — `Opc.Ua.WotCon` /
   `Opc.Ua.WotCon.Server` / `Opc.Ua.WotCon.Client` library trio for
   surfacing OPC UA servers as Web-of-Things Thing Descriptions. See
@@ -285,6 +279,7 @@ support gap.
 
 | Model or family | Support | Implemented behavior and limits |
 | --- | --- | --- |
+| [Base Network Model](BaseNetworkModel.md), OPC 10000-22 | Full | Provider-backed Resources model, typed clients and simulator, with defined optional interface, mapping, TSN and LLDP capabilities when supplied; applications supply production network providers |
 | [Device Integration](DeviceIntegration.md), OPC 10000-100 | Partial | Device composition, locking and software updates; offline/online representations, some loading modes and `UpdateStatus` remain incomplete |
 | [Asset Management Basics](AMB.md), OPC 10000-110 | Partial | Identity, health, maintenance, documentation, locations and dictionary classification; asset-health and past-maintenance event history remain unimplemented |
 | [Industrial Automation](IndustrialAutomation.md), OPC 10000-200 | Full | Stacklights, statistics and calibration targets with provider bindings, typed clients and a sample; physical drivers and calibration remain application-owned |
@@ -302,7 +297,8 @@ support gap.
 | [WoT Connectivity](WotCon.md), OPC 10100-1 | Full | Published 1.02 asset-connection API, server and client; additive registry extensions have separate scope |
 | [WoT Binding](WotBindings.md), OPC 10101 | Partial | Published 1.00 consumer mode and conversions; general UA Binary payload codec and complete TD/TM/Binding-result schema validation are missing |
 | [PackML](Scales.md), OPC 30050 | Partial | Generated model and Scales recipe/state integration; not a standalone implementation of every PackML unit mode |
-| [PA-DIM and ECM](Machinery.md), OPC 30081 and OPC 34100 | Partial | Generated dependency models and Machinery process-value/energy bindings; not complete standalone PA-DIM/ECM device runtimes |
+| [PA-DIM](PADIM.md), OPC 30081 | Full | Provider-backed DI devices, signal/analyser families, operations, typed clients and sample; applications select optional capabilities per device and supply acquisition or operation providers |
+| [ECM](Machinery.md), OPC 34100 | Partial | Generated dependency model and Machinery energy bindings; no standalone ECM server/client runtime |
 | [LADS](LADS.md), OPC 30500-1 | Partial | Devices, functional units, functions, programs, results and maintenance; optional Hold/Unhold/Suspend/Unsuspend/Reset/ToComplete server methods and persistence are missing |
 | [Plastics and rubber common types](PlasticsRubber.md), OPC 40083 | Full | Common controls, monitoring, maintenance, materials, diagnostics and production datasets; independently authored 1.03 interface implementation on the licensed 1.02 basis |
 | [Granulate drying](PlasticsRubber.md#granulate-drying-devices-opc-40082-6), OPC 40082-6 | Full | Device construction, selectable conformance units, provider-backed commands, observations, events and typed clients |
@@ -337,6 +333,10 @@ through two coexisting paths:
 
 Client-side feature coverage:
 
+- **Base Network Model** (Part 22) — `AddNetworkModelClient` provides typed
+  discovery, reads, observations and mapping methods. Mapping calls preserve
+  operation and argument results without replaying commands. See
+  [Base Network Model](BaseNetworkModel.md#discover-and-use-the-typed-client).
 - **Subscriptions and monitored items** — Both the classic publish
   engine and the V2 subscription engine (`ISubscriptionManager` /
   `DefaultSubscriptionEngine`) are supported and selectable per session.
@@ -797,6 +797,7 @@ for the variant selected by `--ctt`.
 - [Aggregates](Aggregates.md) (Part 13)
 - [State Machines](StateMachines.md) (Part 16)
 - [Alias Names](AliasNames.md) (Part 17)
+- [Base Network Model](BaseNetworkModel.md) (Part 22, provider and simulation boundaries)
 - [Role-Based User Management](RoleBasedUserManagement.md) (Part 18)
 - [Identity Providers](IdentityProviders.md)
 - [Authorization Service](AuthorizationService.md) (Part 12 §9)
@@ -813,6 +814,7 @@ for the variant selected by `--ctt`.
 - [Node Management](NodeManagement.md) (Part 4)
 - [Asset Management Basics](AMB.md) (OPC 10000-110)
 - [Machinery](Machinery.md) (OPC 40001 series, PA-DIM and ECM)
+- [PA-DIM](PADIM.md) (OPC 30081)
 - [Pumps](Pumps.md) (OPC 40223)
 - [AutoID Devices](AutoID.md) (OPC 30010)
 - [Scales](Scales.md) (OPC 40200 and PackML)
@@ -865,13 +867,14 @@ not a promise that every optional facet is enabled, and not an application's
 `ServerProfileArray`. For concepts and guidance documents, the rating refers
 to their application in the SDK rather than a separately executable protocol.
 The [catalogue](#companion-and-extension-models) and linked guides identify
-implementation evidence and provider boundaries. The partial-support column
-records the specific gap rather than repeating ordinary provider requirements.
+implementation evidence and provider boundaries. The final column records
+specific gaps for Partial entries and implementation boundaries where they
+clarify Full support; it does not repeat ordinary provider requirements.
 The model-only core entries refer to declarations in the shipped
 [core NodeSet](../src/Opc.Ua.Core/Schema/Opc.Ua.NodeSet.xml); their presence
 does not establish executable management, serialization or logging methods.
 
-| Specification | Latest version | Support | Why support is partial |
+| Specification | Latest version | Support | Implementation detail or partial gap |
 | --- | --- | --- | --- |
 | [OPC 10000-1: Overview and Concepts](https://reference.opcfoundation.org/specs/OPC-10000-1) | 1.05.06 | Full | - |
 | [OPC 10000-2: Security Model](https://reference.opcfoundation.org/specs/OPC-10000-2) | 1.05.06 | Full | - |
@@ -884,7 +887,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 10000-9: Alarms and Conditions](https://reference.opcfoundation.org/specs/OPC-10000-9) | 1.05.06 | Full | - |
 | [OPC 10000-10: Programs](https://reference.opcfoundation.org/specs/OPC-10000-10) | 1.05.00 | Full | - |
 | [OPC 10000-11: Historical Access](https://reference.opcfoundation.org/specs/OPC-10000-11) | 1.05.04 | Full | - |
-| [OPC 10000-12: Discovery and Global Services](https://reference.opcfoundation.org/specs/OPC-10000-12) | 1.05.07 | Partial | Runtime-backed ManagedApplications entries support independent certificate, trust and optional per-application ConfigurationFile update, confirmation and restart recovery. Shared `ConfigurationFile` Read + Write opens start empty, so the client cannot read the current content and rewind before writing. `ApplicationConfigurationFile` replaces the existing handle on each successful new `Open` instead of retaining multiple readers or rejecting incompatible opens with the `Bad_NotWritable` / `Bad_NotReadable` statuses required by Part 20 §4.2.2; the AuthorizationServices configuration folder is absent |
+| [OPC 10000-12: Discovery and Global Services](https://reference.opcfoundation.org/specs/OPC-10000-12) | 1.05.07 | Partial | `ConfigurationFile` transfer and open-handle behavior are incomplete. Shorter replacement semantics are unresolved, and `AuthorizationServices` is absent. [Details](GDS.md#remaining-optional--unsupported-part-12-items) |
 | [OPC 10000-13: Aggregates](https://reference.opcfoundation.org/specs/OPC-10000-13) | 1.05.07 | Full | - |
 | [OPC 10000-14: PubSub](https://reference.opcfoundation.org/specs/OPC-10000-14) | 1.05.06 | Partial | Curve25519/Curve448 DTLS profiles unavailable; other DTLS profiles depend on platform probes |
 | [OPC 10000-15: Safety](https://reference.opcfoundation.org/specs/OPC-10000-15) | 1.05.04 | No | - |
@@ -892,9 +895,9 @@ does not establish executable management, serialization or logging methods.
 | [OPC 10000-17: Alias Names](https://reference.opcfoundation.org/specs/OPC-10000-17) | 1.05.07 | Full | - |
 | [OPC 10000-18: Role-Based Security](https://reference.opcfoundation.org/specs/OPC-10000-18) | 1.05.06 | Full | - |
 | [OPC 10000-19: Dictionary Reference](https://reference.opcfoundation.org/specs/OPC-10000-19) | 1.05.03 | Full | - |
-| [OPC 10000-20: File Transfer](https://reference.opcfoundation.org/specs/OPC-10000-20) | 1.05.06 | Partial | The shared file handler rejects combined Read + Write opens; a conflicting write-only open on a writable file can return `Bad_InvalidState` instead of `Bad_NotWritable` |
-| [OPC 10000-21: Device Onboarding](https://reference.opcfoundation.org/specs/OPC-10000-21) | 1.05.04 | Partial | Ticket validation, registrar runtime and pull/push workflows are implemented, including managed Client and provider-backed Server/ClientAndServer push. The shared Part 22 `Resources` manager is not integrated; the device factory currently adds only its parent reference. The optional external DCA certificate handoff validates dedicated CA trust and configured product/application approval through an injectable provider, with typed pull, push and retained enrollment evidence. FDO protocols and credential installation remain external. Registrar push uses an explicit per-application certificate type or the configured default when absent, validates the advertised group types, and retains the original selection during recovery. The default managed-application verifier supports UA-TCP and HTTPS; HTTPS independently validates TLS trust or a TLS pin, the pinned application certificate, expected URI and application proof before credentials. Its TLS terminator is part of the trust boundary. Per-entry remote `ConfigurationFile` update, confirmation and restart recovery use optional application-scoped Part 12 providers; shared `ConfigurationFile` transfer has separate Part 12/20 gaps. The registrar sample can configure one managed Server/ClientAndServer application, and the device sample can configure multiple managed Client applications. The Partial rating reflects implementation gaps, not pending test execution |
-| [OPC 10000-22: Base Network Model](https://reference.opcfoundation.org/specs/OPC-10000-22) | 1.05.04 | Partial | Generated network model types; no complete network-management runtime |
+| [OPC 10000-20: File Transfer](https://reference.opcfoundation.org/specs/OPC-10000-20) | 1.05.06 | Partial | Combined Read + Write opens are rejected. A conflicting write open can return `Bad_InvalidState` instead of `Bad_NotWritable`. |
+| [OPC 10000-21: Device Onboarding](https://reference.opcfoundation.org/specs/OPC-10000-21) | 1.05.04 | Partial | Initial pull cannot request a new key pair, and §7.2 recovery after a lost accepted response is incomplete. Managed-application updates and restart recovery depend on host providers. The Part 22 `Resources` integration is absent, and `ConfigurationFile` transfer is partial. Push acceptance is process-local. Hosts must reconcile registrar and device state before retrying after a restart or interruption. [Details](GDS.md#opc-10000-21-onboardingclient) |
+| [OPC 10000-22: Base Network Model](https://reference.opcfoundation.org/specs/OPC-10000-22) | 1.05.04 | Full | Defined optional interface, mapping, TSN and LLDP capabilities are provider-backed; production adapters remain application-supplied |
 | [OPC 10000-23: Common ReferenceTypes](https://reference.opcfoundation.org/specs/OPC-10000-23) | 1.05.02 | Full | - |
 | [OPC 10000-24: Scheduler](https://reference.opcfoundation.org/specs/OPC-10000-24) | 1.05.02 | No | - |
 | [OPC 10000-25: Object Serialization](https://reference.opcfoundation.org/specs/OPC-10000-25) | 1.05.06 | Partial | Generated serialization declarations; no complete ConfigureSerialization runtime |
@@ -923,7 +926,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 30040: AutomationML](https://reference.opcfoundation.org/specs/OPC-30040) | 1.00 | No | - |
 | [OPC 30050: PackML](https://reference.opcfoundation.org/specs/OPC-30050) | 1.01 | Partial | Generated model and Scales integration; not a standalone all-unit-mode runtime |
 | [OPC 30060: Tobacco Machine Communication](https://reference.opcfoundation.org/specs/OPC-30060) | 2.00.1 | No | - |
-| [OPC 30081: PA-DIM](https://reference.opcfoundation.org/specs/OPC-30081) | 1.02.0 | Partial | Generated model and Machinery process values; no complete standalone PA-DIM runtime |
+| [OPC 30081: PA-DIM](https://reference.opcfoundation.org/specs/OPC-30081) | 1.02.0 | Full | Provider-backed DI devices, signal/analyser families, operations, typed clients and sample; applications select optional capabilities per device and supply acquisition or operation providers |
 | [OPC 30090: Field Device Tool (FDT)](https://reference.opcfoundation.org/specs/OPC-30090) | 1.01 | No | - |
 | [OPC 30100: SERCOS Devices](https://reference.opcfoundation.org/specs/OPC-30100) | 1.2 | No | - |
 | [OPC 30110: POWERLINK](https://reference.opcfoundation.org/specs/OPC-30110) | 1.00 | No | - |

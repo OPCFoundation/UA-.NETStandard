@@ -219,6 +219,7 @@ namespace Opc.Ua.Configuration
             }
 
             ApplicationConfiguration = FixupAppConfig(configuration);
+            RetainCertificateManagerOwnership();
 
             return configuration;
         }
@@ -253,6 +254,7 @@ namespace Opc.Ua.Configuration
             }
 
             ApplicationConfiguration = FixupAppConfig(configuration);
+            RetainCertificateManagerOwnership();
 
             return configuration;
         }
@@ -580,6 +582,14 @@ namespace Opc.Ua.Configuration
             // logs a warning if no trusted store is configured, preserving prior behavior.
             await AddToTrustedStoreAsync(ApplicationConfiguration!, certificate, ct).ConfigureAwait(
                 false);
+        }
+
+        /// <summary>
+        /// Retains ownership of the concrete certificate manager assigned to this instance's configuration.
+        /// </summary>
+        internal void RetainCertificateManagerOwnership()
+        {
+            CertificateManager ??= ApplicationConfiguration?.CertificateManager as CertificateManager;
         }
 
         /// <summary>
