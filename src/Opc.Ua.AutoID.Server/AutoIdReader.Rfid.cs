@@ -59,10 +59,17 @@ namespace Opc.Ua.AutoID.Server
             }
             AutoIdTagReadOutcome outcome = await RunOperationAsync(
                 token => provider.ReadTagAsync(identifier, codeType, region, offset, length, password, token),
-                cancellationToken).ConfigureAwait(false);
-            RaiseTagAccess(context, "ReadTag", identifier, codeType, outcome.Status,
-                outcome.Status == AutoIdOperationStatusEnumeration.SUCCESS
-                    ? AccessEventData(provider, codeType, region, offset, outcome.Data) : ByteString.Empty);
+                cancellationToken,
+                outcome => RaiseTagAccessAsync(
+                    context,
+                    "ReadTag",
+                    identifier,
+                    codeType,
+                    outcome.Status,
+                    outcome.Status == AutoIdOperationStatusEnumeration.SUCCESS
+                        ? AccessEventData(provider, codeType, region, offset, outcome.Data)
+                        : ByteString.Empty))
+                .ConfigureAwait(false);
             return new ReadTagMethodStateResult
             {
                 ServiceResult = ServiceResult.Good,
@@ -89,10 +96,17 @@ namespace Opc.Ua.AutoID.Server
             }
             AutoIdOperationStatusEnumeration status = await RunOperationAsync(
                 token => provider.WriteTagAsync(identifier, codeType, region, offset, data, password, token),
-                cancellationToken).ConfigureAwait(false);
-            RaiseTagAccess(context, "WriteTag", identifier, codeType, status,
-                status == AutoIdOperationStatusEnumeration.SUCCESS
-                    ? AccessEventData(provider, codeType, region, offset, data) : ByteString.Empty);
+                cancellationToken,
+                status => RaiseTagAccessAsync(
+                    context,
+                    "WriteTag",
+                    identifier,
+                    codeType,
+                    status,
+                    status == AutoIdOperationStatusEnumeration.SUCCESS
+                        ? AccessEventData(provider, codeType, region, offset, data)
+                        : ByteString.Empty))
+                .ConfigureAwait(false);
             return new WriteTagMethodStateResult { ServiceResult = ServiceResult.Good, Status = status };
         }
 
@@ -114,8 +128,9 @@ namespace Opc.Ua.AutoID.Server
             }
             AutoIdOperationStatusEnumeration status = await RunOperationAsync(
                 token => provider.WriteTagIdAsync(identifier, codeType, newUId, afi, toggle, password, token),
-                cancellationToken).ConfigureAwait(false);
-            RaiseTagAccess(context, "WriteTagID", identifier, codeType, status, newUId);
+                cancellationToken,
+                status => RaiseTagAccessAsync(context, "WriteTagID", identifier, codeType, status, newUId))
+                .ConfigureAwait(false);
             return new WriteTagIDMethodStateResult { ServiceResult = ServiceResult.Good, Status = status };
         }
 
@@ -134,8 +149,9 @@ namespace Opc.Ua.AutoID.Server
             }
             AutoIdOperationStatusEnumeration status = await RunOperationAsync(
                 token => provider.KillTagAsync(identifier, codeType, killPassword, token),
-                cancellationToken).ConfigureAwait(false);
-            RaiseTagAccess(context, "KillTag", identifier, codeType, status, ByteString.Empty);
+                cancellationToken,
+                status => RaiseTagAccessAsync(context, "KillTag", identifier, codeType, status, ByteString.Empty))
+                .ConfigureAwait(false);
             return new KillTagMethodStateResult { ServiceResult = ServiceResult.Good, Status = status };
         }
 
@@ -165,8 +181,9 @@ namespace Opc.Ua.AutoID.Server
             AutoIdOperationStatusEnumeration status = await RunOperationAsync(
                 token => provider.LockTagAsync(
                     identifier, codeType, password, region, lockOperation, offset, length, token),
-                cancellationToken).ConfigureAwait(false);
-            RaiseTagAccess(context, "LockTag", identifier, codeType, status, ByteString.Empty);
+                cancellationToken,
+                status => RaiseTagAccessAsync(context, "LockTag", identifier, codeType, status, ByteString.Empty))
+                .ConfigureAwait(false);
             return new LockTagMethodStateResult { ServiceResult = ServiceResult.Good, Status = status };
         }
 
@@ -192,8 +209,10 @@ namespace Opc.Ua.AutoID.Server
             AutoIdOperationStatusEnumeration status = await RunOperationAsync(
                 token => provider.SetTagPasswordAsync(
                     identifier, codeType, passwordType, accessPassword, newPassword, token),
-                cancellationToken).ConfigureAwait(false);
-            RaiseTagAccess(context, "SetTagPassword", identifier, codeType, status, ByteString.Empty);
+                cancellationToken,
+                status => RaiseTagAccessAsync(
+                    context, "SetTagPassword", identifier, codeType, status, ByteString.Empty))
+                .ConfigureAwait(false);
             return new SetTagPasswordMethodStateResult { ServiceResult = ServiceResult.Good, Status = status };
         }
 
@@ -214,14 +233,16 @@ namespace Opc.Ua.AutoID.Server
         }
 
         /// <summary>
-        /// Runs a provider operation under the caller's token and the shutdown token, admitted by the
-        /// operation tracker so shutdown waits for it.
+        /// Runs a provider operation under caller and shutdown tokens, then invokes its completion callback
+        /// before releasing operation admission. The operation tracker keeps shutdown from disposing resources
+        /// until both finish.
         /// </summary>
         /// <typeparam name="T">The result type of the operation.</typeparam>
         /// <exception cref="ServiceResultException"></exception>
         private async ValueTask<T> RunOperationAsync<T>(
             Func<CancellationToken, ValueTask<T>> operation,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            Func<T, ValueTask>? onCompleted = null)
         {
             if (!m_operations.TryEnter())
             {
@@ -232,9 +253,10 @@ namespace Opc.Ua.AutoID.Server
                 using var linked = CancellationTokenSource.CreateLinkedTokenSource(
                     cancellationToken,
                     m_stopping.Token);
+                T result;
                 try
                 {
-                    return await operation(linked.Token).ConfigureAwait(false);
+                    result = await operation(linked.Token).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested &&
                     m_stopping.IsCancellationRequested)
@@ -243,6 +265,11 @@ namespace Opc.Ua.AutoID.Server
                         StatusCodes.BadServerHalted,
                         "The reader was shut down during the operation.");
                 }
+                if (onCompleted != null)
+                {
+                    await onCompleted(result).ConfigureAwait(false);
+                }
+                return result;
             }
             finally
             {
@@ -301,7 +328,7 @@ namespace Opc.Ua.AutoID.Server
         /// <summary>
         /// Raises an access event for a tag command when the command reached a tag.
         /// </summary>
-        private void RaiseTagAccess(
+        private async ValueTask RaiseTagAccessAsync(
             ISystemContext context,
             string command,
             ScanData identifier,
@@ -328,7 +355,8 @@ namespace Opc.Ua.AutoID.Server
                 access.RWData = new ScanData { SwitchField = ScanDataFields.ByteString, ByteString = data };
                 access.EncodingMask |= (uint)(RfidAccessResultFields.CodeTypeRWData | RfidAccessResultFields.RWData);
             }
-            TryRaiseAccessEvent(ClientOf(context), command, new AccessResult[] { access }.ToArrayOf());
+            await TryRaiseAccessEventAsync(
+                ClientOf(context), command, new AccessResult[] { access }.ToArrayOf()).ConfigureAwait(false);
         }
 
         /// <summary>
