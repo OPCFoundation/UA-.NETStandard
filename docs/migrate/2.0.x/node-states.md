@@ -1,6 +1,6 @@
 # Node States and INodeCache
 
-> **When to read this:** Read this when migrating custom NodeManagers, core / diagnostics / configuration manager interfaces, service or transfer overrides, synchronous adapters, `NodeState` clone / read / write helpers (`Clone` -> `CreateCopy`, removed `BaseVariableState` helpers), the new `INodeManager3` role-permission hooks, `OnAfterCreate(CancellationToken)`, predefined-node processing, generics on `BaseVariableState` / `BaseVariableTypeState`, code that took `lock (node)` on a `NodeState` or used `NodeBrowser.DataLock`, or `INodeCache.InvalidateNode`.
+> **When to read this:** Read this when migrating custom NodeManagers, core / diagnostics / configuration manager interfaces, master-manager services, service or transfer overrides, synchronous adapters, `NodeState` clone / read / write helpers (`Clone` -> `CreateCopy`, removed `BaseVariableState` helpers), the new `INodeManager3` role-permission hooks, `OnAfterCreate(CancellationToken)`, predefined-node processing, generics on `BaseVariableState` / `BaseVariableTypeState`, code that took `lock (node)` on a `NodeState` or used `CoreNodeManager.DataLock` or `NodeBrowser.DataLock`, or `INodeCache.InvalidateNode`.
 
 ## Contents
 
@@ -396,6 +396,60 @@ than `CustomNodeManager2`; `CoreNodeManager` also derives from
 base classes. For example, the former virtual
 `DiagnosticsNodeManager.UpdateServerEventNotifier` is now
 `UpdateServerEventNotifierAsync(CancellationToken)`.
+
+`CoreNodeManager` no longer exposes the `GetLocalNode` overloads or
+`Find(NodeId, string)`. Its inherited `Find(NodeId)` searches the predefined
+node map and returns `NodeState?`, not `ILocalNode`; it does not translate a
+browse path. Review callers that traverse paths or depend on local-node
+interfaces rather than treating this lookup as a direct replacement.
+
+`CoreNodeManager.DataLock` is also removed. A caller-owned lock does not
+synchronize with manager operations. Code that relied on a sequence remaining
+atomic with other manager calls needs a different coordination design.
+
+`DiagnosticsNodeManager.OnGetMonitoredItems`, `OnResendData`,
+`OnSetSubscriptionDurable`, and `OnUnlockServer` changed from public to
+protected. Calls from outside a subclass no longer compile; review those
+calls against the application operation they implement. This guide does not
+identify a one-for-one replacement. `OnLockServer` remains public, but its
+arguments changed from `IList<object>` inputs and outputs to
+`ArrayOf<Variant>` inputs and `List<Variant>` outputs.
+
+#### Master NodeManager service calls
+
+`IMasterNodeManager` service methods use `ArrayOf<T>` for the following
+request inputs and result values instead of the corresponding 1.5.378
+collection types. Their diagnostic results also use `ArrayOf<DiagnosticInfo>`.
+Update both callers and direct implementations of the interface.
+
+| Method | Request input | Result values |
+| --- | --- | --- |
+| `BrowseAsync` | `ArrayOf<BrowseDescription>` | `ArrayOf<BrowseResult>` |
+| `BrowseNextAsync` | `ArrayOf<ByteString>` | `ArrayOf<BrowseResult>` |
+| `CallAsync` | `ArrayOf<CallMethodRequest>` | `ArrayOf<CallMethodResult>` |
+| `HistoryReadAsync` | `ArrayOf<HistoryReadValueId>` | `ArrayOf<HistoryReadResult>` |
+| `HistoryUpdateAsync` | `ArrayOf<ExtensionObject>` | `ArrayOf<HistoryUpdateResult>` |
+| `ReadAsync` | `ArrayOf<ReadValueId>` | `ArrayOf<DataValue>` |
+| `TranslateBrowsePathsToNodeIdsAsync` | `ArrayOf<BrowsePath>` | `ArrayOf<BrowsePathResult>` |
+| `WriteAsync` | `ArrayOf<WriteValue>` | `ArrayOf<StatusCode>` |
+
+`CreateMonitoredItemsAsync` and `ModifyMonitoredItemsAsync` also take
+`ArrayOf<T>` request inputs, while their result lists remain `IList<T>`.
+`RegisterNodes` takes an `ArrayOf<NodeId>` and writes another to its output
+parameter; `UnregisterNodes` takes an `ArrayOf<NodeId>`.
+`TransferMonitoredItemsAsync` adds `MonitoredItemTransferOptions` before
+the cancellation token.
+
+`ArrayOf<T>` distinguishes a null OPC UA array from an empty one. Check
+`IsNull` where that distinction matters: `ToArray()` returns null for a null
+array, while `ToList()` returns an empty list. See
+[ArrayOf and MatrixOf](types.md#arrayof-and-matrixof) for conversion guidance.
+
+Direct implementations must also provide `SessionActivatedAsync`,
+`FindNodeInAddressSpaceAsync`, `AddNodesAsync`, `DeleteNodesAsync`, and the
+service overloads of `AddReferencesAsync` and `DeleteReferencesAsync`. The
+reference service overloads are separate from the existing overloads that take
+a `NodeId` and a list of references.
 
 #### Synchronous adapter return type
 
