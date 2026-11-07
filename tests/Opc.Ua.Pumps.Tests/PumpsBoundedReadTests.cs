@@ -520,6 +520,275 @@ namespace Opc.Ua.Pumps.Tests
             Assert.That(observed.InnerExceptions[1], Is.SameAs(cleanup));
         }
 
+        /// <summary>
+        /// Identity writes use the declaring namespace and preserve the exact typed value.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        public async Task IdentityWriteUsesResolvedNodeAndPreservesLocaleAsync(int field)
+        {
+            (Mock<ISession> session, ITelemetryContext telemetry) = CreateSession();
+            ushort di = session.Object.NamespaceUris.GetIndexOrAppend(Opc.Ua.Di.Namespaces.OpcUaDi);
+            ushort machinery = session.Object.NamespaceUris.GetIndexOrAppend(Opc.Ua.Machinery.Namespaces.Machinery);
+            string expectedName = field switch
+            {
+                0 => Opc.Ua.Di.BrowseNames.AssetId,
+                1 => Opc.Ua.Di.BrowseNames.ComponentName,
+                _ => Opc.Ua.Machinery.BrowseNames.Location
+            };
+            int calls = 0;
+            session.Setup(value => value.TranslateBrowsePathsToNodeIdsAsync(
+                    It.IsAny<RequestHeader?>(),
+                    It.IsAny<ArrayOf<BrowsePath>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((RequestHeader? _, ArrayOf<BrowsePath> paths, CancellationToken _) =>
+                {
+                    Assert.That(paths, Has.Count.EqualTo(1));
+                    QualifiedName target = paths[0].RelativePath.Elements[0].TargetName;
+                    Assert.That(target, Is.EqualTo(calls == 0
+                        ? new QualifiedName(PumpsModel.DiGroups.Identification, di)
+                        : new QualifiedName(expectedName, field == 2 ? machinery : di)));
+                    calls++;
+                    return new ValueTask<TranslateBrowsePathsToNodeIdsResponse>(
+                        new TranslateBrowsePathsToNodeIdsResponse
+                        {
+                            ResponseHeader = new ResponseHeader(),
+                            Results = [new BrowsePathResult
+                            {
+                                Targets = [new BrowsePathTarget
+                                {
+                                    TargetId = new ExpandedNodeId((uint)(calls + 10)),
+                                    RemainingPathIndex = uint.MaxValue
+                                }]
+                            }]
+                        });
+                });
+            Variant expected = field == 1
+                ? Variant.From(new LocalizedText("de-DE", "Kuehlwasserpumpe"))
+                : Variant.From("Pump-42");
+            session.Setup(value => value.WriteAsync(
+                    It.IsAny<RequestHeader?>(),
+                    It.IsAny<ArrayOf<WriteValue>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((RequestHeader? _, ArrayOf<WriteValue> writes, CancellationToken _) =>
+                {
+                    Assert.That(writes, Has.Count.EqualTo(1));
+                    Assert.That(writes[0].NodeId, Is.EqualTo(new NodeId(12u)));
+                    Assert.That(writes[0].AttributeId, Is.EqualTo(Attributes.Value));
+                    Assert.That(writes[0].Value.WrappedValue, Is.EqualTo(expected));
+                    return new ValueTask<WriteResponse>(new WriteResponse
+                    {
+                        ResponseHeader = new ResponseHeader(),
+                        Results = [StatusCodes.Good]
+                    });
+                });
+            var client = new PumpsClient(session.Object, telemetry, 4);
+            switch (field)
+            {
+                case 0:
+                    await client.WriteAssetIdAsync(new NodeId(1u), "Pump-42").ConfigureAwait(false);
+                    break;
+                case 1:
+                    await client.WriteComponentNameAsync(
+                        new NodeId(1u), new LocalizedText("de-DE", "Kuehlwasserpumpe")).ConfigureAwait(false);
+                    break;
+                default:
+                    await client.WriteLocationAsync(new NodeId(1u), "Pump-42").ConfigureAwait(false);
+                    break;
+            }
+            Assert.That(calls, Is.EqualTo(2));
+            session.Verify(value => value.WriteAsync(
+                It.IsAny<RequestHeader?>(), It.IsAny<ArrayOf<WriteValue>>(),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
+        /// Invalid identity requests never issue writes.
+        /// </summary>
+        [Test]
+        public async Task IdentityWriteRejectsNullPumpAndCancellationAsync()
+        {
+            (Mock<ISession> session, ITelemetryContext telemetry) = CreateSession();
+            var client = new PumpsClient(session.Object, telemetry, 4);
+            await Assert.ThatAsync(
+                async () => await client.WriteAssetIdAsync(NodeId.Null, "asset").ConfigureAwait(false),
+                Throws.TypeOf<ArgumentException>()).ConfigureAwait(false);
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+            await Assert.ThatAsync(
+                async () => await client.WriteLocationAsync(
+                    new NodeId(1u), "location", cancellation.Token).ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+            session.Verify(value => value.WriteAsync(
+                It.IsAny<RequestHeader?>(), It.IsAny<ArrayOf<WriteValue>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// A denied, uncertain or malformed write response cannot be reported as a successful retained change.
+        /// </summary>
+        [TestCase("denied")]
+        [TestCase("uncertain")]
+        [TestCase("header")]
+        [TestCase("missing")]
+        [TestCase("extra")]
+        public async Task IdentityWritePropagatesFailureAndRejectsMalformedResultsAsync(string kind)
+        {
+            StatusCode expected = kind switch
+            {
+                "denied" => StatusCodes.BadUserAccessDenied,
+                "uncertain" => StatusCodes.Uncertain,
+                "header" => StatusCodes.BadTimeout,
+                "missing" or "extra" => StatusCodes.BadDecodingError,
+                _ => throw new ArgumentOutOfRangeException(nameof(kind))
+            };
+            (Mock<ISession> session, ITelemetryContext telemetry) = CreateSession();
+            session.Object.NamespaceUris.GetIndexOrAppend(Opc.Ua.Di.Namespaces.OpcUaDi);
+            session.Setup(value => value.TranslateBrowsePathsToNodeIdsAsync(
+                    It.IsAny<RequestHeader?>(), It.IsAny<ArrayOf<BrowsePath>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new TranslateBrowsePathsToNodeIdsResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results = [new BrowsePathResult
+                    {
+                        Targets = [new BrowsePathTarget
+                        {
+                            TargetId = new ExpandedNodeId(12u),
+                            RemainingPathIndex = uint.MaxValue
+                        }]
+                    }]
+                });
+            session.Setup(value => value.WriteAsync(
+                    It.IsAny<RequestHeader?>(), It.IsAny<ArrayOf<WriteValue>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new WriteResponse
+                {
+                    ResponseHeader = new ResponseHeader
+                    {
+                        ServiceResult = kind == "header" ? StatusCodes.BadTimeout : StatusCodes.Good
+                    },
+                    Results = kind switch
+                    {
+                        "missing" => [],
+                        "extra" => [StatusCodes.Good, StatusCodes.Good],
+                        "denied" => [StatusCodes.BadUserAccessDenied],
+                        "uncertain" => [StatusCodes.Uncertain],
+                        _ => [StatusCodes.Good]
+                    }
+                });
+            var client = new PumpsClient(session.Object, telemetry, 4);
+            await Assert.ThatAsync(
+                async () => await client.WriteAssetIdAsync(new NodeId(1u), "asset").ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>().With.Property("StatusCode")
+                    .EqualTo(expected)).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Both constructors require complete local identity targets before permitting a write.
+        /// </summary>
+        [Test]
+        public async Task IdentityWriteRejectsInvalidResolutionBeforeDispatchAsync(
+            [Values(false, true)] bool bounded,
+            [Values(0, 1)] int failedHop,
+            [Values("ambiguous", "incomplete", "remote", "missing", "extra", "uncertain", "absent")] string shape)
+        {
+            (Mock<ISession> session, ITelemetryContext telemetry) = CreateSession();
+            session.Object.NamespaceUris.GetIndexOrAppend(Opc.Ua.Di.Namespaces.OpcUaDi);
+            int calls = 0;
+            session.Setup(value => value.TranslateBrowsePathsToNodeIdsAsync(
+                    It.IsAny<RequestHeader?>(), It.IsAny<ArrayOf<BrowsePath>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((RequestHeader? _, ArrayOf<BrowsePath> paths, CancellationToken _) =>
+                {
+                    Assert.That(paths.Count, Is.EqualTo(1));
+                    bool fail = calls++ == failedHop;
+                    var target = new BrowsePathTarget
+                    {
+                        TargetId = fail && shape == "remote"
+                            ? new ExpandedNodeId(12u, 0, null, 1) : new ExpandedNodeId(12u),
+                        RemainingPathIndex = fail && shape == "incomplete" ? 0 : uint.MaxValue
+                    };
+                    var result = new BrowsePathResult
+                    {
+                        StatusCode = fail && shape == "absent" ? StatusCodes.BadNoMatch : StatusCodes.Good,
+                        Targets = fail && shape == "ambiguous" ? [target, target] : [target]
+                    };
+                    return new ValueTask<TranslateBrowsePathsToNodeIdsResponse>(
+                        new TranslateBrowsePathsToNodeIdsResponse
+                        {
+                            ResponseHeader = new ResponseHeader
+                            {
+                                ServiceResult = fail && shape == "uncertain"
+                                    ? StatusCodes.Uncertain : StatusCodes.Good
+                            },
+                            Results = fail && shape == "missing" ? []
+                                : fail && shape == "extra" ? [result, result] : [result]
+                        });
+                });
+            PumpsClient client = bounded
+                ? new PumpsClient(session.Object, telemetry, 4) : new PumpsClient(session.Object, telemetry);
+            StatusCode expected = shape switch
+            {
+                "uncertain" => StatusCodes.Uncertain,
+                "absent" => StatusCodes.BadNodeIdUnknown,
+                _ => StatusCodes.BadDecodingError
+            };
+            await Assert.ThatAsync(
+                async () => await client.WriteAssetIdAsync(new NodeId(1u), "asset").ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>().With.Property("StatusCode").EqualTo(expected))
+                .ConfigureAwait(false);
+            Assert.That(calls, Is.EqualTo(failedHop + 1));
+            session.Verify(value => value.WriteAsync(
+                It.IsAny<RequestHeader?>(), It.IsAny<ArrayOf<WriteValue>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// Cancellation after either resolution step prevents all subsequent requests.
+        /// </summary>
+        [TestCase(1)]
+        [TestCase(2)]
+        public async Task IdentityWriteHonorsCancellationBetweenResolutionAndDispatchAsync(int cancelAfter)
+        {
+            (Mock<ISession> session, ITelemetryContext telemetry) = CreateSession();
+            session.Object.NamespaceUris.GetIndexOrAppend(Opc.Ua.Di.Namespaces.OpcUaDi);
+            using var cancellation = new CancellationTokenSource();
+            int calls = 0;
+            session.Setup(value => value.TranslateBrowsePathsToNodeIdsAsync(
+                    It.IsAny<RequestHeader?>(), It.IsAny<ArrayOf<BrowsePath>>(), cancellation.Token))
+                .Returns((RequestHeader? _, ArrayOf<BrowsePath> _, CancellationToken _) =>
+                {
+                    if (++calls == cancelAfter)
+                    {
+                        cancellation.Cancel();
+                    }
+                    return new ValueTask<TranslateBrowsePathsToNodeIdsResponse>(
+                        new TranslateBrowsePathsToNodeIdsResponse
+                        {
+                            ResponseHeader = new ResponseHeader(),
+                            Results = [new BrowsePathResult
+                            {
+                                Targets = [new BrowsePathTarget
+                                {
+                                    TargetId = new ExpandedNodeId(12u),
+                                    RemainingPathIndex = uint.MaxValue
+                                }]
+                            }]
+                        });
+                });
+            var client = new PumpsClient(session.Object, telemetry);
+            await Assert.ThatAsync(
+                async () => await client.WriteAssetIdAsync(
+                    new NodeId(1u), "asset", cancellation.Token).ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+            Assert.That(calls, Is.EqualTo(cancelAfter));
+            session.Verify(value => value.WriteAsync(
+                It.IsAny<RequestHeader?>(), It.IsAny<ArrayOf<WriteValue>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
         private static (Mock<ISession> Session, ITelemetryContext Telemetry) CreateSession()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();

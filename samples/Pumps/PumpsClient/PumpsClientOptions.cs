@@ -52,6 +52,16 @@ namespace PumpsSample.Client
         /// </summary>
         public int WatchSeconds { get; init; } = 20;
 
+        /// <summary>
+        /// Reads the explicitly configured raw, aggregate and event history.
+        /// </summary>
+        public bool History { get; init; }
+
+        /// <summary>
+        /// Refreshes retained conditions and watches their live transitions without acknowledging them.
+        /// </summary>
+        public bool Conditions { get; init; }
+
         public static PumpsClientOptions Parse(string[] args)
         {
             var options = new PumpsClientOptions();
@@ -62,6 +72,12 @@ namespace PumpsSample.Client
                 {
                     case "--insecure":
                         options = options with { Insecure = true };
+                        break;
+                    case "--history":
+                        options = options with { History = true };
+                        break;
+                    case "--conditions":
+                        options = options with { Conditions = true };
                         break;
                     case "--url" when ii + 1 < args.Length:
                         options = options with { ServerUrl = args[++ii] };
