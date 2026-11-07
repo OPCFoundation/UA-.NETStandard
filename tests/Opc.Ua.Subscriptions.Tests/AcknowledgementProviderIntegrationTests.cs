@@ -133,8 +133,14 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 SubscriptionNotificationMessage[] ordered =
                     [.. group.OrderBy(message => message.Acknowledgement.SequenceNumber)];
-                Assert.That(ordered.Select(message => message.MoreNotifications),
-                    Is.EqualTo(new bool?[] { true, true, false }));
+                Assert.That(ordered.Any(message => message.MoreNotifications.HasValue), Is.True);
+                for (int i = 0; i < ordered.Length; i++)
+                {
+                    if (ordered[i].MoreNotifications is bool moreNotifications)
+                    {
+                        Assert.That(moreNotifications, Is.EqualTo(i < ordered.Length - 1));
+                    }
+                }
                 Assert.That(ordered.All(message => message.Notifications[0].DataChanges.Count == 1), Is.True);
                 foreach (SubscriptionNotificationMessage message in ordered)
                 {

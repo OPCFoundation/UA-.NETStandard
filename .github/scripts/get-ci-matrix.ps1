@@ -551,8 +551,7 @@ function Get-TestProjectShards([string] $project, [string] $framework, [string] 
         }
         'Opc.Ua.Server.Tests' {
             $nativeLifecycle = 'Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.'
-            # Only the macOS runners need the lifecycle split to stay under the
-            # per-project ceiling; every extra entry counts against the job limit.
+            # Shard macOS and net48 workloads within the per-project ceiling.
             if ($framework -ne 'net48' -and $os -ne 'macos') {
                 return @(
                     @{
@@ -563,29 +562,6 @@ function Get-TestProjectShards([string] $project, [string] $framework, [string] 
                     }
                 )
             }
-            if ($framework -ne 'net48') {
-                return @(
-                    @{
-                        id = 'server-node-lifecycle-prepared'
-                        name = 'server-node-lifecycle-prepared'
-                        filter = "FullyQualifiedName~${nativeLifecycle}Prepared"
-                        hangTimeout = ''
-                    }
-                    @{
-                        id = 'server-node-lifecycle'
-                        name = 'server-node-lifecycle'
-                        filter = "FullyQualifiedName~${nativeLifecycle}&FullyQualifiedName!~${nativeLifecycle}Prepared"
-                        hangTimeout = ''
-                    }
-                    @{
-                        id = 'server-other'
-                        name = 'server-other'
-                        filter = "FullyQualifiedName!~$nativeLifecycle"
-                        hangTimeout = ''
-                    }
-                )
-            }
-
             $groups = @(
                 @{
                     id = 'server-node-lifecycle-prepared'
@@ -638,6 +614,25 @@ function Get-TestProjectShards([string] $project, [string] $framework, [string] 
                     terms = @()
                 }
             )
+
+            if ($os -eq 'macos' -and $framework -ne 'net48') {
+                $groups = @(
+                    $groups[0]
+                    $groups[1]
+                    $groups[2]
+                    $groups[3]
+                    @{
+                        id = 'server-sessions-configuration-runtime'
+                        name = 'server-sessions-configuration-runtime'
+                        terms = @($groups[4].terms + $groups[5].terms + $groups[6].terms)
+                    }
+                    @{
+                        id = 'server-other'
+                        name = 'server-other'
+                        terms = @()
+                    }
+                )
+            }
 
             $assignedTerms = @()
             foreach ($group in $groups) {
