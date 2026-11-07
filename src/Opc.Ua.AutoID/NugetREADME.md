@@ -27,6 +27,9 @@ conformance.
   `IEncodeableFactoryBuilder` and `INodeStateFactoryBuilder`, which load DI
   before AutoID.
 - The generated `AddOpcUaAutoID` overloads for callers that already load DI.
+- `AutoIdScanParameters`, an SDK snapshot shared by provider and client APIs
+  for runtime parameter variables. It is not a wire DataType and does not
+  replace the generated `ScanSettings` method-argument structure.
 
 The package references neither a server nor a client runtime project.
 
@@ -78,9 +81,13 @@ are written only when their bit is set in `EncodingMask`.
 ## Publication provenance and limitations
 
 `Model\Opc.Ua.AutoID.NodeSet2.xml` and `Model\Opc.Ua.AutoID.NodeIds.csv` are
-the unmodified files from OPCFoundation/UA-Nodeset; `Model\provenance.json` pins
+derived from OPCFoundation/UA-Nodeset; `Model\provenance.json` pins
 revision `9f6c7660b94af24d32c4248d4b13bf60adab0301`, source URLs and SHA-256
-hashes. The published identifier table predates model 1.01 and lacks 67 of the
+hashes. The NodeSet applies one documented correction: verifier `Scan.Results`
+uses `OpticalVerifierScanResult[]` from OPC 30010 6.4.3.1 instead of the
+publication's conflicting `WGS84Coordinate[]`. Method and property NodeIds,
+argument order, rank and model identity are unchanged; provenance also records
+the effective file hash. The published identifier table predates model 1.01 and lacks 67 of the
 NodeSet declarations; `Opc.Ua.AutoID.Derived.NodeIds.csv` is a **local**
 symbolic-name drift guard derived from it with
 `tools\nodesets\derive-identifier-table.py`. NodeIds always come from the

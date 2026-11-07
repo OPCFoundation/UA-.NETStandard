@@ -37,8 +37,11 @@ namespace Opc.Ua.AutoID.Server
         /// </summary>
         internal void Bind()
         {
+            BindAcquisitionValues();
             BindScanMethods();
             BindDeviceMethods();
+            BindParameters();
+            BindDiagnostics();
             switch (Device)
             {
                 case RfidReaderDeviceState rfid:
@@ -47,6 +50,32 @@ namespace Opc.Ua.AutoID.Server
                 case RtlsDeviceState rtls:
                     BindRtls(rtls);
                     break;
+            }
+        }
+
+        /// <summary>
+        /// Reads each acquisition value, quality and timestamp under its publication lock.
+        /// </summary>
+        private void BindAcquisitionValues()
+        {
+            if (Device.LastScanData != null)
+            {
+                Device.LastScanData.OnReadValueAsync = ReadCachedValueAsync;
+            }
+            if (Device.LastScanTimestamp != null)
+            {
+                Device.LastScanTimestamp.OnReadValueAsync = ReadCachedValueAsync;
+            }
+            if (Device is RfidReaderDeviceState rfid)
+            {
+                if (rfid.LastScanAntenna != null)
+                {
+                    rfid.LastScanAntenna.OnReadValueAsync = ReadCachedValueAsync;
+                }
+                if (rfid.LastScanRSSI != null)
+                {
+                    rfid.LastScanRSSI.OnReadValueAsync = ReadCachedValueAsync;
+                }
             }
         }
 
@@ -74,6 +103,20 @@ namespace Opc.Ua.AutoID.Server
                         {
                             ServiceResult = o.ServiceResult,
                             ResultsOut = ServiceResult.IsGood(o.ServiceResult) ? Cast<OcrScanResult>(o.Results) : default,
+                            Status = o.Status
+                        };
+                    };
+                    break;
+                case OpticalVerifierDeviceState { Scan: { } scan }:
+                    scan.OnCallAsync = async (context, method, objectId, setting, ct) =>
+                    {
+                        ScanCallOutcome o = await ScanCoreAsync(context, setting, ct).ConfigureAwait(false);
+                        return new ScanOpticalVerifierDeviceTypeMethodStateResult
+                        {
+                            ServiceResult = o.ServiceResult,
+                            ResultsOut = ServiceResult.IsGood(o.ServiceResult)
+                                ? Cast<OpticalVerifierScanResult>(o.Results)
+                                : default,
                             Status = o.Status
                         };
                     };

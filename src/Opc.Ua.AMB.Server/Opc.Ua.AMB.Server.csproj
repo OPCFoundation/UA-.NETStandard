@@ -17,6 +17,7 @@
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.AMB.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Pumps.Server" />
   </ItemGroup>
   <!-- AMB applies OPC 10000-100 building blocks to an asset (Table 59 makes the
        DI namespace mandatory), so the server package references DI, and

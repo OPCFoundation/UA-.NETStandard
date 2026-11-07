@@ -29,8 +29,7 @@ covers cross-cutting changes.
 - [Configuring distributed address-space storage](#configuring-distributed-address-space-storage)
 - [Migrating SamplingGroupManager create/modify overrides](#migrating-samplinggroupmanager-createmodify-overrides)
 - [Migrating callers of the synchronous MonitoredNode2 notification wrappers](#migrating-callers-of-the-synchronous-monitorednode2-notification-wrappers)
-- [Migrating condition subclasses to asynchronous state
-  setters](#migrating-condition-subclasses-to-asynchronous-state-setters)
+- [Migrating condition subclasses to asynchronous state setters](#migrating-condition-subclasses-to-asynchronous-state-setters)
 - [Migrating callers of the SecurityPolicies lookup and cryptography statics](#migrating-callers-of-the-securitypolicies-lookup-and-cryptography-statics)
 - [Migrating code that drove the server subscription publish pipeline](#migrating-code-that-drove-the-server-subscription-publish-pipeline)
 - [Migrating channel subclasses that guarded state with DataLock](#migrating-channel-subclasses-that-guarded-state-with-datalock)
