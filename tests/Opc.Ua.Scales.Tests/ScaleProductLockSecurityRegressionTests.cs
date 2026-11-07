@@ -1966,5 +1966,372 @@ namespace Opc.Ua.Scales.Tests
                 return new DateTimeOffset(2026, 10, 19, 9, 0, 0, TimeSpan.Zero);
             }
         }
+
+        /// <summary>
+        /// The installed full cache policy continues to own ordinary indexed writes until overridden.
+        /// </summary>
+        [Test]
+        public async Task StockFullCachePolicyRetainsNativeIndexedWritesAsync()
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            ProductState product = scale.ProductionPreset!.ActiveProduct!;
+            BaseDataVariableState variable = CreateLateHookArray(product);
+            product.AddChild(variable);
+            await product.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+            Assert.That(variable.OnWriteValueAsync, Is.Not.Null);
+            Assert.That(variable.OnSimpleWriteValueAsync, Is.Null);
+            var timestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 5);
+
+            ServiceResult result = await variable.WriteAttributeAsync(
+                harness.Owner, Attributes.Value, NumericRange.Parse("1:2"),
+                new DataValue(Variant.From(s_slice), StatusCodes.Uncertain, timestamp)).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(variable.Value.GetDoubleArray(), Is.EqualTo(s_mergedArray.ToArrayOf()));
+            Assert.That(variable.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Uncertain));
+            Assert.That(variable.Timestamp, Is.EqualTo(timestamp));
+            Assert.That(variable.ChangeMasks & NodeStateChangeMasks.Value, Is.EqualTo(NodeStateChangeMasks.Value));
+        }
+
+        /// <summary>
+        /// A later simple handler wins while the registered full policy remains installed.
+        /// </summary>
+        [Test]
+        public async Task LateSimpleHookWinsOverStockFullPolicyAndPublishesAsync()
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            var product = (AutomaticFillingProductState)scale.ProductionPreset!.ActiveProduct!;
+            TargetItemState target = product.TargetWeight!;
+            target.AccessLevel |= AccessLevels.StatusWrite | AccessLevels.TimestampWrite;
+            target.UserAccessLevel |= AccessLevels.StatusWrite | AccessLevels.TimestampWrite;
+            await target.ClearChangeMasksAsync(harness.Context, false).ConfigureAwait(false);
+            NodeValueWriteEventHandlerAsync? stock = target.OnWriteValueAsync;
+            Assert.That(stock, Is.Not.Null);
+            int calls = 0;
+            target.OnSimpleWriteValueAsync = (context, node, value, cancellationToken) =>
+            {
+                calls++;
+                Assert.That(context, Is.SameAs(harness.Owner));
+                Assert.That(node, Is.SameAs(target));
+                Assert.That(value.GetDouble(), Is.EqualTo(17.5));
+                Assert.That(cancellationToken, Is.EqualTo(CancellationToken.None));
+                return new ValueTask<AttributeWriteResult>(new AttributeWriteResult(StatusCodes.GoodClamped));
+            };
+            var timestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 5);
+
+            ServiceResult result = await target.WriteAttributeAsync(
+                harness.Owner, Attributes.Value, NumericRange.Null,
+                new DataValue(Variant.From(17.5), StatusCodes.Uncertain, timestamp)).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.GoodClamped));
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(target.OnWriteValueAsync, Is.SameAs(stock));
+            Assert.That(ReadDouble(target), Is.EqualTo(17.5));
+            Assert.That(target.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Uncertain));
+            Assert.That(target.Timestamp, Is.EqualTo(timestamp));
+            Assert.That(target.ChangeMasks & NodeStateChangeMasks.Value, Is.EqualTo(NodeStateChangeMasks.Value));
+        }
+
+        /// <summary>
+        /// Failure and explicit external ownership leave the previous cached observation untouched.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task LateSimpleHookFailureOrSuppressionDoesNotPublishAsync(bool suppress)
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            var product = (AutomaticFillingProductState)scale.ProductionPreset!.ActiveProduct!;
+            TargetItemState target = product.TargetWeight!;
+            var originalTimestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 1);
+            target.StatusCode = StatusCodes.Uncertain;
+            target.Timestamp = originalTimestamp;
+            await target.ClearChangeMasksAsync(harness.Context, false).ConfigureAwait(false);
+            int calls = 0;
+            target.OnSimpleWriteValueAsync = (_, _, value, _) =>
+            {
+                calls++;
+                Assert.That(value.GetDouble(), Is.EqualTo(18.0));
+                return new ValueTask<AttributeWriteResult>(new AttributeWriteResult(
+                    suppress ? StatusCodes.GoodClamped : StatusCodes.BadOutOfRange)
+                {
+                    SuppressCacheUpdate = suppress
+                });
+            };
+
+            ServiceResult result = await WriteAsync(harness.Owner, target, Variant.From(18.0))
+                .ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)(
+                suppress ? StatusCodes.GoodClamped : StatusCodes.BadOutOfRange)));
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(ReadDouble(target), Is.EqualTo(10));
+            Assert.That(target.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Uncertain));
+            Assert.That(target.Timestamp, Is.EqualTo(originalTimestamp));
+            Assert.That(target.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+        }
+
+        /// <summary>
+        /// A simple override rejects both otherwise valid and out-of-bounds indexed requests before dispatch.
+        /// </summary>
+        [TestCase("1:2")]
+        [TestCase("4:5")]
+        public async Task LateSimpleHookRejectsIndexedWritesBeforeDispatchAsync(string range)
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            ProductState product = scale.ProductionPreset!.ActiveProduct!;
+            BaseDataVariableState variable = CreateLateHookArray(product);
+            product.AddChild(variable);
+            await product.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+            int calls = 0;
+            variable.OnSimpleWriteValueAsync = (_, _, _, _) =>
+            {
+                calls++;
+                return new ValueTask<AttributeWriteResult>(new AttributeWriteResult(ServiceResult.Good));
+            };
+            DateTimeUtc timestamp = variable.Timestamp;
+
+            ServiceResult result = await variable.WriteAttributeAsync(
+                harness.Owner, Attributes.Value, NumericRange.Parse(range),
+                new DataValue(Variant.From(s_slice))).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadWriteNotSupported));
+            Assert.That(calls, Is.Zero);
+            Assert.That(variable.Value.GetDoubleArray(), Is.EqualTo(s_initialArray.ToArrayOf()));
+            Assert.That(variable.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Uncertain));
+            Assert.That(variable.Timestamp, Is.EqualTo(timestamp));
+            Assert.That(variable.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+        }
+
+        /// <summary>
+        /// Copy-on-write protects the accepted array when the late simple hook publishes it.
+        /// </summary>
+        [Test]
+        public async Task LateSimpleHookCopyOnWriteDetachesArrayAsync()
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            ProductState product = scale.ProductionPreset!.ActiveProduct!;
+            BaseDataVariableState variable = CreateLateHookArray(product);
+            variable.CopyPolicy = VariableCopyPolicy.CopyOnWrite;
+            product.AddChild(variable);
+            await product.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+            double[] input = [11.0, 12.0, 13.0];
+            int calls = 0;
+            variable.OnSimpleWriteValueAsync = (_, _, value, _) =>
+            {
+                calls++;
+                Assert.That(value.GetDoubleArray(), Is.EqualTo(input.ToArrayOf()));
+                return new ValueTask<AttributeWriteResult>(new AttributeWriteResult(ServiceResult.Good));
+            };
+            var timestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 5);
+
+            ServiceResult result = await variable.WriteAttributeAsync(
+                harness.Owner, Attributes.Value, NumericRange.Null,
+                new DataValue(Variant.From(input), StatusCodes.Good, timestamp)).ConfigureAwait(false);
+            input[1] = 999;
+
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(variable.Value.GetDoubleArray(), Is.EqualTo(new[] { 11.0, 12.0, 13.0 }.ToArrayOf()));
+            Assert.That(variable.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(variable.Timestamp, Is.EqualTo(timestamp));
+            Assert.That(variable.ChangeMasks & NodeStateChangeMasks.Value, Is.EqualTo(NodeStateChangeMasks.Value));
+        }
+
+        /// <summary>
+        /// Replacing the registered full delegate restores full-handler precedence; restoring it yields again.
+        /// </summary>
+        [Test]
+        public async Task CustomFullAsyncHandlerRetainsPrecedenceOverLateSimpleHookAsync()
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            var product = (AutomaticFillingProductState)scale.ProductionPreset!.ActiveProduct!;
+            TargetItemState target = product.TargetWeight!;
+            await target.ClearChangeMasksAsync(harness.Context, false).ConfigureAwait(false);
+            NodeValueWriteEventHandlerAsync? stock = target.OnWriteValueAsync;
+            Assert.That(stock, Is.Not.Null);
+            int fullCalls = 0;
+            int simpleCalls = 0;
+            target.OnSimpleWriteValueAsync = (_, _, _, _) =>
+            {
+                simpleCalls++;
+                return new ValueTask<AttributeWriteResult>(new AttributeWriteResult(ServiceResult.Good));
+            };
+            target.OnWriteValueAsync = (_, _, range, value, _) =>
+            {
+                fullCalls++;
+                Assert.That(range.IsNull, Is.True);
+                Assert.That(value.GetDouble(), Is.EqualTo(19.0));
+                return new ValueTask<AttributeWriteResult>(new AttributeWriteResult(StatusCodes.BadOutOfRange));
+            };
+            DateTimeUtc timestamp = target.Timestamp;
+
+            ServiceResult rejected = await WriteAsync(harness.Owner, target, Variant.From(19.0))
+                .ConfigureAwait(false);
+            Assert.That(rejected.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadOutOfRange));
+            Assert.That(fullCalls, Is.EqualTo(1));
+            Assert.That(simpleCalls, Is.Zero);
+            Assert.That(ReadDouble(target), Is.EqualTo(10));
+            Assert.That(target.Timestamp, Is.EqualTo(timestamp));
+            Assert.That(target.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+
+            target.OnWriteValueAsync = stock;
+            AssertGood(await WriteAsync(harness.Owner, target, Variant.From(19.0)).ConfigureAwait(false));
+            Assert.That(fullCalls, Is.EqualTo(1));
+            Assert.That(simpleCalls, Is.EqualTo(1));
+            Assert.That(ReadDouble(target), Is.EqualTo(19));
+            Assert.That(target.ChangeMasks & NodeStateChangeMasks.Value, Is.EqualTo(NodeStateChangeMasks.Value));
+        }
+
+        /// <summary>
+        /// Sparse enum validation and dependent text remain native when the late simple hook wins.
+        /// </summary>
+        [TestCase(1u, "one")]
+        [TestCase(2u, "two")]
+        [TestCase(4u, "four")]
+        [TestCase(8u, "eight")]
+        public async Task LateSimpleEnumHookPublishesSparseValueAndTextAsync(uint input, string text)
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            ProductState product = scale.ProductionPreset!.ActiveProduct!;
+            MultiStateValueDiscreteState variable = CreateLateHookEnumeration(product);
+            product.AddChild(variable);
+            await product.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+            int calls = 0;
+            variable.OnSimpleWriteValueAsync = (_, _, value, _) =>
+            {
+                calls++;
+                Assert.That(value.GetUInt32(), Is.EqualTo(input));
+                return new ValueTask<AttributeWriteResult>(new AttributeWriteResult(StatusCodes.GoodClamped));
+            };
+
+            ServiceResult result = await WriteAsync(harness.Owner, variable, Variant.From(input))
+                .ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.GoodClamped));
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(variable.Value.GetUInt32(), Is.EqualTo(input));
+            Assert.That(variable.ValueAsText!.Value.Text, Is.EqualTo(text));
+            Assert.That(variable.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(variable.ChangeMasks & NodeStateChangeMasks.Value, Is.EqualTo(NodeStateChangeMasks.Value));
+            Assert.That(variable.ValueAsText.ChangeMasks & NodeStateChangeMasks.Value,
+                Is.EqualTo(NodeStateChangeMasks.Value));
+        }
+
+        /// <summary>
+        /// Invalid sparse values and indexed writes are rejected without invoking the simple hook.
+        /// </summary>
+        [TestCase(0u, false)]
+        [TestCase(3u, false)]
+        [TestCase(9u, false)]
+        [TestCase(4u, true)]
+        public async Task LateSimpleEnumHookRejectsInvalidWritesWithoutPublicationAsync(uint input, bool indexed)
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            ProductState product = scale.ProductionPreset!.ActiveProduct!;
+            MultiStateValueDiscreteState variable = CreateLateHookEnumeration(product);
+            product.AddChild(variable);
+            await product.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+            int calls = 0;
+            variable.OnSimpleWriteValueAsync = (_, _, _, _) =>
+            {
+                calls++;
+                return new ValueTask<AttributeWriteResult>(new AttributeWriteResult(ServiceResult.Good));
+            };
+            DateTimeUtc timestamp = variable.Timestamp;
+
+            ServiceResult result = await variable.WriteAttributeAsync(
+                harness.Owner, Attributes.Value, indexed ? NumericRange.Parse("0") : NumericRange.Null,
+                new DataValue(Variant.From(input))).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)(
+                indexed ? StatusCodes.BadWriteNotSupported : StatusCodes.BadOutOfRange)));
+            Assert.That(calls, Is.Zero);
+            Assert.That(variable.Value.GetUInt32(), Is.EqualTo(1u));
+            Assert.That(variable.ValueAsText!.Value.Text, Is.EqualTo("initial"));
+            Assert.That(variable.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Uncertain));
+            Assert.That(variable.Timestamp, Is.EqualTo(timestamp));
+            Assert.That(variable.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+            Assert.That(variable.ValueAsText.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+        }
+
+        /// <summary>
+        /// A bad or suppressed enum write cannot update either the cached value or its dependent text.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task LateSimpleEnumHookFailureOrSuppressionPreservesTextAsync(bool suppress)
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            ProductState product = scale.ProductionPreset!.ActiveProduct!;
+            MultiStateValueDiscreteState variable = CreateLateHookEnumeration(product);
+            product.AddChild(variable);
+            await product.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+            int calls = 0;
+            variable.OnSimpleWriteValueAsync = (_, _, value, _) =>
+            {
+                calls++;
+                Assert.That(value.GetUInt32(), Is.EqualTo(4u));
+                return new ValueTask<AttributeWriteResult>(new AttributeWriteResult(
+                    suppress ? StatusCodes.GoodClamped : StatusCodes.BadOutOfRange)
+                {
+                    SuppressCacheUpdate = suppress
+                });
+            };
+            DateTimeUtc timestamp = variable.Timestamp;
+
+            ServiceResult result = await WriteAsync(harness.Owner, variable, Variant.From(4u))
+                .ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)(
+                suppress ? StatusCodes.GoodClamped : StatusCodes.BadOutOfRange)));
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(variable.Value.GetUInt32(), Is.EqualTo(1u));
+            Assert.That(variable.ValueAsText!.Value.Text, Is.EqualTo("initial"));
+            Assert.That(variable.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Uncertain));
+            Assert.That(variable.Timestamp, Is.EqualTo(timestamp));
+            Assert.That(variable.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+            Assert.That(variable.ValueAsText.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+        }
+
+        private static BaseDataVariableState CreateLateHookArray(ProductState product)
+        {
+            return new BaseDataVariableState(product)
+            {
+                NodeId = new NodeId("LateSimpleArray", 1),
+                BrowseName = new QualifiedName("LateSimpleArray", 1),
+                DataType = Ua.DataTypeIds.Double,
+                ValueRank = ValueRanks.OneDimension,
+                AccessLevel = AccessLevels.CurrentReadOrWrite | AccessLevels.StatusWrite | AccessLevels.TimestampWrite,
+                UserAccessLevel = AccessLevels.CurrentReadOrWrite |
+                    AccessLevels.StatusWrite | AccessLevels.TimestampWrite,
+                Value = Variant.From(new double[] { 1.0, 2.0, 3.0 }),
+                StatusCode = StatusCodes.Uncertain,
+                Timestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 1)
+            };
+        }
+
+        private static MultiStateValueDiscreteState CreateLateHookEnumeration(ProductState product)
+        {
+            MultiStateValueDiscreteState variable = CreateNativeEnumeration(product);
+            variable.EnumValues!.Value = new[]
+            {
+                new EnumValueType { Value = 1, DisplayName = new LocalizedText("one") },
+                new EnumValueType { Value = 2, DisplayName = new LocalizedText("two") },
+                new EnumValueType { Value = 4, DisplayName = new LocalizedText("four") },
+                new EnumValueType { Value = 8, DisplayName = new LocalizedText("eight") }
+            }.ToArrayOf();
+            variable.StatusCode = StatusCodes.Uncertain;
+            variable.Timestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 1);
+            return variable;
+        }
     }
 }

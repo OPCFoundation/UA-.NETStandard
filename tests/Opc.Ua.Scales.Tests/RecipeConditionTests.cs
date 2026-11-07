@@ -1887,5 +1887,464 @@ namespace Opc.Ua.Scales.Tests
         private RecipeController m_controller = null!;
         private RecipeState m_recipe = null!;
         private RecipeClock m_clock = null!;
+
+        [Test]
+        public async Task StartRejectsOccupiedWriteGateWithoutMutationAsync()
+        {
+            (ScaleHandle scale, RecipeController controller, RecipeState recipe, RecipeProductState product) =
+                await CreateAdmissionTestScaleAsync("OccupiedStart").ConfigureAwait(false);
+            int releaseCheckCalls = 0;
+            controller.SetApplicationReleaseCheck(() =>
+            {
+                releaseCheckCalls++;
+                return true;
+            });
+            RecipeState? activeRecipeBefore = controller.ActiveRecipe;
+            RecipeRunState stateBefore = controller.State;
+            RecipeElementState[] currentBefore = controller.CurrentElements.ToArray();
+            string?[] reportBefore = SnapshotReportMessages(product);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task<bool>? write = null;
+
+            try
+            {
+                write = HoldWriteGateAsync(scale, entered, release);
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+                ServiceResult result = controller.Start(recipe.NodeId);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                    Assert.That(releaseCheckCalls, Is.Zero, "rejection precedes the application release callback");
+                    Assert.That(controller.ActiveRecipe, Is.SameAs(activeRecipeBefore));
+                    Assert.That(controller.State, Is.EqualTo(stateBefore));
+                    Assert.That(controller.State, Is.EqualTo(RecipeRunState.Idle));
+                    Assert.That(controller.CurrentElements.ToArray(), Is.EqualTo(currentBefore));
+                    Assert.That(SnapshotReportMessages(product), Is.EqualTo(reportBefore));
+                });
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                if (write != null)
+                {
+                    await write.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
+            }
+        }
+
+        [Test]
+        public async Task StartReleaseCallbackRunsOutsideWriteGateAsync()
+        {
+            (ScaleHandle scale, RecipeController controller, RecipeState recipe, RecipeProductState product) =
+                await CreateAdmissionTestScaleAsync("ReleaseCallbackAdmission").ConfigureAwait(false);
+            int releaseCheckCalls = 0;
+            int admittedCallbackOperations = 0;
+            bool controllerLockWasAvailable = false;
+            using var lockProbeCompleted = new ManualResetEventSlim(false);
+            Thread? lockProbe = null;
+            controller.SetApplicationReleaseCheck(() =>
+            {
+                releaseCheckCalls++;
+                bool admitted = scale.WriteOperations.TryExecuteSynchronously(
+                    () =>
+                    {
+                        admittedCallbackOperations++;
+                        return true;
+                    },
+                    out bool callbackOperationResult);
+
+                lockProbe = new Thread(() =>
+                {
+                    _ = controller.ApplicationReleased;
+                    lockProbeCompleted.Set();
+                })
+                {
+                    IsBackground = true
+                };
+                lockProbe.Start();
+                controllerLockWasAvailable = lockProbeCompleted.Wait(TimeSpan.FromSeconds(5));
+                return admitted && callbackOperationResult && controllerLockWasAvailable;
+            });
+            string?[] reportBefore = SnapshotReportMessages(product);
+
+            ServiceResult result = controller.Start(recipe.NodeId);
+            lockProbe?.Join();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+                Assert.That(releaseCheckCalls, Is.EqualTo(1));
+                Assert.That(admittedCallbackOperations, Is.EqualTo(1));
+                Assert.That(controllerLockWasAvailable, Is.True);
+                Assert.That(controller.ActiveRecipe, Is.SameAs(recipe));
+                Assert.That(controller.State, Is.EqualTo(RecipeRunState.Running));
+                Assert.That(controller.CurrentElements, Has.Count.EqualTo(1));
+                Assert.That(SnapshotReportMessages(product), Has.Count.GreaterThan(reportBefore.Length));
+            });
+        }
+
+        [Test]
+        public async Task StartFinalCommitRequiresSeparateAdmissionAsync()
+        {
+            (ScaleHandle scale, RecipeController controller, RecipeState recipe, RecipeProductState product) =
+                await CreateAdmissionTestScaleAsync("StartCommitAdmission").ConfigureAwait(false);
+            int releaseCheckCalls = 0;
+            var callbackEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var releaseCallback = new ManualResetEventSlim(false);
+            var writeEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseWrite = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            controller.SetApplicationReleaseCheck(() =>
+            {
+                Interlocked.Increment(ref releaseCheckCalls);
+                callbackEntered.TrySetResult(true);
+                if (!releaseCallback.Wait(TimeSpan.FromSeconds(15)))
+                {
+                    throw new TimeoutException("The application release callback was not released.");
+                }
+                return true;
+            });
+            RecipeState? activeRecipeBefore = controller.ActiveRecipe;
+            RecipeRunState stateBefore = controller.State;
+            RecipeElementState[] currentBefore = controller.CurrentElements.ToArray();
+            string?[] reportBefore = SnapshotReportMessages(product);
+            Task<ServiceResult> start = Task.Run(() => controller.Start(recipe.NodeId));
+            Task<bool>? write = null;
+
+            try
+            {
+                await callbackEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                write = HoldWriteGateAsync(scale, writeEntered, releaseWrite);
+                await writeEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                releaseCallback.Set();
+
+                ServiceResult result = await start.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                    Assert.That(releaseCheckCalls, Is.EqualTo(1));
+                    Assert.That(controller.ActiveRecipe, Is.SameAs(activeRecipeBefore));
+                    Assert.That(controller.State, Is.EqualTo(stateBefore));
+                    Assert.That(controller.State, Is.EqualTo(RecipeRunState.Idle));
+                    Assert.That(controller.CurrentElements.ToArray(), Is.EqualTo(currentBefore));
+                    Assert.That(SnapshotReportMessages(product), Is.EqualTo(reportBefore));
+                });
+            }
+            finally
+            {
+                releaseCallback.Set();
+                releaseWrite.TrySetResult(true);
+                if (write != null)
+                {
+                    await write.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
+                await start.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task ContinueRejectsOccupiedWriteGateWithoutMutationAsync()
+        {
+            (ScaleHandle scale, RecipeController controller, RecipeState recipe, RecipeProductState product) =
+                await CreateAdmissionTestScaleAsync("OccupiedContinue").ConfigureAwait(false);
+            AssertGood(controller.Start(recipe.NodeId));
+            AssertGood(controller.Stop(recipe.NodeId));
+            RecipeState? activeRecipeBefore = controller.ActiveRecipe;
+            RecipeRunState stateBefore = controller.State;
+            RecipeElementState[] currentBefore = controller.CurrentElements.ToArray();
+            string?[] reportBefore = SnapshotReportMessages(product);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task<bool>? write = null;
+
+            try
+            {
+                write = HoldWriteGateAsync(scale, entered, release);
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+                ServiceResult result = controller.Continue(recipe.NodeId);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                    Assert.That(controller.ActiveRecipe, Is.SameAs(activeRecipeBefore));
+                    Assert.That(controller.State, Is.EqualTo(stateBefore));
+                    Assert.That(controller.State, Is.EqualTo(RecipeRunState.Paused));
+                    Assert.That(controller.CurrentElements.ToArray(), Is.EqualTo(currentBefore));
+                    Assert.That(SnapshotReportMessages(product), Is.EqualTo(reportBefore));
+                });
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                if (write != null)
+                {
+                    await write.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
+            }
+        }
+
+        [Test]
+        public async Task RuntimeDisposalSettlesWhenResourceShutdownFailedLoggingThrowsAsync()
+        {
+            var cleanupFailure = new InvalidOperationException("Resource cleanup failed.");
+            var loggingFailure = new InvalidOperationException("Resource shutdown logging failed.");
+            var logger = new ThrowingShutdownLogger(loggingFailure);
+            ScaleRuntimeServices services = CreateTestRuntimeServices(logger);
+            var failingResource = new FailingShutdownResource(cleanupFailure);
+            var laterResource = new CountingShutdownResource();
+            var drainEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseDrain = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var gatedResource = new GatedAsyncShutdownResource(drainEntered, releaseDrain.Task);
+            services.OwnResource(failingResource);
+            services.OwnResource(laterResource);
+            services.OwnResource(gatedResource);
+            Task disposal = services.DisposeAsync().AsTask();
+            Task repeatedDisposal = services.DisposeAsync().AsTask();
+
+            try
+            {
+                await drainEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(repeatedDisposal, Is.SameAs(disposal));
+                    Assert.That(disposal.IsCompleted, Is.False, "the admitted async cleanup is still held");
+                    Assert.That(failingResource.DisposeCount, Is.EqualTo(1));
+                    Assert.That(laterResource.DisposeCount, Is.EqualTo(1), "cleanup continues after a failure");
+                    Assert.That(gatedResource.DisposeCount, Is.EqualTo(1));
+                    Assert.That(gatedResource.DisposeAsyncCount, Is.EqualTo(1));
+                });
+                releaseDrain.TrySetResult(true);
+
+                AggregateException? failure = await Assert.ThrowsAsync<AggregateException>(
+                    async () => await disposal.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false));
+                Exception[] failures = failure!.Flatten().InnerExceptions.ToArray();
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(failures, Has.Length.EqualTo(2));
+                    Assert.That(failures, Does.Contain(cleanupFailure));
+                    Assert.That(failures, Does.Contain(loggingFailure));
+                    Assert.That(logger.ShutdownFailureLogCalls, Is.EqualTo(1));
+                    Assert.That(failingResource.DisposeCount, Is.EqualTo(1));
+                    Assert.That(laterResource.DisposeCount, Is.EqualTo(1));
+                    Assert.That(gatedResource.DisposeAsyncCount, Is.EqualTo(1));
+                });
+            }
+            finally
+            {
+                releaseDrain.TrySetResult(true);
+                try
+                {
+                    await disposal.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
+                catch (AggregateException)
+                {
+                }
+            }
+        }
+
+        [Test]
+        public async Task RuntimeDisposalRetainsMultipleCleanupAndLoggingFailuresAsync()
+        {
+            var firstCleanupFailure = new InvalidOperationException("First resource cleanup failed.");
+            var secondCleanupFailure = new InvalidOperationException("Second resource cleanup failed.");
+            var loggingFailure = new InvalidOperationException("Aggregated shutdown logging failed.");
+            var logger = new ThrowingShutdownLogger(loggingFailure);
+            ScaleRuntimeServices services = CreateTestRuntimeServices(logger);
+            var firstFailingResource = new FailingShutdownResource(firstCleanupFailure);
+            var secondFailingResource = new FailingShutdownResource(secondCleanupFailure);
+            var laterResource = new CountingShutdownResource();
+            var drainEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseDrain = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var gatedResource = new GatedAsyncShutdownResource(drainEntered, releaseDrain.Task);
+            services.OwnResource(firstFailingResource);
+            services.OwnResource(laterResource);
+            services.OwnResource(secondFailingResource);
+            services.OwnResource(gatedResource);
+            Task disposal = services.DisposeAsync().AsTask();
+            Task repeatedDisposal = services.DisposeAsync().AsTask();
+
+            try
+            {
+                await drainEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(repeatedDisposal, Is.SameAs(disposal));
+                    Assert.That(disposal.IsCompleted, Is.False, "all cleanup attempts precede completion");
+                    Assert.That(firstFailingResource.DisposeCount, Is.EqualTo(1));
+                    Assert.That(secondFailingResource.DisposeCount, Is.EqualTo(1));
+                    Assert.That(laterResource.DisposeCount, Is.EqualTo(1));
+                });
+                releaseDrain.TrySetResult(true);
+
+                AggregateException? failure = await Assert.ThrowsAsync<AggregateException>(
+                    async () => await repeatedDisposal.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false));
+                Exception[] failures = failure!.Flatten().InnerExceptions.ToArray();
+                AggregateException? repeatedFailure = await Assert.ThrowsAsync<AggregateException>(
+                    async () => await services.DisposeAsync().AsTask()
+                        .WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false));
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(failures, Has.Length.EqualTo(3));
+                    Assert.That(failures, Does.Contain(firstCleanupFailure));
+                    Assert.That(failures, Does.Contain(secondCleanupFailure));
+                    Assert.That(failures, Does.Contain(loggingFailure));
+                    Assert.That(repeatedFailure, Is.SameAs(failure));
+                    Assert.That(logger.ShutdownFailureLogCalls, Is.EqualTo(1));
+                    Assert.That(firstFailingResource.DisposeCount, Is.EqualTo(1));
+                    Assert.That(secondFailingResource.DisposeCount, Is.EqualTo(1));
+                    Assert.That(laterResource.DisposeCount, Is.EqualTo(1));
+                    Assert.That(gatedResource.DisposeAsyncCount, Is.EqualTo(1));
+                });
+            }
+            finally
+            {
+                releaseDrain.TrySetResult(true);
+                try
+                {
+                    await disposal.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
+                catch (AggregateException)
+                {
+                }
+            }
+        }
+
+        private async Task<(ScaleHandle Scale, RecipeController Controller, RecipeState Recipe, RecipeProductState Product)>
+            CreateAdmissionTestScaleAsync(string name)
+        {
+            ScaleHandle scale = await m_fixture.Manager.CreateScaleAsync(
+                m_fixture.Name(name),
+                ScaleKind.Recipe,
+                builder => builder
+                    .WithIdentification(ScalesNodeManagerTests.Identity(name))
+                    .WithWeighingRange(new WeighingRangeDefinition(0, 100, 0.001, 0.001))
+                    .WithTypeFeatures()
+                    .WithProductionPreset(preset =>
+                        preset.AddProduct("A", new LocalizedText("First")).Select("A"))).ConfigureAwait(false);
+            RecipeController controller = scale.Recipes!;
+            RecipeState recipe = controller.AddRecipe("R", new LocalizedText("Recipe"));
+            controller.AddRecipeElement(recipe, ElementType(ObjectTypes.TimerType), "Wait", recipe.NodeId);
+            await controller.SetApplicationReleaseAsync(true).ConfigureAwait(false);
+            return (scale, controller, recipe, (RecipeProductState)scale.ProductionPreset!.ActiveProduct!);
+        }
+
+        private static string?[] SnapshotReportMessages(RecipeProductState product)
+        {
+            return [.. product.Report!.Value.Select(entry => entry.ReportMessage.Text)];
+        }
+
+        private static Task<bool> HoldWriteGateAsync(
+            ScaleHandle scale,
+            TaskCompletionSource<bool> entered,
+            TaskCompletionSource<bool> release)
+        {
+            return scale.WriteOperations.ExecuteAsynchronouslyAsync(
+                async cancellationToken =>
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    return true;
+                },
+                CancellationToken.None).AsTask();
+        }
+
+        private ScaleRuntimeServices CreateTestRuntimeServices(ILogger logger)
+        {
+            ScaleRuntimeServices template = m_scale.Services;
+            return new ScaleRuntimeServices(
+                template.Context,
+                template.Namespaces,
+                template.Options,
+                _ => { },
+                (_, _) => new ValueTask<bool>(true),
+                template.IsTypeOf,
+                template.LockService,
+                logger);
+        }
+
+        private sealed class ThrowingShutdownLogger(Exception failure) : ILogger
+        {
+            public int ShutdownFailureLogCalls => Volatile.Read(ref m_shutdownFailureLogCalls);
+
+            public IDisposable? BeginScope<TState>(TState state) where TState : notnull
+            {
+                return null;
+            }
+
+            public bool IsEnabled(LogLevel logLevel)
+            {
+                return true;
+            }
+
+            public void Log<TState>(
+                LogLevel logLevel,
+                EventId eventId,
+                TState state,
+                Exception? exception,
+                Func<TState, Exception?, string> formatter)
+            {
+                if (eventId.Id == RuntimeResourceShutdownFailedEventId)
+                {
+                    Interlocked.Increment(ref m_shutdownFailureLogCalls);
+                    throw failure;
+                }
+            }
+
+            private int m_shutdownFailureLogCalls;
+        }
+
+        private sealed class FailingShutdownResource(Exception failure) : IDisposable
+        {
+            public int DisposeCount => Volatile.Read(ref m_disposeCount);
+
+            public void Dispose()
+            {
+                Interlocked.Increment(ref m_disposeCount);
+                throw failure;
+            }
+
+            private int m_disposeCount;
+        }
+
+        private sealed class CountingShutdownResource : IDisposable
+        {
+            public int DisposeCount => Volatile.Read(ref m_disposeCount);
+
+            public void Dispose()
+            {
+                Interlocked.Increment(ref m_disposeCount);
+            }
+
+            private int m_disposeCount;
+        }
+
+        private sealed class GatedAsyncShutdownResource(
+            TaskCompletionSource<bool> entered,
+            Task release) : IDisposable, IAsyncDisposable
+        {
+            public int DisposeCount => Volatile.Read(ref m_disposeCount);
+            public int DisposeAsyncCount => Volatile.Read(ref m_disposeAsyncCount);
+
+            public void Dispose()
+            {
+                Interlocked.Increment(ref m_disposeCount);
+            }
+
+            public async ValueTask DisposeAsync()
+            {
+                Interlocked.Increment(ref m_disposeAsyncCount);
+                entered.TrySetResult(true);
+                await release.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+            }
+
+            private int m_disposeCount;
+            private int m_disposeAsyncCount;
+        }
     }
 }

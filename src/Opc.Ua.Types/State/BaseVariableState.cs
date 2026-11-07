@@ -2248,6 +2248,11 @@ namespace Opc.Ua
         {
             NodeValueWriteEventHandlerAsync? onWriteValueAsync = OnWriteValueAsync;
             NodeValueSimpleWriteEventHandlerAsync? onSimpleWriteValueAsync = OnSimpleWriteValueAsync;
+            if (onSimpleWriteValueAsync != null &&
+                onWriteValueAsync == m_writeValueAsyncPolicyWithSimpleOverride)
+            {
+                onWriteValueAsync = null;
+            }
             if (attributeId != Attributes.Value ||
                 (onWriteValueAsync == null && onSimpleWriteValueAsync == null))
             {
@@ -2263,6 +2268,17 @@ namespace Opc.Ua
                 onWriteValueAsync,
                 onSimpleWriteValueAsync,
                 cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Installs a framework write policy that yields to a later asynchronous simple-write handler.
+        /// </summary>
+        /// <param name="handler">The framework write policy.</param>
+        internal void SetWriteValueAsyncPolicyWithSimpleOverride(NodeValueWriteEventHandlerAsync handler)
+        {
+            ArgumentNullException.ThrowIfNull(handler);
+            OnWriteValueAsync = handler;
+            m_writeValueAsyncPolicyWithSimpleOverride = handler;
         }
 
         /// <summary>
@@ -2510,6 +2526,10 @@ namespace Opc.Ua
         /// guards is a field read or write in this file.
         /// </remarks>
         private readonly Lock m_attributeLock = new();
+        /// <summary>
+        /// Stores the framework write policy that yields to a later asynchronous simple-write handler.
+        /// </summary>
+        private NodeValueWriteEventHandlerAsync? m_writeValueAsyncPolicyWithSimpleOverride;
         private Variant m_value;
         private DateTimeUtc m_timestamp;
         private bool m_valueTouched;

@@ -1245,6 +1245,50 @@ namespace Opc.Ua
                         new Variant(m_union, m_typeInfo, CoreUtils.Clone(matrix)),
                     MatrixOf<Variant> matrix =>
                         new Variant(m_union, m_typeInfo, CoreUtils.Clone(matrix)),
+                    MatrixOf<bool> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<sbyte> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<byte> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<short> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<ushort> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<int> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<uint> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<long> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<ulong> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<float> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<double> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<string> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<DateTimeUtc> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<Uuid> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<ByteString> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyByteStringMatrix(matrix)),
+                    MatrixOf<XmlElement> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<NodeId> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<ExpandedNodeId> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<StatusCode> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<QualifiedName> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<LocalizedText> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<EnumValue> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
                     _ => this
                 };
             }
@@ -1270,12 +1314,48 @@ namespace Opc.Ua
 
                     switch (TypeInfo.BuiltInType)
                     {
+                        case BuiltInType.Boolean:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetBooleanArray()));
+                        case BuiltInType.SByte:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetSByteArray()));
+                        case BuiltInType.Byte:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetByteArray()));
+                        case BuiltInType.Int16:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetInt16Array()));
+                        case BuiltInType.UInt16:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetUInt16Array()));
+                        case BuiltInType.Int32:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetInt32Array()));
+                        case BuiltInType.UInt32:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetUInt32Array()));
+                        case BuiltInType.Int64:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetInt64Array()));
+                        case BuiltInType.UInt64:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetUInt64Array()));
+                        case BuiltInType.Float:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetFloatArray()));
                         case BuiltInType.Double:
-                            ArrayOf<double> values = GetDoubleArray();
-                            return new Variant(
-                                m_union,
-                                m_typeInfo,
-                                values.IsNull ? default : values.Span.ToArray().ToArrayOf());
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetDoubleArray()));
+                        case BuiltInType.String:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetStringArray()));
+                        case BuiltInType.DateTime:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetDateTimeArray()));
+                        case BuiltInType.Guid:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetGuidArray()));
+                        case BuiltInType.ByteString:
+                            return new Variant(m_union, m_typeInfo, CopyByteStringArray(GetByteStringArray()));
+                        case BuiltInType.XmlElement:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetXmlElementArray()));
+                        case BuiltInType.NodeId:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetNodeIdArray()));
+                        case BuiltInType.ExpandedNodeId:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetExpandedNodeIdArray()));
+                        case BuiltInType.StatusCode:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetStatusCodeArray()));
+                        case BuiltInType.QualifiedName:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetQualifiedNameArray()));
+                        case BuiltInType.LocalizedText:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetLocalizedTextArray()));
                         case BuiltInType.ExtensionObject:
                             return new Variant(m_union, m_typeInfo, CoreUtils.Clone(GetExtensionObjectArray()));
                         case BuiltInType.DataValue:
@@ -1285,12 +1365,56 @@ namespace Opc.Ua
                         case BuiltInType.UInteger:
                         case BuiltInType.Variant:
                             return new Variant(m_union, m_typeInfo, CoreUtils.Clone(GetVariantArray()));
+                        case BuiltInType.Enumeration:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetEnumerationArray()));
                     }
                 }
                 else
                 {
                     switch (TypeInfo.BuiltInType)
                     {
+                        case BuiltInType.Boolean:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetBooleanMatrix()));
+                        case BuiltInType.SByte:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetSByteMatrix()));
+                        case BuiltInType.Byte:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetByteMatrix()));
+                        case BuiltInType.Int16:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetInt16Matrix()));
+                        case BuiltInType.UInt16:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetUInt16Matrix()));
+                        case BuiltInType.Int32:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetInt32Matrix()));
+                        case BuiltInType.UInt32:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetUInt32Matrix()));
+                        case BuiltInType.Int64:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetInt64Matrix()));
+                        case BuiltInType.UInt64:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetUInt64Matrix()));
+                        case BuiltInType.Float:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetFloatMatrix()));
+                        case BuiltInType.Double:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetDoubleMatrix()));
+                        case BuiltInType.String:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetStringMatrix()));
+                        case BuiltInType.DateTime:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetDateTimeMatrix()));
+                        case BuiltInType.Guid:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetGuidMatrix()));
+                        case BuiltInType.ByteString:
+                            return new Variant(m_union, m_typeInfo, CopyByteStringMatrix(GetByteStringMatrix()));
+                        case BuiltInType.XmlElement:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetXmlElementMatrix()));
+                        case BuiltInType.NodeId:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetNodeIdMatrix()));
+                        case BuiltInType.ExpandedNodeId:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetExpandedNodeIdMatrix()));
+                        case BuiltInType.StatusCode:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetStatusCodeMatrix()));
+                        case BuiltInType.QualifiedName:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetQualifiedNameMatrix()));
+                        case BuiltInType.LocalizedText:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetLocalizedTextMatrix()));
                         case BuiltInType.ExtensionObject:
                             return new Variant(m_union, m_typeInfo, CoreUtils.Clone(GetExtensionObjectMatrix()));
                         case BuiltInType.DataValue:
@@ -1300,10 +1424,58 @@ namespace Opc.Ua
                         case BuiltInType.UInteger:
                         case BuiltInType.Variant:
                             return new Variant(m_union, m_typeInfo, CoreUtils.Clone(GetVariantMatrix()));
+                        case BuiltInType.Enumeration:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetEnumerationMatrix()));
                     }
                 }
             }
             return this; // Just copy the value type as-is
+        }
+
+        /// <summary>
+        /// Copies the array storage while preserving the null-array value.
+        /// </summary>
+        /// <typeparam name="T">The array element type.</typeparam>
+        /// <param name="values">The array to copy.</param>
+        /// <returns>A detached array with the same contents, or a null array.</returns>
+        private static ArrayOf<T> CopyArrayStorage<T>(ArrayOf<T> values)
+        {
+            return values.IsNull ? default : values.Span.ToArray().ToArrayOf();
+        }
+
+        /// <summary>
+        /// Copies the matrix storage while preserving its dimensions and null value.
+        /// </summary>
+        /// <typeparam name="T">The matrix element type.</typeparam>
+        /// <param name="values">The matrix to copy.</param>
+        /// <returns>A detached matrix with the same contents and dimensions, or a null matrix.</returns>
+        private static MatrixOf<T> CopyMatrixStorage<T>(MatrixOf<T> values)
+        {
+            return values.IsNull ? default : values.ConvertAll(static value => value);
+        }
+
+        /// <summary>
+        /// Copies byte-string elements as well as their array storage.
+        /// </summary>
+        /// <param name="values">The array to copy.</param>
+        /// <returns>A detached array with the same null and byte contents.</returns>
+        private static ArrayOf<ByteString> CopyByteStringArray(ArrayOf<ByteString> values)
+        {
+            return values.IsNull
+                ? default
+                : values.ConvertAll(static value => value.IsNull ? default : ByteString.From(value.Span));
+        }
+
+        /// <summary>
+        /// Copies byte-string elements as well as their matrix storage.
+        /// </summary>
+        /// <param name="values">The matrix to copy.</param>
+        /// <returns>A detached matrix with the same null, shape and byte contents.</returns>
+        private static MatrixOf<ByteString> CopyByteStringMatrix(MatrixOf<ByteString> values)
+        {
+            return values.IsNull
+                ? default
+                : values.ConvertAll(static value => value.IsNull ? default : ByteString.From(value.Span));
         }
 
         /// <summary>

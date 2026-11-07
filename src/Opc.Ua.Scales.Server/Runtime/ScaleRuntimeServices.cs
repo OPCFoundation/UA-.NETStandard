@@ -256,8 +256,16 @@ namespace Opc.Ua.Scales.Server.Runtime
             }
             catch (Exception ex)
             {
-                Logger.ResourceShutdownFailed(ex);
-                completion.TrySetException(ex);
+                Exception completionFailure = ex;
+                try
+                {
+                    Logger.ResourceShutdownFailed(ex);
+                }
+                catch (Exception loggingFailure)
+                {
+                    completionFailure = new AggregateException(ex, loggingFailure);
+                }
+                completion.TrySetException(completionFailure);
                 _ = completion.Task.Exception;
             }
         }

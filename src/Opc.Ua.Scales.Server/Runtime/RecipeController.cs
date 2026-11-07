@@ -838,26 +838,44 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <param name="recipeNodeId">The recipe.</param>
         public ServiceResult Start(NodeId recipeNodeId)
         {
-            ServiceResult result = StartCore(recipeNodeId);
-            RaisePending();
+            ServiceResult result = StartCore(recipeNodeId, out bool admitted);
+            if (admitted)
+            {
+                RaisePending();
+            }
             return result;
         }
 
-        private ServiceResult StartCore(NodeId recipeNodeId)
+        private ServiceResult StartCore(NodeId recipeNodeId, out bool admitted)
         {
+            admitted = false;
             Func<bool>? applicationReleaseCheck = null;
             long applicationReleaseCheckRevision = 0;
             if (m_owner.PackML == null)
             {
-                lock (m_lock)
+                if (!m_owner.WriteOperations.TryExecuteSynchronously(() =>
                 {
-                    ServiceResult validation = ValidateStartRequest(recipeNodeId);
-                    if (ServiceResult.IsBad(validation))
+                    lock (m_lock)
                     {
-                        return validation;
+                        ServiceResult validation = ValidateStartRequest(recipeNodeId);
+                        if (ServiceResult.IsBad(validation))
+                        {
+                            return validation;
+                        }
+                        applicationReleaseCheck = m_applicationReleaseCheck;
+                        applicationReleaseCheckRevision = m_applicationReleaseCheckRevision;
+                        return ServiceResult.Good;
                     }
-                    applicationReleaseCheck = m_applicationReleaseCheck;
-                    applicationReleaseCheckRevision = m_applicationReleaseCheckRevision;
+                }, out ServiceResult validation))
+                {
+                    return ServiceResult.Create(
+                        StatusCodes.BadInvalidState,
+                        "A scale write is awaiting an asynchronous state notification.");
+                }
+                admitted = true;
+                if (ServiceResult.IsBad(validation))
+                {
+                    return validation;
                 }
             }
             if (m_owner.PackML == null && !(applicationReleaseCheck?.Invoke() ?? ApplicationReleased))
@@ -865,12 +883,22 @@ namespace Opc.Ua.Scales.Server.Runtime
                 return ApplicationReleaseFailure();
             }
 
-            return StartValidated(
-                recipeNodeId,
-                reportProduct: null,
-                reportProductCaptured: false,
-                applicationReleaseCheckRevision: applicationReleaseCheckRevision,
-                validateReleaseCheck: m_owner.PackML == null);
+            if (!m_owner.WriteOperations.TryExecuteSynchronously(
+                () => StartValidated(
+                    recipeNodeId,
+                    reportProduct: null,
+                    reportProductCaptured: false,
+                    applicationReleaseCheckRevision: applicationReleaseCheckRevision,
+                    validateReleaseCheck: m_owner.PackML == null),
+                out ServiceResult result))
+            {
+                admitted = false;
+                return ServiceResult.Create(
+                    StatusCodes.BadInvalidState,
+                    "A scale write is awaiting an asynchronous state notification.");
+            }
+            admitted = true;
+            return result;
         }
 
         private ServiceResult StartValidated(
@@ -993,7 +1021,14 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <param name="recipeNodeId">The recipe.</param>
         public ServiceResult Continue(NodeId recipeNodeId)
         {
-            ServiceResult result = ContinueCore(recipeNodeId);
+            if (!m_owner.WriteOperations.TryExecuteSynchronously(
+                () => ContinueCore(recipeNodeId),
+                out ServiceResult result))
+            {
+                return ServiceResult.Create(
+                    StatusCodes.BadInvalidState,
+                    "A scale write is awaiting an asynchronous state notification.");
+            }
             RaisePending();
             return result;
         }

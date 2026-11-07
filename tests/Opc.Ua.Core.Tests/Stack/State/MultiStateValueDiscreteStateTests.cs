@@ -269,6 +269,130 @@ namespace Opc.Ua.Core.Tests.Stack.State
             });
         }
 
+        /// <summary>
+        /// The late simple hook replaces its predecessor while native enum validation and text publication remain active.
+        /// </summary>
+        [TestCase(1u, "one", true)]
+        [TestCase(2u, "two", true)]
+        [TestCase(4u, "four", true)]
+        [TestCase(8u, "eight", true)]
+        [TestCase(0u, "", false)]
+        [TestCase(3u, "", false)]
+        [TestCase(9u, "", false)]
+        public async Task SimpleAsyncEnumWriteValidatesSparseValuesBeforeApplicationHookAsync(
+            uint value,
+            string expectedText,
+            bool valid)
+        {
+            MultiStateValueDiscreteState node = CreateNode(s_states);
+            var timestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 1);
+            var requestedTimestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 2);
+            node.StatusCode = StatusCodes.Uncertain;
+            node.Timestamp = timestamp;
+
+            int displacedCalls = 0;
+            node.OnSimpleWriteValueAsync = (_, _, _, _) =>
+            {
+                displacedCalls++;
+                return new ValueTask<AttributeWriteResult>(
+                    new AttributeWriteResult(StatusCodes.BadUnexpectedError));
+            };
+
+            int applicationCalls = 0;
+            NodeValueSimpleWriteEventHandlerAsync lateHook = (context, state, requestedValue, _) =>
+            {
+                applicationCalls++;
+                Assert.That(context, Is.SameAs(m_context));
+                Assert.That(state, Is.SameAs(node));
+                Assert.That(requestedValue, Is.EqualTo(Variant.From(value)));
+                return new ValueTask<AttributeWriteResult>(
+                    new AttributeWriteResult(StatusCodes.GoodClamped));
+            };
+            node.OnSimpleWriteValueAsync = lateHook;
+            await node.ClearChangeMasksAsync(m_context, false).ConfigureAwait(false);
+
+            ServiceResult result = await node.WriteAttributeAsync(
+                m_context,
+                Attributes.Value,
+                NumericRange.Null,
+                new DataValue(Variant.From(value), StatusCodes.Good, requestedTimestamp)).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(node.OnSimpleWriteValueAsync, Is.SameAs(lateHook));
+                Assert.That(displacedCalls, Is.Zero);
+                Assert.That(applicationCalls, Is.EqualTo(valid ? 1 : 0));
+                Assert.That(result.StatusCode,
+                    Is.EqualTo(valid ? StatusCodes.GoodClamped : StatusCodes.BadOutOfRange));
+                if (valid)
+                {
+                    Assert.That(node.WrappedValue, Is.EqualTo(Variant.From(value)));
+                    Assert.That(node.ValueAsText!.Value.Text, Is.EqualTo(expectedText));
+                    Assert.That(node.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(node.Timestamp, Is.EqualTo(requestedTimestamp));
+                    Assert.That(node.ChangeMasks & NodeStateChangeMasks.Value,
+                        Is.EqualTo(NodeStateChangeMasks.Value));
+                }
+                else
+                {
+                    Assert.That(node.WrappedValue, Is.EqualTo(Variant.From(0u)));
+                    Assert.That(node.ValueAsText!.Value.Text, Is.EqualTo("initial"));
+                    Assert.That(node.StatusCode, Is.EqualTo(StatusCodes.Uncertain));
+                    Assert.That(node.Timestamp, Is.EqualTo(timestamp));
+                    Assert.That(node.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+                }
+            });
+        }
+
+        /// <summary>
+        /// A bad result from the replacement simple hook does not commit the enum or dependent text.
+        /// </summary>
+        [Test]
+        public async Task LateSimpleAsyncEnumBadResultLeavesValueAndTextUnchangedAsync()
+        {
+            MultiStateValueDiscreteState node = CreateNode(s_states);
+            var timestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 1);
+            node.StatusCode = StatusCodes.Uncertain;
+            node.Timestamp = timestamp;
+
+            int displacedCalls = 0;
+            node.OnSimpleWriteValueAsync = (_, _, _, _) =>
+            {
+                displacedCalls++;
+                return new ValueTask<AttributeWriteResult>(new AttributeWriteResult(StatusCodes.Good));
+            };
+
+            int applicationCalls = 0;
+            NodeValueSimpleWriteEventHandlerAsync lateHook = (_, _, _, _) =>
+            {
+                applicationCalls++;
+                return new ValueTask<AttributeWriteResult>(
+                    new AttributeWriteResult(StatusCodes.BadInvalidState));
+            };
+            node.OnSimpleWriteValueAsync = lateHook;
+            await node.ClearChangeMasksAsync(m_context, false).ConfigureAwait(false);
+
+            ServiceResult result = await node.WriteAttributeAsync(
+                m_context,
+                Attributes.Value,
+                NumericRange.Null,
+                new DataValue(Variant.From(4u), StatusCodes.Good, new DateTimeUtc(2026, 1, 1, 0, 0, 2)))
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(node.OnSimpleWriteValueAsync, Is.SameAs(lateHook));
+                Assert.That(displacedCalls, Is.Zero);
+                Assert.That(applicationCalls, Is.EqualTo(1));
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(node.WrappedValue, Is.EqualTo(Variant.From(0u)));
+                Assert.That(node.ValueAsText!.Value.Text, Is.EqualTo("initial"));
+                Assert.That(node.StatusCode, Is.EqualTo(StatusCodes.Uncertain));
+                Assert.That(node.Timestamp, Is.EqualTo(timestamp));
+                Assert.That(node.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+            });
+        }
+
         private MultiStateValueDiscreteState CreateNode((long Value, string Name)[] states)
         {
             var node = new MultiStateValueDiscreteState(null)

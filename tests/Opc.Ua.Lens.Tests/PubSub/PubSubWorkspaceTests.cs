@@ -147,20 +147,21 @@ public sealed class PubSubWorkspaceTests
         await using (workspace.ConfigureAwait(false))
         {
             using var cancellation = new CancellationTokenSource();
-            await workspace.ConfigureAsync(PubSubTestRuntime.Configuration).ConfigureAwait(false);
-            await workspace.StartAsync(PubSubTestRuntime.ReceiveAuthorization, cancellation.Token)
-                .ConfigureAwait(false);
-            await cancellation.CancelAsync().ConfigureAwait(false);
-            await runtime.Stopped.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
-            await terminalPhasePublished.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
-
-            Assert.That(runtime.Disposed.Task.IsCompletedSuccessfully, Is.True);
-            Assert.That(workspace.Snapshot().Phase, Is.EqualTo(PubSubDocumentPhase.Offline));
-            Assert.That(workspace.Snapshot().Observations.Evidence.Contains(entry => entry.Area == "Lifecycle"),
-                Is.True);
-            Task stop = workspace.StopAsync();
+            Task stop;
             try
             {
+                await workspace.ConfigureAsync(PubSubTestRuntime.Configuration).ConfigureAwait(false);
+                await workspace.StartAsync(PubSubTestRuntime.ReceiveAuthorization, cancellation.Token)
+                    .ConfigureAwait(false);
+                await cancellation.CancelAsync().ConfigureAwait(false);
+                await runtime.Stopped.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                await terminalPhasePublished.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+                Assert.That(runtime.Disposed.Task.IsCompletedSuccessfully, Is.True);
+                Assert.That(workspace.Snapshot().Phase, Is.EqualTo(PubSubDocumentPhase.Offline));
+                Assert.That(workspace.Snapshot().Observations.Evidence.Contains(entry => entry.Area == "Lifecycle"),
+                    Is.True);
+                stop = workspace.StopAsync();
                 Assert.That(workspace.Snapshot().Phase, Is.EqualTo(PubSubDocumentPhase.Offline));
             }
             finally

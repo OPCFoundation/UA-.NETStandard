@@ -135,13 +135,9 @@ namespace Opc.Ua.Scales.Server.Runtime
                     variable.OnWriteValue == null &&
                     variable.OnSimpleWriteValue == null)
                 {
-                    if (IsOrdinaryCacheVariable(variable))
+                    if (IsOrdinaryCacheVariable(variable) || IsNativeEnumerationVariable(variable))
                     {
-                        variable.OnWriteValueAsync = WriteCachedValueAsync;
-                    }
-                    else if (IsNativeEnumerationVariable(variable))
-                    {
-                        variable.OnWriteValueAsync = MultiStateValueDiscreteState.WriteCachedValueAsync;
+                        variable.SetWriteValueAsyncPolicyWithSimpleOverride(WriteCachedValueAsync);
                     }
                 }
             }
@@ -214,17 +210,19 @@ namespace Opc.Ua.Scales.Server.Runtime
         }
 
         /// <summary>
-        /// Accepts the Scales cache-writing policy without adapting synchronous application callbacks.
+        /// Accepts the Scales cache-writing policy for audited stock variable types.
         /// </summary>
         /// <remarks>
-        /// The native BaseVariableState async core validates access, status, timestamp and type before this
-        /// callback and commits the value, including copy policy and indexed range rejection, afterward.
-        /// This callback does not mutate the cache. A synchronous handler installed after binding requires
-        /// its own native async implementation;
-        /// accepting its write here would otherwise bypass the application's write semantics. Variables with
-        /// SelectionList and MultiStateDiscrete overrides and all unknown types are excluded by the exact
-        /// type list. MultiStateValueDiscrete uses its own native enum policy instead.
+        /// The native async core validates the request and applies copy policy, indexed writes and cache
+        /// publication. It selects a later simple-write handler instead of this policy.
+        /// Variables with SelectionList and MultiStateDiscrete overrides and all unknown types are excluded by
+        /// the exact type list.
         /// </remarks>
+        /// <param name="context">The context used for the write.</param>
+        /// <param name="node">The variable receiving the write.</param>
+        /// <param name="indexRange">The elements to replace, or a null range for the whole value.</param>
+        /// <param name="value">The value being written.</param>
+        /// <param name="cancellationToken">The token passed to the async write.</param>
         private static ValueTask<AttributeWriteResult> WriteCachedValueAsync(
             ISystemContext context,
             NodeState node,
@@ -233,12 +231,17 @@ namespace Opc.Ua.Scales.Server.Runtime
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            _ = context;
+            _ = indexRange;
+            _ = value;
             var variable = (BaseVariableState)node;
             ServiceResult result = variable.OnWriteValue != null || variable.OnSimpleWriteValue != null
                 ? new ServiceResult(StatusCodes.BadNotSupported)
                 : ServiceResult.Good;
-            return new ValueTask<AttributeWriteResult>(
-                new AttributeWriteResult(result) { UseOrdinaryCacheWrite = true });
+            return new ValueTask<AttributeWriteResult>(new AttributeWriteResult(result)
+            {
+                UseOrdinaryCacheWrite = true
+            });
         }
 
         /// <summary>
