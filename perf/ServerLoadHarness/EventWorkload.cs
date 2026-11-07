@@ -195,10 +195,9 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         public override string Report(double seconds)
         {
             long events = m_received;
-            long expected = m_generated * m_sessions.Length * m_subscriptions;
-            double ratio = expected == 0 ? 0 : (double)events / expected;
+            string delivery = DeliveryReport.Format(events, m_generated, m_sessions.Length, m_subscriptions);
             return FormattableString.Invariant(
-                $"generated/s={m_generated / seconds:F0} events/s={events / seconds:F0} received/expected={ratio:P1} ") +
+                $"generated/s={m_generated / seconds:F0} events/s={events / seconds:F0} {delivery} ") +
                 FormattableString.Invariant($"event->notify latency {m_latency.Percentiles()}");
         }
 

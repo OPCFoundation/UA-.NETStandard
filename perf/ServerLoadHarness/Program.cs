@@ -1312,10 +1312,9 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         public override string Report(double seconds)
         {
             (long notifications, long writes, long written, long writeErrors) = m_final;
-            long expected = written * m_sessions.Length * m_subscriptions;
-            double ratio = expected == 0 ? 0 : (double)notifications / expected;
+            string delivery = DeliveryReport.Format(notifications, written, m_sessions.Length, m_subscriptions);
             return FormattableString.Invariant(
-                $"notif/s={notifications / seconds:F0} received/expected={ratio:P1} ") +
+                $"notif/s={notifications / seconds:F0} {delivery} ") +
                 FormattableString.Invariant(
                 $"writes/s={writes / seconds:F0} values/s={written / seconds:F0} ") +
                 FormattableString.Invariant(

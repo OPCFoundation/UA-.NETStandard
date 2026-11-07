@@ -329,6 +329,9 @@ per operation (`calloc`, `ccpu`), GC pause and lock contention in the window (`c
 `ccont`), and the same for the server (`alloc`, `cpu`, `pause`, `cont`). It prints medians
 only; take the ranges from the result blocks in `ab-results.txt`.
 
+`ab.sh` does not detect competing processes or record source and harness SHAs. Record the
+identities and check for competing load separately; discard contaminated rounds.
+
 ## Configuration comparison
 
 `variants.sh` runs one harness build under several configurations of the server, for example
@@ -413,11 +416,18 @@ the scenario and all arguments.
 | Metric | Line and field |
 |---|---|
 | Throughput | `client:` `req/s` (requests), `notif/s` (`sub`), `events/s` and `generated/s` (`events`), `samples/s` (`native-counters`) |
-| Delivery, completeness | `client:` `received/expected` (`sub`, `events`); `PASS`/`FAIL` for `native-counters` |
+| Delivery, completeness | `client:` `received/expected` percentage and `received` and `expected` counts (`sub`, `events`); `PASS`/`FAIL` for `native-counters` |
 | Latency | `client:` percentiles `p50`/`p90`/`p99`; `write->notify latency` (`sub`), `event->notify latency` (`events`) |
 | CPU and allocation per operation | `per-op:` `cpuUs`, `allocB` per request or notification; `per-op2:` per written value or generated event |
 | GC | `server:` `gen0`/`gen1`/`gen2` collections and `pauseMs` in the window; `client-process:` the same for the client |
 | CPU use | `server:` `cpuMs` and `cpuCores` (average busy cores) |
+
+For `sub`, `expected` is the number of successfully written values multiplied by the number of
+sessions and by the subscriptions per session. For `events`, it is the number of generated
+events multiplied by the same counts. A run with no expected notifications reports a 0 % ratio
+and does not demonstrate delivery. The percentage is rounded to one decimal place; calculate
+acceptance thresholds from the counts. Earlier result blocks include the percentage but not
+these count fields.
 
 ### Artifacts
 
