@@ -155,6 +155,52 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// A failed cleanup followed by a shutdown retry releases its generation while callers retain the outcomes.
+        /// </summary>
+        [Test]
+        public async Task FailedRetirementReleasesGenerationWhileResultAndTasksRemainAliveAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            using var reclaimer = new GenerationReclaimer();
+            (LifecycleResult result,
+                Task initialAttempt,
+                WeakReference<IAsyncNodeManager> manager,
+                WeakReference<NodeManagerGeneration> generation,
+                WeakReference<GenerationReclaimer.RetiredGeneration> record,
+                Exception failure,
+                int[] cleanupCalls) = await CompleteFailedRetirementRetentionControlAsync(
+                    reclaimer, timeout.Token).ConfigureAwait(false);
+            Task retirement = result.Retired;
+            await Task.Yield();
+            CollectRetirementTargets();
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(reclaimer.Count, Is.Zero);
+                Assert.That(cleanupCalls[0], Is.EqualTo(2));
+                Assert.That(cleanupCalls[1], Is.EqualTo(1));
+                Assert.That(cleanupCalls[2], Is.EqualTo(1));
+                Assert.That(initialAttempt.IsFaulted, Is.True);
+                Assert.That(initialAttempt.Exception!.InnerExceptions, Has.Exactly(1).SameAs(failure));
+                Assert.That(retirement.IsFaulted, Is.True);
+                Assert.That(retirement.Exception!.InnerExceptions, Has.Exactly(1).SameAs(failure));
+                Assert.That(result.CleanupFailure, Is.SameAs(failure));
+                Assert.That(result.RetirementStatus, Is.EqualTo(NodeManagerRetirementStatus.CompletedWithFailure));
+                Assert.That(result.Slots[0].TryGetCurrent(out _), Is.False);
+                Assert.That(result.PublishedSlots[0].Slot, Is.SameAs(result.Slots[0]));
+                Assert.That(result.PublishedSlots[0].Generation, Is.EqualTo(1));
+                Assert.That(IsRetirementTargetAlive(record), Is.False);
+                Assert.That(IsRetirementTargetAlive(generation), Is.False);
+                Assert.That(IsRetirementTargetAlive(manager), Is.False);
+            }
+            GC.KeepAlive(result);
+            GC.KeepAlive(initialAttempt);
+            GC.KeepAlive(retirement);
+            GC.KeepAlive(failure);
+            GC.KeepAlive(reclaimer);
+        }
+
+        /// <summary>
         /// Completes physical retirement and returns non-owning observations of its objects.
         /// </summary>
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -207,6 +253,104 @@ namespace Opc.Ua.Server.Tests.NodeManager
             context = null;
             retired = null;
             return (result, manager, generation, record, cleanupCalls);
+        }
+
+        /// <summary>
+        /// Completes a failed physical cleanup through the shutdown retry without leaving a delayed retry.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static async Task<(
+            LifecycleResult Result,
+            Task InitialAttempt,
+            WeakReference<IAsyncNodeManager> Manager,
+            WeakReference<NodeManagerGeneration> Generation,
+            WeakReference<GenerationReclaimer.RetiredGeneration> Record,
+            Exception Failure,
+            int[] CleanupCalls)> CompleteFailedRetirementRetentionControlAsync(
+            GenerationReclaimer reclaimer,
+            CancellationToken cancellationToken)
+        {
+            ReclamationContext? context = new();
+            GenerationReclaimer.RetiredGeneration? retired = context.CreateRetirement();
+            var manager = new WeakReference<IAsyncNodeManager>(retired.NodeManager);
+            var generation = new WeakReference<NodeManagerGeneration>(retired.Generation);
+            var record = new WeakReference<GenerationReclaimer.RetiredGeneration>(retired);
+            var failure = new InvalidOperationException("The first destruction attempt failed.");
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int[] cleanupCalls = [0, 0, 0];
+            context.Host.Setup(host => host.FinalizeRetiredGenerationNotificationsAsync(
+                It.IsAny<IAsyncNodeManager>(), It.IsAny<CancellationToken>())).Returns(() =>
+            {
+                Interlocked.Increment(ref cleanupCalls[2]);
+                return default;
+            });
+            context.Host.Setup(host => host.DestroyAddressSpaceAsync(
+                It.IsAny<IAsyncNodeManager>(), It.IsAny<CancellationToken>())).Returns(async () =>
+            {
+                if (Interlocked.Increment(ref cleanupCalls[0]) == 1)
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    throw failure;
+                }
+            });
+            Mock.Get(retired.NodeManager).As<IAsyncDisposable>()
+                .Setup(disposable => disposable.DisposeAsync()).Returns(() =>
+                {
+                    Interlocked.Increment(ref cleanupCalls[1]);
+                    return default;
+                });
+
+            NodeManagerSlot slot = retired.Generation.Slot;
+            slot.Publish(retired.Generation);
+            retired.Generation.Gate.Retire();
+            slot.Unpublish(retired.Generation);
+            Task retirement = Task.WhenAll([retired.Retirement]);
+            reclaimer.Enqueue([retired]);
+            reclaimer.Activate([retired]);
+
+            try
+            {
+                Task initialAttempt = reclaimer.ReclaimReadyAsync().AsTask();
+                await entered.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                reclaimer.StopScheduling();
+                release.TrySetResult(true);
+                await Assert.ThatAsync(
+                    () => initialAttempt,
+                    Throws.Exception.SameAs(failure)).ConfigureAwait(false);
+                var result = new LifecycleResult(
+                    [],
+                    0,
+                    failure,
+                    1,
+                    [slot],
+                    retirement,
+                    publishedSlots: [new NodeManagerGenerationSnapshot(slot, retired.Generation.Number)]);
+
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(retired.RetryScheduled, Is.False);
+                    Assert.That(reclaimer.Contains(retired), Is.True);
+                    Assert.That(result.RetirementStatus, Is.EqualTo(NodeManagerRetirementStatus.Pending));
+                    Assert.That(cleanupCalls[0], Is.EqualTo(1));
+                    Assert.That(cleanupCalls[1], Is.Zero);
+                    Assert.That(cleanupCalls[2], Is.EqualTo(1));
+                }
+
+                await reclaimer.CompleteShutdownAsync(cancellationToken).ConfigureAwait(false);
+                await AssertRetirementOutcomeAsync(retirement, failure, cancellationToken).ConfigureAwait(false);
+                context = null;
+                retired = null;
+                return (result, initialAttempt, manager, generation, record, failure, cleanupCalls);
+            }
+            finally
+            {
+                reclaimer.StopScheduling();
+                release.TrySetResult(true);
+                using var cleanupTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                await reclaimer.CompleteShutdownAsync(cleanupTimeout.Token).ConfigureAwait(false);
+            }
         }
 
         /// <summary>
