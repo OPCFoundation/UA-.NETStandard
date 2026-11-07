@@ -621,20 +621,26 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             {
                 result.Append(
                     CultureInfo.InvariantCulture,
-                    $"  per-op: allocB={serverMb * 1048576 / operations:F0} cpuUs={serverCpuMs * 1000 / operations:F1}  ({workload.OperationName})\n");
+                    $"  per-op: allocB={serverMb * 1048576 / operations:F0} ")
+                    .Append("cpuUs=").Append(ProcessCpuReport.FormatPerOperation(serverCpuMs, operations))
+                    .Append("  (").Append(workload.OperationName).Append(")\n");
             }
             if (secondary is (double secondaryCount, string secondaryName) && secondaryCount > 0)
             {
                 result.Append(
                     CultureInfo.InvariantCulture,
-                    $"  per-op2: allocB={serverMb * 1048576 / secondaryCount:F0} cpuUs={serverCpuMs * 1000 / secondaryCount:F1}  ({secondaryName})\n");
+                    $"  per-op2: allocB={serverMb * 1048576 / secondaryCount:F0} ")
+                    .Append("cpuUs=").Append(ProcessCpuReport.FormatPerOperation(serverCpuMs, secondaryCount))
+                    .Append("  (").Append(secondaryName).Append(")\n");
             }
             if (operations > 0)
             {
                 (double allocatedMb, double cpuMs) = ParseProcessReport(clientProcess);
                 result.Append(
                     CultureInfo.InvariantCulture,
-                    $"  client-per-op: allocB={allocatedMb * 1048576 / operations:F0} cpuUs={cpuMs * 1000 / operations:F1}  ({workload.OperationName})\n");
+                    $"  client-per-op: allocB={allocatedMb * 1048576 / operations:F0} ")
+                    .Append("cpuUs=").Append(ProcessCpuReport.FormatPerOperation(cpuMs, operations))
+                    .Append("  (").Append(workload.OperationName).Append(")\n");
             }
             Console.Write(result.ToString());
             if (s_args.TryGetValue("out", out string? outFile))
@@ -785,7 +791,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 .ToDictionary(p => p[0], p => p[1], StringComparer.Ordinal);
             return (
                 double.Parse(values["allocMB"], CultureInfo.InvariantCulture),
-                double.Parse(values["cpuMs"], CultureInfo.InvariantCulture));
+                ProcessCpuReport.GetMilliseconds(values));
         }
     }
 
@@ -831,7 +837,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 FormattableString.Invariant(
                 $"gen1={Gen1 - mark.Gen1} gen2={Gen2 - mark.Gen2} pauseMs={(Pause - mark.Pause).TotalMilliseconds:F0} ") +
                 FormattableString.Invariant(
-                $"cpuMs={cpu.TotalMilliseconds:F0} cpuCores={cpu.TotalSeconds / seconds:F2} ") +
+                $"{ProcessCpuReport.Format(cpu)} cpuCores={cpu.TotalSeconds / seconds:F2} ") +
                 FormattableString.Invariant(
                 $"contention={Contention - mark.Contention} threads={Threads} wsMB={WorkingSet / 1048576} heapMB={Heap / 1048576}");
         }

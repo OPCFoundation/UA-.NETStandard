@@ -3,7 +3,8 @@ param(
     [string] $File = 'ab-results.txt',
     [ValidateRange(0, 100000)]
     [int] $ExpectedRounds = 0,
-    [switch] $RequireExitStatus
+    [switch] $RequireExitStatus,
+    [switch] $RequireRawCpu
 )
 
 $ErrorActionPreference = 'Stop'
@@ -24,6 +25,16 @@ function Close-Result
         throw "Run exited with code $($script:cur.exitCode) for side=$($script:cur.side) " +
             "round=$($script:cur.round) scenario=$($script:cur.scenario)."
     }
+    if ($null -ne $script:cur.serverCpuTicks -and $null -ne $script:cur.received -and
+        $script:cur.received -gt 0 -and $null -ne $script:cur.cpu -and
+        (($script:cur.resultScenario -ceq 'sub' -and $script:cur.rateUnit -ceq 'notif' -and
+                $script:cur.cpuUnit -ceq 'notification') -or
+            ($script:cur.resultScenario -ceq 'events' -and $script:cur.rateUnit -ceq 'events' -and
+                $script:cur.cpuUnit -ceq 'event notification')))
+    {
+        $script:cur.cpu = [decimal]$script:cur.serverCpuTicks / (10 * [decimal]$script:cur.received)
+        $script:cur.cpuSource = 'ticks/counts'
+    }
     $missing = @(
         if (-not $script:cur.resultSeen) { 'RESULT' }
         if (-not $script:cur.clientSeen) { 'client' }
@@ -32,6 +43,7 @@ function Close-Result
         if ($null -eq $script:cur.cpu) { 'server per-op' }
         if ($null -eq $script:cur.ccpu) { 'client per-op' }
         if ($RequireExitStatus -and -not $script:cur.exitSeen) { 'exit status' }
+        if ($RequireRawCpu -and $script:cur.cpuSource -cne 'ticks/counts') { 'raw per-notification CPU' }
     )
     if ($missing.Count -ne 0)
     {
@@ -76,12 +88,14 @@ foreach ($line in Get-Content -LiteralPath $File)
         Close-Result
         $cur = @{
             side = $side; round = $round; scenario = $scenario
-            resultSeen = $false; resultLine = $null; clientSeen = $false; serverSeen = $false; failed = $false
+            resultSeen = $false; resultLine = $null; resultScenario = $null
+            clientSeen = $false; serverSeen = $false; failed = $false
             exitSeen = $false; exitCode = $null
             tput = $null; rateUnit = $null; p50 = $null; p90 = $null; p99 = $null
             received = $null; expected = $null; deliv = $null; deliverySource = 'unavailable'
             errors = $null; writeErrors = $null
-            alloc = $null; cpu = $null; cpuUnit = $null; serverCpuMs = $null
+            alloc = $null; cpu = $null; reportedCpu = $null; cpuUnit = $null
+            serverCpuMs = $null; serverCpuTicks = $null; cpuSource = 'reported-per-op'
             pause = $null; cont = $null; calloc = $null; ccpu = $null; clientCpuUnit = $null
             cpause = $null; ccont = $null
         }
@@ -113,7 +127,11 @@ foreach ($line in Get-Content -LiteralPath $File)
     elseif ($line -match '^RESULT(?:\s|$)')
     {
         if ($cur.resultSeen) { throw 'A result block contains multiple RESULT lines.' }
-        if ($line -notmatch '^RESULT scenario=\S+(?:\s|$)')
+        if ($line -match '^RESULT scenario=(\S+)(?:\s|$)')
+        {
+            $cur.resultScenario = $Matches[1]
+        }
+        else
         {
             throw 'A RESULT line is missing its scenario.'
         }
@@ -188,6 +206,20 @@ foreach ($line in Get-Content -LiteralPath $File)
         {
             $cur.serverCpuMs = [decimal]::Parse($Matches[1], $invariant)
         }
+        $tickFields = [regex]::Matches($line, '(?:^|\s)cpuTicks=(\S*)')
+        if ($tickFields.Count -gt 1)
+        {
+            throw 'The server report contains multiple CPU tick counts.'
+        }
+        if ($tickFields.Count -eq 1)
+        {
+            $ticks = $tickFields[0].Groups[1].Value
+            if ($ticks -notmatch '^[0-9]+$')
+            {
+                throw 'The server CPU tick count is malformed.'
+            }
+            $cur.serverCpuTicks = [long]::Parse($ticks, $invariant)
+        }
         if ($line -match '(?:^|\s)pauseMs=([0-9]+)(?:\s|$)')
         {
             $cur.pause = [decimal]::Parse($Matches[1], $invariant)
@@ -213,6 +245,7 @@ foreach ($line in Get-Content -LiteralPath $File)
         if ($null -ne $cur.cpu) { throw 'A result block contains multiple server per-op lines.' }
         $cur.alloc = [decimal]::Parse($Matches[1], $invariant)
         $cur.cpu = [decimal]::Parse($Matches[2], $invariant)
+        $cur.reportedCpu = $cur.cpu
         $cur.cpuUnit = $Matches[3]
     }
     elseif ($line -match '^\s+client-per-op: allocB=([0-9]+) cpuUs=([0-9.]+)\s+\(([^)]+)\)')
@@ -330,10 +363,29 @@ function Format-Result($row)
     return "round=$($row.round) side=$($row.side) rate=$(Format-Number $row.tput) " +
         "rateUnit=$($row.rateUnit)/s received=$(Format-Number $row.received) " +
         "expected=$(Format-Number $row.expected) delivery=$delivery source=$($row.deliverySource) " +
-        "serverCpuMs=$(Format-Number $row.serverCpuMs) serverCpuUs=$(Format-Number $row.cpu) " +
+        "serverCpuMs=$(Format-Number $row.serverCpuMs) serverCpuTicks=$(Format-Number $row.serverCpuTicks) " +
+        "serverCpuUs=$(Format-Number $row.cpu) cpuSource=$($row.cpuSource) " +
+        "reportedCpuUs=$(Format-Number $row.reportedCpu) " +
         "cpuUnit=[$($row.cpuUnit)] clientCpuUs=$(Format-Number $row.ccpu) " +
         "clientCpuUnit=[$($row.clientCpuUnit)] errors=$(Format-Number $row.errors) " +
         "writeErrors=$(Format-Number $row.writeErrors) exit=$(Format-Number $row.exitCode)"
+}
+
+function Get-CpuDirection($a, $b)
+{
+    if ($a.cpuSource -cne 'ticks/counts' -or $b.cpuSource -cne 'ticks/counts')
+    {
+        return 'unavailable'
+    }
+
+    $difference = (
+        [System.Numerics.BigInteger]$b.serverCpuTicks * [System.Numerics.BigInteger]$a.received
+    ) - (
+        [System.Numerics.BigInteger]$a.serverCpuTicks * [System.Numerics.BigInteger]$b.received
+    )
+    if ($difference -gt 0) { return 'increased' }
+    if ($difference -lt 0) { return 'decreased' }
+    return 'unchanged'
 }
 
 'Exit status is available only when recorded; source or harness identity and host isolation are not established.'
@@ -358,12 +410,14 @@ foreach ($group in $groups)
             Format-Number ($b.deliv - $a.deliv)
         }
         "round=$($round.Name) side=B-A rate=$(Format-Number ($b.tput - $a.tput)) " +
-            "deliveryPoints=$deliveryDifference serverCpuUs=$(Format-Number ($b.cpu - $a.cpu))"
+            "deliveryPoints=$deliveryDifference serverCpuUs=$(Format-Number ($b.cpu - $a.cpu)) " +
+            "serverCpuDirection=$(Get-CpuDirection $a $b)"
     }
 
     $a = @($group.Group | Where-Object { $_.side -ceq 'A' })
     $b = @($group.Group | Where-Object { $_.side -ceq 'B' })
     $hasRoundedDelivery = @($group.Group | Where-Object { $_.deliverySource -eq 'reported-rounded' }).Count -gt 0
+    $hasReportedCpu = @($group.Group | Where-Object { $_.cpuSource -eq 'reported-per-op' }).Count -gt 0
     $summary = [ordered]@{ scenario = $group.Name; n = "$($a.Count)/$($b.Count)" }
     foreach ($metric in 'tput', 'deliv', 'p50', 'p90', 'p99', 'calloc', 'ccpu',
         'cpause', 'ccont', 'alloc', 'cpu', 'pause', 'cont')
@@ -375,6 +429,10 @@ foreach ($group in $groups)
             if ($metric -eq 'deliv' -and $hasRoundedDelivery)
             {
                 $comparison += ' [reported-rounded input]'
+            }
+            if ($metric -eq 'cpu' -and $hasReportedCpu)
+            {
+                $comparison += ' [reported-per-op input]'
             }
             $summary[$metric] = $comparison
         }

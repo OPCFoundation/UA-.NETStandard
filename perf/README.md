@@ -341,10 +341,25 @@ file. The summary rejects incomplete or duplicate blocks, mismatched `RESULT` li
 missing rounds. Compare the scenarios in the file with the requested scenario list: the summary
 cannot detect an entirely omitted scenario.
 
-CPU milliseconds and CPU per operation are rounded in the result block, so differences smaller
-than that precision cannot establish whether CPU per notification increased. `ab.sh` does not
-detect competing processes or record source and harness SHAs. Record the identities and check for
-competing load separately; discard contaminated rounds.
+The harness records `cpuTicks` alongside `cpuMs`. A tick is a `TimeSpan` tick (100 ns), not a
+statement of the operating system CPU counter's resolution. For `sub` and `events`, the summary
+divides server ticks by the received notification count and labels the result
+`cpuSource=ticks/counts`. It retains both inputs and the rounded `reportedCpuUs`. A paired
+`serverCpuDirection` compares the raw ratios by integer cross-multiplication, so its direction
+remains visible even when the displayed difference rounds to zero.
+
+The displayed CPU differences, medians and ranges are rounded to eight decimal places.
+`serverCpuDirection` describes one pair, not the change in median across rounds. Use the raw
+tick/count ratios when checking a CPU limit, and account for counter resolution and measurement
+noise. Older blocks and other workloads use the reported per-operation CPU; comparisons containing
+those values are marked `reported-per-op input`. `-RequireRawCpu` rejects blocks without a usable
+tick/count ratio, including zero received counts and scenarios other than `sub` and `events`.
+Use it only when every result is a `sub` or `events` run.
+
+`variants-summary.ps1` does not report raw ticks and rounds displayed CPU values to two decimal
+places, or to whole numbers at 100 and above. `ab.sh` does not detect competing processes or
+record source and harness SHAs. Record the identities and check for competing load separately;
+discard contaminated rounds.
 
 ## Configuration comparison
 
@@ -434,7 +449,7 @@ the scenario and all arguments.
 | Latency | `client:` percentiles `p50`/`p90`/`p99`; `write->notify latency` (`sub`), `event->notify latency` (`events`) |
 | CPU and allocation per operation | `per-op:` `cpuUs`, `allocB` per request or notification; `per-op2:` per written value or generated event |
 | GC | `server:` `gen0`/`gen1`/`gen2` collections and `pauseMs` in the window; `client-process:` the same for the client |
-| CPU use | `server:` `cpuMs` and `cpuCores` (average busy cores) |
+| CPU use | `server:` `cpuTicks`, `cpuMs` and `cpuCores` (average busy cores) |
 
 For `sub`, `expected` is the number of successfully written values multiplied by the number of
 sessions and by the subscriptions per session. For `events`, it is the number of generated

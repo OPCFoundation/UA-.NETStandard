@@ -210,6 +210,211 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
+        /// Raw CPU ticks and received counts expose a difference hidden by rounded per-operation values.
+        /// </summary>
+        [TestCase("sub", "notif", "notification")]
+        [TestCase("events", "events", "event notification")]
+        public async Task RawCpuTicksExposeRoundedPerOperationDifferencesAsync(
+            string scenario,
+            string rateUnit,
+            string cpuUnit)
+        {
+            var input = new StringBuilder();
+            AppendResult(
+                input, "A", 1, 1000000, 1000000, 1000, 1,
+                rateUnit: rateUnit, scenario: scenario, cpuUnit: cpuUnit, serverCpuTicks: 10000000);
+            AppendResult(
+                input, "B", 1, 1000000, 1000000, 1100, 1,
+                rateUnit: rateUnit, scenario: scenario, cpuUnit: cpuUnit, serverCpuTicks: 10000001);
+            await WriteResultsAsync(input).ConfigureAwait(false);
+
+            (int exitCode, string output) = await InvokeAsync(1, requireRawCpu: true).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exitCode, Is.Zero, output);
+                Assert.That(
+                    output,
+                    Does.Contain("serverCpuTicks=10000001 serverCpuUs=1.0000001 " +
+                        "cpuSource=ticks/counts reportedCpuUs=1"));
+                Assert.That(output, Does.Contain("serverCpuUs=0.0000001"));
+                Assert.That(output, Does.Contain("serverCpuDirection=increased"));
+                Assert.That(output, Does.Match(@"(?m)^\s*cpu\s*:\s*1 \[1-1\] -> 1\.0000001"));
+                Assert.That(output, Does.Not.Contain("[reported-per-op input]"));
+            });
+        }
+
+        /// <summary>
+        /// The paired direction remains visible when the displayed CPU difference rounds to zero.
+        /// </summary>
+        [TestCase(999999999L, "decreased")]
+        [TestCase(1000000000L, "unchanged")]
+        [TestCase(1000000001L, "increased")]
+        public async Task RawCpuDirectionUsesUnroundedRatiosAsync(long candidateTicks, string direction)
+        {
+            var input = new StringBuilder();
+            AppendResult(input, "A", 1, 100000000, 100000000, 1000, 1, serverCpuTicks: 1000000000);
+            AppendResult(input, "B", 1, 100000000, 100000000, 1100, 1, serverCpuTicks: candidateTicks);
+            await WriteResultsAsync(input).ConfigureAwait(false);
+
+            (int exitCode, string output) = await InvokeAsync(1, requireRawCpu: true).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exitCode, Is.Zero, output);
+                Assert.That(output, Does.Match($"serverCpuUs=-?0 serverCpuDirection={direction}"));
+            });
+        }
+
+        /// <summary>
+        /// Exact direction does not overflow when both cross-products exceed Int64.
+        /// </summary>
+        [Test]
+        public async Task RawCpuDirectionHandlesLargeCrossProductsAsync()
+        {
+            var input = new StringBuilder();
+            AppendResult(
+                input, "A", 1, long.MaxValue - 1, long.MaxValue - 1, 1000, 0.1m,
+                serverCpuTicks: long.MaxValue - 2);
+            AppendResult(
+                input, "B", 1, long.MaxValue, long.MaxValue, 1100, 0.1m,
+                serverCpuTicks: long.MaxValue - 1);
+            await WriteResultsAsync(input).ConfigureAwait(false);
+
+            (int exitCode, string output) = await InvokeAsync(1, requireRawCpu: true).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exitCode, Is.Zero, output);
+                Assert.That(output, Does.Contain("serverCpuUs=0 serverCpuDirection=increased"));
+            });
+        }
+
+        /// <summary>
+        /// Requiring raw CPU rejects a side that only has a rounded per-operation value.
+        /// </summary>
+        [Test]
+        public async Task MissingRequiredRawCpuFailsAsync()
+        {
+            var input = new StringBuilder();
+            AppendResult(input, "A", 1, 100, 100, 1000, 3, serverCpuTicks: 3000);
+            AppendResult(input, "B", 1, 100, 100, 1100, 2);
+            await WriteResultsAsync(input).ConfigureAwait(false);
+
+            (int exitCode, string output) = await InvokeAsync(1, requireRawCpu: true).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exitCode, Is.Not.Zero);
+                Assert.That(output, Does.Contain("Incomplete result for side=B round=1"));
+                Assert.That(output, Does.Contain("missing raw per-notification CPU"));
+            });
+        }
+
+        /// <summary>
+        /// A comparison using a legacy CPU value identifies its rounded input.
+        /// </summary>
+        [Test]
+        public async Task MixedCpuSourcesAreIdentifiedAsync()
+        {
+            var input = new StringBuilder();
+            AppendResult(input, "A", 1, 100, 100, 1000, 3, serverCpuTicks: 3000);
+            AppendResult(input, "B", 1, 100, 100, 1100, 2);
+            await WriteResultsAsync(input).ConfigureAwait(false);
+
+            (int exitCode, string output) = await InvokeAsync(1).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exitCode, Is.Zero, output);
+                Assert.That(output, Does.Contain("cpuSource=ticks/counts"));
+                Assert.That(output, Does.Contain("cpuSource=reported-per-op"));
+                Assert.That(output, Does.Contain("[reported-per-op input]"));
+                Assert.That(output, Does.Contain("serverCpuDirection=unavailable"));
+            });
+        }
+
+        /// <summary>
+        /// A matching unit alone does not establish a supported notification workload.
+        /// </summary>
+        [Test]
+        public async Task UnsupportedScenarioCannotProvideRawNotificationCpuAsync()
+        {
+            var input = new StringBuilder();
+            AppendResult(input, "A", 1, 100, 100, 1000, 3, scenario: "counters", serverCpuTicks: 3000);
+            await WriteResultsAsync(input).ConfigureAwait(false);
+
+            (int exitCode, string output) = await InvokeAsync(1, requireRawCpu: true).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exitCode, Is.Not.Zero);
+                Assert.That(output, Does.Contain("missing raw per-notification CPU"));
+            });
+        }
+
+        /// <summary>
+        /// A zero received count cannot be used as a CPU-per-notification denominator.
+        /// </summary>
+        [Test]
+        public async Task ZeroReceivedCountCannotProvideRawCpuAsync()
+        {
+            var input = new StringBuilder();
+            AppendResult(input, "A", 1, 0, 100, 1000, 3, serverCpuTicks: 3000);
+            await WriteResultsAsync(input).ConfigureAwait(false);
+
+            (int exitCode, string output) = await InvokeAsync(1, requireRawCpu: true).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exitCode, Is.Not.Zero);
+                Assert.That(output, Does.Contain("missing raw per-notification CPU"));
+            });
+        }
+
+        /// <summary>
+        /// A malformed tick count is not interpreted as a rounded-only report.
+        /// </summary>
+        [TestCase("")]
+        [TestCase("-1")]
+        [TestCase("invalid")]
+        public async Task MalformedCpuTicksFailAsync(string ticks)
+        {
+            var input = new StringBuilder();
+            AppendResult(input, "A", 1, 100, 100, 1000, 3);
+            input.Replace("cpuMs=100", $"cpuMs=100 cpuTicks={ticks}");
+            await WriteResultsAsync(input).ConfigureAwait(false);
+
+            (int exitCode, string output) = await InvokeAsync(1).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exitCode, Is.Not.Zero);
+                Assert.That(output, Does.Contain("server CPU tick count is malformed"));
+            });
+        }
+
+        /// <summary>
+        /// Duplicate tick fields are not silently reduced to one CPU measurement.
+        /// </summary>
+        [Test]
+        public async Task DuplicateCpuTicksFailAsync()
+        {
+            var input = new StringBuilder();
+            AppendResult(input, "A", 1, 100, 100, 1000, 3, serverCpuTicks: 3000);
+            input.Replace("cpuTicks=3000", "cpuTicks=3000 cpuTicks=4000");
+            await WriteResultsAsync(input).ConfigureAwait(false);
+
+            (int exitCode, string output) = await InvokeAsync(1).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exitCode, Is.Not.Zero);
+                Assert.That(output, Does.Contain("multiple CPU tick counts"));
+            });
+        }
+
+        /// <summary>
         /// Older result blocks retain their percentage without inventing counts.
         /// </summary>
         [Test]
@@ -745,7 +950,7 @@ namespace Opc.Ua.Tools.Tests
             long received,
             long expected,
             int rate,
-            int cpu,
+            decimal cpu,
             bool includeCounts = true,
             bool clientFailure = false,
             string rateUnit = "notif",
@@ -755,7 +960,8 @@ namespace Opc.Ua.Tools.Tests
             bool includeDelivery = true,
             bool includeClientProcess = true,
             string? clientCpuUnit = null,
-            int? exitCode = null)
+            int? exitCode = null,
+            long? serverCpuTicks = null)
         {
             input.AppendLine(FormattableString.Invariant($"### side={side} round={round} --scenario {scenario}"));
             input.AppendLine($"RESULT scenario={scenario} security={security} sessions=1 --scenario {scenario}");
@@ -776,12 +982,21 @@ namespace Opc.Ua.Tools.Tests
             }
             input.Append(" writeErrors=0 latency n=1 p50=1.000ms p90=2.000ms p99=3.000ms");
             input.AppendLine(clientFailure ? " FAIL" : string.Empty);
-            input.AppendLine("  server: cpuMs=100 pauseMs=2 contention=3");
+            string serverCpuMs = serverCpuTicks.HasValue
+                ? TimeSpan.FromTicks(serverCpuTicks.Value).TotalMilliseconds.ToString(
+                    "F0", CultureInfo.InvariantCulture)
+                : "100";
+            input.Append($"  server: cpuMs={serverCpuMs}");
+            if (serverCpuTicks.HasValue)
+            {
+                input.Append(FormattableString.Invariant($" cpuTicks={serverCpuTicks.Value}"));
+            }
+            input.AppendLine(" pauseMs=2 contention=3");
             if (includeClientProcess)
             {
                 input.AppendLine("  client-process: pauseMs=4 contention=5");
             }
-            input.AppendLine(FormattableString.Invariant($"  per-op: allocB=10 cpuUs={cpu}.0  ({cpuUnit})"));
+            input.AppendLine(FormattableString.Invariant($"  per-op: allocB=10 cpuUs={cpu:F6}  ({cpuUnit})"));
             input.AppendLine($"  client-per-op: allocB=20 cpuUs=1.0  ({clientCpuUnit ?? cpuUnit})");
             if (exitCode.HasValue)
             {
@@ -839,7 +1054,8 @@ namespace Opc.Ua.Tools.Tests
 
         private async Task<(int ExitCode, string Output)> InvokeAsync(
             int expectedRounds,
-            bool requireExitStatus = false)
+            bool requireExitStatus = false,
+            bool requireRawCpu = false)
         {
             string root = FindRepositoryRoot();
             using var process = new Process();
@@ -858,6 +1074,10 @@ namespace Opc.Ua.Tools.Tests
             if (requireExitStatus)
             {
                 process.StartInfo.ArgumentList.Add("-RequireExitStatus");
+            }
+            if (requireRawCpu)
+            {
+                process.StartInfo.ArgumentList.Add("-RequireRawCpu");
             }
 
             return await RunProcessAsync(process).ConfigureAwait(false);
