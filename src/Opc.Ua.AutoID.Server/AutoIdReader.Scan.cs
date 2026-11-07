@@ -91,10 +91,11 @@ namespace Opc.Ua.AutoID.Server
                         refused = new ScanCallOutcome(
                             ServiceResult.Good, default, AutoIdOperationStatusEnumeration.DEVICE_NOT_READY);
                     }
-                    else if (m_activity != ScanActivity.Idle)
+                    else if (m_activity != ScanActivity.Idle || m_parameterWrite)
                     {
                         refused = new ScanCallOutcome(
-                            BadResult(StatusCodes.BadInvalidState, "There is already a scan active."),
+                            BadResult(StatusCodes.BadInvalidState,
+                                "A scan is active or parameters are being committed."),
                             default,
                             default);
                     }
@@ -112,14 +113,15 @@ namespace Opc.Ua.AutoID.Server
                 }
                 try
                 {
-                    PublishStatus();
+                    await PublishStatusAsync().ConfigureAwait(false);
                     AutoIdScanOutcome outcome = await RunScanAsync(provider, settings, cancellationToken)
                         .ConfigureAwait(false);
                     ArrayOf<ScanResult> results = ValidateResults(outcome.Results);
                     if (results.Count > 0)
                     {
-                        PublishLastScan(results[0]);
-                        TryRaiseAccessEvent(ClientOf(context), "Scan", AccessResultsOf(results));
+                        await PublishLastScanAsync(results[0], CancellationToken.None).ConfigureAwait(false);
+                        await TryRaiseAccessEventAsync(
+                            ClientOf(context), "Scan", AccessResultsOf(results)).ConfigureAwait(false);
                     }
                     return new ScanCallOutcome(ServiceResult.Good, results, outcome.Status);
                 }
@@ -133,7 +135,7 @@ namespace Opc.Ua.AutoID.Server
                             UpdateStatusLocked();
                         }
                     }
-                    PublishStatus();
+                    await PublishStatusAsync().ConfigureAwait(false);
                 }
             }
             finally
@@ -177,7 +179,8 @@ namespace Opc.Ua.AutoID.Server
         private async ValueTask<(ServiceResult Service, AutoIdOperationStatusEnumeration Status)> ScanStartCoreAsync(
             ISystemContext context,
             ScanSettings settings,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool variableControl = false)
         {
             IAutoIdAsyncScanProvider provider = m_asyncProvider ??
                 throw ServiceResultException.Create(
@@ -188,7 +191,9 @@ namespace Opc.Ua.AutoID.Server
             {
                 return (invalid, default);
             }
-            NodeId owner = (context as ISessionSystemContext)?.SessionId ?? NodeId.Null;
+            NodeId owner = !variableControl && context is ISessionSystemContext { SessionId: NodeId sessionId }
+                ? sessionId
+                : NodeId.Null;
             string client = ClientOf(context);
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(
                 cancellationToken,
@@ -214,6 +219,19 @@ namespace Opc.Ua.AutoID.Server
                     (ServiceResult Service, AutoIdOperationStatusEnumeration Status)? refused = null;
                     lock (m_lock)
                     {
+                        if (variableControl && m_activity == ScanActivity.Asynchronous)
+                        {
+                            return (ServiceResult.Good, AutoIdOperationStatusEnumeration.SUCCESS);
+                        }
+                        if (variableControl)
+                        {
+                            settings = new ScanSettings
+                            {
+                                Duration = m_parameters!.Duration,
+                                Cycles = m_parameters.Cycles,
+                                DataAvailable = m_parameters.DataAvailable
+                            };
+                        }
                         if (m_faulted)
                         {
                             refused = (ServiceResult.Good, AutoIdOperationStatusEnumeration.DEVICE_NOT_READY);
@@ -235,7 +253,7 @@ namespace Opc.Ua.AutoID.Server
                     {
                         return refusal;
                     }
-                    PublishStatus();
+                    await PublishStatusAsync().ConfigureAwait(false);
                     AutoIdOperationStatusEnumeration status;
                     try
                     {
@@ -243,12 +261,12 @@ namespace Opc.Ua.AutoID.Server
                     }
                     catch
                     {
-                        EndAsynchronousScan(generation);
+                        await EndAsynchronousScanAsync(generation).ConfigureAwait(false);
                         throw;
                     }
                     if (status != AutoIdOperationStatusEnumeration.SUCCESS)
                     {
-                        EndAsynchronousScan(generation);
+                        await EndAsynchronousScanAsync(generation).ConfigureAwait(false);
                     }
                     return (ServiceResult.Good, status);
                 }
@@ -323,16 +341,9 @@ namespace Opc.Ua.AutoID.Server
                         }
                         generation = m_generation;
                     }
-                    try
-                    {
-                        // The reader stays busy until the provider has stopped, so no other scan
-                        // starts on the hardware in the meantime.
-                        await provider.StopScanAsync(linked.Token).ConfigureAwait(false);
-                    }
-                    finally
-                    {
-                        EndAsynchronousScan(generation);
-                    }
+                    // A rejected or cancelled stop does not establish that the hardware stopped.
+                    await provider.StopScanAsync(linked.Token).ConfigureAwait(false);
+                    await EndAsynchronousScanAsync(generation).ConfigureAwait(false);
                     return true;
                 }
                 finally
@@ -349,7 +360,7 @@ namespace Opc.Ua.AutoID.Server
         /// <summary>
         /// Ends the asynchronous scan of <paramref name="generation"/> if it is still the active one.
         /// </summary>
-        private bool EndAsynchronousScan(long generation)
+        private async ValueTask<bool> EndAsynchronousScanAsync(long generation)
         {
             bool ended = false;
             lock (m_lock)
@@ -365,7 +376,7 @@ namespace Opc.Ua.AutoID.Server
             }
             if (ended)
             {
-                PublishStatus();
+                await PublishStatusAsync().ConfigureAwait(false);
             }
             return ended;
         }
@@ -401,6 +412,15 @@ namespace Opc.Ua.AutoID.Server
             {
                 throw new ObjectDisposedException(nameof(AutoIdReader));
             }
+            return ReportScanCoreAsync(validated, cancellationToken);
+        }
+
+        /// <summary>
+        /// Publishes an acquired scan and keeps the reader operation active through all awaited sinks.
+        /// </summary>
+        private async ValueTask ReportScanCoreAsync(
+            ArrayOf<ScanResult> validated, CancellationToken cancellationToken)
+        {
             try
             {
                 // The results of an asynchronous scan were requested by the client that started it;
@@ -410,15 +430,18 @@ namespace Opc.Ua.AutoID.Server
                 {
                     client = m_activity == ScanActivity.Asynchronous ? m_scanClient : DeviceClient;
                 }
-                PublishLastScan(validated[0]);
-                RaiseScanEvent(validated);
-                RaiseAccessEvent(client, "Scan", AccessResultsOf(validated));
+                await PublishLastScanAsync(validated[0], cancellationToken).ConfigureAwait(false);
+                await RaiseScanEventAsync(validated, cancellationToken).ConfigureAwait(false);
+                await RaiseAccessEventAsync(
+                    client,
+                    "Scan",
+                    AccessResultsOf(validated),
+                    tolerateDiagnosticCopyFailure: true, cancellationToken: cancellationToken).ConfigureAwait(false);
             }
             finally
             {
                 m_operations.Exit();
             }
-            return default;
         }
 
         /// <inheritdoc/>
@@ -426,23 +449,51 @@ namespace Opc.Ua.AutoID.Server
         {
             ThrowIfDisposed();
             cancellationToken.ThrowIfCancellationRequested();
-            bool ended = false;
-            lock (m_lock)
+            if (!m_operations.TryEnter())
             {
-                if (m_activity == ScanActivity.Asynchronous)
+                throw new ObjectDisposedException(nameof(AutoIdReader));
+            }
+            bool ended = false;
+            try
+            {
+                lock (m_lock)
                 {
-                    m_activity = ScanActivity.Idle;
-                    m_scanOwner = NodeId.Null;
-                    m_generation++;
-                    ended = true;
-                    UpdateStatusLocked();
+                    if (m_activity == ScanActivity.Asynchronous)
+                    {
+                        m_activity = ScanActivity.Idle;
+                        m_scanOwner = NodeId.Null;
+                        m_generation++;
+                        ended = true;
+                        UpdateStatusLocked();
+                    }
                 }
+            }
+            catch
+            {
+                m_operations.Exit();
+                throw;
             }
             if (ended)
             {
-                PublishStatus();
+                return PublishCompletionStatusAsync();
             }
+            m_operations.Exit();
             return default;
+        }
+
+        /// <summary>
+        /// Publishes completion status and keeps the reader operation active through all awaited sinks.
+        /// </summary>
+        private async ValueTask PublishCompletionStatusAsync()
+        {
+            try
+            {
+                await PublishStatusAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                m_operations.Exit();
+            }
         }
 
         /// <summary>
@@ -543,7 +594,7 @@ namespace Opc.Ua.AutoID.Server
         /// <summary>
         /// Publishes the first result as <c>LastScanData</c> (OPC 30010 6.1.3.9 and 6.1.3.10).
         /// </summary>
-        private void PublishLastScan(ScanResult result)
+        private async ValueTask PublishLastScanAsync(ScanResult result, CancellationToken cancellationToken)
         {
             DateTimeUtc timestamp = result.Timestamp.IsNull ? DateTimeUtc.Now : result.Timestamp;
             lock (m_lock)
@@ -563,30 +614,46 @@ namespace Opc.Ua.AutoID.Server
                     Device.LastScanTimestamp.StatusCode = StatusCodes.Good;
                     Device.LastScanTimestamp.Timestamp = timestamp;
                 }
-                if (Device is RfidReaderDeviceState rfid &&
-                    result is RfidScanResult rfidResult &&
-                    rfidResult.Sighting.Count > 0)
+                if (Device is RfidReaderDeviceState rfid && result is RfidScanResult rfidResult)
                 {
-                    RfidSighting sighting = rfidResult.Sighting[0];
+                    RfidSighting? sighting = rfidResult.Sighting.Count > 0 ? rfidResult.Sighting[0] : null;
                     if (rfid.LastScanAntenna != null)
                     {
-                        rfid.LastScanAntenna.Value = sighting.Antenna;
+                        rfid.LastScanAntenna.Value = sighting?.Antenna ?? 0;
+                        rfid.LastScanAntenna.StatusCode = sighting == null ? StatusCodes.BadNoData : StatusCodes.Good;
                         rfid.LastScanAntenna.Timestamp = timestamp;
                     }
                     if (rfid.LastScanRSSI != null)
                     {
-                        rfid.LastScanRSSI.Value = sighting.Strength;
+                        rfid.LastScanRSSI.Value = sighting?.Strength ?? 0;
+                        rfid.LastScanRSSI.StatusCode = sighting == null ? StatusCodes.BadNoData : StatusCodes.Good;
                         rfid.LastScanRSSI.Timestamp = timestamp;
                     }
                 }
             }
             ISystemContext context = Runtime.SystemContext;
-            Device.LastScanData?.ClearChangeMasks(context, false);
-            Device.LastScanTimestamp?.ClearChangeMasks(context, false);
+            if (Device.LastScanData != null)
+            {
+                await Device.LastScanData.ClearChangeMasksAsync(context, false, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            if (Device.LastScanTimestamp != null)
+            {
+                await Device.LastScanTimestamp.ClearChangeMasksAsync(context, false, cancellationToken)
+                    .ConfigureAwait(false);
+            }
             if (Device is RfidReaderDeviceState rfidDevice)
             {
-                rfidDevice.LastScanAntenna?.ClearChangeMasks(context, false);
-                rfidDevice.LastScanRSSI?.ClearChangeMasks(context, false);
+                if (rfidDevice.LastScanAntenna != null)
+                {
+                    await rfidDevice.LastScanAntenna.ClearChangeMasksAsync(context, false, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                if (rfidDevice.LastScanRSSI != null)
+                {
+                    await rfidDevice.LastScanRSSI.ClearChangeMasksAsync(context, false, cancellationToken)
+                        .ConfigureAwait(false);
+                }
             }
         }
 

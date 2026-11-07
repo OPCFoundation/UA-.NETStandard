@@ -67,10 +67,23 @@ namespace Opc.Ua.AutoID.Server
             IDiPostSetupRunner? runner,
             IOptions<AutoIdServerOptions>? options,
             ArrayOf<IDiModelProvider> providers)
+            : this(runner, options, providers, null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a factory with an injectable image FileType binder.
+        /// </summary>
+        public AutoIdNodeManagerFactory(
+            IDiPostSetupRunner? runner,
+            IOptions<AutoIdServerOptions>? options,
+            ArrayOf<IDiModelProvider> providers,
+            Opc.Ua.Server.FileSystem.IFileTypeBinder? fileBinder)
         {
             m_runner = runner;
             m_options = options;
             m_providers = providers;
+            m_fileBinder = fileBinder;
         }
 
         /// <inheritdoc/>
@@ -104,7 +117,7 @@ namespace Opc.Ua.AutoID.Server
         {
 #pragma warning disable CA2000 // ownership transferred to the server
             IAsyncNodeManager manager = new AutoIdNodeManager(
-                server, configuration, m_runner, m_options, m_providers);
+                server, configuration, m_runner, m_options, m_providers, m_fileBinder);
 #pragma warning restore CA2000
             return new ValueTask<IAsyncNodeManager>(manager);
         }
@@ -117,5 +130,8 @@ namespace Opc.Ua.AutoID.Server
 
         /// <summary>Additional companion providers loaded by the owner.</summary>
         private readonly ArrayOf<IDiModelProvider> m_providers;
+
+        /// <summary>The image file binder supplied by hosting.</summary>
+        private readonly Opc.Ua.Server.FileSystem.IFileTypeBinder? m_fileBinder;
     }
 }
