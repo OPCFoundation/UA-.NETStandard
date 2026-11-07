@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Scales.Server.Runtime
 {
@@ -110,14 +111,17 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <param name="quantity">The delivered weight.</param>
         public void Totalize(double quantity)
         {
-            lock (m_totalsLock)
+            m_owner.Locked(() =>
             {
-                foreach (TotalizerState totalizer in m_totalizers)
+                lock (m_totalsLock)
                 {
-                    m_totals[totalizer] += quantity;
-                    PublishTotal(totalizer);
+                    foreach (TotalizerState totalizer in m_totalizers)
+                    {
+                        m_totals[totalizer] += quantity;
+                        PublishTotal(totalizer);
+                    }
                 }
-            }
+            });
         }
 
         /// <summary>
@@ -138,14 +142,17 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <param name="totalizer">The totalizer.</param>
         public void ResetTotalizer(TotalizerState totalizer)
         {
-            lock (m_totalsLock)
+            m_owner.Locked(() =>
             {
-                if (m_totals.ContainsKey(totalizer))
+                lock (m_totalsLock)
                 {
-                    m_totals[totalizer] = 0;
-                    PublishTotal(totalizer);
+                    if (m_totals.ContainsKey(totalizer))
+                    {
+                        m_totals[totalizer] = 0;
+                        PublishTotal(totalizer);
+                    }
                 }
-            }
+            });
         }
 
         private void PublishTotal(TotalizerState totalizer)
@@ -289,6 +296,15 @@ namespace Opc.Ua.Scales.Server.Runtime
         {
             m_owner = owner;
             Scale = scale;
+            if (owner.ProductionPreset is { } preset)
+            {
+                preset.CurrentProductsChanged += OnCurrentProductsChanged;
+                if (preset.ActiveProduct is PieceCountingProductState product &&
+                    TryReadReference(product, out double referenceWeight))
+                {
+                    m_referencePieceWeight = referenceWeight;
+                }
+            }
             scale.SetReferencePieceWeight?.OnCall = (context, method, objectId, weight, units) =>
                     owner.Execute(
                         ScaleCommand.SetReferencePieceWeight,
@@ -362,17 +378,272 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// </summary>
         internal void OnWeight(WeighingResult current, PieceCountingProductState? product)
         {
-            if (!(m_referencePieceWeight > 0))
+            if (!TryCount(current, product, out uint pieces))
+            {
+                SetUnavailable(Scale.CurrentPieceCount);
+                SetUnavailable(product?.CurrentItemCount);
+                CurrentPieceCount = 0;
+                return;
+            }
+            CurrentPieceCount = pieces;
+            ScaleValues.Set(m_owner.Services.Context, Scale.CurrentPieceCount, Variant.From(pieces));
+            if (product?.CurrentItemCount != null)
+            {
+                ScaleValues.Set(m_owner.Services.Context, product.CurrentItemCount, Variant.From(pieces));
+            }
+        }
+
+        /// <summary>
+        /// Adds one accepted registration to the selected product's configured count and weight totals.
+        /// </summary>
+        internal ServiceResult OnRegistered(WeighingResult current, PieceCountingProductState? product)
+        {
+            if (product == null)
+            {
+                return ServiceResult.Good;
+            }
+            bool hasCount = TryCount(current, product, out uint pieces);
+            uint itemTotal = 0;
+            bool updateItemTotal = hasCount && product.TotalizedItemCount != null;
+            if (updateItemTotal)
+            {
+                if (!TryReadUnsigned(product.TotalizedItemCount!.WrappedValue, out uint existing))
+                {
+                    return ServiceResult.Create(
+                        StatusCodes.BadTypeMismatch, "The totalized piece count is not a UInt32 value.");
+                }
+                if (uint.MaxValue - existing < pieces)
+                {
+                    return ServiceResult.Create(
+                        StatusCodes.BadOutOfRange, "The totalized piece count exceeds UInt32.");
+                }
+                itemTotal = existing + pieces;
+            }
+            WeightType? weightTotal = null;
+            if (product.TotalizedWeight != null)
+            {
+                double existing = product.TotalizedWeight.Value.Net;
+                double total = existing + current.Net;
+                if (double.IsNaN(total) || double.IsInfinity(total))
+                {
+                    return ServiceResult.Create(
+                        StatusCodes.BadOutOfRange, "The totalized weight is not finite.");
+                }
+                weightTotal = new WeightType { Gross = total, Net = total, Tare = 0 };
+            }
+
+            if (hasCount)
+            {
+                CurrentPieceCount = pieces;
+                ScaleValues.Set(m_owner.Services.Context, product.RegisteredPieceCount, Variant.From(pieces));
+            }
+            else
+            {
+                SetUnavailable(product.RegisteredPieceCount);
+            }
+            if (updateItemTotal)
+            {
+                ScaleValues.Set(m_owner.Services.Context, product.TotalizedItemCount, Variant.From(itemTotal));
+            }
+            if (weightTotal != null)
+            {
+                ScaleValues.Set(
+                    m_owner.Services.Context,
+                    product.TotalizedWeight,
+                    Variant.From(new ExtensionObject(weightTotal)));
+            }
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Resets one product's optional totals after asynchronous writer admission.
+        /// </summary>
+        /// <param name="productId">The product whose totals are reset.</param>
+        /// <param name="cancellationToken">Cancels while waiting to enter.</param>
+        public ValueTask<ServiceResult> ResetTotalsAsync(
+            string productId,
+            CancellationToken cancellationToken = default)
+        {
+            productId.ThrowIfNull(nameof(productId));
+            return m_owner.ExecuteWriteOperationAsync(async ct =>
+            {
+                ct.ThrowIfCancellationRequested();
+                if (m_owner.ProductionPreset?.Find(productId) is not PieceCountingProductState product)
+                {
+                    return ServiceResult.Create(
+                        StatusCodes.BadNotFound,
+                        "Piece-counting product '{0}' not found.",
+                        productId);
+                }
+                if (product.TotalizedItemCount == null && product.TotalizedWeight == null)
+                {
+                    return ServiceResult.Create(StatusCodes.BadNotSupported, "Product totals are not enabled.");
+                }
+                await ResetTotalsAsync(product).ConfigureAwait(false);
+                return ServiceResult.Good;
+            }, cancellationToken);
+        }
+
+        /// <summary>
+        /// Adds required registered count and the configured optional totals before a product is published.
+        /// </summary>
+        internal static void InitializeProduct(
+            ISystemContext context,
+            PieceCountingProductState product,
+            bool totalsEnabled,
+            EUInformation units)
+        {
+            product.ReferencePieceWeight!.WrappedValue = Variant.From(0.0);
+            ScaleValues.SetUnits(context, product.ReferencePieceWeight, units);
+            product.NumberOfReferencePieces!.WrappedValue = Variant.From(0u);
+            if (product.CurrentItemCount == null)
+            {
+                product.AddCurrentItemCount(context);
+                product.CurrentItemCount!.WrappedValue = Variant.From(0u);
+            }
+            product.RegisteredPieceCount!.WrappedValue = Variant.From(0u);
+            if (!totalsEnabled)
             {
                 return;
             }
-            double pieces = Math.Max(0, Math.Round(current.HighResolutionNet / m_referencePieceWeight));
-            CurrentPieceCount = (ulong)pieces;
-            ScaleValues.Set(m_owner.Services.Context, Scale.CurrentPieceCount, Variant.From(CurrentPieceCount));
-            if (product?.CurrentItemCount != null)
+            if (product.TotalizedItemCount == null)
             {
-                ScaleValues.Set(m_owner.Services.Context, product.CurrentItemCount, Variant.From(CurrentPieceCount));
+                product.AddTotalizedItemCount(context);
+                product.TotalizedItemCount!.WrappedValue = Variant.From(0u);
             }
+            if (product.TotalizedWeight == null)
+            {
+                product.AddTotalizedWeight(context);
+                product.TotalizedWeight!.WrappedValue = Variant.From(new ExtensionObject(new WeightType()));
+                ScaleValues.SetUnits(context, product.TotalizedWeight, units);
+            }
+        }
+
+        /// <summary>
+        /// Resets totals for the newly selected product as required when processing changes product.
+        /// </summary>
+        private void OnCurrentProductsChanged(object? sender, EventArgs e)
+        {
+            if (m_owner.ProductionPreset?.ActiveProduct is PieceCountingProductState product)
+            {
+                m_referencePieceWeight = TryReadReference(product, out double reference) ? reference : 0;
+                ResetTotals(product);
+            }
+            else
+            {
+                m_referencePieceWeight = 0;
+            }
+        }
+
+        /// <summary>
+        /// Clears available totals and notifies their consumers.
+        /// </summary>
+        private void ResetTotals(PieceCountingProductState product)
+        {
+            ISystemContext context = m_owner.Services.Context;
+            if (product.TotalizedItemCount != null)
+            {
+                ScaleValues.Set(context, product.TotalizedItemCount, Variant.From(0u));
+            }
+            if (product.TotalizedWeight != null)
+            {
+                ScaleValues.Set(
+                    context,
+                    product.TotalizedWeight,
+                    Variant.From(new ExtensionObject(new WeightType())));
+            }
+        }
+
+        /// <summary>
+        /// Clears available totals and awaits notification for an explicit user reset.
+        /// </summary>
+        private async ValueTask ResetTotalsAsync(PieceCountingProductState product)
+        {
+            ISystemContext context = m_owner.Services.Context;
+            if (product.TotalizedItemCount != null)
+            {
+                await ScaleValues.SetAsync(context, product.TotalizedItemCount, Variant.From(0u))
+                    .ConfigureAwait(false);
+            }
+            if (product.TotalizedWeight != null)
+            {
+                await ScaleValues.SetAsync(
+                    context,
+                    product.TotalizedWeight,
+                    Variant.From(new ExtensionObject(new WeightType()))).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Computes a count only when this product has a valid reference piece weight.
+        /// </summary>
+        private bool TryCount(WeighingResult current, PieceCountingProductState? product, out uint pieces)
+        {
+            pieces = 0;
+            double referenceWeight = product != null && TryReadReference(product, out double productReference)
+                ? productReference
+                : product == null ? m_referencePieceWeight : 0;
+            if (!(referenceWeight > 0) || double.IsNaN(referenceWeight) || double.IsInfinity(referenceWeight))
+            {
+                return false;
+            }
+            double count = Math.Max(0, Math.Round(current.HighResolutionNet / referenceWeight));
+            if (double.IsNaN(count) || double.IsInfinity(count) || count > uint.MaxValue)
+            {
+                return false;
+            }
+            pieces = (uint)count;
+            return true;
+        }
+
+        /// <summary>
+        /// Reads a product's configured reference without substituting a controller-wide value.
+        /// </summary>
+        private static bool TryReadReference(PieceCountingProductState product, out double referenceWeight)
+        {
+            referenceWeight = 0;
+            return product.ReferencePieceWeight != null &&
+                product.ReferencePieceWeight.WrappedValue.TryGetValue(out referenceWeight) &&
+                !double.IsNaN(referenceWeight) && !double.IsInfinity(referenceWeight) && referenceWeight > 0;
+        }
+
+        /// <summary>
+        /// Reads an unsigned OPC UA count in its common integer encodings.
+        /// </summary>
+        private static bool TryReadUnsigned(in Variant value, out uint count)
+        {
+            if (value.TryGetValue(out uint u32))
+            {
+                count = u32;
+                return true;
+            }
+            if (value.TryGetValue(out ushort u16))
+            {
+                count = u16;
+                return true;
+            }
+            if (value.TryGetValue(out byte u8))
+            {
+                count = u8;
+                return true;
+            }
+            count = 0;
+            return false;
+        }
+
+        /// <summary>
+        /// Marks an uncomputable count as unavailable rather than retaining a stale number.
+        /// </summary>
+        private void SetUnavailable(BaseVariableState? variable)
+        {
+            if (variable == null)
+            {
+                return;
+            }
+            variable.WrappedValue = Variant.Null;
+            variable.StatusCode = StatusCodes.BadNoData;
+            variable.Timestamp = DateTimeUtc.Now;
+            variable.ClearChangeMasks(m_owner.Services.Context, includeChildren: false);
         }
 
         private ServiceResult SetReferencePieceWeightCore(
@@ -428,7 +699,6 @@ namespace Opc.Ua.Scales.Server.Runtime
                     StatusCodes.BadOutOfRange,
                     "The number of reference pieces must be positive.");
             }
-            m_referencePieces = count;
             if (product != null)
             {
                 ScaleValues.Set(m_owner.Services.Context, product.NumberOfReferencePieces, Variant.From(count));
@@ -462,7 +732,6 @@ namespace Opc.Ua.Scales.Server.Runtime
                     StatusCodes.BadInvalidState,
                     "Reference weighing needs the reference pieces on the scale.");
             }
-            m_referencePieces = count;
             m_referencePieceWeight = net / count;
             if (product != null)
             {
@@ -493,7 +762,6 @@ namespace Opc.Ua.Scales.Server.Runtime
 
         private readonly ScaleHandle m_owner;
         private double m_referencePieceWeight;
-        private uint m_referencePieces;
     }
 
     /// <summary>
@@ -752,9 +1020,16 @@ namespace Opc.Ua.Scales.Server.Runtime
     /// </remarks>
     public sealed class VehicleController
     {
-        internal VehicleController(ScaleHandle owner, VehicleScaleState scale)
+        /// <summary>
+        /// Binds vehicle weighing methods and the optional application aggregation policy.
+        /// </summary>
+        internal VehicleController(
+            ScaleHandle owner,
+            VehicleScaleState scale,
+            Func<string, VehicleWeightAggregation>? aggregation = null)
         {
             m_owner = owner;
+            m_aggregation = aggregation;
             Scale = scale;
             scale.InboundWeighing?.OnCall = (context, method, objectId, vehicleId) =>
                     owner.Execute(ScaleCommand.InboundWeighing, () => Inbound(vehicleId, context));
@@ -766,6 +1041,30 @@ namespace Opc.Ua.Scales.Server.Runtime
                     owner.Execute(
                         ScaleCommand.OnePassWeighing,
                         () => Outbound(vehicleId, onePass: true, context));
+            scale.InboundWeighing?.OnCallMethod2Async = async (context, method, objectId, inputs, outputs, ct) =>
+                {
+                    if (inputs.Count != 1 || !inputs[0].TryGetValue(out string? vehicleId))
+                    {
+                        return ServiceResult.Create(StatusCodes.BadInvalidArgument, "A vehicle id is required.");
+                    }
+                    return await InboundAsync(vehicleId, context, ct).ConfigureAwait(false);
+                };
+            scale.OutboundWeighing?.OnCallMethod2Async = async (context, method, objectId, inputs, outputs, ct) =>
+                {
+                    if (inputs.Count != 1 || !inputs[0].TryGetValue(out string? vehicleId))
+                    {
+                        return ServiceResult.Create(StatusCodes.BadInvalidArgument, "A vehicle id is required.");
+                    }
+                    return await OutboundAsync(vehicleId, onePass: false, context, ct).ConfigureAwait(false);
+                };
+            scale.OnePassWeighing?.OnCallMethod2Async = async (context, method, objectId, inputs, outputs, ct) =>
+                {
+                    if (inputs.Count != 1 || !inputs[0].TryGetValue(out string? vehicleId))
+                    {
+                        return ServiceResult.Create(StatusCodes.BadInvalidArgument, "A vehicle id is required.");
+                    }
+                    return await OutboundAsync(vehicleId, onePass: true, context, ct).ConfigureAwait(false);
+                };
         }
 
         /// <summary>
@@ -803,9 +1102,165 @@ namespace Opc.Ua.Scales.Server.Runtime
             return m_owner.Execute(ScaleCommand.OnePassWeighing, () => Outbound(vehicleId, onePass: true));
         }
 
+        /// <summary>
+        /// Registers an inbound weighing and awaits its state notifications without totalizing an incomplete journey.
+        /// </summary>
+        /// <param name="vehicleId">The vehicle.</param>
+        /// <param name="cancellationToken">Cancels while waiting for scale admission.</param>
+        public ValueTask<ServiceResult> InboundWeighingAsync(
+            string vehicleId,
+            CancellationToken cancellationToken = default)
+        {
+            vehicleId.ThrowIfNull(nameof(vehicleId));
+            return InboundAsync(vehicleId, null, cancellationToken);
+        }
+
+        /// <summary>
+        /// Completes an outbound weighing, preserving its signed delta and applying the vehicle's aggregation rule.
+        /// </summary>
+        /// <param name="vehicleId">The vehicle.</param>
+        /// <param name="cancellationToken">Cancels while waiting for scale admission.</param>
+        public ValueTask<ServiceResult> OutboundWeighingAsync(
+            string vehicleId,
+            CancellationToken cancellationToken = default)
+        {
+            vehicleId.ThrowIfNull(nameof(vehicleId));
+            return OutboundAsync(vehicleId, onePass: false, null, cancellationToken);
+        }
+
+        /// <summary>
+        /// Completes a one-pass weighing against the preset tare and applies the vehicle's aggregation rule.
+        /// </summary>
+        /// <param name="vehicleId">The vehicle.</param>
+        /// <param name="cancellationToken">Cancels while waiting for scale admission.</param>
+        public ValueTask<ServiceResult> OnePassWeighingAsync(
+            string vehicleId,
+            CancellationToken cancellationToken = default)
+        {
+            vehicleId.ThrowIfNull(nameof(vehicleId));
+            return OutboundAsync(vehicleId, onePass: true, null, cancellationToken);
+        }
+
+        /// <summary>
+        /// Selects signed or absolute aggregation for one vehicle without resetting its accumulated weight.
+        /// </summary>
+        /// <param name="vehicleId">The vehicle.</param>
+        /// <param name="aggregation">The rule for subsequent completed transactions.</param>
+        /// <param name="cancellationToken">Cancels while waiting for scale admission.</param>
+        public ValueTask<ServiceResult> SetTotalWeightAggregationAsync(
+            string vehicleId,
+            VehicleWeightAggregation aggregation,
+            CancellationToken cancellationToken = default)
+        {
+            vehicleId.ThrowIfNull(nameof(vehicleId));
+            if (aggregation is not (VehicleWeightAggregation.Signed or VehicleWeightAggregation.Absolute))
+            {
+                throw new ArgumentOutOfRangeException(nameof(aggregation));
+            }
+            return m_owner.ExecuteWriteOperationAsync(async ct =>
+            {
+                ct.ThrowIfCancellationRequested();
+                if (!TryFind(vehicleId, out VehicleProductState? vehicle, out ServiceResult? error))
+                {
+                    return error!;
+                }
+                bool addTotal = vehicle!.TotalWeight == null;
+                bool addResetDate = vehicle.TotalWeightResetDate == null;
+                EnsureTotals(vehicle);
+                m_vehicleAggregations[vehicle!.NodeId] = aggregation;
+                if (addTotal)
+                {
+                    await ScaleValues.TouchAsync(m_owner.Services.Context, vehicle.TotalWeight).ConfigureAwait(false);
+                }
+                if (addResetDate)
+                {
+                    await ScaleValues.TouchAsync(m_owner.Services.Context, vehicle.TotalWeightResetDate)
+                        .ConfigureAwait(false);
+                }
+                return ServiceResult.Good;
+            }, cancellationToken);
+        }
+
+        /// <summary>
+        /// Resets one vehicle's total and reset date without discarding an unfinished inbound weighing.
+        /// </summary>
+        /// <param name="vehicleId">The vehicle.</param>
+        /// <param name="cancellationToken">Cancels while waiting for scale admission.</param>
+        public ValueTask<ServiceResult> ResetTotalWeightAsync(
+            string vehicleId,
+            CancellationToken cancellationToken = default)
+        {
+            vehicleId.ThrowIfNull(nameof(vehicleId));
+            return m_owner.ExecuteWriteOperationAsync(async ct =>
+            {
+                ct.ThrowIfCancellationRequested();
+                if (!TryFind(vehicleId, out VehicleProductState? vehicle, out ServiceResult? error))
+                {
+                    return error!;
+                }
+                if (vehicle!.TotalWeight == null)
+                {
+                    return ServiceResult.Create(
+                        StatusCodes.BadNotSupported, "Vehicle '{0}' has no total weight.", vehicleId);
+                }
+                EnsureTotals(vehicle);
+                ISystemContext context = m_owner.Services.Context;
+                await ScaleValues.SetAsync(context, vehicle.TotalWeight, new WeightType()).ConfigureAwait(false);
+                await ScaleValues.SetAsync(context, vehicle.TotalWeightResetDate, DateTimeUtc.Now)
+                    .ConfigureAwait(false);
+                return ServiceResult.Good;
+            }, cancellationToken);
+        }
+
+        /// <summary>
+        /// Creates configured total properties before a vehicle enters the address space.
+        /// </summary>
+        internal static void InitializeTotals(ISystemContext context, VehicleProductState vehicle)
+        {
+            DateTimeUtc timestamp = DateTimeUtc.Now;
+            if (vehicle.TotalWeight == null)
+            {
+                vehicle.AddTotalWeight(context);
+                vehicle.TotalWeight!.Value = new WeightType();
+                vehicle.TotalWeight.Timestamp = timestamp;
+                vehicle.TotalWeight.StatusCode = StatusCodes.Good;
+            }
+            if (vehicle.TotalWeightResetDate == null)
+            {
+                vehicle.AddTotalWeightResetDate(context);
+                vehicle.TotalWeightResetDate!.Value = timestamp;
+                vehicle.TotalWeightResetDate.Timestamp = timestamp;
+                vehicle.TotalWeightResetDate.StatusCode = StatusCodes.Good;
+            }
+        }
+
+        /// <summary>
+        /// Retains synchronous local-call compatibility without blocking on asynchronous notifications.
+        /// </summary>
         private ServiceResult Inbound(string vehicleId, ISystemContext? callContext = null)
         {
-            if (!TryFind(vehicleId, out VehicleProductState? vehicle, out ServiceResult? error))
+            ServiceResult result = PrepareInbound(
+                vehicleId, callContext, out VehicleProductState? vehicle, out double gross);
+            if (ServiceResult.IsBad(result))
+            {
+                return result;
+            }
+            Publish(vehicle!.InboundWeight, gross);
+            ScaleValues.Set(m_owner.Services.Context, vehicle.InboundScale, m_owner.NodeId);
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Validates and retains an inbound weighing while the caller owns the scale writer.
+        /// </summary>
+        private ServiceResult PrepareInbound(
+            string vehicleId,
+            ISystemContext? callContext,
+            out VehicleProductState? vehicle,
+            out double gross)
+        {
+            gross = 0;
+            if (!TryFind(vehicleId, out vehicle, out ServiceResult? error))
             {
                 return error!;
             }
@@ -823,14 +1278,47 @@ namespace Opc.Ua.Scales.Server.Runtime
             ISystemContext context = m_owner.Services.Context;
             Ensure(vehicle!, v => v.InboundWeight, v => v.AddInboundWeight(context));
             Ensure(vehicle!, v => v.InboundScale, v => v.AddInboundScale(context));
-            Publish(vehicle!.InboundWeight, current.Gross);
-            ScaleValues.Set(context, vehicle.InboundScale, m_owner.NodeId);
-            m_inbound[vehicleId] = current.Gross;
+            gross = current.Gross;
+            m_inbound[vehicle!.NodeId] = gross;
             return ServiceResult.Good;
         }
 
+        /// <summary>
+        /// Publishes a completed transaction for existing synchronous callers.
+        /// </summary>
         private ServiceResult Outbound(string vehicleId, bool onePass, ISystemContext? callContext = null)
         {
+            ServiceResult result = PrepareOutbound(vehicleId, onePass, callContext, out VehicleCompletion? completion);
+            if (ServiceResult.IsBad(result))
+            {
+                return result;
+            }
+            VehicleProductState vehicle = completion!.Vehicle;
+            ISystemContext context = m_owner.Services.Context;
+            Publish(vehicle.OutboundWeight, completion.Outbound);
+            ScaleValues.Set(context, vehicle.OutboundScale, m_owner.NodeId);
+            Publish(vehicle.DeltaWeight, completion.Delta);
+            if (GetIsFilling(vehicle) is { } isFilling)
+            {
+                ScaleValues.Set(context, isFilling, completion.Delta < 0);
+            }
+            if (completion.Total != null)
+            {
+                ScaleValues.Set(context, vehicle.TotalWeight, completion.Total);
+            }
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Validates a completed transaction before consuming its inbound weighing or changing any published result.
+        /// </summary>
+        private ServiceResult PrepareOutbound(
+            string vehicleId,
+            bool onePass,
+            ISystemContext? callContext,
+            out VehicleCompletion? completion)
+        {
+            completion = null;
             if (!TryFind(vehicleId, out VehicleProductState? vehicle, out ServiceResult? error))
             {
                 return error!;
@@ -847,10 +1335,10 @@ namespace Opc.Ua.Scales.Server.Runtime
             }
             double outbound = m_owner.Engine.Evaluate().Gross;
             double delta;
-            if (!onePass && m_inbound.TryGetValue(vehicleId, out double inbound))
+            bool hasInbound = !onePass && m_inbound.TryGetValue(vehicle!.NodeId, out _);
+            if (hasInbound)
             {
-                delta = inbound - outbound;
-                m_inbound.Remove(vehicleId);
+                delta = m_inbound[vehicle!.NodeId] - outbound;
             }
             else if (TryReadTare(vehicle!, out double tare))
             {
@@ -866,17 +1354,150 @@ namespace Opc.Ua.Scales.Server.Runtime
                     vehicleId);
             }
 
+            WeightType? total = null;
+            if (vehicle!.TotalWeight != null)
+            {
+                string? id = vehicle.VehicleId?.Value;
+                string aggregationId = string.IsNullOrEmpty(id) ? vehicle.ProductId!.Value : id;
+                VehicleWeightAggregation aggregation = m_vehicleAggregations.TryGetValue(
+                    vehicle.NodeId, out VehicleWeightAggregation configured)
+                        ? configured
+                        : m_aggregation?.Invoke(aggregationId) ?? VehicleWeightAggregation.Signed;
+                if (aggregation is not (VehicleWeightAggregation.Signed or VehicleWeightAggregation.Absolute))
+                {
+                    return ServiceResult.Create(
+                        StatusCodes.BadConfigurationError, "The vehicle aggregation rule is invalid.");
+                }
+                double weight = aggregation == VehicleWeightAggregation.Absolute ? Math.Abs(delta) : delta;
+                double sum = (vehicle.TotalWeight.Value?.Net ?? 0) + weight;
+                if (double.IsNaN(sum) || double.IsInfinity(sum))
+                {
+                    return ServiceResult.Create(StatusCodes.BadOutOfRange, "The vehicle total is not finite.");
+                }
+                total = new WeightType { Gross = sum, Net = sum, Tare = 0 };
+            }
+
             ISystemContext context = m_owner.Services.Context;
             Ensure(vehicle!, v => v.OutboundScale, v => v.AddOutboundScale(context));
-            Publish(vehicle!.OutboundWeight, outbound);
-            ScaleValues.Set(context, vehicle.OutboundScale, m_owner.NodeId);
-            Publish(vehicle.DeltaWeight, delta);
-            if (vehicle.DeltaWeight?.FindChild(context, new QualifiedName("IsFilling", m_owner.Services.Namespaces.Scales))
-                is PropertyState<bool> isFilling)
+            if (hasInbound)
             {
-                ScaleValues.Set(context, isFilling, delta < 0);
+                m_inbound.Remove(vehicle.NodeId);
             }
+            completion = new VehicleCompletion(vehicle, outbound, delta, total);
             return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Registers an inbound weighing through asynchronous admission and notifications.
+        /// </summary>
+        private ValueTask<ServiceResult> InboundAsync(
+            string vehicleId,
+            ISystemContext? callContext,
+            CancellationToken cancellationToken)
+        {
+            VehicleProductState? vehicle = null;
+            double gross = 0;
+            return ExecuteAsync(
+                ScaleCommand.InboundWeighing,
+                () => PrepareInbound(vehicleId, callContext, out vehicle, out gross),
+                async () =>
+                {
+                    await PublishAsync(vehicle!.InboundWeight, gross).ConfigureAwait(false);
+                    await ScaleValues.SetAsync(m_owner.Services.Context, vehicle.InboundScale, m_owner.NodeId)
+                        .ConfigureAwait(false);
+                },
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Completes a weighing through asynchronous admission and notifications.
+        /// </summary>
+        private ValueTask<ServiceResult> OutboundAsync(
+            string vehicleId,
+            bool onePass,
+            ISystemContext? callContext,
+            CancellationToken cancellationToken)
+        {
+            VehicleCompletion? completion = null;
+            return ExecuteAsync(
+                onePass ? ScaleCommand.OnePassWeighing : ScaleCommand.OutboundWeighing,
+                () => PrepareOutbound(vehicleId, onePass, callContext, out completion),
+                async () =>
+                {
+                    VehicleProductState vehicle = completion!.Vehicle;
+                    ISystemContext context = m_owner.Services.Context;
+                    await PublishAsync(vehicle.OutboundWeight, completion.Outbound).ConfigureAwait(false);
+                    await ScaleValues.SetAsync(context, vehicle.OutboundScale, m_owner.NodeId).ConfigureAwait(false);
+                    await PublishAsync(vehicle.DeltaWeight, completion.Delta).ConfigureAwait(false);
+                    if (GetIsFilling(vehicle) is { } isFilling)
+                    {
+                        await ScaleValues.SetAsync(context, isFilling, completion.Delta < 0).ConfigureAwait(false);
+                    }
+                    if (completion.Total != null)
+                    {
+                        await ScaleValues.SetAsync(context, vehicle.TotalWeight, completion.Total)
+                            .ConfigureAwait(false);
+                    }
+                },
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Checks the command interceptor and holds admission through the final asynchronous notification.
+        /// </summary>
+        private ValueTask<ServiceResult> ExecuteAsync(
+            ScaleCommand command,
+            Func<ServiceResult> prepare,
+            Func<ValueTask> publish,
+            CancellationToken cancellationToken)
+        {
+            return m_owner.ExecuteWriteOperationAsync(async ct =>
+            {
+                ct.ThrowIfCancellationRequested();
+                ServiceResult veto = m_owner.CommandInterceptor?.Invoke(command) ?? ServiceResult.Good;
+                if (ServiceResult.IsBad(veto))
+                {
+                    return veto;
+                }
+                ServiceResult result = prepare();
+                if (ServiceResult.IsGood(result))
+                {
+                    await publish().ConfigureAwait(false);
+                }
+                return result;
+            }, cancellationToken);
+        }
+
+        /// <summary>
+        /// Gets the optional flag without changing the existing signed delta convention.
+        /// </summary>
+        private PropertyState<bool>? GetIsFilling(VehicleProductState vehicle)
+        {
+            return vehicle.DeltaWeight?.FindChild(
+                m_owner.Services.Context,
+                new QualifiedName("IsFilling", m_owner.Services.Namespaces.Scales)) as PropertyState<bool>;
+        }
+
+        /// <summary>
+        /// Materializes and registers totals enabled after the product was created.
+        /// </summary>
+        private void EnsureTotals(VehicleProductState vehicle)
+        {
+            bool addTotal = vehicle.TotalWeight == null;
+            bool addResetDate = vehicle.TotalWeightResetDate == null;
+            InitializeTotals(m_owner.Services.Context, vehicle);
+            if (addTotal)
+            {
+                m_owner.Services.Register(vehicle.TotalWeight!);
+            }
+            if (addResetDate)
+            {
+                m_owner.Services.Register(vehicle.TotalWeightResetDate!);
+            }
+            if (addTotal || addResetDate)
+            {
+                m_owner.Services.BindProductWriteGuards(vehicle, m_owner.WriteOperations);
+            }
         }
 
         /// <summary>
@@ -889,10 +1510,18 @@ namespace Opc.Ua.Scales.Server.Runtime
                 : ServiceResult.Good;
         }
 
+        /// <summary>
+        /// Resolves a nonempty vehicle or product identifier without matching an unset vehicle id.
+        /// </summary>
         private bool TryFind(string vehicleId, out VehicleProductState? vehicle, out ServiceResult? error)
         {
             vehicle = null;
             error = null;
+            if (string.IsNullOrEmpty(vehicleId))
+            {
+                error = ServiceResult.Create(StatusCodes.BadInvalidArgument, "A vehicle id is required.");
+                return false;
+            }
             ScaleProductionPreset? preset = m_owner.ProductionPreset;
             if (preset == null)
             {
@@ -943,20 +1572,73 @@ namespace Opc.Ua.Scales.Server.Runtime
             }
         }
 
+        /// <summary>
+        /// Publishes a vehicle measurement for existing synchronous callers.
+        /// </summary>
         private void Publish(WeightItemState? item, double weight)
         {
-            if (item == null)
-            {
-                return;
-            }
-            item.Value = new WeightType { Gross = weight, Net = weight, Tare = 0 };
-            item.Overload?.Value = false;
-            item.Underload?.Value = false;
-            ScaleValues.Touch(m_owner.Services.Context, item);
-            item.ClearChangeMasks(m_owner.Services.Context, includeChildren: true);
+            ScaleItemPublisher.PublishWeight(m_owner.Services.Context, item, Reading(weight));
         }
 
+        /// <summary>
+        /// Publishes an asynchronously completed vehicle measurement.
+        /// </summary>
+        private ValueTask PublishAsync(WeightItemState? item, double weight)
+        {
+            return ScaleItemPublisher.PublishWeightAsync(m_owner.Services.Context, item, Reading(weight));
+        }
+
+        /// <summary>
+        /// Represents the accepted vehicle measurement with the scale's engineering units.
+        /// </summary>
+        private ScaleReading Reading(double weight)
+        {
+            return new ScaleReading
+            {
+                Gross = weight,
+                Net = weight,
+                Tare = 0,
+                Stable = true,
+                EngineeringUnits = m_owner.Unit,
+                Timestamp = (DateTime)DateTimeUtc.Now,
+                StatusCode = StatusCodes.Good
+            };
+        }
+
+        /// <summary>
+        /// The validated values of one completed transaction.
+        /// </summary>
+        /// <param name="Vehicle">The matched product.</param>
+        /// <param name="Outbound">The outbound gross measurement.</param>
+        /// <param name="Delta">The unchanged signed transaction delta.</param>
+        /// <param name="Total">The new total, when enabled.</param>
+        private sealed record VehicleCompletion(
+            VehicleProductState Vehicle,
+            double Outbound,
+            double Delta,
+            WeightType? Total);
+
         private readonly ScaleHandle m_owner;
-        private readonly Dictionary<string, double> m_inbound = new(StringComparer.Ordinal);
+
+        /// <summary>The fluent per-vehicle application policy.</summary>
+        private readonly Func<string, VehicleWeightAggregation>? m_aggregation;
+
+        /// <summary>Incomplete journeys keyed by resolved product identity, including vehicle-id aliases.</summary>
+        private readonly Dictionary<NodeId, double> m_inbound = [];
+
+        /// <summary>Explicit application overrides for individual vehicles.</summary>
+        private readonly Dictionary<NodeId, VehicleWeightAggregation> m_vehicleAggregations = [];
+    }
+
+    /// <summary>
+    /// How a vehicle total incorporates the signed net weight of a completed transaction.
+    /// </summary>
+    public enum VehicleWeightAggregation
+    {
+        /// <summary>Sum signed deltas, so loading and unloading can offset each other.</summary>
+        Signed,
+
+        /// <summary>Sum absolute deltas, so loading and unloading both increase the total.</summary>
+        Absolute
     }
 }

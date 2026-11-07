@@ -239,6 +239,346 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         /// <summary>
+        /// Ordinary-cache CopyOnWrite commits detach supported non-Double array inputs from their caller.
+        /// </summary>
+        [TestCase("Int32", 0)]
+        [TestCase("Int32", 1)]
+        [TestCase("Int32", 3)]
+        [TestCase("Float", 0)]
+        [TestCase("Float", 1)]
+        [TestCase("Float", 3)]
+        public async Task OrdinaryCacheCopyOnWriteDetachesNonDoubleArrayAsync(
+            string numericType,
+            int length)
+        {
+            SystemContext context = CreateContext();
+            BaseDataVariableState variable = CreateVariable();
+            variable.CopyPolicy = VariableCopyPolicy.CopyOnWrite;
+            variable.ValueRank = ValueRanks.OneDimension;
+
+            Variant requestedValue;
+            Action mutateInput;
+            Action assertCachedValue;
+            if (numericType == "Int32")
+            {
+                variable.DataType = DataTypeIds.Int32;
+                variable.Value = Variant.From(ArrayOf<int>.Empty);
+                int[] input = length switch
+                {
+                    0 => [],
+                    1 => [17],
+                    _ => [17, -23, 41]
+                };
+                int[] expected = (int[])input.Clone();
+                requestedValue = Variant.From(new ArrayOf<int>(input.AsMemory()));
+                mutateInput = () =>
+                {
+                    if (input.Length > 0)
+                    {
+                        input[0] = 101;
+                    }
+                    if (input.Length > 1)
+                    {
+                        input[^1] = -103;
+                    }
+                };
+                assertCachedValue = () =>
+                {
+                    Assert.That(variable.Value.TryGetValue(out ArrayOf<int> cached), Is.True);
+                    Assert.That(cached.Span.ToArray(), Is.EqualTo(expected));
+                    if (expected.Length == 0)
+                    {
+                        Assert.That(cached.IsEmpty, Is.True);
+                        Assert.That(cached.IsNull, Is.False);
+                    }
+                };
+            }
+            else
+            {
+                variable.DataType = DataTypeIds.Float;
+                variable.Value = Variant.From(ArrayOf<float>.Empty);
+                float[] input = length switch
+                {
+                    0 => [],
+                    1 => [1.25f],
+                    _ => [1.25f, -2.5f, 4.75f]
+                };
+                float[] expected = (float[])input.Clone();
+                requestedValue = Variant.From(new ArrayOf<float>(input.AsMemory()));
+                mutateInput = () =>
+                {
+                    if (input.Length > 0)
+                    {
+                        input[0] = 101.5f;
+                    }
+                    if (input.Length > 1)
+                    {
+                        input[^1] = -103.5f;
+                    }
+                };
+                assertCachedValue = () =>
+                {
+                    Assert.That(variable.Value.TryGetValue(out ArrayOf<float> cached), Is.True);
+                    Assert.That(cached.Span.ToArray(), Is.EqualTo(expected));
+                    if (expected.Length == 0)
+                    {
+                        Assert.That(cached.IsEmpty, Is.True);
+                        Assert.That(cached.IsNull, Is.False);
+                    }
+                };
+            }
+
+            variable.Timestamp = s_initialTimestamp;
+            await variable.ClearChangeMasksAsync(context, false).ConfigureAwait(false);
+            int calls = 0;
+            variable.OnSimpleWriteValueAsync = (_, _, _, _) =>
+            {
+                calls++;
+                return new ValueTask<AttributeWriteResult>(new AttributeWriteResult(ServiceResult.Good));
+            };
+
+            ServiceResult result = await variable.WriteAttributeAsync(
+                context,
+                Attributes.Value,
+                NumericRange.Null,
+                new DataValue(requestedValue, StatusCodes.Good, s_requestedTimestamp)).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(calls, Is.EqualTo(1));
+                assertCachedValue();
+                Assert.That(variable.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(variable.Timestamp, Is.EqualTo(s_requestedTimestamp));
+                Assert.That(variable.ChangeMasks & NodeStateChangeMasks.Value,
+                    Is.EqualTo(NodeStateChangeMasks.Value));
+            });
+
+            mutateInput();
+
+            Assert.Multiple(() =>
+            {
+                assertCachedValue();
+                Assert.That(variable.Timestamp, Is.EqualTo(s_requestedTimestamp));
+                Assert.That(variable.ChangeMasks & NodeStateChangeMasks.Value,
+                    Is.EqualTo(NodeStateChangeMasks.Value));
+            });
+        }
+
+        /// <summary>
+        /// Ordinary-cache CopyOnWrite commits detach numeric matrix elements while retaining their shape.
+        /// </summary>
+        [TestCase("Int32", 1, 1)]
+        [TestCase("Int32", 2, 2)]
+        [TestCase("Float", 1, 1)]
+        [TestCase("Float", 2, 2)]
+        public async Task OrdinaryCacheCopyOnWriteDetachesNumericMatrixAsync(
+            string numericType,
+            int rows,
+            int columns)
+        {
+            SystemContext context = CreateContext();
+            BaseDataVariableState variable = CreateVariable();
+            variable.CopyPolicy = VariableCopyPolicy.CopyOnWrite;
+            variable.ValueRank = ValueRanks.TwoDimensions;
+            int elementCount = rows * columns;
+
+            Variant requestedValue;
+            Action mutateInput;
+            Action assertCachedValue;
+            if (numericType == "Int32")
+            {
+                variable.DataType = DataTypeIds.Int32;
+                int[] input = elementCount == 1 ? [17] : [17, -23, 41, 59];
+                int[] expected = (int[])input.Clone();
+                MatrixOf<int> requestedMatrix = new ArrayOf<int>(input.AsMemory()).ToMatrix(rows, columns);
+                requestedValue = Variant.From(requestedMatrix);
+                variable.Value = Variant.From(
+                    new ArrayOf<int>(new int[elementCount].AsMemory()).ToMatrix(rows, columns));
+                mutateInput = () =>
+                {
+                    input[0] = 101;
+                    input[^1] = -103;
+                };
+                assertCachedValue = () =>
+                {
+                    Assert.That(variable.Value.TryGetValue(out MatrixOf<int> cached), Is.True);
+                    Assert.That(cached.Dimensions, Is.EqualTo(new[] { rows, columns }));
+                    Assert.That(cached.Span.ToArray(), Is.EqualTo(expected));
+                    int[] returnedDimensions = cached.Dimensions;
+                    returnedDimensions[0] = 99;
+                    Assert.That(cached.Dimensions, Is.EqualTo(new[] { rows, columns }));
+                };
+            }
+            else
+            {
+                variable.DataType = DataTypeIds.Float;
+                float[] input = elementCount == 1 ? [1.25f] : [1.25f, -2.5f, 4.75f, 9.5f];
+                float[] expected = (float[])input.Clone();
+                MatrixOf<float> requestedMatrix = new ArrayOf<float>(input.AsMemory()).ToMatrix(rows, columns);
+                requestedValue = Variant.From(requestedMatrix);
+                variable.Value = Variant.From(
+                    new ArrayOf<float>(new float[elementCount].AsMemory()).ToMatrix(rows, columns));
+                mutateInput = () =>
+                {
+                    input[0] = 101.5f;
+                    input[^1] = -103.5f;
+                };
+                assertCachedValue = () =>
+                {
+                    Assert.That(variable.Value.TryGetValue(out MatrixOf<float> cached), Is.True);
+                    Assert.That(cached.Dimensions, Is.EqualTo(new[] { rows, columns }));
+                    Assert.That(cached.Span.ToArray(), Is.EqualTo(expected));
+                    int[] returnedDimensions = cached.Dimensions;
+                    returnedDimensions[0] = 99;
+                    Assert.That(cached.Dimensions, Is.EqualTo(new[] { rows, columns }));
+                };
+            }
+
+            variable.Timestamp = s_initialTimestamp;
+            await variable.ClearChangeMasksAsync(context, false).ConfigureAwait(false);
+            int calls = 0;
+            variable.OnSimpleWriteValueAsync = (_, _, _, _) =>
+            {
+                calls++;
+                return new ValueTask<AttributeWriteResult>(new AttributeWriteResult(ServiceResult.Good));
+            };
+
+            ServiceResult result = await variable.WriteAttributeAsync(
+                context,
+                Attributes.Value,
+                NumericRange.Null,
+                new DataValue(requestedValue, StatusCodes.Good, s_requestedTimestamp)).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(calls, Is.EqualTo(1));
+                assertCachedValue();
+                Assert.That(variable.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(variable.Timestamp, Is.EqualTo(s_requestedTimestamp));
+                Assert.That(variable.ChangeMasks & NodeStateChangeMasks.Value,
+                    Is.EqualTo(NodeStateChangeMasks.Value));
+            });
+
+            mutateInput();
+
+            Assert.Multiple(() =>
+            {
+                assertCachedValue();
+                Assert.That(variable.Timestamp, Is.EqualTo(s_requestedTimestamp));
+                Assert.That(variable.ChangeMasks & NodeStateChangeMasks.Value,
+                    Is.EqualTo(NodeStateChangeMasks.Value));
+            });
+        }
+
+        /// <summary>
+        /// Ordinary-cache CopyOnWrite detaches the bytes held by ByteString array elements.
+        /// </summary>
+        [Test]
+        public async Task OrdinaryCacheCopyOnWriteDetachesByteStringArrayElementBytesAsync()
+        {
+            SystemContext context = CreateContext();
+            BaseDataVariableState variable = CreateVariable();
+            variable.CopyPolicy = VariableCopyPolicy.CopyOnWrite;
+            variable.DataType = DataTypeIds.ByteString;
+            variable.ValueRank = ValueRanks.OneDimension;
+            variable.Value = Variant.From(ArrayOf<ByteString>.Empty);
+
+            byte[] sourceBytes = [0x11, 0x22, 0x33];
+            byte[] expectedBytes = (byte[])sourceBytes.Clone();
+            ByteString inputByteString = new(sourceBytes.AsMemory());
+            ByteString[] input = [inputByteString];
+            Variant requestedValue = Variant.From(new ArrayOf<ByteString>(input.AsMemory()));
+            variable.Timestamp = s_initialTimestamp;
+            await variable.ClearChangeMasksAsync(context, false).ConfigureAwait(false);
+            int calls = 0;
+            variable.OnSimpleWriteValueAsync = (_, _, _, _) =>
+            {
+                calls++;
+                return new ValueTask<AttributeWriteResult>(new AttributeWriteResult(ServiceResult.Good));
+            };
+
+            ServiceResult result = await variable.WriteAttributeAsync(
+                context,
+                Attributes.Value,
+                NumericRange.Null,
+                new DataValue(requestedValue, StatusCodes.Good, s_requestedTimestamp)).ConfigureAwait(false);
+
+            sourceBytes[0] = 0xFE;
+            sourceBytes[^1] = 0xED;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(calls, Is.EqualTo(1));
+                Assert.That(inputByteString.Span.ToArray(), Is.EqualTo(new byte[] { 0xFE, 0x22, 0xED }));
+                Assert.That(variable.Value.TryGetValue(out ArrayOf<ByteString> cached), Is.True);
+                Assert.That(cached.Length, Is.EqualTo(1));
+                Assert.That(cached.Span[0].Span.ToArray(), Is.EqualTo(expectedBytes));
+                Assert.That(variable.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(variable.Timestamp, Is.EqualTo(s_requestedTimestamp));
+                Assert.That(variable.ChangeMasks & NodeStateChangeMasks.Value,
+                    Is.EqualTo(NodeStateChangeMasks.Value));
+            });
+        }
+
+        /// <summary>
+        /// Ordinary-cache CopyOnWrite detaches the bytes held by ByteString matrix elements.
+        /// </summary>
+        [Test]
+        public async Task OrdinaryCacheCopyOnWriteDetachesByteStringMatrixElementBytesAsync()
+        {
+            SystemContext context = CreateContext();
+            BaseDataVariableState variable = CreateVariable();
+            variable.CopyPolicy = VariableCopyPolicy.CopyOnWrite;
+            variable.DataType = DataTypeIds.ByteString;
+            variable.ValueRank = ValueRanks.TwoDimensions;
+            ByteString[] initial = [ByteString.Empty];
+            variable.Value = Variant.From(
+                new ArrayOf<ByteString>(initial.AsMemory()).ToMatrix(1, 1));
+
+            byte[] sourceBytes = [0x11, 0x22, 0x33];
+            byte[] expectedBytes = (byte[])sourceBytes.Clone();
+            ByteString inputByteString = new(sourceBytes.AsMemory());
+            ByteString[] input = [inputByteString];
+            MatrixOf<ByteString> requestedMatrix =
+                new ArrayOf<ByteString>(input.AsMemory()).ToMatrix(1, 1);
+            Variant requestedValue = Variant.From(requestedMatrix);
+            variable.Timestamp = s_initialTimestamp;
+            await variable.ClearChangeMasksAsync(context, false).ConfigureAwait(false);
+            int calls = 0;
+            variable.OnSimpleWriteValueAsync = (_, _, _, _) =>
+            {
+                calls++;
+                return new ValueTask<AttributeWriteResult>(new AttributeWriteResult(ServiceResult.Good));
+            };
+
+            ServiceResult result = await variable.WriteAttributeAsync(
+                context,
+                Attributes.Value,
+                NumericRange.Null,
+                new DataValue(requestedValue, StatusCodes.Good, s_requestedTimestamp)).ConfigureAwait(false);
+
+            sourceBytes[0] = 0xFE;
+            sourceBytes[^1] = 0xED;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(calls, Is.EqualTo(1));
+                Assert.That(inputByteString.Span.ToArray(), Is.EqualTo(new byte[] { 0xFE, 0x22, 0xED }));
+                Assert.That(variable.Value.TryGetValue(out MatrixOf<ByteString> cached), Is.True);
+                Assert.That(cached.Dimensions, Is.EqualTo(new[] { 1, 1 }));
+                Assert.That(cached.Span[0].Span.ToArray(), Is.EqualTo(expectedBytes));
+                Assert.That(variable.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(variable.Timestamp, Is.EqualTo(s_requestedTimestamp));
+                Assert.That(variable.ChangeMasks & NodeStateChangeMasks.Value,
+                    Is.EqualTo(NodeStateChangeMasks.Value));
+            });
+        }
+
+        /// <summary>
         /// Installs the same outcome on either asynchronous write hook.
         /// </summary>
         private static void Bind(

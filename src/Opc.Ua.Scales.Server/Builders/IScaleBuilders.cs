@@ -29,6 +29,7 @@
 
 using System;
 using Opc.Ua.Di;
+using Opc.Ua.Scales.Server.Runtime;
 
 namespace Opc.Ua.Scales.Server.Builders
 {
@@ -210,6 +211,129 @@ namespace Opc.Ua.Scales.Server.Builders
         /// <exception cref="InvalidOperationException">The scale is not a <typeparamref name="TState"/>.</exception>
         IScaleBuilder With<TState>(Action<ISystemContext, TState> configure)
             where TState : ScaleDeviceState;
+    }
+
+    /// <summary>
+    /// Optional runtime configuration supported by builders for item, fill, vehicle,
+    /// piece-count and recipe processing.
+    /// </summary>
+    public interface IScaleRuntimeBuilder : IScaleBuilder
+    {
+        /// <summary>
+        /// Enables registered-item reports without operating sorting or printing equipment.
+        /// </summary>
+        /// <param name="priceCalculator">An optional application pricing policy.</param>
+        IScaleBuilder WithItemProcessing(IScalePriceCalculator? priceCalculator = null);
+
+        /// <summary>
+        /// Enables completed-fill reports and product TipCounter updates.
+        /// </summary>
+        IScaleBuilder WithCompletedFills();
+
+        /// <summary>
+        /// Enables vehicle totals with an application-selected aggregation rule for each vehicle.
+        /// </summary>
+        /// <param name="aggregation">Selects signed or absolute completed-transaction weights by vehicle id.</param>
+        IScaleBuilder WithVehicleTotals(Func<string, VehicleWeightAggregation> aggregation);
+
+        /// <summary>
+        /// Enables weight registration and totalized counts and weights for piece-counting products.
+        /// </summary>
+        IScaleBuilder WithPieceCountingTotals();
+
+        /// <summary>
+        /// Configures the recipe controller after construction.
+        /// </summary>
+        /// <param name="configure">The recipe runtime configuration.</param>
+        IScaleBuilder ConfigureRecipes(Action<RecipeController> configure);
+    }
+
+    /// <summary>
+    /// Configures optional processing capabilities without extending the required scale builder contract.
+    /// </summary>
+    public static class ScaleRuntimeBuilderExtensions
+    {
+        /// <summary>
+        /// Enables registered-item reports on a builder that supports runtime configuration.
+        /// </summary>
+        /// <param name="builder">The scale builder.</param>
+        /// <param name="priceCalculator">An optional application pricing policy.</param>
+        public static IScaleBuilder WithItemProcessing(
+            this IScaleBuilder builder,
+            IScalePriceCalculator? priceCalculator = null)
+        {
+            return RuntimeBuilder(builder).WithItemProcessing(priceCalculator);
+        }
+
+        /// <summary>
+        /// Enables completed-fill reports on a builder that supports runtime configuration.
+        /// </summary>
+        /// <param name="builder">The scale builder.</param>
+        public static IScaleBuilder WithCompletedFills(this IScaleBuilder builder)
+        {
+            return RuntimeBuilder(builder).WithCompletedFills();
+        }
+
+        /// <summary>
+        /// Enables vehicle totals with an application-selected aggregation rule for each vehicle.
+        /// </summary>
+        /// <param name="builder">The scale builder.</param>
+        /// <param name="aggregation">Selects signed or absolute completed-transaction weights by vehicle id.</param>
+        public static IScaleBuilder WithVehicleTotals(
+            this IScaleBuilder builder,
+            Func<string, VehicleWeightAggregation> aggregation)
+        {
+            aggregation.ThrowIfNull(nameof(aggregation));
+            return RuntimeBuilder(builder).WithVehicleTotals(aggregation);
+        }
+
+        /// <summary>
+        /// Enables weight registration and totalized counts and weights for piece-counting products.
+        /// </summary>
+        /// <param name="builder">The scale builder.</param>
+        public static IScaleBuilder WithPieceCountingTotals(this IScaleBuilder builder)
+        {
+            return RuntimeBuilder(builder).WithPieceCountingTotals();
+        }
+
+        /// <summary>
+        /// Configures recipes on a builder that supports runtime configuration.
+        /// </summary>
+        /// <param name="builder">The scale builder.</param>
+        /// <param name="configure">The recipe runtime configuration.</param>
+        public static IScaleBuilder ConfigureRecipes(this IScaleBuilder builder, Action<RecipeController> configure)
+        {
+            configure.ThrowIfNull(nameof(configure));
+            return RuntimeBuilder(builder).ConfigureRecipes(configure);
+        }
+
+        /// <summary>
+        /// Supplies the application-owned enabled/released check for recipe scales without PackML.
+        /// </summary>
+        /// <param name="builder">The scale builder.</param>
+        /// <param name="isEnabledAndReleased">Returns whether processing is permitted.</param>
+        /// <remarks>
+        /// The callback may coordinate with other threads reading the scale or recipe controller. Replacing the
+        /// configured check before a start commits rejects that start.
+        /// </remarks>
+        public static IScaleBuilder WithRecipeReleaseCheck(
+            this IScaleBuilder builder,
+            Func<bool> isEnabledAndReleased)
+        {
+            isEnabledAndReleased.ThrowIfNull(nameof(isEnabledAndReleased));
+            return builder.ConfigureRecipes(recipes => recipes.SetApplicationReleaseCheck(isEnabledAndReleased));
+        }
+
+        /// <summary>
+        /// Obtains the optional runtime configuration capability or rejects an unsupported builder.
+        /// </summary>
+        private static IScaleRuntimeBuilder RuntimeBuilder(IScaleBuilder builder)
+        {
+            builder.ThrowIfNull(nameof(builder));
+            return builder is IScaleRuntimeBuilder runtime
+                ? runtime
+                : throw new NotSupportedException("This scale builder does not support runtime configuration.");
+        }
     }
 
     /// <summary>

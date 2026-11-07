@@ -550,7 +550,14 @@ namespace Opc.Ua.Scales.Tests
 
             ScaleReading? registered = null;
             scale.WeightRegistered += (_, reading) => registered = reading;
-            Assert.That(ServiceResult.IsGood(Call(scale.Scale.RegisterWeight, id)), Is.True);
+            ServiceResult register = await scale.Scale.RegisterWeight!.CallAsync(
+                m_fixture.Context,
+                id,
+                [],
+                [],
+                [],
+                CancellationToken.None).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(register), Is.True);
             Assert.That(registered, Is.Not.Null);
             Assert.That(registered!.WeightId, Is.EqualTo("1"));
             Assert.That(scale.RegisteredReading!.Gross, Is.EqualTo(2.0).Within(1e-9));

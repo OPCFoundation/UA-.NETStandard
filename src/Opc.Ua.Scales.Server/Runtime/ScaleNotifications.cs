@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Scales.Server.Runtime
 {
@@ -60,11 +61,13 @@ namespace Opc.Ua.Scales.Server.Runtime
         internal ScaleNotifications(
             ISystemContext context,
             BaseObjectState source,
-            Action<NodeState>? register)
+            Action<NodeState>? register,
+            ScaleWriteGate? writeGate = null)
         {
             m_context = context;
             m_source = source;
             m_register = register;
+            m_writeGate = writeGate;
         }
 
         /// <summary>
@@ -88,14 +91,80 @@ namespace Opc.Ua.Scales.Server.Runtime
             EventSeverity severity = EventSeverity.Medium,
             params string[] auxParameters)
         {
-            RaiseEventCore(
+            ExecuteSynchronous(() => RaiseEventCore(
                 (uint)notificationId,
                 ScalesModel.CategoryOf(notificationId),
                 ScalesModel.TextOf(notificationId),
                 vendorNotificationId: null,
                 message,
                 severity,
-                auxParameters);
+                auxParameters));
+        }
+
+        /// <summary>
+        /// Attempts to raise a standard event under synchronous scale-write admission.
+        /// </summary>
+        /// <param name="notificationId">The notification id.</param>
+        /// <param name="message">The event message.</param>
+        /// <returns>Whether the event was admitted and raised.</returns>
+        internal bool TryRaiseEvent(
+            ScaleNotificationId notificationId,
+            LocalizedText message)
+        {
+            Action raise = () => RaiseEventCore(
+                (uint)notificationId,
+                ScalesModel.CategoryOf(notificationId),
+                ScalesModel.TextOf(notificationId),
+                vendorNotificationId: null,
+                message,
+                EventSeverity.Medium,
+                []);
+            if (m_writeGate == null)
+            {
+                raise();
+                return true;
+            }
+            return m_writeGate.TryExecuteSynchronously(raise);
+        }
+
+        /// <summary>
+        /// Raises a standard event after asynchronously waiting for scale-write admission.
+        /// </summary>
+        /// <param name="notificationId">The notification id.</param>
+        /// <param name="message">The event message.</param>
+        /// <param name="cancellationToken">Cancels while waiting to enter.</param>
+        internal async ValueTask RaiseEventAsync(
+            ScaleNotificationId notificationId,
+            LocalizedText message,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (m_writeGate == null)
+            {
+                RaiseEventCore(
+                    (uint)notificationId,
+                    ScalesModel.CategoryOf(notificationId),
+                    ScalesModel.TextOf(notificationId),
+                    vendorNotificationId: null,
+                    message,
+                    EventSeverity.Medium,
+                    []);
+                return;
+            }
+            await m_writeGate.ExecuteAsynchronouslyAsync(
+                _ =>
+                {
+                    RaiseEventCore(
+                        (uint)notificationId,
+                        ScalesModel.CategoryOf(notificationId),
+                        ScalesModel.TextOf(notificationId),
+                        vendorNotificationId: null,
+                        message,
+                        EventSeverity.Medium,
+                        []);
+                    return new ValueTask<bool>(true);
+                },
+                cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -125,14 +194,14 @@ namespace Opc.Ua.Scales.Server.Runtime
                     notificationId,
                     "Vendor-specific notification ids shall be greater than 5000 (OPC 40200 §8.1.2).");
             }
-            RaiseEventCore(
+            ExecuteSynchronous(() => RaiseEventCore(
                 notificationId,
                 category,
                 name ?? notificationId.ToString(CultureInfo.InvariantCulture),
                 vendorNotificationId: name,
                 message,
                 severity,
-                []);
+                []));
         }
 
         /// <summary>
@@ -152,6 +221,27 @@ namespace Opc.Ua.Scales.Server.Runtime
             bool active,
             LocalizedText message,
             EventSeverity severity = EventSeverity.High)
+        {
+            return ExecuteSynchronous(() => SetAlarmCore(notificationId, active, message, severity));
+        }
+
+        /// <summary>
+        /// Updates an alarm while the caller already owns scale-write admission.
+        /// </summary>
+        internal bool SetAlarmAdmitted(
+            ScaleNotificationId notificationId,
+            bool active,
+            LocalizedText message,
+            EventSeverity severity = EventSeverity.High)
+        {
+            return SetAlarmCore(notificationId, active, message, severity);
+        }
+
+        private bool SetAlarmCore(
+            ScaleNotificationId notificationId,
+            bool active,
+            LocalizedText message,
+            EventSeverity severity)
         {
             lock (m_lock)
             {
@@ -319,15 +409,33 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <returns>The condition.</returns>
         public ScaleAlarmState EnsureAlarm(ScaleNotificationId notificationId)
         {
-            lock (m_lock)
+            return ExecuteSynchronous(() =>
             {
-                if (!m_alarms.TryGetValue(notificationId, out ScaleAlarmState? alarm))
+                lock (m_lock)
                 {
-                    alarm = CreateAlarm(notificationId);
-                    m_alarms[notificationId] = alarm;
+                    if (!m_alarms.TryGetValue(notificationId, out ScaleAlarmState? alarm))
+                    {
+                        alarm = CreateAlarm(notificationId);
+                        m_alarms[notificationId] = alarm;
+                    }
+                    return alarm;
                 }
-                return alarm;
+            });
+        }
+
+        private void ExecuteSynchronous(Action operation)
+        {
+            if (m_writeGate == null)
+            {
+                operation();
+                return;
             }
+            m_writeGate.ExecuteSynchronously(operation);
+        }
+
+        private T ExecuteSynchronous<T>(Func<T> operation)
+        {
+            return m_writeGate == null ? operation() : m_writeGate.ExecuteSynchronously(operation);
         }
 
         private static void Describe(
@@ -435,6 +543,7 @@ namespace Opc.Ua.Scales.Server.Runtime
         private readonly ISystemContext m_context;
         private readonly BaseObjectState m_source;
         private readonly Action<NodeState>? m_register;
+        private readonly ScaleWriteGate? m_writeGate;
         private readonly Dictionary<ScaleNotificationId, ScaleAlarmState> m_alarms = [];
         private readonly Lock m_lock = new();
     }

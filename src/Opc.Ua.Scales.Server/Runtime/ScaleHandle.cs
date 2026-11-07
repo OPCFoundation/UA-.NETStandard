@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.PackML;
 
 namespace Opc.Ua.Scales.Server.Runtime
@@ -204,7 +205,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                 LegalForTrade = configuration.LegalForTrade,
                 Stable = true
             };
-            Notifications = new ScaleNotifications(services.Context, scale, services.Register);
+            Notifications = new ScaleNotifications(services.Context, scale, services.Register, m_writeGate);
 
             // The runtime drives these two conditions itself (Annex C:
             // OVERLOAD_FAULT follows the Overload property), so they exist from
@@ -224,7 +225,27 @@ namespace Opc.Ua.Scales.Server.Runtime
                     services,
                     scale.ProductionPreset,
                     services.ScalesId(ScalesModel.ProductTypeOf(kind)),
-                    () => AllowedEngineeringUnits)
+                    () => AllowedEngineeringUnits,
+                    configuration.ItemProcessing || configuration.CompletedFills ||
+                        configuration.VehicleAggregation != null || Kind == ScaleKind.PieceCounting
+                        ? product =>
+                        {
+                            if (configuration.ItemProcessing || configuration.CompletedFills)
+                            {
+                                ScaleItemPublisher.Initialize(services.Context, product);
+                            }
+                            if (configuration.VehicleAggregation != null && product is VehicleProductState vehicle)
+                            {
+                                VehicleController.InitializeTotals(services.Context, vehicle);
+                            }
+                            if (product is PieceCountingProductState pieceCounting)
+                            {
+                                PieceCountingController.InitializeProduct(
+                                    services.Context, pieceCounting, configuration.PieceCountingTotals, Unit);
+                            }
+                        }
+                        : null,
+                    m_writeGate)
                 {
                     Lockable = configuration.LockableProducts
                 };
@@ -236,7 +257,15 @@ namespace Opc.Ua.Scales.Server.Runtime
             }
             if (scale.ProductionOutput != null)
             {
-                ProductionOutput = new ScaleStatistics(services.Context, scale.ProductionOutput);
+                ProductionOutput = new ScaleStatistics(services.Context, scale.ProductionOutput, m_writeGate);
+            }
+            if (configuration.ItemProcessing)
+            {
+                Catchweigher = new CatchweigherController(this, configuration.PriceCalculator);
+            }
+            if (configuration.CompletedFills)
+            {
+                TotalizingHopper = new TotalizingHopperController(this);
             }
             SetItemState(ScaleItemState.NotExecuting);
             SetOperationMode(ScaleOperationMode.Processing);
@@ -260,7 +289,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                     Hopper = new HopperController(this, hopper);
                     break;
                 case VehicleScaleState vehicle:
-                    Vehicle = new VehicleController(this, vehicle);
+                    Vehicle = new VehicleController(this, vehicle, configuration.VehicleAggregation);
                     break;
                 case RecipeScaleState recipe:
                     Recipes = new RecipeController(this, recipe, configuration.RecipeFiles);
@@ -271,6 +300,7 @@ namespace Opc.Ua.Scales.Server.Runtime
             }
 
             PublishCore();
+            services.BindProductWriteGuards(scale, m_writeGate);
         }
 
         /// <summary>
@@ -379,6 +409,16 @@ namespace Opc.Ua.Scales.Server.Runtime
         public AutomaticFillingController? AutomaticFilling { get; }
 
         /// <summary>
+        /// Gets the explicitly enabled catchweigher or price-labeler item pipeline.
+        /// </summary>
+        public CatchweigherController? Catchweigher { get; }
+
+        /// <summary>
+        /// Gets the explicitly enabled completed-fill controller of a totalizing hopper.
+        /// </summary>
+        public TotalizingHopperController? TotalizingHopper { get; }
+
+        /// <summary>
         /// Gets the handles of the scale's feeder and printer modules.
         /// </summary>
         public ArrayOf<ScaleModuleHandle> Modules => m_modules;
@@ -434,12 +474,12 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// </param>
         public void PublishLoad(double rawLoad, bool? stable = true)
         {
-            lock (m_lock)
+            Locked(() =>
             {
                 m_engine.RawLoad = rawLoad;
                 m_engine.Stable = stable;
                 PublishCore();
-            }
+            });
         }
 
         /// <summary>
@@ -493,10 +533,10 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <param name="state">The new state.</param>
         public void SetItemState(ScaleItemState state)
         {
-            lock (m_lock)
+            Locked(() =>
             {
                 ScaleMachineryStates.SetItemState(m_services, Scale.MachineryItemState, state);
-            }
+            });
         }
 
         /// <summary>
@@ -505,10 +545,10 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <param name="mode">The new mode.</param>
         public void SetOperationMode(ScaleOperationMode mode)
         {
-            lock (m_lock)
+            Locked(() =>
             {
                 ScaleMachineryStates.SetOperationMode(m_services, Scale.MachineryOperationMode, mode);
-            }
+            });
         }
 
         /// <summary>
@@ -519,14 +559,14 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <param name="processStateMessage">The human-readable state message.</param>
         public void SetProcessState(string? processStateId, LocalizedText processStateMessage)
         {
-            lock (m_lock)
+            Locked(() =>
             {
                 if (processStateId != null)
                 {
                     ScaleValues.Set(m_services.Context, Scale.ProcessStateId, processStateId);
                 }
                 ScaleValues.Set(m_services.Context, Scale.ProcessStateMessage, processStateMessage);
-            }
+            });
         }
 
         /// <summary>
@@ -561,10 +601,10 @@ namespace Opc.Ua.Scales.Server.Runtime
             {
                 throw new ArgumentNullException(nameof(update));
             }
-            lock (m_lock)
+            Locked(() =>
             {
                 update();
-            }
+            });
         }
 
         /// <summary>
@@ -574,14 +614,33 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// </summary>
         internal void Locked(Action action)
         {
-            lock (m_lock)
+            m_writeGate.ExecuteSynchronously(() =>
             {
-                action();
-            }
+                lock (m_lock)
+                {
+                    action();
+                }
+            });
         }
 
         /// <inheritdoc cref="Locked(Action)"/>
         internal T Locked<T>(Func<T> action)
+        {
+            return m_writeGate.ExecuteSynchronously(() =>
+            {
+                lock (m_lock)
+                {
+                    return action();
+                }
+            });
+        }
+
+        /// <summary>
+        /// Runs acquisition validation while its caller holds asynchronous write ownership.
+        /// </summary>
+        /// <typeparam name="T">The result type.</typeparam>
+        /// <param name="action">The synchronous work performed under the scale lock.</param>
+        internal T LockedForAcquisition<T>(Func<T> action)
         {
             lock (m_lock)
             {
@@ -591,7 +650,73 @@ namespace Opc.Ua.Scales.Server.Runtime
 
         internal ScaleRuntimeServices Services => m_services;
 
+        /// <summary>
+        /// Gets the shared writer gate for this scale and its live statistics.
+        /// </summary>
+        internal ScaleWriteGate WriteOperations => m_writeGate;
+
+        /// <summary>
+        /// Runs an asynchronous operation while owning the scale's live writer state.
+        /// </summary>
+        /// <typeparam name="T">The result type.</typeparam>
+        /// <param name="operation">The complete asynchronous operation.</param>
+        /// <param name="cancellationToken">Cancels while waiting to enter.</param>
+        /// <returns>The operation result.</returns>
+        internal ValueTask<T> ExecuteWriteOperationAsync<T>(
+            Func<CancellationToken, ValueTask<T>> operation,
+            CancellationToken cancellationToken)
+        {
+            return m_writeGate.ExecuteAsynchronouslyAsync(operation, cancellationToken);
+        }
+
         internal ScaleWeighingEngine Engine => m_engine;
+
+        /// <summary>
+        /// Commits an already validated equipment acquisition without registering the scalar engine a second time.
+        /// </summary>
+        internal void RecordAcquisition(ScaleItemReport report, string? zoneName = null, ScaleItemPrice? price = null)
+        {
+            m_writeGate.ExecuteSynchronously(() =>
+            {
+                lock (m_lock)
+                {
+                    m_registered = report.Weight;
+                }
+                ScaleItemPublisher.PublishWeight(m_services.Context, Scale.RegisteredWeight, report.Weight);
+                ProductionOutput?.RecordItem(report, zoneName, price);
+            });
+        }
+
+        /// <summary>
+        /// Publishes registered weight and production statistics in the acquisition setter order.
+        /// </summary>
+        /// <param name="report">The normalized acquisition.</param>
+        /// <param name="zoneName">The classified zone name.</param>
+        /// <param name="price">The calculated or equipment-supplied price.</param>
+        internal async ValueTask RecordAcquisitionAsync(
+            ScaleItemReport report,
+            string? zoneName,
+            ScaleItemPrice? price)
+        {
+            lock (m_lock)
+            {
+                m_registered = report.Weight;
+            }
+            await ScaleItemPublisher.PublishWeightAsync(
+                m_services.Context, Scale.RegisteredWeight, report.Weight).ConfigureAwait(false);
+            if (ProductionOutput != null)
+            {
+                await ProductionOutput.RecordItemAsync(report, zoneName, price).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Notifies applications after an equipment acquisition has committed and synchronization has ended.
+        /// </summary>
+        internal void NotifyAcquisition(ScaleReading reading)
+        {
+            WeightRegistered?.Invoke(this, reading);
+        }
 
         internal void AddModule(ScaleModuleHandle module)
         {
@@ -604,6 +729,75 @@ namespace Opc.Ua.Scales.Server.Runtime
         }
 
         /// <summary>
+        /// Registers the current stable weighing and updates the selected piece-counting product when configured.
+        /// </summary>
+        /// <param name="cancellationToken">Cancels while waiting for scale write admission.</param>
+        public ValueTask<ServiceResult> RegisterWeightAsync(CancellationToken cancellationToken = default)
+        {
+            return RegisterWeightAsync(null, cancellationToken);
+        }
+
+        /// <summary>
+        /// Registers the current weighing for a remote method caller or trusted local application.
+        /// </summary>
+        private async ValueTask<ServiceResult> RegisterWeightAsync(
+            ISystemContext? callContext,
+            CancellationToken cancellationToken)
+        {
+            ScaleReading? registered = null;
+            ServiceResult result = await m_writeGate.ExecuteAsynchronouslyAsync(async ct =>
+            {
+                ct.ThrowIfCancellationRequested();
+                ServiceResult veto = CommandInterceptor?.Invoke(ScaleCommand.RegisterWeight) ?? ServiceResult.Good;
+                if (ServiceResult.IsBad(veto))
+                {
+                    return veto;
+                }
+                ServiceResult committed = ServiceResult.Good;
+                PieceCountingProductState? product;
+                WeighingResult registeredWeight = default;
+                using ScaleProductionPreset.ActiveProductReservation? reservation =
+                    ProductionPreset?.ReserveActiveProduct();
+                lock (m_lock)
+                {
+                    product = reservation?.Product as PieceCountingProductState;
+                    if (callContext != null && product != null)
+                    {
+                        ServiceResult access = ScaleValues.CheckLock(m_services, callContext, product.NodeId);
+                        if (ServiceResult.IsBad(access))
+                        {
+                            committed = access;
+                        }
+                        else
+                        {
+                            committed = RegisterWeightCore(
+                                product, out registered, out registeredWeight, recordStatistics: false);
+                        }
+                    }
+                    else
+                    {
+                        committed = RegisterWeightCore(
+                            product, out registered, out registeredWeight, recordStatistics: false);
+                    }
+                    if (ServiceResult.IsGood(committed))
+                    {
+                        PublishCore(product);
+                    }
+                }
+                if (ServiceResult.IsGood(committed) && registered != null && ProductionOutput is { } statistics)
+                {
+                    await statistics.RecordAsync(registeredWeight.Net, registered.WeightId).ConfigureAwait(false);
+                }
+                return committed;
+            }, cancellationToken).ConfigureAwait(false);
+            if (registered != null)
+            {
+                WeightRegistered?.Invoke(this, registered);
+            }
+            return result;
+        }
+
+        /// <summary>
         /// Runs a command through the interceptor and republishes the weight when it succeeded.
         /// Remote counting commands retain the authorized product as their publication target.
         /// </summary>
@@ -612,41 +806,152 @@ namespace Opc.Ua.Scales.Server.Runtime
             Func<ServiceResult> action,
             ISystemContext? callContext = null)
         {
-            if (CommandInterceptor != null)
+            if (!m_writeGate.TryExecuteSynchronously(() =>
             {
-                ServiceResult veto = CommandInterceptor(command);
-                if (ServiceResult.IsBad(veto))
+                if (CommandInterceptor != null)
                 {
-                    return veto;
+                    ServiceResult veto = CommandInterceptor(command);
+                    if (ServiceResult.IsBad(veto))
+                    {
+                        return veto;
+                    }
                 }
+
+                lock (m_lock)
+                {
+                    PieceCountingProductState? product = callContext != null
+                        ? ProductionPreset?.ActiveProduct as PieceCountingProductState
+                        : null;
+                    if (callContext != null && product != null)
+                    {
+                        ServiceResult access = ScaleValues.CheckLock(m_services, callContext, product.NodeId);
+                        if (ServiceResult.IsBad(access))
+                        {
+                            return access;
+                        }
+                    }
+                    ServiceResult result = action();
+                    if (ServiceResult.IsGood(result))
+                    {
+                        if (callContext != null)
+                        {
+                            PublishCore(product);
+                        }
+                        else
+                        {
+                            PublishCore();
+                        }
+                    }
+                    return result;
+                }
+            }, out ServiceResult result))
+            {
+                return ServiceResult.Create(
+                    StatusCodes.BadInvalidState,
+                    "A scale write is awaiting an asynchronous state notification.");
             }
-            lock (m_lock)
+            return result;
+        }
+
+        /// <summary>
+        /// Commits a validated registration while the caller owns the scale lock.
+        /// </summary>
+        private ServiceResult RegisterWeightCore(
+            PieceCountingProductState? product,
+            out ScaleReading? registered,
+            out WeighingResult registeredWeight,
+            bool recordStatistics = true)
+        {
+            registered = null;
+            registeredWeight = default;
+            ServiceResult check = m_engine.CanRegister();
+            if (ServiceResult.IsBad(check))
             {
-                PieceCountingProductState? product = callContext != null
-                    ? ProductionPreset?.ActiveProduct as PieceCountingProductState
-                    : null;
-                if (callContext != null && product != null)
+                return check;
+            }
+            WeighingResult current = m_engine.Evaluate();
+            ServiceResult pieceResult = PieceCounting?.OnRegistered(current, product) ?? ServiceResult.Good;
+            if (ServiceResult.IsBad(pieceResult))
+            {
+                return pieceResult;
+            }
+            registeredWeight = current;
+            m_weightCounter++;
+            m_weightId = m_weightCounter.ToString(CultureInfo.InvariantCulture);
+            registered = ToReading(current, m_weightId);
+            m_registered = registered;
+            if (Scale.RegisteredWeight != null)
+            {
+                PublishWeight(Scale.RegisteredWeight, current, m_weightId);
+            }
+            if (recordStatistics)
+            {
+                ProductionOutput?.Record(current.Net, m_weightId);
+            }
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Authorizes a recipe start, evaluates its application release check and publishes a successful start.
+        /// </summary>
+        /// <param name="authorizeRecipe">Validates the request and captures its report product.</param>
+        /// <param name="checkRelease">Evaluates the application's processing permission.</param>
+        /// <param name="startRecipe">Revalidates and starts the captured recipe request.</param>
+        internal ServiceResult ExecuteRecipeStart(
+            Func<ServiceResult> authorizeRecipe,
+            Func<ServiceResult> checkRelease,
+            Func<ServiceResult> startRecipe)
+        {
+            if (!m_writeGate.TryExecuteSynchronously(() =>
+            {
+                if (CommandInterceptor != null)
                 {
-                    ServiceResult access = ScaleValues.CheckLock(m_services, callContext, product.NodeId);
-                    if (ServiceResult.IsBad(access))
+                    ServiceResult veto = CommandInterceptor(ScaleCommand.StartRecipe);
+                    if (ServiceResult.IsBad(veto))
                     {
-                        return access;
+                        return veto;
                     }
                 }
-                ServiceResult result = action();
-                if (ServiceResult.IsGood(result))
+
+                lock (m_lock)
                 {
-                    if (callContext != null)
-                    {
-                        PublishCore(product);
-                    }
-                    else
+                    return authorizeRecipe();
+                }
+            }, out ServiceResult result))
+            {
+                return ServiceResult.Create(
+                    StatusCodes.BadInvalidState,
+                    "A scale write is awaiting an asynchronous state notification.");
+            }
+            if (ServiceResult.IsBad(result))
+            {
+                return result;
+            }
+
+            result = checkRelease();
+            if (ServiceResult.IsBad(result))
+            {
+                return result;
+            }
+
+            if (!m_writeGate.TryExecuteSynchronously(() =>
+            {
+                lock (m_lock)
+                {
+                    ServiceResult startResult = startRecipe();
+                    if (ServiceResult.IsGood(startResult))
                     {
                         PublishCore();
                     }
+                    return startResult;
                 }
-                return result;
+            }, out result))
+            {
+                return ServiceResult.Create(
+                    StatusCodes.BadInvalidState,
+                    "A scale write is awaiting an asynchronous state notification.");
             }
+            return result;
         }
 
         private void BindBaseMethods()
@@ -656,8 +961,8 @@ namespace Opc.Ua.Scales.Server.Runtime
             Scale.ClearTare?.OnCallMethod2 = (context, method, objectId, inputs, outputs) => ClearTare(context);
             Scale.SetPresetTare?.OnCall = (context, method, objectId, presetTare, engineeringUnits) =>
                     SetPresetTare(presetTare, engineeringUnits, context);
-            Scale.RegisterWeight?.OnCallMethod2 = (context, method, objectId, inputs, outputs) =>
-                    RegisterWeight(context);
+            Scale.RegisterWeight?.OnCallMethod2Async = (context, method, objectId, inputs, outputs, ct) =>
+                RegisterWeightAsync(context, ct);
         }
 
         /// <summary>
@@ -755,25 +1060,40 @@ namespace Opc.Ua.Scales.Server.Runtime
         private ServiceResult RegisterWeight(ISystemContext? callContext)
         {
             ScaleReading? registered = null;
-            ServiceResult result = Execute(ScaleCommand.RegisterWeight, () =>
+            if (!m_writeGate.TryExecuteSynchronously(() =>
             {
-                ServiceResult check = m_engine.CanRegister();
-                if (ServiceResult.IsBad(check))
+                ServiceResult veto = CommandInterceptor?.Invoke(ScaleCommand.RegisterWeight) ?? ServiceResult.Good;
+                if (ServiceResult.IsBad(veto))
                 {
-                    return check;
+                    return veto;
                 }
-                m_weightCounter++;
-                m_weightId = m_weightCounter.ToString(CultureInfo.InvariantCulture);
-                WeighingResult current = m_engine.Evaluate();
-                registered = ToReading(current, m_weightId);
-                m_registered = registered;
-                if (Scale.RegisteredWeight != null)
+                lock (m_lock)
                 {
-                    PublishWeight(Scale.RegisteredWeight, current, m_weightId);
+                    using ScaleProductionPreset.ActiveProductReservation? reservation =
+                        ProductionPreset?.ReserveActiveProduct();
+                    PieceCountingProductState? product = reservation?.Product as PieceCountingProductState;
+                    if (callContext != null && product != null)
+                    {
+                        ServiceResult access = ScaleValues.CheckLock(m_services, callContext, product.NodeId);
+                        if (ServiceResult.IsBad(access))
+                        {
+                            return access;
+                        }
+                    }
+                    ServiceResult result = RegisterWeightCore(
+                        product, out registered, out _, recordStatistics: true);
+                    if (ServiceResult.IsGood(result))
+                    {
+                        PublishCore(product);
+                    }
+                    return result;
                 }
-                ProductionOutput?.Record(current.Net, m_weightId);
-                return ServiceResult.Good;
-            }, callContext);
+            }, out ServiceResult result))
+            {
+                return ServiceResult.Create(
+                    StatusCodes.BadInvalidState,
+                    "A scale write is awaiting an asynchronous state notification.");
+            }
             if (registered != null)
             {
                 WeightRegistered?.Invoke(this, registered);
@@ -799,13 +1119,13 @@ namespace Opc.Ua.Scales.Server.Runtime
             {
                 PublishWeight(Scale.CurrentWeight, current, weightId: null);
             }
-            Notifications.SetAlarm(
+            Notifications.SetAlarmAdmitted(
                 ScaleNotificationId.OverloadFault,
                 current.Overload,
                 new LocalizedText(current.Overload
                     ? "The maximum capacity of the scale is exceeded."
                     : "The scale is back within its capacity."));
-            Notifications.SetAlarm(
+            Notifications.SetAlarmAdmitted(
                 ScaleNotificationId.UnderloadFault,
                 current.Underload,
                 new LocalizedText(current.Underload
@@ -900,6 +1220,11 @@ namespace Opc.Ua.Scales.Server.Runtime
 
         private readonly ScaleRuntimeServices m_services;
         private readonly ScaleWeighingEngine m_engine;
+
+        /// <summary>
+        /// The nonblocking synchronous and awaited asynchronous writer gate.
+        /// </summary>
+        private readonly ScaleWriteGate m_writeGate = new();
         private readonly Lock m_lock = new();
         private ArrayOf<ScaleModuleHandle> m_modules = [];
         private ArrayOf<ScaleHandle> m_weighingModules = [];
@@ -918,13 +1243,23 @@ namespace Opc.Ua.Scales.Server.Runtime
     /// <param name="LockableProducts">Whether products carry a DI lock.</param>
     /// <param name="SelectedProducts">The products in processing at start.</param>
     /// <param name="RecipeFiles">Whether recipes carry a <c>RecipeFile</c>.</param>
+    /// <param name="ItemProcessing">Whether registered catchweigher items are reported.</param>
+    /// <param name="PriceCalculator">The optional injected price calculator for price labelers.</param>
+    /// <param name="CompletedFills">Whether completed totalizing-hopper fills are reported.</param>
+    /// <param name="VehicleAggregation">The optional per-vehicle aggregation rule.</param>
+    /// <param name="PieceCountingTotals">Whether per-product piece-counting totals are enabled.</param>
     internal sealed record ScaleConfiguration(
         IReadOnlyList<WeighingRangeDefinition> Ranges,
         EUInformation Unit,
         bool LegalForTrade,
         bool LockableProducts,
         IReadOnlyList<string> SelectedProducts,
-        bool RecipeFiles = false);
+        bool RecipeFiles = false,
+        bool ItemProcessing = false,
+        IScalePriceCalculator? PriceCalculator = null,
+        bool CompletedFills = false,
+        Func<string, VehicleWeightAggregation>? VehicleAggregation = null,
+        bool PieceCountingTotals = false);
 
     /// <summary>
     /// Sets the OPC 40001-1 state machines, which the model supplies without

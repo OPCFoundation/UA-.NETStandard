@@ -8,6 +8,7 @@ covers cross-cutting changes.
 ## Contents
 
 - [General principles](#general-principles)
+- [Migrating custom node write overrides](#migrating-custom-node-write-overrides)
 - [Program state numbers and managed execution](#program-state-numbers-and-managed-execution)
 - [Empty LocalizedText fields in 2.0](#empty-localizedtext-fields-in-20)
 - [Per-version migration index](#per-version-migration-index)
@@ -71,6 +72,91 @@ for use in any repository:
 copilot plugin marketplace add OPCFoundation/UA-.NETStandard
 copilot plugin install opcua-v20-migration@opcua-dotnet
 ```
+
+## Migrating custom node write overrides
+
+**Breaking change:** `NodeState.WriteAttributeAsync` is no longer virtual.
+Move custom implementations to the protected virtual `WriteAttributeCoreAsync`
+hook. Existing callers keep the same public method and parameters; derived node
+types that override the public method require a source change and recompilation.
+
+The public entrypoint now owns Value-write admission through validation, the
+custom hook, callback dispatch and the correlated value/status/timestamp cache
+commit. A public override could previously bypass that operation by not calling
+base, or run custom behavior outside it. Making the public method non-virtual
+prevents that bypass without exposing synchronization to derived types.
+
+Before:
+
+```csharp
+public override ValueTask<ServiceResult> WriteAttributeAsync(
+    ISystemContext context,
+    uint attributeId,
+    NumericRange indexRange,
+    DataValue value,
+    CancellationToken cancellationToken = default)
+{
+    return base.WriteAttributeAsync(
+        context, attributeId, indexRange, value, cancellationToken);
+}
+```
+
+After:
+
+```csharp
+protected override ValueTask<ServiceResult> WriteAttributeCoreAsync(
+    ISystemContext context,
+    uint attributeId,
+    NumericRange indexRange,
+    DataValue value,
+    CancellationToken cancellationToken = default)
+{
+    return base.WriteAttributeCoreAsync(
+        context, attributeId, indexRange, value, cancellationToken);
+}
+```
+
+Keep custom validation and write behavior inside the core hook. Call the protected
+base hook to retain native behavior; do not call the public `WriteAttributeAsync`
+on the same node from that hook. When admission is bound, the nested public call
+waits behind the operation that invoked the hook until its cancellation token is
+cancelled. Cancellation unwinds that wait and releases the outer operation's
+admission. There is no invocation identity that distinguishes this call from an
+independent queued writer, so ordinary overlapping asynchronous writers continue
+to wait and serialize.
+
+The synchronous `WriteAttribute` entrypoint is non-virtual and keeps its
+synchronous implementation, including protected `WriteValueAttribute`
+customization. It does not block on the asynchronous hook. Both public paths
+apply the same Value-write admission where an owning runtime binds it.
+
+On an executor-bound node, an asynchronous Value write no longer falls back to
+the synchronous implementation. Configure `OnWriteValueAsync` or
+`OnSimpleWriteValueAsync` on a `BaseVariableState`, or implement the asynchronous
+core yourself. When no native asynchronous implementation handles the write, it
+returns `BadNotSupported` without invoking synchronous handlers or changing the
+cached value, status or timestamp. This includes variables with no write
+handlers. Calling the synchronous entrypoint remains supported; wrapping it in
+an asynchronous core would violate this rule.
+
+Scales supplies a native async cache-write policy for its stock writable
+variables, including product targets, tolerances and recipe condition settings.
+That policy retains native validation and correlated cache commit. Custom
+synchronous-only handlers require an asynchronous implementation; they are
+neither invoked nor silently bypassed by the policy.
+Stock `MultiStateValueDiscreteState` notification settings use a separate native
+async enum policy, including `ValueAsText` updates after a successful cache
+commit. Native validation checks access/type before enum membership; the
+synchronous implementation checks enum membership first. Application-defined
+subclasses, `SelectionListState` and `MultiStateDiscreteState` do not receive
+these policies; provide their native async behavior explicitly.
+
+Unbound nodes retain their existing synchronous fallback. Non-Value attributes
+still dispatch to the protected core without Value-write admission.
+
+Direct assignments to node properties do not pass through these methods and
+require application serialization. See [Scales write coordination](Scales.md)
+for the runtime-specific rejection and publication behavior.
 
 ## Program state numbers and managed execution
 

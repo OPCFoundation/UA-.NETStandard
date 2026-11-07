@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using Opc.Ua.Di;
 using Opc.Ua.PackML;
@@ -45,21 +46,12 @@ namespace Opc.Ua.Scales.Server.Runtime
             m_services = services;
             Module = module;
             m_owner = owner;
-            Notifications = new ScaleNotifications(services.Context, module, services.Register);
+            Notifications = new ScaleNotifications(
+                services.Context, module, services.Register, owner?.WriteOperations);
             if (module is FeederModuleState feeder && feeder.SetFeederSpeed != null)
             {
                 feeder.SetFeederSpeed.OnCall = (context, method, objectId, speed, units) =>
-                {
-                    if (m_owner?.CommandInterceptor is { } interceptor)
-                    {
-                        ServiceResult veto = interceptor(ScaleCommand.SetFeederSpeed);
-                        if (ServiceResult.IsBad(veto))
-                        {
-                            return veto;
-                        }
-                    }
-                    return SetFeederSpeed(speed, units);
-                };
+                    SetFeederSpeed(speed, units);
             }
             ScaleMachineryStates.SetItemState(services, MachineryItemState, ScaleItemState.NotExecuting);
             ScaleMachineryStates.SetOperationMode(services, MachineryOperationMode, ScaleOperationMode.Processing);
@@ -100,6 +92,12 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <param name="units">The unit of <paramref name="speed"/>.</param>
         public ServiceResult SetFeederSpeed(float speed, EUInformation units)
         {
+            if (m_owner != null)
+            {
+                return m_owner.Execute(
+                    ScaleCommand.SetFeederSpeed,
+                    () => SetFeederSpeedCore(speed, units));
+            }
             return Locked(() => SetFeederSpeedCore(speed, units));
         }
 
@@ -146,19 +144,23 @@ namespace Opc.Ua.Scales.Server.Runtime
             {
                 return;
             }
-            Locked(() =>
+            ExecuteScaleWrite(() =>
             {
-                ScaleValues.Set(m_services.Context, feeder.FeederRunning, running);
-                if (load.HasValue)
+                Locked(() =>
                 {
-                    ScaleValues.Set(m_services.Context, feeder.FeederLoad, Variant.From(load.Value));
-                }
-                return true;
+                    ScaleValues.Set(m_services.Context, feeder.FeederRunning, running);
+                    if (load.HasValue)
+                    {
+                        ScaleValues.Set(m_services.Context, feeder.FeederLoad, Variant.From(load.Value));
+                    }
+                    return true;
+                });
+                Notifications.SetAlarm(
+                    ScaleNotificationId.FeederNotRunning,
+                    expectedRunning && !running,
+                    new LocalizedText(
+                        expectedRunning && !running ? "The feeder is not running." : "The feeder is running."));
             });
-            Notifications.SetAlarm(
-                ScaleNotificationId.FeederNotRunning,
-                expectedRunning && !running,
-                new LocalizedText(expectedRunning && !running ? "The feeder is not running." : "The feeder is running."));
         }
 
         /// <summary>
@@ -214,6 +216,16 @@ namespace Opc.Ua.Scales.Server.Runtime
             {
                 return action();
             }
+        }
+
+        private void ExecuteScaleWrite(Action operation)
+        {
+            if (m_owner == null)
+            {
+                operation();
+                return;
+            }
+            m_owner.WriteOperations.ExecuteSynchronously(operation);
         }
 
         private Opc.Ua.Machinery.MachineryItemState_StateMachineState? MachineryItemState =>
@@ -273,16 +285,25 @@ namespace Opc.Ua.Scales.Server.Runtime
             {
                 system.ResetGlobalStatistics.OnCallMethod2 = (context, method, objectId, inputs, outputs) =>
                 {
-                    if (CommandInterceptor is { } interceptor)
+                    if (!TryExecuteScaleWrites(() =>
                     {
-                        ServiceResult veto = interceptor(ScaleCommand.ResetGlobalStatistics);
-                        if (ServiceResult.IsBad(veto))
+                        if (CommandInterceptor is { } interceptor)
                         {
-                            return veto;
+                            ServiceResult veto = interceptor(ScaleCommand.ResetGlobalStatistics);
+                            if (ServiceResult.IsBad(veto))
+                            {
+                                return veto;
+                            }
                         }
+                        ResetGlobalStatisticsCore();
+                        return ServiceResult.Good;
+                    }, out ServiceResult result))
+                    {
+                        return ServiceResult.Create(
+                            StatusCodes.BadInvalidState,
+                            "A scale write is awaiting an asynchronous state notification.");
                     }
-                    ResetGlobalStatistics();
-                    return ServiceResult.Good;
+                    return result;
                 };
             }
             ScaleMachineryStates.SetItemState(services, system.MachineryItemState, ScaleItemState.NotExecuting);
@@ -337,11 +358,36 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// </summary>
         public void ResetGlobalStatistics()
         {
+            ExecuteScaleWrites(ResetGlobalStatisticsCore);
+        }
+
+        private void ResetGlobalStatisticsCore()
+        {
             ProductionOutput?.Reset("ResetGlobalStatistics");
             foreach (ScaleHandle scale in m_scales)
             {
                 scale.ProductionOutput?.Reset("ResetGlobalStatistics");
             }
+        }
+
+        private bool TryExecuteScaleWrites<T>(Func<T> operation, out T result)
+        {
+            var gates = new List<ScaleWriteGate>(m_scales.Count);
+            foreach (ScaleHandle scale in m_scales)
+            {
+                gates.Add(scale.WriteOperations);
+            }
+            return ScaleWriteGate.TryExecuteSynchronously(gates, operation, out result);
+        }
+
+        private void ExecuteScaleWrites(Action operation)
+        {
+            var gates = new List<ScaleWriteGate>(m_scales.Count);
+            foreach (ScaleHandle scale in m_scales)
+            {
+                gates.Add(scale.WriteOperations);
+            }
+            ScaleWriteGate.ExecuteSynchronously(gates, operation);
         }
 
         /// <summary>

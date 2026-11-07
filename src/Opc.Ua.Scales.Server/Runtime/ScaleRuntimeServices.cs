@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -40,7 +41,7 @@ namespace Opc.Ua.Scales.Server.Runtime
     /// <summary>
     /// What the runtime of a scale needs from the node manager that hosts it.
     /// </summary>
-    internal sealed class ScaleRuntimeServices : IDisposable
+    internal sealed class ScaleRuntimeServices : IDisposable, IAsyncDisposable
     {
         /// <summary>
         /// Creates the shared controller dependencies.
@@ -53,20 +54,22 @@ namespace Opc.Ua.Scales.Server.Runtime
             Func<NodeId, CancellationToken, ValueTask<bool>> delete,
             Func<NodeId, NodeId, bool> isTypeOf,
             ILockService? lockService,
-            ILogger logger)
+            ILogger logger,
+            CancellationToken stoppingToken = default)
         {
             Context = context;
             Namespaces = namespaces;
             Options = options;
             Register = node =>
             {
-                BindProductWriteGuards(node);
+                BindProductWriteGuards(node, null);
                 register(node);
             };
             Delete = delete;
             IsTypeOf = isTypeOf;
             LockService = lockService;
             Logger = logger;
+            StoppingToken = stoppingToken;
         }
 
         /// <summary>
@@ -110,6 +113,11 @@ namespace Opc.Ua.Scales.Server.Runtime
         public ILogger Logger { get; }
 
         /// <summary>
+        /// Gets the runtime shutdown signal for asynchronous equipment providers.
+        /// </summary>
+        internal CancellationToken StoppingToken { get; }
+
+        /// <summary>
         /// Creates file services owned by the address-space runtime, not by an individual recipe controller.
         /// </summary>
         public ScaleFileBinder CreateFileBinder()
@@ -127,24 +135,153 @@ namespace Opc.Ua.Scales.Server.Runtime
         }
 
         /// <summary>
-        /// Releases the resources of every scale, including nested controllers.
+        /// Adopts controller resources before publication so failed constructions also release timers at shutdown.
+        /// Resources must support repeated concurrent Dispose calls to stop admission independently of draining.
         /// </summary>
-        public void Dispose()
+        internal void OwnResource(IDisposable resource)
         {
-            IDisposable[] resources;
             lock (m_resourceGate)
             {
                 if (m_disposed)
                 {
-                    return;
+                    resource.Dispose();
+                    throw new ObjectDisposedException(nameof(ScaleRuntimeServices));
                 }
-                m_disposed = true;
-                resources = [.. m_resources];
-                m_resources.Clear();
+                m_resources.Add(resource);
             }
-            foreach (IDisposable resource in resources)
+        }
+
+        /// <summary>
+        /// Releases the resources of every scale, including nested controllers. A controller
+        /// stops delivering notifications, but a callback already running is not waited for.
+        /// </summary>
+        public void Dispose()
+        {
+            _ = Stop(synchronous: true);
+        }
+
+        /// <summary>
+        /// Releases the resources of every scale and waits until timer and subscriber
+        /// callbacks already running in asynchronously disposable controllers have returned.
+        /// A failing resource does not stop the others from being released; its exception is
+        /// rethrown afterwards. Repeated callers share the drain and its result, including after Dispose.
+        /// </summary>
+        public ValueTask DisposeAsync()
+        {
+            return new ValueTask(Stop(synchronous: false));
+        }
+
+        /// <summary>
+        /// Detaches resources once and shares their asynchronous drain, including after synchronous shutdown.
+        /// </summary>
+        private Task<bool> Stop(bool synchronous)
+        {
+            IDisposable[] resources;
+            TaskCompletionSource<bool> completion;
+            bool first;
+            lock (m_resourceGate)
             {
-                resource.Dispose();
+                first = m_disposal == null;
+                if (!first && (!synchronous || m_disposal!.Task.IsCompleted))
+                {
+                    return m_disposal!.Task;
+                }
+                if (first)
+                {
+                    m_disposal = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    m_disposed = true;
+                    m_stoppingResources = [.. m_resources];
+                    m_resources.Clear();
+                }
+                completion = m_disposal!;
+                resources = m_stoppingResources;
+            }
+            List<Exception>? failures = null;
+            // Every synchronous caller stops every resource itself. Another caller may be
+            // paused before reaching a controller, so sharing only the drain task is insufficient.
+            for (int index = resources.Length - 1; index >= 0; index--)
+            {
+                try
+                {
+                    resources[index].Dispose();
+                }
+                catch (Exception ex)
+                {
+                    (failures ??= []).Add(ex);
+                }
+            }
+            if (first)
+            {
+                _ = CompleteDisposalAsync(resources, failures, completion);
+            }
+            if (synchronous)
+            {
+                ThrowFailures(failures);
+            }
+            return completion.Task;
+        }
+
+        /// <summary>
+        /// Attempts every asynchronous drain and retains the result for all shutdown callers.
+        /// </summary>
+        private async Task CompleteDisposalAsync(
+            IDisposable[] resources,
+            List<Exception>? failures,
+            TaskCompletionSource<bool> completion)
+        {
+            // Keep the synchronous failure list stable while Stop returns or rethrows it.
+            List<Exception>? allFailures = failures == null ? null : [.. failures];
+            for (int index = resources.Length - 1; index >= 0; index--)
+            {
+                try
+                {
+                    if (resources[index] is IAsyncDisposable asyncResource)
+                    {
+                        await asyncResource.DisposeAsync().ConfigureAwait(false);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    (allFailures ??= []).Add(ex);
+                }
+            }
+            lock (m_resourceGate)
+            {
+                m_stoppingResources = [];
+            }
+            try
+            {
+                ThrowFailures(allFailures);
+                completion.TrySetResult(true);
+            }
+            catch (Exception ex)
+            {
+                Exception completionFailure = ex;
+                try
+                {
+                    Logger.ResourceShutdownFailed(ex);
+                }
+                catch (Exception loggingFailure)
+                {
+                    completionFailure = new AggregateException(ex, loggingFailure);
+                }
+                completion.TrySetException(completionFailure);
+                _ = completion.Task.Exception;
+            }
+        }
+
+        /// <summary>
+        /// Preserves a single cleanup failure or reports every failure together.
+        /// </summary>
+        private static void ThrowFailures(List<Exception>? failures)
+        {
+            if (failures?.Count == 1)
+            {
+                ExceptionDispatchInfo.Capture(failures[0]).Throw();
+            }
+            if (failures != null)
+            {
+                throw new AggregateException(failures);
             }
         }
 
@@ -167,11 +304,11 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <summary>
         /// Protects product values before publishing an initial or dynamically created subtree.
         /// </summary>
-        internal void BindProductWriteGuards(NodeState node)
+        internal void BindProductWriteGuards(NodeState node, ScaleWriteGate? writeGate)
         {
             lock (m_resourceGate)
             {
-                ScaleProductWriteGuard.Bind(this, node);
+                ScaleProductWriteGuard.Bind(this, node, writeGate);
             }
         }
 
@@ -181,8 +318,29 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <summary>The resources of all controller instances.</summary>
         private readonly List<IDisposable> m_resources = [];
 
+        /// <summary>The shared completion of resource shutdown and callback draining.</summary>
+        private TaskCompletionSource<bool>? m_disposal;
+
+        /// <summary>Idempotently disposable resources retained until every synchronous caller can stop them.</summary>
+        private IDisposable[] m_stoppingResources = [];
+
         /// <summary>Whether resources have been released.</summary>
         private bool m_disposed;
+    }
+
+    /// <summary>
+    /// Source-generated diagnostics for shared runtime resource shutdown.
+    /// </summary>
+    internal static partial class ScaleRuntimeServicesLog
+    {
+        /// <summary>
+        /// Reports a cleanup failure even when only synchronous disposal is requested.
+        /// </summary>
+        [LoggerMessage(
+            EventId = ScalesServerEventIds.ScaleRuntimeServices,
+            Level = LogLevel.Error,
+            Message = "Scales runtime resource shutdown failed.")]
+        public static partial void ResourceShutdownFailed(this ILogger logger, Exception exception);
     }
 
     /// <summary>
@@ -205,6 +363,22 @@ namespace Opc.Ua.Scales.Server.Runtime
         }
 
         /// <summary>
+        /// Stamps a written value and awaits notification of the live variable.
+        /// </summary>
+        /// <param name="context">The context for the node.</param>
+        /// <param name="variable">The variable to notify.</param>
+        public static async ValueTask TouchAsync(ISystemContext context, BaseVariableState? variable)
+        {
+            if (variable == null)
+            {
+                return;
+            }
+            variable.StatusCode = StatusCodes.Good;
+            variable.Timestamp = DateTimeUtc.Now;
+            await variable.ClearChangeMasksAsync(context, includeChildren: false).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Writes a value and reports it.
         /// </summary>
         public static void Set(ISystemContext context, BaseVariableState? variable, Variant value)
@@ -215,6 +389,39 @@ namespace Opc.Ua.Scales.Server.Runtime
             }
             variable.WrappedValue = value;
             Touch(context, variable);
+        }
+
+        /// <summary>
+        /// Writes a value and awaits notification of the live variable.
+        /// </summary>
+        /// <param name="context">The context for the node.</param>
+        /// <param name="variable">The variable to update.</param>
+        /// <param name="value">The value to publish.</param>
+        public static async ValueTask SetAsync(ISystemContext context, BaseVariableState? variable, Variant value)
+        {
+            if (variable == null)
+            {
+                return;
+            }
+            variable.WrappedValue = value;
+            await TouchAsync(context, variable).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Writes a typed property and awaits notification of the live property.
+        /// </summary>
+        /// <typeparam name="T">The property's value type.</typeparam>
+        /// <param name="context">The context for the node.</param>
+        /// <param name="property">The property to update.</param>
+        /// <param name="value">The value to publish.</param>
+        public static async ValueTask SetAsync<T>(ISystemContext context, PropertyState<T>? property, T value)
+        {
+            if (property == null)
+            {
+                return;
+            }
+            property.Value = value;
+            await TouchAsync(context, property).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -246,6 +453,29 @@ namespace Opc.Ua.Scales.Server.Runtime
             {
                 property.WrappedValue = Variant.From(new ExtensionObject(units));
                 Touch(context, property);
+            }
+        }
+
+        /// <summary>
+        /// Writes the <c>EngineeringUnits</c> property and awaits its notification.
+        /// </summary>
+        /// <param name="context">The context for the node.</param>
+        /// <param name="variable">The analog variable.</param>
+        /// <param name="units">The engineering units.</param>
+        public static async ValueTask SetUnitsAsync(
+            ISystemContext context,
+            BaseVariableState? variable,
+            EUInformation? units)
+        {
+            if (variable == null || units == null)
+            {
+                return;
+            }
+            if (variable.FindChild(context, new QualifiedName(Ua.BrowseNames.EngineeringUnits))
+                is BaseVariableState property)
+            {
+                property.WrappedValue = Variant.From(new ExtensionObject(units));
+                await TouchAsync(context, property).ConfigureAwait(false);
             }
         }
 

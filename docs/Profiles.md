@@ -40,6 +40,13 @@ describes the supported Devices, Asset Management Basics, Industrial Automation,
 Positioning, ISA-95, WoT, AutoID, PackML, PA-DIM, LADS, Energy Consumption
 Management, Machinery, Robotics, Cranes and Hoists, plastics/rubber, extrusion,
 Machine Vision, weighing, measurement, Pumps and MachineTool families.
+Weighing includes registered catchweigher and price-labeler observations,
+completed hopper fills, piece-count registration and product totals, and opt-in
+recipe condition waits; equipment operation and recipe-file parsing remain
+application responsibilities.
+Scales provides native async service writes for product targets/tolerances,
+recipe condition settings and notification category/ID enums with
+`ValueAsText`. Custom synchronous-only handlers must provide native async behavior.
 Source-generation tooling also implements selected modelling checks relevant
 to OPC 11030.
 
@@ -273,7 +280,7 @@ support gap.
 | [Cranes and Hoists](CranesHoists.md), OPC 40020-1 | Full | Robotics-derived topology, load/protection observations and authorized limit requests; not a motion or safety controller |
 | [Pumps](Pumps.md), OPC 40223 | Full | Fluent builders, typed identity writes, retained identification, DI NE107/limit conditions, event notification, shared raw/aggregate/event history and files; profile advertisement follows configured inherited facets; Table 155's Base dependency uses the Table 153 Pump Base URI while the CAS Base link remains a publication discrepancy; no physical pump executor |
 | [AutoID Devices](AutoID.md), OPC 30010 | Full | Reader hosting, RuntimeParameters/ScanActive, diagnostic formatting, typed clients, RFID/RTLS operations, verifier scans, provider-published image files and application-defined IOData composition. Devices expose configured capabilities; Full Server Facet is available for qualifying readers. Undefined optional RTLS GetUnits is omitted; mandatory unit properties remain available |
-| [Scales](Scales.md), OPC 40200 | Partial | Weighing, zero/tare, products, statistics, recipes and clients; dedicated catchweigher, price-labeler and totalizing-hopper controllers are missing, as is server evaluation of recipe sleep thresholds |
+| [Scales](Scales.md), OPC 40200 | Partial | Weighing, products, registered catchweigher/price-labeler items, completed hopper fills, piece-count registration and opt-in product totals, recipes, PackML, per-vehicle signed/absolute totals, typed clients and opt-in analog/edge waits over registered local sources. Without PackML, recipe starts require explicit application release or an allowing callback. Optional statistics and notification metadata remain incomplete; physical equipment operation remains application-owned |
 | [ISA-95](ISA95.md), OPC 10030 and OPC 10031-4 | Full | Common resources and Job Control V1/V2 server/client interfaces; providers supply execution, catalogues and persistence |
 | [Positioning](Positioning.md), OPC 10000-210/-211 | Full | RSL/GPOS models, spatial lists, model changes, positions, locations, zones and transforms; hardware observations require providers |
 | [Robotics](Robotics.md), OPC 40010-1 | Full | Released motion-device topology and controller/program interfaces; physical motion and safety behavior remain equipment responsibilities |
@@ -930,7 +937,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 40092-1: Flexible PUR Foam - Cutting Machines](https://reference.opcfoundation.org/specs/OPC-40092-1) | 1.0.0 | No | - |
 | [OPC 40100-1: Machine Vision - Control, Configuration, Recipe and Result Management](https://reference.opcfoundation.org/specs/OPC-40100-1) | 1.0 | Full | - |
 | [OPC 40100-2: Machine Vision - Asset Management and Condition Monitoring](https://reference.opcfoundation.org/specs/OPC-40100-2) | 1.00.0 | Full | - |
-| [OPC 40200: Weighing Technology](https://reference.opcfoundation.org/specs/OPC-40200) | 2.00 | Partial | Catchweigher/price-labeler/hopper controllers and server recipe sleep-threshold evaluation missing |
+| [OPC 40200: Weighing Technology](https://reference.opcfoundation.org/specs/OPC-40200) | 2.00 | Partial | Optional statistics and notification metadata remain incomplete |
 | [OPC 40210: Geometric Measurement Systems](https://reference.opcfoundation.org/specs/OPC-40210) | 1.0.1 | Partial | Production facet withheld: required GMS_ProductionStatisticsType undefined upstream |
 | [OPC 40223: Pumps and Vacuum Pumps](https://reference.opcfoundation.org/specs/OPC-40223) | 1.0 | Full | Pump Base and Advanced profiles follow verified configured capabilities; Table 155's dependency uses the Table 153 Pump Base URI, while the CAS Base link remains a publication discrepancy |
 | [OPC 40250-1: Compressed Air Systems - Main Control Systems](https://reference.opcfoundation.org/specs/OPC-40250-1) | 1.00.1 | No | - |
