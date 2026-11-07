@@ -1486,6 +1486,13 @@ response. To decode on arrival, use
 `ManagedSessionOptions.DeferNotificationDecoding` init property. The
 classic subscription engine decodes on arrival.
 
+The decoding happens on the transport, so sessions that share one
+through an `IClientChannelManager` also share this: the bodies are kept
+as bytes as soon as one session on the transport wants that, including
+for a classic session or one that opted out. Those still see every
+notification; to decode on arrival for certain, do not share the
+transport with a session that defers.
+
 ### V2 notification pooling (opt-in)
 
 The V2 subscription engine supports activator-level pooling of

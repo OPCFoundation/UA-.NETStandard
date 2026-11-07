@@ -30,6 +30,7 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
@@ -222,6 +223,51 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
+        [TestCase(true)]
+        [TestCase(false)]
+        public void NestingLimitIsEnforcedLikeTheEagerDecoderDoes(bool defer)
+        {
+            ServiceMessageContext context = CreateContext(defer);
+            context.MaxEncodingNestingLevels = 4;
+            byte[] encoded = Encode(context, new EventNotificationList());
+
+            using var atLimit = new BinaryDecoder(encoded, context);
+            atLimit.InheritDecodingState(null, null, 4);
+            Assert.That(atLimit.ReadExtensionObject(null).TryGetValue(out EventNotificationList? _), Is.True);
+
+            using var beyondLimit = new BinaryDecoder(encoded, context);
+            beyondLimit.InheritDecodingState(null, null, 5);
+            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
+                () => beyondLimit.ReadExtensionObject(null));
+            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
+        public void MalformedBodiesOfOneResponseLogOnce()
+        {
+            var provider = new CountingLoggerProvider();
+            using ILoggerFactory factory = LoggerFactory.Create(b => b.AddProvider(provider));
+            ServiceMessageContext context = ServiceMessageContext.Create(new TestTelemetry(factory));
+            context.DeferNotificationBodies = true;
+            byte[] body = EncodeRaw([0xFF, 0xFF, 0xFF, 0x7F, 1, 2, 3]);
+            byte[] encoded = [.. body, .. body, .. body];
+
+            using (var response = new BinaryDecoder(encoded, context))
+            {
+                for (int i = 0; i < 3; i++)
+                {
+                    Assert.That(response.ReadExtensionObject(null).TryGetValue(out EventNotificationList? _), Is.False);
+                }
+            }
+            Assert.That(provider.Warnings, Is.EqualTo(1));
+
+            using (var next = new BinaryDecoder(body, context))
+            {
+                Assert.That(next.ReadExtensionObject(null).TryGetValue(out EventNotificationList? _), Is.False);
+            }
+            Assert.That(provider.Warnings, Is.EqualTo(2));
+        }
+
         [Test]
         public void ForwardOnlyStreamDecodesEagerly()
         {
@@ -321,6 +367,51 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using var decoder = new BinaryDecoder(encoded, context);
             return decoder.ReadExtensionObject(null);
+        }
+
+        private sealed class TestTelemetry : TelemetryContextBase
+        {
+            public TestTelemetry(ILoggerFactory factory)
+                : base(factory)
+            {
+            }
+        }
+
+        private sealed class CountingLoggerProvider : ILoggerProvider, ILogger
+        {
+            public int Warnings { get; private set; }
+
+            public ILogger CreateLogger(string categoryName)
+            {
+                return this;
+            }
+
+            public IDisposable? BeginScope<TState>(TState state) where TState : notnull
+            {
+                return null;
+            }
+
+            public bool IsEnabled(LogLevel logLevel)
+            {
+                return logLevel == LogLevel.Warning;
+            }
+
+            public void Log<TState>(
+                LogLevel logLevel,
+                EventId eventId,
+                TState state,
+                Exception? exception,
+                Func<TState, Exception?, string> formatter)
+            {
+                if (logLevel == LogLevel.Warning)
+                {
+                    Warnings++;
+                }
+            }
+
+            public void Dispose()
+            {
+            }
         }
 
         private sealed class ForwardOnlyStream : MemoryStream

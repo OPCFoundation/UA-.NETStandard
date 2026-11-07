@@ -1900,10 +1900,9 @@ namespace Opc.Ua.Client
 
                     // The V2 engine dispatches from its own queues and drops each body
                     // afterwards, which is what deferred decoding needs to pay off.
-                    if (session.SubscriptionEngine is DefaultSubscriptionEngine &&
-                        session.MessageContext is ServiceMessageContext messageContext)
+                    if (session.SubscriptionEngine is DefaultSubscriptionEngine)
                     {
-                        messageContext.DeferNotificationBodies = m_deferNotificationDecoding;
+                        session.DeferNotificationBodies = m_deferNotificationDecoding;
                     }
 
                     // Apply opt-in V2 transfer-on-recreate. The V2 engine

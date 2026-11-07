@@ -29,6 +29,7 @@
 
 using System;
 using System.Buffers;
+using System.Runtime.CompilerServices;
 using System.Threading;
 
 namespace Opc.Ua
@@ -42,7 +43,9 @@ namespace Opc.Ua
     internal sealed class DeferredExtensionObjectBody
     {
         /// <summary>
-        /// Create the body. It owns the rented buffer.
+        /// Create the body. It owns the rented buffer. The bodies of one response share
+        /// <paramref name="failureLogged"/>, so that a response full of malformed bodies
+        /// logs once, as the eager decoder does.
         /// </summary>
         public DeferredExtensionObjectBody(
             ExpandedNodeId typeId,
@@ -50,7 +53,8 @@ namespace Opc.Ua
             int length,
             IEncodeableType activator,
             IServiceMessageContext context,
-            uint nestingLevel)
+            uint nestingLevel,
+            StrongBox<int> failureLogged)
         {
             m_typeId = typeId;
             m_buffer = buffer;
@@ -58,6 +62,7 @@ namespace Opc.Ua
             m_activator = activator;
             m_context = context;
             m_nestingLevel = nestingLevel;
+            m_failureLogged = failureLogged;
         }
 
         /// <summary>
@@ -158,11 +163,14 @@ namespace Opc.Ua
                 errorMessage = ex.Message;
                 exception = ex;
             }
-            m_context.Telemetry.CreateLogger<DeferredExtensionObjectBody>().DecodeEncodeableRecovered(
-                exception,
-                errorMessage,
-                m_activator.XmlName,
-                m_typeId);
+            if (Interlocked.Exchange(ref m_failureLogged.Value, 1) == 0)
+            {
+                m_context.Telemetry.CreateLogger<DeferredExtensionObjectBody>().DecodeEncodeableRecovered(
+                    exception,
+                    errorMessage,
+                    m_activator.XmlName,
+                    m_typeId);
+            }
             return ByteString.From(buffer.AsSpan(0, m_length).ToArray());
         }
 
@@ -174,6 +182,7 @@ namespace Opc.Ua
         private readonly IEncodeableType m_activator;
         private readonly IServiceMessageContext m_context;
         private readonly uint m_nestingLevel;
+        private readonly StrongBox<int> m_failureLogged;
         private byte[]? m_buffer;
         private object? m_value;
         private bool m_resolved;

@@ -563,6 +563,84 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// A body that failed to decode costs only itself: the valid payloads of its message
+        /// are projected in order.
+        /// </summary>
+        [Test]
+        public void WholeMessageProjectionSkipsMalformedDeferredBody()
+        {
+            NotificationMessage mixed = CreateMixedMessage();
+            var message = new NotificationMessage
+            {
+                SequenceNumber = 3,
+                PublishTime = DateTime.UtcNow,
+                NotificationData =
+                [
+                    mixed.NotificationData[0],
+                    DecodeMalformedDeferred(),
+                    mixed.NotificationData[1],
+                    mixed.NotificationData[2]
+                ]
+            };
+
+            SubscriptionNotificationMessage projected = NotificationMessageDispatch.CreateClassic(message, default);
+
+            Assert.That(projected.Notifications.Count, Is.EqualTo(3));
+            Assert.That(projected.Notifications[0].DataChanges[0].ClientHandle, Is.EqualTo(11));
+            Assert.That(projected.Notifications[1].Events[0].ClientHandle, Is.EqualTo(12));
+            Assert.That(projected.Notifications[2].Status, Is.EqualTo(StatusCodes.Good));
+        }
+
+        /// <summary>
+        /// The valid payloads next to a malformed body reach a whole-message handler, and the
+        /// message is acknowledged.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task WholeMessageHandlerReceivesValidPayloadsNextToMalformedBodyAsync(CancellationToken ct)
+        {
+            var received = new List<SubscriptionNotificationMessage>();
+            Mock<ISubscriptionNotificationMessageHandler> messages =
+                m_mockNotificationDataHandler.As<ISubscriptionNotificationMessageHandler>();
+            messages.Setup(value => value.OnNotificationMessageAsync(
+                    It.IsAny<SubscriptionNotificationMessage>(), It.IsAny<CancellationToken>()))
+                .Returns((SubscriptionNotificationMessage message, CancellationToken _) =>
+                {
+                    received.Add(message);
+                    return default;
+                });
+            await using var subscription = new TestSubscription(
+                m_session, m_mockNotificationDataHandler.Object, m_completion, m_options, m_telemetry, 7);
+
+            var message = new NotificationMessage
+            {
+                SequenceNumber = 3,
+                PublishTime = DateTime.UtcNow,
+                NotificationData =
+                [
+                    DecodeMalformedDeferred(),
+                    new ExtensionObject(new StatusChangeNotification { Status = StatusCodes.Good })
+                ]
+            };
+            await subscription.OnPublishReceivedAsync(message, [3], []).ConfigureAwait(false);
+            await m_completion.WaitForQueuedAckAsync(1).WaitAsync(ct).ConfigureAwait(false);
+
+            Assert.That(received, Has.Count.EqualTo(1));
+            Assert.That(received[0].Notifications.Count, Is.EqualTo(1));
+            Assert.That(received[0].Notifications[0].Status, Is.EqualTo(StatusCodes.Good));
+        }
+
+        private ExtensionObject DecodeMalformedDeferred()
+        {
+            ServiceMessageContext context = ServiceMessageContext.Create(m_telemetry);
+            context.DeferNotificationBodies = true;
+            // an EventNotificationList (i=916) with a binary body of an impossible array length.
+            byte[] encoded = [1, 0, 0x94, 0x03, 1, 7, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0x7F, 1, 2, 3];
+            using var decoder = new BinaryDecoder(encoded, context);
+            return decoder.ReadExtensionObject(null);
+        }
+
+        /// <summary>
         /// Unknown payloads cannot masquerade as a successfully projected complete message.
         /// </summary>
         [Test]
