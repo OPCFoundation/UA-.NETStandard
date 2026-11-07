@@ -295,6 +295,60 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         /// <summary>
+        /// Explicit node ownership survives staging, publication, route removal and registry disposal.
+        /// </summary>
+        [Test]
+        public void ExplicitNodeOwnershipSurvivesCandidateLifecycle(
+            [Values("Abort", "Publish", "PublishedRegistration")] string lifecycle,
+            [Values] bool unregister,
+            [Values] bool ownsProvider)
+        {
+            var namespaceTable = new NamespaceTable();
+            using var serving = new HistorianProviderRegistry(namespaceTable);
+            using var candidate =
+                new StagedHistorianProviderRegistry(namespaceTable, serving, new object());
+            var provider = new TrackingProvider();
+            var nodeId = new NodeId("explicit-ownership", 0);
+            IHistorianProviderRegistry registry = candidate;
+            if (lifecycle == "PublishedRegistration")
+            {
+                candidate.Publish();
+            }
+
+            registry.RegisterForNode(nodeId, provider, ownsProvider);
+
+            Assert.That(candidate.Resolve(nodeId), Is.SameAs(provider));
+            if (lifecycle == "PublishedRegistration")
+            {
+                Assert.That(serving.Resolve(nodeId), Is.SameAs(provider));
+            }
+            else
+            {
+                Assert.That(serving.Resolve(nodeId), Is.Null);
+            }
+            if (lifecycle == "Publish")
+            {
+                candidate.Publish();
+                Assert.That(serving.Resolve(nodeId), Is.SameAs(provider));
+            }
+            if (unregister)
+            {
+                Assert.That(candidate.UnregisterForNode(nodeId), Is.True);
+                Assert.That(candidate.Resolve(nodeId), Is.Null);
+                Assert.That(serving.Resolve(nodeId), Is.Null);
+            }
+
+            candidate.Dispose();
+            Assert.That(serving.Resolve(nodeId), Is.Null);
+            serving.Dispose();
+            Assert.That(provider.DisposeCount, Is.EqualTo(ownsProvider ? 1 : 0));
+            if (!ownsProvider)
+            {
+                provider.Dispose();
+            }
+        }
+
+        /// <summary>
         /// Fluent historization borrows a direct serving default without creating staged state.
         /// </summary>
         [Test]

@@ -451,6 +451,15 @@ only that node with `NotSupportedException` before changing attributes or captur
 Configure that binding directly or provide the replacement capability.
 Registries without scoped bindings retain the existing explicit-provider behavior.
 
+Ordinary registration transfers provider disposal responsibility to the registry,
+even if the route is later removed. To retain application or DI ownership, use
+`registry.RegisterForNode(myNodeId, archive, ownsProvider: false)`. This extension
+uses the optional `IHistorianProviderOwnershipRegistry` capability implemented by
+`HistorianProviderRegistry`; custom registries without that capability reject
+borrowed registration with `NotSupportedException`. Owning registration remains
+available on existing custom implementations. A borrowed registration does not
+revoke ownership acquired by an earlier owning registration of the same provider.
+
 ### Provider resolution order
 
 For every `HistoryRead` / `HistoryUpdate` operation the dispatcher resolves the provider in this order:

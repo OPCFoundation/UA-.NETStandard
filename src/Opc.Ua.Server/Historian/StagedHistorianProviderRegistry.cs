@@ -37,7 +37,7 @@ namespace Opc.Ua.Server.Historian
     /// Stages candidate historian registrations and retains serving bindings during replacement readiness.
     /// </summary>
     internal sealed class StagedHistorianProviderRegistry :
-        IHistorianProviderRegistry, IHistorianNodeBindingRegistry, IHistorianNodeReplacementRegistry, IDisposable
+        IHistorianProviderOwnershipRegistry, IHistorianNodeBindingRegistry, IHistorianNodeReplacementRegistry, IDisposable
     {
         /// <summary>
         /// Creates a candidate registry layered over the current serving registry.
@@ -71,13 +71,19 @@ namespace Opc.Ua.Server.Historian
         /// <inheritdoc/>
         public void RegisterForNode(NodeId nodeId, IHistorianProvider provider)
         {
+            RegisterForNode(nodeId, provider, ownsProvider: true);
+        }
+
+        /// <inheritdoc/>
+        public void RegisterForNode(NodeId nodeId, IHistorianProvider provider, bool ownsProvider)
+        {
             lock (m_lock)
             {
                 EnsureMutable();
                 EnsureOwnerSupportForMutation();
                 RemoveRetainedNodeBinding(nodeId);
                 m_candidateRegistry.RegisterForNode(
-                    nodeId, provider, OwnsProviderForCandidate(provider), rejectDuplicate: !m_published);
+                    nodeId, provider, ownsProvider && OwnsProviderForCandidate(provider), rejectDuplicate: !m_published);
                 UpdateServingRegistrations();
             }
         }

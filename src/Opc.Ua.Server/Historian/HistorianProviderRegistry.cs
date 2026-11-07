@@ -126,7 +126,7 @@ namespace Opc.Ua.Server.Historian
     /// <see cref="IHistorianRegistryProvider"/> interface.
     /// </summary>
     public sealed class HistorianProviderRegistry :
-        IHistorianProviderRegistry,
+        IHistorianProviderOwnershipRegistry,
         IHistorianNodeBindingRegistry,
         IHistorianNodeReplacementRegistry,
         IHistorianOwnedProviderRegistry,
@@ -144,6 +144,12 @@ namespace Opc.Ua.Server.Historian
         public void RegisterForNode(NodeId nodeId, IHistorianProvider provider)
         {
             RegisterForNode(nodeId, provider, ownsProvider: true);
+        }
+
+        /// <inheritdoc/>
+        public void RegisterForNode(NodeId nodeId, IHistorianProvider provider, bool ownsProvider)
+        {
+            RegisterForNode(nodeId, provider, ownsProvider, rejectDuplicate: false);
         }
 
         /// <summary>
