@@ -542,7 +542,12 @@ namespace Opc.Ua
                 {
                     utf8StringLength--;
                 }
-                return Encoding.UTF8.GetString(bytes[..utf8StringLength]);
+
+                // short strings repeat across the values of a message (event source names,
+                // messages, locales, string node ids): reuse the instance decoded last.
+                return utf8StringLength <= DecodedStringCache.MaxUtf8Length
+                    ? DecodedStringCache.GetOrAdd(bytes[..utf8StringLength])
+                    : Encoding.UTF8.GetString(bytes[..utf8StringLength]);
             }
             finally
             {
@@ -1109,6 +1114,18 @@ namespace Opc.Ua
             // Allow a length of -1 to support legacy devices that don't fill the length correctly
             int length = SafeReadInt32();
 
+            // A notification body is only needed when it is dispatched: keep the bytes
+            // flat until then, so that messages waiting for dispatch cost the GC nothing.
+            // A forward-only stream cannot tell that the length is available up front.
+            if (activator != null &&
+                length > 0 &&
+                DeferredExtensionObjectBody.IsDeferred(Context, typeId) &&
+                m_namespaceMappings == null &&
+                m_serverMappings == null &&
+                (m_hasBuffer || BaseStream.CanSeek))
+            {
+                return ReadDeferredExtensionObject(extension.TypeId, activator, length);
+            }
             if (!m_hasBuffer && !BaseStream.CanSeek)
             {
                 if (length < 0)
@@ -1154,6 +1171,50 @@ namespace Opc.Ua
             }
 
             return ReadBinaryExtensionObject(typeId, extension, activator, length);
+        }
+
+        /// <summary>
+        /// Copies a body that is decoded on first use into a rented buffer.
+        /// </summary>
+        private ExtensionObject ReadDeferredExtensionObject(
+            ExpandedNodeId typeId,
+            IEncodeableType activator,
+            int length)
+        {
+            // the eager path enforces the limit when it starts on the body, and a body
+            // without nested structures would never reach another check.
+            CheckNestingLevel();
+
+            // never rent a length the input cannot satisfy.
+            CheckRemainingBytes(length, nameof(ReadExtensionObject));
+            if (Context.MaxMessageSize > 0 && Context.MaxMessageSize < length)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxMessageSize exceeded in ExtensionObject: {0} < {1}",
+                    Context.MaxMessageSize,
+                    length);
+            }
+            byte[] buffer = DeferredExtensionObjectBody.Rent(length);
+            try
+            {
+                ReadRawBytes(buffer.AsSpan(0, length));
+            }
+            catch
+            {
+                DeferredExtensionObjectBody.Return(buffer);
+                throw;
+            }
+            return new ExtensionObject(
+                typeId,
+                new DeferredExtensionObjectBody(
+                    typeId,
+                    buffer,
+                    length,
+                    activator,
+                    Context,
+                    m_nestingLevel + 1,
+                    m_deferredBodyFailureLogged ??= new StrongBox<int>()));
         }
 
         /// <summary>
@@ -3185,6 +3246,17 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private void CheckAndIncrementNestingLevel()
         {
+            CheckNestingLevel();
+            EncodingLimits.EnsureSufficientStack();
+            m_nestingLevel++;
+        }
+
+        /// <summary>
+        /// Test the nesting level.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void CheckNestingLevel()
+        {
             if (m_nestingLevel > Context.MaxEncodingNestingLevels)
             {
                 throw ServiceResultException.Create(
@@ -3192,8 +3264,6 @@ namespace Opc.Ua
                     "Maximum nesting level of {0} was exceeded",
                     Context.MaxEncodingNestingLevels);
             }
-            EncodingLimits.EnsureSufficientStack();
-            m_nestingLevel++;
         }
 
         /// <summary>
@@ -3258,6 +3328,7 @@ namespace Opc.Ua
         // when none is. See TryReadRemainingBodyBytes.
         private int m_bodyEnd = -1;
         private uint m_encodeablesRecovered;
+        private StrongBox<int>? m_deferredBodyFailureLogged;
 
         // The most bytes allocated up front for an array read element by
         // element, see ReadArrayElements. Below the large object heap limit.

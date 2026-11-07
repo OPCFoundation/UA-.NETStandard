@@ -1575,6 +1575,14 @@ namespace Opc.Ua.Client.Subscriptions
                     Id);
             }
 
+            // A message that waited in the queue is in an older generation by now: left
+            // alone, it would keep what was just decoded alive until that generation is
+            // collected, although nothing can reach the message any more.
+            for (int i = 0; i < message.NotificationData.Count; i++)
+            {
+                message.NotificationData[i].ReleaseDeferredBody();
+            }
+
             // Acknowledge even when a handler threw. The acknowledgement only
             // tells the server it may drop the message from its retransmission
             // queue (Part 4 §5.14.5.2); it is not a claim that the client

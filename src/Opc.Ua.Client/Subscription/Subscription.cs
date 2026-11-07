@@ -1010,18 +1010,23 @@ namespace Opc.Ua.Client.Subscriptions
             DateTime publishTime, DataChangeNotification notification,
             PublishState publishStateMask, IReadOnlyList<string> stringTable)
         {
+            // read once: the projection is rented only when the payload is recycled too.
+            bool pooled = PoolNotifications;
+            ReadOnlyMemory<DataValueChange> changes = default;
             try
             {
                 var acknowledgement = new AcknowledgementHandle(
                     GetAcknowledgementScope(MessageGeneration), sequenceNumber);
+                changes = m_monitoredItems.CreateNotification(notification, acknowledgement, pooled);
                 await m_handler.OnDataChangeNotificationAsync(this, sequenceNumber,
-                    publishTime, m_monitoredItems.CreateNotification(notification, acknowledgement),
+                    publishTime, changes,
                     publishStateMask, stringTable).ConfigureAwait(false);
             }
             finally
             {
-                if (PoolNotifications)
+                if (pooled)
                 {
+                    MonitoredItemManager.ReturnNotification(changes);
                     ReuseDataChangeNotification(notification);
                 }
             }
@@ -1032,18 +1037,23 @@ namespace Opc.Ua.Client.Subscriptions
             DateTime publishTime, EventNotificationList notification,
             PublishState publishStateMask, IReadOnlyList<string> stringTable)
         {
+            // read once: the projection is rented only when the payload is recycled too.
+            bool pooled = PoolNotifications;
+            ReadOnlyMemory<EventNotification> events = default;
             try
             {
                 var acknowledgement = new AcknowledgementHandle(
                     GetAcknowledgementScope(MessageGeneration), sequenceNumber);
+                events = m_monitoredItems.CreateNotification(notification, acknowledgement, pooled);
                 await m_handler.OnEventDataNotificationAsync(this, sequenceNumber,
-                    publishTime, m_monitoredItems.CreateNotification(notification, acknowledgement),
+                    publishTime, events,
                     publishStateMask, stringTable).ConfigureAwait(false);
             }
             finally
             {
-                if (PoolNotifications)
+                if (pooled)
                 {
+                    MonitoredItemManager.ReturnNotification(events);
                     ReuseEventNotificationList(notification);
                 }
             }
