@@ -207,6 +207,36 @@ namespace Opc.Ua.AutoID.Tests
             Assert.That(copy.ScanResult!.Value[0].IsEqual(rfidScan.ScanResult.Value[0]), Is.True);
         }
 
+        /// <summary>
+        /// Generated verifier metadata follows the published method table without changing standard identities.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void VerifierScanMetadataUsesPublishedResultType(bool reverseNamespaces)
+        {
+            SystemContext context = AutoIdTestContext.CreateSystemContext(reverseNamespaces: reverseNamespaces);
+            var roots = new NodeStateCollection();
+            roots.AddAutoIdTypeSystem(context);
+            Dictionary<NodeId, NodeState> nodes = AutoIdTestContext.IndexNodes(context, roots);
+            var methodId = NodeId.Create(7054u, AutoIdModel.NamespaceUri, context.NamespaceUris);
+            var argumentsId = NodeId.Create(6076u, AutoIdModel.NamespaceUri, context.NamespaceUris);
+            var arguments = (PropertyState<ArrayOf<Argument>>)nodes[argumentsId];
+            Assert.Multiple(() =>
+            {
+                Assert.That(nodes[methodId], Is.InstanceOf<MethodState>());
+                Assert.That(((MethodState)nodes[methodId]).OutputArguments, Is.SameAs(arguments));
+                Assert.That(arguments.Value, Has.Count.EqualTo(2));
+                Assert.That(arguments.Value[0].Name, Is.EqualTo("Results"));
+                Assert.That(arguments.Value[0].DataType,
+                    Is.EqualTo(NodeId.Create(3030u, AutoIdModel.NamespaceUri, context.NamespaceUris)));
+                Assert.That(arguments.Value[0].ValueRank, Is.EqualTo(ValueRanks.OneDimension));
+                Assert.That(arguments.Value[1].Name, Is.EqualTo("Status"));
+                Assert.That(arguments.Value[1].DataType,
+                    Is.EqualTo(NodeId.Create(3013u, AutoIdModel.NamespaceUri, context.NamespaceUris)));
+                Assert.That(arguments.Value[1].ValueRank, Is.EqualTo(ValueRanks.Scalar));
+            });
+        }
+
         private static void AssertSingleResultChild(
             SystemContext context,
             BaseEventState parent,
