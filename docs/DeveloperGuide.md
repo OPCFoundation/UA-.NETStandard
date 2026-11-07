@@ -230,18 +230,21 @@ you need to exercise:
 | `StripedCounterTests` | Balanced entries and cross-thread exits |
 | `NodeManagerRegistrationTests` | Registration metadata and namespace copying |
 | `NodeManagerLifecycleCompatibilityTests` | Convenience-adapter retry, prepared-owner cleanup and retirement status |
+| `GenerationReconcilerTests` | Session binding, reconciliation retries and result ownership |
+| `NodeManagerCallbackPermitTests` | Callback capabilities and execution-context revocation |
 | `NodeManagerLifecycleBatchConflictTests` | Shared type-image conflicts and candidate historian binding cleanup |
 | `NodeManagerLifecycleChangeSetCleanupTests` | Failed and stale commits, candidate disposal and actual writer drain |
 | `NodeManagerLifecycleTests` | Hosted publication, concurrent candidate claims and startup behavior |
 
-The first seven fixtures run without starting a server. The conflict and cleanup
-fixtures use the real lifecycle and master routing publisher over constructed
-server internals. Use `NodeManagerLifecycleTests` when the behavior needs hosted
-requests, runtime consumers or server startup. To run the component selection:
+Every listed fixture except `NodeManagerLifecycleTests` runs without starting a
+server. The conflict and cleanup fixtures use the real lifecycle and master
+routing publisher over constructed server internals. Use `NodeManagerLifecycleTests`
+when the behavior needs hosted requests, runtime consumers or server startup.
+To run the component selection:
 
 ```powershell
-dotnet test tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj -f net10.0 -p:CustomTestTarget=net10.0 --filter "FullyQualifiedName~ChangePreparerTests|FullyQualifiedName~NodeManagerGenerationTests|FullyQualifiedName~StripedCounterTests|FullyQualifiedName~NodeManagerRegistrationTests|FullyQualifiedName~NodeManagerLifecycleCompatibilityTests|FullyQualifiedName~NodeManagerLifecycleBatchConflictTests|FullyQualifiedName~NodeManagerLifecycleChangeSetCleanupTests"
-dotnet test tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj -f net48 -p:CustomTestTarget=net48 --filter "FullyQualifiedName~ChangePreparerTests|FullyQualifiedName~NodeManagerGenerationTests|FullyQualifiedName~StripedCounterTests|FullyQualifiedName~NodeManagerRegistrationTests|FullyQualifiedName~NodeManagerLifecycleCompatibilityTests|FullyQualifiedName~NodeManagerLifecycleBatchConflictTests|FullyQualifiedName~NodeManagerLifecycleChangeSetCleanupTests"
+dotnet test tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj -f net10.0 -p:CustomTestTarget=net10.0 --filter "FullyQualifiedName~ChangePreparerTests|FullyQualifiedName~NodeManagerGenerationTests|FullyQualifiedName~StripedCounterTests|FullyQualifiedName~NodeManagerRegistrationTests|FullyQualifiedName~NodeManagerLifecycleCompatibilityTests|FullyQualifiedName~GenerationReconcilerTests|FullyQualifiedName~NodeManagerCallbackPermitTests|FullyQualifiedName~NodeManagerLifecycleBatchConflictTests|FullyQualifiedName~NodeManagerLifecycleChangeSetCleanupTests"
+dotnet test tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj -f net48 -p:CustomTestTarget=net48 --filter "FullyQualifiedName~ChangePreparerTests|FullyQualifiedName~NodeManagerGenerationTests|FullyQualifiedName~StripedCounterTests|FullyQualifiedName~NodeManagerRegistrationTests|FullyQualifiedName~NodeManagerLifecycleCompatibilityTests|FullyQualifiedName~GenerationReconcilerTests|FullyQualifiedName~NodeManagerCallbackPermitTests|FullyQualifiedName~NodeManagerLifecycleBatchConflictTests|FullyQualifiedName~NodeManagerLifecycleChangeSetCleanupTests"
 ```
 
 Use fully qualified fixture or method names to select a narrower regression.
