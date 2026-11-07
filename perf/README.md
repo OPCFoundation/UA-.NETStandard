@@ -7,7 +7,7 @@ part of the product build (not in `UA.slnx`) and target `net10.0` only.
 |---|---|
 | `ServerLoadHarness/` | Starts a reference server in a child process and drives load against it from the parent process, which is also the measured client. |
 | `TraceAnalyzer/` | Aggregates the `dotnet-trace` files the harness records (CPU, allocations, lock contention, garbage collections). |
-| `ab.sh`, `ab-summary.ps1` | Paired A/B runs of two harness builds, and the median summary. |
+| `ab.sh`, `ab-summary.ps1` | Paired A/B runs of two harness builds, with per-round results and a median and range summary. |
 | `variants.sh`, `variants-summary.ps1` | Paired runs of one build under several configurations (GC mode, affinity), and the median and range summary. |
 | `benchmarks/` | The variant and scenario files of the published tables in [docs/Benchmarks.md](../docs/Benchmarks.md#reproducing-the-results). |
 | `server-scenarios.txt`, `client-scenarios.txt` | The scenario lists used for the server and client comparisons. |
@@ -320,17 +320,29 @@ client), `ROUNDS` the rounds per scenario and `OUT` the result file:
 git worktree add --detach C:/uabase origin/master
 cp -r perf C:/uabase/ && (cd C:/uabase && CustomTestTarget=net10.0 dotnet build perf/ServerLoadHarness -c Release)
 cd perf && BASELINE=C:/uabase/perf/ServerLoadHarness/bin/Release/net10.0/ServerLoadHarness.exe SCENARIOS=client-scenarios.txt ROUNDS=5 ./ab.sh
-pwsh -File ab-summary.ps1
+pwsh -File ab-summary.ps1 -ExpectedRounds 5
 ```
 
-The summary prints medians as
-`baseline -> candidate (change)`: throughput, latency percentiles, client allocated bytes and CPU
-per operation (`calloc`, `ccpu`), GC pause and lock contention in the window (`cpause`,
-`ccont`), and the same for the server (`alloc`, `cpu`, `pause`, `cont`). It prints medians
-only; take the ranges from the result blocks in `ab-results.txt`.
+The summary prints the `RESULT` line, received and expected counts, delivery, rate and server CPU
+per operation for each side of every round, followed by their paired differences. Delivery is
+calculated from the counts when available; `reported-rounded` identifies an older result that
+contains only the rounded percentage. The delivery comparison is marked if either side uses that
+rounded input. A zero expected count has no delivery percentage. The comparison also prints the
+median and range as `baseline -> candidate (change)` for throughput,
+delivery, latency percentiles, client allocated bytes and CPU per operation (`calloc`, `ccpu`),
+GC pause and lock contention (`cpause`, `ccont`), and the same server metrics (`alloc`, `cpu`,
+`pause`, `cont`). Use the counts, not a displayed percentage, when checking a delivery threshold.
 
-`ab.sh` does not detect competing processes or record source and harness SHAs. Record the
-identities and check for competing load separately; discard contaminated rounds.
+`-ExpectedRounds 5` requires five paired rounds for each scenario present in the file. The script
+rejects incomplete or duplicate blocks, mismatched `RESULT` lines or units, and missing rounds.
+Compare the scenarios in the file with the requested scenario list: the summary cannot detect an
+entirely omitted scenario. CPU milliseconds and CPU per operation are rounded in the result block,
+so differences smaller than that precision cannot establish whether CPU per notification increased.
+
+`ab.sh` does not record process exit statuses, detect competing processes or record source and
+harness SHAs. A complete-looking result block and `done` marker do not prove that a run succeeded.
+For comparisons that require exit evidence, use a runner that records each harness exit code.
+Record the identities and check for competing load separately; discard contaminated rounds.
 
 ## Configuration comparison
 
@@ -435,7 +447,7 @@ these count fields.
 |---|---|---|
 | Result file | `run --out <file>` | `RESULT` blocks, one per run |
 | `ab-results.txt` | `ab.sh` (`OUT`) | `### side=<A/B> round=<n> <scenario>` headers with the result blocks |
-| Summary | `ab-summary.ps1` | medians per scenario, `baseline -> candidate (change)` |
+| Summary | `ab-summary.ps1` | paired results and differences, plus medians and ranges per scenario |
 | `variants-results.txt` | `variants.sh` (`OUT`) | `### variant=<name> round=<n> <scenario>` headers with the result blocks; `<OUT>.discarded` lists the repeated runs |
 | Variant summary | `variants-summary.ps1` | median and range per scenario and variant |
 | `.nettrace` | `run --trace <file>` | `dotnet-trace` recording of the measurement window, input of `TraceAnalyzer` |
