@@ -926,7 +926,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 40092-1: Flexible PUR Foam - Cutting Machines](https://reference.opcfoundation.org/specs/OPC-40092-1) | 1.0.0 | No | - |
 | [OPC 40100-1: Machine Vision - Control, Configuration, Recipe and Result Management](https://reference.opcfoundation.org/specs/OPC-40100-1) | 1.0 | Full | - |
 | [OPC 40100-2: Machine Vision - Asset Management and Condition Monitoring](https://reference.opcfoundation.org/specs/OPC-40100-2) | 1.00.0 | Full | - |
-| [OPC 40200: Weighing Technology](https://reference.opcfoundation.org/specs/OPC-40200) | 2.00 | Partial | Recipe starts require PackML readiness, an allowing callback or explicit application release. Vehicle totals support per-vehicle signed/absolute aggregation; piece-count registrations can update configured product totals. Optional statistics and notification metadata remain incomplete |
+| [OPC 40200: Weighing Technology](https://reference.opcfoundation.org/specs/OPC-40200) | 2.00 | Partial | Optional statistics and notification metadata remain incomplete |
 | [OPC 40210: Geometric Measurement Systems](https://reference.opcfoundation.org/specs/OPC-40210) | 1.0.1 | Partial | Production facet withheld: required GMS_ProductionStatisticsType undefined upstream |
 | [OPC 40223: Pumps and Vacuum Pumps](https://reference.opcfoundation.org/specs/OPC-40223) | 1.0 | Partial | Writable identification not retained; pump alarms, event notification and history missing |
 | [OPC 40250-1: Compressed Air Systems - Main Control Systems](https://reference.opcfoundation.org/specs/OPC-40250-1) | 1.00.1 | No | - |
