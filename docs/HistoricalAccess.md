@@ -391,6 +391,15 @@ if (server is IHistorianRegistryProvider registryProvider)
 
 The interface lives next to the historian types in `Opc.Ua.Server.Historian` so that mocks of `IServerInternal` don't need to implement it; production servers built on `ServerInternalData` always satisfy the check.
 
+Ordinary registration transfers provider disposal responsibility to the registry,
+even if the route is later removed. To retain application or DI ownership, use
+`registry.RegisterForNode(myNodeId, archive, ownsProvider: false)`. This extension
+uses the optional `IHistorianProviderOwnershipRegistry` capability implemented by
+`HistorianProviderRegistry`; custom registries without that capability reject
+borrowed registration with `NotSupportedException`. Owning registration remains
+available on existing custom implementations. A borrowed registration does not
+revoke ownership acquired by an earlier owning registration of the same provider.
+
 ### Provider resolution order
 
 For every `HistoryRead` / `HistoryUpdate` operation the dispatcher resolves the provider in this order:
