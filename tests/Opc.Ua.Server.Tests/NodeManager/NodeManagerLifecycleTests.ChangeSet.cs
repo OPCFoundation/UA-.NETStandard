@@ -839,34 +839,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// The explicit factory adapter preserves namespaces and refuses canceled creation before the sync factory.
-        /// </summary>
-        [Test]
-        public async Task SlotChangeSetAsAsyncPreservesFactoryAndCancellationAsync()
-        {
-            var factory = new Mock<INodeManagerFactory>();
-            factory.SetupGet(value => value.NamespacesUris).Returns([kModelNamespaceUri]);
-            var manager = new Mock<INodeManager>();
-            factory.Setup(value => value.Create(It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>()))
-                .Returns(manager.Object);
-            IAsyncNodeManagerFactory adapted = factory.Object.AsAsync();
-            Assert.That(adapted.NamespacesUris[0], Is.EqualTo(kModelNamespaceUri));
-            var configuration = new ApplicationConfiguration();
-            IAsyncNodeManager created = await adapted.CreateAsync(m_server.CurrentInstance, configuration)
-                .ConfigureAwait(false);
-            Assert.That(created, Is.InstanceOf<AsyncNodeManagerAdapter>());
-            Assert.That(((AsyncNodeManagerAdapter)created).SyncNodeManager, Is.SameAs(manager.Object));
-            using var cancellation = new CancellationTokenSource();
-            await cancellation.CancelAsync().ConfigureAwait(false);
-            await Assert.ThatAsync(async () => await adapted.CreateAsync(
-                m_server.CurrentInstance, configuration, cancellation.Token).ConfigureAwait(false),
-                Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
-            factory.Verify(value => value.Create(It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>()),
-                Times.Once);
-            Assert.That(() => ((INodeManagerFactory)null!).AsAsync(), Throws.ArgumentNullException);
-        }
-
-        /// <summary>
         /// Commit and reconciliation complete while admitted work keeps physical retirement pending.
         /// </summary>
         [Test]

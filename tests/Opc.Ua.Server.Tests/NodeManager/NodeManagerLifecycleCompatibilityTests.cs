@@ -353,6 +353,39 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// The explicit factory adapter preserves namespaces and refuses canceled creation before the sync factory.
+        /// </summary>
+        [Test]
+        [SetCulture("en-us")]
+        [SetUICulture("en-us")]
+        public async Task SlotChangeSetAsAsyncPreservesFactoryAndCancellationAsync()
+        {
+            const string NamespaceUri = "urn:opcfoundation.org:Tests:NodeManagerLifecycle";
+            var factory = new Mock<INodeManagerFactory>();
+            factory.SetupGet(value => value.NamespacesUris).Returns([NamespaceUri]);
+            var manager = new Mock<INodeManager>();
+            factory.Setup(value => value.Create(It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>()))
+                .Returns(manager.Object);
+            IAsyncNodeManagerFactory adapted = factory.Object.AsAsync();
+            Assert.That(adapted.NamespacesUris[0], Is.EqualTo(NamespaceUri));
+            var server = new Mock<IServerInternal>();
+            var configuration = new ApplicationConfiguration();
+            IAsyncNodeManager created = await adapted.CreateAsync(server.Object, configuration)
+                .ConfigureAwait(false);
+            Assert.That(created, Is.InstanceOf<AsyncNodeManagerAdapter>());
+            Assert.That(((AsyncNodeManagerAdapter)created).SyncNodeManager, Is.SameAs(manager.Object));
+            using var cancellation = new CancellationTokenSource();
+            await cancellation.CancelAsync().ConfigureAwait(false);
+            await Assert.ThatAsync(async () => await adapted.CreateAsync(
+                server.Object, configuration, cancellation.Token).ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+            factory.Verify(value => value.Create(It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>()),
+                Times.Once);
+            factory.Verify(value => value.Create(server.Object, configuration), Times.Once);
+            Assert.That(() => ((INodeManagerFactory)null!).AsAsync(), Throws.ArgumentNullException);
+        }
+
+        /// <summary>
         /// Asserts that adapter construction and its single cleanup attempt both remain observable.
         /// </summary>
         /// <param name="observed">The exception returned by the adapter.</param>
