@@ -371,6 +371,13 @@ function Format-Result($row)
         "writeErrors=$(Format-Number $row.writeErrors) exit=$(Format-Number $row.exitCode)"
 }
 
+function Compare-CpuRatios($leftNumerator, $leftDenominator, $rightNumerator, $rightDenominator)
+{
+    $leftProduct = [System.Numerics.BigInteger]$leftNumerator * [System.Numerics.BigInteger]$rightDenominator
+    $rightProduct = [System.Numerics.BigInteger]$rightNumerator * [System.Numerics.BigInteger]$leftDenominator
+    return $leftProduct.CompareTo($rightProduct)
+}
+
 function Get-CpuDirection($a, $b)
 {
     if ($a.cpuSource -cne 'ticks/counts' -or $b.cpuSource -cne 'ticks/counts')
@@ -378,11 +385,55 @@ function Get-CpuDirection($a, $b)
         return 'unavailable'
     }
 
-    $difference = (
-        [System.Numerics.BigInteger]$b.serverCpuTicks * [System.Numerics.BigInteger]$a.received
-    ) - (
-        [System.Numerics.BigInteger]$a.serverCpuTicks * [System.Numerics.BigInteger]$b.received
-    )
+    $difference = Compare-CpuRatios $b.serverCpuTicks $b.received $a.serverCpuTicks $a.received
+    if ($difference -gt 0) { return 'increased' }
+    if ($difference -lt 0) { return 'decreased' }
+    return 'unchanged'
+}
+
+function Get-RawCpuMedian($values)
+{
+    $sorted = [System.Collections.Generic.List[object]]::new()
+    foreach ($row in $values)
+    {
+        if ($row.cpuSource -cne 'ticks/counts') { return $null }
+        $sorted.Add($row)
+    }
+    if ($sorted.Count -eq 0) { return $null }
+
+    $comparison = [System.Comparison[object]]{
+        param($left, $right)
+        return (Compare-CpuRatios $left.serverCpuTicks $left.received $right.serverCpuTicks $right.received)
+    }
+    $sorted.Sort($comparison)
+    $middle = [int][Math]::Floor($sorted.Count / 2)
+    $upper = $sorted[$middle]
+    if ($sorted.Count % 2 -ne 0)
+    {
+        return [pscustomobject]@{
+            numerator = [System.Numerics.BigInteger]$upper.serverCpuTicks
+            denominator = [System.Numerics.BigInteger]$upper.received
+        }
+    }
+
+    $lower = $sorted[$middle - 1]
+    return [pscustomobject]@{
+        numerator = ([System.Numerics.BigInteger]$lower.serverCpuTicks *
+                [System.Numerics.BigInteger]$upper.received) +
+            ([System.Numerics.BigInteger]$upper.serverCpuTicks *
+                [System.Numerics.BigInteger]$lower.received)
+        denominator = [System.Numerics.BigInteger]2 * [System.Numerics.BigInteger]$lower.received *
+            [System.Numerics.BigInteger]$upper.received
+    }
+}
+
+function Get-CpuMedianDirection($a, $b)
+{
+    $left = Get-RawCpuMedian $a
+    $right = Get-RawCpuMedian $b
+    if ($null -eq $left -or $null -eq $right) { return 'unavailable' }
+
+    $difference = Compare-CpuRatios $right.numerator $right.denominator $left.numerator $left.denominator
     if ($difference -gt 0) { return 'increased' }
     if ($difference -lt 0) { return 'decreased' }
     return 'unchanged'
@@ -419,6 +470,7 @@ foreach ($group in $groups)
     $hasRoundedDelivery = @($group.Group | Where-Object { $_.deliverySource -eq 'reported-rounded' }).Count -gt 0
     $hasReportedCpu = @($group.Group | Where-Object { $_.cpuSource -eq 'reported-per-op' }).Count -gt 0
     $summary = [ordered]@{ scenario = $group.Name; n = "$($a.Count)/$($b.Count)" }
+    $summary['serverCpuMedianDirection'] = Get-CpuMedianDirection $a $b
     foreach ($metric in 'tput', 'deliv', 'p50', 'p90', 'p99', 'calloc', 'ccpu',
         'cpause', 'ccont', 'alloc', 'cpu', 'pause', 'cont')
     {

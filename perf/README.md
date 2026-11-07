@@ -349,12 +349,13 @@ divides server ticks by the received notification count and labels the result
 remains visible even when the displayed difference rounds to zero.
 
 The displayed CPU differences, medians and ranges are rounded to eight decimal places.
-`serverCpuDirection` describes one pair, not the change in median across rounds. Use the raw
-tick/count ratios when checking a CPU limit, and account for counter resolution and measurement
-noise. Older blocks and other workloads use the reported per-operation CPU; comparisons containing
-those values are marked `reported-per-op input`. `-RequireRawCpu` rejects blocks without a usable
-tick/count ratio, including zero received counts and scenarios other than `sub` and `events`.
-Use it only when every result is a `sub` or `events` run.
+`serverCpuMedianDirection` compares the two sides' median raw tick/count ratios, averaging the two
+middle ratios for an even number of rounds. It reports `unavailable` if any round lacks a usable
+ratio. A direction alone does not establish an acceptance verdict; also consider each pair, the
+counter resolution and measurement noise. Older blocks and other workloads use the reported
+per-operation CPU; comparisons containing those values are marked `reported-per-op input`.
+`-RequireRawCpu` rejects blocks without a usable tick/count ratio, including zero received counts
+and scenarios other than `sub` and `events`. Use it only when every result is a `sub` or `events` run.
 
 `variants-summary.ps1` does not report raw ticks and rounds displayed CPU values to two decimal
 places, or to whole numbers at 100 and above. `ab.sh` does not detect competing processes or

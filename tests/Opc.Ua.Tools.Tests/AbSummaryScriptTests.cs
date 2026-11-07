@@ -291,6 +291,218 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
+        /// Median direction remains visible when five displayed CPU values round to the same number.
+        /// </summary>
+        [TestCase(999999999999L, "decreased", "sub", "notif", "notification")]
+        [TestCase(1000000000000L, "unchanged", "sub", "notif", "notification")]
+        [TestCase(1000000000001L, "increased", "sub", "notif", "notification")]
+        [TestCase(999999999999L, "decreased", "events", "events", "event notification")]
+        [TestCase(1000000000000L, "unchanged", "events", "events", "event notification")]
+        [TestCase(1000000000001L, "increased", "events", "events", "event notification")]
+        public async Task RawCpuMedianDirectionUsesUnroundedRatiosAsync(
+            long candidateTicks,
+            string direction,
+            string scenario,
+            string rateUnit,
+            string cpuUnit)
+        {
+            const long count = 1000000000000;
+            var input = new StringBuilder();
+            for (int round = 1; round <= 5; round++)
+            {
+                AppendResult(
+                    input, "A", round, count, count, 1000, 0.1m,
+                    scenario: scenario, rateUnit: rateUnit, cpuUnit: cpuUnit, serverCpuTicks: count);
+                AppendResult(
+                    input, "B", round, count, count, 1100, 0.1m,
+                    scenario: scenario, rateUnit: rateUnit, cpuUnit: cpuUnit, serverCpuTicks: candidateTicks);
+            }
+            await WriteResultsAsync(input).ConfigureAwait(false);
+
+            (int exitCode, string output) = await InvokeAsync(5, requireRawCpu: true).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exitCode, Is.Zero, output);
+                Assert.That(
+                    output,
+                    Does.Match(@"(?m)^\s*cpu\s*:\s*0\.1 \[0\.1-0\.1\] -> 0\.1 \[0\.1-0\.1\] \(change=-?0%\)"));
+                Assert.That(output, Does.Match($@"(?m)^\s*serverCpuMedianDirection\s*:\s*{direction}\s*$"));
+            });
+        }
+
+        /// <summary>
+        /// Median ordering uses exact ratios even when decimal arithmetic cannot distinguish them.
+        /// </summary>
+        [Test]
+        public async Task RawCpuMedianOrdersLargeNearEqualRatiosAsync()
+        {
+            long maximum = long.MaxValue;
+            long[] baselineTicks = [maximum - 2, maximum - 1, maximum];
+            long[] baselineCounts = [maximum - 3, maximum - 2, maximum];
+            long[] candidateTicks = [maximum - 2, maximum - 2, maximum];
+            long[] candidateCounts = [maximum - 3, maximum - 3, maximum];
+            var input = new StringBuilder();
+            for (int index = 0; index < baselineTicks.Length; index++)
+            {
+                AppendResult(
+                    input, "A", index + 1, baselineCounts[index], baselineCounts[index], 1000, 0.1m,
+                    serverCpuTicks: baselineTicks[index]);
+                AppendResult(
+                    input, "B", index + 1, candidateCounts[index], candidateCounts[index], 1100, 0.1m,
+                    serverCpuTicks: candidateTicks[index]);
+            }
+            await WriteResultsAsync(input).ConfigureAwait(false);
+
+            (int exitCode, string output) = await InvokeAsync(3, requireRawCpu: true).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exitCode, Is.Zero, output);
+                Assert.That(output, Does.Match(@"(?m)^\s*serverCpuMedianDirection\s*:\s*increased\s*$"));
+            });
+        }
+
+        /// <summary>
+        /// An even-sized median averages the two middle ratios before comparing sides.
+        /// </summary>
+        [Test]
+        public async Task RawCpuMedianAveragesEvenRoundsBeforeComparingAsync()
+        {
+            var input = new StringBuilder();
+            AppendResult(input, "A", 1, 1, 1, 1000, 1, serverCpuTicks: 10);
+            AppendResult(input, "B", 1, 1, 1, 1100, 2, serverCpuTicks: 20);
+            AppendResult(input, "A", 2, 1, 1, 1000, 3, serverCpuTicks: 30);
+            AppendResult(input, "B", 2, 1, 1, 1100, 2, serverCpuTicks: 20);
+            await WriteResultsAsync(input).ConfigureAwait(false);
+
+            (int exitCode, string output) = await InvokeAsync(2, requireRawCpu: true).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exitCode, Is.Zero, output);
+                Assert.That(output, Does.Match(@"(?m)^\s*cpu\s*:\s*2 \[1-3\] -> 2 \[2-2\]"));
+                Assert.That(output, Does.Match(@"(?m)^\s*serverCpuMedianDirection\s*:\s*unchanged\s*$"));
+            });
+        }
+
+        /// <summary>
+        /// Comparing even-sized medians preserves differences smaller than decimal precision.
+        /// </summary>
+        [Test]
+        public async Task RawCpuMedianComparesLargeEvenRatiosExactlyAsync()
+        {
+            long maximum = long.MaxValue;
+            var input = new StringBuilder();
+            AppendResult(input, "A", 1, maximum - 2, maximum - 2, 1000, 0.1m, serverCpuTicks: maximum - 1);
+            AppendResult(input, "B", 1, maximum - 2, maximum - 2, 1100, 0.1m, serverCpuTicks: maximum - 1);
+            AppendResult(input, "A", 2, maximum - 3, maximum - 3, 1000, 0.1m, serverCpuTicks: maximum - 2);
+            AppendResult(input, "B", 2, maximum - 2, maximum - 2, 1100, 0.1m, serverCpuTicks: maximum - 1);
+            await WriteResultsAsync(input).ConfigureAwait(false);
+
+            (int exitCode, string output) = await InvokeAsync(2, requireRawCpu: true).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exitCode, Is.Zero, output);
+                Assert.That(output, Does.Match(@"(?m)^\s*serverCpuMedianDirection\s*:\s*decreased\s*$"));
+            });
+        }
+
+        /// <summary>
+        /// Zero and differently scaled equal ratios retain their comparison direction.
+        /// </summary>
+        [TestCase(0L, 0L, 100L, 100L, "unchanged")]
+        [TestCase(0L, 1L, 100L, 100L, "increased")]
+        [TestCase(10L, 20L, 10L, 20L, "unchanged")]
+        public async Task RawCpuMedianComparesZeroAndEquivalentRatiosAsync(
+            long baselineTicks,
+            long candidateTicks,
+            long baselineCount,
+            long candidateCount,
+            string direction)
+        {
+            var input = new StringBuilder();
+            AppendResult(
+                input, "A", 1, baselineCount, baselineCount, 1000, 0, serverCpuTicks: baselineTicks);
+            AppendResult(
+                input, "B", 1, candidateCount, candidateCount, 1100, 0, serverCpuTicks: candidateTicks);
+            await WriteResultsAsync(input).ConfigureAwait(false);
+
+            (int exitCode, string output) = await InvokeAsync(1, requireRawCpu: true).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exitCode, Is.Zero, output);
+                Assert.That(output, Does.Match($@"(?m)^\s*serverCpuMedianDirection\s*:\s*{direction}\s*$"));
+            });
+        }
+
+        /// <summary>
+        /// Comparing side medians is distinct from taking the median of paired differences.
+        /// </summary>
+        [Test]
+        public async Task RawCpuMedianDirectionComparesSideMediansAsync()
+        {
+            long[] baselineTicks = [10, 1000, 1010];
+            long[] candidateTicks = [20, 30, 1020];
+            var input = new StringBuilder();
+            for (int index = 0; index < baselineTicks.Length; index++)
+            {
+                AppendResult(input, "A", index + 1, 1, 1, 1000, 0, serverCpuTicks: baselineTicks[index]);
+                AppendResult(input, "B", index + 1, 1, 1, 1100, 0, serverCpuTicks: candidateTicks[index]);
+            }
+            await WriteResultsAsync(input).ConfigureAwait(false);
+
+            (int exitCode, string output) = await InvokeAsync(3, requireRawCpu: true).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exitCode, Is.Zero, output);
+                Assert.That(output, Does.Match(@"(?m)^round=1 side=B-A .*serverCpuDirection=increased\r?$"));
+                Assert.That(output, Does.Match(@"(?m)^round=2 side=B-A .*serverCpuDirection=decreased\r?$"));
+                Assert.That(output, Does.Match(@"(?m)^round=3 side=B-A .*serverCpuDirection=increased\r?$"));
+                Assert.That(output, Does.Match(@"(?m)^\s*serverCpuMedianDirection\s*:\s*decreased\s*$"));
+                Assert.That(output, Does.Match(@"(?m)^\s*cpu\s*:\s*100 \[1-101\] -> 3 \[2-102\]"));
+            });
+        }
+
+        /// <summary>
+        /// Every round needs a usable raw ratio to compare the medians.
+        /// </summary>
+        [TestCase("A", false)]
+        [TestCase("A", true)]
+        [TestCase("B", false)]
+        [TestCase("B", true)]
+        public async Task RawCpuMedianDirectionIsUnavailableWhenARoundLacksRawCpuAsync(
+            string missingSide,
+            bool zeroReceived)
+        {
+            var input = new StringBuilder();
+            for (int round = 1; round <= 3; round++)
+            {
+                bool baselineMissing = round == 2 && missingSide == "A";
+                bool candidateMissing = round == 2 && missingSide == "B";
+                long baselineReceived = baselineMissing && zeroReceived ? 0 : 100;
+                long candidateReceived = candidateMissing && zeroReceived ? 0 : 100;
+                long? baselineTicks = baselineMissing && !zeroReceived ? null : 3000;
+                long? candidateTicks = candidateMissing && !zeroReceived ? null : 3000;
+                AppendResult(input, "A", round, baselineReceived, 100, 1000, 3, serverCpuTicks: baselineTicks);
+                AppendResult(input, "B", round, candidateReceived, 100, 1100, 2, serverCpuTicks: candidateTicks);
+            }
+            await WriteResultsAsync(input).ConfigureAwait(false);
+
+            (int exitCode, string output) = await InvokeAsync(3).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exitCode, Is.Zero, output);
+                Assert.That(output, Does.Match(@"(?m)^\s*serverCpuMedianDirection\s*:\s*unavailable\s*$"));
+                Assert.That(output, Does.Contain("[reported-per-op input]"));
+            });
+        }
+
+        /// <summary>
         /// Requiring raw CPU rejects a side that only has a rounded per-operation value.
         /// </summary>
         [Test]
