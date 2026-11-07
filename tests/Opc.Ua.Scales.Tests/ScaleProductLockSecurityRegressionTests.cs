@@ -314,7 +314,7 @@ namespace Opc.Ua.Scales.Tests
                 AccessLevel = AccessLevels.CurrentReadOrWrite | AccessLevels.StatusWrite | AccessLevels.TimestampWrite,
                 UserAccessLevel = AccessLevels.CurrentReadOrWrite |
                     AccessLevels.StatusWrite | AccessLevels.TimestampWrite,
-                Value = Variant.From(new double[] { 1.0, 2.0, 3.0 }),
+                Value = Variant.From((double[])s_initialArray.Clone()),
                 StatusCode = StatusCodes.Good
             };
             product.AddChild(variable);

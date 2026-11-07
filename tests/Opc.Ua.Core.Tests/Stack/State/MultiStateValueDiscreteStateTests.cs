@@ -276,6 +276,18 @@ namespace Opc.Ua.Core.Tests.Stack.State
             node.OnSimpleWriteValueAsync = lateHook;
             await node.ClearChangeMasksAsync(m_context, false).ConfigureAwait(false);
 
+            int changeNotifications = 0;
+            NodeStateChangeMasks notifiedChangeMasks = NodeStateChangeMasks.None;
+            node.OnStateChangedAsync = (_, changedNode, changeMasks, _) =>
+            {
+                if (ReferenceEquals(changedNode, node))
+                {
+                    changeNotifications++;
+                    notifiedChangeMasks = changeMasks;
+                }
+                return default;
+            };
+
             ServiceResult result = await node.WriteAttributeAsync(
                 m_context,
                 Attributes.Value,
@@ -295,11 +307,14 @@ namespace Opc.Ua.Core.Tests.Stack.State
                     Assert.That(node.ValueAsText!.Value.Text, Is.EqualTo(expectedText));
                     Assert.That(node.StatusCode, Is.EqualTo(StatusCodes.Good));
                     Assert.That(node.Timestamp, Is.EqualTo(requestedTimestamp));
-                    Assert.That(node.ChangeMasks & NodeStateChangeMasks.Value,
+                    Assert.That(changeNotifications, Is.EqualTo(1));
+                    Assert.That(notifiedChangeMasks & NodeStateChangeMasks.Value,
                         Is.EqualTo(NodeStateChangeMasks.Value));
+                    Assert.That(node.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
                 }
                 else
                 {
+                    Assert.That(changeNotifications, Is.Zero);
                     Assert.That(node.WrappedValue, Is.EqualTo(Variant.From(0u)));
                     Assert.That(node.ValueAsText!.Value.Text, Is.EqualTo("initial"));
                     Assert.That(node.StatusCode, Is.EqualTo(StatusCodes.Uncertain));
