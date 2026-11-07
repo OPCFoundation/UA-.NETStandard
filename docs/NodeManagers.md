@@ -317,7 +317,15 @@ The core manager owns and imports built-in nodes that other server components ne
 
 ### Diagnostics and configuration node manager
 
-The default configuration and diagnostics manager is a single object. `MainNodeManagerFactory.CreateConfigurationNodeManager` creates a `ConfigurationNodeManager`; `ConfigurationNodeManager` derives from `DiagnosticsNodeManager` and implements `IConfigurationNodeManager`. `ServerInternalData.SetNodeManager` assigns `DiagnosticsNodeManager`, `ConfigurationNodeManager`, and `CoreNodeManager` from the master node manager, and the master exposes both diagnostics and configuration properties from index 0 of its manager list. In the default server, therefore, `ServerInternal.DiagnosticsNodeManager` and `ServerInternal.ConfigurationNodeManager` refer to the same `ConfigurationNodeManager` instance through different interfaces.
+The default configuration and diagnostics manager is a single object.
+`MainNodeManagerFactory.CreateConfigurationNodeManager` creates a
+`ConfigurationNodeManager`, which derives from `DiagnosticsNodeManager` and
+implements `IConfigurationNodeManager`. The master's diagnostics and
+configuration accessors resolve the current configuration system slot.
+During server binding, `ServerInternalData.SetNodeManager` stores those
+accessors' current values and the current core manager. With the default
+factory, the stored diagnostics and configuration references identify the
+same `ConfigurationNodeManager` through different interfaces.
 
 As a diagnostics manager, it loads the standard diagnostics and server-support nodes generated for the stack, manages session and subscription diagnostics, diagnostics enable/disable state, aggregate functions, event notifier updates, and the well-known OPC UA Part 17 alias-name methods that dispatch through the server-wide alias-name registry. It registers namespace URIs for the OPC UA namespace and the diagnostics namespace.
 

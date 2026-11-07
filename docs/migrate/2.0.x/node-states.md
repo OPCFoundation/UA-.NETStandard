@@ -1,6 +1,6 @@
 # Node States and INodeCache
 
-> **When to read this:** Read this when migrating custom NodeManagers, their interfaces and service or transfer overrides, `NodeState` clone / read / write helpers (`Clone` -> `CreateCopy`, removed `BaseVariableState` helpers), the new `INodeManager3` role-permission hooks, `OnAfterCreate(CancellationToken)`, predefined-node processing, generics on `BaseVariableState` / `BaseVariableTypeState`, code that took `lock (node)` on a `NodeState` or used `NodeBrowser.DataLock`, or `INodeCache.InvalidateNode`.
+> **When to read this:** Read this when migrating custom NodeManagers, core / diagnostics / configuration manager interfaces, service or transfer overrides, synchronous adapters, `NodeState` clone / read / write helpers (`Clone` -> `CreateCopy`, removed `BaseVariableState` helpers), the new `INodeManager3` role-permission hooks, `OnAfterCreate(CancellationToken)`, predefined-node processing, generics on `BaseVariableState` / `BaseVariableTypeState`, code that took `lock (node)` on a `NodeState` or used `NodeBrowser.DataLock`, or `INodeCache.InvalidateNode`.
 
 ## Contents
 
@@ -347,6 +347,64 @@ The old protected signatures are not present in the current implementation.
 An override with an old signature will not compile against it. Update the
 override and any base calls, then rebuild the subclass. Compatibility with
 previously compiled 1.5.378 subclasses has not been qualified.
+
+#### Core, diagnostics and configuration managers
+
+`ICoreNodeManager`, `IDiagnosticsNodeManager`, and
+`IConfigurationNodeManager` now extend `IAsyncNodeManager`. Direct
+implementations must provide its async service members as well as the
+specialized interface members. Several synchronous methods from 1.5.378 have
+async replacements:
+
+| Interface | 1.5.378 method | Current method |
+| --- | --- | --- |
+| `ICoreNodeManager` | `ImportNodes` | `ImportNodesAsync` |
+| `IConfigurationNodeManager` | `CreateNamespaceMetadataState` | `CreateNamespaceMetadataStateAsync` |
+| `IConfigurationNodeManager` | `GetNamespaceMetadataState` | `GetNamespaceMetadataStateAsync` |
+| `IDiagnosticsNodeManager` | `AddAggregateFunction`, `AddModellingRule` | Append `Async` |
+| `IDiagnosticsNodeManager` | `CreateServerDiagnostics`, `CreateSessionDiagnostics` | Append `Async` |
+| `IDiagnosticsNodeManager` | `CreateSubscriptionDiagnostics` | Append `Async` |
+| `IDiagnosticsNodeManager` | `DeleteSessionDiagnostics`, `DeleteSubscriptionDiagnostics` | Append `Async` |
+| `IDiagnosticsNodeManager` | `GetDefaultHistoryCapabilities`, `SetDiagnosticsEnabled` | Append `Async` |
+| `IDiagnosticsNodeManager` | `UpdateServerEventNotifier` | Append `Async` |
+
+These replacements return `ValueTask` or `ValueTask<T>` and accept an optional
+`CancellationToken`. Await them and propagate cancellation through your async
+call chain. `GetNamespaceMetadataStateAsync` can return null when no metadata
+node is found. The interfaces also declare new members, including
+`PublishConformanceUnitsAsync` on `IDiagnosticsNodeManager` and
+`DefaultPermissionsChanged` and `DrainPendingApplyChangesAsync` on
+`IConfigurationNodeManager`; review the interface definitions when updating a
+direct implementation.
+
+The three `IMasterNodeManager` properties also return interfaces rather than
+the concrete manager classes:
+
+| Property | Current return type |
+| --- | --- |
+| `CoreNodeManager` | `ICoreNodeManager?` |
+| `DiagnosticsNodeManager` | `IDiagnosticsNodeManager?` |
+| `ConfigurationNodeManager` | `IConfigurationNodeManager?` |
+
+Use the interface members and handle null. The default master resolves these
+properties from the current system slots; a property returns null when its
+slot is withdrawn or its current manager does not implement that role.
+
+`DiagnosticsNodeManager` now derives from `AsyncCustomNodeManager` rather
+than `CustomNodeManager2`; `CoreNodeManager` also derives from
+`AsyncCustomNodeManager`. Review overrides in subclasses against the current
+base classes. For example, the former virtual
+`DiagnosticsNodeManager.UpdateServerEventNotifier` is now
+`UpdateServerEventNotifierAsync(CancellationToken)`.
+
+#### Synchronous adapter return type
+
+`ToSyncNodeManager` now returns `INodeManager` rather than `INodeManager2`.
+If the supplied async manager already implements `INodeManager`, the factory
+returns it unchanged; that instance might not implement `INodeManager2`.
+Code that needs the extended interface must check the returned instance and
+handle a manager that does not provide it. Compatibility with previously
+compiled 1.5.378 callers and providers has not been qualified.
 
 ### INodeManager3 - new role-permission and method-resolution hooks
 
