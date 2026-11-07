@@ -110,6 +110,10 @@ through the ECM provider binding. The Machinery energy builder keeps metering
 points inside the Consumption hierarchy and applies the same published
 MeasurementID and EngineeringUnits identities to standardized ECM browse names.
 
+[Standalone PA-DIM hosting](PADIM.md) uses the same PA-DIM/IRDI model assembly
+with the DI owner, without loading Machinery. It does not replace the Machinery
+process-value builder or its simulation and zero-point event behavior.
+
 The model reference graph:
 
 ```mermaid

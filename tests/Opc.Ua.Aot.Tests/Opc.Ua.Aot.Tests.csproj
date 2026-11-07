@@ -69,6 +69,8 @@
     <ProjectReference Include="..\..\src\Opc.Ua.Positioning\Opc.Ua.Positioning.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Positioning.Client\Opc.Ua.Positioning.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Positioning.Server\Opc.Ua.Positioning.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.PADIM.Server\Opc.Ua.PADIM.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.PADIM.Client\Opc.Ua.PADIM.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Robotics\Opc.Ua.Robotics.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Robotics.Client\Opc.Ua.Robotics.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Robotics.Server\Opc.Ua.Robotics.Server.csproj" />

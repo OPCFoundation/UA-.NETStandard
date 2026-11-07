@@ -8610,6 +8610,34 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Decodes a generated XML initializer using its source namespace table.
+        /// </summary>
+        /// <remarks>
+        /// This initialization API is used by generated code. Namespace indexes in the XML
+        /// are mapped to the runtime context before values are assigned to node states.
+        /// </remarks>
+        public static Variant FromXml(Stream istrm, ISystemContext context, NamespaceTable namespaceUris)
+        {
+            if (istrm == null)
+            {
+                throw new ArgumentNullException(nameof(istrm));
+            }
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (namespaceUris == null)
+            {
+                throw new ArgumentNullException(nameof(namespaceUris));
+            }
+            using var reader = XmlReader.Create(istrm, CoreUtils.DefaultXmlReaderSettings());
+            using var decoder = new XmlDecoder(reader, context.AsMessageContext());
+            _ = context.NamespaceUris.CreateMapping(namespaceUris, updateTable: true);
+            decoder.SetMappingTables(namespaceUris, null);
+            return decoder.ReadVariantValue();
+        }
+
+        /// <summary>
         /// Lifts all elements contained in this variant into individual variants
         /// with the same type info. If the variant is scalar returns only the
         /// variant.

@@ -27,11 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Opc.Ua.Client.AliasNames;
 using Opc.Ua.Client.FileSystem;
 using Opc.Ua.Client.Historian;
+using Opc.Ua.Client.Network;
 using Opc.Ua.Client.Roles;
 
 namespace Opc.Ua.Client.Tests.ClientBuilder
@@ -87,6 +89,39 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
 
             using ServiceProvider sp = services.BuildServiceProvider();
             Assert.That(sp.GetService<RoleManagementClientFactory>(), Is.Not.Null);
+        }
+
+        /// <summary>
+        /// Rejects null root and client builders.
+        /// </summary>
+        [Test]
+        public void AddNetworkModelClientRejectsNullBuilders()
+        {
+            Assert.That(
+                () => ((IOpcUaBuilder)null!).AddNetworkModelClient(),
+                Throws.ArgumentNullException);
+            Assert.That(
+                () => ((IOpcUaClientBuilder)null!).AddNetworkModelClient(),
+                Throws.ArgumentNullException);
+        }
+
+        /// <summary>
+        /// Preserves the fluent builder and registers one container-owned client factory.
+        /// </summary>
+        [Test]
+        public void AddNetworkModelClientRegistersOneFactoryAndPreservesTheBuilder()
+        {
+            var services = new ServiceCollection();
+            IOpcUaClientBuilder builder = services.AddOpcUa().AddClient(_ => { });
+
+            IOpcUaClientBuilder returned = builder.AddNetworkModelClient();
+            builder.AddNetworkModelClient();
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+            NetworkModelClientFactory factory = sp.GetRequiredService<NetworkModelClientFactory>();
+            Assert.That(returned, Is.SameAs(builder));
+            Assert.That(sp.GetServices<NetworkModelClientFactory>().Count(), Is.EqualTo(1));
+            Assert.That(factory, Is.SameAs(sp.GetRequiredService<NetworkModelClientFactory>()));
         }
 
         [Test]

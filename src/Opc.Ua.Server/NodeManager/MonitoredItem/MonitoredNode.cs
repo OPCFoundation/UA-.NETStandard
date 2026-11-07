@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Channels;
@@ -166,7 +167,36 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets the current list of data change MonitoredItems.
         /// </summary>
-        public ConcurrentDictionary<uint, IDataChangeMonitoredItem2> DataChangeMonitoredItems { get; } = new();
+        /// <remarks>
+        /// Whoever holds the dictionary can change it without <see cref="Add(IDataChangeMonitoredItem2)"/>
+        /// or <see cref="Remove(IDataChangeMonitoredItem2)"/>, so after the first access every change copies
+        /// the items instead of sharing the cached array.
+        /// </remarks>
+        public ConcurrentDictionary<uint, IDataChangeMonitoredItem2> DataChangeMonitoredItems
+        {
+            get
+            {
+                if (!Volatile.Read(ref m_dataChangeItemsExposed))
+                {
+                    // Under the rebuild lock, so a rebuild in progress cannot publish the cache again
+                    // and keep items alive that are removed through the dictionary.
+                    lock (m_rebindLock)
+                    {
+                        Volatile.Write(ref m_dataChangeItemsExposed, true);
+                        m_dataChangeItems = null;
+                    }
+                }
+                return m_dataChangeMonitoredItems;
+            }
+        }
+
+        /// <summary>
+        /// Gets a data change item without exposing the dictionary.
+        /// </summary>
+        internal bool TryGetDataChangeItem(uint id, [NotNullWhen(true)] out IDataChangeMonitoredItem2? item)
+        {
+            return m_dataChangeMonitoredItems.TryGetValue(id, out item);
+        }
 
         /// <summary>
         /// Gets the current list of event MonitoredItems.
@@ -183,7 +213,7 @@ namespace Opc.Ua.Server
         {
             get
             {
-                if (DataChangeMonitoredItems != null && !DataChangeMonitoredItems.IsEmpty)
+                if (m_dataChangeMonitoredItems != null && !m_dataChangeMonitoredItems.IsEmpty)
                 {
                     return true;
                 }
@@ -211,7 +241,8 @@ namespace Opc.Ua.Server
                     throw new ObjectDisposedException(nameof(MonitoredNode2));
                 }
                 bool wasEmpty = !HasMonitoredItems;
-                DataChangeMonitoredItems.TryAdd(datachangeItem.Id, datachangeItem);
+                m_dataChangeMonitoredItems.TryAdd(datachangeItem.Id, datachangeItem);
+                m_dataChangeItems = null;
 
                 Node.OnStateChangedAsync = OnMonitoredNodeChangedAsync;
 
@@ -231,13 +262,14 @@ namespace Opc.Ua.Server
         {
             lock (m_rebindLock)
             {
-                if (DataChangeMonitoredItems.TryRemove(datachangeItem.Id, out _))
+                if (m_dataChangeMonitoredItems.TryRemove(datachangeItem.Id, out _))
                 {
+                    m_dataChangeItems = null;
                     Interlocked.Increment(ref m_permissionGeneration);
                     m_permissionCache.TryRemove(datachangeItem.Id, out _);
                 }
 
-                if (DataChangeMonitoredItems.IsEmpty)
+                if (m_dataChangeMonitoredItems.IsEmpty)
                 {
                     Node.OnStateChangedAsync = null;
 
@@ -268,7 +300,7 @@ namespace Opc.Ua.Server
                 if (m_disposed ||
                     m_draining ||
                     !ReferenceEquals(source, Node) ||
-                    !DataChangeMonitoredItems.TryGetValue(item.Id, out IDataChangeMonitoredItem2? current) ||
+                    !m_dataChangeMonitoredItems.TryGetValue(item.Id, out IDataChangeMonitoredItem2? current) ||
                     !ReferenceEquals(current, item))
                 {
                     return false;
@@ -326,7 +358,7 @@ namespace Opc.Ua.Server
                 if (EventMonitoredItems.IsEmpty)
                 {
                     Node.OnReportEventAsync = null;
-                    if (DataChangeMonitoredItems.IsEmpty)
+                    if (m_dataChangeMonitoredItems.IsEmpty)
                     {
                         m_server.ConfigurationNodeManager?.DefaultPermissionsChanged -= OnDefaultPermissionsChanged;
                     }
@@ -373,7 +405,7 @@ namespace Opc.Ua.Server
                 Node = node;
                 InvalidatePermissionCaches();
 
-                if (!DataChangeMonitoredItems.IsEmpty)
+                if (!m_dataChangeMonitoredItems.IsEmpty)
                 {
                     Node.OnStateChangedAsync = OnMonitoredNodeChangedAsync;
                 }
@@ -500,9 +532,9 @@ namespace Opc.Ua.Server
                 if (Generation?.TryGetGeneration(out NodeManagerGeneration? generation) == true &&
                     generation?.Gate.State == NodeManagerGenerationState.Live)
                 {
-                    foreach (IDataChangeMonitoredItem2 monitoredItem in
-                        DataChangeMonitoredItems.Values)
+                    foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> kvp in GetDataChangeItems())
                     {
+                        IDataChangeMonitoredItem2 monitoredItem = kvp.Value;
                         if (IsInCurrentGeneration(monitoredItem) &&
                             monitoredItem is IMonitoredItemGenerationBinding binding)
                         {
@@ -521,7 +553,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            if (DataChangeMonitoredItems == null || DataChangeMonitoredItems.IsEmpty)
+            if (m_dataChangeMonitoredItems == null || m_dataChangeMonitoredItems.IsEmpty)
             {
                 return;
             }
@@ -532,57 +564,34 @@ namespace Opc.Ua.Server
                 {
                     return;
                 }
-                // A collection expression races the dictionary's Count against CopyTo during concurrent registration.
-                KeyValuePair<uint, IDataChangeMonitoredItem2>[] monitoredItems = DataChangeMonitoredItems.ToArray();
-                // Collect the distinct attribute IDs being monitored so we can pre-read them.
-                // The raw value is read once without any index range or data encoding; each
-                // monitored item applies its own range/encoding in ProcessDataChangeSnapshotAsync.
-                var attributeIds = new HashSet<uint>();
-                foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> kvp in monitoredItems)
+                DataChangeItemSet itemSet = GetDataChangeItemSet();
+                KeyValuePair<uint, IDataChangeMonitoredItem2>[] monitoredItems = itemSet.Items;
+                // Read each monitored attribute once, without any index range or data encoding;
+                // each monitored item applies its own range/encoding in ProcessDataChangeSnapshotAsync.
+                // The Value attribute has its own slot, so a value change allocates no lookup.
+                bool hasValue = false;
+                DataValue reportedValue = default;
+                if (itemSet.ReadsValue && (changes & NodeStateChangeMasks.Value) != 0)
                 {
-                    IDataChangeMonitoredItem2 item = kvp.Value;
-                    if (item is MonitoredItem { UsesExternalValueSource: true })
-                    {
-                        continue;
-                    }
-                    bool isValueAttribute = item.AttributeId == Attributes.Value;
-                    if (isValueAttribute && (changes & NodeStateChangeMasks.Value) == 0)
-                    {
-                        continue;
-                    }
-                    if (!isValueAttribute && (changes & NodeStateChangeMasks.NonValue) == 0)
-                    {
-                        continue;
-                    }
-                    attributeIds.Add(item.AttributeId);
+                    reportedValue = await ReadSnapshotAttributeAsync(
+                        context, node, Attributes.Value, cancellationToken).ConfigureAwait(false);
+                    hasValue = true;
                 }
 
-                var attributeSnapshots = new Dictionary<uint, DataValue>(attributeIds.Count);
-
-                foreach (uint attributeId in attributeIds)
+                Dictionary<uint, DataValue>? attributeSnapshots = null;
+                if (itemSet.NonValueAttributeIds.Length != 0 && (changes & NodeStateChangeMasks.NonValue) != 0)
                 {
-                    var dataValue = new DataValue(
-                        default,
-                        StatusCodes.Good,
-                        DateTime.MinValue,
-                        m_timeProvider.GetUtcNow().UtcDateTime);
-
-                    // Read at enqueue time via the async entry point: ReadAttributeAsync honors an
-                    // asynchronous value read handler (OnReadValueAsync) when one is registered and
-                    // otherwise completes synchronously. The value is therefore materialised for this
-                    // change before it is enqueued (strict enqueue-time snapshot) without blocking.
-                    (_, attributeSnapshots[attributeId]) = await node.ReadAttributeAsync(
-                        context,
-                        attributeId,
-                        default,
-                        QualifiedName.Null,
-                        dataValue,
-                        cancellationToken).ConfigureAwait(false);
+                    attributeSnapshots = new Dictionary<uint, DataValue>(itemSet.NonValueAttributeIds.Length);
+                    foreach (uint attributeId in itemSet.NonValueAttributeIds)
+                    {
+                        attributeSnapshots[attributeId] = await ReadSnapshotAttributeAsync(
+                            context, node, attributeId, cancellationToken).ConfigureAwait(false);
+                    }
                 }
 
                 Dictionary<uint, (DataValue Value, ISession? Session, IUserIdentity? Identity)>?
                     subscriberValueSnapshots = null;
-                if (attributeSnapshots.TryGetValue(Attributes.Value, out DataValue reportedValue) &&
+                if (hasValue &&
                     reportedValue.StatusCode == StatusCodes.BadUserAccessDenied &&
                     node is BaseVariableState variable &&
                     (variable.OnReadUserAccessLevel is not null ||
@@ -624,16 +633,16 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                var notification = new DataChangeSnapshot
-                {
-                    Context = context,
-                    NodeId = node.NodeId,
-                    Changes = changes,
-                    MonitoredItems = monitoredItems,
-                    AttributeSnapshots = attributeSnapshots,
-                    SubscriberValueSnapshots = subscriberValueSnapshots,
-                    SourceEmission = emission
-                };
+                DataChangeSnapshot notification = RentSnapshot();
+                notification.Context = context;
+                notification.NodeId = node.NodeId;
+                notification.Changes = changes;
+                notification.MonitoredItems = monitoredItems;
+                notification.HasValueSnapshot = hasValue;
+                notification.ValueSnapshot = reportedValue;
+                notification.AttributeSnapshots = attributeSnapshots;
+                notification.SubscriberValueSnapshots = subscriberValueSnapshots;
+                notification.SourceEmission = emission;
                 await m_channel.Writer.WriteAsync(notification, cancellationToken).ConfigureAwait(false);
                 emission = null;
             }
@@ -645,6 +654,32 @@ namespace Opc.Ua.Server
             {
                 emission?.Dispose();
             }
+        }
+
+        /// <summary>
+        /// Reads an attribute at enqueue time via the async entry point: ReadAttributeAsync honors an
+        /// asynchronous value read handler (OnReadValueAsync) when one is registered and otherwise
+        /// completes synchronously. The value is therefore materialised for this change before it is
+        /// enqueued (strict enqueue-time snapshot) without blocking.
+        /// </summary>
+        private async ValueTask<DataValue> ReadSnapshotAttributeAsync(
+            ISystemContext context,
+            NodeState node,
+            uint attributeId,
+            CancellationToken cancellationToken)
+        {
+            (_, DataValue value) = await node.ReadAttributeAsync(
+                context,
+                attributeId,
+                default,
+                QualifiedName.Null,
+                new DataValue(
+                    default,
+                    StatusCodes.Good,
+                    DateTime.MinValue,
+                    m_timeProvider.GetUtcNow().UtcDateTime),
+                cancellationToken).ConfigureAwait(false);
+            return value;
         }
 
         /// <summary>
@@ -712,66 +747,24 @@ namespace Opc.Ua.Server
         /// </summary>
         private async Task ProcessChannelAsync(CancellationToken cancellationToken)
         {
+            ChannelReader<INodeNotification> reader = m_channel.Reader;
             try
             {
-                await foreach (INodeNotification notification in m_channel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+                // Drains everything pending per wake-up. The wait takes no token so the channel reuses
+                // one waiter instead of allocating one per wake-up; Dispose completes the writer before
+                // it cancels, which ends the wait, and the drain checks the token per notification.
+                while (await reader.WaitToReadAsync(CancellationToken.None).ConfigureAwait(false))
                 {
-                    try
+                    while (reader.TryRead(out INodeNotification? notification))
                     {
-                        if (notification is EventSnapshot eventSnapshot)
+                        if (cancellationToken.IsCancellationRequested)
                         {
-                            EventSnapshot? next = eventSnapshot;
-                            while (next is not null)
-                            {
-                                using var emission = next.SourceEmission;
-                                next = await ProcessEventSnapshotAsync(next, cancellationToken).ConfigureAwait(false);
-                            }
+                            notification.SourceEmission?.Dispose();
+                            return;
                         }
-                        else
+                        if (!await ProcessNotificationAsync(notification, cancellationToken).ConfigureAwait(false))
                         {
-                            using var emission = notification.SourceEmission;
-                            if (notification is DataChangeSnapshot dataChangeSnapshot)
-                            {
-                                await ProcessDataChangeSnapshotAsync(dataChangeSnapshot, cancellationToken)
-                                    .ConfigureAwait(false);
-                            }
-                            else if (notification is SemanticResample semanticResample)
-                            {
-                                await ProcessSemanticResampleAsync(semanticResample, cancellationToken)
-                                    .ConfigureAwait(false);
-                            }
-                            else if (notification is SemanticResampleSignal)
-                            {
-                            }
-                            else if (notification is NotificationFence fence)
-                            {
-                                await ProcessPendingSemanticResamplesAsync(cancellationToken).ConfigureAwait(false);
-                                fence.Completion.TrySetResult(true);
-                            }
-                        }
-                    }
-                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-                    {
-                        break;
-                    }
-                    catch (Exception ex)
-                    {
-                        m_logger?.MonitoredNode2ConsumerEncounteredAnErrorProcessing(ex);
-                    }
-
-                    if (!m_channel.Reader.TryPeek(out _))
-                    {
-                        try
-                        {
-                            await ProcessPendingSemanticResamplesAsync(cancellationToken).ConfigureAwait(false);
-                        }
-                        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-                        {
-                            break;
-                        }
-                        catch (Exception ex)
-                        {
-                            m_logger?.MonitoredNode2ConsumerEncounteredAnErrorProcessing(ex);
+                            return;
                         }
                     }
                 }
@@ -784,6 +777,82 @@ namespace Opc.Ua.Server
             {
                 m_logger?.MonitoredNode2ConsumerTerminatedUnexpectedly(ex);
             }
+        }
+
+        /// <summary>
+        /// Processes one notification taken from the channel.
+        /// </summary>
+        /// <returns><c>false</c> when the consumer was cancelled.</returns>
+        private async ValueTask<bool> ProcessNotificationAsync(
+            INodeNotification notification,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                if (notification is EventSnapshot eventSnapshot)
+                {
+                    EventSnapshot? next = eventSnapshot;
+                    while (next is not null)
+                    {
+                        using var emission = next.SourceEmission;
+                        next = await ProcessEventSnapshotAsync(next, cancellationToken).ConfigureAwait(false);
+                    }
+                }
+                else
+                {
+                    using var emission = notification.SourceEmission;
+                    if (notification is DataChangeSnapshot dataChangeSnapshot)
+                    {
+                        try
+                        {
+                            await ProcessDataChangeSnapshotAsync(dataChangeSnapshot, cancellationToken)
+                                .ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            ReturnSnapshot(dataChangeSnapshot);
+                        }
+                    }
+                    else if (notification is SemanticResample semanticResample)
+                    {
+                        await ProcessSemanticResampleAsync(semanticResample, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    else if (notification is SemanticResampleSignal)
+                    {
+                    }
+                    else if (notification is NotificationFence fence)
+                    {
+                        await ProcessPendingSemanticResamplesAsync(cancellationToken).ConfigureAwait(false);
+                        fence.Completion.TrySetResult(true);
+                    }
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                return false;
+            }
+            catch (Exception ex)
+            {
+                m_logger?.MonitoredNode2ConsumerEncounteredAnErrorProcessing(ex);
+            }
+
+            if (!m_channel.Reader.TryPeek(out _))
+            {
+                try
+                {
+                    await ProcessPendingSemanticResamplesAsync(cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    return false;
+                }
+                catch (Exception ex)
+                {
+                    m_logger?.MonitoredNode2ConsumerEncounteredAnErrorProcessing(ex);
+                }
+            }
+            return true;
         }
 
         /// <summary>
@@ -938,11 +1007,24 @@ namespace Opc.Ua.Server
                 target,
                 eventTypeId,
                 sourceNodeId,
+                CreateEventSourceLookup(eventTypeId, sourceNodeId),
                 snapshot.SourceEmission?.Generation,
                 snapshot.SourceEmission?.ReadinessPending ?? false,
                 snapshot.SourceEmission?.ReadinessEventId ?? 0,
                 itemCount,
                 offset);
+        }
+
+        /// <summary>
+        /// Creates the lookup of the source node instance that binds the cached permission
+        /// verdicts of one delivery, or null when the verdicts of the event are not cached.
+        /// </summary>
+        private EventSourceLookup? CreateEventSourceLookup(NodeId eventTypeId, NodeId sourceNodeId)
+        {
+            IMasterNodeManager? masterNodeManager = m_server.NodeManager;
+            return masterNodeManager != null && !eventTypeId.IsNull && !sourceNodeId.IsNull
+                ? new EventSourceLookup(masterNodeManager, sourceNodeId)
+                : null;
         }
 
         /// <summary>
@@ -1001,6 +1083,8 @@ namespace Opc.Ua.Server
 
         private async Task DeliverDeferredEventAsync(EventDelivery delivery, EventItemDelivery[] items)
         {
+            // the delivery was retained, so the instance its items saw may have been replaced.
+            EventSourceLookup? sourceLookup = CreateEventSourceLookup(delivery.EventTypeId, delivery.SourceNodeId);
             Task[] pending = new Task[items.Length];
             for (int ii = 0; ii < items.Length; ii++)
             {
@@ -1010,6 +1094,7 @@ namespace Opc.Ua.Server
                     delivery.Target,
                     delivery.EventTypeId,
                     delivery.SourceNodeId,
+                    sourceLookup,
                     delivery.SourceGeneration,
                     item.Key,
                     item.Evaluation,
@@ -1249,10 +1334,67 @@ namespace Opc.Ua.Server
                 delivery.Target,
                 delivery.EventTypeId,
                 delivery.SourceNodeId,
+                delivery.SourceLookup,
                 delivery.SourceGeneration,
                 item.Key,
                 item.Evaluation,
                 cancellationToken);
+        }
+
+        /// <summary>
+        /// The source node instance of one event delivery, looked up once for all its items.
+        /// </summary>
+        /// <remarks>
+        /// A permission verdict is validated after the lookup it is bound to, so it never
+        /// describes an older node than the instance it is cached for. Parallel delivery ranges
+        /// start one lookup between them, so each of them awaits it and none is left running
+        /// after the delivery ended.
+        /// </remarks>
+        private sealed class EventSourceLookup
+        {
+            public EventSourceLookup(IMasterNodeManager masterNodeManager, NodeId sourceNodeId)
+            {
+                m_masterNodeManager = masterNodeManager;
+                m_sourceNodeId = sourceNodeId;
+            }
+
+            public Task<NodeState?> GetAsync(CancellationToken cancellationToken)
+            {
+                Task<NodeState?>? lookup = Volatile.Read(ref m_lookup);
+                if (lookup != null)
+                {
+                    return lookup;
+                }
+                lock (m_lock)
+                {
+                    lookup = m_lookup;
+                    if (lookup == null)
+                    {
+                        lookup = m_masterNodeManager
+                            .FindNodeInAddressSpaceAsync(m_sourceNodeId, cancellationToken)
+                            .AsTask();
+                        Volatile.Write(ref m_lookup, lookup);
+                    }
+                    return lookup;
+                }
+            }
+
+            public bool TryGetCompleted(out NodeState? sourceNode)
+            {
+                Task<NodeState?>? lookup = Volatile.Read(ref m_lookup);
+                if (lookup?.Status == TaskStatus.RanToCompletion)
+                {
+                    sourceNode = lookup.Result;
+                    return true;
+                }
+                sourceNode = null;
+                return false;
+            }
+
+            private readonly Lock m_lock = new();
+            private readonly IMasterNodeManager m_masterNodeManager;
+            private readonly NodeId m_sourceNodeId;
+            private Task<NodeState?>? m_lookup;
         }
 
         /// <summary>
@@ -1265,6 +1407,7 @@ namespace Opc.Ua.Server
                 IFilterTarget target,
                 NodeId eventTypeId,
                 NodeId sourceNodeId,
+                EventSourceLookup? sourceLookup,
                 NodeManagerGeneration? sourceGeneration,
                 bool sourceReadinessPending,
                 long readinessEventId,
@@ -1274,6 +1417,7 @@ namespace Opc.Ua.Server
                 Target = target;
                 EventTypeId = eventTypeId;
                 SourceNodeId = sourceNodeId;
+                SourceLookup = sourceLookup;
                 SourceGeneration = sourceGeneration;
                 SourceReadinessPending = sourceReadinessPending;
                 ReadinessEventId = readinessEventId;
@@ -1286,6 +1430,8 @@ namespace Opc.Ua.Server
             public NodeId EventTypeId { get; }
 
             public NodeId SourceNodeId { get; }
+
+            public EventSourceLookup? SourceLookup { get; }
 
             public NodeManagerGeneration? SourceGeneration { get; }
 
@@ -1362,6 +1508,7 @@ namespace Opc.Ua.Server
             IFilterTarget target,
             NodeId eventTypeId,
             NodeId sourceNodeId,
+            EventSourceLookup? sourceLookup,
             NodeManagerGeneration? sourceGeneration,
             MonitoredItem.SharedEventFilterKey? key,
             MonitoredItem.SharedEventEvaluation? evaluation,
@@ -1382,7 +1529,7 @@ namespace Opc.Ua.Server
 
                 (ServiceResult validationResult, ISession? authorizationSession,
                     NotificationAuthorization? authorization) = await GetOrAddEventPermissionAsync(
-                    monitoredItem, target, eventTypeId, sourceNodeId, cancellationToken).ConfigureAwait(false);
+                    monitoredItem, target, eventTypeId, sourceNodeId, sourceLookup, cancellationToken).ConfigureAwait(false);
                 // An Uncertain verdict is not a denial, so it must not drop the event.
                 if (!ServiceResult.IsBad(validationResult))
                 {
@@ -1446,15 +1593,102 @@ namespace Opc.Ua.Server
         /// and the resolved source-node instance. Falls back to an uncached
         /// lookup when either NodeId is null or the source node cannot be resolved.
         /// </summary>
-        private async ValueTask<(ServiceResult Result, ISession? Session, NotificationAuthorization? Authorization)>
+        private ValueTask<(ServiceResult Result, ISession? Session, NotificationAuthorization? Authorization)>
             GetOrAddEventPermissionAsync(
             IEventMonitoredItem monitoredItem,
             IFilterTarget filterTarget,
             NodeId eventTypeId,
             NodeId sourceNodeId,
+            EventSourceLookup? sourceLookup,
             CancellationToken cancellationToken)
         {
-            bool cacheable = !eventTypeId.IsNull && !sourceNodeId.IsNull;
+            return TryGetCachedEventPermission(
+                monitoredItem,
+                eventTypeId,
+                sourceNodeId,
+                sourceLookup,
+                out ServiceResult? result,
+                out ISession? session,
+                out NotificationAuthorization? authorization)
+                ? new ValueTask<(ServiceResult, ISession?, NotificationAuthorization?)>((result!, session, authorization))
+                : ValidateEventPermissionAsync(
+                    monitoredItem, filterTarget, eventTypeId, sourceNodeId, sourceLookup, cancellationToken);
+        }
+
+        /// <summary>
+        /// Returns a current cached verdict without suspending, so an event fan-out keeps the
+        /// permission context of each item on the stack instead of copying it into a state
+        /// machine through the GC write barrier. Anything else is left to
+        /// <see cref="ValidateEventPermissionAsync"/>. No input is awaited here, so one check of
+        /// the restrictions and one recapture of the context cover the whole path. It only uses a
+        /// source lookup that has completed: the async validation starts the lookup, and only
+        /// for an item that passed the restrictions and then awaits it.
+        /// </summary>
+        private bool TryGetCachedEventPermission(
+            IEventMonitoredItem monitoredItem,
+            NodeId eventTypeId,
+            NodeId sourceNodeId,
+            EventSourceLookup? sourceLookup,
+            out ServiceResult? result,
+            out ISession? session,
+            out NotificationAuthorization? authorization)
+        {
+            result = null;
+            session = null;
+            authorization = null;
+            if (sourceLookup == null ||
+                !MonitoredReadAuthorization.TryRefreshIdentity(m_server, monitoredItem.Session))
+            {
+                return false;
+            }
+            MonitoredItemPermissionContext context = CapturePermissionContext(monitoredItem);
+            if (context.Session?.IsIdentityStale == true)
+            {
+                return false;
+            }
+            authorization = NotificationAuthorization.Capture(context.Session);
+            if (!sourceLookup.TryGetCompleted(out NodeState? sourceNode) ||
+                sourceNode == null ||
+                !m_eventPermissionCache.TryGetValue(
+                    new EventPermissionCacheKey(monitoredItem.Id, eventTypeId, sourceNodeId),
+                    out CachedEventPermission? cached) ||
+                !cached.Context.Matches(context) ||
+                !cached.SourceNode.TryGetTarget(out NodeState? cachedSourceNode) ||
+                !ReferenceEquals(cachedSourceNode, sourceNode))
+            {
+                return false;
+            }
+            EndpointDescription? endpoint = MonitoredReadAuthorization.GetEndpoint(context.Session);
+            if (!TryGetEventRestrictionVerdict(
+                    endpoint,
+                    Volatile.Read(ref m_permissionGeneration),
+                    NamespaceDefaultPermissionReader.Generation,
+                    Node.AccessRestrictions,
+                    out _,
+                    out _) ||
+                !context.Matches(CapturePermissionContext(monitoredItem)))
+            {
+                return false;
+            }
+            result = cached.Result;
+            session = context.Session;
+            return true;
+        }
+
+        /// <summary>
+        /// Validates the event permission of an item, for every case that
+        /// <see cref="TryGetCachedEventPermission"/> does not answer.
+        /// </summary>
+        private async ValueTask<(ServiceResult Result, ISession? Session, NotificationAuthorization? Authorization)>
+            ValidateEventPermissionAsync(
+            IEventMonitoredItem monitoredItem,
+            IFilterTarget filterTarget,
+            NodeId eventTypeId,
+            NodeId sourceNodeId,
+            EventSourceLookup? sourceLookup,
+            CancellationToken cancellationToken)
+        {
+            bool cacheable = sourceLookup != null;
             var key = new EventPermissionCacheKey(monitoredItem.Id, eventTypeId, sourceNodeId);
             while (true)
             {
@@ -1479,11 +1713,9 @@ namespace Opc.Ua.Server
                     return (restrictions, authorization.Session, notificationAuthorization);
                 }
                 NodeState? sourceNode = null;
-                IMasterNodeManager? masterNodeManager = m_server.NodeManager;
-                if (cacheable && masterNodeManager != null)
+                if (cacheable)
                 {
-                    sourceNode = await masterNodeManager.FindNodeInAddressSpaceAsync(
-                        sourceNodeId, cancellationToken).ConfigureAwait(false);
+                    sourceNode = await sourceLookup!.GetAsync(cancellationToken).ConfigureAwait(false);
                     cancellationToken.ThrowIfCancellationRequested();
                     if (!authorization.Matches(CapturePermissionContext(monitoredItem)))
                     {
@@ -1498,8 +1730,7 @@ namespace Opc.Ua.Server
                 if (cacheable &&
                     m_eventPermissionCache.TryGetValue(
                         key,
-                        out (MonitoredItemPermissionContext Context, WeakReference<NodeState> SourceNode,
-                            ServiceResult Result) cached) &&
+                        out CachedEventPermission? cached) &&
                     cached.Context.Matches(authorization) &&
                     cached.SourceNode.TryGetTarget(out NodeState? cachedSourceNode) &&
                     ReferenceEquals(cachedSourceNode, sourceNode))
@@ -1513,7 +1744,7 @@ namespace Opc.Ua.Server
                     cancellationToken.ThrowIfCancellationRequested();
                     if (cacheable)
                     {
-                        m_eventPermissionCache[key] = (authorization, new WeakReference<NodeState>(sourceNode!), result);
+                        m_eventPermissionCache[key] = new CachedEventPermission(authorization, sourceNode!, result);
                     }
                 }
                 if (!ServiceResult.IsBad(result))
@@ -1554,23 +1785,15 @@ namespace Opc.Ua.Server
             long generation = Volatile.Read(ref m_permissionGeneration);
             long defaultsGeneration = NamespaceDefaultPermissionReader.Generation;
             AccessRestrictionType? restrictions = Node.AccessRestrictions;
-            NamespaceMetadataState? defaults = null;
-            EventRestrictionVerdictSlot? slot = null;
-            if (endpoint != null &&
-                Node.OnReadAccessRestrictions == null &&
-                NamespaceDefaultPermissionReader.TryGetStaticDefaults(
-                    m_server, Node.NodeId.NamespaceIndex, out defaults))
+            if (TryGetEventRestrictionVerdict(
+                endpoint,
+                generation,
+                defaultsGeneration,
+                restrictions,
+                out NamespaceMetadataState? defaults,
+                out EventRestrictionVerdictSlot? slot))
             {
-                slot = m_eventRestrictionVerdicts.GetValue(endpoint, static _ => new EventRestrictionVerdictSlot());
-                EventRestrictionVerdict? verdict = Volatile.Read(ref slot.Current);
-                if (verdict != null &&
-                    verdict.Matches(generation, defaultsGeneration, defaults, endpoint, restrictions) &&
-                    generation == Volatile.Read(ref m_permissionGeneration) &&
-                    defaultsGeneration == NamespaceDefaultPermissionReader.Generation &&
-                    restrictions == Node.AccessRestrictions)
-                {
-                    return ServiceResult.Good;
-                }
+                return ServiceResult.Good;
             }
 
             using OperationContext context = MonitoredReadAuthorization.CreateContext(monitoredItem);
@@ -1589,6 +1812,36 @@ namespace Opc.Ua.Server
                     new EventRestrictionVerdict(generation, defaultsGeneration, defaults, endpoint!, restrictions));
             }
             return result;
+        }
+
+        /// <summary>
+        /// Returns whether the endpoint holds a good restriction verdict for the given inputs,
+        /// and the slot a new verdict can be kept in while the defaults are static.
+        /// </summary>
+        private bool TryGetEventRestrictionVerdict(
+            EndpointDescription? endpoint,
+            long generation,
+            long defaultsGeneration,
+            AccessRestrictionType? restrictions,
+            out NamespaceMetadataState? defaults,
+            out EventRestrictionVerdictSlot? slot)
+        {
+            defaults = null;
+            slot = null;
+            if (endpoint == null ||
+                Node.OnReadAccessRestrictions != null ||
+                !NamespaceDefaultPermissionReader.TryGetStaticDefaults(
+                    m_server, Node.NodeId.NamespaceIndex, out defaults))
+            {
+                return false;
+            }
+            slot = m_eventRestrictionVerdicts.GetValue(endpoint, static _ => new EventRestrictionVerdictSlot());
+            EventRestrictionVerdict? verdict = Volatile.Read(ref slot.Current);
+            return verdict != null &&
+                verdict.Matches(generation, defaultsGeneration, defaults, endpoint, restrictions) &&
+                generation == Volatile.Read(ref m_permissionGeneration) &&
+                defaultsGeneration == NamespaceDefaultPermissionReader.Generation &&
+                restrictions == Node.AccessRestrictions;
         }
 
         /// <summary>
@@ -1614,7 +1867,7 @@ namespace Opc.Ua.Server
             DataChangeSnapshot snapshot,
             CancellationToken cancellationToken)
         {
-            if (DataChangeMonitoredItems == null)
+            if (m_dataChangeMonitoredItems == null)
             {
                 return;
             }
@@ -1668,7 +1921,7 @@ namespace Opc.Ua.Server
             bool attributeChanged = monitoredItem.AttributeId != Attributes.Value &&
                 (snapshot.Changes & NodeStateChangeMasks.NonValue) != 0;
             if ((!valueChanged && !attributeChanged) ||
-                !snapshot.AttributeSnapshots.TryGetValue(monitoredItem.AttributeId, out DataValue snapshotValue))
+                !snapshot.TryGetAttributeSnapshot(monitoredItem.AttributeId, out DataValue snapshotValue))
             {
                 return;
             }
@@ -1833,7 +2086,7 @@ namespace Opc.Ua.Server
                 return !m_disposed &&
                     ReferenceEquals(request.Source, Node) &&
                     IsInCurrentGeneration(request.Item) &&
-                    DataChangeMonitoredItems.TryGetValue(request.Item.Id, out IDataChangeMonitoredItem2? current) &&
+                    m_dataChangeMonitoredItems.TryGetValue(request.Item.Id, out IDataChangeMonitoredItem2? current) &&
                     ReferenceEquals(current, request.Item);
             }
         }
@@ -2105,7 +2358,7 @@ namespace Opc.Ua.Server
         public void InvalidatePermissionCacheForSession(NodeId sessionId)
         {
             bool invalidated = false;
-            foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> kvp in DataChangeMonitoredItems)
+            foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> kvp in m_dataChangeMonitoredItems)
             {
                 IDataChangeMonitoredItem2 monitoredItem = kvp.Value;
 
@@ -2170,9 +2423,7 @@ namespace Opc.Ua.Server
         /// </summary>
         private void DropEventPermissionCacheEntries(uint monitoredItemId)
         {
-            foreach (KeyValuePair<EventPermissionCacheKey,
-                (MonitoredItemPermissionContext Context, WeakReference<NodeState> SourceNode, ServiceResult Result)> entry
-                in m_eventPermissionCache)
+            foreach (KeyValuePair<EventPermissionCacheKey, CachedEventPermission> entry in m_eventPermissionCache)
             {
                 if (entry.Key.MonitoredItemId == monitoredItemId)
                 {
@@ -2187,9 +2438,7 @@ namespace Opc.Ua.Server
                 MonitoredReadVerdict? Read)>
             m_permissionCache = new();
 
-        private readonly ConcurrentDictionary<
-            EventPermissionCacheKey,
-            (MonitoredItemPermissionContext Context, WeakReference<NodeState> SourceNode, ServiceResult Result)>
+        private readonly ConcurrentDictionary<EventPermissionCacheKey, CachedEventPermission>
             m_eventPermissionCache = new();
 
         /// <summary>
@@ -2213,6 +2462,143 @@ namespace Opc.Ua.Server
                     () => new ServerSystemContext(m_server))!;
         }
 
+        /// <summary>
+        /// Gets the data change items as an array that add and remove replace rather than change,
+        /// so every change captures them without a copy, a lock or an enumerator allocation.
+        /// Snapshots share the array, so it is never modified.
+        /// </summary>
+        private KeyValuePair<uint, IDataChangeMonitoredItem2>[] GetDataChangeItems()
+        {
+            return GetDataChangeItemSet().Items;
+        }
+
+        private DataChangeItemSet GetDataChangeItemSet()
+        {
+            if (Volatile.Read(ref m_dataChangeItemsExposed))
+            {
+                return new DataChangeItemSet(m_dataChangeMonitoredItems.ToArray());
+            }
+
+            DataChangeItemSet? itemSet = Volatile.Read(ref m_dataChangeItems);
+            if (itemSet != null)
+            {
+                return itemSet;
+            }
+
+            // Rebuilt on first use rather than in Add, so attaching many items costs one copy.
+            // Add, Remove and Dispose change the dictionary under the same lock, so the copy
+            // cannot miss a concurrent registration.
+            lock (m_rebindLock)
+            {
+                itemSet = m_dataChangeItems;
+                if (itemSet == null)
+                {
+                    itemSet = new DataChangeItemSet(
+                        m_dataChangeMonitoredItems.IsEmpty ? [] : m_dataChangeMonitoredItems.ToArray());
+                    if (!Volatile.Read(ref m_dataChangeItemsExposed))
+                    {
+                        Volatile.Write(ref m_dataChangeItems, itemSet);
+                    }
+                }
+                return itemSet;
+            }
+        }
+
+        /// <summary>
+        /// The data change items of the node and the attributes a change must read for them.
+        /// </summary>
+        private sealed class DataChangeItemSet
+        {
+            public DataChangeItemSet(KeyValuePair<uint, IDataChangeMonitoredItem2>[] items)
+            {
+                Items = items;
+                List<uint>? nonValueAttributeIds = null;
+                foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> kvp in items)
+                {
+                    IDataChangeMonitoredItem2 item = kvp.Value;
+                    if (item is MonitoredItem { UsesExternalValueSource: true })
+                    {
+                        continue;
+                    }
+                    if (item.AttributeId == Attributes.Value)
+                    {
+                        ReadsValue = true;
+                    }
+                    else if (nonValueAttributeIds?.Contains(item.AttributeId) != true)
+                    {
+                        (nonValueAttributeIds ??= []).Add(item.AttributeId);
+                    }
+                }
+                NonValueAttributeIds = nonValueAttributeIds?.ToArray() ?? [];
+            }
+
+            /// <summary>
+            /// The data change items.
+            /// </summary>
+            public KeyValuePair<uint, IDataChangeMonitoredItem2>[] Items { get; }
+
+            /// <summary>
+            /// Whether an item sampled by the node monitors the Value attribute.
+            /// </summary>
+            public bool ReadsValue { get; }
+
+            /// <summary>
+            /// The distinct other attributes that items sampled by the node monitor.
+            /// </summary>
+            public uint[] NonValueAttributeIds { get; }
+        }
+
+        /// <summary>
+        /// Takes a snapshot the consumer has finished with, or a new one.
+        /// </summary>
+        private DataChangeSnapshot RentSnapshot()
+        {
+            DataChangeSnapshot?[] spares = m_spareSnapshots;
+            for (int i = 0; i < spares.Length; i++)
+            {
+                DataChangeSnapshot? spare = Interlocked.Exchange(ref spares[i], null);
+                if (spare != null)
+                {
+                    return spare;
+                }
+            }
+            return new DataChangeSnapshot();
+        }
+
+        /// <summary>
+        /// Keeps a delivered snapshot for the next change. The consumer no longer references it,
+        /// and clearing it releases the value, the items and the reporter's context it held.
+        /// </summary>
+        private void ReturnSnapshot(DataChangeSnapshot snapshot)
+        {
+            snapshot.Context = null!;
+            snapshot.SourceEmission = null;
+            snapshot.NodeId = default;
+            snapshot.Changes = NodeStateChangeMasks.None;
+            snapshot.MonitoredItems = [];
+            snapshot.HasValueSnapshot = false;
+            snapshot.ValueSnapshot = default;
+            snapshot.AttributeSnapshots = null;
+            snapshot.SubscriberValueSnapshots = null;
+            DataChangeSnapshot?[] spares = m_spareSnapshots;
+            for (int i = 0; i < spares.Length; i++)
+            {
+                if (Interlocked.CompareExchange(ref spares[i], snapshot, null) == null)
+                {
+                    return;
+                }
+            }
+        }
+
+        private readonly ConcurrentDictionary<uint, IDataChangeMonitoredItem2> m_dataChangeMonitoredItems = new();
+        private DataChangeItemSet? m_dataChangeItems;
+        private bool m_dataChangeItemsExposed;
+
+        /// <summary>
+        /// Delivered snapshots kept for reuse: as many as the channel holds plus the one the
+        /// consumer delivers and the one a producer fills.
+        /// </summary>
+        private readonly DataChangeSnapshot?[] m_spareSnapshots = new DataChangeSnapshot?[k_defaultChannelCapacity + 2];
         private ServerSystemContext? m_subscriberContextTemplate;
         private readonly IServerInternal m_server;
         private IAsyncNodeManager m_nodeManager = null!;
@@ -2305,7 +2691,8 @@ namespace Opc.Ua.Server
                     }
                     InvalidatePermissionCaches();
 
-                    DataChangeMonitoredItems.Clear();
+                    m_dataChangeMonitoredItems.Clear();
+                    m_dataChangeItems = null;
                     EventMonitoredItems.Clear();
                 }
             }
@@ -2401,6 +2788,27 @@ namespace Opc.Ua.Server
                     string.Equals(m_transport, currentEndpoint.TransportProfileUri, StringComparison.Ordinal) &&
                     restrictions == currentRestrictions;
             }
+        }
+
+        /// <summary>
+        /// A cached event permission verdict. It is a class because every delivered event reads
+        /// one per item, and copying the context out of the cache takes the GC write barrier.
+        /// </summary>
+        private sealed class CachedEventPermission
+        {
+            public CachedEventPermission(
+                in MonitoredItemPermissionContext context,
+                NodeState sourceNode,
+                ServiceResult result)
+            {
+                Context = context;
+                SourceNode = new WeakReference<NodeState>(sourceNode);
+                Result = result;
+            }
+
+            public readonly MonitoredItemPermissionContext Context;
+            public readonly WeakReference<NodeState> SourceNode;
+            public readonly ServiceResult Result;
         }
 
         /// <summary>
