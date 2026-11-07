@@ -54,6 +54,11 @@ namespace Opc.Ua.Server.FileSystem
         /// <summary>
         /// Opens a session-owned stream, including the pre-opened handle required by temporary transfers.
         /// </summary>
+        /// <remarks>
+        /// With a server session manager, the owner must be a registered session that is neither closing nor expired.
+        /// An absent owner is rejected with BadSessionClosed, including direct calls made after session removal.
+        /// Without a session manager, the caller supplies the logical owner identity and owns its lifetime.
+        /// </remarks>
         ValueTask<uint> OpenAsync(NodeId session, byte mode, CancellationToken cancellationToken = default);
 
         /// <summary>

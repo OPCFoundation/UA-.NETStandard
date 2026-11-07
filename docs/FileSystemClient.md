@@ -442,6 +442,13 @@ if it ignored cancellation. Session closure discards a buffer whose commit has
 not started; it does not invoke `commitOnClose`. [Machine Vision](Vision.md) uses this
 surface for its specialized transfers and recipe files.
 
+Direct `IFileTypeBinding.OpenAsync` calls use the same session admission as the
+generated methods. When the binding has a server session manager, the owner must
+appear in its registry and must not be closing or expired; an absent owner is
+rejected with `BadSessionClosed`. In-process callers using a server context must
+therefore supply a registered session identity. Without a session manager, the
+caller supplies the logical owner identity and owns its lifetime.
+
 Both lazy `FileSystemNodeManager` nodes and materialized
 `FileDirectoryBinder` nodes protect their mounted root from deletion,
 move, and copy. A NodeId from another namespace, an invalid encoded type,

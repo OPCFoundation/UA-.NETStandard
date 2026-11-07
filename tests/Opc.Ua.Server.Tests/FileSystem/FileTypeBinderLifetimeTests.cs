@@ -240,6 +240,40 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         /// <summary>
+        /// Direct opens require a live registered owner even before the binding observes a close event.
+        /// </summary>
+        [TestCase("absent")]
+        [TestCase("closing")]
+        [TestCase("expired")]
+        public async Task DirectOpenRejectsUnavailableSessionBeforeFirstOpenAsync(string state)
+        {
+            await using var harness = new Harness();
+            await harness.BindAsync().ConfigureAwait(false);
+            if (state == "absent")
+            {
+                harness.Sessions.Setup(value => value.GetSessions()).Returns(() => [harness.OtherSession.Object]);
+            }
+            else if (state == "closing")
+            {
+                Assert.That(SessionTermination.TryClaimClose(harness.Session.Object), Is.True);
+            }
+            else
+            {
+                harness.Session.SetupGet(value => value.HasExpired).Returns(true);
+            }
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await harness.Binding.OpenAsync(harness.Session.Object.Id, 1).ConfigureAwait(false));
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
+            Assert.That(harness.File.OpenCount!.Value, Is.Zero);
+            uint surviving = await harness.Binding.OpenAsync(harness.OtherSession.Object.Id, 1).ConfigureAwait(false);
+            Assert.That(harness.File.OpenCount.Value, Is.EqualTo(1));
+            await harness.Binding.CloseAsync(harness.OtherSession.Object.Id, surviving).ConfigureAwait(false);
+            Assert.That(harness.File.OpenCount.Value, Is.Zero);
+            Assert.That(harness.File.Size!.Value, Is.EqualTo((ulong)s_initialContent.Length));
+        }
+
+        /// <summary>
         /// A failed explicit commit leaves the writer open for a retry, preserving the existing transaction contract.
         /// </summary>
         [Test]
