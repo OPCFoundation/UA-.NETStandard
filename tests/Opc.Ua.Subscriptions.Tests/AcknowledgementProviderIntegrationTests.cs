@@ -123,9 +123,15 @@ namespace Opc.Ua.Subscriptions.Tests
             }
             await WaitForAsync(() => items.All(item => item.Created), ct).ConfigureAwait(false);
             options.CurrentValue = options.CurrentValue with { PublishingEnabled = true };
-            await WaitForAsync(() => handler.Messages.Count >= expected, ct).ConfigureAwait(false);
+            // Republish responses intentionally have no MoreNotifications marker.
+            await WaitForAsync(
+                () => handler.Messages.Count(message => message.MoreNotifications.HasValue) >= expected,
+                ct).ConfigureAwait(false);
 
-            SubscriptionNotificationMessage[] messages = [.. handler.Messages.Take(expected)];
+            SubscriptionNotificationMessage[] observedMessages = [.. handler.Messages];
+            SubscriptionNotificationMessage[] messages =
+                [.. observedMessages.Where(message => message.MoreNotifications.HasValue).Take(expected)];
+            Assert.That(messages, Has.Length.EqualTo(expected));
             IGrouping<uint, SubscriptionNotificationMessage>[] groups =
                 [.. messages.GroupBy(message => message.Acknowledgement.SubscriptionId)];
             Assert.That(groups, Has.Length.EqualTo(partitioned ? 2 : 1));
@@ -142,8 +148,18 @@ namespace Opc.Ua.Subscriptions.Tests
                     session.Confirm(message.Acknowledgement);
                 }
             }
-            await WaitForAsync(() => messages.All(message => observer.WasAcknowledged(message.Acknowledgement)), ct)
-                .ConfigureAwait(false);
+            var acknowledgements = new HashSet<AcknowledgementHandle>();
+            foreach (SubscriptionNotificationMessage message in observedMessages)
+            {
+                if (acknowledgements.Add(message.Acknowledgement) &&
+                    !observer.WasAcknowledged(message.Acknowledgement))
+                {
+                    session.Confirm(message.Acknowledgement);
+                }
+            }
+            await WaitForAsync(
+                () => acknowledgements.All(observer.WasAcknowledged),
+                ct).ConfigureAwait(false);
         }
 
         /// <summary>

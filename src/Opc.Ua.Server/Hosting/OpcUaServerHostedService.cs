@@ -264,6 +264,7 @@ namespace Opc.Ua.Server.Hosting
                 m_services.GetService<ServerComplexTypeOptions>();
 
             m_server = m_serverFactory.CreateServer(m_telemetry, m_timeProvider);
+            m_services.GetService<ServerApplicationCertificateActivator>()?.Attach(m_server);
             m_nodeManagerLifecycle.Attach(m_server.NodeManagerLifecycle);
             if (m_server is not DependencyInjectionStandardServer)
             {
@@ -430,8 +431,8 @@ namespace Opc.Ua.Server.Hosting
                     m_options.MinCertificateKeySize);
             }
 
-            ApplyDependencyInjectedCertificateManager(certificateManager);
             await securityOptions.CreateAsync(ct).ConfigureAwait(false);
+            ApplyDependencyInjectedCertificateManager(certificateManager);
         }
 
         /// <summary>

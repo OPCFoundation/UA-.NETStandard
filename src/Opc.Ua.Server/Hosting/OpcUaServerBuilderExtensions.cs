@@ -1680,6 +1680,9 @@ namespace Microsoft.Extensions.DependencyInjection
         {
             services.TryAddSingleton<ITelemetryContext>(
                 sp => new ServiceProviderTelemetryContext(sp));
+            services.TryAddSingleton<ServerApplicationCertificateActivator>();
+            services.TryAddSingleton<IServerApplicationCertificateActivator>(
+                sp => sp.GetRequiredService<ServerApplicationCertificateActivator>());
 
             // The PushManagement transaction coordinator holds mutable
             // per-server transaction state (OPC 10000-12 §§7.10.2-7.10.11) and
