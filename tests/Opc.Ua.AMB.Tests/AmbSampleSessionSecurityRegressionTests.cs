@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using AmbSample.Client;
@@ -42,6 +43,49 @@ namespace Opc.Ua.AMB.Tests
     [TestFixture]
     public sealed class AmbSampleSessionSecurityRegressionTests
     {
+        /// <summary>
+        /// Remote endpoint mappings do not change the default traversal policy.
+        /// </summary>
+        [Test]
+        public void RemoteMappingsRequireExplicitTraversalOptIn()
+        {
+            AmbClientOptions options = AmbClientOptions.Parse(
+                ["--remote-server", "urn:amb:remote=opc.tcp://localhost:62554/AmbServer"]);
+
+            Assert.That(options.FollowRemoteSubAssets, Is.False);
+            Assert.That(options.RemoteServers["urn:amb:remote"], Is.EqualTo("opc.tcp://localhost:62554/AmbServer"));
+            Assert.That(AmbClientOptions.Parse(["--follow-remote"]).FollowRemoteSubAssets, Is.True);
+        }
+
+        /// <summary>
+        /// Malformed server mappings are rejected before any connection is opened.
+        /// </summary>
+        [TestCase("missing-separator")]
+        [TestCase("=opc.tcp://localhost:62554")]
+        [TestCase("urn:amb:remote=")]
+        [TestCase("relative=opc.tcp://localhost:62554")]
+        [TestCase("urn:amb:remote=relative")]
+        public void MalformedRemoteMappingIsRejected(string mapping)
+        {
+            Assert.Throws<ArgumentException>(() => AmbClientOptions.Parse(["--remote-server", mapping]));
+        }
+
+        /// <summary>
+        /// A missing mapping is reported instead of guessing an endpoint or opening a connection.
+        /// </summary>
+        [Test]
+        public async Task UnmappedRemoteServerIsRejectedAsync()
+        {
+            await using var resolver = new SampleRemoteSessionResolver(
+                new AmbClientOptions(), Opc.Ua.Tests.NUnitTelemetryContext.Create());
+
+            ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await resolver.ResolveAsync("urn:amb:unmapped", CancellationToken.None).ConfigureAwait(false))
+                ?? throw new AssertionException("Expected an unresolved-server failure.");
+
+            Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadServerUriInvalid));
+        }
+
         /// <summary>
         /// A trusted certificate with a matching advertised URI still cannot identify the requested server.
         /// </summary>
