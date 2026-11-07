@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+
 namespace Opc.Ua.Server.Historian
 {
     /// <summary>
@@ -117,6 +119,73 @@ namespace Opc.Ua.Server.Historian
         /// <c>HistoryServerCapabilities</c> flags.
         /// </summary>
         ArrayOf<IHistorianProvider> Providers { get; }
+    }
+
+    /// <summary>
+    /// Optional registry capability for explicit per-node provider lifetime ownership.
+    /// </summary>
+    public interface IHistorianProviderOwnershipRegistry : IHistorianProviderRegistry
+    {
+        /// <summary>
+        /// Adds a node binding and optionally retains provider disposal responsibility.
+        /// </summary>
+        /// <remarks>
+        /// Owning registration retains disposal responsibility even after route removal.
+        /// Non-owning registration does not revoke ownership acquired by an earlier owning registration.
+        /// </remarks>
+        /// <param name="nodeId">The node whose existing binding is replaced.</param>
+        /// <param name="provider">The provider to resolve for that node.</param>
+        /// <param name="ownsProvider">Whether registry disposal also disposes the provider.</param>
+        void RegisterForNode(NodeId nodeId, IHistorianProvider provider, bool ownsProvider);
+    }
+
+    /// <summary>
+    /// Adds ownership-aware registration without changing existing custom registry implementations.
+    /// </summary>
+    public static class HistorianProviderRegistryExtensions
+    {
+        /// <summary>
+        /// Registers a provider with explicit ownership, rejecting unsupported borrowed registrations.
+        /// </summary>
+        /// <param name="registry">The registry receiving the node binding.</param>
+        /// <param name="nodeId">The node whose existing binding is replaced.</param>
+        /// <param name="provider">The provider to resolve for that node.</param>
+        /// <param name="ownsProvider">Whether registry disposal also disposes the provider.</param>
+        /// <exception cref="NotSupportedException">
+        /// Borrowed registration is requested from a registry without the ownership capability.
+        /// </exception>
+        public static void RegisterForNode(
+            this IHistorianProviderRegistry registry,
+            NodeId nodeId,
+            IHistorianProvider provider,
+            bool ownsProvider)
+        {
+            if (registry is null)
+            {
+                throw new ArgumentNullException(nameof(registry));
+            }
+            if (nodeId.IsNull)
+            {
+                throw new ArgumentException("NodeId must not be null.", nameof(nodeId));
+            }
+            if (provider is null)
+            {
+                throw new ArgumentNullException(nameof(provider));
+            }
+            if (registry is IHistorianProviderOwnershipRegistry ownershipRegistry)
+            {
+                ownershipRegistry.RegisterForNode(nodeId, provider, ownsProvider);
+            }
+            else if (ownsProvider)
+            {
+                registry.RegisterForNode(nodeId, provider);
+            }
+            else
+            {
+                throw new NotSupportedException(
+                    "The historian registry does not support caller-owned per-node provider registration.");
+            }
+        }
     }
 
     /// <summary>

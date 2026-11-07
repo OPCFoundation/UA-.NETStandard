@@ -101,6 +101,13 @@ namespace Opc.Ua.Pumps.Server.Builders
         /// <inheritdoc/>
         public IPumpGroupBuilder Set(string browseName, Variant value)
         {
+            if (Node is DesignState && browseName == BrowseNames.PumpClass &&
+                (!value.TryGetValue(out DeviceTypeEnum pumpClass) ||
+                    (int)pumpClass is < 0 or > 6))
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(value), "PumpClass must be a declared DeviceTypeEnum value.");
+            }
             BaseInstanceState child = Require(browseName);
             if (child is not BaseVariableState variable)
             {
@@ -277,7 +284,16 @@ namespace Opc.Ua.Pumps.Server.Builders
                 BaseInstanceState? child = parent.CreateChild(m_context, qualifiedName);
                 if (child != null)
                 {
+                    if (child is FileState file)
+                    {
+                        file.Create(m_context, file.NodeId, qualifiedName, file.DisplayName, assignNodeIds: true);
+                    }
                     CompleteFromDeclaration(child, FindDeclarationChild(declaration, child));
+                    if (parent is PumpIdentificationState && child is BaseVariableState identityField)
+                    {
+                        identityField.AccessLevel &= unchecked((byte)~AccessLevels.CurrentWrite);
+                        identityField.UserAccessLevel &= unchecked((byte)~AccessLevels.CurrentWrite);
+                    }
 
                     // A child materialised after the pump was registered is
                     // reachable through its parent but unknown to the node
