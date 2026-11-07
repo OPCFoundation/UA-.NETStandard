@@ -261,6 +261,26 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Retains manager resources until a companion operation and its awaited cleanup finish.
+        /// Nested manager calls remain available to that operation after shutdown closes admission.
+        /// </summary>
+        /// <typeparam name="T">The companion operation's result type.</typeparam>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ObjectDisposedException"></exception>
+        protected async ValueTask<T> ExecuteNodeManagerOperationAsync<T>(
+            Func<CancellationToken, ValueTask<T>> operation,
+            CancellationToken cancellationToken = default)
+        {
+            if (operation == null)
+            {
+                throw new ArgumentNullException(nameof(operation));
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            using NodeManagerOperation admitted = BeginNodeManagerOperation();
+            return await operation(cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Admits an operation until it exits, allowing nested access by an admitted operation or teardown callback.
         /// </summary>
         /// <exception cref="ObjectDisposedException"></exception>

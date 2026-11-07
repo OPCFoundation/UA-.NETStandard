@@ -60,6 +60,10 @@
     <Project Path="samples/Pumps/PumpsServer/PumpsServer.csproj" />
     <Project Path="samples/Pumps/PumpsClient/PumpsClient.csproj" />
   </Folder>
+  <Folder Name="/samples/ECM/">
+    <Project Path="samples/ECM/EcmServer/EcmServer.csproj" />
+    <Project Path="samples/ECM/EcmClient/EcmClient.csproj" />
+  </Folder>
   <Folder Name="/samples/Scales/">
     <Project Path="samples/Scales/ScalesServer/ScalesServer.csproj" />
     <Project Path="samples/Scales/ScalesClient/ScalesClient.csproj" />
@@ -179,6 +183,8 @@
     <Project Path="src/Opc.Ua.IA.Server/Opc.Ua.IA.Server.csproj" />
     <Project Path="src/Opc.Ua.IA/Opc.Ua.IA.csproj" />
     <Project Path="src/Opc.Ua.ECM/Opc.Ua.ECM.csproj" />
+    <Project Path="src/Opc.Ua.ECM.Client/Opc.Ua.ECM.Client.csproj" />
+    <Project Path="src/Opc.Ua.ECM.Server/Opc.Ua.ECM.Server.csproj" />
     <Project Path="src/Opc.Ua.PADIM/Opc.Ua.PADIM.csproj" />
     <Project Path="src/Opc.Ua.PackML/Opc.Ua.PackML.csproj" />
     <Project Path="src/Opc.Ua.Machinery/Opc.Ua.Machinery.csproj" />
@@ -434,6 +440,8 @@
     <Project Path="tests/Opc.Ua.PlasticsRubber.Tests/Opc.Ua.PlasticsRubber.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Positioning.Tests/Opc.Ua.Positioning.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Pumps.Tests/Opc.Ua.Pumps.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.ECM.Tests/Opc.Ua.ECM.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.ECM.IntegrationTests/Opc.Ua.ECM.Integration.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Scales.Tests/Opc.Ua.Scales.Tests.csproj" />
     <Project Path="tests/Opc.Ua.AMB.Tests/Opc.Ua.AMB.Tests.csproj" />
     <Project Path="tests/Opc.Ua.AutoID.Tests/Opc.Ua.AutoID.Tests.csproj" />
