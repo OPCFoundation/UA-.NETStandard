@@ -1930,7 +1930,40 @@ namespace Opc.Ua.Client.Subscriptions
         private uint m_lastServerId;
         internal long m_missingCount;
         internal long m_republishCount;
-        internal IReadOnlyList<uint> AvailableInRetransmissionQueue;
+
+        /// <summary>
+        /// The sequence numbers the server last listed as available. Reading returns
+        /// a copy. The numbers are kept in a reused array, so a long-lived subscription
+        /// does not reference a new array per response: each such write is a dirty card
+        /// every following gen0 collection has to walk.
+        /// </summary>
+        internal IReadOnlyList<uint> AvailableInRetransmissionQueue
+        {
+            get
+            {
+                lock (m_availableLock)
+                {
+                    return m_available.AsSpan(0, m_availableCount).ToArray();
+                }
+            }
+            set
+            {
+                int count = value?.Count ?? 0;
+                lock (m_availableLock)
+                {
+                    if (m_available.Length < count)
+                    {
+                        m_available = new uint[Math.Max(count * 2, 16)];
+                    }
+                    for (int i = 0; i < count; i++)
+                    {
+                        m_available[i] = value![i];
+                    }
+                    m_availableCount = count;
+                }
+            }
+        }
+
         internal readonly ILogger Logger;
         protected TimeProvider TimeProvider { get; }
 
@@ -1996,6 +2029,9 @@ namespace Opc.Ua.Client.Subscriptions
         /// Sequence numbers advertised as available while a gap was open.
         /// </summary>
         private readonly HashSet<uint> m_gapAvailableSequenceNumbers = [];
+        private readonly Lock m_availableLock = new();
+        private uint[] m_available = [];
+        private int m_availableCount;
         private long m_gapStartedTimestamp;
 
         /// <summary>
