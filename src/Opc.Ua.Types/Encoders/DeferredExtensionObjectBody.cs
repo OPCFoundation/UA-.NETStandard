@@ -29,8 +29,8 @@
 
 using System;
 using System.Buffers;
-using System.Runtime.CompilerServices;
 using System.Threading;
+using Opc.Ua.Types;
 
 namespace Opc.Ua
 {
@@ -44,8 +44,8 @@ namespace Opc.Ua
     {
         /// <summary>
         /// Create the body. It owns the rented buffer. The bodies of one response share
-        /// <paramref name="failureLogged"/>, so that a response full of malformed bodies
-        /// logs once, as the eager decoder does.
+        /// <paramref name="recoveries"/> with its eager decoder, so that a response has one
+        /// recovery budget and logs its first failure only.
         /// </summary>
         public DeferredExtensionObjectBody(
             ExpandedNodeId typeId,
@@ -54,7 +54,7 @@ namespace Opc.Ua
             IEncodeableType activator,
             IServiceMessageContext context,
             uint nestingLevel,
-            StrongBox<int> failureLogged)
+            DecoderRecoveries recoveries)
         {
             m_typeId = typeId;
             m_buffer = buffer;
@@ -62,7 +62,7 @@ namespace Opc.Ua
             m_activator = activator;
             m_context = context;
             m_nestingLevel = nestingLevel;
-            m_failureLogged = failureLogged;
+            m_recoveries = recoveries;
         }
 
         /// <summary>
@@ -92,8 +92,8 @@ namespace Opc.Ua
 
         /// <summary>
         /// The decoded body. A body that cannot be decoded stays available as its
-        /// bytes, like a known type the eager decoder recovered from. Null after
-        /// <see cref="Release"/>.
+        /// bytes, like a known type the eager decoder recovered from, unless a limit
+        /// rejects it. Null then, and after <see cref="Release"/>.
         /// </summary>
         public object? Value
         {
@@ -142,15 +142,16 @@ namespace Opc.Ua
             }
         }
 
-        private object Decode(byte[] buffer)
+        private object? Decode(byte[] buffer)
         {
             string errorMessage;
             Exception? exception = null;
+            bool limitExceeded = false;
             try
             {
                 IEncodeable value = m_activator.CreateInstance();
                 using var decoder = new BinaryDecoder(buffer, 0, m_length, m_context);
-                decoder.InheritDecodingState(null, null, m_nestingLevel, m_length);
+                decoder.InheritDecodingState(null, null, m_nestingLevel, m_length, m_recoveries);
                 value.Decode(decoder);
                 if (decoder.Position == m_length)
                 {
@@ -158,12 +159,23 @@ namespace Opc.Ua
                 }
                 errorMessage = "Length mismatch";
             }
+            catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes.BadEncodingLimitsExceeded)
+            {
+                // Like in the eager decoder, a limit breach is not recovered from: a
+                // consumer would decode the kept bytes with a nesting level that starts at 0.
+                errorMessage = ex.Message;
+                exception = ex;
+                limitExceeded = true;
+            }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 errorMessage = ex.Message;
                 exception = ex;
             }
-            if (Interlocked.Exchange(ref m_failureLogged.Value, 1) == 0)
+
+            // the limit of the raw body of the eager decoder.
+            limitExceeded |= m_context.MaxByteStringLength > 0 && m_context.MaxByteStringLength < m_length;
+            if (m_recoveries.TryLogFailure())
             {
                 m_context.Telemetry.CreateLogger<DeferredExtensionObjectBody>().DecodeEncodeableRecovered(
                     exception,
@@ -171,7 +183,7 @@ namespace Opc.Ua
                     m_activator.XmlName,
                     m_typeId);
             }
-            return ByteString.From(buffer.AsSpan(0, m_length).ToArray());
+            return limitExceeded ? null : ByteString.From(buffer.AsSpan(0, m_length).ToArray());
         }
 
         private static readonly NodeId s_dataChangeEncodingId = new(811u);
@@ -182,9 +194,41 @@ namespace Opc.Ua
         private readonly IEncodeableType m_activator;
         private readonly IServiceMessageContext m_context;
         private readonly uint m_nestingLevel;
-        private readonly StrongBox<int> m_failureLogged;
+        private readonly DecoderRecoveries m_recoveries;
         private byte[]? m_buffer;
         private object? m_value;
         private bool m_resolved;
+    }
+
+    /// <summary>
+    /// What the decoders of one response share: the budget of bodies recovered as raw
+    /// bytes and whether the first failure was logged. Bodies decoded on first use can
+    /// run on any thread, after the decoder of the response is gone.
+    /// </summary>
+    internal sealed class DecoderRecoveries
+    {
+        /// <summary>
+        /// The bodies recovered so far.
+        /// </summary>
+        public int Count => Volatile.Read(ref m_count);
+
+        /// <summary>
+        /// Counts a recovered body.
+        /// </summary>
+        public void Add()
+        {
+            Interlocked.Increment(ref m_count);
+        }
+
+        /// <summary>
+        /// Whether this is the first failure of the response, the one to log.
+        /// </summary>
+        public bool TryLogFailure()
+        {
+            return Interlocked.Exchange(ref m_failureLogged, 1) == 0;
+        }
+
+        private int m_count;
+        private int m_failureLogged;
     }
 }

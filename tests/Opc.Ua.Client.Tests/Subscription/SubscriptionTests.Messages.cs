@@ -139,6 +139,93 @@ namespace Opc.Ua.Client.Subscriptions
             Assert.That(body.TryGetValue(out EventNotificationList? _), Is.False);
         }
 
+        /// <summary>
+        /// A duplicate is never delivered: its body goes back to the pool undecoded.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task DuplicateMessageReleasesItsDeferredBodyAsync(CancellationToken ct)
+        {
+            await using var subscription = new TestSubscription(
+                m_session, m_mockNotificationDataHandler.Object, m_completion, m_options, m_telemetry, 7);
+            await subscription.OnPublishReceivedAsync(BuildDataMessage(1), [1], []).ConfigureAwait(false);
+            await m_completion.WaitForQueuedAckAsync(1).WaitAsync(ct).ConfigureAwait(false);
+
+            ExtensionObject duplicate = await PublishDeferredAsync(subscription, 1).ConfigureAwait(false);
+            await m_completion.WaitForQueuedAckAsync(2).WaitAsync(ct).ConfigureAwait(false);
+
+            Assert.That(duplicate.TryGetValue(out EventNotificationList? _), Is.False);
+        }
+
+        /// <summary>
+        /// A message buffered behind a gap gives up its body when the subscription goes away.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task DisposalReleasesTheBodyOfABufferedMessageAsync(CancellationToken ct)
+        {
+            var subscription = new TestSubscription(
+                m_session, m_mockNotificationDataHandler.Object, m_completion, m_options, m_telemetry, 7);
+            await subscription.OnPublishReceivedAsync(BuildDataMessage(1), [1], []).ConfigureAwait(false);
+            await m_completion.WaitForQueuedAckAsync(1).WaitAsync(ct).ConfigureAwait(false);
+
+            ExtensionObject buffered = await PublishDeferredAsync(subscription, 5).ConfigureAwait(false);
+
+            // The duplicate is processed after the buffered message, so its
+            // acknowledgement proves that the worker got past it.
+            await subscription.OnPublishReceivedAsync(BuildDataMessage(1), [1], []).ConfigureAwait(false);
+            await m_completion.WaitForQueuedAckAsync(2).WaitAsync(ct).ConfigureAwait(false);
+            await subscription.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(buffered.TryGetValue(out EventNotificationList? _), Is.False);
+        }
+
+        /// <summary>
+        /// A message still in the queue gives up its body when the subscription goes away.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task DisposalReleasesTheBodyOfAQueuedMessageAsync(CancellationToken ct)
+        {
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Mock<ISubscriptionNotificationMessageHandler> messages =
+                m_mockNotificationDataHandler.As<ISubscriptionNotificationMessageHandler>();
+            messages.Setup(value => value.OnNotificationMessageAsync(
+                    It.IsAny<SubscriptionNotificationMessage>(), It.IsAny<CancellationToken>()))
+                .Returns((SubscriptionNotificationMessage _, CancellationToken token) =>
+                {
+                    entered.TrySetResult(true);
+                    return new ValueTask(Task.Delay(Timeout.Infinite, token));
+                });
+            var subscription = new TestSubscription(
+                m_session, m_mockNotificationDataHandler.Object, m_completion, m_options, m_telemetry, 7);
+            await subscription.OnPublishReceivedAsync(CreateMixedMessage(), [3], []).ConfigureAwait(false);
+            await entered.Task.WaitAsync(ct).ConfigureAwait(false);
+
+            ExtensionObject queued = await PublishDeferredAsync(subscription, 4).ConfigureAwait(false);
+            await subscription.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(queued.TryGetValue(out EventNotificationList? _), Is.False);
+        }
+
+        private async Task<ExtensionObject> PublishDeferredAsync(TestSubscription subscription, uint sequenceNumber)
+        {
+            ExtensionObject body = DecodeDeferred(new EventNotificationList
+            {
+                Events = [new EventFieldList { ClientHandle = 12, EventFields = [Variant.From("event")] }]
+            });
+            await subscription.OnPublishReceivedAsync(
+                new NotificationMessage
+                {
+                    SequenceNumber = sequenceNumber,
+                    PublishTime = DateTime.UtcNow,
+                    NotificationData = [body]
+                },
+                [sequenceNumber],
+                []).ConfigureAwait(false);
+            return body;
+        }
+
         private ExtensionObject DecodeDeferred(EventNotificationList notification)
         {
             ServiceMessageContext context = ServiceMessageContext.Create(m_telemetry);

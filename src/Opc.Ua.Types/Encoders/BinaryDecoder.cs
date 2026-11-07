@@ -183,17 +183,22 @@ namespace Opc.Ua
         /// The end of the ExtensionObject body when the whole buffer of this
         /// decoder is such a body, -1 when unknown.
         /// </param>
+        /// <param name="recoveries">The recoveries of the response, if shared.</param>
         internal void InheritDecodingState(
             ushort[]? namespaceMappings,
             ushort[]? serverMappings,
             uint nestingLevel,
-            int bodyEnd = -1)
+            int bodyEnd = -1,
+            DecoderRecoveries? recoveries = null)
         {
             m_namespaceMappings = namespaceMappings;
             m_serverMappings = serverMappings;
             m_nestingLevel = nestingLevel;
             m_bodyEnd = bodyEnd;
+            m_recoveries = recoveries;
         }
+
+        private int EncodeablesRecovered => m_recoveries?.Count ?? 0;
 
         /// <summary>
         /// Completes reading and closes the stream.
@@ -1084,7 +1089,7 @@ namespace Opc.Ua
                         // up to MaxDecoderRecoveries times and logged once, so a
                         // message cannot flood the log with its own content.
                         if (typeId.NamespaceIndex == 0 ||
-                            m_encodeablesRecovered >= Context.MaxDecoderRecoveries)
+                            EncodeablesRecovered >= Context.MaxDecoderRecoveries)
                         {
                             if (e is ServiceResultException)
                             {
@@ -1098,12 +1103,13 @@ namespace Opc.Ua
                                 extension.TypeId);
                         }
 
-                        if (m_encodeablesRecovered == 0)
+                        m_recoveries ??= new DecoderRecoveries();
+                        if (m_recoveries.TryLogFailure())
                         {
                             Logger.CouldNotDecodeKnownTypeXml(activator.XmlName, e.Message);
                         }
 
-                        m_encodeablesRecovered++;
+                        m_recoveries.Add();
                     }
                 }
 
@@ -1158,16 +1164,12 @@ namespace Opc.Ua
                 byte[] body = SafeReadStreamBytes(length, nameof(ReadExtensionObject));
                 using var bodyDecoder = new BinaryDecoder(body, Context);
                 bodyDecoder.InheritDecodingState(
-                    m_namespaceMappings, m_serverMappings, m_nestingLevel, body.Length);
-                bodyDecoder.m_encodeablesRecovered = m_encodeablesRecovered;
-                try
-                {
-                    return bodyDecoder.ReadBinaryExtensionObject(typeId, extension, activator, length);
-                }
-                finally
-                {
-                    m_encodeablesRecovered = bodyDecoder.m_encodeablesRecovered;
-                }
+                    m_namespaceMappings,
+                    m_serverMappings,
+                    m_nestingLevel,
+                    body.Length,
+                    m_recoveries ??= new DecoderRecoveries());
+                return bodyDecoder.ReadBinaryExtensionObject(typeId, extension, activator, length);
             }
 
             return ReadBinaryExtensionObject(typeId, extension, activator, length);
@@ -1214,7 +1216,7 @@ namespace Opc.Ua
                     activator,
                     Context,
                     m_nestingLevel + 1,
-                    m_deferredBodyFailureLogged ??= new StrongBox<int>()));
+                    m_recoveries ??= new DecoderRecoveries()));
         }
 
         /// <summary>
@@ -1302,7 +1304,7 @@ namespace Opc.Ua
                     // reset stream to return ExtensionObject if configured to do so!
                     // decoding failure of a known type in ns=0 is always a decoding error.
                     if (typeId.NamespaceIndex == 0 ||
-                        m_encodeablesRecovered >= Context.MaxDecoderRecoveries)
+                        EncodeablesRecovered >= Context.MaxDecoderRecoveries)
                     {
                         throw exception
                             ?? ServiceResultException.Create(
@@ -1312,7 +1314,9 @@ namespace Opc.Ua
                                 activator!.XmlName,
                                 extension.TypeId);
                     }
-                    else if (m_encodeablesRecovered == 0)
+
+                    m_recoveries ??= new DecoderRecoveries();
+                    if (m_recoveries.TryLogFailure())
                     {
                         // log the error only once to avoid flooding the log.
                         Logger.DecodeEncodeableRecovered(
@@ -1327,7 +1331,7 @@ namespace Opc.Ua
                     encodeable = null;
 
                     // count number of recoveries
-                    m_encodeablesRecovered++;
+                    m_recoveries.Add();
                 }
             }
 
@@ -3327,8 +3331,9 @@ namespace Opc.Ua
         // The end position of the ExtensionObject body being decoded, or -1
         // when none is. See TryReadRemainingBodyBytes.
         private int m_bodyEnd = -1;
-        private uint m_encodeablesRecovered;
-        private StrongBox<int>? m_deferredBodyFailureLogged;
+
+        // Shared with the decoders of the bodies of the same response.
+        private DecoderRecoveries? m_recoveries;
 
         // The most bytes allocated up front for an array read element by
         // element, see ReadArrayElements. Below the large object heap limit.

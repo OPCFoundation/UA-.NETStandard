@@ -175,7 +175,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void MalformedBodyDoesNotFailTheDecoderAndStaysAvailableAsBytes()
         {
             ServiceMessageContext context = CreateContext(defer: true);
-            byte[] body = [0xFF, 0xFF, 0xFF, 0x7F, 1, 2, 3];
+            byte[] body = [1, 0, 0, 0, 1, 2, 3];
             byte[] encoded = EncodeRaw(body);
 
             ExtensionObject decoded = Decode(context, encoded);
@@ -269,6 +269,69 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void BodyRejectedByALimitIsNotRetainedForARetry()
+        {
+            ServiceMessageContext encoding = CreateContext(defer: true);
+            ServiceMessageContext context = CreateContext(defer: true);
+            context.MaxEncodingNestingLevels = 1;
+
+            ExtensionObject decoded = Decode(context, Encode(encoding, CreateEvents(1)));
+
+            Assert.That(decoded.TryGetValue(out EventNotificationList? _), Is.False);
+            Assert.That(decoded.TryGetValue(out EventNotificationList? _, context), Is.False);
+            Assert.That(decoded.TryGetAsBinary(out ByteString _), Is.False);
+        }
+
+        [Test]
+        public void MalformedBodyAboveMaxByteStringLengthIsNotRetained()
+        {
+            ServiceMessageContext context = CreateContext(defer: true);
+            context.MaxByteStringLength = 8;
+            byte[] valid = EncodeBody(context, new EventNotificationList());
+            byte[] body = new byte[valid.Length + 16];
+            valid.CopyTo(body, 0);
+
+            ExtensionObject decoded = Decode(context, EncodeRaw(body));
+
+            Assert.That(decoded.TryGetValue(out EventNotificationList? _), Is.False);
+            Assert.That(decoded.TryGetAsBinary(out ByteString _), Is.False);
+        }
+
+        [Test]
+        public void DeferredBodiesOfOneResponseShareTheRecoveryBudget()
+        {
+            var provider = new CountingLoggerProvider();
+            using ILoggerFactory factory = LoggerFactory.Create(b => b.AddProvider(provider));
+            ServiceMessageContext context = CreateVendorContext(factory);
+            byte[] body = Encode(context, CreateEventsWithMalformedVendorBody(context));
+
+            using var response = new BinaryDecoder([.. body, .. body], context);
+            ExtensionObject first = response.ReadExtensionObject(null);
+            ExtensionObject second = response.ReadExtensionObject(null);
+
+            Assert.That(first.TryGetValue(out EventNotificationList? _), Is.True);
+            Assert.That(second.TryGetValue(out EventNotificationList? _), Is.False);
+            Assert.That(provider.Warnings, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void EagerRecoveryCountsAgainstTheBudgetOfDeferredBodies()
+        {
+            var provider = new CountingLoggerProvider();
+            using ILoggerFactory factory = LoggerFactory.Create(b => b.AddProvider(provider));
+            ServiceMessageContext context = CreateVendorContext(factory);
+            byte[] eager = Encode(context, MalformedVendorBody(context));
+            byte[] deferred = Encode(context, CreateEventsWithMalformedVendorBody(context));
+
+            using var response = new BinaryDecoder([.. eager, .. deferred], context);
+            Assert.That(response.ReadExtensionObject(null).TryGetAsBinary(out ByteString _), Is.True);
+            ExtensionObject events = response.ReadExtensionObject(null);
+
+            Assert.That(events.TryGetValue(out EventNotificationList? _), Is.False);
+            Assert.That(provider.Warnings, Is.EqualTo(1));
+        }
+
+        [Test]
         public void ForwardOnlyStreamDecodesEagerly()
         {
             ServiceMessageContext context = CreateContext(defer: true);
@@ -338,6 +401,41 @@ namespace Opc.Ua.Types.Tests.Encoders
             return encoder.CloseAndReturnBuffer()!;
         }
 
+        private static byte[] Encode(IServiceMessageContext context, ExtensionObject value)
+        {
+            using var encoder = new BinaryEncoder(context);
+            encoder.WriteExtensionObject(null, value);
+            return encoder.CloseAndReturnBuffer()!;
+        }
+
+        private static ServiceMessageContext CreateVendorContext(ILoggerFactory factory)
+        {
+            ServiceMessageContext context = ServiceMessageContext.Create(new TestTelemetry(factory));
+            context.DeferNotificationBodies = true;
+            context.MaxDecoderRecoveries = 1;
+            context.NamespaceUris.GetIndexOrAppend(kVendorUri);
+            context.Factory.AddEncodeableType(typeof(BinaryDecoderAuditTests.XmlSampleNs1));
+            return context;
+        }
+
+        /// <summary>
+        /// A known vendor type with a body too short for its only field.
+        /// </summary>
+        private static ExtensionObject MalformedVendorBody(ServiceMessageContext context)
+        {
+            return new ExtensionObject(
+                new ExpandedNodeId(new NodeId(88902u, context.NamespaceUris.GetIndexOrAppend(kVendorUri))),
+                ByteString.From(new byte[] { 1, 2 }));
+        }
+
+        private static EventNotificationList CreateEventsWithMalformedVendorBody(ServiceMessageContext context)
+        {
+            return new EventNotificationList
+            {
+                Events = [new EventFieldList { EventFields = [Variant.From(MalformedVendorBody(context))] }]
+            };
+        }
+
         private static byte[] EncodeBody(IServiceMessageContext context, EventNotificationList value)
         {
             using var encoder = new BinaryEncoder(context);
@@ -368,6 +466,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new BinaryDecoder(encoded, context);
             return decoder.ReadExtensionObject(null);
         }
+
+        private const string kVendorUri = "urn:test:xmlsample";
 
         private sealed class TestTelemetry : TelemetryContextBase
         {
