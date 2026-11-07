@@ -129,6 +129,7 @@ namespace Opc.Ua.SourceGeneration
                     OmitFluentApi = m_options.OmitFluentApi,
                     FluentAccessorsOnly = m_options.FluentAccessorsOnly,
                     ClientAccessorsOnly = m_options.ClientAccessorsOnly,
+                    ClientAccessorsInternal = m_options.ClientAccessorsInternal,
                     ClientAccessorNamespace = m_options.ClientAccessorNamespace,
                     ClientAccessorClassName = m_options.ClientAccessorClassName,
                     OmitEventRecords = m_options.OmitEventRecords

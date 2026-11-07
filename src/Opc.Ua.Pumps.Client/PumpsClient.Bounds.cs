@@ -147,9 +147,13 @@ namespace Opc.Ua.Pumps.Client
             return references.ToArrayOf();
         }
 
-        private void ValidateBoundedResponse(ResponseHeader? header, int actual, int expected)
+        private void ValidateBoundedResponse(
+            ResponseHeader? header,
+            int actual,
+            int expected,
+            bool requireCompleteResponse = false)
         {
-            if (m_maximumBrowseReferences == 0)
+            if (m_maximumBrowseReferences == 0 && !requireCompleteResponse)
             {
                 return;
             }

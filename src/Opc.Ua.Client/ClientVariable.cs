@@ -57,7 +57,7 @@ namespace Opc.Ua.Client
     /// safety and subscriptions. Optional absence is reported as BadNotFound, not a fabricated default.
     /// </remarks>
     /// <typeparam name="T">The exact generated/native UA value representation.</typeparam>
-    public sealed class ClientVariable<T>
+    public sealed partial class ClientVariable<T>
     {
         /// <summary>
         /// Creates a model-derived variable view.

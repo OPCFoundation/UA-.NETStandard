@@ -647,12 +647,14 @@ namespace Opc.Ua.Server
 
                 foreach (HistorianBuilder builder in builders)
                 {
+                    bool cleanupCompleted = true;
                     try
                     {
                         await builder.DisposeAsync().ConfigureAwait(false);
                     }
                     catch (Exception exception) when (exception is not OutOfMemoryException)
                     {
+                        cleanupCompleted = false;
                         failures ??= [];
                         failures.Add(exception);
                     }
@@ -664,8 +666,19 @@ namespace Opc.Ua.Server
                         }
                         catch (Exception exception) when (exception is not OutOfMemoryException)
                         {
+                            cleanupCompleted = false;
                             failures ??= [];
                             failures.Add(exception);
+                        }
+                    }
+                    if (!cleanupCompleted)
+                    {
+                        lock (m_historianBuildersLock)
+                        {
+                            if (!m_historianBuilders.Contains(builder))
+                            {
+                                m_historianBuilders.Add(builder);
+                            }
                         }
                     }
                 }

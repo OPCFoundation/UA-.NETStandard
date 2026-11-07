@@ -18,6 +18,7 @@
     <CompilerVisibleProperty Include="ModelSourceGeneratorOmitFluentApi" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorFluentAccessorsOnly" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorClientAccessorsOnly" />
+    <CompilerVisibleProperty Include="ModelSourceGeneratorClientAccessorsInternal" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorClientAccessorNamespace" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorClientAccessorClassName" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorOmitEventRecords" />

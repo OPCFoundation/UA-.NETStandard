@@ -25,6 +25,26 @@ never use it in production. The client also takes `--url <endpoint>` (default
 `opc.tcp://localhost:62547/PumpsServer`) and `--seconds <n>` (how long to
 stream, `0` to skip).
 
+Pass `--history` to read the server's five-minute flow archive, minute averages
+and recorded condition events. The server configures explicit NE107 mappings
+for every published supervision input and an exclusive bearing-temperature
+condition. The simulation evaluates them after publishing each tick.
+`--conditions` refreshes retained conditions on the first pump and watches live
+events for the configured `--seconds` window without acknowledging them.
+
+On the server, `--state-root <absolute-directory>` enables retained `AssetId`,
+`ComponentName` and `Location` writes using a file-backed shared AMB store.
+The pump's stable URI, rather than its namespace index, selects its stored
+identity. Writes are restricted to ConfigureAdmin; the application must
+authenticate users and assign that role. The sample client does not mutate
+identity automatically. Without `--state-root`, identity remains read-only.
+
+The manual and marking files contain demonstration content, not product
+documentation or certification. Raw history is bounded to 300 values per
+pump; event history is process-local and discarded on restart. No code here
+operates a physical pump. Neither Pumps profile is advertised automatically;
+the guide records the Advanced profile's unresolved published Base URI.
+
 The client prints something like:
 
 ```
