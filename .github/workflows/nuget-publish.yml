@@ -128,7 +128,7 @@ jobs:
       - name: Setup .NET 10.0
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: '10.0.402'
+          global-json-file: global.json
 
       - name: Decode strong-name key
         shell: pwsh
@@ -479,7 +479,7 @@ jobs:
       - name: Setup .NET 10.0
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: '10.0.402'
+          global-json-file: global.json
 
       - name: Download signed package sets
         uses: actions/download-artifact@v8

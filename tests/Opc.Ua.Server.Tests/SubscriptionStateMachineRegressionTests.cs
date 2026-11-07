@@ -773,6 +773,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(stored.TriggeringLinks[1], Is.EqualTo(new uint[] { 2 }));
 
             var restoredTriggering = new Mock<IMonitoredItem>();
+            restoredTriggering.SetupGet(i => i.NodeManager).Returns(new Mock<IAsyncNodeManager>().Object);
             restoredTriggering.SetupGet(i => i.MonitoringMode).Returns(MonitoringMode.Reporting);
             restoredTriggering.SetupGet(i => i.Id).Returns(1);
             (Mock<IDataChangeMonitoredItem> restoredLinked, _) = CreateTriggeredItem(2);
@@ -824,6 +825,7 @@ namespace Opc.Ua.Server.Tests
                 TriggeringLinks = new Dictionary<uint, IReadOnlyList<uint>> { [1] = [2u] }
             };
             var restoredTriggering = new Mock<IMonitoredItem>();
+            restoredTriggering.SetupGet(i => i.NodeManager).Returns(new Mock<IAsyncNodeManager>().Object);
             restoredTriggering.SetupGet(i => i.MonitoringMode).Returns(MonitoringMode.Reporting);
             restoredTriggering.SetupGet(i => i.Id).Returns(1);
             m_nodeManagerMock
@@ -898,6 +900,7 @@ namespace Opc.Ua.Server.Tests
             CreateTriggeredItem(uint id)
         {
             var item = new Mock<IDataChangeMonitoredItem>();
+            item.SetupGet(i => i.NodeManager).Returns(new Mock<IAsyncNodeManager>().Object);
             item.SetupGet(i => i.MonitoringMode).Returns(MonitoringMode.Reporting);
             item.SetupGet(i => i.Id).Returns(id);
             item.SetupGet(i => i.IsReadyToPublish).Returns(false);
@@ -915,8 +918,10 @@ namespace Opc.Ua.Server.Tests
                 .SetValue(subscription, 0u);
         }
 
-        private static void AddMonitoredItem(Subscription subscription, IMonitoredItem item)
+        private static void AddMonitoredItem<T>(Subscription subscription, T item)
+            where T : class, IMonitoredItem
         {
+            Mock.Get(item).SetupGet(value => value.NodeManager).Returns(new Mock<IAsyncNodeManager>().Object);
             var monitoredItems = (System.Collections.IDictionary)typeof(Subscription)
                 .GetField("m_monitoredItems", BindingFlags.NonPublic | BindingFlags.Instance)!
                 .GetValue(subscription)!;
@@ -924,6 +929,9 @@ namespace Opc.Ua.Server.Tests
                 .GetField("m_itemsToCheck", BindingFlags.NonPublic | BindingFlags.Instance)!
                 .GetValue(subscription)!;
             monitoredItems!.Add(item.Id, itemsToCheck!.AddLast(item));
+            typeof(Subscription)
+                .GetMethod("OnMonitoredItemAdded", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .Invoke(subscription, [item]);
         }
 
         private static void AddTriggerLink(

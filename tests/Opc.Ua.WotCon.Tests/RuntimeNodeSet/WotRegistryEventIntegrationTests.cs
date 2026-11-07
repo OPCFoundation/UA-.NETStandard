@@ -36,7 +36,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Export;
 using Opc.Ua.Server.TestFramework;
-using Opc.Ua.WotCon;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
@@ -84,9 +83,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
         public async Task SetUpAsync()
         {
             m_pkiRoot = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
+                Path.GetTempPath(),
                 nameof(WotRegistryEventIntegrationTests),
-                Guid.NewGuid().ToString("N"));
+                Guid.NewGuid().ToString("N")[..12]);
 
             m_fixture = new ServerFixture<ReferenceServer>(t => new ReferenceServer(t))
             {

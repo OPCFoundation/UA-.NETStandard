@@ -33,6 +33,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Xml.Linq;
 using NUnit.Framework;
@@ -47,7 +48,7 @@ namespace Opc.Ua.AutoID.Tests
     public sealed class AutoIdModelAssetTests
     {
         /// <summary>
-        /// The vendored files are byte-identical to the pinned UA-Nodeset revision.
+        /// Reversing the documented verifier correction recovers the byte-identical upstream publication.
         /// </summary>
         [TestCase("Opc.Ua.AutoID.NodeSet2.xml",
             "C3D5E77AAEEED03862620E307CDF4974E5998267E8FAA992C1F1A24F9BE6A4BA")]
@@ -56,14 +57,25 @@ namespace Opc.Ua.AutoID.Tests
         public void PublishedFilesMatchPinnedHashes(string file, string expectedHash)
         {
             byte[] bytes = File.ReadAllBytes(AutoIdTestContext.ModelPath(file));
-#if NET8_0_OR_GREATER
-            string actualHash = CoreUtils.ToHexString(SHA256.HashData(bytes));
-#else
-            using var hash = SHA256.Create();
-            string actualHash = CoreUtils.ToHexString(hash.ComputeHash(bytes));
-#endif
             using var provenance = JsonDocument.Parse(
                 File.ReadAllText(AutoIdTestContext.ModelPath("provenance.json")));
+            if (file.EndsWith(".xml", StringComparison.Ordinal))
+            {
+                string text = Encoding.UTF8.GetString(bytes);
+                const string corrected =
+                    "<uax:Name>Results</uax:Name>\n              <uax:DataType>\n" +
+                    "                <uax:Identifier>ns=1;i=3030</uax:Identifier>";
+                int offset = text.IndexOf(corrected, StringComparison.Ordinal);
+                Assert.That(offset, Is.GreaterThanOrEqualTo(0), "the documented argument correction exists");
+                Assert.That(text.LastIndexOf(corrected, StringComparison.Ordinal), Is.EqualTo(offset),
+                    "exactly one documented argument correction");
+                Assert.That(CoreUtils.ToHexString(HashModelBytes(bytes)), Is.EqualTo(
+                    provenance.RootElement.GetProperty("localCorrections").GetProperty("sha256").GetString())
+                    .IgnoreCase);
+                bytes = Encoding.UTF8.GetBytes(text.Replace(
+                    corrected, corrected.Replace("3030", "3027", StringComparison.Ordinal), StringComparison.Ordinal));
+            }
+            string actualHash = CoreUtils.ToHexString(HashModelBytes(bytes));
             JsonElement source = provenance.RootElement.GetProperty("sources").EnumerateArray()
                 .Single(entry => entry.GetProperty("file").GetString() == file);
             Assert.Multiple(() =>
@@ -80,6 +92,7 @@ namespace Opc.Ua.AutoID.Tests
             {
                 Assert.That(actualHash, Is.EqualTo(AutoIdModel.NodeSetSha256).IgnoreCase);
             }
+
         }
 
         /// <summary>
@@ -225,6 +238,19 @@ namespace Opc.Ua.AutoID.Tests
                 .ToDictionary(
                     fields => uint.Parse(fields[1], CultureInfo.InvariantCulture),
                     fields => (fields[0], fields[2]));
+        }
+
+        /// <summary>
+        /// Hashes model bytes on every supported target framework.
+        /// </summary>
+        private static byte[] HashModelBytes(byte[] bytes)
+        {
+#if NET8_0_OR_GREATER
+            return SHA256.HashData(bytes);
+#else
+            using var hash = SHA256.Create();
+            return hash.ComputeHash(bytes);
+#endif
         }
 
         private static readonly string[] s_typeNodeClasses = ["DataType", "Method", "ObjectType", "VariableType"];

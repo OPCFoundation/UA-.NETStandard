@@ -29,14 +29,18 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client.Historian;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Server;
+using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.Historian;
 using Opc.Ua.Server.Historian.InMemory;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.History.Tests
 {
@@ -55,9 +59,13 @@ namespace Opc.Ua.History.Tests
         [OneTimeSetUp]
         public async Task RegisterHistoryNodesAsync()
         {
-            await ReferenceServer.NodeManagerLifecycle.AddAsync(
-                new HistoryRegressionNodeManagerFactory(m_streamingProvider, m_retentionClock),
-                callerContext: null).ConfigureAwait(false);
+            await using IPreparedNodeManagerBatch prepared = await ReferenceServer.NodeManagerLifecycle
+                .PrepareAsync(
+                    [NodeManagerBatchChange.Add(
+                        new HistoryRegressionNodeManagerFactory(m_streamingProvider, m_retentionClock))])
+                .ConfigureAwait(false);
+            NodeManagerBatchResult result = await prepared.CommitAsync(static _ => default).ConfigureAwait(false);
+            Assert.That(result.CleanupFailure, Is.Null);
             await Session.FetchNamespaceTablesAsync().ConfigureAwait(false);
             int namespaceIndex = Session.NamespaceUris.GetIndex(kNamespaceUri);
             Assert.That(namespaceIndex, Is.GreaterThanOrEqualTo(0));
@@ -545,7 +553,7 @@ namespace Opc.Ua.History.Tests
         /// <summary>
         /// Hosts history-enabled variables and event notifiers with distinct aggregate capabilities.
         /// </summary>
-        private sealed class HistoryRegressionNodeManager : AsyncCustomNodeManager
+        private sealed class HistoryRegressionNodeManager : AsyncCustomNodeManager, INodeManagerReadinessNotification
         {
             /// <summary>
             /// Creates the history regression manager with its controlled output-limit provider.
@@ -609,6 +617,24 @@ namespace Opc.Ua.History.Tests
                     m_retentionProvider).ConfigureAwait(false);
             }
 
+            /// <inheritdoc/>
+            public async ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)
+            {
+                await using var builder = new HistorianBuilder(Server);
+                foreach ((BaseDataVariableState variable, InMemoryHistorianProvider provider,
+                    HistorianNodeCapabilities capabilities) in m_historyVariables)
+                {
+                    await builder.UseProvider(provider).HistorizeAsync(
+                        variable,
+                        SystemContext,
+                        historyAccessLevel: AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
+                        capabilities: capabilities,
+                        autoCapture: false,
+                        cancellationToken: cancellationToken).ConfigureAwait(false);
+                    await AddPredefinedNodeAsync(SystemContext, variable, cancellationToken).ConfigureAwait(false);
+                }
+            }
+
             /// <summary>
             /// Uses the controlled paging provider only for the output-limit node.
             /// </summary>
@@ -655,20 +681,11 @@ namespace Opc.Ua.History.Tests
                 variable.DataType = DataTypeIds.Double;
                 variable.ValueRank = ValueRanks.Scalar;
                 variable.Value = new Variant(0.0);
-                variable.AccessLevel = AccessLevels.CurrentRead;
-                variable.UserAccessLevel = AccessLevels.CurrentRead;
-
-                await using (var builder = new HistorianBuilder(Server))
-                {
-                    builder.UseProvider(provider).Historize(
-                        variable,
-                        historyAccessLevel: AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
-                        systemContext: SystemContext,
-                        capabilities: capabilities,
-                        autoCapture: false);
-                }
-                await HistoricalDataConfigurationInstaller.EnsureInstalledAsync(
-                    SystemContext, variable, provider, cancellationToken).ConfigureAwait(false);
+                variable.Historizing = true;
+                variable.AccessLevel = AccessLevels.CurrentRead | AccessLevels.HistoryRead | AccessLevels.HistoryWrite;
+                variable.UserAccessLevel = variable.AccessLevel;
+                provider.Register(variable.NodeId, capabilities);
+                m_historyVariables.Add((variable, provider, capabilities));
                 await AddPredefinedNodeAsync(
                     SystemContext, variable, cancellationToken).ConfigureAwait(false);
             }
@@ -703,6 +720,10 @@ namespace Opc.Ua.History.Tests
 
             private readonly InMemoryHistorianProvider m_retentionProvider;
 
+            /// <summary>The private variables whose fluent history bindings complete after publication.</summary>
+            private readonly List<(BaseDataVariableState Variable, InMemoryHistorianProvider Provider,
+                HistorianNodeCapabilities Capabilities)> m_historyVariables = [];
+
             /// <summary>
             /// Supplies the specially spaced raw values for output-limit testing.
             /// </summary>
@@ -714,8 +735,7 @@ namespace Opc.Ua.History.Tests
         /// </summary>
         private sealed class StreamingPageProvider :
             HistorianProviderBase,
-            IHistorianDataProvider,
-            IHistorianContinuationDependencies
+            IHistorianDataProvider
         {
             /// <summary>
             /// Gets the fixed UTC start of the controlled raw-history range.
@@ -726,16 +746,6 @@ namespace Opc.Ua.History.Tests
             /// Gets the number of raw pages requested by the dispatcher.
             /// </summary>
             public int ReadCount { get; private set; }
-
-            /// <inheritdoc/>
-            public bool TryGetContinuationDependencies(
-                NodeId sourceNodeId,
-                HistorianResumeToken resumeToken,
-                out ArrayOf<NodeId> dependencies)
-            {
-                dependencies = [];
-                return true;
-            }
 
             /// <summary>
             /// Returns two bounding points on the first page and an empty terminal page on continuation.
@@ -828,6 +838,311 @@ namespace Opc.Ua.History.Tests
                 CancellationToken ct)
             {
                 throw new NotSupportedException();
+            }
+        }
+
+    }
+
+    /// <summary>
+    /// Exercises real lifecycle routing and historian dispatch without starting a transport.
+    /// </summary>
+    [TestFixture]
+    [Category("Historian")]
+    public sealed class HistorianBugRegressionSocketFreeTests
+    {
+        /// <summary>
+        /// A fluent manager can use an unowned server historian default without joining readiness publication.
+        /// </summary>
+        [Test]
+        public async Task HistorizeBorrowedUnownedDefaultDoesNotRequireReadinessAsync()
+        {
+            await using var harness = new SocketFreeHistorianHarness();
+            using var provider = new InMemoryHistorianProvider();
+            var registry = (HistorianProviderRegistry)harness.Data.HistorianRegistry;
+            registry.RegisterDefault(provider, ownsProvider: false);
+            var state = new FluentHistorianManagerState();
+
+            LifecycleResult added = await harness.Server.NodeManagerLifecycle.ApplyAsync(
+                [LifecycleChange.Add(new PlainFluentHistorianRegressionNodeManagerFactory(
+                    "urn:opcfoundation:history-tests:plain-fluent", state))]).ConfigureAwait(false);
+
+            Assert.That(state.NodeId.IsNull, Is.False);
+            Assert.That(registry.Resolve(state.NodeId), Is.SameAs(provider));
+            await added.Retired.ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task HistorizeBorrowedDefaultSurvivesOwnerReloadAndServesHistoryAsync()
+        {
+            await AssertHistorizeBorrowedDefaultSurvivesOwnerLifecycleAsync(reloadOwner: true)
+                .ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task HistorizeBorrowedDefaultSurvivesOwnerRemovalAndServesHistoryAsync()
+        {
+            await AssertHistorizeBorrowedDefaultSurvivesOwnerLifecycleAsync(reloadOwner: false)
+                .ConfigureAwait(false);
+        }
+
+        private static async Task AssertHistorizeBorrowedDefaultSurvivesOwnerLifecycleAsync(bool reloadOwner)
+        {
+            await using var harness = new SocketFreeHistorianHarness();
+            IServerInternal server = harness.Data;
+            INodeManagerLifecycle lifecycle = harness.Server.NodeManagerLifecycle;
+            const string ownerNamespace = "urn:opcfoundation:history-tests:fluent-owner";
+            const string borrowerNamespace = "urn:opcfoundation:history-tests:fluent-borrower";
+            var ownerState = new FluentHistorianManagerState();
+            var borrowerState = new FluentHistorianManagerState();
+            var ownerFactory = new FluentHistorianRegressionNodeManagerFactory(ownerNamespace, ownerState);
+            var borrowerFactory = new FluentHistorianRegressionNodeManagerFactory(borrowerNamespace, borrowerState);
+            LifecycleResult ownerAdded = await lifecycle.ApplyAsync(
+                [LifecycleChange.Add(ownerFactory)]).ConfigureAwait(false);
+            NodeManagerSlot ownerSlot = ownerAdded.Registrations[0].Slot;
+            LifecycleResult borrowerAdded = await lifecycle.ApplyAsync(
+                [LifecycleChange.Add(borrowerFactory)]).ConfigureAwait(false);
+            NodeManagerSlot borrowerSlot = borrowerAdded.Registrations[0].Slot;
+            NodeId borrowerNodeId = borrowerState.NodeId;
+            Assert.That(borrowerNodeId.IsNull, Is.False);
+
+            IHistorianProviderRegistry registry = ((IHistorianRegistryProvider)server).HistorianRegistry;
+            IHistorianProvider servingProvider = registry.Resolve(borrowerNodeId)
+                ?? throw new InvalidOperationException("The borrowed historian default was not registered.");
+            Assert.That(registry.Resolve(ownerState.NodeId), Is.SameAs(servingProvider));
+            DateTime seedTime = DateTime.UtcNow.AddSeconds(-1);
+            await SeedFluentHistoryAsync(server, servingProvider, borrowerNodeId, seedTime).ConfigureAwait(false);
+            await AssertExactFluentHistoryThroughServerAsync(server, borrowerNodeId, seedTime).ConfigureAwait(false);
+
+            if (reloadOwner)
+            {
+                LifecycleResult replaced = await lifecycle.ApplyAsync(
+                    [LifecycleChange.Reload(ownerSlot, ownerFactory)]).ConfigureAwait(false);
+                await replaced.Retired.ConfigureAwait(false);
+                Assert.That(registry.Resolve(ownerState.NodeId), Is.SameAs(servingProvider),
+                    "The replacement fluent manager must remain bound to the shared provider.");
+            }
+            else
+            {
+                NodeId removedNodeId = ownerState.NodeId;
+                LifecycleResult removed = await lifecycle.ApplyAsync(
+                    [LifecycleChange.Remove(ownerSlot)]).ConfigureAwait(false);
+                await removed.Retired.ConfigureAwait(false);
+                Assert.That(await harness.Master.FindNodeInAddressSpaceAsync(removedNodeId)
+                    .ConfigureAwait(false), Is.Null);
+                Assert.That(ownerSlot.TryGetCurrent(out _), Is.False);
+            }
+
+            Assert.That(borrowerSlot.TryGetCurrent(out NodeManagerSlotSnapshot survivor), Is.True);
+            (object? handle, IAsyncNodeManager? routedManager) = await harness.Master
+                .GetManagerHandleAsync(borrowerNodeId).ConfigureAwait(false);
+            Assert.That(handle, Is.Not.Null);
+            Assert.That(routedManager, Is.SameAs(survivor.NodeManager),
+                "The serving routing table must dispatch to the surviving borrower generation.");
+            Assert.That(registry.Resolve(borrowerNodeId), Is.SameAs(servingProvider));
+            await AssertExactFluentHistoryThroughServerAsync(server, borrowerNodeId, seedTime).ConfigureAwait(false);
+        }
+
+        private static async Task SeedFluentHistoryAsync(
+            IServerInternal server, IHistorianProvider provider, NodeId nodeId, DateTime seedTime)
+        {
+            Assert.That(provider, Is.InstanceOf<IHistorianDataProvider>());
+            using var requestContext = new OperationContext(
+                new RequestHeader(), null, RequestType.HistoryUpdate, RequestLifetime.None);
+            var historianContext = new HistorianOperationContext(
+                new ServerSystemContext(server), requestContext, null, HistoryUpdateType.Insert);
+            HistorianUpdateOutcome<DataValue> inserted = await ((IHistorianDataProvider)provider).InsertAsync(
+                historianContext, nodeId,
+                [
+                    new DataValue(137, StatusCodes.Good, seedTime, seedTime),
+                    new DataValue(251, StatusCodes.Good, seedTime.AddSeconds(1), seedTime.AddSeconds(1))
+                ],
+                CancellationToken.None).ConfigureAwait(false);
+            Assert.That(inserted.OperationResults, Has.Count.EqualTo(2));
+            Assert.That(inserted.OperationResults.ToArray(), Has.All.EqualTo(StatusCodes.GoodEntryInserted));
+        }
+
+        private static async Task AssertExactFluentHistoryThroughServerAsync(
+            IServerInternal server, NodeId nodeId, DateTime seedTime)
+        {
+            using var context = new OperationContext(
+                new RequestHeader(), null, RequestType.HistoryRead, RequestLifetime.None);
+            var details = new ReadRawModifiedDetails
+            {
+                IsReadModified = false,
+                StartTime = seedTime.AddSeconds(-1),
+                EndTime = seedTime.AddSeconds(2),
+                NumValuesPerNode = 10
+            };
+            (ArrayOf<HistoryReadResult> results, _) = await server.NodeManager.HistoryReadAsync(
+                context, new ExtensionObject(details), TimestampsToReturn.Source,
+                releaseContinuationPoints: false,
+                [new HistoryReadValueId { NodeId = nodeId }]).ConfigureAwait(false);
+            Assert.That(results, Has.Count.EqualTo(1));
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(results[0].ContinuationPoint.IsEmpty, Is.True);
+            var history = ExtensionObject.ToEncodeable(results[0].HistoryData) as HistoryData;
+            Assert.That(history, Is.Not.Null);
+            DataValue[] values = history!.DataValues.Span.ToArray();
+            Assert.That(values.Select(value => value.GetValue<int>(default)),
+                Is.EqualTo(s_expectedHistoryValues));
+            Assert.That(values.Select(value => value.SourceTimestamp),
+                Is.EqualTo(new DateTimeUtc[] { (DateTimeUtc)seedTime, (DateTimeUtc)seedTime.AddSeconds(1) }));
+            Assert.That(values.Select(value => value.StatusCode), Has.All.EqualTo(StatusCodes.Good));
+        }
+
+        private static readonly int[] s_expectedHistoryValues = [137, 251];
+
+        private sealed class SocketFreeHistorianHarness : IAsyncDisposable
+        {
+            public SocketFreeHistorianHarness()
+            {
+                ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+                var configuration = new ApplicationConfiguration
+                {
+                    ApplicationUri = "urn:test:socket-free:historian",
+                    ServerConfiguration = new ServerConfiguration()
+                };
+                Server = new StandardServer(telemetry) { LoadComplexTypes = false };
+                Data = new ServerInternalData(new ServerProperties(), configuration,
+                    new ServiceMessageContext(telemetry, EncodeableFactory.Create()));
+                Data.TypeTree.AddSubtype(DataTypeIds.BaseDataType, NodeId.Null);
+                Data.TypeTree.AddSubtype(DataTypeIds.Int32, DataTypeIds.BaseDataType);
+                Data.TypeTree.AddSubtype(DataTypeIds.Structure, DataTypeIds.BaseDataType);
+                var status = new ServerStatusValue(new ServerStatusState(null),
+                    new ServerStatusDataType { State = ServerState.Running }, new Lock());
+                typeof(ServerInternalData).GetProperty("NonThreadSafeStatus",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                    .SetValue(Data, status);
+                typeof(ServerBase).GetProperty("Configuration",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                    .SetValue(Server, configuration);
+                typeof(StandardServer).GetField("m_serverInternal",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                    .SetValue(Server, Data);
+                var factory = new Mock<IMainNodeManagerFactory>();
+                var configurationNodeManager = new Mock<IConfigurationNodeManager>();
+                configurationNodeManager.As<IDiagnosticsNodeManager>()
+                    .Setup(value => value.FindPredefinedNode<ServerObjectState>(ObjectIds.Server))
+                    .Returns(new ServerObjectState(null));
+                factory.Setup(value => value.CreateConfigurationNodeManager())
+                    .Returns(configurationNodeManager.Object);
+                factory.Setup(value => value.CreateCoreNodeManager(It.IsAny<ushort>()))
+                    .Returns(new Mock<ICoreNodeManager>().Object);
+                Data.SetMainNodeManagerFactory(factory.Object);
+                Master = new MasterNodeManager(Data, configuration, new NodeManagerRoutingTable());
+                Data.SetNodeManager(Master);
+                Assert.That(Data.IsRunning, Is.True);
+                Assert.That(configuration.ServerConfiguration.BaseAddresses, Is.Empty);
+            }
+
+            public StandardServer Server { get; }
+            public ServerInternalData Data { get; }
+            public MasterNodeManager Master { get; }
+
+            public async ValueTask DisposeAsync()
+            {
+                // StandardServer.Start is never called: no transport, session or timer is started.
+                ((IDisposable)Server.NodeManagerLifecycle).Dispose();
+                typeof(StandardServer).GetField("m_serverInternal",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                    .SetValue(Server, null);
+                await Data.DisposeAsync().ConfigureAwait(false);
+                Server.Dispose();
+            }
+        }
+
+        private sealed class FluentHistorianManagerState
+        {
+            public NodeId NodeId { get; set; }
+        }
+
+        private sealed class FluentHistorianRegressionNodeManagerFactory(
+            string namespaceUri,
+            FluentHistorianManagerState state) : IAsyncNodeManagerFactory
+        {
+            public ArrayOf<string> NamespacesUris => [namespaceUri];
+
+            public ValueTask<IAsyncNodeManager> CreateAsync(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return new ValueTask<IAsyncNodeManager>(
+                    new FluentHistorianRegressionNodeManager(server, configuration, namespaceUri, state));
+            }
+        }
+
+        private sealed class PlainFluentHistorianRegressionNodeManagerFactory(
+            string namespaceUri,
+            FluentHistorianManagerState state) : IAsyncNodeManagerFactory
+        {
+            public ArrayOf<string> NamespacesUris => [namespaceUri];
+
+            public ValueTask<IAsyncNodeManager> CreateAsync(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return new ValueTask<IAsyncNodeManager>(
+                    new PlainFluentHistorianRegressionNodeManager(
+                        server, configuration, namespaceUri, state));
+            }
+        }
+
+        private sealed class PlainFluentHistorianRegressionNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            string namespaceUri,
+            FluentHistorianManagerState state)
+            : FluentNodeManagerBase(server, configuration, namespaceUri)
+        {
+            protected override ValueTask ConfigureAsync(
+                INodeManagerBuilder builder,
+                CancellationToken cancellationToken)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                IVariableBuilder<int> variable = builder.AddVariable<int>("Historized");
+                variable.Historize();
+                state.NodeId = variable.Node.NodeId;
+                return default;
+            }
+        }
+
+        private sealed class FluentHistorianRegressionNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            string namespaceUri,
+            FluentHistorianManagerState state)
+            : FluentNodeManagerBase(server, configuration, namespaceUri),
+                INodeManagerReadinessNotification,
+                INodeManagerReloadParticipant
+        {
+            /// <inheritdoc/>
+            public ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)
+            {
+                return CompletePublishedConfigurationAsync(cancellationToken);
+            }
+
+            /// <inheritdoc/>
+            public ValueTask<ArrayOf<LocalReference>> PrepareReloadAsync(
+                IAsyncNodeManager replacement,
+                CancellationToken ct = default)
+            {
+                ct.ThrowIfCancellationRequested();
+                return new ValueTask<ArrayOf<LocalReference>>([]);
+            }
+
+            protected override ValueTask ConfigureAsync(
+                INodeManagerBuilder builder,
+                CancellationToken cancellationToken)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                IVariableBuilder<int> variable = builder.AddVariable<int>("Historized");
+                variable.Historize(autoCapture: false);
+                state.NodeId = variable.Node.NodeId;
+                return default;
             }
         }
     }

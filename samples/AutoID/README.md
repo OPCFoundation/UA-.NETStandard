@@ -4,10 +4,36 @@ Two console applications that show the `Opc.Ua.AutoID*` libraries end to end: a
 server that publishes a simulated RFID reader, and a client that discovers it,
 scans, reads and writes tag memory and prints the events.
 
+The server enables provider-backed runtime parameters and `ScanActive`.
+Before the method/event examples, the client writes scan settings, starts the
+reader through the variable, reads timestamp-consistent acquisition data and
+stops it through the variable. No Scan or ScanStart call is needed for this
+first workflow; the later examples retain both method access styles.
+
+The server also enables `WithDiagnostics()`. Data Access clients can browse
+`DockDoor1/Diagnostics` for read-only Presence, Logbook and LastAccess values,
+including RFID access fields. The values use the same reports as the events;
+clients must compare LastAccess source timestamps before combining fields.
+The simulated provider does not define hardware-specific IOData points.
+It exposes `RuntimeParameters/CodeTypesRWData` with a single `RAW:BYTES` catalogue
+entry and selected index zero. Empty selection disables diagnostic user data on
+subsequent access reports without changing method outputs or events. Other
+formats require a provider that implements their conversion.
+The simulated provider does not declare optional RF configuration or tag-type
+filtering. Those standard runtime parameters require a
+provider that implements their behavior; the sample does not infer hardware
+capabilities from its simulated antenna names or signal measurements.
+
+`LabelVerifier/Images/Label` is a read-only FileType containing a small portable
+graymap (`image/x-portable-graymap`). The server configures the slot with
+`WithImages` and publishes its bytes through `ReportImageAsync`. The client
+discovers it with `EnumerateImagesAsync` and uses the existing File System client
+to read it; the sample-pair script requires that output too.
+
 | Sample | What it does |
 | --- | --- |
-| [AutoIdServer](AutoIdServer/) | Serves the reader `DockDoor1` backed by `InMemoryRfidReaderProvider`: two pallets in range, a third entering and leaving every two seconds, a triggered scan every six |
-| [AutoIdClient](AutoIdClient/) | Discovers the readers, prints the device, runs a synchronous scan, reads and writes tag memory, then starts a scan and prints scan and presence events |
+| [AutoIdServer](AutoIdServer/) | Serves `DockDoor1` with simulated RFID pallets and `LabelVerifier` with a label print-quality result |
+| [AutoIdClient](AutoIdClient/) | Discovers the readers, prints the device, scans the RFID portal and verifier, reads and writes tag memory, then prints scan and presence events |
 
 The [AutoID guide](../../docs/AutoID.md) explains every API used here.
 

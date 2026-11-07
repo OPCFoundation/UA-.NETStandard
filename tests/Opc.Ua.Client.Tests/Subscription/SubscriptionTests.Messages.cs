@@ -23,6 +23,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -34,6 +35,31 @@ namespace Opc.Ua.Client.Subscriptions
 {
     public sealed partial class SubscriptionTests
     {
+        /// <summary>
+        /// The original constructor and deconstruction remain usable without continuation metadata.
+        /// </summary>
+        [TestCase(null)]
+        [TestCase(false)]
+        [TestCase(true)]
+        public void WholeMessageConstructionPreservesCompatibility(bool? moreNotifications)
+        {
+            DateTime publishTime = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            ArrayOf<SubscriptionNotificationPayload> notifications = [];
+            ArrayOf<string> stringTable = ["diagnostic"];
+            var original = new SubscriptionNotificationMessage(default, publishTime, notifications, stringTable);
+            SubscriptionNotificationMessage annotated = original with { MoreNotifications = moreNotifications };
+            (AcknowledgementHandle acknowledgement, DateTime time,
+                ArrayOf<SubscriptionNotificationPayload> payloads, ArrayOf<string> strings) = annotated;
+
+            Assert.That(original.MoreNotifications, Is.Null);
+            Assert.That(default(SubscriptionNotificationMessage).MoreNotifications, Is.Null);
+            Assert.That(annotated.MoreNotifications, Is.EqualTo(moreNotifications));
+            Assert.That(acknowledgement.IsNull, Is.True);
+            Assert.That(time, Is.EqualTo(publishTime));
+            Assert.That(payloads, Is.EqualTo(notifications));
+            Assert.That(strings, Is.EqualTo(stringTable));
+        }
+
         /// <summary>
         /// Every partition must begin shutdown before retirement waits for a sibling whose
         /// keep-alive is queued behind the active whole-message handler's forwarding gate.
@@ -264,10 +290,13 @@ namespace Opc.Ua.Client.Subscriptions
         /// Mixed payloads are delivered once, in wire order, including through the partition
         /// forwarding adapter. Projected data survives recycling of the wire containers.
         /// </summary>
-        [TestCase(false)]
-        [TestCase(true)]
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
         [CancelAfter(10_000)]
-        public async Task WholeMessageDeliveryPreservesMixedPayloadsAsync(bool partitioned, CancellationToken ct)
+        public async Task WholeMessageDeliveryPreservesMixedPayloadsAsync(
+            bool partitioned, bool moreNotifications, CancellationToken ct)
         {
             var received = new TaskCompletionSource<SubscriptionNotificationMessage>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
@@ -284,6 +313,7 @@ namespace Opc.Ua.Client.Subscriptions
             await using var subscription = new TestSubscription(
                 m_session, handler, m_completion, m_options, m_telemetry, 7);
             NotificationMessage wire = CreateMixedMessage();
+            wire.MoreNotifications = moreNotifications;
 
             await subscription.OnPublishReceivedAsync(wire, [3], ["diagnostic"]).ConfigureAwait(false);
             await m_completion.WaitForQueuedAckAsync(1).WaitAsync(ct).ConfigureAwait(false);
@@ -293,6 +323,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             Assert.That(message.Acknowledgement.SubscriptionId, Is.EqualTo(7));
             Assert.That(message.Acknowledgement.SequenceNumber, Is.EqualTo(3));
+            Assert.That(message.MoreNotifications, Is.EqualTo(moreNotifications));
             Assert.That(message.StringTable.Count, Is.EqualTo(1));
             Assert.That(message.StringTable[0], Is.EqualTo("diagnostic"));
             Assert.That(message.Notifications.Count, Is.EqualTo(4));
@@ -312,6 +343,54 @@ namespace Opc.Ua.Client.Subscriptions
                 It.IsAny<ISubscription>(), It.IsAny<uint>(), It.IsAny<DateTime>(),
                 It.IsAny<ReadOnlyMemory<EventNotification>>(), It.IsAny<PublishState>(),
                 It.IsAny<IReadOnlyList<string>>()), Times.Never);
+        }
+
+        /// <summary>
+        /// Gap recovery must not turn a Republish response into a known end of a Publish burst.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        [CancelAfter(10_000)]
+        public async Task WholeMessageRepublishHasUnknownSplitMetadataAsync(
+            bool partitioned, bool staleMoreNotifications, CancellationToken ct)
+        {
+            var received = new ConcurrentQueue<SubscriptionNotificationMessage>();
+            Mock<ISubscriptionNotificationMessageHandler> messages =
+                m_mockNotificationDataHandler.As<ISubscriptionNotificationMessageHandler>();
+            messages.Setup(value => value.OnNotificationMessageAsync(
+                    It.IsAny<SubscriptionNotificationMessage>(), It.IsAny<CancellationToken>()))
+                .Callback((SubscriptionNotificationMessage message, CancellationToken _) => received.Enqueue(message))
+                .Returns(default(ValueTask));
+            using var forwarding = new PartitionForwardingHandler(m_mockNotificationDataHandler.Object);
+            ISubscriptionNotificationHandler handler = partitioned ? forwarding : m_mockNotificationDataHandler.Object;
+            await using var subscription = new TestSubscription(
+                m_session, handler, m_completion, m_options, m_telemetry, 7);
+            NotificationMessage recovered = BuildDataMessage(2);
+            recovered.MoreNotifications = staleMoreNotifications;
+            m_mockSubscriptionServices.Setup(value => value.RepublishAsync(
+                    It.IsAny<RequestHeader>(), 7, 2, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new RepublishResponse
+                {
+                    ResponseHeader = new ResponseHeader { ServiceResult = StatusCodes.Good },
+                    NotificationMessage = recovered
+                });
+            NotificationMessage first = BuildDataMessage(1);
+            first.MoreNotifications = true;
+            await subscription.OnPublishReceivedAsync(first, [1], []).ConfigureAwait(false);
+            await m_completion.WaitForQueuedAckAsync(1).WaitAsync(ct).ConfigureAwait(false);
+            await subscription.OnPublishReceivedAsync(BuildDataMessage(3), [1, 2, 3], []).ConfigureAwait(false);
+            await m_completion.WaitForQueuedAckAsync(3).WaitAsync(ct).ConfigureAwait(false);
+
+            SubscriptionNotificationMessage[] delivered = [.. received];
+            Assert.That(delivered, Has.Length.EqualTo(3));
+            Assert.That(delivered[0].MoreNotifications, Is.True);
+            Assert.That(delivered[1].Acknowledgement.SequenceNumber, Is.EqualTo(2));
+            Assert.That(delivered[1].MoreNotifications, Is.Null);
+            Assert.That(delivered[2].MoreNotifications, Is.False);
+            m_mockSubscriptionServices.Verify(value => value.RepublishAsync(
+                It.IsAny<RequestHeader>(), 7, 2, It.IsAny<CancellationToken>()), Times.Once);
         }
 
         /// <summary>

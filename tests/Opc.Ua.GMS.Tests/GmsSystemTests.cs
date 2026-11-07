@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
@@ -107,6 +109,53 @@ namespace Opc.Ua.GMS.Tests
             NodeId nodeId = handle.NodeId;
             await handle.DisposeAsync().ConfigureAwait(false);
             Assert.That(fixture.Manager.FindPredefinedNode(nodeId), Is.Null);
+        }
+
+        /// <summary>
+        /// Basic and BasicSecure follow the endpoints the running server actually publishes.
+        /// </summary>
+        [TestCase(false, false, false)]
+        [TestCase(true, true, false)]
+        [TestCase(true, true, true)]
+        public async Task SecureProfilesFollowPublishedEndpointsAsync(bool basic256, bool basic, bool basicSecure)
+        {
+            var policies = new List<ServerSecurityPolicy>
+            {
+                new() { SecurityMode = MessageSecurityMode.None, SecurityPolicyUri = SecurityPolicies.None }
+            };
+            var tokens = new List<UserTokenPolicy> { new(UserTokenType.Anonymous) };
+            if (basic256)
+            {
+                policies.Add(new ServerSecurityPolicy
+                {
+                    SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                    SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+                });
+            }
+            if (basicSecure)
+            {
+                policies.Add(new ServerSecurityPolicy
+                {
+                    SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                    SecurityPolicyUri = SecurityPolicies.Aes128_Sha256_RsaOaep
+                });
+                tokens.Add(new UserTokenPolicy(UserTokenType.Certificate));
+            }
+            await using var fixture = new GmsResultServerFixture
+            {
+                ServerSecurityPolicies = policies.ToArrayOf(),
+                UserTokenPolicies = tokens.ToArrayOf()
+            };
+            await fixture.StartAsync().ConfigureAwait(false);
+            IMachineryBuildContext context = Context(fixture);
+            var store = new InMemoryGmsResultStore(ModelTestContext.CreateMessageContext());
+            await using GmsHandle handle = await Builder(
+                context, "SecureProfiles", new InMemoryGmsProvider(new GmsSystemSnapshot()))
+                .WithResults(store).BuildAsync().ConfigureAwait(false);
+            string[] profiles = handle.ServerProfiles.ToArray()!;
+            const string prefix = "http://opcfoundation.org/UA-Profile/GMS/Server/";
+            Assert.That(profiles.Contains(prefix + "Basic"), Is.EqualTo(basic));
+            Assert.That(profiles.Contains(prefix + "BasicSecure"), Is.EqualTo(basicSecure));
         }
 
         /// <summary>

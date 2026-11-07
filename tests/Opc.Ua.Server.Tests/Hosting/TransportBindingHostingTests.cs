@@ -61,7 +61,6 @@ namespace Opc.Ua.Server.Tests.Hosting
         {
             string testRoot = Path.Combine(
                 TestContext.CurrentContext.WorkDirectory,
-                nameof(TransportBindingHostingTests),
                 Guid.NewGuid().ToString("N"));
             string pkiRoot = Path.Combine(testRoot, "pki");
             Directory.CreateDirectory(testRoot);
@@ -96,6 +95,12 @@ namespace Opc.Ua.Server.Tests.Hosting
 
                 bool queried = await WaitForAsync(() => spy.Queried, TimeSpan.FromSeconds(30))
                     .ConfigureAwait(false);
+                if (!queried &&
+                    hostedService is BackgroundService backgroundService &&
+                    backgroundService.ExecuteTask is { IsFaulted: true } executionTask)
+                {
+                    await executionTask.ConfigureAwait(false);
+                }
                 Assert.That(queried, Is.True,
                     "The hosted server must resolve and use the DI-registered transport binding registry.");
             }

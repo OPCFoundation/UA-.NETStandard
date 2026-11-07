@@ -67,9 +67,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await harness.StartAsync().ConfigureAwait(false);
             await harness.WaitForReadAsync(10).ConfigureAwait(false);
 
-            // the loop validated in its first cycle and reused the verdict in cycles 1..8.
+            // the loop validated in its first cycle and reused the verdict in cycles 1..9.
             Assert.That(harness.ValidationsBeforeRead(10), Is.EqualTo(1));
             Assert.That(harness.QueuedStatus(9), Is.EqualTo(StatusCodes.Good));
+            TestContext.Out.WriteLine(
+                "Sample cycles 0-9: 1 permission validation, 9 reused verdicts (90% cache-hit rate).");
         }
 
         /// <summary>
@@ -280,6 +282,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 item.SetupGet(m => m.MonitoredItemType).Returns(MonitoredItemTypeMask.DataChange);
                 item.SetupGet(m => m.MonitoringMode).Returns(MonitoringMode.Reporting);
                 item.SetupGet(m => m.SamplingInterval).Returns(kInterval);
+                item.SetupGet(m => m.ManagerHandle).Returns(new object());
                 item.SetupGet(m => m.Session).Returns(session);
                 item.Setup(m => m.GetReadValueId()).Returns(() => new ReadValueId
                 {
