@@ -195,6 +195,31 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Capturing nested scopes does not retain either initializer after both scopes are disposed.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void CapturedDisposedNestedScopesDoNotRetainEitherInitializer(bool parentFirst)
+        {
+            (ExecutionContext Context, WeakReference[] Owners, NodeManagerReadinessScope[] Scopes) capture =
+                CaptureDisposedNestedScopes(parentFirst);
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(capture.Owners[0].IsAlive, Is.False, "Parent server");
+                Assert.That(capture.Owners[1].IsAlive, Is.False, "Parent generation");
+                Assert.That(capture.Owners[2].IsAlive, Is.False, "Parent manager");
+                Assert.That(capture.Owners[3].IsAlive, Is.False, "Child server");
+                Assert.That(capture.Owners[4].IsAlive, Is.False, "Child generation");
+                Assert.That(capture.Owners[5].IsAlive, Is.False, "Child manager");
+            }
+            GC.KeepAlive(capture.Context);
+            GC.KeepAlive(capture.Scopes);
+        }
+
+        /// <summary>
         /// Captures the execution context outside the collection test's stack roots.
         /// </summary>
         /// <returns>The retained context and weak references to its completed owners.</returns>
@@ -216,6 +241,70 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             return (context, new WeakReference(server), new WeakReference(generation),
                 new WeakReference(generation.NodeManager));
+        }
+
+        /// <summary>
+        /// Captures both initializers outside the collection test's stack roots.
+        /// </summary>
+        /// <param name="parentFirst">Whether the parent is disposed before the child.</param>
+        /// <returns>The retained context, scope handles and weak references to both initializers' owners.</returns>
+        /// <exception cref="InvalidOperationException">An execution context was not captured.</exception>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static (
+            ExecutionContext Context,
+            WeakReference[] Owners,
+            NodeManagerReadinessScope[] Scopes) CaptureDisposedNestedScopes(bool parentFirst)
+        {
+            ExecutionContext caller = ExecutionContext.Capture() ??
+                throw new InvalidOperationException("The caller execution context was not captured.");
+            (ExecutionContext Context, WeakReference[] Owners, NodeManagerReadinessScope[] Scopes)? capture = null;
+            ExecutionContext.Run(caller.CreateCopy(), state =>
+            {
+                IServerInternal parentServer = Mock.Of<IServerInternal>();
+                NodeManagerGeneration parentGeneration = CreateGeneration();
+                IServerInternal childServer = Mock.Of<IServerInternal>();
+                NodeManagerGeneration childGeneration = CreateGeneration();
+                using var parent = new NodeManagerReadinessScope(parentServer, parentGeneration);
+                using var child = new NodeManagerReadinessScope(childServer, childGeneration);
+                ExecutionContext context = ExecutionContext.Capture() ??
+                    throw new InvalidOperationException("The initializer execution context was not captured.");
+                ExecutionContext.Run(context.CreateCopy(), _ => AssertAuthority(true), null);
+                WeakReference[] owners =
+                [
+                    new WeakReference(parentServer),
+                    new WeakReference(parentGeneration),
+                    new WeakReference(parentGeneration.NodeManager),
+                    new WeakReference(childServer),
+                    new WeakReference(childGeneration),
+                    new WeakReference(childGeneration.NodeManager)
+                ];
+                NodeManagerReadinessScope[] scopes = [parent, child];
+                capture = (context, owners, scopes);
+                if (parentFirst)
+                {
+                    parent.Dispose();
+                    child.Dispose();
+                }
+                else
+                {
+                    child.Dispose();
+                    parent.Dispose();
+                }
+                ExecutionContext.Run(context.CreateCopy(), _ => AssertAuthority(false), null);
+
+                void AssertAuthority(bool active)
+                {
+                    using (Assert.EnterMultipleScope())
+                    {
+                        Assert.That(NodeManagerReadinessScope.Allows(parentServer), Is.EqualTo(active));
+                        Assert.That(NodeManagerReadinessScope.Allows(parentGeneration), Is.EqualTo(active));
+                        Assert.That(NodeManagerReadinessScope.Allows(childServer), Is.EqualTo(active));
+                        Assert.That(NodeManagerReadinessScope.Allows(childGeneration), Is.EqualTo(active));
+                    }
+                }
+            }, null);
+            return capture ??
+                throw new InvalidOperationException("The initializer execution context was not captured.");
         }
 
         /// <summary>
