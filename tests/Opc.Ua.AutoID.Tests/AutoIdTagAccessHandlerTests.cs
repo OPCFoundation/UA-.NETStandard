@@ -83,6 +83,41 @@ namespace Opc.Ua.AutoID.Tests
             });
         }
 
+        /// <summary>
+        /// Keeps a tag command active until its asynchronous access-event sink completes.
+        /// </summary>
+        [Test]
+        public async Task TagCommandAwaitsAsyncEventSinkAndReaderShutdownAsync()
+        {
+            (RfidReaderDeviceState device, _, _) = await CreateAsync().ConfigureAwait(false);
+            AutoIdReader reader = ReaderOf(device);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            device.OnReportEventAsync = async (_, _, e, cancellationToken) =>
+            {
+                if (e is RfidAccessEventState)
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                }
+            };
+            await AutoIdGatedTest.RunAsync(
+                reader,
+                () => ReadAsync(device).AsTask(),
+                () => release.TrySetResult(true),
+                async (invocation, startDisposal) =>
+                {
+                    await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    Task<ReadTagMethodStateResult> call =
+                        await invocation.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    Assert.That(call.IsCompleted, Is.False);
+                    Task dispose = await startDisposal().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    Assert.That(dispose.IsCompleted, Is.False);
+                },
+                result => Assert.That(result.Status, Is.EqualTo(AutoIdOperationStatusEnumeration.SUCCESS)))
+                .ConfigureAwait(false);
+        }
+
         [TestCase(AutoIdOperationStatusEnumeration.SUCCESS, true)]
         [TestCase(AutoIdOperationStatusEnumeration.PASSWORD_ERROR, true)]
         [TestCase(AutoIdOperationStatusEnumeration.READ_ERROR, true)]

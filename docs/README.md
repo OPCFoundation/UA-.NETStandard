@@ -206,8 +206,10 @@ models that each model depends on.
   families and their models to one server's `DeviceSet`.
 - [AutoID Devices](AutoID.md) (OPC 30010) — RFID, OCR, optical, optical
   verifier and RTLS readers: model, server hosting with a provider contract for
-  the reader hardware, typed client, MCP tools and a simulated RFID reader
-  sample, based on the Device Integration model.
+  the reader hardware, provider-backed runtime parameters, variable-triggered
+  scanning, read-only Diagnostics, typed Data Access clients, MCP tools and a
+  simulated RFID reader sample, based on the Device Integration model. Published
+  optical-verifier/RTLS contract discrepancies keep specification support Partial.
 - [Laboratory and Analytical Devices](LADS.md) (OPC 30500-1, LADS): model,
   server hosting on Machinery with functions, programs, results and maintenance
   tasks, typed client and a shaking incubator sample.

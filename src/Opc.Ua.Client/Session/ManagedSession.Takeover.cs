@@ -103,8 +103,10 @@ namespace Opc.Ua.Client
                     }
 
                     // Stop publishing and subscription updates and wait for the requests in flight,
-                    // so the captured subscription state is the one the server session holds.
-                    manager.SetSessionRecoveryPaused(true);
+                    // so the captured subscription state is the one the server session holds. An
+                    // update canceled here could already be applied on the server, and the new owner
+                    // would create its monitored items a second time.
+                    manager.PauseForSessionHandoff();
                     await manager.DrainAsync(ct).ConfigureAwait(false);
                     List<SubscriptionStateSnapshot> subscriptions = CaptureSubscriptions(manager);
 
