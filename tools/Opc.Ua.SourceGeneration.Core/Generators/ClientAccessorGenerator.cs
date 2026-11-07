@@ -69,6 +69,8 @@ namespace Opc.Ua.SourceGeneration
             var template = new Template(templateWriter, s_file);
             template.AddReplacement(Tokens.Namespace, outputNamespace);
             template.AddReplacement(Tokens.ClassName, className);
+            template.AddReplacement(Tokens.AccessModifier,
+                m_context.Options?.ClientAccessorsInternal == true ? "internal" : "public");
             template.AddReplacement(Tokens.ListOfTypes, types, onLoad: context =>
             {
                 EmitMembers(context.Out, (ObjectTypeDesign)context.Target);
@@ -244,7 +246,7 @@ namespace Opc.Ua.SourceGeneration
                 /// <summary>
                 /// Model-derived variable and placeholder accessors over existing generated proxies.
                 /// </summary>
-                public static partial class {{Tokens.ClassName}}
+                {{Tokens.AccessModifier}} static partial class {{Tokens.ClassName}}
                 {
                     {{Tokens.ListOfTypes}}
                 }

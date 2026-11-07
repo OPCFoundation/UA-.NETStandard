@@ -29,6 +29,7 @@ covers cross-cutting changes.
 - [Configuring distributed address-space storage](#configuring-distributed-address-space-storage)
 - [Migrating SamplingGroupManager create/modify overrides](#migrating-samplinggroupmanager-createmodify-overrides)
 - [Migrating callers of the synchronous MonitoredNode2 notification wrappers](#migrating-callers-of-the-synchronous-monitorednode2-notification-wrappers)
+- [Migrating condition subclasses to asynchronous state setters](#migrating-condition-subclasses-to-asynchronous-state-setters)
 - [Migrating callers of the SecurityPolicies lookup and cryptography statics](#migrating-callers-of-the-securitypolicies-lookup-and-cryptography-statics)
 - [Migrating code that drove the server subscription publish pipeline](#migrating-code-that-drove-the-server-subscription-publish-pipeline)
 - [Migrating channel subclasses that guarded state with DataLock](#migrating-channel-subclasses-that-guarded-state-with-datalock)
@@ -656,6 +657,49 @@ await monitoredNode.OnReportEventAsync(context, node, e, cancellationToken)
 
 The wrappers still work and are unchanged in behaviour, so this is a
 warning to act on rather than a break.
+
+## Migrating condition subclasses to asynchronous state setters
+
+Condition and alarm state classes now provide asynchronous virtual counterparts
+for their state setters. Existing synchronous methods remain available and
+continue to dispatch through synchronous overrides. An asynchronous caller uses
+the async virtual method instead; it does not call a subclass's synchronous
+override. A subclass that customizes one of these setters must also override
+its async counterpart when the application uses the async path.
+
+| Synchronous override | Async counterpart |
+| --- | --- |
+| `ConditionState.SetEnableState` | `ConditionState.SetEnableStateAsync` |
+| `ConditionState.SetSeverity` | `ConditionState.SetSeverityAsync` |
+| `AcknowledgeableConditionState.SetAcknowledgedState` | `AcknowledgeableConditionState.SetAcknowledgedStateAsync` |
+| `AcknowledgeableConditionState.SetConfirmedState` | `AcknowledgeableConditionState.SetConfirmedStateAsync` |
+| `AlarmConditionState.SetActiveState` | `AlarmConditionState.SetActiveStateAsync` |
+| `AlarmConditionState.SetShelvingState` | `AlarmConditionState.SetShelvingStateAsync` |
+| `AlarmConditionState.SetSilenceState` | `AlarmConditionState.SetSilenceStateAsync` |
+| `AlarmConditionState.SetLatchedState` | `AlarmConditionState.SetLatchedStateAsync` |
+| `ExclusiveLimitAlarmState.SetActiveState` | `ExclusiveLimitAlarmState.SetActiveStateAsync` |
+| `ExclusiveLimitAlarmState.SetLimitState` | `ExclusiveLimitAlarmState.SetLimitStateAsync` |
+
+Async setters honor cancellation before changing state. Once a setter has
+committed a mutation, it completes nested state updates and change-mask
+notifications without observing caller cancellation, so cancellation cannot
+leave a compound active-state update partly applied.
+
+`ExclusiveLimitAlarmState` keeps its active and limit states consistent when
+notifications or Retain evaluation are deferred. Subclasses customizing these
+updates must override the overload that accepts `clearChangeMasks` and
+`updateRetainState`; overloads with both options enabled retain dispatch through
+the existing synchronous or asynchronous setter override.
+
+When publishing a condition snapshot after releasing an application mutation
+gate, initialize `InstanceStateSnapshot` while still holding that gate. Snapshot
+initialization captures the condition's EventId, acknowledgement and confirmation
+state and counters with its attributes; reporting registers that captured state
+instead of reading a newer live EventId. Assign a new EventId for each evaluation
+and do not change the snapshot's EventId or Handle after initialization. Snapshot
+capture alone does not register an EventId for condition methods; registration
+occurs when `ReportEvent` or `ReportEventAsync` is invoked, including a report
+whose delivery is subsequently canceled.
 
 <a id="ua0029"></a>
 
