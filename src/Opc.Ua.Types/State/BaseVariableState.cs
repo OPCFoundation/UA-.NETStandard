@@ -2228,7 +2228,18 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Writes an attribute and preserves the asynchronous handler's cache-publication ownership.
+        /// Returns a string representation of the node.
+        /// </summary>
+        /// <returns>
+        /// A <see cref="string"/> that represents the current <see cref="object"/>.
+        /// </returns>
+        public override string ToString()
+        {
+            return Value.ToString();
+        }
+
+        /// <summary>
+        /// Writes an attribute while preserving whether the asynchronous handler owns cache publication.
         /// </summary>
         /// <remarks>
         /// Derived variables must not update cached or derived values when the handler suppresses cache updates.
@@ -2505,17 +2516,6 @@ namespace Opc.Ua
                     StatusCodes.BadUnexpectedError,
                     "Failed to write value attribute."));
             }
-        }
-
-        /// <summary>
-        /// Returns a string representation of the node.
-        /// </summary>
-        /// <returns>
-        /// A <see cref="string"/> that represents the current <see cref="object"/>.
-        /// </returns>
-        public override string ToString()
-        {
-            return Value.ToString();
         }
 
         /// <summary>

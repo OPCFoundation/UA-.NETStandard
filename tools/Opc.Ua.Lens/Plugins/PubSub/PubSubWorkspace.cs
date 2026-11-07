@@ -87,7 +87,8 @@ namespace UaLens.Plugins.PubSub
             ITelemetryContext telemetry,
             TimeProvider? clock = null,
             Func<TimeSpan, CancellationToken, Task>? delay = null,
-            Func<Task>? runCompletionBarrier = null)
+            Func<Task>? runCompletionBarrier = null,
+            Func<Task>? teardownCompleted = null)
         {
             m_factory = factory ?? throw new ArgumentNullException(nameof(factory));
             ArgumentNullException.ThrowIfNull(telemetry);
@@ -96,6 +97,7 @@ namespace UaLens.Plugins.PubSub
             m_clock = clock ?? TimeProvider.System;
             m_delay = delay ?? ((duration, token) => Task.Delay(duration, m_clock, token));
             m_runCompletionBarrier = runCompletionBarrier;
+            m_teardownCompleted = teardownCompleted;
             m_observations = CreateObservationStore(m_configuration);
         }
 
@@ -227,14 +229,17 @@ namespace UaLens.Plugins.PubSub
             lock (m_gate)
             {
                 run = m_run;
-                if (!run.IsCompleted)
+                // m_lifetime, not run.IsCompleted: the run task completes only after
+                // teardown has published its final phase and cleared m_lifetime, and
+                // nothing would move the phase on from Stopping in that window.
+                if (m_lifetime is not null)
                 {
                     if (m_phase is PubSubDocumentPhase.Starting or PubSubDocumentPhase.Running)
                     {
                         m_phase = PubSubDocumentPhase.Stopping;
                         m_status = "Stopping and awaiting document-owned network resources…";
                     }
-                    cancellation = m_lifetime?.CancelAsync() ?? Task.CompletedTask;
+                    cancellation = m_lifetime.CancelAsync();
                 }
             }
             try
@@ -269,9 +274,9 @@ namespace UaLens.Plugins.PubSub
                     {
                         detach = m_active;
                     }
-                    else if (!m_run.IsCompleted)
+                    else if (m_lifetime is not null)
                     {
-                        stoppingCancellation = m_lifetime?.CancelAsync() ?? Task.CompletedTask;
+                        stoppingCancellation = m_lifetime.CancelAsync();
                         stop = m_run;
                     }
                 }
@@ -633,6 +638,10 @@ namespace UaLens.Plugins.PubSub
                                     "Stopped. Retained evidence is local; a new workload requires explicit Start.";
                             }
                         }
+                        if (m_teardownCompleted is not null)
+                        {
+                            await m_teardownCompleted().ConfigureAwait(false);
+                        }
                     }
                 }
                 if (m_runCompletionBarrier is { } runCompletionBarrier)
@@ -806,6 +815,7 @@ namespace UaLens.Plugins.PubSub
         private readonly TimeProvider m_clock;
         private readonly Func<TimeSpan, CancellationToken, Task> m_delay;
         private readonly Func<Task>? m_runCompletionBarrier;
+        private readonly Func<Task>? m_teardownCompleted;
         private readonly SemaphoreSlim m_operations = new(1, 1);
         private PubSubConfiguration m_configuration = new();
         private PubSubObservationStore m_observations;

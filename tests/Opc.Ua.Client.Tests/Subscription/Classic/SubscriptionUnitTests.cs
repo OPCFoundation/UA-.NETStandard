@@ -1147,6 +1147,104 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
+        /// The message cache holds at most MaxMessageCount messages. The newest
+        /// message always stays cached, so a value below one keeps a single
+        /// message and LastNotification, SequenceNumber and the other last
+        /// message properties remain available.
+        /// </summary>
+        [TestCase(-1, 1)]
+        [TestCase(0, 1)]
+        [TestCase(1, 1)]
+        [TestCase(2, 2)]
+        [TestCase(5, 5)]
+        [TestCase(6, 5)]
+        [CancelAfter(5000)]
+        public async Task MessageCacheHoldsAtMostMaxMessageCountAsync(
+            int maxMessageCount,
+            int expectedCount,
+            CancellationToken ct)
+        {
+            NotificationMessage[] messages = BuildMessages(5);
+            using Subscription subscription = BuildCacheSubscription(
+                maxMessageCount, messages.Length - 1, out Task delivered);
+            await subscription.CreateAsync(ct).ConfigureAwait(false);
+
+            for (int ii = 1; ii < messages.Length; ii++)
+            {
+                subscription.SaveMessageInCache([], messages[ii]);
+            }
+            await delivered.WaitAsync(ct).ConfigureAwait(false);
+
+            Assert.That(
+                subscription.Notifications,
+                Is.EqualTo(messages.Skip(messages.Length - expectedCount)));
+            Assert.That(subscription.LastNotification, Is.SameAs(messages[^1]));
+            Assert.That(subscription.SequenceNumber, Is.EqualTo(messages[^1].SequenceNumber));
+        }
+
+        /// <summary>
+        /// Lowering MaxMessageCount trims the message cache when the next
+        /// message arrives, down to the new limit including that message.
+        /// </summary>
+        [Test]
+        [CancelAfter(5000)]
+        public async Task LoweringMaxMessageCountTrimsMessageCacheOnNextMessageAsync(CancellationToken ct)
+        {
+            NotificationMessage[] messages = BuildMessages(5);
+            using Subscription subscription = BuildCacheSubscription(
+                maxMessageCount: 4, messages.Length - 1, out Task delivered);
+            await subscription.CreateAsync(ct).ConfigureAwait(false);
+
+            for (int ii = 1; ii < messages.Length - 1; ii++)
+            {
+                subscription.SaveMessageInCache([], messages[ii]);
+            }
+            await WaitForCachedSequenceNumberAsync(subscription, 4, ct).ConfigureAwait(false);
+
+            subscription.MaxMessageCount = 2;
+            Assert.That(subscription.Notifications.Count(), Is.EqualTo(4));
+
+            subscription.SaveMessageInCache([], messages[5]);
+            await delivered.WaitAsync(ct).ConfigureAwait(false);
+
+            Assert.That(subscription.Notifications, Is.EqualTo(new[] { messages[4], messages[5] }));
+        }
+
+        private static async Task WaitForCachedSequenceNumberAsync(
+            Subscription subscription,
+            uint sequenceNumber,
+            CancellationToken ct)
+        {
+            while (subscription.SequenceNumber != sequenceNumber)
+            {
+                await Task.Delay(1, ct).ConfigureAwait(false);
+            }
+        }
+
+        private static Subscription BuildCacheSubscription(
+            int maxMessageCount,
+            int messageCount,
+            out Task delivered)
+        {
+            var allDelivered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            delivered = allDelivered.Task;
+            int received = 0;
+            return new Subscription(
+                NUnitTelemetryContext.Create(),
+                new() { MaxMessageCount = maxMessageCount })
+            {
+                Session = BuildSessionMock(),
+                FastDataChangeCallback = (_, _, _) =>
+                {
+                    if (Interlocked.Increment(ref received) == messageCount)
+                    {
+                        allDelivered.TrySetResult(true);
+                    }
+                }
+            };
+        }
+
+        /// <summary>
         /// Very long keep-alive intervals must not overflow the publish
         /// timeout or the publishing-stopped check (L7-9).
         /// </summary>

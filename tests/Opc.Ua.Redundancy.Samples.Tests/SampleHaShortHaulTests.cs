@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -140,9 +141,11 @@ namespace Opc.Ua.Redundancy.Samples.Tests
         /// on the active Raft replica resume through a promoted replica without duplicates
         /// or gaps after the active process is terminated.
         /// </summary>
-        [Test]
+        [TestCase(0)]
+        [TestCase(15)]
         [CancelAfter(300_000)]
         public async Task StrongHistorianContinuationsSurviveActiveReplicaFailureAsync(
+            int failoverDelaySeconds,
             CancellationToken cancellationToken)
         {
             await using RedundantServerCluster cluster = await RedundantServerCluster.StartStrongAsync(
@@ -163,7 +166,8 @@ namespace Opc.Ua.Redundancy.Samples.Tests
                     "--autoaccept",
                     "--nosecurity",
                     "--history",
-                    "--history-failover-delay", "00:00:15"
+                    "--history-failover-delay",
+                    TimeSpan.FromSeconds(failoverDelaySeconds).ToString("c", CultureInfo.InvariantCulture)
                 ],
                 SampleTestEnvironment.IndependentClient);
 
@@ -190,6 +194,12 @@ namespace Opc.Ua.Redundancy.Samples.Tests
                 "HISTORY HA OK:",
                 TimeSpan.FromSeconds(120),
                 cancellationToken).ConfigureAwait(false);
+            int failoverIndex = client.LastLineIndexContaining("FAILOVER: connection lost");
+            Assert.That(failoverIndex, Is.GreaterThanOrEqualTo(0));
+            Assert.That(
+                client.LastLineIndexContaining("HISTORY: write/read marker -4390 visible on promoted replica."),
+                Is.GreaterThan(failoverIndex),
+                "The promoted-replica checks must not run against the original active server.");
             Assert.That(
                 client.ContainsLine("without duplicates or gaps"),
                 Is.True,
@@ -366,7 +376,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
                 "invalid-history-topology",
                 "Redundancy/RedundantServer",
                 "RedundantServer",
-                ["--port", port.ToString(System.Globalization.CultureInfo.InvariantCulture)],
+                ["--port", port.ToString(CultureInfo.InvariantCulture)],
                 environment);
 
             await server.WaitForLineAsync(
