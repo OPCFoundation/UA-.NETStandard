@@ -208,6 +208,12 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         public AsyncOperationGate? TakeoverActivation { get; set; }
 
         /// <summary>
+        /// Gets or sets an optional gate the response to a monitored-item creation waits at, after
+        /// the server has received the request.
+        /// </summary>
+        public AsyncOperationGate? MonitoredItemsResponse { get; set; }
+
+        /// <summary>
         /// Gets or sets an optional source of the server nonce returned by each successful
         /// activation of the saved takeover session; null returns no nonce.
         /// </summary>
@@ -671,6 +677,10 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                     };
                 case CreateMonitoredItemsRequest createItems:
                     m_monitoredItems.Writer.TryWrite(createItems);
+                    if (MonitoredItemsResponse is AsyncOperationGate monitoredItemsResponse)
+                    {
+                        await monitoredItemsResponse.WaitAsync(ct).ConfigureAwait(false);
+                    }
                     return new CreateMonitoredItemsResponse
                     {
                         ResponseHeader = channel.CreateGoodHeader(),

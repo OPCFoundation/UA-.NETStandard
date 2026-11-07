@@ -167,8 +167,8 @@ namespace Opc.Ua.Subscriptions.Tests
                     DisableUnboundedItemMode = !partitioned
                 });
             Assert.That(session.TryGetSubscriptionManager(out ISubscriptionManager? manager), Is.True);
-            // Concurrent responses can trigger Republish, whose continuation metadata is intentionally unknown.
-            // Keep this live-Publish assertion on one worker before creating either physical partition.
+            // Concurrent publish workers can deliver the responses out of order. A message overtaken
+            // that way is republished, and a Republish response has no MoreNotifications to preserve.
             manager!.MinPublishWorkerCount = 1;
             manager.MaxPublishWorkerCount = 1;
             await using ISubscription subscription = manager.Add(handler, options);

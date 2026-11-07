@@ -175,6 +175,11 @@ namespace Opc.Ua.SourceGeneration
         public bool ClientAccessorsOnly { get; set; }
 
         /// <summary>
+        /// Keeps generated client accessor classes internal to their consuming assembly.
+        /// </summary>
+        public bool ClientAccessorsInternal { get; set; }
+
+        /// <summary>
         /// Overrides the namespace of the generated client accessor extensions.
         /// </summary>
         public string ClientAccessorNamespace { get; set; }
@@ -230,6 +235,8 @@ namespace Opc.Ua.SourceGeneration
                     nameof(FluentAccessorsOnly)),
                 ClientAccessorsOnly = provider.GlobalOptions.GetBool(
                     nameof(ClientAccessorsOnly)),
+                ClientAccessorsInternal = provider.GlobalOptions.GetBool(
+                    nameof(ClientAccessorsInternal)),
                 ClientAccessorNamespace = provider.GlobalOptions.GetString(
                     nameof(ClientAccessorNamespace)),
                 ClientAccessorClassName = provider.GlobalOptions.GetString(

@@ -113,6 +113,11 @@ namespace Opc.Ua.SourceGeneration
         public bool ClientAccessorsOnly { get; set; }
 
         /// <summary>
+        /// Emits an internal client accessor class instead of the default public class.
+        /// </summary>
+        public bool ClientAccessorsInternal { get; set; }
+
+        /// <summary>
         /// Overrides the namespace of client accessor extensions. Defaults to the model prefix plus Client.
         /// </summary>
         public string? ClientAccessorNamespace { get; set; }

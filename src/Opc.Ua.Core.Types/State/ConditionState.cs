@@ -154,12 +154,58 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Sets the enable state for the condition and awaits state-change notification sinks.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="enabled">If true the condition is put into the Enabled state.</param>
+        /// <param name="cancellationToken">
+        /// The token is checked before mutation; cancellation is not observed after mutation starts.
+        /// </param>
+        /// <remarks>
+        /// Derived classes that customize <see cref="SetEnableState"/> must also override this method.
+        /// When the caller retains a serialization gate while invoking or awaiting this method, notification sinks
+        /// must not await or synchronously block on an operation that needs the same gate.
+        /// </remarks>
+        public virtual async ValueTask SetEnableStateAsync(
+            ISystemContext context,
+            bool enabled,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (enabled)
+            {
+                UpdateStateAfterEnable(context);
+            }
+            else
+            {
+                UpdateStateAfterDisable(context);
+            }
+
+            EnabledState!.Timestamp = DateTime.UtcNow;
+            await ClearChangeMasksAsync(context, includeChildren: true, CancellationToken.None)
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Sets the severity for the condition without raising events.
         /// </summary>
         /// <param name="context">The system context.</param>
         /// <param name="severity">The event severity.</param>
         /// <remarks>This method ensures all related variables are set correctly.</remarks>
         public virtual void SetSeverity(ISystemContext context, EventSeverity severity)
+        {
+            SetSeverity(context, severity, clearChangeMasks: true);
+        }
+
+        /// <summary>
+        /// Sets severity attributes and optionally publishes their change masks.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="severity">The event severity.</param>
+        /// <param name="clearChangeMasks">
+        /// Whether to notify state observers now. Otherwise the caller clears change masks after its other updates.
+        /// </param>
+        public void SetSeverity(ISystemContext context, EventSeverity severity, bool clearChangeMasks)
         {
             ConditionVariableState<ushort> lastSeverity = LastSeverity!; // condition states always have LastSeverity after construction
             PropertyState<ushort> severityProp = Severity!; // condition states always have Severity after construction
@@ -170,7 +216,63 @@ namespace Opc.Ua
 
             lastSeverity.Timestamp = DateTime.UtcNow;
             severityProp.Timestamp = DateTime.UtcNow;
-            ClearChangeMasks(context, includeChildren: true);
+            if (clearChangeMasks)
+            {
+                ClearChangeMasks(context, includeChildren: true);
+            }
+        }
+
+        /// <summary>
+        /// Sets the severity for the condition and awaits state-change notification sinks.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="severity">The event severity.</param>
+        /// <param name="cancellationToken">
+        /// The token is checked before mutation; cancellation is not observed after mutation starts.
+        /// </param>
+        /// <remarks>
+        /// Derived classes that customize <see cref="SetSeverity(ISystemContext, EventSeverity)"/> must also
+        /// override this method. When the caller retains a serialization gate while invoking or awaiting this
+        /// method, notification sinks must not await or synchronously block on an operation that needs the same gate.
+        /// </remarks>
+        public virtual ValueTask SetSeverityAsync(
+            ISystemContext context,
+            EventSeverity severity,
+            CancellationToken cancellationToken = default)
+        {
+            return SetSeverityAsync(context, severity, clearChangeMasks: true, cancellationToken);
+        }
+
+        /// <summary>
+        /// Sets severity attributes and optionally awaits state-change notification sinks.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="severity">The event severity.</param>
+        /// <param name="clearChangeMasks">Whether to notify state observers now.</param>
+        /// <param name="cancellationToken">
+        /// The token is checked before mutation; cancellation is not observed after mutation starts.
+        /// </param>
+        /// <remarks>
+        /// This overload does not invoke overrides of <see cref="SetSeverity(ISystemContext, EventSeverity)"/> or
+        /// <see cref="SetSeverityAsync(ISystemContext, EventSeverity, CancellationToken)"/>. A derived class that
+        /// customizes calls specifying <paramref name="clearChangeMasks"/> must override this overload.
+        /// When <paramref name="clearChangeMasks"/> is <see langword="true"/> and the caller retains a serialization
+        /// gate while invoking or awaiting this method, notification sinks must not await or synchronously block on
+        /// an operation that needs the same gate.
+        /// </remarks>
+        public virtual async ValueTask SetSeverityAsync(
+            ISystemContext context,
+            EventSeverity severity,
+            bool clearChangeMasks,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            SetSeverity(context, severity, clearChangeMasks: false);
+            if (clearChangeMasks)
+            {
+                await ClearChangeMasksAsync(context, includeChildren: true, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -910,6 +1012,9 @@ namespace Opc.Ua
         /// <summary>
         /// Records the EventId of a reported state change of this condition.
         /// </summary>
+        /// <remarks>
+        /// See <see cref="NodeState.ReportEvent"/> for callback behavior and propagation through multiple paths.
+        /// </remarks>
         public override void ReportEvent(ISystemContext context, IFilterTarget e)
         {
             RecordReportedEvent(e);
@@ -919,6 +1024,12 @@ namespace Opc.Ua
         /// <summary>
         /// Records the EventId of a reported state change of this condition.
         /// </summary>
+        /// <remarks>
+        /// This method does not invoke overrides of <see cref="ReportEvent"/>. A subclass that
+        /// customizes synchronous event reporting must also override this method to apply that
+        /// customization to asynchronous calls.
+        /// See <see cref="NodeState.ReportEventAsync"/> for callback behavior and propagation through multiple paths.
+        /// </remarks>
         public override ValueTask ReportEventAsync(
             ISystemContext context,
             IFilterTarget e,
@@ -926,6 +1037,23 @@ namespace Opc.Ua
         {
             RecordReportedEvent(e);
             return base.ReportEventAsync(context, e, cancellationToken);
+        }
+
+        /// <summary>
+        /// Captures condition method identity and counters alongside snapshot attributes.
+        /// </summary>
+        /// <remarks>
+        /// The caller must serialize snapshot initialization with condition mutation.
+        /// Publication may occur after releasing that serialization gate.
+        /// </remarks>
+        /// <returns>The captured EventId and acknowledgement and confirmation state.</returns>
+        internal (ByteString EventId, ReportedConditionEvent Event) CaptureReportedEvent()
+        {
+            var acknowledgeable = this as AcknowledgeableConditionState;
+            return (EventId is { } eventId ? eventId.Value : default, new ReportedConditionEvent(
+                this, false, false, m_acknowledgeCount, m_confirmCount,
+                acknowledgeable?.AckedState?.Id?.Value == true,
+                acknowledgeable?.ConfirmedState?.Id?.Value == true));
         }
 
         /// <summary>
@@ -987,9 +1115,14 @@ namespace Opc.Ua
         /// </summary>
         private void RecordReportedEvent(IFilterTarget e)
         {
-            if (EventId is { } eventId &&
-                (ReferenceEquals(e, this) ||
-                    (e is InstanceStateSnapshot snapshot && ReferenceEquals(snapshot.Handle, this))))
+            if (e is InstanceStateSnapshot snapshot &&
+                ReferenceEquals(snapshot.Handle, this) &&
+                snapshot.ConditionEvent is { } captured &&
+                ReferenceEquals(captured.Owner, this))
+            {
+                GetRootCondition().RecordEventId(snapshot.ConditionEventId, captured);
+            }
+            else if (ReferenceEquals(e, this) && EventId is { } eventId)
             {
                 GetRootCondition().RecordEventId(this, eventId.Value);
             }
@@ -1001,6 +1134,17 @@ namespace Opc.Ua
         /// </summary>
         private void RecordEventId(ConditionState owner, ByteString eventId)
         {
+            var (_, reported) = owner.CaptureReportedEvent();
+            RecordEventId(eventId, reported);
+        }
+
+        /// <summary>
+        /// Registers captured condition method state without reading mutable owner attributes.
+        /// </summary>
+        /// <param name="eventId">The captured event identifier.</param>
+        /// <param name="reported">The captured acknowledgement and confirmation state.</param>
+        private void RecordEventId(ByteString eventId, ReportedConditionEvent reported)
+        {
             if (eventId.IsEmpty)
             {
                 return;
@@ -1009,9 +1153,7 @@ namespace Opc.Ua
             lock (m_reportedEventIdsLock)
             {
                 m_reportedEventIds ??= [];
-                if (!m_reportedEventIds.TryAdd(
-                    eventId,
-                    new ReportedConditionEvent(owner, false, false, owner.m_acknowledgeCount, owner.m_confirmCount)))
+                if (!m_reportedEventIds.TryAdd(eventId, reported))
                 {
                     return;
                 }
@@ -1106,22 +1248,28 @@ namespace Opc.Ua
         /// <param name="IsLive">True if the owner is the condition or one of its current branches.</param>
         /// <param name="AcknowledgeCount">The acknowledgements of the owner when the EventId was reported.</param>
         /// <param name="ConfirmCount">The confirmations of the owner when the EventId was reported.</param>
-        private protected sealed record class ReportedConditionEvent(
+        /// <param name="WasAcknowledged">Whether the captured state was already acknowledged.</param>
+        /// <param name="WasConfirmed">Whether the captured state was already confirmed.</param>
+        internal sealed record class ReportedConditionEvent(
             ConditionState Owner,
             bool IsCurrent,
             bool IsLive,
             uint AcknowledgeCount,
-            uint ConfirmCount)
+            uint ConfirmCount,
+            bool WasAcknowledged = false,
+            bool WasConfirmed = false)
         {
             /// <summary>
-            /// True if the owner was acknowledged after the EventId was reported.
+            /// True if the captured state was acknowledged or the owner was acknowledged after capture.
             /// </summary>
-            public bool AcknowledgedSince => !IsCurrent && Owner.m_acknowledgeCount != AcknowledgeCount;
+            public bool AcknowledgedSince =>
+                WasAcknowledged || (!IsCurrent && Owner.m_acknowledgeCount != AcknowledgeCount);
 
             /// <summary>
-            /// True if the owner was confirmed after the EventId was reported.
+            /// True if the captured state was confirmed or the owner was confirmed after capture.
             /// </summary>
-            public bool ConfirmedSince => !IsCurrent && Owner.m_confirmCount != ConfirmCount;
+            public bool ConfirmedSince =>
+                WasConfirmed || (!IsCurrent && Owner.m_confirmCount != ConfirmCount);
         }
 
         /// <summary>
