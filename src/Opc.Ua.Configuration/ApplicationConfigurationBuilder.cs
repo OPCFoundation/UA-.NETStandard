@@ -364,9 +364,12 @@ namespace Opc.Ua.Configuration
                 AddSecurityPolicies();
             }
 
+            bool certificateManagerWasProvided =
+                ApplicationConfiguration.CertificateManager != null;
             await ApplicationConfiguration.ValidateAsync(ApplicationInstance.ApplicationType, ct)
                 .ConfigureAwait(false);
-            m_applicationInstance.RetainCertificateManagerOwnership();
+            m_applicationInstance.SetCertificateManagerOwnership(
+                takeOwnership: !certificateManagerWasProvided);
 
             return ApplicationConfiguration;
         }

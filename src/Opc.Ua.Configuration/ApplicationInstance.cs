@@ -63,12 +63,11 @@ namespace Opc.Ua.Configuration
                 Server = null;
             }
 
-            CertificateManager? localManager = CertificateManager;
-            localManager?.Dispose();
-            if (ApplicationConfiguration?.CertificateManager is CertificateManager configManager && !ReferenceEquals(configManager, localManager))
+            foreach (CertificateManager certificateManager in m_ownedCertificateManagers)
             {
-                configManager.Dispose();
+                certificateManager.Dispose();
             }
+            m_ownedCertificateManagers.Clear();
 
             GC.SuppressFinalize(this);
         }
@@ -131,7 +130,15 @@ namespace Opc.Ua.Configuration
         public IServerBase? Server { get; private set; }
 
         /// <inheritdoc/>
-        public ApplicationConfiguration? ApplicationConfiguration { get; set; }
+        public ApplicationConfiguration? ApplicationConfiguration
+        {
+            get => m_applicationConfiguration;
+            set
+            {
+                m_applicationConfiguration = value;
+                SetCertificateManagerOwnership(takeOwnership: false);
+            }
+        }
 
         /// <summary>
         /// Get or set the message dialog.
@@ -219,7 +226,7 @@ namespace Opc.Ua.Configuration
             }
 
             ApplicationConfiguration = FixupAppConfig(configuration);
-            RetainCertificateManagerOwnership();
+            SetCertificateManagerOwnership();
 
             return configuration;
         }
@@ -254,7 +261,7 @@ namespace Opc.Ua.Configuration
             }
 
             ApplicationConfiguration = FixupAppConfig(configuration);
-            RetainCertificateManagerOwnership();
+            SetCertificateManagerOwnership();
 
             return configuration;
         }
@@ -351,27 +358,28 @@ namespace Opc.Ua.Configuration
                 throw ServiceResultException.ConfigurationError("Need at least one Application Certificate.");
             }
 
-            // Initialize CertificateManager early so CheckApplicationInstanceCertificateAsync
-            // can use the new ICertificateValidatorEx pipeline (with CertificateValidationOptions.AcceptError)
-            // for per-certificate validation below. Adopt the configuration's
-            // existing manager (created eagerly by ApplicationConfiguration.ValidateAsync)
-            // when present, so we do not orphan it — its disposal is otherwise
-            // overwritten below and the certificates it loaded would leak.
-            // CA2000: the created manager is stored in the CertificateManager
-            // property which this instance owns and disposes in DisposeAsync
-            // (see above); ownership is retained, not leaked.
-#pragma warning disable CA2000
-            CertificateManager ??= configuration.CertificateManager as CertificateManager
-                ?? CertificateManagerFactory.Create(
+            ICertificateManager? certificateManager = configuration.CertificateManager;
+            if (certificateManager == null)
+            {
+                certificateManager = CertificateManager;
+            }
+            if (certificateManager == null)
+            {
+                // The application instance owns this fallback manager.
+                CertificateManager manager = CertificateManagerFactory.Create(
                     securityConfiguration,
                     m_telemetry!);
-#pragma warning restore CA2000
+                CertificateManager = manager;
+                m_ownedCertificateManagers.Add(manager);
+                certificateManager = manager;
+            }
 
-            // Make the manager visible via the configuration so consumers
-            // that only see ApplicationConfiguration (e.g. Session) can
-            // route validation through the new pipeline.
-            ApplicationConfiguration!.CertificateManager = CertificateManager;
-            CertificateManager.MapFromSecurityConfiguration(securityConfiguration);
+            CertificateManager = certificateManager as CertificateManager;
+            configuration.CertificateManager = certificateManager;
+            if (certificateManager is CertificateManager concreteManager)
+            {
+                concreteManager.MapFromSecurityConfiguration(securityConfiguration);
+            }
 
             // Note: The FindAsync method searches certificates in this order: thumbprint, subjectName, then applicationUri.
             // When SubjectName or Thumbprint is specified, certificates may be loaded even if their ApplicationUri
@@ -585,11 +593,15 @@ namespace Opc.Ua.Configuration
         }
 
         /// <summary>
-        /// Retains ownership of the concrete certificate manager assigned to this instance's configuration.
+        /// Sets the configured concrete manager and optionally records instance ownership.
         /// </summary>
-        internal void RetainCertificateManagerOwnership()
+        internal void SetCertificateManagerOwnership(bool takeOwnership = true)
         {
-            CertificateManager ??= ApplicationConfiguration?.CertificateManager as CertificateManager;
+            CertificateManager = ApplicationConfiguration?.CertificateManager as CertificateManager;
+            if (takeOwnership && CertificateManager is { } certificateManager)
+            {
+                m_ownedCertificateManagers.Add(certificateManager);
+            }
         }
 
         /// <summary>
@@ -741,7 +753,7 @@ namespace Opc.Ua.Configuration
                     : null;
                 using var chain = new CertificateCollection { publicKeyCert ?? certificate };
 
-                CertificateValidationResult result = await CertificateManager!
+                CertificateValidationResult result = await configuration.CertificateManager
                     .ValidateAsync(
                         chain,
                         trustList: null,
@@ -1271,6 +1283,8 @@ namespace Opc.Ua.Configuration
 
         private readonly ITelemetryContext? m_telemetry;
         private readonly ILogger m_logger;
+        private ApplicationConfiguration? m_applicationConfiguration;
+        private readonly HashSet<CertificateManager> m_ownedCertificateManagers = [];
         private IKeyPairGenerator? m_keyPairGenerator;
     }
 

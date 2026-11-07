@@ -129,6 +129,7 @@ namespace Opc.Ua.Configuration.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            using var injectedManager = new CertificateManager(telemetry);
             string? configPath = Utils.GetAbsoluteFilePath(
                 "Opc.Ua.Configuration.Tests.Config.xml",
                 checkCurrentDirectory: true,
@@ -147,11 +148,19 @@ namespace Opc.Ua.Configuration.Tests
                 securityConfiguration = configuration.SecurityConfiguration;
                 Assert.That(applicationInstance.CertificateManager, Is.SameAs(loadedManager));
 
-                configuration.CertificateManager = Mock.Of<ICertificateManager>();
+                configuration.CertificateManager = injectedManager;
+                Assert.That(
+                    await applicationInstance.CheckApplicationInstanceCertificatesAsync(true)
+                        .ConfigureAwait(false),
+                    Is.True);
+                Assert.That(configuration.CertificateManager, Is.SameAs(injectedManager));
             }
 
             await Assert.ThrowsAsync<ObjectDisposedException>(
                 () => loadedManager.LoadApplicationCertificatesAsync(securityConfiguration)).ConfigureAwait(false);
+            using ICertificateStore store = injectedManager.OpenCertificateStore(
+                securityConfiguration.ApplicationCertificates[0].StorePath!,
+                CertificateStoreType.Directory);
         }
 
         /// <summary>
