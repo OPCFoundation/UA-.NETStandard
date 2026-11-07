@@ -226,6 +226,9 @@ you need to exercise:
 | Fixture | Scope |
 | --- | --- |
 | `ChangePreparerTests` | Private metadata and candidate ownership |
+| `PreparedNodeManagerTests` | Candidate identity, disposal and retained snapshots |
+| `LifecycleWriterTests` | Mutation ownership, publication sessions and shutdown drain |
+| `NodeManagerRoutingTableTests` | Routing images, reservations and candidate publication |
 | `NodeManagerGenerationTests` | Slot identity, ownership, admission, quiescence and deferred-event delivery |
 | `StripedCounterTests` | Entries across all stripes and cross-thread exits |
 | `GenerationGateTests` | Generation admission, retirement drain and view-epoch lifetimes |
@@ -235,6 +238,7 @@ you need to exercise:
 | `GenerationReconcilerTests` | Session binding, reconciliation retries and result ownership |
 | `NodeManagerCallbackPermitTests` | Callback capabilities and execution-context revocation |
 | `NodeManagerReadinessScopeTests` | Initializer authority and captured-context revocation |
+| `NodeLookupReadinessRegressionTests` | Readiness-scoped lookup and pinned request routes |
 | `NodeManagerLegacyLookupScopeTests` | Pinned and expired routing views in legacy lookups |
 | `NodeManagerModelChangeScopeTests` | Nested NodeVersion bumps, reentrant writes and scope restoration |
 | `NodeManagerLifecycleBatchConflictTests` | Shared type-image conflicts and candidate historian binding cleanup |
@@ -248,8 +252,29 @@ when the behavior needs hosted requests, runtime consumers or server startup.
 To run the component selection:
 
 ```powershell
-dotnet test tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj -f net10.0 -p:CustomTestTarget=net10.0 --filter "FullyQualifiedName~ChangePreparerTests|FullyQualifiedName~NodeManagerGenerationTests|FullyQualifiedName~StripedCounterTests|FullyQualifiedName~GenerationGateTests|FullyQualifiedName~NodeManagerRegistrationTests|FullyQualifiedName~NodeManagerLifecycleCompatibilityTests|FullyQualifiedName~GenerationReclaimerTests|FullyQualifiedName~GenerationReconcilerTests|FullyQualifiedName~NodeManagerCallbackPermitTests|FullyQualifiedName~NodeManagerReadinessScopeTests|FullyQualifiedName~NodeManagerLegacyLookupScopeTests|FullyQualifiedName~NodeManagerModelChangeScopeTests|FullyQualifiedName~NodeManagerLifecycleBatchConflictTests|FullyQualifiedName~NodeManagerLifecycleChangeSetCleanupTests"
-dotnet test tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj -f net48 -p:CustomTestTarget=net48 --filter "FullyQualifiedName~ChangePreparerTests|FullyQualifiedName~NodeManagerGenerationTests|FullyQualifiedName~StripedCounterTests|FullyQualifiedName~GenerationGateTests|FullyQualifiedName~NodeManagerRegistrationTests|FullyQualifiedName~NodeManagerLifecycleCompatibilityTests|FullyQualifiedName~GenerationReclaimerTests|FullyQualifiedName~GenerationReconcilerTests|FullyQualifiedName~NodeManagerCallbackPermitTests|FullyQualifiedName~NodeManagerReadinessScopeTests|FullyQualifiedName~NodeManagerLegacyLookupScopeTests|FullyQualifiedName~NodeManagerModelChangeScopeTests|FullyQualifiedName~NodeManagerLifecycleBatchConflictTests|FullyQualifiedName~NodeManagerLifecycleChangeSetCleanupTests"
+$fixtures = @(
+    'ChangePreparerTests'
+    'PreparedNodeManagerTests'
+    'LifecycleWriterTests'
+    'NodeManagerRoutingTableTests'
+    'NodeManagerGenerationTests'
+    'StripedCounterTests'
+    'GenerationGateTests'
+    'NodeManagerRegistrationTests'
+    'NodeManagerLifecycleCompatibilityTests'
+    'GenerationReclaimerTests'
+    'GenerationReconcilerTests'
+    'NodeManagerCallbackPermitTests'
+    'NodeManagerReadinessScopeTests'
+    'NodeLookupReadinessRegressionTests'
+    'NodeManagerLegacyLookupScopeTests'
+    'NodeManagerModelChangeScopeTests'
+    'NodeManagerLifecycleBatchConflictTests'
+    'NodeManagerLifecycleChangeSetCleanupTests'
+)
+$filter = ($fixtures | ForEach-Object { "FullyQualifiedName~Opc.Ua.Server.Tests.NodeManager.$_" }) -join '|'
+dotnet test tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj -f net10.0 -p:CustomTestTarget=net10.0 --filter $filter
+dotnet test tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj -f net48 -p:CustomTestTarget=net48 --filter $filter
 ```
 
 Use fully qualified fixture or method names to select a narrower regression.
