@@ -518,37 +518,52 @@ namespace Opc.Ua.Tools.Tests
                 string[] expectedShards = profile.First().Framework == "net48"
                     ? serverShards
                     : profile.First().Os == "macos"
-                        ? ["server-node-lifecycle-prepared", "server-node-lifecycle", "server-other"]
+                        ? [
+                            "server-node-lifecycle-prepared",
+                            "server-node-lifecycle",
+                            "server-node-management",
+                            "server-history-subscriptions",
+                            "server-sessions-configuration-runtime",
+                            "server-other"
+                        ]
                         : ["all"];
                 Assert.That(profile.Select(entry => entry.Shard), Is.EquivalentTo(expectedShards));
                 Assert.That(profile.All(entry => entry.PerProjectTimeout == 45), Is.True);
             }
 
-            (string TestName, string ExpectedShard)[] testCases =
+            (string TestName, string ExpectedShard, string MacShard)[] testCases =
             [
                 ("Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.PreparedBatchDecisionAsync",
-                    "server-node-lifecycle-prepared"),
-                ("Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.TestAsync", "server-node-lifecycle"),
+                    "server-node-lifecycle-prepared", "server-node-lifecycle-prepared"),
+                ("Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.TestAsync",
+                    "server-node-lifecycle", "server-node-lifecycle"),
                 ("Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.RejectsPreparedBatchAsync",
-                    "server-node-lifecycle"),
+                    "server-node-lifecycle", "server-node-lifecycle"),
                 ("Opc.Ua.Server.Tests.Hosting.HostedNodeManagerLifecycleTests.PreparedBatchAsync",
-                    "server-node-management"),
+                    "server-node-management", "server-node-management"),
                 ("Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTestsExtra.PreparedBatchAsync",
-                    "server-node-management"),
-                ("Opc.Ua.Server.Tests.Fluent.FluentNodeManagerBasePipelineTests.TestAsync", "server-node-management"),
+                    "server-node-management", "server-node-management"),
+                ("Opc.Ua.Server.Tests.Fluent.FluentNodeManagerBasePipelineTests.TestAsync",
+                    "server-node-management", "server-node-management"),
                 ("Opc.Ua.Server.Tests.Historian.HistorianDispatcherTests.TestAsync",
-                    "server-history-subscriptions"),
+                    "server-history-subscriptions", "server-history-subscriptions"),
                 ("Opc.Ua.Server.Tests.SubscriptionTests.TransferSubscriptionAsync",
-                    "server-history-subscriptions"),
-                ("Opc.Ua.Server.Tests.Session.SessionTests.TestAsync", "server-sessions"),
-                ("Opc.Ua.Server.Tests.Configuration.TrustListTests.TestAsync", "server-configuration"),
-                ("Opc.Ua.Server.Tests.RuntimeNodeSet.RuntimeNodeSetTests.TestAsync", "server-runtime"),
-                ("Opc.Ua.Server.Tests.ReverseConnectServerTests.TestAsync", "server-transport"),
-                ("Opc.Ua.Server.Tests.RequestTableTests.TestAsync", "server-other")
+                    "server-history-subscriptions", "server-history-subscriptions"),
+                ("Opc.Ua.Server.Tests.Network.NetworkModelIntegrationTests." +
+                    "LldpOptionalCapabilitiesArePublishedAndRemovedAsync",
+                    "server-history-subscriptions", "server-history-subscriptions"),
+                ("Opc.Ua.Server.Tests.Session.SessionTests.TestAsync",
+                    "server-sessions", "server-sessions-configuration-runtime"),
+                ("Opc.Ua.Server.Tests.Configuration.TrustListTests.TestAsync",
+                    "server-configuration", "server-sessions-configuration-runtime"),
+                ("Opc.Ua.Server.Tests.RuntimeNodeSet.RuntimeNodeSetTests.TestAsync",
+                    "server-runtime", "server-sessions-configuration-runtime"),
+                ("Opc.Ua.Server.Tests.ReverseConnectServerTests.TestAsync", "server-transport", "server-other"),
+                ("Opc.Ua.Server.Tests.RequestTableTests.TestAsync", "server-other", "server-other")
             ];
             foreach (IGrouping<string, MatrixEntry> profile in server.GroupBy(entry => entry.Profile))
             {
-                foreach ((string testName, string expectedShard) in testCases)
+                foreach ((string testName, string expectedShard, string macShard) in testCases)
                 {
                     string[] matches = profile
                         .Where(entry => MatchesServerFilter(entry.Filter, testName))
@@ -558,15 +573,7 @@ namespace Opc.Ua.Tools.Tests
                         ? expectedShard
                         : profile.First().Os != "macos"
                             ? "all"
-                            : testName.StartsWith(
-                                "Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.",
-                                StringComparison.Ordinal)
-                                ? testName.StartsWith(
-                                    "Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.Prepared",
-                                    StringComparison.Ordinal)
-                                    ? "server-node-lifecycle-prepared"
-                                    : "server-node-lifecycle"
-                                : "server-other";
+                            : macShard;
                     Assert.That(
                         matches,
                         Is.EqualTo(new[] { shard }),
@@ -757,6 +764,11 @@ namespace Opc.Ua.Tools.Tests
         /// </summary>
         private static bool MatchesServerFilter(string filter, string testName)
         {
+            if (string.IsNullOrEmpty(filter))
+            {
+                return true;
+            }
+
             string[] categories = [];
             return filter.Split('&').All(term =>
             {

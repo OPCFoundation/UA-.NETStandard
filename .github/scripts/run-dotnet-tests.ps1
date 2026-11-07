@@ -395,6 +395,11 @@ foreach ($project in $projectList) {
         if (-not [string]::IsNullOrWhiteSpace($projectFilter)) {
             $testArguments += @('--filter', $projectFilter)
         }
+        # Keep per-test progress visible while diagnosing the WotCon shard timeout.
+        if ($stem -eq 'Opc.Ua.WotCon.Tests' -and
+            $projectFilter -like '*FullyQualifiedName!~Opc.Ua.WotCon.Tests.Materialization.*') {
+            $testArguments += @('--logger', 'console;verbosity=detailed')
+        }
         if ($IsMacOS -and $env:OPCUA_CAPTURE_MACOS_NATIVE_LOADER_DIAGNOSTICS -eq 'true' -and
             $stem -eq 'Opc.Ua.Security.Pkcs11.Tests') {
             # VSTest does not forward the test host's stderr, where dyld writes
