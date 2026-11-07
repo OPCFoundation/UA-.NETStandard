@@ -103,6 +103,10 @@ The Machinery models compose types from these companion specifications:
 | `Opc.Ua.ECM` | OPC 34100 Energy Consumption Management | 40001-4's energy carriers are instances of ECM's `EnergyMeasurementValueType`. |
 | `Opc.Ua.ISA95` | OPC 10031-4 ISA-95 Job Control V2 | 40001-3's `JobManagementType` composes the Job Control V2 receiver and response provider. |
 
+[Standalone PA-DIM hosting](PADIM.md) uses the same PA-DIM/IRDI model assembly
+with the DI owner, without loading Machinery. It does not replace the Machinery
+process-value builder or its simulation and zero-point event behavior.
+
 The model reference graph:
 
 ```mermaid

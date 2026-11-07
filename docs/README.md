@@ -163,6 +163,8 @@ needs.
 - [File system client](FileSystemClient.md) — transfer files through the
   standard file objects.
 - [Alias names](AliasNames.md) — find nodes through named aliases.
+- [Base Network Model](BaseNetworkModel.md) — provider-backed interfaces,
+  priority mappings, TSN streams and LLDP, with a simulated server/client example.
 - [Node management](NodeManagement.md) — let clients add and delete nodes and
   references.
 - [Final-value publication](NodeManagers.md#final-value-publication-before-node-removal) — await terminal Value
@@ -202,6 +204,8 @@ models that each model depends on.
   Industrial Automation, Device Integration, PA-DIM, ECM and ISA-95 models.
 - [Pumps](Pumps.md) (OPC 40223) — pumps and vacuum pumps,
   published both as Device Integration devices and as Machinery machines.
+- [PA-DIM](PADIM.md) (OPC 30081) — standalone provider-backed devices,
+  typed process signals and analysers, with generated-proxy clients.
 - [Composing DI companions](DeviceIntegration.md#composing-companion-models) — add several DI device
   families and their models to one server's `DeviceSet`.
 - [AutoID Devices](AutoID.md) (OPC 30010) — RFID, OCR, optical, optical

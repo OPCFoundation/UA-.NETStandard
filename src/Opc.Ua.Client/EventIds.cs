@@ -78,6 +78,9 @@ namespace Opc.Ua
         /// </summary>
         public const int SubscriptionManagerContinued = 590;
 
+        /// <summary>Part 22 discovery continuation cleanup diagnostics.</summary>
+        public const int NetworkModelClient = 600;
+
         /// <summary>
         /// The <see cref="Microsoft.Extensions.Logging.ILogger"/> category name that
         /// preserves the identity of the legacy "OPC-UA-Client" EventSource provider
