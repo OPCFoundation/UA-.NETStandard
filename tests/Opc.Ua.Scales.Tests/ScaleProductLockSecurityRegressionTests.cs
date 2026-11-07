@@ -866,6 +866,97 @@ namespace Opc.Ua.Scales.Tests
         }
 
         /// <summary>
+        /// An overlapping flush cannot consume a same-node deferral created by the earlier flush's callback.
+        /// </summary>
+        [Test]
+        public async Task NativeEnumerationOverlappingFlushPreservesReentrantDeferralAsync()
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            ProductState product = scale.ProductionPreset!.ActiveProduct!;
+            MultiStateValueDiscreteState variable = CreateNativeEnumeration(product);
+            product.AddChild(variable);
+            await product.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+            var firstCallbackEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var allowNestedWrite = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var nestedWriteCompleted = new TaskCompletionSource<ServiceResult>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseFirstFlush = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            int calls = 0;
+            StatusCode synchronousWriteStatus = StatusCodes.Good;
+            PropertyState<LocalizedText> text = variable.ValueAsText!;
+            text.OnStateChangedAsync = async (_, _, _, cancellationToken) =>
+            {
+                calls++;
+                if (calls == 1)
+                {
+                    firstCallbackEntered.TrySetResult(true);
+                    await allowNestedWrite.Task.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken)
+                        .ConfigureAwait(false);
+                    ServiceResult nestedWriteResult = await variable.WriteAttributeAsync(
+                        harness.Owner,
+                        Attributes.Value,
+                        NumericRange.Null,
+                        new DataValue(Variant.From(1u)),
+                        cancellationToken).AsTask()
+                        .WaitAsync(TimeSpan.FromSeconds(15), cancellationToken)
+                        .ConfigureAwait(false);
+                    nestedWriteCompleted.TrySetResult(nestedWriteResult);
+                    await releaseFirstFlush.Task.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    synchronousWriteStatus = Write(
+                        harness.Owner, variable, Variant.From(4u)).StatusCode;
+                }
+            };
+
+            Task firstFlush = Task.CompletedTask;
+            Task overlappingFlush = Task.CompletedTask;
+            try
+            {
+                AssertGood(await WriteAsync(harness.Owner, variable, Variant.From(4u)).ConfigureAwait(false));
+                firstFlush = variable.ClearChangeMasksAsync(harness.Context, true).AsTask();
+                await firstCallbackEntered.Task.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+
+                overlappingFlush = variable.ClearChangeMasksAsync(harness.Context, true).AsTask();
+                await overlappingFlush.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+
+                allowNestedWrite.TrySetResult(true);
+                AssertGood(await nestedWriteCompleted.Task.WaitAsync(TimeSpan.FromSeconds(15))
+                    .ConfigureAwait(false));
+                Assert.That(Write(harness.Owner, variable, Variant.From(4u)).StatusCode,
+                    Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                Assert.That(variable.Value.GetUInt32(), Is.EqualTo(1u));
+                Assert.That(text.Value.Text, Is.EqualTo("one"));
+                Assert.That(firstFlush.IsCompleted, Is.False);
+            }
+            finally
+            {
+                allowNestedWrite.TrySetResult(true);
+                releaseFirstFlush.TrySetResult(true);
+                await Task.WhenAll(firstFlush, overlappingFlush)
+                    .WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+            }
+
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(text.ChangeMasks & NodeStateChangeMasks.Value,
+                Is.EqualTo(NodeStateChangeMasks.Value));
+            Assert.That(variable.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+            await variable.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+            Assert.That(calls, Is.EqualTo(2));
+            Assert.That(synchronousWriteStatus, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            Assert.That(variable.Value.GetUInt32(), Is.EqualTo(1u));
+            Assert.That(text.Value.Text, Is.EqualTo("one"));
+            Assert.That(variable.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+            Assert.That(text.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+        }
+
+        /// <summary>
         /// A queued writer runs after notification dispatch and retains its own deferred notification.
         /// </summary>
         [Test]
