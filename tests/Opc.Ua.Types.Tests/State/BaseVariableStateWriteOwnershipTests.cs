@@ -514,7 +514,7 @@ namespace Opc.Ua.Types.Tests.State
                 Assert.That(calls, Is.EqualTo(1));
                 Assert.That(inputByteString.Span.ToArray(), Is.EqualTo(new byte[] { 0xFE, 0x22, 0xED }));
                 Assert.That(variable.Value.TryGetValue(out ArrayOf<ByteString> cached), Is.True);
-                Assert.That(cached.Length, Is.EqualTo(1));
+                Assert.That(cached.Count, Is.EqualTo(1));
                 Assert.That(cached.Span[0].Span.ToArray(), Is.EqualTo(expectedBytes));
                 Assert.That(variable.StatusCode, Is.EqualTo(StatusCodes.Good));
                 Assert.That(variable.Timestamp, Is.EqualTo(s_requestedTimestamp));

@@ -1901,7 +1901,7 @@ namespace Opc.Ua.Scales.Tests
             });
             RecipeState? activeRecipeBefore = controller.ActiveRecipe;
             RecipeRunState stateBefore = controller.State;
-            RecipeElementState[] currentBefore = controller.CurrentElements.ToArray();
+            RecipeElementState[] currentBefore = controller.CurrentElements.Span.ToArray();
             string?[] reportBefore = SnapshotReportMessages(product);
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -2008,7 +2008,7 @@ namespace Opc.Ua.Scales.Tests
             });
             RecipeState? activeRecipeBefore = controller.ActiveRecipe;
             RecipeRunState stateBefore = controller.State;
-            RecipeElementState[] currentBefore = controller.CurrentElements.ToArray();
+            RecipeElementState[] currentBefore = controller.CurrentElements.Span.ToArray();
             string?[] reportBefore = SnapshotReportMessages(product);
             Task<ServiceResult> start = Task.Run(() => controller.Start(recipe.NodeId));
             Task<bool>? write = null;
@@ -2054,7 +2054,7 @@ namespace Opc.Ua.Scales.Tests
             AssertGood(controller.Stop(recipe.NodeId));
             RecipeState? activeRecipeBefore = controller.ActiveRecipe;
             RecipeRunState stateBefore = controller.State;
-            RecipeElementState[] currentBefore = controller.CurrentElements.ToArray();
+            RecipeElementState[] currentBefore = controller.CurrentElements.Span.ToArray();
             string?[] reportBefore = SnapshotReportMessages(product);
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -2236,7 +2236,7 @@ namespace Opc.Ua.Scales.Tests
 
         private static string?[] SnapshotReportMessages(RecipeProductState product)
         {
-            return [.. product.Report!.Value.Select(entry => entry.ReportMessage.Text)];
+            return [.. product.Report!.Value.Span.ToArray().Select(entry => entry.ReportMessage.Text)];
         }
 
         private static Task<bool> HoldWriteGateAsync(
