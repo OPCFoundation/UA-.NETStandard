@@ -84,18 +84,6 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         public string? DefaultNamespaceUri { get; set; }
 
         /// <summary>
-        /// Gets or sets whether lifecycle operations for this runtime NodeSet
-        /// may be initiated from an OPC UA request callback.
-        /// </summary>
-        /// <remarks>
-        /// Leave this disabled unless the initiating request is handled by a
-        /// different, stable NodeManager. When enabled, the lifecycle excludes
-        /// only that initiating request from its request-drain wait while the
-        /// runtime NodeSet generation is added, replaced, or removed.
-        /// </remarks>
-        public bool AllowLifecycleFromRequestCallback { get; set; }
-
-        /// <summary>
         /// Gets or sets an optional callback invoked with the fluent
         /// <see cref="INodeManagerBuilder"/> after all NodeSet2 nodes
         /// have been added to the address space.

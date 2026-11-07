@@ -68,7 +68,7 @@ namespace Opc.Ua.AutoID.Server
 
         /// <summary>
         /// Reports that the number of identifiers the device currently sees changed
-        /// (<c>AutoIdPresenceEventType</c>, OPC 30010 7.12).
+        /// (<c>AutoIdPresenceEventType</c>, OPC 30010 7.12), and updates Diagnostics/Presence when enabled.
         /// </summary>
         /// <param name="presence">The number of identifiers in range.</param>
         /// <param name="cancellationToken">Cancels the operation.</param>
@@ -76,7 +76,7 @@ namespace Opc.Ua.AutoID.Server
 
         /// <summary>
         /// Reports a new logbook entry (<c>AutoIdLogEntryEventType</c>, OPC 30010 7.9). The entry
-        /// is carried in the event's <c>Message</c> field.
+        /// is carried in the event's <c>Message</c> field and the optional Diagnostics/Logbook/LastLogEntry.
         /// </summary>
         /// <param name="entry">The logbook entry text.</param>
         /// <param name="cancellationToken">Cancels the operation.</param>
@@ -85,6 +85,8 @@ namespace Opc.Ua.AutoID.Server
         /// <summary>
         /// Reports that identifiers were accessed by a command the device executed on its own
         /// (<c>AutoIdAccessEventType</c> or <c>RfidAccessEventType</c>, OPC 30010 7.10 and 7.11).
+        /// Updates Diagnostics/LastAccess when enabled, independently of access-event publication.
+        /// The provider must exclude credentials from report data.
         /// </summary>
         /// <param name="command">
         /// The command name; for an OPC UA client the names of OPC 30010, for example <c>ReadTag</c>.

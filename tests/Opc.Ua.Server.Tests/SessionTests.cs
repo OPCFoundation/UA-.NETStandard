@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Server.TestFramework;
@@ -253,6 +255,74 @@ namespace Opc.Ua.Server.Tests
 
                 Assert.That(refreshed, Is.False);
                 Assert.That(session.IsIdentityStale, Is.True);
+            }
+            finally
+            {
+                await CloseSessionAsync(server!, secureChannelContext!, requestHeader!).ConfigureAwait(false);
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// The identity state is read without the session lock while identity changes race with
+        /// it: every reader sees the generation only grow, a snapshot taken right after a change
+        /// is current, and the last refresh leaves the identity fresh.
+        /// </summary>
+        [Test]
+        public async Task IdentityRefreshStateReadsStayConsistentWhileIdentityChangesAsync()
+        {
+            var fixture = new ServerFixture<StandardServer>(t => new StandardServer(t));
+            await fixture.StartAsync().ConfigureAwait(false);
+            StandardServer? server = null;
+            SecureChannelContext? secureChannelContext = null;
+            RequestHeader? requestHeader = null;
+            try
+            {
+                server = fixture.Server;
+                (requestHeader, secureChannelContext) =
+                    await server.CreateAndActivateSessionAsync("IdentityRace").ConfigureAwait(false);
+                ISession session = server.CurrentInstance.SessionManager
+                    .GetSession(requestHeader.AuthenticationToken)!;
+
+                const int changes = 2000;
+                using var stop = new CancellationTokenSource();
+                Task<string?>[] readers = [.. Enumerable.Range(0, 4).Select(reader => Task.Run(() =>
+                {
+                    long last = session.CaptureIdentityRefreshSnapshot().Generation;
+                    while (!stop.IsCancellationRequested)
+                    {
+                        _ = session.IsIdentityStale;
+                        IdentityRefreshSnapshot snapshot = session.CaptureIdentityRefreshSnapshot();
+                        if (snapshot.Identity == null)
+                        {
+                            return "identity missing";
+                        }
+                        if (snapshot.Generation < last)
+                        {
+                            return $"generation went back from {last} to {snapshot.Generation}";
+                        }
+                        last = snapshot.Generation;
+                    }
+                    return (string?)null;
+                }))];
+
+                long before = session.CaptureIdentityRefreshSnapshot().Generation;
+                for (int ii = 0; ii < changes; ii++)
+                {
+                    session.MarkIdentityStale();
+                    Assert.That(session.IsIdentityStale, Is.True);
+                    IdentityRefreshSnapshot current = session.CaptureIdentityRefreshSnapshot();
+                    Assert.That(
+                        session.TryRefreshEffectiveIdentity(current.Identity, current.Generation, new UserIdentity()),
+                        Is.True,
+                        "A snapshot taken right after the change must be current.");
+                    Assert.That(session.IsIdentityStale, Is.False);
+                }
+                stop.Cancel();
+                string?[] failures = await Task.WhenAll(readers).ConfigureAwait(false);
+
+                Assert.That(failures.Where(f => f != null), Is.Empty);
+                Assert.That(session.CaptureIdentityRefreshSnapshot().Generation, Is.EqualTo(before + changes));
             }
             finally
             {

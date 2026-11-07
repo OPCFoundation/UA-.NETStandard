@@ -34,20 +34,11 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Optional isolation of an invocation containing several prepared publication units.
+    /// Compatibility marker for lifecycles that support captured-view publication transactions.
+    /// New callers should use the transaction members on <see cref="INodeManagerLifecycle"/>.
     /// </summary>
     public interface INodeManagerPublicationLifecycle : INodeManagerBatchLifecycle
     {
-        /// <summary>
-        /// Gets whether the attached owner supports invocation-wide publication isolation.
-        /// </summary>
-        bool SupportsPublicationIsolation { get; }
-
-        /// <summary>
-        /// Captures the current routing, type and factory revisions without reserving publication.
-        /// </summary>
-        /// <returns>The capture holding the observed revisions.</returns>
-        INodeManagerPublicationCapture CapturePublication();
     }
 
     /// <summary>
@@ -56,31 +47,35 @@ namespace Opc.Ua.Server
     public interface INodeManagerPublicationCapture
     {
         /// <summary>
-        /// Reserves one invocation. Conflicting lifecycle work is rejected before effects.
-        /// A stale capture returns an invocation whose IsCurrent is false and cannot prepare units.
+        /// Begins one independently owned invocation without requiring an explicit request context.
+        /// Other invocations and ordinary lifecycle operations may proceed concurrently.
+        /// A stale capture returns an invocation whose <see cref="INodeManagerPublication.IsCurrent"/>
+        /// is false and cannot prepare units.
         /// </summary>
-        /// <param name="callerContext">The request the caller is running under, or null for an ordinary external
-        /// caller.</param>
         /// <param name="cancellationToken">The token to cancel the operation.</param>
-        /// <returns>The invocation that retains publication admission until disposed.</returns>
+        /// <returns>The invocation that retains operation ownership and its prepared units until disposed.</returns>
         ValueTask<INodeManagerPublication> BeginAsync(
-            IOperationContext? callerContext,
             CancellationToken cancellationToken = default);
+
     }
 
     /// <summary>
-    /// Retains publication admission across all units of one invocation.
+    /// Retains optimistic serving-revision evidence and operation ownership across sequential publication units.
+    /// Conflicts with other publications are rejected before a durable decision.
+    /// Factories are never retried implicitly.
     /// </summary>
     public interface INodeManagerPublication : IAsyncDisposable
     {
         /// <summary>
-        /// Gets whether all captured revisions matched when publication admission was reserved.
+        /// Gets whether the invocation's expected routing, type and factory revisions are still current.
+        /// Successful units advance this evidence only to their own published revision.
         /// </summary>
         bool IsCurrent { get; }
 
         /// <summary>
-        /// Prepares a unit on the existing lifecycle owner. Dispose each unit before the invocation.
-        /// Ordinary lifecycle mutations, including mutations from callbacks, must retry after the invocation.
+        /// Prepares a unit on the existing lifecycle owner without holding the mutation writer during factories.
+        /// Dispose each unit before the invocation. An unrelated publication makes this invocation stale;
+        /// the caller must explicitly capture a new invocation rather than retrying a factory implicitly.
         /// </summary>
         /// <param name="changes">The additions, replacements and retirements to prepare.</param>
         /// <param name="cancellationToken">The token to cancel the operation.</param>
@@ -97,13 +92,7 @@ namespace Opc.Ua.Server
         /// <returns>The unpublished prepared unit carrying the images.</returns>
         ValueTask<IPreparedNodeManagerBatch> PrepareReadImagesAsync(
             ArrayOf<INodeManagerReadImage> images, CancellationToken cancellationToken = default);
-    }
 
-    /// <summary>
-    /// Optional validation of a publication candidate without allocating serving namespace mappings.
-    /// </summary>
-    public interface INodeManagerValidationPublication : INodeManagerPublication
-    {
         /// <summary>
         /// Prepares and inspects a private candidate, then disposes it without publishing.
         /// The candidate is valid only during the inspection callback and cannot be committed.
@@ -116,5 +105,12 @@ namespace Opc.Ua.Server
             ArrayOf<NodeManagerBatchChange> changes,
             Func<IPreparedNodeManagerBatch, CancellationToken, ValueTask> inspectAsync,
             CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// Optional validation of a publication candidate without allocating serving namespace mappings.
+    /// </summary>
+    public interface INodeManagerValidationPublication : INodeManagerPublication
+    {
     }
 }

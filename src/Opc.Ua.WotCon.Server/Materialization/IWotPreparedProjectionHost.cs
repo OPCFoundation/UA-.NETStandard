@@ -72,7 +72,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         {
             return new WotProjectionChange(
                 null, document ?? throw new ArgumentNullException(nameof(document)),
-                WotProjectionRetirementPolicy.Graceful);
+                WotProjectionRetirementPolicy.Migrate);
         }
 
         /// <summary>
@@ -84,7 +84,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         public static WotProjectionChange Replace(
             WotProjectionHandle current,
             WotProjectionDocument document,
-            WotProjectionRetirementPolicy retirementPolicy = WotProjectionRetirementPolicy.Graceful)
+            WotProjectionRetirementPolicy retirementPolicy = WotProjectionRetirementPolicy.Migrate)
         {
             return new WotProjectionChange(
                 current ?? throw new ArgumentNullException(nameof(current)),
@@ -98,7 +98,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <param name="retirementPolicy">The retirement policy.</param>
         public static WotProjectionChange Remove(
             WotProjectionHandle current,
-            WotProjectionRetirementPolicy retirementPolicy = WotProjectionRetirementPolicy.Graceful)
+            WotProjectionRetirementPolicy retirementPolicy = WotProjectionRetirementPolicy.Invalidate)
         {
             return new WotProjectionChange(
                 current ?? throw new ArgumentNullException(nameof(current)), null, retirementPolicy);
@@ -123,6 +123,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <param name="views">The WoT prepared view publication.</param>
         /// <param name="callerContext">
         /// The executing request's context, or <c>null</c> for an external or background caller.
+        /// The default lifecycle host uses context-free preparation and ignores this compatibility parameter.
         /// </param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         ValueTask<IWotPreparedProjectionPublication> PrepareAsync(
@@ -157,8 +158,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Reserves publication admission and reports whether preparation is still current.
         /// </summary>
         /// <param name="callerContext">
-        /// The executing request's context, so the post-commit request drain excludes that request,
-        /// or <c>null</c> for an external caller that does not run inside a server request.
+        /// The executing request's context, or <c>null</c> for an external or background caller.
+        /// The default lifecycle host ignores this compatibility parameter. Commit does not wait for
+        /// the executing request's generation admission to drain.
         /// </param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         ValueTask<IWotProjectionPublication> BeginAsync(
@@ -252,6 +254,19 @@ namespace Opc.Ua.WotCon.Server.Materialization
             Func<IWotPreparedProjectionPublication, CancellationToken, ValueTask> inspectAsync,
             IWotPreparedViewPublication? views = null,
             CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// Supplies an explicit namespace mapping for privately prepared native projections.
+    /// </summary>
+    public interface IWotPreparedProjectionNamespaceSource
+    {
+        /// <summary>
+        /// Gets the explicit candidate namespace mapping, including unpublished additions.
+        /// Empty means that the provider uses only already-published namespaces.
+        /// Decorators must forward this mapping without appending it to the serving table.
+        /// </summary>
+        ArrayOf<string> CapturedNamespaceUris { get; }
     }
 
     /// <summary>

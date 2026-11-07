@@ -34,6 +34,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Historian;
 using Opc.Ua.Server.Historian.InMemory;
@@ -67,6 +68,69 @@ namespace Opc.Ua.Server.Tests.Historian
 
             Assert.That(owned.DisposeCount, Is.EqualTo(1));
             Assert.That(external.DisposeCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// Borrowed node routes retain provider identity without transferring disposal responsibility.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void BorrowedNodeRegistrationDoesNotDisposeProvider(bool unregister)
+        {
+            var provider = new DisposableHistorianProvider();
+            using var registry = new HistorianProviderRegistry(new NamespaceTable());
+            HistorianProviderRegistry routing = registry;
+            var nodeId = new NodeId("borrowed-node", 1);
+            routing.RegisterForNode(nodeId, provider, ownsProvider: false);
+            Assert.That(routing.Resolve(nodeId), Is.SameAs(provider));
+            Assert.That(routing.Providers.Contains(provider), Is.True);
+            if (unregister)
+            {
+                Assert.That(routing.UnregisterForNode(nodeId), Is.True);
+                Assert.That(routing.Resolve(nodeId), Is.Null);
+            }
+            registry.Dispose();
+            Assert.That(provider.DisposeCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// A later borrowed route cannot revoke disposal ownership retained by an owning registration.
+        /// </summary>
+        [Test]
+        public void BorrowedNodeRegistrationPreservesEarlierOwnership()
+        {
+            var provider = new DisposableHistorianProvider();
+            using var registry = new HistorianProviderRegistry(new NamespaceTable());
+            var nodeId = new NodeId("owned-then-borrowed", 1);
+            registry.RegisterForNode(nodeId, provider);
+            registry.RegisterForNode(nodeId, provider, ownsProvider: false);
+            registry.UnregisterForNode(nodeId);
+            registry.Dispose();
+            Assert.That(provider.DisposeCount, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Existing custom registries keep owning behavior and reject unsupported borrowed routes explicitly.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void OwnershipExtensionPreservesCustomRegistryContract(bool ownsProvider)
+        {
+            var registry = new Mock<IHistorianProviderRegistry>(MockBehavior.Strict);
+            var provider = new DisposableHistorianProvider();
+            var nodeId = new NodeId("custom-node", 1);
+            if (ownsProvider)
+            {
+                registry.Setup(value => value.RegisterForNode(nodeId, provider));
+                registry.Object.RegisterForNode(nodeId, provider, ownsProvider: true);
+                registry.Verify(value => value.RegisterForNode(nodeId, provider), Times.Once);
+            }
+            else
+            {
+                Assert.That(() => registry.Object.RegisterForNode(nodeId, provider, ownsProvider: false),
+                    Throws.TypeOf<NotSupportedException>());
+            }
+            registry.VerifyNoOtherCalls();
         }
 
         /// <summary>
@@ -245,6 +309,87 @@ namespace Opc.Ua.Server.Tests.Historian
             registry.RegisterDefault(provider);
 
             Assert.That(registry.Resolve(NodeId.Null), Is.Null);
+        }
+
+        /// <summary>
+        /// Verifies that each Providers read is an independent snapshot of current membership.
+        /// </summary>
+        [Test]
+        public void ProvidersReturnsStableSnapshotsAcrossRegistrationAndRemoval()
+        {
+            var registry = new HistorianProviderRegistry(new NamespaceTable());
+            using var defaultProvider = new InMemoryHistorianProvider();
+            using var nodeProvider = new InMemoryHistorianProvider();
+            var nodeId = new NodeId("snapshot-node", 1);
+
+            registry.RegisterDefault(defaultProvider);
+            ArrayOf<IHistorianProvider> initialSnapshot = registry.Providers;
+            registry.RegisterForNode(nodeId, nodeProvider);
+            ArrayOf<IHistorianProvider> expandedSnapshot = registry.Providers;
+
+            Assert.That(initialSnapshot, Has.Count.EqualTo(1));
+            Assert.That(initialSnapshot.Contains(defaultProvider), Is.True);
+            Assert.That(initialSnapshot.Contains(nodeProvider), Is.False);
+            Assert.That(expandedSnapshot, Has.Count.EqualTo(2));
+            Assert.That(expandedSnapshot.Contains(nodeProvider), Is.True);
+
+            Assert.That(registry.UnregisterForNode(nodeId), Is.True);
+
+            Assert.That(registry.Providers, Has.Count.EqualTo(1));
+            Assert.That(registry.Providers.Contains(defaultProvider), Is.True);
+            Assert.That(registry.Providers.Contains(nodeProvider), Is.False);
+            Assert.That(expandedSnapshot, Has.Count.EqualTo(2));
+            Assert.That(expandedSnapshot.Contains(nodeProvider), Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that repeated removal of node and namespace bindings reports only the first removal.
+        /// </summary>
+        [Test]
+        public void RepeatedRemovalOfNodeAndNamespaceBindingsIsIdempotent()
+        {
+            var namespaceTable = new NamespaceTable();
+            namespaceTable.Append("urn:test:registry-repeated-removal");
+            var registry = new HistorianProviderRegistry(namespaceTable);
+            using var nodeProvider = new InMemoryHistorianProvider();
+            using var namespaceProvider = new InMemoryHistorianProvider();
+            var nodeId = new NodeId("repeated-removal-node", 0);
+
+            registry.RegisterForNode(nodeId, nodeProvider);
+            registry.RegisterForNamespace("urn:test:registry-repeated-removal", namespaceProvider);
+
+            Assert.That(registry.UnregisterForNode(nodeId), Is.True);
+            Assert.That(registry.UnregisterForNode(nodeId), Is.False);
+            Assert.That(registry.Resolve(nodeId), Is.Null);
+            Assert.That(registry.UnregisterForNamespace("urn:test:registry-repeated-removal"), Is.True);
+            Assert.That(registry.UnregisterForNamespace("urn:test:registry-repeated-removal"), Is.False);
+            Assert.That(registry.Resolve(new NodeId("unbound-after-removal", 1)), Is.Null);
+            Assert.That(registry.Providers, Is.Empty);
+        }
+
+        /// <summary>
+        /// Verifies that repeated registry disposal clears bindings and disposes a provider
+        /// registered through multiple bindings exactly once.
+        /// </summary>
+        [Test]
+        public void RepeatedDisposeDisposesSharedOwnedProviderOnceAndClearsRegistry()
+        {
+            var registry = new HistorianProviderRegistry(new NamespaceTable());
+            var provider = new DisposableHistorianProvider();
+            var nodeId = new NodeId("shared-owned-provider", 1);
+
+            registry.RegisterDefault(provider);
+            registry.RegisterForNode(nodeId, provider);
+
+            Assert.That(registry.Resolve(nodeId), Is.SameAs(provider));
+            Assert.That(registry.Providers, Has.Count.EqualTo(1));
+
+            registry.Dispose();
+            registry.Dispose();
+
+            Assert.That(provider.DisposeCount, Is.EqualTo(1));
+            Assert.That(registry.Resolve(nodeId), Is.Null);
+            Assert.That(registry.Providers, Is.Empty);
         }
 
         private sealed class DisposableHistorianProvider :

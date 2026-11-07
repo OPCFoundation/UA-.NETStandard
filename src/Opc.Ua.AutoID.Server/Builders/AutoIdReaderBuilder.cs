@@ -38,7 +38,12 @@ namespace Opc.Ua.AutoID.Server.Builders
     /// The default <see cref="IAutoIdReaderBuilder"/>: collects the configuration and hands it to
     /// the runtime in one step.
     /// </summary>
-    internal sealed class AutoIdReaderBuilder : IAutoIdReaderBuilder
+    internal sealed class AutoIdReaderBuilder :
+        IAutoIdReaderBuilder,
+        IAutoIdRuntimeParametersBuilder,
+        IAutoIdImagesBuilder,
+        IAutoIdIODataBuilder,
+        IAutoIdDiagnosticsBuilder
     {
         internal AutoIdReaderBuilder(
             AutoIdRuntime runtime,
@@ -75,6 +80,113 @@ namespace Opc.Ua.AutoID.Server.Builders
         internal Action<DeviceIdentificationData>? Identification { get; private set; }
 
         internal bool OwnsProviderOnDispose { get; private set; }
+
+        /// <summary>
+        /// Gets whether the reader exposes the parameter capability.
+        /// </summary>
+        internal bool HasRuntimeParameters { get; private set; }
+
+        /// <summary>
+        /// Gets whether ScanActive is enabled.
+        /// </summary>
+        internal bool HasScanControl { get; private set; }
+
+        /// <summary>
+        /// Gets whether the reader exposes standard diagnostics.
+        /// </summary>
+        internal bool HasDiagnostics { get; private set; }
+
+        /// <summary>
+        /// Gets the fixed image slots configured before registration.
+        /// </summary>
+        internal ArrayOf<AutoIdImageSlot> Images { get; private set; }
+
+        /// <summary>
+        /// Gets the application callback that populates IOData before registration.
+        /// </summary>
+        internal Action<ISystemContext, BaseObjectState>? ConfigureIOData { get; private set; }
+
+        /// <summary>
+        /// Gets or sets the initial provider configuration.
+        /// </summary>
+        internal AutoIdScanParameters? Parameters { get; set; }
+
+        /// <summary>
+        /// Gets or sets the reader-specific capabilities captured before registration.
+        /// </summary>
+        internal AutoIdReaderParameterCapabilities? ParameterCapabilities { get; set; }
+
+        /// <summary>
+        /// Gets the reader-specific parameter composition callback.
+        /// </summary>
+        internal Action<ISystemContext, BaseObjectState>? ConfigureParameters { get; private set; }
+
+        /// <summary>
+        /// Gets the standard parameter and control write permissions.
+        /// </summary>
+        internal ArrayOf<RolePermissionType> ScanWritePermissions { get; private set; }
+
+        /// <inheritdoc/>
+        public IAutoIdReaderBuilder WithIOData(Action<ISystemContext, BaseObjectState> configure)
+        {
+            ConfigureIOData = configure ?? throw new ArgumentNullException(nameof(configure));
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IAutoIdReaderBuilder WithImages(ArrayOf<AutoIdImageSlot> images)
+        {
+            if (Provider.Kind is not (AutoIdReaderKind.Ocr or AutoIdReaderKind.Optical or
+                AutoIdReaderKind.OpticalVerifier))
+            {
+                throw new InvalidOperationException("Only OCR and optical readers publish Images.");
+            }
+            if (images.Count > 16)
+            {
+                throw new ArgumentOutOfRangeException(nameof(images), "At most sixteen image slots are supported.");
+            }
+            var names = new System.Collections.Generic.HashSet<QualifiedName>();
+            for (int i = 0; i < images.Count; i++)
+            {
+                if (images[i] == null || !names.Add(images[i].Name))
+                {
+                    throw new ArgumentException("Image slots must be nonnull and have unique names.", nameof(images));
+                }
+            }
+            Images = images.Span.ToArray().ToArrayOf();
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IAutoIdReaderBuilder WithScanWritePermissions(ArrayOf<RolePermissionType> permissions)
+        {
+            ScanWritePermissions = permissions.ToArray().ToArrayOf();
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IAutoIdReaderBuilder WithDiagnostics()
+        {
+            HasDiagnostics = true;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IAutoIdReaderBuilder WithRuntimeParameters(
+            bool enableScanControl = false,
+            Action<ISystemContext, BaseObjectState>? configure = null)
+        {
+            if (Provider is not IAutoIdScanParametersProvider ||
+                (enableScanControl && Provider is not IAutoIdAsyncScanProvider))
+            {
+                throw new InvalidOperationException(
+                    "The provider does not support the requested parameter/control capability.");
+            }
+            HasRuntimeParameters = true;
+            HasScanControl = enableScanControl;
+            ConfigureParameters = configure;
+            return this;
+        }
 
         /// <inheritdoc/>
         public IAutoIdReaderBuilder WithParent(NodeState parent)

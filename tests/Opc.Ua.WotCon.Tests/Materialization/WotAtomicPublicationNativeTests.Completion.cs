@@ -394,7 +394,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }).ConfigureAwait(false);
             Assert.That(created.Changed, Is.True, created.Message);
             var participant = new Mock<IWotPreparedViewPublication>(MockBehavior.Strict);
-            participant.SetupGet(value => value.Changes).Returns(ArrayOf<NodeManagerBatchChange>.Empty);
+            participant.SetupGet(value => value.Changes).Returns(ArrayOf<LifecycleChange>.Empty);
             participant.Setup(value => value.BindPreparedRegistrations(It.IsAny<ArrayOf<NodeManagerRegistration>>()))
                 .Returns(new WotPreparedViewGraphState(ByteString.Empty, [], [unrelated.Xid]));
             participant.Setup(value => value.DisposeAsync()).Returns(default(ValueTask));

@@ -177,10 +177,8 @@ ServerLoadHarness.exe run --scenario counters --sessions 48 --subs 5 --nodes 100
 The `client:` line adds `delivered`, the notifications received against one per item and
 publishing interval (or per sample when sampling is slower), and the `server:` line reports
 `samplesTaken`. `per-op` divides the server's allocation and CPU by notifications and
-`per-op2` by samples taken. The managed client needs more CPU per notification than a native
-worker (`clientCpuCores`); on one machine it competes with the server for cores, so the
-highest passing session count is lower than with a native client, while the server's cost
-per sample stays comparable.
+`per-op2` by samples taken. These values describe one run; compare client modes only from
+controlled runs with the same server, workload and timing settings on an otherwise idle host.
 
 `--server-affinity` (Windows and Linux) is applied after the server started, when the .NET
 runtime has already sized the thread pool and the GC heaps for all processors. Set

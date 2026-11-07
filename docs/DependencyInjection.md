@@ -441,22 +441,37 @@ at most one regular server may be registered per service collection.
 The regular hosted server also registers `INodeManagerLifecycle` as a singleton forwarding provider. After the server reaches `Running`, application services can inject it to add, reload, or remove lifecycle-owned NodeManagers. Calls made before startup or after shutdown fail explicitly.
 
 ```csharp
+using System.Threading;
+using System.Threading.Tasks;
+using Opc.Ua.Server;
+using Opc.Ua.Server.RuntimeNodeSet;
+
 public sealed class RuntimeModelService(INodeManagerLifecycle lifecycle)
 {
-    public ValueTask<NodeManagerRegistration> AddAsync(CancellationToken ct)
+    public ValueTask<LifecycleResult> AddAsync(CancellationToken ct)
     {
-        return lifecycle.AddRuntimeNodeSetAsync(
-            new RuntimeNodeSetOptions
-            {
-                Sources = [RuntimeNodeSetSource.FromFile("Models/Line.NodeSet2.xml")]
-            },
-            callerContext: null,
+        return lifecycle.ApplyAsync(
+            [
+                LifecycleChange.Add(
+                    new RuntimeNodeSetNodeManagerFactory(
+                        new RuntimeNodeSetOptions
+                        {
+                            Sources = [RuntimeNodeSetSource.FromFile("Models/Line.NodeSet2.xml")]
+                        }))
+            ],
             ct);
     }
 }
 ```
 
-Applications that construct `StandardServer` directly use `server.NodeManagerLifecycle` instead. Both paths use the same lifecycle implementation and generation-aware registration handles.
+The returned `LifecycleResult` identifies the committed publication even when reconciliation reports
+issues. Inspect `Issues` and retry unfinished callbacks with `RetryReconciliationAsync`; do not
+repeat the addition. Retain `result.Registrations[0].Slot` for later replacement or removal.
+Use [explicit preparation](NodeManagers.md#preparation-decision-and-abort) when publication must
+follow a durable application decision.
+
+Applications that construct `StandardServer` directly use `server.NodeManagerLifecycle` instead.
+Both paths use the same lifecycle implementation and stable registration slots.
 
 Advanced server services can be supplied through the same fluent builder:
 
@@ -587,6 +602,12 @@ server cleanup; subsequent tasks do not run.
 `StopAsync` waits for execution cleanup even after a host shutdown timeout,
 so the host does not dispose dependencies that the server is still using.
 Slow cleanup can therefore outlast that timeout.
+
+Hosted server disposal detaches the injected lifecycle even if server disposal
+throws. The hosted service retains the failed server for a later disposal
+attempt; retaining its resources does not make it available through the hosted
+lifecycle. A successful retry releases the server reference, and later hosted
+disposal calls do not dispose it again.
 
 Use injected services for application dependencies and the existing typed
 node-manager lookup for server subsystems. For example, inside a task:

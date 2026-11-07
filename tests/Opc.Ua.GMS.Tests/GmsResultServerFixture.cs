@@ -89,8 +89,24 @@ namespace Opc.Ua.GMS.Tests
         internal async Task StartAsync()
         {
             await m_fixture.LoadConfigurationAsync(NewPkiPath()).ConfigureAwait(false);
+            if (!ServerSecurityPolicies.IsEmpty)
+            {
+                ServerConfiguration configuration = m_fixture.Config.ServerConfiguration!;
+                configuration.SecurityPolicies = ServerSecurityPolicies;
+                configuration.UserTokenPolicies = UserTokenPolicies;
+            }
             await m_fixture.StartAsync().ConfigureAwait(false);
         }
+
+        /// <summary>
+        /// Gets or sets the endpoint security policies published instead of the default SecurityPolicy None.
+        /// </summary>
+        internal ArrayOf<ServerSecurityPolicy> ServerSecurityPolicies { get; set; }
+
+        /// <summary>
+        /// Gets or sets the user token policies published with <see cref="ServerSecurityPolicies"/>.
+        /// </summary>
+        internal ArrayOf<UserTokenPolicy> UserTokenPolicies { get; set; }
 
         /// <summary>
         /// Stages a canonical GMS root through the existing Machinery builder without registering it twice.

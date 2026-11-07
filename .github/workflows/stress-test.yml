@@ -44,7 +44,6 @@ jobs:
     timeout-minutes: 30
 
     env:
-      DOTNET_VERSION: '10.0.403'
       TARGET_FRAMEWORK: 'net10.0'
       CONFIGURATION: 'Release'
       CUSTOM_TEST_TARGET: 'net10.0'
@@ -57,10 +56,10 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Setup .NET ${{ env.DOTNET_VERSION }}
+    - name: Setup .NET from global.json
       uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: ${{ env.DOTNET_VERSION }}
+        global-json-file: global.json
 
     - name: Set Cloud Version
       shell: pwsh
@@ -113,7 +112,6 @@ jobs:
     timeout-minutes: 120
 
     env:
-      DOTNET_VERSION: '10.0.403'
       TARGET_FRAMEWORK: 'net10.0'
       CONFIGURATION: 'Release'
       CUSTOM_TEST_TARGET: 'net10.0'
@@ -126,10 +124,10 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Setup .NET ${{ env.DOTNET_VERSION }}
+    - name: Setup .NET from global.json
       uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: ${{ env.DOTNET_VERSION }}
+        global-json-file: global.json
 
     - name: Set Cloud Version
       shell: pwsh

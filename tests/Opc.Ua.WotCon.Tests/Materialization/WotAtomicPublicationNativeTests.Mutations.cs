@@ -682,6 +682,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             await m_coordinator.RefreshAsync(HandoffRequest("before-native-mutation")).ConfigureAwait(false);
             await m_session.FetchNamespaceTablesAsync().ConfigureAwait(false);
             var document = new WoTDocumentTypeClient(m_session, ResourceId(source), NUnitTelemetryContext.Create());
+            var retired = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            probe.OnRuntimeDisposed = () => retired.TrySetResult(true);
 
             if (!nativeMethod)
             {
@@ -703,6 +705,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That((await ReadNodeClassAsync(StockNode("Source")).ConfigureAwait(false)).StatusCode,
                 Is.EqualTo(StatusCodes.BadNodeIdUnknown),
                 "A completed lifecycle mutation must retire its native projection even when AutoRefresh is false.");
+            await retired.Task.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
             Assert.That(probe.RuntimeCreatedCount - probe.RuntimeDisposedCount, Is.Zero);
             if (delete)
             {
