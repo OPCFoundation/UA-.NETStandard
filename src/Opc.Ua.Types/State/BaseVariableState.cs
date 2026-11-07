@@ -2526,6 +2526,7 @@ namespace Opc.Ua
         /// guards is a field read or write in this file.
         /// </remarks>
         private readonly Lock m_attributeLock = new();
+
         /// <summary>
         /// Stores the framework write policy that yields to a later asynchronous simple-write handler.
         /// </summary>
