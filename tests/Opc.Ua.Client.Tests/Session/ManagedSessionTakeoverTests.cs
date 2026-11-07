@@ -478,6 +478,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         {
             await using var harness = new ManagedSessionReconnectHarness();
             await harness.ConnectAsync(false).ConfigureAwait(false);
+            // The first keep-alive read is sent from a background worker and can arrive after connect
+            // returns. Fake time sends no further one, so the count below can only grow by a takeover.
+            await harness.InitialKeepAliveRead.WaitAsync(PhaseTimeout).ConfigureAwait(false);
             SessionHandoff handoff = CreateForeignHandoff(harness);
             int mark = harness.Requests.Count;
 

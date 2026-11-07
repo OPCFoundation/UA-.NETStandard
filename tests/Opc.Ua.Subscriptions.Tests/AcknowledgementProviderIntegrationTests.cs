@@ -109,7 +109,12 @@ namespace Opc.Ua.Subscriptions.Tests
                     DisableUnboundedItemMode = !partitioned
                 });
             Assert.That(session.TryGetSubscriptionManager(out ISubscriptionManager? manager), Is.True);
-            await using ISubscription subscription = manager!.Add(handler, options);
+            // Concurrent Publish responses can complete out of order, and the client then fetches the
+            // skipped message with Republish, which reports null by contract. A single outstanding
+            // Publish keeps every message of the burst on a live response.
+            manager!.MinPublishWorkerCount = 1;
+            manager.MaxPublishWorkerCount = 1;
+            await using ISubscription subscription = manager.Add(handler, options);
             var items = new List<Client.Subscriptions.MonitoredItems.IMonitoredItem>();
             int expected = partitioned ? 6 : 3;
             for (int i = 0; i < expected; i++)
