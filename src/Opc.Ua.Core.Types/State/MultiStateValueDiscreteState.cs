@@ -231,7 +231,7 @@ namespace Opc.Ua
         {
             if (indexRange.IsNull && value.TypeInfo.IsScalar)
             {
-                ServiceResult validation = ResolveEnumValue(
+                ServiceResult validation = ValidateEnumValue(
                     context, value, out _, out _, out _);
                 if (ServiceResult.IsBad(validation))
                 {
