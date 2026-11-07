@@ -224,31 +224,32 @@ namespace Opc.Ua
             Variant value)
         {
             LocalizedText matchedText = LocalizedText.Null;
-            bool matched = false;
-            if (indexRange.IsNull &&
+            ArrayOf<NodeId> dictionaryEntries = ArrayOf<NodeId>.Null;
+            bool resolved = false;
+            bool matched = indexRange.IsNull &&
                 value.TypeInfo.IsScalar &&
-                TryGetIntegerValue(value, out long number) &&
-                TryGetEnumValues(context, out ArrayOf<EnumValueType> enumValues))
+                TryGetIntegerValue(value, out _) &&
+                TryGetEnumValues(context, out _);
+            if (matched)
             {
-                foreach (EnumValueType entry in enumValues)
+                ServiceResult validation = ResolveEnumValue(
+                    context, value, out matchedText, out dictionaryEntries, out resolved);
+                if (ServiceResult.IsBad(validation))
                 {
-                    if (entry.Value == number)
-                    {
-                        matchedText = entry.DisplayName;
-                        matched = true;
-                        break;
-                    }
-                }
-
-                if (!matched)
-                {
-                    return new AttributeWriteResult(StatusCodes.BadOutOfRange);
+                    return new AttributeWriteResult(validation);
                 }
             }
 
             return new AttributeWriteResult(ServiceResult.Good)
             {
-                AfterOrdinaryCacheCommit = matched ? () => UpdateValueAsText(matchedText) : null
+                AfterOrdinaryCacheCommit = resolved
+                    ? () => UpdateDerivedValues(
+                        context,
+                        new DataValue(WrappedValue, StatusCode, Timestamp),
+                        matchedText,
+                        dictionaryEntries,
+                        resolved)
+                    : null
             };
         }
 
