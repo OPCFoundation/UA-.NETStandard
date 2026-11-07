@@ -2276,7 +2276,10 @@ namespace Opc.Ua
         /// <param name="handler">The framework write policy.</param>
         internal void SetWriteValueAsyncPolicyWithSimpleOverride(NodeValueWriteEventHandlerAsync handler)
         {
-            ArgumentNullException.ThrowIfNull(handler);
+            if (handler == null)
+            {
+                throw new ArgumentNullException(nameof(handler));
+            }
             OnWriteValueAsync = handler;
             m_writeValueAsyncPolicyWithSimpleOverride = handler;
         }
