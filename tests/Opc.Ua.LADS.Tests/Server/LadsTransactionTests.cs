@@ -1211,11 +1211,23 @@ namespace Opc.Ua.LADS.Tests.Server
         public async Task FailedStorageCompensationRejectsQueuedProgramTransactionAsync()
         {
             const int timeoutMilliseconds = 5000;
+            int observingThread = 0;
+            bool templatePrepared = false;
+            var clock = new Mock<TimeProvider> { CallBase = true };
+            clock.Setup(time => time.GetUtcNow()).Returns(() =>
+            {
+                if (Volatile.Read(ref observingThread) == Environment.CurrentManagedThreadId)
+                {
+                    templatePrepared = true;
+                }
+                return DateTimeOffset.UtcNow;
+            });
             var nodes = new FaultingNodeOperations { FailAfterChange = true };
             var store = new FaultingStore();
             await using LadsHostedServer server = await StartAsync(
                 nameof(FailedStorageCompensationRejectsQueuedProgramTransactionAsync), store, nodes,
-                extra: device => device.FunctionalUnit("Second", unit => unit.Programs(_ => { })))
+                extra: device => device.FunctionalUnit("Second", unit => unit.Programs(_ => { })),
+                timeProvider: clock.Object)
                 .ConfigureAwait(false);
             var device = (LadsDevice)await server.DeviceAsync().ConfigureAwait(false);
             LadsProgramManager first = (LadsProgramManager)device
@@ -1238,9 +1250,22 @@ namespace Opc.Ua.LADS.Tests.Server
                 rejected = Task.Run(() => first.AddTemplateAsync(Template("RolledBack")).AsTask());
                 await store.SaveEntered.Task.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds))
                     .ConfigureAwait(false);
-                Assert.That(secondUnit.Gate.CurrentCount, Is.EqualTo(1));
-                queued = second.AddTemplateAsync(Template("Rejected")).AsTask();
-                Assert.That(secondUnit.Gate.CurrentCount, Is.Zero);
+                LadsProgramTemplate template = Template("Rejected");
+                ValueTask pending;
+                Volatile.Write(ref observingThread, Environment.CurrentManagedThreadId);
+                try
+                {
+                    pending = second.AddTemplateAsync(template);
+                }
+                finally
+                {
+                    Volatile.Write(ref observingThread, 0);
+                }
+                bool completedSynchronously = pending.IsCompleted;
+                queued = pending.AsTask();
+                Assert.That(templatePrepared, Is.True);
+                // After FillTemplate, the store gate is the only await that can suspend this direct call.
+                Assert.That(completedSynchronously, Is.False);
                 Assert.That(queued.IsCompleted, Is.False);
                 Assert.That(store.Saves, Is.EqualTo(failedRestoreSave));
                 store.ReleaseSave.TrySetResult(true);
@@ -1754,13 +1779,21 @@ namespace Opc.Ua.LADS.Tests.Server
             FaultingStore store,
             FaultingNodeOperations nodes,
             Action<IOpcUaServerBuilder>? compose = null,
-            Action<ILadsDeviceBuilder>? extra = null)
+            Action<ILadsDeviceBuilder>? extra = null,
+            TimeProvider? timeProvider = null)
         {
             return LadsHostedServer.StartAsync(name, builder =>
             {
                 builder.Services.AddSingleton<ILadsNodeOperations>(nodes);
                 compose?.Invoke(builder);
-                builder.AddLads(options => options.Store = store).ConfigureLads(context =>
+                builder.AddLads(options =>
+                {
+                    options.Store = store;
+                    if (timeProvider != null)
+                    {
+                        options.TimeProvider = timeProvider;
+                    }
+                }).ConfigureLads(context =>
                     LadsIncubator.Configure(context, LadsIncubator.DeviceName, extra));
             });
         }
