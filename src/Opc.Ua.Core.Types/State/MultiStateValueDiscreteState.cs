@@ -179,11 +179,6 @@ namespace Opc.Ua
                 (value.WrappedValue.TypeInfo.IsScalar || ValueRank == ValueRanks.Scalar) &&
                 (OnWriteValueAsync != null || OnSimpleWriteValueAsync != null))
             {
-                ServiceResult validation = ValidateEnumValue(context, value.WrappedValue);
-                if (ServiceResult.IsBad(validation))
-                {
-                    return validation;
-                }
                 AttributeWriteResult writeResult = await WriteAttributeWithResultAsync(
                     context, attributeId, indexRange, value, cancellationToken).ConfigureAwait(false);
                 ServiceResult result = writeResult.Result;
@@ -199,14 +194,22 @@ namespace Opc.Ua
                     bool resolved = false;
                     if (!accepted.WrappedValue.IsNull)
                     {
-                        ServiceResult acceptedValidation = ValidateEnumValue(
-                            context, accepted.WrappedValue, out text, out dictionaryEntries, out resolved);
+                        bool overflowingUnsigned = accepted.WrappedValue.TypeInfo.IsScalar &&
+                            accepted.WrappedValue.TypeInfo.BuiltInType == BuiltInType.UInt64 &&
+                            !TryGetIntegerValue(accepted.WrappedValue, out _);
+                        ServiceResult acceptedValidation = overflowingUnsigned
+                            ? ServiceResult.Good
+                            : ValidateEnumValue(
+                                context, accepted.WrappedValue, out text, out dictionaryEntries, out resolved);
                         if (ServiceResult.IsBad(acceptedValidation))
                         {
                             return acceptedValidation;
                         }
                     }
-                    UpdateDerivedValues(context, accepted, text, dictionaryEntries, resolved);
+                    if (resolved)
+                    {
+                        UpdateDerivedValues(context, accepted, text, dictionaryEntries, resolved);
+                    }
                     await ClearChangeMasksAsync(
                         context, includeChildren: true, cancellationToken: CancellationToken.None)
                         .ConfigureAwait(false);
@@ -223,34 +226,17 @@ namespace Opc.Ua
             NumericRange indexRange,
             Variant value)
         {
-            LocalizedText matchedText = LocalizedText.Null;
-            ArrayOf<NodeId> dictionaryEntries = ArrayOf<NodeId>.Null;
-            bool resolved = false;
-            bool matched = indexRange.IsNull &&
-                value.TypeInfo.IsScalar &&
-                TryGetIntegerValue(value, out _) &&
-                TryGetEnumValues(context, out _);
-            if (matched)
+            if (indexRange.IsNull && value.TypeInfo.IsScalar)
             {
                 ServiceResult validation = ResolveEnumValue(
-                    context, value, out matchedText, out dictionaryEntries, out resolved);
+                    context, value, out _, out _, out _);
                 if (ServiceResult.IsBad(validation))
                 {
                     return new AttributeWriteResult(validation);
                 }
             }
 
-            return new AttributeWriteResult(ServiceResult.Good)
-            {
-                AfterOrdinaryCacheCommit = resolved
-                    ? () => UpdateDerivedValues(
-                        context,
-                        new DataValue(WrappedValue, StatusCode, Timestamp),
-                        matchedText,
-                        dictionaryEntries,
-                        resolved)
-                    : null
-            };
+            return new AttributeWriteResult(ServiceResult.Good);
         }
 
         /// <summary>

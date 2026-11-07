@@ -586,6 +586,9 @@ namespace Opc.Ua.Scales.Tests
             }.ToArrayOf();
             product.AddChild(variable);
             await product.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+            PropertyState<LocalizedText> text = variable.ValueAsText!;
+            StatusCode initialTextStatus = text.StatusCode;
+            DateTimeUtc initialTextTimestamp = text.Timestamp;
             Variant input = overflowingUnsigned ? Variant.From(ulong.MaxValue) : Variant.From(-4L);
 
             AssertGood(await WriteAsync(harness.Owner, variable, input).ConfigureAwait(false));
@@ -594,12 +597,14 @@ namespace Opc.Ua.Scales.Tests
             {
                 // Existing conversion rules defer to ordinary cache writing if UInt64 cannot fit Int64.
                 Assert.That(variable.Value.GetUInt64(), Is.EqualTo(ulong.MaxValue));
-                Assert.That(variable.ValueAsText!.Value.Text, Is.EqualTo("initial"));
+                Assert.That(text.Value.Text, Is.EqualTo("initial"));
+                Assert.That(text.StatusCode, Is.EqualTo(initialTextStatus));
+                Assert.That(text.Timestamp, Is.EqualTo(initialTextTimestamp));
             }
             else
             {
                 Assert.That(variable.Value.GetInt64(), Is.EqualTo(-4L));
-                Assert.That(variable.ValueAsText!.Value.Text, Is.EqualTo("negative"));
+                Assert.That(text.Value.Text, Is.EqualTo("negative"));
             }
         }
 
@@ -680,10 +685,10 @@ namespace Opc.Ua.Scales.Tests
         }
 
         /// <summary>
-        /// The child notification is awaited by the existing explicit traversal, after admitted writes return.
+        /// Successful enum writes await dependent child notifications before releasing write admission.
         /// </summary>
         [Test]
-        public async Task NativeEnumerationTextNotificationsAwaitExplicitFlushAsync()
+        public async Task NativeEnumerationTextNotificationsAreAwaitedBeforeWriteCompletesAsync()
         {
             using var harness = new Harness();
             ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
@@ -695,36 +700,40 @@ namespace Opc.Ua.Scales.Tests
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             int calls = 0;
             string? observedText = null;
+            NodeStateChangeMasks observedMasks = NodeStateChangeMasks.None;
             PropertyState<LocalizedText> text = variable.ValueAsText!;
-            text.OnStateChangedAsync = async (_, _, _, _) =>
+            text.OnStateChangedAsync = async (_, _, changeMasks, _) =>
             {
                 calls++;
+                observedMasks |= changeMasks;
                 observedText = text.Value.Text;
                 entered.TrySetResult(true);
                 await release.Task.ConfigureAwait(false);
             };
 
-            AssertGood(await WriteAsync(harness.Owner, variable, Variant.From(4u)).ConfigureAwait(false));
-            Assert.That(text.Value.Text, Is.EqualTo("four"));
-            Assert.That(calls, Is.Zero);
-            Task flush = variable.ClearChangeMasksAsync(harness.Context, true).AsTask();
+            Task<ServiceResult> write = WriteAsync(harness.Owner, variable, Variant.From(4u)).AsTask();
             try
             {
                 await entered.Task.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
-                Assert.That(flush.IsCompleted, Is.False);
+                Assert.That(write.IsCompleted, Is.False);
                 Assert.That(observedText, Is.EqualTo("four"));
-                // Admission was released by the write; notification sinks do not own it.
-                AssertGood(await WriteAsync(harness.Owner, variable, Variant.From(1u)).ConfigureAwait(false));
-                Assert.That(text.Value.Text, Is.EqualTo("one"));
+                Assert.That(Write(harness.Owner, variable, Variant.From(1u)).StatusCode,
+                    Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
             }
             finally
             {
                 release.TrySetResult(true);
-                await flush.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+                await write.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
             }
+            AssertGood(await write.ConfigureAwait(false));
             Assert.That(calls, Is.EqualTo(1));
-            Assert.That(text.ChangeMasks & NodeStateChangeMasks.Value,
-                Is.EqualTo(NodeStateChangeMasks.Value));
+            Assert.That(observedMasks & NodeStateChangeMasks.Value, Is.EqualTo(NodeStateChangeMasks.Value));
+            Assert.That(text.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+            Assert.That(variable.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+
+            AssertGood(await WriteAsync(harness.Owner, variable, Variant.From(1u)).ConfigureAwait(false));
+            Assert.That(text.Value.Text, Is.EqualTo("one"));
+            Assert.That(calls, Is.EqualTo(2));
         }
 
         /// <summary>
@@ -859,29 +868,19 @@ namespace Opc.Ua.Scales.Tests
             {
                 Assert.That(variable.OnWriteValueAsync, Is.Not.Null);
                 int dependentStateUpdates = 0;
-                NodeValueWriteEventHandlerAsync originalHandler = variable.OnWriteValueAsync!;
-                variable.OnWriteValueAsync = async (context, node, indexRange, value, cancellationToken) =>
+                NodeStateChangeMasks textChangeMasks = NodeStateChangeMasks.None;
+                PropertyState<LocalizedText> text = variable.ValueAsText!;
+                text.OnStateChangedAsync = (_, _, changeMasks, _) =>
                 {
-                    AttributeWriteResult writeResult = await originalHandler(
-                        context, node, indexRange, value, cancellationToken).ConfigureAwait(false);
-                    if (writeResult.AfterOrdinaryCacheCommit is { } afterCommit)
-                    {
-                        return writeResult with
-                        {
-                            AfterOrdinaryCacheCommit = () =>
-                            {
-                                dependentStateUpdates++;
-                                afterCommit();
-                            }
-                        };
-                    }
-
-                    return writeResult;
+                    dependentStateUpdates++;
+                    textChangeMasks |= changeMasks;
+                    return ValueTask.CompletedTask;
                 };
                 AssertGood(await WriteAsync(harness.Owner, variable, Variant.From(4u)).ConfigureAwait(false));
                 Assert.That(variable.Value.GetUInt32(), Is.EqualTo(4u));
-                Assert.That(variable.ValueAsText!.Value.Text, Is.EqualTo("four"));
+                Assert.That(text.Value.Text, Is.EqualTo("four"));
                 Assert.That(dependentStateUpdates, Is.EqualTo(1));
+                Assert.That(textChangeMasks & NodeStateChangeMasks.Value, Is.EqualTo(NodeStateChangeMasks.Value));
             }
         }
 
@@ -2207,6 +2206,23 @@ namespace Opc.Ua.Scales.Tests
             product.AddChild(variable);
             await product.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
             int calls = 0;
+            int valueNotifications = 0;
+            int textNotifications = 0;
+            NodeStateChangeMasks valueChangeMasks = NodeStateChangeMasks.None;
+            NodeStateChangeMasks textChangeMasks = NodeStateChangeMasks.None;
+            PropertyState<LocalizedText> textState = variable.ValueAsText!;
+            variable.OnStateChangedAsync = (_, _, changeMasks, _) =>
+            {
+                valueNotifications++;
+                valueChangeMasks |= changeMasks;
+                return ValueTask.CompletedTask;
+            };
+            textState.OnStateChangedAsync = (_, _, changeMasks, _) =>
+            {
+                textNotifications++;
+                textChangeMasks |= changeMasks;
+                return ValueTask.CompletedTask;
+            };
             variable.OnSimpleWriteValueAsync = (_, _, value, _) =>
             {
                 calls++;
@@ -2222,9 +2238,12 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(variable.Value.GetUInt32(), Is.EqualTo(input));
             Assert.That(variable.ValueAsText!.Value.Text, Is.EqualTo(text));
             Assert.That(variable.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
-            Assert.That(variable.ChangeMasks & NodeStateChangeMasks.Value, Is.EqualTo(NodeStateChangeMasks.Value));
-            Assert.That(variable.ValueAsText.ChangeMasks & NodeStateChangeMasks.Value,
-                Is.EqualTo(NodeStateChangeMasks.Value));
+            Assert.That(valueNotifications, Is.EqualTo(1));
+            Assert.That(textNotifications, Is.EqualTo(1));
+            Assert.That(valueChangeMasks & NodeStateChangeMasks.Value, Is.EqualTo(NodeStateChangeMasks.Value));
+            Assert.That(textChangeMasks & NodeStateChangeMasks.Value, Is.EqualTo(NodeStateChangeMasks.Value));
+            Assert.That(variable.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+            Assert.That(textState.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
         }
 
         /// <summary>

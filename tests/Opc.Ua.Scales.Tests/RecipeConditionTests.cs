@@ -845,11 +845,12 @@ namespace Opc.Ua.Scales.Tests
             m_recipe = m_controller.AddRecipe("Admission", new LocalizedText("Admission recipe"));
             await m_controller.SetApplicationReleaseAsync(true).ConfigureAwait(false);
             Enable(BuiltInType.Double);
-            Publish(10.0);
             AnalogConditionSleepState element = Analog(0, 10.0);
             var product = (RecipeProductState)scale.ProductionPreset!.ActiveProduct!;
             var completed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             m_controller.RecipeCompleted += (_, _) => completed.TrySetResult(true);
+            AssertGood(m_controller.Start(m_recipe.NodeId));
+            int reportCount = product.Report!.Value.Count;
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             Task<bool> write = m_scale.WriteOperations.ExecuteAsynchronouslyAsync(
@@ -864,8 +865,7 @@ namespace Opc.Ua.Scales.Tests
             try
             {
                 await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
-                AssertGood(m_controller.Start(m_recipe.NodeId));
-                int reportCount = product.Report!.Value.Count;
+                Publish(10.0);
                 Assert.That(m_controller.CurrentElements.ToArray(), Does.Contain(element));
                 Assert.That(completed.Task.IsCompleted, Is.False);
                 Assert.That(product.Report.Value.Count, Is.EqualTo(reportCount));
