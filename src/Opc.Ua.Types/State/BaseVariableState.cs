@@ -2222,21 +2222,56 @@ namespace Opc.Ua
             DataValue value,
             CancellationToken cancellationToken = default)
         {
+            AttributeWriteResult result = await WriteAttributeWithResultAsync(
+                context, attributeId, indexRange, value, cancellationToken).ConfigureAwait(false);
+            return result.Result;
+        }
+
+        /// <summary>
+        /// Returns a string representation of the node.
+        /// </summary>
+        /// <returns>
+        /// A <see cref="string"/> that represents the current <see cref="object"/>.
+        /// </returns>
+        public override string ToString()
+        {
+            return Value.ToString();
+        }
+
+        /// <summary>
+        /// Writes an attribute while preserving whether the asynchronous handler owns cache publication.
+        /// </summary>
+        /// <remarks>
+        /// Derived variables must not update cached or derived values when the handler suppresses cache updates.
+        /// </remarks>
+        /// <param name="context">The context used for access and value validation.</param>
+        /// <param name="attributeId">The attribute to write.</param>
+        /// <param name="indexRange">The elements to replace, or a null range for the whole value.</param>
+        /// <param name="value">The value, status and source timestamp requested by the caller.</param>
+        /// <param name="cancellationToken">The cancellation token passed to the asynchronous handler.</param>
+        /// <returns>The operation result with the handler's cache-publication ownership preserved.</returns>
+        protected async ValueTask<AttributeWriteResult> WriteAttributeWithResultAsync(
+            ISystemContext context,
+            uint attributeId,
+            NumericRange indexRange,
+            DataValue value,
+            CancellationToken cancellationToken = default)
+        {
             NodeValueWriteEventHandlerAsync? onWriteValueAsync = OnWriteValueAsync;
             NodeValueSimpleWriteEventHandlerAsync? onSimpleWriteValueAsync = OnSimpleWriteValueAsync;
 
             if (attributeId != Attributes.Value ||
                 (onWriteValueAsync == null && onSimpleWriteValueAsync == null))
             {
-                return await base.WriteAttributeAsync(
+                return new AttributeWriteResult(await base.WriteAttributeAsync(
                     context, attributeId, indexRange, value, cancellationToken)
-                    .ConfigureAwait(false);
+                    .ConfigureAwait(false));
             }
             if (value.ServerTimestamp != DateTimeUtc.MinValue)
             {
-                return ServiceResult.Create(
+                return new AttributeWriteResult(ServiceResult.Create(
                     StatusCodes.BadWriteNotSupported,
-                    "Cannot write to server timestamp");
+                    "Cannot write to server timestamp"));
             }
 
             try
@@ -2252,14 +2287,14 @@ namespace Opc.Ua
 
                 if ((accessLevel & AccessLevels.CurrentWrite) == 0)
                 {
-                    return StatusCodes.BadNotWritable;
+                    return new AttributeWriteResult(StatusCodes.BadNotWritable);
                 }
 
                 OnReadUserAccessLevel?.Invoke(context, this, ref userAccessLevel);
 
                 if ((userAccessLevel & AccessLevels.CurrentWrite) == 0)
                 {
-                    return StatusCodes.BadUserAccessDenied;
+                    return new AttributeWriteResult(StatusCodes.BadUserAccessDenied);
                 }
 
                 Variant valueToWrite = value.WrappedValue;
@@ -2273,14 +2308,14 @@ namespace Opc.Ua
 
                 if (statusOrTimestampResult != null)
                 {
-                    return statusOrTimestampResult;
+                    return new AttributeWriteResult(statusOrTimestampResult);
                 }
 
                 ServiceResult? typeResult = CheckValueType(context, valueToWrite);
 
                 if (typeResult != null)
                 {
-                    return typeResult;
+                    return new AttributeWriteResult(typeResult);
                 }
 
                 if (onWriteValueAsync != null)
@@ -2291,7 +2326,7 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsBad(writeResult.Result) || writeResult.SuppressCacheUpdate)
                     {
-                        return writeResult.Result;
+                        return writeResult;
                     }
 
                     DateTimeUtc effectiveTimestamp = sourceTimestamp == DateTimeUtc.MinValue
@@ -2322,7 +2357,7 @@ namespace Opc.Ua
                         ChangeMasks |= NodeStateChangeMasks.Value;
                     }
 
-                    return writeResult.Result;
+                    return writeResult;
                 }
 
                 // simple async write path mirrors OnSimpleWriteValue:
@@ -2330,7 +2365,7 @@ namespace Opc.Ua
                 // (Part 4 5.11.4.4: Bad_WriteNotSupported).
                 if (!indexRange.IsNull)
                 {
-                    return StatusCodes.BadWriteNotSupported;
+                    return new AttributeWriteResult(StatusCodes.BadWriteNotSupported);
                 }
 
                 if (sourceTimestamp == DateTimeUtc.MinValue)
@@ -2349,7 +2384,7 @@ namespace Opc.Ua
 
                 if (ServiceResult.IsBad(simpleResult.Result) || simpleResult.SuppressCacheUpdate)
                 {
-                    return simpleResult.Result;
+                    return simpleResult;
                 }
 
                 lock (m_attributeLock)
@@ -2360,26 +2395,15 @@ namespace Opc.Ua
                     ChangeMasks |= NodeStateChangeMasks.Value;
                 }
 
-                return simpleResult.Result;
+                return simpleResult;
             }
             catch (Exception e)
             {
-                return ServiceResult.Create(
+                return new AttributeWriteResult(ServiceResult.Create(
                     e,
                     StatusCodes.BadUnexpectedError,
-                    "Failed to write value attribute.");
+                    "Failed to write value attribute."));
             }
-        }
-
-        /// <summary>
-        /// Returns a string representation of the node.
-        /// </summary>
-        /// <returns>
-        /// A <see cref="string"/> that represents the current <see cref="object"/>.
-        /// </returns>
-        public override string ToString()
-        {
-            return Value.ToString();
         }
 
         /// <summary>

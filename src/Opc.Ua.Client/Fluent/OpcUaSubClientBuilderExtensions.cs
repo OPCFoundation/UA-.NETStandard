@@ -34,6 +34,7 @@ using Opc.Ua.Client;
 using Opc.Ua.Client.AliasNames;
 using Opc.Ua.Client.FileSystem;
 using Opc.Ua.Client.Historian;
+using Opc.Ua.Client.Network;
 using Opc.Ua.Client.Programs;
 using Opc.Ua.Client.Roles;
 
@@ -44,6 +45,33 @@ namespace Microsoft.Extensions.DependencyInjection
     /// </summary>
     public static class OpcUaSubClientBuilderExtensions
     {
+        /// <summary>
+        /// Registers the session-bound Part 22 network-model client factory.
+        /// </summary>
+        public static IOpcUaBuilder AddNetworkModelClient(this IOpcUaBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            builder.Services.AddOpcUa();
+            builder.Services.TryAddSingleton<NetworkModelClientFactory>();
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers the session-bound Part 22 network-model client factory.
+        /// </summary>
+        public static IOpcUaClientBuilder AddNetworkModelClient(this IOpcUaClientBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            new BuilderAdapter(builder.Services).AddNetworkModelClient();
+            return builder;
+        }
+
         /// <summary>
         /// Registers the session-bound Part 10 Program client factory.
         /// </summary>

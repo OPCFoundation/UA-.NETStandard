@@ -35,6 +35,21 @@
       "sha256": "e8f1d80fbce4f76e9d42f3a652c6cc8c6daf68c289b2629bcce68c5879746cd6"
     }
   ],
+  "localCorrections": {
+    "file": "Opc.Ua.AutoID.NodeSet2.xml",
+    "sha256": "2ada05952033c40d25076dc966cf2543ea48ed2b04286ab9fcea7941098e3a0c",
+    "authority": "https://reference.opcfoundation.org/specs/OPC-30010/6.4.3.1",
+    "changes": [
+      {
+        "nodeId": "ns=1;i=6076",
+        "methodId": "ns=1;i=7054",
+        "argument": "Results",
+        "publishedDataType": "ns=1;i=3027",
+        "effectiveDataType": "ns=1;i=3030",
+        "reason": "OpticalVerifierDeviceType.Scan returns OpticalVerifierScanResult[] according to OPC 30010 6.4.3.1, not WGS84Coordinate[]. NodeIds, rank, argument order and model identity are unchanged."
+      }
+    ]
+  },
   "derivedIdentifierTable": {
     "file": "Opc.Ua.AutoID.Derived.NodeIds.csv",
     "tool": "tools/nodesets/derive-identifier-table.py",

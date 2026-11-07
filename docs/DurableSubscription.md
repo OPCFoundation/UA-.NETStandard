@@ -33,6 +33,10 @@ Typically the following porting steps are necessary:
   `SupportsDurableQueues` to `true`. Return an `IMonitoredItemQueue` that
   persists values and supports large queue sizes. See the sample
   [DurableMonitoredItemQueueFactory](../samples/Quickstarts.Servers/DurableSubscription/DurableMonitoredItemQueueFactory.cs).
+  Its data-change queue decoder uses stored batch identities to preserve a
+  shared enqueue/dequeue batch. This keeps empty restored queues writable and
+  prevents drained queues from replaying a duplicated batch; the stored binary
+  format is unchanged.
 - Register the queue factory by overriding
   `StandardServer.CreateMonitoredItemQueueFactory`.
 - Implement `ISubscriptionStore` to persist and restore subscriptions across

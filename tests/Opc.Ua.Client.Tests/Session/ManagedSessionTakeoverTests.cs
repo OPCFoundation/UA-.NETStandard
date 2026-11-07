@@ -212,6 +212,68 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         /// <summary>
+        /// Retirement waits for a monitored-item creation the server has already received instead
+        /// of canceling it. The handoff then holds the server handle, and the session that takes
+        /// over does not create the monitored item a second time.
+        /// </summary>
+        [Test]
+        public async Task RetireWaitsForMonitoredItemsInFlightAsync()
+        {
+            await using var harness = new ManagedSessionReconnectHarness
+            {
+                RecoveryActivationStatus = StatusCodes.Good
+            };
+            var response = new AsyncOperationGate();
+            harness.MonitoredItemsResponse = response;
+            await harness.ConnectAsync(false).ConfigureAwait(false);
+            harness.AddSubscription();
+            await harness.NextMonitoredItemsAsync().AsTask().WaitAsync(PhaseTimeout).ConfigureAwait(false);
+
+            Task<SessionHandoff> retirement = harness.Session.RetireAsync().AsTask();
+            await Task.WhenAny(retirement, response.Cancelled, Task.Delay(200)).ConfigureAwait(false);
+            Assert.That(response.Cancelled.IsCompleted, Is.False);
+            Assert.That(retirement.IsCompleted, Is.False);
+
+            response.Release();
+            SessionHandoff handoff = await retirement.WaitAsync(PhaseTimeout).ConfigureAwait(false);
+            harness.RecoveryActivation.Release();
+            int mark = harness.Requests.Count;
+
+            await harness.TakeOverAsync(handoff).ConfigureAwait(false);
+
+            IServiceRequest[] takeover = [.. harness.Requests.ToList().Skip(mark)];
+            Assert.Multiple(() =>
+            {
+                Assert.That(handoff.Subscriptions[0].MonitoredItems[0].ServerId, Is.Not.Zero);
+                Assert.That(takeover, Has.None.InstanceOf<CreateMonitoredItemsRequest>());
+            });
+        }
+
+        /// <summary>
+        /// The caller can bound the wait for a subscription update in flight. A retirement canceled
+        /// that way hands nothing over and closes the server session like a normal disposal.
+        /// </summary>
+        [Test]
+        public async Task RetireCanceledWhileWaitingForMonitoredItemsClosesTheServerSessionAsync()
+        {
+            await using var harness = new ManagedSessionReconnectHarness();
+            harness.MonitoredItemsResponse = new AsyncOperationGate();
+            await harness.ConnectAsync(false).ConfigureAwait(false);
+            harness.AddSubscription();
+            await harness.NextMonitoredItemsAsync().AsTask().WaitAsync(PhaseTimeout).ConfigureAwait(false);
+
+            using var cancellation = new CancellationTokenSource();
+            Task<SessionHandoff> retirement = harness.Session.RetireAsync(cancellation.Token).AsTask();
+            cancellation.Cancel();
+
+            await Assert.ThatAsync(
+                () => retirement.WaitAsync(PhaseTimeout),
+                Throws.InstanceOf<OperationCanceledException>());
+            Assert.That(harness.Session.Disposed, Is.True);
+            Assert.That(harness.Requests.ToList(), Has.Some.InstanceOf<CloseSessionRequest>());
+        }
+
+        /// <summary>
         /// A takeover whose activation is rejected fails the creation by default; the saved server
         /// session is neither closed nor replaced by a new one.
         /// </summary>
@@ -498,7 +560,14 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 () => harness.TakeOverAsync(withSubscriptions, new SessionTakeoverOptions()),
                 Throws.ArgumentException);
 
-            Assert.That(harness.Requests.Count, Is.EqualTo(mark));
+            // The connected session may still send its keep-alive; only a session request would
+            // mean a takeover started.
+            IServiceRequest[] after = [.. harness.Requests.ToList().Skip(mark)];
+            Assert.Multiple(() =>
+            {
+                Assert.That(after, Has.None.InstanceOf<CreateSessionRequest>());
+                Assert.That(after, Has.None.InstanceOf<ActivateSessionRequest>());
+            });
         }
 
         /// <summary>

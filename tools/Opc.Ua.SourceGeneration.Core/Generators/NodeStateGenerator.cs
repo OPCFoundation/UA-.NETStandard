@@ -4913,10 +4913,22 @@ namespace Opc.Ua.SourceGeneration
             {
                 if (m_initializers.TryAdd(uniqueName, new TextResource(uniqueName, xml)))
                 {
+                    NamespaceTable? sourceNamespaces = node switch
+                    {
+                        VariableDesign variable => variable.DecodedValueNamespaceUris,
+                        VariableTypeDesign variableType => variableType.DecodedValueNamespaceUris,
+                        _ => null
+                    };
+                    sourceNamespaces ??= ModelDesignExtensions.CreateDesignNamespaceTable(
+                        m_context.ModelDesign.Namespaces);
+                    string namespaceMapping = CoreUtils.Format(
+                        ", new global::Opc.Ua.NamespaceTable(new string[] {{ {0} }})",
+                        string.Join(", ", sourceNamespaces.ToArray().Select(uri => uri.AsStringLiteral())));
                     // Get code to create the variant from the XML resource reference
                     return CoreUtils.Format(
-                        "global::Opc.Ua.Variant.FromXml({0}AsStream, context)",
-                        uniqueName);
+                        "global::Opc.Ua.Variant.FromXml({0}AsStream, context{1})",
+                        uniqueName,
+                        namespaceMapping);
                 }
                 uniqueName = resourceName + i;
             }
