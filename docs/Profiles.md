@@ -877,7 +877,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 30020: MDIS](https://reference.opcfoundation.org/specs/OPC-30020) | 1.3 | No | - |
 | [OPC 30030: BACnet](https://reference.opcfoundation.org/specs/OPC-30030) | 2.00.1 | No | - |
 | [OPC 30040: AutomationML](https://reference.opcfoundation.org/specs/OPC-30040) | 1.00 | No | - |
-| [OPC 30050: PackML](https://reference.opcfoundation.org/specs/OPC-30050) | 1.01 | Full | Defined runtime and client capabilities, including defined optional capabilities, implemented and configurable per unit; application certification requires configured time synchronization. The optional undefined StateModel extensions unit is not advertised; see [capability boundaries](PackML.md#capability-boundaries). |
+| [OPC 30050: PackML](https://reference.opcfoundation.org/specs/OPC-30050) | 1.01 | Full | - |
 | [OPC 30060: Tobacco Machine Communication](https://reference.opcfoundation.org/specs/OPC-30060) | 2.00.1 | No | - |
 | [OPC 30081: PA-DIM](https://reference.opcfoundation.org/specs/OPC-30081) | 1.02.0 | Partial | Generated model and Machinery process values; no complete standalone PA-DIM runtime |
 | [OPC 30090: Field Device Tool (FDT)](https://reference.opcfoundation.org/specs/OPC-30090) | 1.01 | No | - |
