@@ -938,11 +938,24 @@ namespace Opc.Ua.Server
                 target,
                 eventTypeId,
                 sourceNodeId,
+                CreateEventSourceLookup(eventTypeId, sourceNodeId),
                 snapshot.SourceEmission?.Generation,
                 snapshot.SourceEmission?.ReadinessPending ?? false,
                 snapshot.SourceEmission?.ReadinessEventId ?? 0,
                 itemCount,
                 offset);
+        }
+
+        /// <summary>
+        /// Creates the lookup of the source node instance that binds the cached permission
+        /// verdicts of one delivery, or null when the verdicts of the event are not cached.
+        /// </summary>
+        private EventSourceLookup? CreateEventSourceLookup(NodeId eventTypeId, NodeId sourceNodeId)
+        {
+            IMasterNodeManager? masterNodeManager = m_server.NodeManager;
+            return masterNodeManager != null && !eventTypeId.IsNull && !sourceNodeId.IsNull
+                ? new EventSourceLookup(masterNodeManager, sourceNodeId)
+                : null;
         }
 
         /// <summary>
@@ -1001,6 +1014,8 @@ namespace Opc.Ua.Server
 
         private async Task DeliverDeferredEventAsync(EventDelivery delivery, EventItemDelivery[] items)
         {
+            // the delivery was retained, so the instance its items saw may have been replaced.
+            EventSourceLookup? sourceLookup = CreateEventSourceLookup(delivery.EventTypeId, delivery.SourceNodeId);
             Task[] pending = new Task[items.Length];
             for (int ii = 0; ii < items.Length; ii++)
             {
@@ -1010,6 +1025,7 @@ namespace Opc.Ua.Server
                     delivery.Target,
                     delivery.EventTypeId,
                     delivery.SourceNodeId,
+                    sourceLookup,
                     delivery.SourceGeneration,
                     item.Key,
                     item.Evaluation,
@@ -1249,10 +1265,67 @@ namespace Opc.Ua.Server
                 delivery.Target,
                 delivery.EventTypeId,
                 delivery.SourceNodeId,
+                delivery.SourceLookup,
                 delivery.SourceGeneration,
                 item.Key,
                 item.Evaluation,
                 cancellationToken);
+        }
+
+        /// <summary>
+        /// The source node instance of one event delivery, looked up once for all its items.
+        /// </summary>
+        /// <remarks>
+        /// A permission verdict is validated after the lookup it is bound to, so it never
+        /// describes an older node than the instance it is cached for. Parallel delivery ranges
+        /// start one lookup between them, so each of them awaits it and none is left running
+        /// after the delivery ended.
+        /// </remarks>
+        private sealed class EventSourceLookup
+        {
+            public EventSourceLookup(IMasterNodeManager masterNodeManager, NodeId sourceNodeId)
+            {
+                m_masterNodeManager = masterNodeManager;
+                m_sourceNodeId = sourceNodeId;
+            }
+
+            public Task<NodeState?> GetAsync(CancellationToken cancellationToken)
+            {
+                Task<NodeState?>? lookup = Volatile.Read(ref m_lookup);
+                if (lookup != null)
+                {
+                    return lookup;
+                }
+                lock (m_lock)
+                {
+                    lookup = m_lookup;
+                    if (lookup == null)
+                    {
+                        lookup = m_masterNodeManager
+                            .FindNodeInAddressSpaceAsync(m_sourceNodeId, cancellationToken)
+                            .AsTask();
+                        Volatile.Write(ref m_lookup, lookup);
+                    }
+                    return lookup;
+                }
+            }
+
+            public bool TryGetCompleted(out NodeState? sourceNode)
+            {
+                Task<NodeState?>? lookup = Volatile.Read(ref m_lookup);
+                if (lookup?.Status == TaskStatus.RanToCompletion)
+                {
+                    sourceNode = lookup.Result;
+                    return true;
+                }
+                sourceNode = null;
+                return false;
+            }
+
+            private readonly Lock m_lock = new();
+            private readonly IMasterNodeManager m_masterNodeManager;
+            private readonly NodeId m_sourceNodeId;
+            private Task<NodeState?>? m_lookup;
         }
 
         /// <summary>
@@ -1265,6 +1338,7 @@ namespace Opc.Ua.Server
                 IFilterTarget target,
                 NodeId eventTypeId,
                 NodeId sourceNodeId,
+                EventSourceLookup? sourceLookup,
                 NodeManagerGeneration? sourceGeneration,
                 bool sourceReadinessPending,
                 long readinessEventId,
@@ -1274,6 +1348,7 @@ namespace Opc.Ua.Server
                 Target = target;
                 EventTypeId = eventTypeId;
                 SourceNodeId = sourceNodeId;
+                SourceLookup = sourceLookup;
                 SourceGeneration = sourceGeneration;
                 SourceReadinessPending = sourceReadinessPending;
                 ReadinessEventId = readinessEventId;
@@ -1286,6 +1361,8 @@ namespace Opc.Ua.Server
             public NodeId EventTypeId { get; }
 
             public NodeId SourceNodeId { get; }
+
+            public EventSourceLookup? SourceLookup { get; }
 
             public NodeManagerGeneration? SourceGeneration { get; }
 
@@ -1362,6 +1439,7 @@ namespace Opc.Ua.Server
             IFilterTarget target,
             NodeId eventTypeId,
             NodeId sourceNodeId,
+            EventSourceLookup? sourceLookup,
             NodeManagerGeneration? sourceGeneration,
             MonitoredItem.SharedEventFilterKey? key,
             MonitoredItem.SharedEventEvaluation? evaluation,
@@ -1382,7 +1460,7 @@ namespace Opc.Ua.Server
 
                 (ServiceResult validationResult, ISession? authorizationSession,
                     NotificationAuthorization? authorization) = await GetOrAddEventPermissionAsync(
-                    monitoredItem, target, eventTypeId, sourceNodeId, cancellationToken).ConfigureAwait(false);
+                    monitoredItem, target, eventTypeId, sourceNodeId, sourceLookup, cancellationToken).ConfigureAwait(false);
                 // An Uncertain verdict is not a denial, so it must not drop the event.
                 if (!ServiceResult.IsBad(validationResult))
                 {
@@ -1446,15 +1524,102 @@ namespace Opc.Ua.Server
         /// and the resolved source-node instance. Falls back to an uncached
         /// lookup when either NodeId is null or the source node cannot be resolved.
         /// </summary>
-        private async ValueTask<(ServiceResult Result, ISession? Session, NotificationAuthorization? Authorization)>
+        private ValueTask<(ServiceResult Result, ISession? Session, NotificationAuthorization? Authorization)>
             GetOrAddEventPermissionAsync(
             IEventMonitoredItem monitoredItem,
             IFilterTarget filterTarget,
             NodeId eventTypeId,
             NodeId sourceNodeId,
+            EventSourceLookup? sourceLookup,
             CancellationToken cancellationToken)
         {
-            bool cacheable = !eventTypeId.IsNull && !sourceNodeId.IsNull;
+            return TryGetCachedEventPermission(
+                monitoredItem,
+                eventTypeId,
+                sourceNodeId,
+                sourceLookup,
+                out ServiceResult? result,
+                out ISession? session,
+                out NotificationAuthorization? authorization)
+                ? new ValueTask<(ServiceResult, ISession?, NotificationAuthorization?)>((result!, session, authorization))
+                : ValidateEventPermissionAsync(
+                    monitoredItem, filterTarget, eventTypeId, sourceNodeId, sourceLookup, cancellationToken);
+        }
+
+        /// <summary>
+        /// Returns a current cached verdict without suspending, so an event fan-out keeps the
+        /// permission context of each item on the stack instead of copying it into a state
+        /// machine through the GC write barrier. Anything else is left to
+        /// <see cref="ValidateEventPermissionAsync"/>. No input is awaited here, so one check of
+        /// the restrictions and one recapture of the context cover the whole path. It only uses a
+        /// source lookup that has completed: the async validation starts the lookup, and only
+        /// for an item that passed the restrictions and then awaits it.
+        /// </summary>
+        private bool TryGetCachedEventPermission(
+            IEventMonitoredItem monitoredItem,
+            NodeId eventTypeId,
+            NodeId sourceNodeId,
+            EventSourceLookup? sourceLookup,
+            out ServiceResult? result,
+            out ISession? session,
+            out NotificationAuthorization? authorization)
+        {
+            result = null;
+            session = null;
+            authorization = null;
+            if (sourceLookup == null ||
+                !MonitoredReadAuthorization.TryRefreshIdentity(m_server, monitoredItem.Session))
+            {
+                return false;
+            }
+            MonitoredItemPermissionContext context = CapturePermissionContext(monitoredItem);
+            if (context.Session?.IsIdentityStale == true)
+            {
+                return false;
+            }
+            authorization = NotificationAuthorization.Capture(context.Session);
+            if (!sourceLookup.TryGetCompleted(out NodeState? sourceNode) ||
+                sourceNode == null ||
+                !m_eventPermissionCache.TryGetValue(
+                    new EventPermissionCacheKey(monitoredItem.Id, eventTypeId, sourceNodeId),
+                    out CachedEventPermission? cached) ||
+                !cached.Context.Matches(context) ||
+                !cached.SourceNode.TryGetTarget(out NodeState? cachedSourceNode) ||
+                !ReferenceEquals(cachedSourceNode, sourceNode))
+            {
+                return false;
+            }
+            EndpointDescription? endpoint = MonitoredReadAuthorization.GetEndpoint(context.Session);
+            if (!TryGetEventRestrictionVerdict(
+                    endpoint,
+                    Volatile.Read(ref m_permissionGeneration),
+                    NamespaceDefaultPermissionReader.Generation,
+                    Node.AccessRestrictions,
+                    out _,
+                    out _) ||
+                !context.Matches(CapturePermissionContext(monitoredItem)))
+            {
+                return false;
+            }
+            result = cached.Result;
+            session = context.Session;
+            return true;
+        }
+
+        /// <summary>
+        /// Validates the event permission of an item, for every case that
+        /// <see cref="TryGetCachedEventPermission"/> does not answer.
+        /// </summary>
+        private async ValueTask<(ServiceResult Result, ISession? Session, NotificationAuthorization? Authorization)>
+            ValidateEventPermissionAsync(
+            IEventMonitoredItem monitoredItem,
+            IFilterTarget filterTarget,
+            NodeId eventTypeId,
+            NodeId sourceNodeId,
+            EventSourceLookup? sourceLookup,
+            CancellationToken cancellationToken)
+        {
+            bool cacheable = sourceLookup != null;
             var key = new EventPermissionCacheKey(monitoredItem.Id, eventTypeId, sourceNodeId);
             while (true)
             {
@@ -1479,11 +1644,9 @@ namespace Opc.Ua.Server
                     return (restrictions, authorization.Session, notificationAuthorization);
                 }
                 NodeState? sourceNode = null;
-                IMasterNodeManager? masterNodeManager = m_server.NodeManager;
-                if (cacheable && masterNodeManager != null)
+                if (cacheable)
                 {
-                    sourceNode = await masterNodeManager.FindNodeInAddressSpaceAsync(
-                        sourceNodeId, cancellationToken).ConfigureAwait(false);
+                    sourceNode = await sourceLookup!.GetAsync(cancellationToken).ConfigureAwait(false);
                     cancellationToken.ThrowIfCancellationRequested();
                     if (!authorization.Matches(CapturePermissionContext(monitoredItem)))
                     {
@@ -1498,8 +1661,7 @@ namespace Opc.Ua.Server
                 if (cacheable &&
                     m_eventPermissionCache.TryGetValue(
                         key,
-                        out (MonitoredItemPermissionContext Context, WeakReference<NodeState> SourceNode,
-                            ServiceResult Result) cached) &&
+                        out CachedEventPermission? cached) &&
                     cached.Context.Matches(authorization) &&
                     cached.SourceNode.TryGetTarget(out NodeState? cachedSourceNode) &&
                     ReferenceEquals(cachedSourceNode, sourceNode))
@@ -1513,7 +1675,7 @@ namespace Opc.Ua.Server
                     cancellationToken.ThrowIfCancellationRequested();
                     if (cacheable)
                     {
-                        m_eventPermissionCache[key] = (authorization, new WeakReference<NodeState>(sourceNode!), result);
+                        m_eventPermissionCache[key] = new CachedEventPermission(authorization, sourceNode!, result);
                     }
                 }
                 if (!ServiceResult.IsBad(result))
@@ -1554,23 +1716,15 @@ namespace Opc.Ua.Server
             long generation = Volatile.Read(ref m_permissionGeneration);
             long defaultsGeneration = NamespaceDefaultPermissionReader.Generation;
             AccessRestrictionType? restrictions = Node.AccessRestrictions;
-            NamespaceMetadataState? defaults = null;
-            EventRestrictionVerdictSlot? slot = null;
-            if (endpoint != null &&
-                Node.OnReadAccessRestrictions == null &&
-                NamespaceDefaultPermissionReader.TryGetStaticDefaults(
-                    m_server, Node.NodeId.NamespaceIndex, out defaults))
+            if (TryGetEventRestrictionVerdict(
+                endpoint,
+                generation,
+                defaultsGeneration,
+                restrictions,
+                out NamespaceMetadataState? defaults,
+                out EventRestrictionVerdictSlot? slot))
             {
-                slot = m_eventRestrictionVerdicts.GetValue(endpoint, static _ => new EventRestrictionVerdictSlot());
-                EventRestrictionVerdict? verdict = Volatile.Read(ref slot.Current);
-                if (verdict != null &&
-                    verdict.Matches(generation, defaultsGeneration, defaults, endpoint, restrictions) &&
-                    generation == Volatile.Read(ref m_permissionGeneration) &&
-                    defaultsGeneration == NamespaceDefaultPermissionReader.Generation &&
-                    restrictions == Node.AccessRestrictions)
-                {
-                    return ServiceResult.Good;
-                }
+                return ServiceResult.Good;
             }
 
             using OperationContext context = MonitoredReadAuthorization.CreateContext(monitoredItem);
@@ -1589,6 +1743,36 @@ namespace Opc.Ua.Server
                     new EventRestrictionVerdict(generation, defaultsGeneration, defaults, endpoint!, restrictions));
             }
             return result;
+        }
+
+        /// <summary>
+        /// Returns whether the endpoint holds a good restriction verdict for the given inputs,
+        /// and the slot a new verdict can be kept in while the defaults are static.
+        /// </summary>
+        private bool TryGetEventRestrictionVerdict(
+            EndpointDescription? endpoint,
+            long generation,
+            long defaultsGeneration,
+            AccessRestrictionType? restrictions,
+            out NamespaceMetadataState? defaults,
+            out EventRestrictionVerdictSlot? slot)
+        {
+            defaults = null;
+            slot = null;
+            if (endpoint == null ||
+                Node.OnReadAccessRestrictions != null ||
+                !NamespaceDefaultPermissionReader.TryGetStaticDefaults(
+                    m_server, Node.NodeId.NamespaceIndex, out defaults))
+            {
+                return false;
+            }
+            slot = m_eventRestrictionVerdicts.GetValue(endpoint, static _ => new EventRestrictionVerdictSlot());
+            EventRestrictionVerdict? verdict = Volatile.Read(ref slot.Current);
+            return verdict != null &&
+                verdict.Matches(generation, defaultsGeneration, defaults, endpoint, restrictions) &&
+                generation == Volatile.Read(ref m_permissionGeneration) &&
+                defaultsGeneration == NamespaceDefaultPermissionReader.Generation &&
+                restrictions == Node.AccessRestrictions;
         }
 
         /// <summary>
@@ -2170,9 +2354,7 @@ namespace Opc.Ua.Server
         /// </summary>
         private void DropEventPermissionCacheEntries(uint monitoredItemId)
         {
-            foreach (KeyValuePair<EventPermissionCacheKey,
-                (MonitoredItemPermissionContext Context, WeakReference<NodeState> SourceNode, ServiceResult Result)> entry
-                in m_eventPermissionCache)
+            foreach (KeyValuePair<EventPermissionCacheKey, CachedEventPermission> entry in m_eventPermissionCache)
             {
                 if (entry.Key.MonitoredItemId == monitoredItemId)
                 {
@@ -2187,9 +2369,7 @@ namespace Opc.Ua.Server
                 MonitoredReadVerdict? Read)>
             m_permissionCache = new();
 
-        private readonly ConcurrentDictionary<
-            EventPermissionCacheKey,
-            (MonitoredItemPermissionContext Context, WeakReference<NodeState> SourceNode, ServiceResult Result)>
+        private readonly ConcurrentDictionary<EventPermissionCacheKey, CachedEventPermission>
             m_eventPermissionCache = new();
 
         /// <summary>
@@ -2401,6 +2581,27 @@ namespace Opc.Ua.Server
                     string.Equals(m_transport, currentEndpoint.TransportProfileUri, StringComparison.Ordinal) &&
                     restrictions == currentRestrictions;
             }
+        }
+
+        /// <summary>
+        /// A cached event permission verdict. It is a class because every delivered event reads
+        /// one per item, and copying the context out of the cache takes the GC write barrier.
+        /// </summary>
+        private sealed class CachedEventPermission
+        {
+            public CachedEventPermission(
+                in MonitoredItemPermissionContext context,
+                NodeState sourceNode,
+                ServiceResult result)
+            {
+                Context = context;
+                SourceNode = new WeakReference<NodeState>(sourceNode);
+                Result = result;
+            }
+
+            public readonly MonitoredItemPermissionContext Context;
+            public readonly WeakReference<NodeState> SourceNode;
+            public readonly ServiceResult Result;
         }
 
         /// <summary>

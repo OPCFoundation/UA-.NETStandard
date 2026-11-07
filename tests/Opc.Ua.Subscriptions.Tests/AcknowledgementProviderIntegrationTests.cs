@@ -109,7 +109,11 @@ namespace Opc.Ua.Subscriptions.Tests
                     DisableUnboundedItemMode = !partitioned
                 });
             Assert.That(session.TryGetSubscriptionManager(out ISubscriptionManager? manager), Is.True);
-            await using ISubscription subscription = manager!.Add(handler, options);
+            // Concurrent publish workers can deliver the responses out of order. A message overtaken
+            // that way is republished, and a Republish response has no MoreNotifications to preserve.
+            manager!.MinPublishWorkerCount = 1;
+            manager.MaxPublishWorkerCount = 1;
+            await using ISubscription subscription = manager.Add(handler, options);
             var items = new List<Client.Subscriptions.MonitoredItems.IMonitoredItem>();
             int expected = partitioned ? 6 : 3;
             for (int i = 0; i < expected; i++)
@@ -133,8 +137,14 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 SubscriptionNotificationMessage[] ordered =
                     [.. group.OrderBy(message => message.Acknowledgement.SequenceNumber)];
-                Assert.That(ordered.Select(message => message.MoreNotifications),
-                    Is.EqualTo(new bool?[] { true, true, false }));
+                Assert.That(ordered.Any(message => message.MoreNotifications.HasValue), Is.True);
+                for (int i = 0; i < ordered.Length; i++)
+                {
+                    if (ordered[i].MoreNotifications is bool moreNotifications)
+                    {
+                        Assert.That(moreNotifications, Is.EqualTo(i < ordered.Length - 1));
+                    }
+                }
                 Assert.That(ordered.All(message => message.Notifications[0].DataChanges.Count == 1), Is.True);
                 foreach (SubscriptionNotificationMessage message in ordered)
                 {

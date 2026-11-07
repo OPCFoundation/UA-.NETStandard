@@ -64,6 +64,15 @@ For provider-backed Part 10 execution, register `AddPrograms` or construct a
 invocation lifetime, diagnostics and captured result events. See the
 [Programs guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Programs.md).
 
+## Base Network Model
+
+`AddNetworkModel` registers a provider-backed Part 22 manager under the standard
+Resources entry points. `INetworkModelProvider` supplies interfaces, priority
+mappings, TSN streams and LLDP acquisitions; mapping edits require an explicit
+authorization policy. `ReferenceNetworkModelProvider` simulates state without
+changing host networking. See the
+[Base Network Model guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/BaseNetworkModel.md).
+
 ## Target frameworks
 
 `net48`, `net8.0`, `net9.0`,
