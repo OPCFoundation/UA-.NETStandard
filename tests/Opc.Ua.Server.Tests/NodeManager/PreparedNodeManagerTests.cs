@@ -165,7 +165,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// Escaped inspection metadata does not retain the provider after its publication owner finishes cleanup.
+        /// Escaped inspection metadata and its completed task do not retain the provider after cleanup.
         /// </summary>
         [TestCase("Success")]
         [TestCase("Inspection")]
@@ -175,7 +175,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             (IPreparedChanges changes,
                 WeakReference provider,
                 WeakReference<IAsyncNodeManager> candidate,
-                Guid id) = await CreateRetainedInspectionAsync(outcome).ConfigureAwait(false);
+                Guid id,
+                Task validation,
+                Exception failure) = await CreateRetainedInspectionAsync(outcome).ConfigureAwait(false);
+            await Task.Yield();
             CollectFully();
             try
             {
@@ -183,9 +186,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     Assert.That(provider.IsAlive, Is.False);
                     Assert.That(candidate.TryGetTarget(out _), Is.False);
+                    Assert.That(changes.Registrations[0].TryGetNodeManager(out _), Is.False);
                     Assert.That(changes.Registrations[0].TryGetRegistration(out _), Is.False);
                     Assert.That(changes.Registrations[0].Id, Is.EqualTo(id));
                     Assert.That(changes.IsCommitted, Is.False);
+                    Assert.That(validation.Status, Is.EqualTo(
+                        outcome == "Success" ? TaskStatus.RanToCompletion : TaskStatus.Faulted));
+                    if (outcome != "Success")
+                    {
+                        Assert.That(validation.Exception?.InnerException, Is.SameAs(failure));
+                    }
                 }
                 await changes.DisposeAsync().ConfigureAwait(false);
                 Assert.That(changes.Registrations[0].Id, Is.EqualTo(id));
@@ -193,6 +203,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             finally
             {
                 GC.KeepAlive(changes);
+                GC.KeepAlive(validation);
+                GC.KeepAlive(failure);
             }
         }
 
@@ -204,71 +216,127 @@ namespace Opc.Ua.Server.Tests.NodeManager
             IPreparedChanges Changes,
             WeakReference Provider,
             WeakReference<IAsyncNodeManager> Candidate,
-            Guid Id)> CreateRetainedInspectionAsync(string outcome)
+            Guid Id,
+            Task Validation,
+            Exception Failure)> CreateRetainedInspectionAsync(string outcome)
         {
             var manager = new Mock<IAsyncNodeManager>(MockBehavior.Strict);
             manager.SetupGet(value => value.SyncNodeManager).Returns(new SyncNodeManagerAdapter(manager.Object));
             manager.SetupGet(value => value.NamespaceUris).Returns(["urn:opcua:tests:inspection"]);
             var registration = new NodeManagerRegistration(Guid.NewGuid(), 1, manager.Object);
             var provider = new Mock<IPreparedNodeManagerBatch>(MockBehavior.Strict);
-            provider.SetupGet(value => value.Registrations).Returns(new ArrayOf<NodeManagerRegistration>([registration]));
+            provider.SetupGet(value => value.Registrations)
+                .Returns(new ArrayOf<NodeManagerRegistration>([registration]));
             provider.SetupGet(value => value.IsCommitted).Returns(false);
             provider.Setup(value => value.DisposeAsync()).Returns(default(ValueTask));
             var failure = new InvalidOperationException(outcome);
             var publication = new Mock<INodeManagerPublication>(MockBehavior.Strict);
+            IPreparedNodeManagerBatch? publicationOwner = provider.Object;
             publication.Setup(value => value.ValidateAsync(
                     It.IsAny<ArrayOf<NodeManagerBatchChange>>(),
                     It.IsAny<Func<IPreparedNodeManagerBatch, CancellationToken, ValueTask>>(),
                     It.IsAny<CancellationToken>()))
-                .Returns(async (ArrayOf<NodeManagerBatchChange> _,
+                .Returns((ArrayOf<NodeManagerBatchChange> _,
                     Func<IPreparedNodeManagerBatch, CancellationToken, ValueTask> inspect,
-                    CancellationToken ct) =>
-                {
-                    try
-                    {
-                        await inspect(provider.Object, ct).ConfigureAwait(false);
-                        provider.Verify(value => value.DisposeAsync(), Times.Never);
-                        if (outcome == "Validation")
-                        {
-                            throw failure;
-                        }
-                    }
-                    finally
-                    {
-                        await provider.Object.DisposeAsync().ConfigureAwait(false);
-                    }
-                });
+                    CancellationToken ct) => RunInspectionValidationAsync(
+                        publicationOwner ?? throw new InvalidOperationException("The publication owner was released."),
+                        inspect,
+                        outcome,
+                        failure,
+                        ct));
             publication.Setup(value => value.DisposeAsync()).Returns(default(ValueTask));
             await using var writer = new LifecyclePublicationWriter(publication.Object);
-            IPreparedChanges? retained = null;
-            async Task ValidateAsync()
+            IPreparedChanges retained;
+            var entered = new TaskCompletionSource<IPreparedChanges>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            Task validation = writer.ValidateAsync(
+                [LifecycleChange.Add(Mock.Of<IAsyncNodeManagerFactory>())],
+                CreateInspectionCallback(entered, release.Task, outcome == "Inspection", failure)).AsTask();
+            try
             {
-                await writer.ValidateAsync(
-                    [LifecycleChange.Add(Mock.Of<IAsyncNodeManagerFactory>())], (changes, _) =>
-                    {
-                        retained = changes;
-                        if (outcome == "Inspection")
-                        {
-                            throw failure;
-                        }
-                        return default;
-                    }).ConfigureAwait(false);
+                retained = await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(validation.IsCompleted, Is.False);
+                provider.Verify(value => value.DisposeAsync(), Times.Never);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+
+            InvalidOperationException? observed = null;
+            try
+            {
+                await validation.WaitAsync(timeout.Token).ConfigureAwait(false);
+            }
+            catch (InvalidOperationException exception)
+            {
+                observed = exception;
             }
             if (outcome == "Success")
             {
-                await ValidateAsync().ConfigureAwait(false);
+                Assert.That(observed, Is.Null);
             }
             else
             {
-                await Assert.ThatAsync(ValidateAsync, Throws.Exception.SameAs(failure)).ConfigureAwait(false);
+                Assert.That(observed, Is.SameAs(failure));
             }
             provider.Verify(value => value.DisposeAsync(), Times.Once);
             registration.Slot.Unpublish(registration.Identity);
+            publicationOwner = null;
             return (
-                retained ?? throw new InvalidOperationException("The inspection was not invoked."),
+                retained,
                 new WeakReference(provider.Object),
                 new WeakReference<IAsyncNodeManager>(manager.Object),
-                registration.Id);
+                registration.Id,
+                validation,
+                failure);
+        }
+
+        /// <summary>
+        /// Exercises the publication-owned cleanup around the actual inspection adapter.
+        /// </summary>
+        private static async ValueTask RunInspectionValidationAsync(
+            IPreparedNodeManagerBatch prepared,
+            Func<IPreparedNodeManagerBatch, CancellationToken, ValueTask> inspect,
+            string outcome,
+            Exception failure,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                await inspect(prepared, cancellationToken).ConfigureAwait(false);
+                Mock.Get(prepared).Verify(value => value.DisposeAsync(), Times.Never);
+                if (outcome == "Validation")
+                {
+                    throw failure;
+                }
+            }
+            finally
+            {
+                await prepared.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Creates an inspection callback without capturing the provider or its candidate.
+        /// </summary>
+        private static Func<IPreparedChanges, CancellationToken, ValueTask> CreateInspectionCallback(
+            TaskCompletionSource<IPreparedChanges> entered,
+            Task release,
+            bool failInspection,
+            Exception failure)
+        {
+            return async (changes, _) =>
+            {
+                entered.TrySetResult(changes);
+                await release.ConfigureAwait(false);
+                if (failInspection)
+                {
+                    throw failure;
+                }
+            };
         }
 
         /// <summary>
