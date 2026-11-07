@@ -92,6 +92,7 @@ namespace Opc.Ua
             MaxMessageSize = context.MaxMessageSize;
             MaxEncodingNestingLevels = context.MaxEncodingNestingLevels;
             MaxDecoderRecoveries = context.MaxDecoderRecoveries;
+            DeferNotificationBodies = context is ServiceMessageContext { DeferNotificationBodies: true };
             NamespaceUris = new NamespaceTable(context.NamespaceUris);
             ServerUris = new StringTable(context.ServerUris);
         }

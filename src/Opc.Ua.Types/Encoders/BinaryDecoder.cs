@@ -198,8 +198,6 @@ namespace Opc.Ua
             m_recoveries = recoveries;
         }
 
-        private int EncodeablesRecovered => m_recoveries?.Count ?? 0;
-
         /// <summary>
         /// Completes reading and closes the stream.
         /// </summary>
@@ -1089,7 +1087,7 @@ namespace Opc.Ua
                         // up to MaxDecoderRecoveries times and logged once, so a
                         // message cannot flood the log with its own content.
                         if (typeId.NamespaceIndex == 0 ||
-                            EncodeablesRecovered >= Context.MaxDecoderRecoveries)
+                            !(m_recoveries ??= new DecoderRecoveries()).TryReserve(Context.MaxDecoderRecoveries))
                         {
                             if (e is ServiceResultException)
                             {
@@ -1103,13 +1101,10 @@ namespace Opc.Ua
                                 extension.TypeId);
                         }
 
-                        m_recoveries ??= new DecoderRecoveries();
                         if (m_recoveries.TryLogFailure())
                         {
                             Logger.CouldNotDecodeKnownTypeXml(activator.XmlName, e.Message);
                         }
-
-                        m_recoveries.Add();
                     }
                 }
 
@@ -1304,7 +1299,7 @@ namespace Opc.Ua
                     // reset stream to return ExtensionObject if configured to do so!
                     // decoding failure of a known type in ns=0 is always a decoding error.
                     if (typeId.NamespaceIndex == 0 ||
-                        EncodeablesRecovered >= Context.MaxDecoderRecoveries)
+                        !(m_recoveries ??= new DecoderRecoveries()).TryReserve(Context.MaxDecoderRecoveries))
                     {
                         throw exception
                             ?? ServiceResultException.Create(
@@ -1315,7 +1310,6 @@ namespace Opc.Ua
                                 extension.TypeId);
                     }
 
-                    m_recoveries ??= new DecoderRecoveries();
                     if (m_recoveries.TryLogFailure())
                     {
                         // log the error only once to avoid flooding the log.
@@ -1329,9 +1323,6 @@ namespace Opc.Ua
                     // reset the stream to the begin of the ExtensionObject body.
                     SetPosition(start);
                     encodeable = null;
-
-                    // count number of recoveries
-                    m_recoveries.Add();
                 }
             }
 

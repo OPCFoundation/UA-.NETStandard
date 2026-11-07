@@ -208,16 +208,22 @@ namespace Opc.Ua
     internal sealed class DecoderRecoveries
     {
         /// <summary>
-        /// The bodies recovered so far.
+        /// Takes one recovery from the budget, false when it is used up. Bodies of one
+        /// response can be read concurrently, so checking and counting are one step.
         /// </summary>
-        public int Count => Volatile.Read(ref m_count);
-
-        /// <summary>
-        /// Counts a recovered body.
-        /// </summary>
-        public void Add()
+        public bool TryReserve(int budget)
         {
-            Interlocked.Increment(ref m_count);
+            int count = Volatile.Read(ref m_count);
+            while (count < budget)
+            {
+                int seen = Interlocked.CompareExchange(ref m_count, count + 1, count);
+                if (seen == count)
+                {
+                    return true;
+                }
+                count = seen;
+            }
+            return false;
         }
 
         /// <summary>

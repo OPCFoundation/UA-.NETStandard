@@ -29,6 +29,8 @@
 
 using System;
 using System.IO;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
@@ -329,6 +331,63 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Assert.That(events.TryGetValue(out EventNotificationList? _), Is.False);
             Assert.That(provider.Warnings, Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task ConcurrentReadsOfDistinctBodiesStayWithinTheRecoveryBudgetAsync()
+        {
+            var provider = new CountingLoggerProvider();
+            using ILoggerFactory factory = LoggerFactory.Create(b => b.AddProvider(provider));
+            ServiceMessageContext context = CreateVendorContext(factory);
+            byte[] body = Encode(context, CreateEventsWithMalformedVendorBody(context));
+            const int kBodies = 8;
+            var encoded = new byte[body.Length * kBodies];
+            for (int i = 0; i < kBodies; i++)
+            {
+                body.CopyTo(encoded, i * body.Length);
+            }
+
+            for (int round = 0; round < 200; round++)
+            {
+                using var response = new BinaryDecoder(encoded, context);
+                var bodies = new ExtensionObject[kBodies];
+                for (int i = 0; i < kBodies; i++)
+                {
+                    bodies[i] = response.ReadExtensionObject(null);
+                }
+
+                using var start = new Barrier(kBodies);
+                var readers = new Task<bool>[kBodies];
+                for (int i = 0; i < kBodies; i++)
+                {
+                    ExtensionObject deferred = bodies[i];
+                    readers[i] = Task.Factory.StartNew(
+                        () =>
+                        {
+                            start.SignalAndWait();
+                            return deferred.TryGetValue(out EventNotificationList? _);
+                        },
+                        CancellationToken.None,
+                        TaskCreationOptions.LongRunning,
+                        TaskScheduler.Default);
+                }
+                bool[] decoded = await Task.WhenAll(readers).ConfigureAwait(false);
+
+                Assert.That(decoded.Count(value => value), Is.EqualTo(1));
+            }
+        }
+
+        [Test]
+        public void CopiedContextKeepsDeferringBodies()
+        {
+            ServiceMessageContext context = CreateContext(defer: true);
+
+            var copy = new ServiceMessageContext(context, context.Telemetry);
+
+            Assert.That(copy.DeferNotificationBodies, Is.True);
+            Assert.That(Decode(copy, Encode(context, CreateEvents(1))).IsDeferred, Is.True);
+            ServiceMessageContext eager = CreateContext(defer: false);
+            Assert.That(new ServiceMessageContext(eager, eager.Telemetry).DeferNotificationBodies, Is.False);
         }
 
         [Test]
