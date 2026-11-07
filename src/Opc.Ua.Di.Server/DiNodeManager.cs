@@ -77,7 +77,7 @@ namespace Opc.Ua.Di.Server
     /// must still call <c>base</c>.
     /// </para>
     /// </remarks>
-    public class DiNodeManager : FluentNodeManagerBase, INodeIdFactory, IConformanceContributor,
+    public partial class DiNodeManager : FluentNodeManagerBase, INodeIdFactory, IConformanceContributor,
         INodeManagerReadinessNotification
     {
         /// <summary>

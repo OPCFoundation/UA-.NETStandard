@@ -94,6 +94,26 @@ namespace Opc.Ua.Core.Tests.Stack.State
         }
 
         /// <summary>
+        /// Rejects deferred one-shot unshelving before changing alarm attributes or the shelving machine.
+        /// </summary>
+        [Test]
+        public void DeferredOneShotUnshelvingDoesNotPartiallyChangeTheAlarm()
+        {
+            var time = new FakeTimeProvider();
+            TestAlarm alarm = CreateShelvableAlarm(time, out _);
+            alarm.SetActiveState(m_context, true);
+            alarm.SetShelvingState(m_context, true, true, 0);
+            int notifications = 0;
+            alarm.ActiveState!.Id!.StateChanged += (_, _, _) => notifications++;
+            Assert.Throws<InvalidOperationException>(() => alarm.SetActiveState(
+                m_context, false, clearChangeMasks: false, updateRetainState: false));
+            Assert.That(alarm.ActiveState.Id.Value, Is.True);
+            Assert.That(alarm.ShelvingState!.CurrentState!.Id!.Value,
+                Is.EqualTo(ObjectIds.ShelvedStateMachineType_OneShotShelved));
+            Assert.That(notifications, Is.Zero);
+        }
+
+        /// <summary>
         /// S1-1: a timed shelve beyond the maximum timer due time expires at the requested
         /// time, not at int.MaxValue milliseconds.
         /// </summary>

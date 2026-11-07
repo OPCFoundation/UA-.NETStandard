@@ -75,6 +75,42 @@ namespace Opc.Ua.Di.Server.Locking
             {
                 throw new ArgumentNullException(nameof(service));
             }
+            if (lockState.Locked is { } locked)
+            {
+                locked.Value = service.GetState(elementId).Locked;
+                locked.OnSimpleReadValue = (ISystemContext _, NodeState _, ref Variant value) =>
+                {
+                    value = Variant.From(service.GetState(elementId).Locked);
+                    return ServiceResult.Good;
+                };
+            }
+            if (lockState.LockingClient is { } client)
+            {
+                client.Value = service.GetState(elementId).LockingClient;
+                client.OnSimpleReadValue = (ISystemContext _, NodeState _, ref Variant value) =>
+                {
+                    value = Variant.From(service.GetState(elementId).LockingClient);
+                    return ServiceResult.Good;
+                };
+            }
+            if (lockState.LockingUser is { } user)
+            {
+                user.Value = service.GetState(elementId).LockingUser;
+                user.OnSimpleReadValue = (ISystemContext _, NodeState _, ref Variant value) =>
+                {
+                    value = Variant.From(service.GetState(elementId).LockingUser);
+                    return ServiceResult.Good;
+                };
+            }
+            if (lockState.RemainingLockTime is { } remaining)
+            {
+                remaining.Value = service.GetState(elementId).RemainingLockTimeSeconds * 1000;
+                remaining.OnSimpleReadValue = (ISystemContext _, NodeState _, ref Variant value) =>
+                {
+                    value = Variant.From(service.GetState(elementId).RemainingLockTimeSeconds * 1000);
+                    return ServiceResult.Good;
+                };
+            }
             lockState.InitLock?.OnCall = (ctx, _method,
                                               _objectId, context,
                                               ref initLockStatus) =>
