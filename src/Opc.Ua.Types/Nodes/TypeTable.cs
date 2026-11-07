@@ -925,6 +925,7 @@ namespace Opc.Ua
         private class TypeInfo
         {
             public bool Deleted;
+
             /// <summary>The identity of the most recent registration of this type.</summary>
             public long RegistrationVersion;
             public NodeId NodeId = NodeId.Null;
