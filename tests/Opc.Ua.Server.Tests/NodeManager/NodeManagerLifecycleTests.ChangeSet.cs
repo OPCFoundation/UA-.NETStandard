@@ -941,6 +941,71 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// A superseded reconciliation result and its completed tasks do not retain the physically retired manager.
+        /// </summary>
+        [Test]
+        public async Task SupersededLifecycleResultDoesNotRetainRetiredManagerAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            (LifecycleResult published,
+                LifecycleResult removed,
+                ArrayOf<NodeManagerReconciliationIssue> pendingIssues,
+                Task retry,
+                Exception failure,
+                WeakReference<NodeManagerRegistration> registration,
+                WeakReference<IAsyncNodeManager> manager,
+                WeakReference<NodeManagerGeneration> generation,
+                int[] attempts) = await CreateSupersededResultAfterRetirementAsync(timeout.Token)
+                    .ConfigureAwait(false);
+            Task retirement = removed.Retired;
+            await Task.Yield();
+            for (int attempt = 0; attempt < 3; attempt++)
+            {
+                CollectLifecycleOwnershipTargets();
+            }
+
+            NodeManagerRegistrationSnapshot snapshot = published.Registrations[0];
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(registration.TryGetTarget(out _), Is.False);
+                Assert.That(manager.TryGetTarget(out _), Is.False);
+                Assert.That(generation.TryGetTarget(out _), Is.False);
+                Assert.That(snapshot.TryGetNodeManager(out _), Is.False);
+                Assert.That(snapshot.TryGetRegistration(out _), Is.False);
+                Assert.That(snapshot.Slot.TryGetCurrent(out _), Is.False);
+                Assert.That(snapshot.Generation, Is.EqualTo(1));
+                Assert.That(published.PublishedSlots.ToArray()!
+                    .Single(value => ReferenceEquals(value.Slot, snapshot.Slot)).Generation, Is.EqualTo(1));
+                Assert.That(published.Revision, Is.LessThan(removed.Revision));
+                Assert.That(published.RetirementStatus, Is.EqualTo(NodeManagerRetirementStatus.Completed));
+                Assert.That(removed.RetirementStatus, Is.EqualTo(NodeManagerRetirementStatus.Completed));
+                Assert.That(retirement.Status, Is.EqualTo(TaskStatus.RanToCompletion));
+                Assert.That(retry.Status, Is.EqualTo(TaskStatus.RanToCompletion));
+                Assert.That(attempts[0], Is.EqualTo(2));
+                Assert.That(pendingIssues.Count, Is.EqualTo(1));
+                Assert.That(pendingIssues[0].InitialFailure, Is.SameAs(failure));
+                Assert.That(pendingIssues[0].CurrentFailure, Is.SameAs(failure));
+                Assert.That(pendingIssues[0].IsRetryable, Is.True);
+                Assert.That(pendingIssues[0].IsSuperseded, Is.False);
+                Assert.That(published.Issues.Count, Is.EqualTo(1));
+                Assert.That(published.Issues[0].Stage, Is.EqualTo(NodeManagerReconciliationStage.ApplicationState));
+                Assert.That(published.Issues[0].InitialFailure, Is.SameAs(failure));
+                Assert.That(published.Issues[0].IsRetryable, Is.False);
+                Assert.That(published.Issues[0].IsSuperseded, Is.True);
+                Assert.That(((AggregateException)published.CleanupFailure!).Flatten().InnerExceptions,
+                    Has.Exactly(1).SameAs(failure));
+            }
+            await published.RetryReconciliationAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(attempts[0], Is.EqualTo(2));
+            GC.KeepAlive(published);
+            GC.KeepAlive(removed);
+            GC.KeepAlive(pendingIssues);
+            GC.KeepAlive(retry);
+            GC.KeepAlive(retirement);
+            GC.KeepAlive(failure);
+        }
+
+        /// <summary>
         /// Creates and retires a legacy publication, returning only its owning result and weak observations.
         /// </summary>
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -1007,6 +1072,85 @@ namespace Opc.Ua.Server.Tests.NodeManager
             registration = null;
             manager = null;
             return (result, registrationReference, managerReference, slot, id, generation, namespaceUris);
+        }
+
+        /// <summary>
+        /// Publishes a failing application callback, retries it, then supersedes and retires its generation.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private async Task<(
+            LifecycleResult Published,
+            LifecycleResult Removed,
+            ArrayOf<NodeManagerReconciliationIssue> PendingIssues,
+            Task Retry,
+            Exception Failure,
+            WeakReference<NodeManagerRegistration> Registration,
+            WeakReference<IAsyncNodeManager> Manager,
+            WeakReference<NodeManagerGeneration> Generation,
+            int[] Attempts)> CreateSupersededResultAfterRetirementAsync(CancellationToken cancellationToken)
+        {
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+            var failure = new InvalidOperationException("Application state publication failed.");
+            int[] attempts = [0];
+            LifecycleResult published;
+            await using (IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(CreateTrackingNodeManagementFactory(kGeneration1Value, _ => { }))],
+                cancellationToken).ConfigureAwait(false))
+            {
+                published = await prepared.CommitAsync(
+                    static _ => default,
+                    CreateFailingApplicationStateCallback(failure, attempts),
+                    cancellationToken).ConfigureAwait(false);
+                Assert.That(prepared.IsCommitted, Is.True);
+            }
+
+            NodeManagerRegistrationSnapshot snapshot = published.Registrations[0];
+            NodeManagerRegistration? registration = RequireRegistration(snapshot);
+            IAsyncNodeManager? manager = registration.NodeManager;
+            var registrationReference = new WeakReference<NodeManagerRegistration>(registration);
+            var managerReference = new WeakReference<IAsyncNodeManager>(manager);
+            var generationReference = new WeakReference<NodeManagerGeneration>(registration.Identity);
+            ArrayOf<NodeManagerReconciliationIssue> pendingIssues = published.Issues;
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(pendingIssues.Count, Is.EqualTo(1));
+                Assert.That(pendingIssues[0].Stage, Is.EqualTo(NodeManagerReconciliationStage.ApplicationState));
+                Assert.That(pendingIssues[0].InitialFailure, Is.SameAs(failure));
+                Assert.That(pendingIssues[0].IsRetryable, Is.True);
+                Assert.That(attempts[0], Is.EqualTo(1));
+                Assert.That(snapshot.TryGetNodeManager(out IAsyncNodeManager? current), Is.True);
+                Assert.That(current, Is.SameAs(manager));
+                current = null;
+            }
+
+            Task retry = published.RetryReconciliationAsync(cancellationToken).AsTask();
+            await retry.WaitAsync(cancellationToken).ConfigureAwait(false);
+            Assert.That(attempts[0], Is.EqualTo(2));
+            LifecycleResult removed = await lifecycle.ApplyAsync(
+                [LifecycleChange.Remove(snapshot.Slot)], cancellationToken).ConfigureAwait(false);
+            await removed.Retired.WaitAsync(cancellationToken).ConfigureAwait(false);
+            var trackingManager = (TrackingLifecycleNodeManager)manager;
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(trackingManager.DeleteAddressSpaceCount, Is.EqualTo(1));
+                Assert.That(trackingManager.DisposeCount, Is.EqualTo(1));
+            }
+            registration = null;
+            manager = null;
+            return (published, removed, pendingIssues, retry, failure,
+                registrationReference, managerReference, generationReference, attempts);
+        }
+
+        /// <summary>
+        /// Creates a failing callback that retains only its exception and attempt counter.
+        /// </summary>
+        private static Action CreateFailingApplicationStateCallback(Exception failure, int[] attempts)
+        {
+            return () =>
+            {
+                attempts[0]++;
+                throw failure;
+            };
         }
 
         /// <summary>
