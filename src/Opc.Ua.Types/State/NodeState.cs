@@ -3431,14 +3431,56 @@ namespace Opc.Ua
         /// <remarks>
         /// When the caller retains a serialization gate while invoking or awaiting this method, state-change sinks
         /// must not await or synchronously block on an operation that needs the same gate.
+        /// When a Value write defers notification, its subsequent dispatch rejects synchronous writes and
+        /// permits nested asynchronous writes from the state-change sink.
         /// </remarks>
         /// <param name="context">The context that describes how to access the system containing the data.</param>
         /// <param name="includeChildren">if set to <c>true</c> clear masks recursively for all children.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
-        public async ValueTask ClearChangeMasksAsync(
+        public ValueTask ClearChangeMasksAsync(
             ISystemContext context,
             bool includeChildren,
             CancellationToken cancellationToken = default)
+        {
+            if (m_writeOperationExecutor is { } executor &&
+                Volatile.Read(ref m_deferredChangeMaskNotifications) != 0)
+            {
+                return ClearChangeMasksWithNotificationAdmissionAsync(
+                    executor, context, includeChildren, cancellationToken);
+            }
+
+            return ClearChangeMasksCoreAsync(context, includeChildren, cancellationToken);
+        }
+
+        /// <summary>
+        /// Clears deferred change masks under notification admission and consumes the deferral after success.
+        /// </summary>
+        /// <param name="executor">The executor for this node's write operations.</param>
+        /// <param name="context">The context that describes how to access the system containing the data.</param>
+        /// <param name="includeChildren">Whether to clear masks recursively for all children.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        private async ValueTask ClearChangeMasksWithNotificationAdmissionAsync(
+            NodeWriteOperationExecutor executor,
+            ISystemContext context,
+            bool includeChildren,
+            CancellationToken cancellationToken)
+        {
+            await executor.ExecuteNotificationsAsync(
+                ct => ClearChangeMasksCoreAsync(context, includeChildren, ct),
+                cancellationToken).ConfigureAwait(false);
+            Interlocked.Exchange(ref m_deferredChangeMaskNotifications, 0);
+        }
+
+        /// <summary>
+        /// Clears change masks and awaits state-change sinks without acquiring notification admission.
+        /// </summary>
+        /// <param name="context">The context that describes how to access the system containing the data.</param>
+        /// <param name="includeChildren">Whether to clear masks recursively for all children.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        private async ValueTask ClearChangeMasksCoreAsync(
+            ISystemContext context,
+            bool includeChildren,
+            CancellationToken cancellationToken)
         {
             if (includeChildren)
             {
@@ -5179,6 +5221,20 @@ namespace Opc.Ua
         internal void BindWriteOperationExecutor(NodeWriteOperationExecutor executor)
         {
             m_writeOperationExecutor = executor ?? throw new ArgumentNullException(nameof(executor));
+        }
+
+        /// <summary>
+        /// Marks change-mask notifications for dispatch after an executor-bound Value write releases admission.
+        /// </summary>
+        protected bool DeferChangeMaskNotificationsUntilWriteAdmissionEnds()
+        {
+            if (m_writeOperationExecutor is null)
+            {
+                return false;
+            }
+
+            Interlocked.Exchange(ref m_deferredChangeMaskNotifications, 1);
+            return true;
         }
 
         /// <summary>
@@ -7038,6 +7094,11 @@ namespace Opc.Ua
         /// The executor for complete Value-write operations, when one is bound.
         /// </summary>
         private NodeWriteOperationExecutor? m_writeOperationExecutor;
+
+        /// <summary>
+        /// Whether a Value write deferred change-mask notification until its write admission ends.
+        /// </summary>
+        private int m_deferredChangeMaskNotifications;
 
         /// <summary>Lazily published; see <see cref="GetOrCreateNotifiersLock"/>.</summary>
         private Lock? m_notifiersLock;

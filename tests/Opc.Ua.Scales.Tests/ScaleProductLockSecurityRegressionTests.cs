@@ -685,55 +685,97 @@ namespace Opc.Ua.Scales.Tests
         }
 
         /// <summary>
-        /// Successful enum writes await dependent child notifications before releasing write admission.
+        /// An explicit notification flush allows a child sink to await another write on the same scale.
         /// </summary>
         [Test]
-        public async Task NativeEnumerationTextNotificationsAreAwaitedBeforeWriteCompletesAsync()
+        public async Task NativeEnumerationTextFlushAllowsNestedScaleWriteAsync()
         {
             using var harness = new Harness();
             ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
             ProductState product = scale.ProductionPreset!.ActiveProduct!;
             MultiStateValueDiscreteState variable = CreateNativeEnumeration(product);
+            MultiStateValueDiscreteState nestedVariable =
+                CreateNativeEnumeration(product, name: "NestedNativeEnumeration");
             product.AddChild(variable);
+            product.AddChild(nestedVariable);
             await product.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var nestedWriteCancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             int calls = 0;
             string? observedText = null;
             NodeStateChangeMasks observedMasks = NodeStateChangeMasks.None;
+            Task<ServiceResult>? nestedWrite = null;
             PropertyState<LocalizedText> text = variable.ValueAsText!;
             text.OnStateChangedAsync = async (_, _, changeMasks, _) =>
             {
                 calls++;
                 observedMasks |= changeMasks;
                 observedText = text.Value.Text;
+                Task<ServiceResult> nestedWriteTask = nestedVariable.WriteAttributeAsync(
+                    harness.Owner,
+                    Attributes.Value,
+                    NumericRange.Null,
+                    new DataValue(Variant.From(4u)),
+                    nestedWriteCancellation.Token).AsTask();
+                nestedWrite = nestedWriteTask;
                 entered.TrySetResult(true);
-                await release.Task.ConfigureAwait(false);
+                await nestedWriteTask.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+                await release.Task.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
             };
 
-            Task<ServiceResult> write = WriteAsync(harness.Owner, variable, Variant.From(4u)).AsTask();
+            Task flush = Task.CompletedTask;
             try
             {
+                AssertGood(await WriteAsync(harness.Owner, variable, Variant.From(4u))
+                    .AsTask().WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false));
+                Assert.That(calls, Is.Zero);
+                Assert.That(variable.ChangeMasks & NodeStateChangeMasks.Value,
+                    Is.EqualTo(NodeStateChangeMasks.Value));
+                Assert.That(text.ChangeMasks & NodeStateChangeMasks.Value,
+                    Is.EqualTo(NodeStateChangeMasks.Value));
+                Assert.That(text.Value.Text, Is.EqualTo("four"));
+
+                flush = variable.ClearChangeMasksAsync(harness.Context, true).AsTask();
                 await entered.Task.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
-                Assert.That(write.IsCompleted, Is.False);
-                Assert.That(observedText, Is.EqualTo("four"));
+                Task<ServiceResult> nestedWriteTask = nestedWrite ??
+                    throw new InvalidOperationException("The child notification did not start its nested write.");
+                AssertGood(await nestedWriteTask.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false));
                 Assert.That(Write(harness.Owner, variable, Variant.From(1u)).StatusCode,
                     Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                Assert.That(variable.Value.GetUInt32(), Is.EqualTo(4u));
+                Assert.That(text.Value.Text, Is.EqualTo("four"));
+                Assert.That(nestedVariable.Value.GetUInt32(), Is.EqualTo(4u));
+                Assert.That(nestedVariable.ValueAsText!.Value.Text, Is.EqualTo("four"));
+                Assert.That(flush.IsCompleted, Is.False);
+                Assert.That(observedText, Is.EqualTo("four"));
             }
             finally
             {
                 release.TrySetResult(true);
-                await write.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+                await flush.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
             }
-            AssertGood(await write.ConfigureAwait(false));
             Assert.That(calls, Is.EqualTo(1));
             Assert.That(observedMasks & NodeStateChangeMasks.Value, Is.EqualTo(NodeStateChangeMasks.Value));
             Assert.That(text.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
             Assert.That(variable.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+            Assert.That(nestedVariable.ChangeMasks & NodeStateChangeMasks.Value,
+                Is.EqualTo(NodeStateChangeMasks.Value));
+            await nestedVariable.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
 
             AssertGood(await WriteAsync(harness.Owner, variable, Variant.From(1u)).ConfigureAwait(false));
+            Assert.That(calls, Is.EqualTo(1));
             Assert.That(text.Value.Text, Is.EqualTo("one"));
+            Assert.That(variable.ChangeMasks & NodeStateChangeMasks.Value,
+                Is.EqualTo(NodeStateChangeMasks.Value));
+            Assert.That(text.ChangeMasks & NodeStateChangeMasks.Value,
+                Is.EqualTo(NodeStateChangeMasks.Value));
+            await variable.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
             Assert.That(calls, Is.EqualTo(2));
+            Assert.That(observedText, Is.EqualTo("one"));
+            Assert.That(text.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+            Assert.That(variable.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+            await nestedVariable.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -870,6 +912,7 @@ namespace Opc.Ua.Scales.Tests
                 int dependentStateUpdates = 0;
                 NodeStateChangeMasks textChangeMasks = NodeStateChangeMasks.None;
                 PropertyState<LocalizedText> text = variable.ValueAsText!;
+                await variable.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
                 text.OnStateChangedAsync = (_, _, changeMasks, _) =>
                 {
                     dependentStateUpdates++;
@@ -879,6 +922,13 @@ namespace Opc.Ua.Scales.Tests
                 AssertGood(await WriteAsync(harness.Owner, variable, Variant.From(4u)).ConfigureAwait(false));
                 Assert.That(variable.Value.GetUInt32(), Is.EqualTo(4u));
                 Assert.That(text.Value.Text, Is.EqualTo("four"));
+                Assert.That(variable.ChangeMasks & NodeStateChangeMasks.Value,
+                    Is.EqualTo(NodeStateChangeMasks.Value));
+                Assert.That(text.ChangeMasks & NodeStateChangeMasks.Value,
+                    Is.EqualTo(NodeStateChangeMasks.Value));
+                Assert.That(dependentStateUpdates, Is.Zero);
+
+                await variable.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
                 Assert.That(dependentStateUpdates, Is.EqualTo(1));
                 Assert.That(textChangeMasks & NodeStateChangeMasks.Value, Is.EqualTo(NodeStateChangeMasks.Value));
             }
@@ -1659,13 +1709,16 @@ namespace Opc.Ua.Scales.Tests
         /// <summary>
         /// Creates an ordinary sparse stock enumeration before explicit product binding.
         /// </summary>
-        private static MultiStateValueDiscreteState CreateNativeEnumeration(ProductState parent, bool generic = false)
+        private static MultiStateValueDiscreteState CreateNativeEnumeration(
+            ProductState parent,
+            bool generic = false,
+            string name = "NativeEnumeration")
         {
             MultiStateValueDiscreteState variable = generic
                 ? MultiStateValueDiscreteState<uint>.With<VariantBuilder>(parent)
                 : new MultiStateValueDiscreteState(parent);
-            variable.NodeId = new NodeId(parent.NodeId.ToString() + ".NativeEnumeration", 1);
-            variable.BrowseName = new QualifiedName("NativeEnumeration", 1);
+            variable.NodeId = new NodeId(parent.NodeId.ToString() + "." + name, 1);
+            variable.BrowseName = new QualifiedName(name, 1);
             variable.DataType = Ua.DataTypeIds.UInt32;
             variable.ValueRank = ValueRanks.Scalar;
             variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
@@ -2238,6 +2291,13 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(variable.Value.GetUInt32(), Is.EqualTo(input));
             Assert.That(variable.ValueAsText!.Value.Text, Is.EqualTo(text));
             Assert.That(variable.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(valueNotifications, Is.Zero);
+            Assert.That(textNotifications, Is.Zero);
+            Assert.That(variable.ChangeMasks & NodeStateChangeMasks.Value, Is.EqualTo(NodeStateChangeMasks.Value));
+            Assert.That(textState.ChangeMasks & NodeStateChangeMasks.Value, Is.EqualTo(NodeStateChangeMasks.Value));
+
+            await variable.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+
             Assert.That(valueNotifications, Is.EqualTo(1));
             Assert.That(textNotifications, Is.EqualTo(1));
             Assert.That(valueChangeMasks & NodeStateChangeMasks.Value, Is.EqualTo(NodeStateChangeMasks.Value));

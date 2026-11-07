@@ -40,6 +40,44 @@ namespace Opc.Ua.Scales.Server.Runtime
     internal sealed class ScaleWriteGate
     {
         /// <summary>
+        /// Identifies an asynchronous notification flow that may reenter this gate for a nested write.
+        /// </summary>
+        private sealed class NotificationScope
+        {
+            /// <summary>
+            /// Creates a notification scope for this gate.
+            /// </summary>
+            /// <param name="gate">The gate that owns the notification scope.</param>
+            internal NotificationScope(ScaleWriteGate gate)
+            {
+                Gate = gate;
+            }
+
+            /// <summary>
+            /// The gate that owns the notification scope.
+            /// </summary>
+            internal ScaleWriteGate Gate { get; }
+
+            /// <summary>
+            /// Gets whether the notification callback is still active.
+            /// </summary>
+            internal bool IsActive => Volatile.Read(ref m_isActive) != 0;
+
+            /// <summary>
+            /// Marks the notification callback as complete.
+            /// </summary>
+            internal void Deactivate()
+            {
+                Volatile.Write(ref m_isActive, 0);
+            }
+
+            /// <summary>
+            /// The active state of the notification callback.
+            /// </summary>
+            private int m_isActive = 1;
+        }
+
+        /// <summary>
         /// Creates the admission coordinator and its node-bound write executor.
         /// </summary>
         internal ScaleWriteGate()
@@ -51,7 +89,9 @@ namespace Opc.Ua.Scales.Server.Runtime
                         StatusCodes.BadInvalidState,
                         "A scale write is awaiting an asynchronous state notification."),
                 (operation, cancellationToken) =>
-                    ExecuteAsynchronouslyAsync(operation, cancellationToken));
+                    ExecuteAsynchronouslyAsync(operation, cancellationToken),
+                (operation, cancellationToken) =>
+                    ExecuteNotificationsAsync(operation, cancellationToken));
         }
 
         /// <summary>
@@ -164,6 +204,40 @@ namespace Opc.Ua.Scales.Server.Runtime
         }
 
         /// <summary>
+        /// Runs asynchronous state-change notifications while rejecting synchronous writes.
+        /// </summary>
+        /// <remarks>
+        /// Nested asynchronous writes from the notification flow may reenter this gate. Other asynchronous writes
+        /// wait until the notification callback completes.
+        /// </remarks>
+        /// <param name="operation">The notification operation.</param>
+        /// <param name="cancellationToken">Cancels while waiting for active synchronous writers.</param>
+        internal async ValueTask ExecuteNotificationsAsync(
+            Func<CancellationToken, ValueTask> operation,
+            CancellationToken cancellationToken)
+        {
+            if (operation == null)
+            {
+                throw new ArgumentNullException(nameof(operation));
+            }
+
+            await EnterNotificationsAsync(cancellationToken).ConfigureAwait(false);
+            NotificationScope? previousScope = m_notificationScope.Value;
+            var scope = new NotificationScope(this);
+            m_notificationScope.Value = scope;
+            try
+            {
+                await operation(cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                scope.Deactivate();
+                m_notificationScope.Value = previousScope;
+                ExitNotifications();
+            }
+        }
+
+        /// <summary>
         /// Runs synchronous work while admitting every distinct writer or rejects before work begins.
         /// </summary>
         /// <typeparam name="T">The result type.</typeparam>
@@ -239,7 +313,7 @@ namespace Opc.Ua.Scales.Server.Runtime
         }
 
         /// <summary>
-        /// Waits until no admitted synchronous operation or asynchronous operation is active.
+        /// Waits for writer admission, allowing nested writes from the active notification flow.
         /// </summary>
         /// <param name="cancellationToken">Cancels while waiting to enter.</param>
         private async ValueTask EnterAsynchronousAsync(CancellationToken cancellationToken)
@@ -250,7 +324,9 @@ namespace Opc.Ua.Scales.Server.Runtime
                 Task wait;
                 lock (m_stateLock)
                 {
-                    if (!m_asyncOwner && m_synchronousWriters == 0)
+                    if (!m_asyncOwner &&
+                        m_synchronousWriters == 0 &&
+                        (m_notificationsInProgress == 0 || IsNotificationScopeActive))
                     {
                         m_asyncOwner = true;
                         return;
@@ -264,13 +340,53 @@ namespace Opc.Ua.Scales.Server.Runtime
         }
 
         /// <summary>
-        /// Reserves synchronous admission unless an asynchronous operation owns the writer.
+        /// Reserves notification admission and waits for active writers to finish.
+        /// </summary>
+        /// <param name="cancellationToken">Cancels while waiting for admitted writers.</param>
+        private async ValueTask EnterNotificationsAsync(CancellationToken cancellationToken)
+        {
+            bool registered = false;
+            try
+            {
+                while (true)
+                {
+                    Task wait;
+                    lock (m_stateLock)
+                    {
+                        if (!registered)
+                        {
+                            m_notificationsInProgress++;
+                            registered = true;
+                        }
+                        if (m_synchronousWriters == 0 && !m_asyncOwner)
+                        {
+                            return;
+                        }
+                        wait = (m_stateChanged ??= new TaskCompletionSource<bool>(
+                            TaskCreationOptions.RunContinuationsAsynchronously)).Task;
+                    }
+
+                    await wait.WaitAsync(cancellationToken).ConfigureAwait(false);
+                }
+            }
+            catch
+            {
+                if (registered)
+                {
+                    ExitNotifications();
+                }
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Reserves synchronous admission unless a write or notification owns the writer.
         /// </summary>
         private bool TryAdmitSynchronous()
         {
             lock (m_stateLock)
             {
-                if (m_asyncOwner)
+                if (m_asyncOwner || m_notificationsInProgress != 0)
                 {
                     return false;
                 }
@@ -313,6 +429,30 @@ namespace Opc.Ua.Scales.Server.Runtime
         }
 
         /// <summary>
+        /// Releases notification admission.
+        /// </summary>
+        private void ExitNotifications()
+        {
+            TaskCompletionSource<bool>? stateChanged = null;
+            lock (m_stateLock)
+            {
+                m_notificationsInProgress--;
+                if (m_notificationsInProgress == 0 && !m_asyncOwner && m_synchronousWriters == 0)
+                {
+                    stateChanged = m_stateChanged;
+                    m_stateChanged = null;
+                }
+            }
+            stateChanged?.TrySetResult(true);
+        }
+
+        /// <summary>
+        /// Gets whether the current asynchronous flow is inside this gate's notification callback.
+        /// </summary>
+        private bool IsNotificationScopeActive =>
+            m_notificationScope.Value is { IsActive: true } scope && ReferenceEquals(scope.Gate, this);
+
+        /// <summary>
         /// Creates the explicit status used when synchronous work overlaps an asynchronous operation.
         /// </summary>
         private static ServiceResultException WriteInProgress()
@@ -328,6 +468,11 @@ namespace Opc.Ua.Scales.Server.Runtime
         private readonly Lock m_stateLock = new();
 
         /// <summary>
+        /// Carries notification reentrancy through awaited callbacks.
+        /// </summary>
+        private readonly AsyncLocal<NotificationScope?> m_notificationScope = new();
+
+        /// <summary>
         /// The asynchronous waiter signal, when the writer is occupied.
         /// </summary>
         private TaskCompletionSource<bool>? m_stateChanged;
@@ -336,6 +481,11 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// The number of currently admitted synchronous operations.
         /// </summary>
         private int m_synchronousWriters;
+
+        /// <summary>
+        /// The number of active or pending asynchronous notification operations.
+        /// </summary>
+        private int m_notificationsInProgress;
 
         /// <summary>
         /// Whether an asynchronous operation owns the writer.

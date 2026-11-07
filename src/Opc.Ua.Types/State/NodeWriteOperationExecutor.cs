@@ -43,15 +43,19 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="executeSynchronously">Runs one synchronous write operation.</param>
         /// <param name="executeAsynchronously">Runs one asynchronous write operation.</param>
+        /// <param name="executeNotifications">Runs state-change notifications.</param>
         internal NodeWriteOperationExecutor(
             Func<Func<ServiceResult>, ServiceResult> executeSynchronously,
             Func<Func<CancellationToken, ValueTask<ServiceResult>>, CancellationToken, ValueTask<ServiceResult>>
-                executeAsynchronously)
+                executeAsynchronously,
+            Func<Func<CancellationToken, ValueTask>, CancellationToken, ValueTask>? executeNotifications = null)
         {
             m_executeSynchronously = executeSynchronously
                 ?? throw new ArgumentNullException(nameof(executeSynchronously));
             m_executeAsynchronously = executeAsynchronously
                 ?? throw new ArgumentNullException(nameof(executeAsynchronously));
+            m_executeNotifications = executeNotifications ??
+                ((operation, cancellationToken) => operation(cancellationToken));
         }
 
         /// <summary>
@@ -78,6 +82,19 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Runs state-change notifications while retaining synchronous write exclusion.
+        /// </summary>
+        /// <param name="operation">The notification operation.</param>
+        /// <param name="cancellationToken">The notification cancellation token.</param>
+        /// <returns>A task that completes when the notifications finish.</returns>
+        internal ValueTask ExecuteNotificationsAsync(
+            Func<CancellationToken, ValueTask> operation,
+            CancellationToken cancellationToken)
+        {
+            return m_executeNotifications(operation, cancellationToken);
+        }
+
+        /// <summary>
         /// Runs a complete synchronous write operation.
         /// </summary>
         private readonly Func<Func<ServiceResult>, ServiceResult> m_executeSynchronously;
@@ -89,5 +106,11 @@ namespace Opc.Ua
             Func<CancellationToken, ValueTask<ServiceResult>>,
             CancellationToken,
             ValueTask<ServiceResult>> m_executeAsynchronously;
+
+        /// <summary>
+        /// Runs state-change notifications.
+        /// </summary>
+        private readonly Func<Func<CancellationToken, ValueTask>, CancellationToken, ValueTask>
+            m_executeNotifications;
     }
 }

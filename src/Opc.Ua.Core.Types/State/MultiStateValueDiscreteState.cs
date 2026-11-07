@@ -210,9 +210,12 @@ namespace Opc.Ua
                     {
                         UpdateDerivedValues(context, accepted, text, dictionaryEntries, resolved);
                     }
-                    await ClearChangeMasksAsync(
-                        context, includeChildren: true, cancellationToken: CancellationToken.None)
-                        .ConfigureAwait(false);
+                    if (!DeferChangeMaskNotificationsUntilWriteAdmissionEnds())
+                    {
+                        await ClearChangeMasksAsync(
+                            context, includeChildren: true, cancellationToken: CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
                 }
                 return result;
             }
