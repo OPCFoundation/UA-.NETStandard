@@ -1197,12 +1197,29 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase(true)]
         public async Task CompletedPreparedDisposalTasksDoNotRetainPrivateCandidatesAsync(bool failCleanup)
         {
-            (WeakReference candidate, WeakReference metadata, Task disposal, IPreparedChanges prepared) =
+            (WeakReference candidate,
+                WeakReference metadata,
+                Task disposal,
+                IPreparedChanges prepared,
+                CleanupCallCounts cleanupCalls) =
                 await CompletePrivateCandidateDisposalAsync(failCleanup).ConfigureAwait(false);
             // Do not run collection inline in the producer's completion callback.
             await Task.Yield();
             try
             {
+                if (failCleanup)
+                {
+                    for (int attempt = 0; attempt < 3 && metadata.IsAlive; attempt++)
+                    {
+                        GC.Collect();
+                        GC.WaitForPendingFinalizers();
+                        GC.Collect();
+                    }
+                    AssertFailedPreparedCleanupRetainsCandidate(prepared, candidate, metadata, disposal, cleanupCalls);
+                }
+
+                await prepared.DisposeAsync().ConfigureAwait(false);
+                await Task.Yield();
                 for (int attempt = 0; attempt < 3 && candidate.IsAlive; attempt++)
                 {
                     GC.Collect();
@@ -1223,13 +1240,24 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Assert.That(snapshot.TryGetNodeManager(out _), Is.False);
                     Assert.That(snapshot.TryGetRegistration(out _), Is.False);
                     Assert.That(snapshot.Slot.TryGetCurrent(out _), Is.False);
+                    Assert.That(cleanupCalls.DeleteCount, Is.EqualTo(1));
+                    Assert.That(cleanupCalls.DisposeCount, Is.EqualTo(1));
                 }
                 await prepared.DisposeAsync().ConfigureAwait(false);
+                Assert.That(cleanupCalls.DeleteCount, Is.EqualTo(1));
+                Assert.That(cleanupCalls.DisposeCount, Is.EqualTo(1));
             }
             finally
             {
-                GC.KeepAlive(disposal);
-                GC.KeepAlive(prepared);
+                try
+                {
+                    await prepared.DisposeAsync().ConfigureAwait(false);
+                }
+                finally
+                {
+                    GC.KeepAlive(disposal);
+                    GC.KeepAlive(prepared);
+                }
             }
         }
 
@@ -1497,16 +1525,22 @@ namespace Opc.Ua.Server.Tests.NodeManager
             WeakReference Candidate,
             WeakReference Metadata,
             Task Disposal,
-            IPreparedChanges Prepared)> CompletePrivateCandidateDisposalAsync(bool failCleanup)
+            IPreparedChanges Prepared,
+            CleanupCallCounts CleanupCalls)> CompletePrivateCandidateDisposalAsync(bool failCleanup)
         {
             await using var harness = new ChangeSetCleanupHarness();
             Mock<IAsyncNodeManager> candidate = CreateManager(kNamespaceUri);
             var reference = new WeakReference(candidate.Object);
             var failure = new InvalidOperationException("Private candidate abort failed.");
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var cleanupCalls = new CleanupCallCounts();
+            candidate.As<IDisposable>()
+                .Setup(value => value.Dispose())
+                .Callback(() => cleanupCalls.DisposeCount++);
             candidate.Setup(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()))
                 .Returns(async () =>
                 {
+                    cleanupCalls.DeleteCount++;
                     await release.Task.ConfigureAwait(false);
                     if (failCleanup)
                     {
@@ -1530,17 +1564,57 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             if (failCleanup)
             {
-                await Assert.ThatAsync(() => disposal,
-                    Throws.TypeOf<AggregateException>().With.InnerException.SameAs(failure)).ConfigureAwait(false);
+                AggregateException? observed = null;
+                try
+                {
+                    await disposal.ConfigureAwait(false);
+                }
+                catch (AggregateException exception)
+                {
+                    observed = exception;
+                }
+                Assert.That(observed, Is.TypeOf<AggregateException>());
+                Assert.That(observed!.InnerException, Is.SameAs(failure));
             }
             else
             {
                 await disposal.ConfigureAwait(false);
             }
-            await prepared.DisposeAsync().ConfigureAwait(false);
             candidate.As<IDisposable>().Verify(value => value.Dispose(), Times.Once);
             candidate.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
-            return (reference, metadataReference, disposal, prepared);
+            Assert.That(harness.Writer.ActiveOperationCount, Is.Zero);
+            return (reference, metadataReference, disposal, prepared, cleanupCalls);
+        }
+
+        /// <summary>
+        /// Checks the retained candidate before retrying failed provider cleanup.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void AssertFailedPreparedCleanupRetainsCandidate(
+            IPreparedChanges prepared,
+            WeakReference candidate,
+            WeakReference metadata,
+            Task disposal,
+            CleanupCallCounts cleanupCalls)
+        {
+            NodeManagerRegistrationSnapshot snapshot = prepared.Registrations[0];
+            bool hasManager = snapshot.TryGetNodeManager(out IAsyncNodeManager? manager);
+            bool hasRegistration = snapshot.TryGetRegistration(out NodeManagerRegistration? registration);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(candidate.IsAlive, Is.True);
+                Assert.That(metadata.IsAlive, Is.False);
+                Assert.That(hasManager, Is.True);
+                Assert.That(manager, Is.SameAs(candidate.Target));
+                Assert.That(hasRegistration, Is.True);
+                Assert.That(registration?.NodeManager, Is.SameAs(manager));
+                Assert.That(snapshot.Slot, Is.SameAs(prepared.Slots[0]));
+                Assert.That(snapshot.Slot.TryGetCurrent(out _), Is.False);
+                Assert.That(prepared.IsCommitted, Is.False);
+                Assert.That(disposal.Status, Is.EqualTo(TaskStatus.Faulted));
+                Assert.That(cleanupCalls.DeleteCount, Is.EqualTo(1));
+                Assert.That(cleanupCalls.DisposeCount, Is.EqualTo(1));
+            }
         }
 
         private static Mock<IAsyncNodeManager> CreateManager(string namespaceUri)
@@ -1574,6 +1648,22 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     return new ValueTask<IAsyncNodeManager>(manager.Object);
                 });
             return factory.Object;
+        }
+
+        /// <summary>
+        /// Records the candidate cleanup calls without retaining the candidate.
+        /// </summary>
+        private sealed class CleanupCallCounts
+        {
+            /// <summary>
+            /// Gets or sets the number of address-space deletion calls.
+            /// </summary>
+            public int DeleteCount { get; set; }
+
+            /// <summary>
+            /// Gets or sets the number of disposal calls.
+            /// </summary>
+            public int DisposeCount { get; set; }
         }
 
         /// <summary>
