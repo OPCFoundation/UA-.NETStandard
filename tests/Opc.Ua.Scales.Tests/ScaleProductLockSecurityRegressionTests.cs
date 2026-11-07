@@ -699,15 +699,15 @@ namespace Opc.Ua.Scales.Tests
             product.AddChild(variable);
             product.AddChild(nestedVariable);
             await product.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
-            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var nestedWriteStarted = new TaskCompletionSource<Task<ServiceResult>>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             using var nestedWriteCancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             int calls = 0;
             string? observedText = null;
             NodeStateChangeMasks observedMasks = NodeStateChangeMasks.None;
-            Task<ServiceResult>? nestedWrite = null;
             PropertyState<LocalizedText> text = variable.ValueAsText!;
-            text.OnStateChangedAsync = async (_, _, changeMasks, _) =>
+            text.OnStateChangedAsync = async (_, _, changeMasks, cancellationToken) =>
             {
                 calls++;
                 observedMasks |= changeMasks;
@@ -718,10 +718,11 @@ namespace Opc.Ua.Scales.Tests
                     NumericRange.Null,
                     new DataValue(Variant.From(4u)),
                     nestedWriteCancellation.Token).AsTask();
-                nestedWrite = nestedWriteTask;
-                entered.TrySetResult(true);
-                await nestedWriteTask.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
-                await release.Task.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+                nestedWriteStarted.TrySetResult(nestedWriteTask);
+                await nestedWriteTask.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken)
+                    .ConfigureAwait(false);
+                await release.Task.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken)
+                    .ConfigureAwait(false);
             };
 
             Task flush = Task.CompletedTask;
@@ -735,11 +736,9 @@ namespace Opc.Ua.Scales.Tests
                 Assert.That(text.ChangeMasks & NodeStateChangeMasks.Value,
                     Is.EqualTo(NodeStateChangeMasks.Value));
                 Assert.That(text.Value.Text, Is.EqualTo("four"));
-
                 flush = variable.ClearChangeMasksAsync(harness.Context, true).AsTask();
-                await entered.Task.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
-                Task<ServiceResult> nestedWriteTask = nestedWrite ??
-                    throw new InvalidOperationException("The child notification did not start its nested write.");
+                Task<ServiceResult> nestedWriteTask = await nestedWriteStarted.Task
+                    .WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
                 AssertGood(await nestedWriteTask.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false));
                 Assert.That(Write(harness.Owner, variable, Variant.From(1u)).StatusCode,
                     Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
@@ -776,6 +775,170 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(text.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
             Assert.That(variable.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
             await nestedVariable.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// A value-text sink can await a write to the same node after write admission ends.
+        /// </summary>
+        [Test]
+        public async Task NativeEnumerationTextFlushAllowsSameNodeNestedScaleWriteAsync()
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            ProductState product = scale.ProductionPreset!.ActiveProduct!;
+            MultiStateValueDiscreteState variable = CreateNativeEnumeration(product);
+            product.AddChild(variable);
+            await product.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+            var nestedWriteStarted = new TaskCompletionSource<Task<ServiceResult>>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var nestedWriteCancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            int calls = 0;
+            string? observedText = null;
+            NodeStateChangeMasks observedMasks = NodeStateChangeMasks.None;
+            StatusCode synchronousWriteStatus = StatusCodes.Good;
+            PropertyState<LocalizedText> text = variable.ValueAsText!;
+            text.OnStateChangedAsync = async (_, _, changeMasks, cancellationToken) =>
+            {
+                calls++;
+                observedMasks |= changeMasks;
+                observedText = text.Value.Text;
+                if (calls == 1)
+                {
+                    Task<ServiceResult> nestedWriteTask = variable.WriteAttributeAsync(
+                        harness.Owner,
+                        Attributes.Value,
+                        NumericRange.Null,
+                        new DataValue(Variant.From(1u)),
+                        nestedWriteCancellation.Token).AsTask();
+                    nestedWriteStarted.TrySetResult(nestedWriteTask);
+                    await nestedWriteTask.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken)
+                        .ConfigureAwait(false);
+                    await release.Task.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    synchronousWriteStatus = Write(
+                        harness.Owner, variable, Variant.From(2u)).StatusCode;
+                }
+            };
+
+            Task flush = Task.CompletedTask;
+            try
+            {
+                AssertGood(await WriteAsync(harness.Owner, variable, Variant.From(4u))
+                    .AsTask().WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false));
+                Assert.That(calls, Is.Zero);
+                Assert.That(variable.ChangeMasks & NodeStateChangeMasks.Value,
+                    Is.EqualTo(NodeStateChangeMasks.Value));
+                Assert.That(text.ChangeMasks & NodeStateChangeMasks.Value,
+                    Is.EqualTo(NodeStateChangeMasks.Value));
+                Assert.That(text.Value.Text, Is.EqualTo("four"));
+                flush = variable.ClearChangeMasksAsync(harness.Context, true).AsTask();
+                Task<ServiceResult> nestedWriteTask = await nestedWriteStarted.Task
+                    .WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+                AssertGood(await nestedWriteTask.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false));
+                Assert.That(Write(harness.Owner, variable, Variant.From(1u)).StatusCode,
+                    Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                Assert.That(variable.Value.GetUInt32(), Is.EqualTo(1u));
+                Assert.That(text.Value.Text, Is.EqualTo("one"));
+                Assert.That(flush.IsCompleted, Is.False);
+                Assert.That(observedText, Is.EqualTo("four"));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await flush.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+            }
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(observedMasks & NodeStateChangeMasks.Value, Is.EqualTo(NodeStateChangeMasks.Value));
+            Assert.That(text.ChangeMasks & NodeStateChangeMasks.Value,
+                Is.EqualTo(NodeStateChangeMasks.Value));
+            Assert.That(variable.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+            await variable.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+            Assert.That(calls, Is.EqualTo(2));
+            Assert.That(synchronousWriteStatus, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            Assert.That(variable.Value.GetUInt32(), Is.EqualTo(1u));
+            Assert.That(text.Value.Text, Is.EqualTo("one"));
+            Assert.That(text.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+            Assert.That(variable.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+        }
+
+        /// <summary>
+        /// A queued writer runs after notification dispatch and retains its own deferred notification.
+        /// </summary>
+        [Test]
+        public async Task NativeEnumerationTextFlushPreservesQueuedWriterNotificationAsync()
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            ProductState product = scale.ProductionPreset!.ActiveProduct!;
+            MultiStateValueDiscreteState variable = CreateNativeEnumeration(product);
+            product.AddChild(variable);
+            await product.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int calls = 0;
+            StatusCode synchronousWriteStatus = StatusCodes.Good;
+            PropertyState<LocalizedText> text = variable.ValueAsText!;
+            text.OnStateChangedAsync = async (_, _, _, cancellationToken) =>
+            {
+                calls++;
+                if (calls == 1)
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    synchronousWriteStatus = Write(
+                        harness.Owner, variable, Variant.From(4u)).StatusCode;
+                }
+            };
+
+            Task flush = Task.CompletedTask;
+            Task<ServiceResult>? queuedWrite = null;
+            try
+            {
+                AssertGood(await WriteAsync(harness.Owner, variable, Variant.From(1u)).ConfigureAwait(false));
+                flush = variable.ClearChangeMasksAsync(harness.Context, true).AsTask();
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+
+                queuedWrite = WriteAsync(harness.Owner, variable, Variant.From(4u)).AsTask();
+                Assert.That(queuedWrite.IsCompleted, Is.False);
+                Assert.That(variable.Value.GetUInt32(), Is.EqualTo(1u));
+
+                release.TrySetResult(true);
+                await flush.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+                AssertGood(await queuedWrite.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await flush.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+                if (queuedWrite is not null)
+                {
+                    await queuedWrite.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+                }
+            }
+
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(variable.Value.GetUInt32(), Is.EqualTo(4u));
+            Assert.That(text.Value.Text, Is.EqualTo("four"));
+            Assert.That(variable.ChangeMasks & NodeStateChangeMasks.Value,
+                Is.EqualTo(NodeStateChangeMasks.Value));
+            Assert.That(text.ChangeMasks & NodeStateChangeMasks.Value,
+                Is.EqualTo(NodeStateChangeMasks.Value));
+
+            await variable.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+            Assert.That(calls, Is.EqualTo(2));
+            Assert.That(synchronousWriteStatus, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            Assert.That(variable.Value.GetUInt32(), Is.EqualTo(4u));
+            Assert.That(text.Value.Text, Is.EqualTo("four"));
+            Assert.That(variable.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+            Assert.That(text.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
         }
 
         /// <summary>

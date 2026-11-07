@@ -3442,33 +3442,39 @@ namespace Opc.Ua
             bool includeChildren,
             CancellationToken cancellationToken = default)
         {
-            if (m_writeOperationExecutor is { } executor &&
-                Volatile.Read(ref m_deferredChangeMaskNotifications) != 0)
+            long deferredGeneration = Volatile.Read(ref m_deferredChangeMaskNotifications);
+            if (m_writeOperationExecutor is { } executor && deferredGeneration != 0)
             {
                 return ClearChangeMasksWithNotificationAdmissionAsync(
-                    executor, context, includeChildren, cancellationToken);
+                    executor, context, includeChildren, deferredGeneration, cancellationToken);
             }
 
             return ClearChangeMasksCoreAsync(context, includeChildren, cancellationToken);
         }
 
         /// <summary>
-        /// Clears deferred change masks under notification admission and consumes the deferral after success.
+        /// Clears deferred change masks under notification admission and consumes only the completed generation.
         /// </summary>
         /// <param name="executor">The executor for this node's write operations.</param>
         /// <param name="context">The context that describes how to access the system containing the data.</param>
         /// <param name="includeChildren">Whether to clear masks recursively for all children.</param>
+        /// <param name="deferredGeneration">The notification deferral generation handled by this flush.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         private async ValueTask ClearChangeMasksWithNotificationAdmissionAsync(
             NodeWriteOperationExecutor executor,
             ISystemContext context,
             bool includeChildren,
+            long deferredGeneration,
             CancellationToken cancellationToken)
         {
             await executor.ExecuteNotificationsAsync(
-                ct => ClearChangeMasksCoreAsync(context, includeChildren, ct),
+                async ct =>
+                {
+                    await ClearChangeMasksCoreAsync(context, includeChildren, ct).ConfigureAwait(false);
+                    Interlocked.CompareExchange(
+                        ref m_deferredChangeMaskNotifications, 0, deferredGeneration);
+                },
                 cancellationToken).ConfigureAwait(false);
-            Interlocked.Exchange(ref m_deferredChangeMaskNotifications, 0);
         }
 
         /// <summary>
@@ -5233,7 +5239,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            Interlocked.Exchange(ref m_deferredChangeMaskNotifications, 1);
+            Interlocked.Increment(ref m_deferredChangeMaskNotifications);
             return true;
         }
 
@@ -7098,7 +7104,7 @@ namespace Opc.Ua
         /// <summary>
         /// Whether a Value write deferred change-mask notification until its write admission ends.
         /// </summary>
-        private int m_deferredChangeMaskNotifications;
+        private long m_deferredChangeMaskNotifications;
 
         /// <summary>Lazily published; see <see cref="GetOrCreateNotifiersLock"/>.</summary>
         private Lock? m_notifiersLock;
