@@ -1982,7 +1982,7 @@ namespace Opc.Ua.Scales.Tests
                 Assert.That(controller.ActiveRecipe, Is.SameAs(recipe));
                 Assert.That(controller.State, Is.EqualTo(RecipeRunState.Running));
                 Assert.That(controller.CurrentElements, Has.Count.EqualTo(1));
-                Assert.That(SnapshotReportMessages(product), Has.Count.GreaterThan(reportBefore.Length));
+                Assert.That(SnapshotReportMessages(product).Length, Is.GreaterThan(reportBefore.Length));
             });
         }
 

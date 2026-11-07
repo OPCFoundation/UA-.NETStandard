@@ -569,7 +569,7 @@ namespace Opc.Ua.Types.Tests.State
                 Assert.That(calls, Is.EqualTo(1));
                 Assert.That(inputByteString.Span.ToArray(), Is.EqualTo(new byte[] { 0xFE, 0x22, 0xED }));
                 Assert.That(variable.Value.TryGetValue(out MatrixOf<ByteString> cached), Is.True);
-                Assert.That(cached.Dimensions, Is.EqualTo(new[] { 1, 1 }));
+                Assert.That(cached.Dimensions, Is.EqualTo(s_singleElementMatrixDimensions));
                 Assert.That(cached.Span[0].Span.ToArray(), Is.EqualTo(expectedBytes));
                 Assert.That(variable.StatusCode, Is.EqualTo(StatusCodes.Good));
                 Assert.That(variable.Timestamp, Is.EqualTo(s_requestedTimestamp));
@@ -627,6 +627,9 @@ namespace Opc.Ua.Types.Tests.State
                 TypeTable = new TypeTable(new NamespaceTable())
             };
         }
+
+        /// <summary>The dimensions of a one-element matrix.</summary>
+        private static readonly int[] s_singleElementMatrixDimensions = [1, 1];
 
         /// <summary>The prior observation's source time.</summary>
         private static readonly DateTimeUtc s_initialTimestamp = new(2026, 1, 1, 0, 0, 0);

@@ -314,7 +314,7 @@ namespace Opc.Ua.Scales.Tests
                 AccessLevel = AccessLevels.CurrentReadOrWrite | AccessLevels.StatusWrite | AccessLevels.TimestampWrite,
                 UserAccessLevel = AccessLevels.CurrentReadOrWrite |
                     AccessLevels.StatusWrite | AccessLevels.TimestampWrite,
-                Value = Variant.From(s_initialArray),
+                Value = Variant.From(new double[] { 1.0, 2.0, 3.0 }),
                 StatusCode = StatusCodes.Good
             };
             product.AddChild(variable);
@@ -1765,6 +1765,9 @@ namespace Opc.Ua.Scales.Tests
         /// <summary>The unchanged array used in indexed-write assertions.</summary>
         private static readonly double[] s_initialArray = [1.0, 2.0, 3.0];
 
+        /// <summary>The accepted array expected after the copy-on-write test.</summary>
+        private static readonly double[] s_copyOnWriteExpectedArray = [11.0, 12.0, 13.0];
+
         /// <summary>The valid replacement slice.</summary>
         private static readonly double[] s_slice = [20.0, 30.0];
 
@@ -2136,7 +2139,7 @@ namespace Opc.Ua.Scales.Tests
 
             Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
             Assert.That(calls, Is.EqualTo(1));
-            Assert.That(variable.Value.GetDoubleArray(), Is.EqualTo(new[] { 11.0, 12.0, 13.0 }.ToArrayOf()));
+            Assert.That(variable.Value.GetDoubleArray(), Is.EqualTo(s_copyOnWriteExpectedArray.ToArrayOf()));
             Assert.That(variable.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
             Assert.That(variable.Timestamp, Is.EqualTo(timestamp));
             Assert.That(variable.ChangeMasks & NodeStateChangeMasks.Value, Is.EqualTo(NodeStateChangeMasks.Value));
@@ -2313,7 +2316,7 @@ namespace Opc.Ua.Scales.Tests
                 AccessLevel = AccessLevels.CurrentReadOrWrite | AccessLevels.StatusWrite | AccessLevels.TimestampWrite,
                 UserAccessLevel = AccessLevels.CurrentReadOrWrite |
                     AccessLevels.StatusWrite | AccessLevels.TimestampWrite,
-                Value = Variant.From(new double[] { 1.0, 2.0, 3.0 }),
+                Value = Variant.From((double[])s_initialArray.Clone()),
                 StatusCode = StatusCodes.Uncertain,
                 Timestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 1)
             };

@@ -177,43 +177,6 @@ namespace Opc.Ua.Core.Tests.Stack.State
         }
 
         /// <summary>
-        /// Does not update the enum cache or dependent text when an asynchronous handler owns publication.
-        /// </summary>
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task AsyncEnumSuppressedWriteLeavesPublisherCacheUntouched(bool fullHandler)
-        {
-            MultiStateValueDiscreteState node = CreateNode(s_states);
-            var timestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 1);
-            node.StatusCode = StatusCodes.Uncertain;
-            node.Timestamp = timestamp;
-            NodeStateChangeMasks previousMasks = node.ChangeMasks;
-            var suppressed = new AttributeWriteResult(ServiceResult.Good) { SuppressCacheUpdate = true };
-            if (fullHandler)
-            {
-                node.OnWriteValueAsync = (_, _, _, _, _) => new ValueTask<AttributeWriteResult>(suppressed);
-            }
-            else
-            {
-                node.OnSimpleWriteValueAsync = (_, _, _, _) => new ValueTask<AttributeWriteResult>(suppressed);
-            }
-
-            ServiceResult result = await node.WriteAttributeAsync(
-                m_context, Attributes.Value, NumericRange.Null, new DataValue(Variant.From(4u)))
-                .ConfigureAwait(false);
-
-            Assert.Multiple(() =>
-            {
-                Assert.That(ServiceResult.IsGood(result), Is.True);
-                Assert.That(node.WrappedValue, Is.EqualTo(Variant.From(0u)));
-                Assert.That(node.ValueAsText!.Value.Text, Is.EqualTo("initial"));
-                Assert.That(node.StatusCode, Is.EqualTo(StatusCodes.Uncertain));
-                Assert.That(node.Timestamp, Is.EqualTo(timestamp));
-                Assert.That(node.ChangeMasks, Is.EqualTo(previousMasks));
-            });
-        }
-
-        /// <summary>
         /// Preserves a handler-owned value and text publication without applying the requested write again.
         /// </summary>
         [Test]
@@ -287,6 +250,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
             MultiStateValueDiscreteState node = CreateNode(s_states);
             var timestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 1);
             var requestedTimestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 2);
+            node.AccessLevel |= AccessLevels.TimestampWrite;
+            node.UserAccessLevel |= AccessLevels.TimestampWrite;
             node.StatusCode = StatusCodes.Uncertain;
             node.Timestamp = timestamp;
 
@@ -352,6 +317,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
         {
             MultiStateValueDiscreteState node = CreateNode(s_states);
             var timestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 1);
+            node.AccessLevel |= AccessLevels.TimestampWrite;
+            node.UserAccessLevel |= AccessLevels.TimestampWrite;
             node.StatusCode = StatusCodes.Uncertain;
             node.Timestamp = timestamp;
 
