@@ -89,6 +89,52 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Disposing an outer initializer leaves the nested initializer's authority active.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ParentScopeDisposalDoesNotRevokeActiveNestedScope(bool sharedServer)
+        {
+            ExecutionContext context = ExecutionContext.Capture() ??
+                throw new InvalidOperationException("The initializer execution context was not captured.");
+            ExecutionContext.Run(context.CreateCopy(), _ =>
+            {
+                IServerInternal parentServer = Mock.Of<IServerInternal>();
+                IServerInternal childServer = sharedServer ? parentServer : Mock.Of<IServerInternal>();
+                NodeManagerGeneration parent = CreateGeneration();
+                NodeManagerGeneration child = CreateGeneration();
+                using var outer = new NodeManagerReadinessScope(parentServer, parent);
+                using var inner = new NodeManagerReadinessScope(childServer, child);
+
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(NodeManagerReadinessScope.Allows(parentServer), Is.True);
+                    Assert.That(NodeManagerReadinessScope.Allows(parent), Is.True);
+                    Assert.That(NodeManagerReadinessScope.Allows(childServer), Is.True);
+                    Assert.That(NodeManagerReadinessScope.Allows(child), Is.True);
+                }
+
+                outer.Dispose();
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(NodeManagerReadinessScope.Allows(parentServer), Is.EqualTo(sharedServer));
+                    Assert.That(NodeManagerReadinessScope.Allows(parent), Is.False);
+                    Assert.That(NodeManagerReadinessScope.Allows(childServer), Is.True);
+                    Assert.That(NodeManagerReadinessScope.Allows(child), Is.True);
+                }
+
+                inner.Dispose();
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(NodeManagerReadinessScope.Allows(parentServer), Is.False);
+                    Assert.That(NodeManagerReadinessScope.Allows(parent), Is.False);
+                    Assert.That(NodeManagerReadinessScope.Allows(childServer), Is.False);
+                    Assert.That(NodeManagerReadinessScope.Allows(child), Is.False);
+                }
+            }, null);
+        }
+
+        /// <summary>
         /// An escaped callback loses its authority when the originating initializer completes.
         /// </summary>
         [Test]
