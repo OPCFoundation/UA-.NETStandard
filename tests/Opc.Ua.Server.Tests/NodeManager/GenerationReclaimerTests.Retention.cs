@@ -25,6 +25,7 @@ using System;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 
@@ -68,6 +69,89 @@ namespace Opc.Ua.Server.Tests.NodeManager
             GC.KeepAlive(result);
             GC.KeepAlive(retirement);
             GC.KeepAlive(reclaimer);
+        }
+
+        /// <summary>
+        /// A result retains the first cleanup failure while retirement retries independently.
+        /// </summary>
+        [Test]
+        public async Task LifecycleResultRetainsFailureAcrossDelayedRetirementRetryAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var clock = new FakeTimeProvider();
+            using var reclaimer = new GenerationReclaimer(clock);
+            var context = new ReclamationContext();
+            GenerationReclaimer.RetiredGeneration retired = context.CreateRetirement();
+            var failure = new InvalidOperationException("The first destruction attempt failed.");
+            int destructionAttempts = 0;
+            context.Host.Setup(host => host.DestroyAddressSpaceAsync(
+                retired.NodeManager, It.IsAny<CancellationToken>())).Returns(() =>
+                    Interlocked.Increment(ref destructionAttempts) == 1
+                        ? new ValueTask(Task.FromException(failure))
+                        : default);
+            Mock<IAsyncDisposable> disposal = Mock.Get(retired.NodeManager).As<IAsyncDisposable>();
+            NodeManagerSlot slot = retired.Generation.Slot;
+            slot.Publish(retired.Generation);
+            retired.Generation.Gate.Retire();
+            slot.Unpublish(retired.Generation);
+            Task retirement = Task.WhenAll([retired.Retirement]);
+            reclaimer.Enqueue([retired]);
+            reclaimer.Activate([retired]);
+
+            try
+            {
+                InvalidOperationException? observed = await Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await reclaimer.ReclaimReadyAsync().ConfigureAwait(false)).ConfigureAwait(false);
+                var result = new LifecycleResult(
+                    [],
+                    0,
+                    observed,
+                    1,
+                    [slot],
+                    retirement,
+                    publishedSlots: [new NodeManagerGenerationSnapshot(slot, retired.Generation.Number)]);
+
+                await result.RetryReconciliationAsync(timeout.Token).ConfigureAwait(false);
+                clock.Advance(TimeSpan.FromMilliseconds(999));
+
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(observed, Is.SameAs(failure));
+                    Assert.That(result.CleanupFailure, Is.SameAs(failure));
+                    Assert.That(result.Retired, Is.SameAs(retirement));
+                    Assert.That(result.RetirementStatus, Is.EqualTo(NodeManagerRetirementStatus.Pending));
+                    Assert.That(retirement.IsCompleted, Is.False);
+                    Assert.That(retired.RetryScheduled, Is.True);
+                    Assert.That(reclaimer.Contains(retired), Is.True);
+                    Assert.That(destructionAttempts, Is.EqualTo(1));
+                    Assert.That(result.Slots[0].TryGetCurrent(out _), Is.False);
+                }
+                disposal.Verify(value => value.DisposeAsync(), Times.Never);
+
+                clock.Advance(TimeSpan.FromMilliseconds(1));
+                await AssertRetirementOutcomeAsync(retirement, failure, timeout.Token).ConfigureAwait(false);
+
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(result.CleanupFailure, Is.SameAs(failure));
+                    Assert.That(result.RetirementStatus, Is.EqualTo(NodeManagerRetirementStatus.CompletedWithFailure));
+                    Assert.That(result.PublishedSlots[0].Slot, Is.SameAs(slot));
+                    Assert.That(result.PublishedSlots[0].Generation, Is.EqualTo(1));
+                    Assert.That(destructionAttempts, Is.EqualTo(2));
+                    Assert.That(reclaimer.Count, Is.Zero);
+                }
+                context.Host.Verify(host => host.FinalizeRetiredGenerationNotificationsAsync(
+                    retired.NodeManager, It.IsAny<CancellationToken>()), Times.Once);
+                disposal.Verify(value => value.DisposeAsync(), Times.Once);
+                GC.KeepAlive(result);
+                GC.KeepAlive(retirement);
+                GC.KeepAlive(failure);
+            }
+            finally
+            {
+                clock.Advance(TimeSpan.FromMinutes(1));
+                await reclaimer.CompleteShutdownAsync(timeout.Token).ConfigureAwait(false);
+            }
         }
 
         /// <summary>
