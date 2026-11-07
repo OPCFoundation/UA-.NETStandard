@@ -144,7 +144,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                         };
             }
 
-            BindRun(scale.StartRecipe, ScaleCommand.StartRecipe, StartCore);
+            BindRun(scale.StartRecipe, ScaleCommand.StartRecipe, recipeNodeId => StartCore(recipeNodeId, out _));
             BindRun(scale.StopRecipe, ScaleCommand.StopRecipe, Stop);
             BindRun(scale.ContinueRecipe, ScaleCommand.ContinueRecipe, ContinueCore);
             BindRun(scale.SkipCurrentRecipeElement, ScaleCommand.SkipCurrentRecipeElement, SkipCore);
