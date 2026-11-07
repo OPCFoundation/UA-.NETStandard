@@ -275,6 +275,7 @@ namespace Opc.Ua.Server.Tests
             var uaTcp = new ServiceResultException(
                 StatusCodes.BadNoCommunication, "Failed to open a listening socket.");
             var inUse = new SocketException((int)SocketError.AddressAlreadyInUse);
+            var denied = new SocketException((int)SocketError.AccessDenied);
             var kestrel = new IOException(
                 "Failed to bind to address https://[::]:49254: address already in use.",
                 new AddressInUseException("Address already in use.", inUse));
@@ -283,6 +284,7 @@ namespace Opc.Ua.Server.Tests
             {
                 Assert.That(ServerFixtureUtils.IsPortUnavailable(uaTcp), Is.True);
                 Assert.That(ServerFixtureUtils.IsPortUnavailable(inUse), Is.True);
+                Assert.That(ServerFixtureUtils.IsPortUnavailable(denied), Is.True);
                 Assert.That(ServerFixtureUtils.IsPortUnavailable(kestrel), Is.True);
                 Assert.That(
                     ServerFixtureUtils.IsPortUnavailable(new AggregateException(kestrel)),

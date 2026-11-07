@@ -117,6 +117,15 @@ Conventions and requirements:
 - **Ordered NUnit fixtures.** Use `DependsOnTest` rather than the obsolete `Order` attribute. Existing sequencing-only dependencies use `AllowFailure = true` so one failed test does not suppress later tests. Filtering a dependent test also runs its prerequisites; dependency chains must not use fixture-level `Parallelizable`.
 - **Coverage.** Coverage is measured with **Coverlet** and must not regress; every non-application, non-test project should stay at or above **80 %**. Two gates enforce this in CI — see [Continuous integration](#continuous-integration).
 - **Integration tests.** Client/server and pub/sub features need integration tests as well as unit tests. A feature library's integration tests normally live with its unit tests in `<Component>.Tests`, for example `Opc.Ua.Robotics.Tests`, and every test project name ends in `.Tests`. Split integration tests into a separate project only when they run long, destabilise the unit tests, or the suite needs further division. Keep them deterministic: allocate a free port per fixture rather than hard-coding one, wait on the actual signal instead of using `Thread.Sleep` as a synchronisation primitive, and dispose every session, subscription and server in teardown including on failure. A flaky integration test is worse than none.
+- **Hosted-server fixtures.** Keep per-test PKI roots in short, unique temporary
+  directories and delete them after disposing the host. Certificate filenames
+  include the application name, algorithm and thumbprint; nesting the PKI under
+  a deep output path can exceed the .NET Framework path limit. When waiting for
+  readiness, also observe the hosted service's execution task so startup failures
+  surface immediately instead of becoming repeated readiness timeouts. Port
+  retries should probe a new free port rather than choose an unchecked number.
+- **OPC UA null values.** Assert `.IsNull` for structs implementing `INullable`,
+  rather than relying on NUnit's generic `Is.Default` constraint.
 - **Test output.** Keep successful-test output compact. NUnit and the test runner retain captured output and create additional copies when forwarding and serializing it to TRX; repeated exhaustive dumps can consume gigabytes of memory, inflate results artifacts, and stall the runner's shared socket (issue #4213). For small failure-only diagnostics, buffer the dump and emit it only when the test does not pass; see `EncoderCommon.TestOutput` in [`tests/Opc.Ua.Core.TestFramework/EncoderCommon.cs`](../tests/Opc.Ua.Core.TestFramework/EncoderCommon.cs). Stream large dumps to files and register them with `TestContext.AddTestAttachment` instead of building a large string or writing every line to `TestContext.Out`. `CommonTestWorkers.BrowseFullAddressSpaceWorkerAsync(..., outputResult: true)` follows this pattern: the full listing is a test-result attachment, while inline output contains only the reference count. Keep attachment files until the runner has collected them.
 - **Certificate leak diagnostics.** Set `OPCUA_CERTIFICATE_LEAK_TRACKING=1` before starting a
   test process to capture allocation stacks for `Certificate` handles that are not explicitly
@@ -579,6 +588,13 @@ the signed release workflow can promote an intentional mixed-version set.
 
 **GitHub Actions runs all CI for `master`.** [`.github/workflows/buildandtest.yml`](../.github/workflows/buildandtest.yml) runs the complete build and test workload on GitHub-hosted runners for every triggering branch, and [`.github/workflows/nightly.yml`](../.github/workflows/nightly.yml) runs the full-scope workload on the weekly schedule and on demand. [`.github/workflows/nuget-publish.yml`](../.github/workflows/nuget-publish.yml) builds, signs and publishes the packages. The other workflows in [`.github/workflows/`](../.github/workflows) cover CodeQL, container images and the opt-in stress, stability and long-haul suites.
 
+[`CodeQL`](../.github/workflows/codeql-analysis.yml) scans the default branch daily at 06:30 UTC.
+This version of the workflow does not run on pull requests or pushes. Other branches retain their own
+workflow files and may still start CodeQL on those events until they are updated. To scan another
+branch, select that branch when running the CodeQL workflow from the Actions tab, or use
+`gh workflow run codeql-analysis.yml --ref <branch>`. This starts only CodeQL, independently of CI
+and the weekly full-validation workflow.
+
 The only Azure Pipelines definition left on `master` is the manually queued, opt-in [`.azurepipelines/onefuzz.yml`](../.azurepipelines/onefuzz.yml), kept because submission to the internal OneFuzz service requires the Azure DevOps-only `onefuzz-task`; it has no push, PR or schedule trigger. The other PowerShell helpers that remain under [`.azurepipelines/`](../.azurepipelines) are used by the GitHub Actions workflows; the directory keeps its historical name so those paths stay stable. Branches that still carry their own `azure-pipelines.yml` (`master378`, the 1.x `release/*` lines and the frozen `release/2.0.0`) keep their Azure validation; see [Azure Pipelines on other branches](#azure-pipelines-on-other-branches).
 
 ### What runs where
@@ -800,7 +816,7 @@ GitHub Actions applies its "Approve and run workflows" gate to outside contribut
 
 - Fork the repository (or, if you have write access, push a branch prefixed with your username) and open a pull request. You must agree to the [Contributor License Agreement](https://opcfoundation.org/license/cla/ContributorLicenseAgreementv1.0.pdf); the "I AGREE" prompt appears automatically on your first PR. See [CONTRIBUTING.md](../CONTRIBUTING.md).
 - Before submitting: relevant tests pass, code analysis is clean (no new warnings), the change keeps backward compatibility, and security implications are reviewed.
-- The pull-request template asks you to confirm the CLA, added tests/coverage, documentation, a warning-free build, and green CI and CodeQL. For a pull request that changes C# source files, it also asks you to run the `UA.slnx` suite on **.NET Framework 4.8** and **.NET 10.0** before opening the pull request.
+- The pull-request template asks you to confirm the CLA, added tests/coverage, documentation, a warning-free build, green CI, and that all applicable CodeQL findings are fixed. On `master`, CodeQL scans run on their daily schedule or by manual dispatch, not as PR checks. For a pull request that changes C# source files, the template also asks you to run the `UA.slnx` suite on **.NET Framework 4.8** and **.NET 10.0** before opening the pull request.
 - You can run the `opc-ua-codestyle-enforcer` agent to drive analyzer warnings to zero before opening the PR.
 
 ## Related documentation

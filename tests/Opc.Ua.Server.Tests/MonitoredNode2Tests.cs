@@ -34,7 +34,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Server.Tests.NodeManager;
+using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -497,6 +499,170 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// All items an event goes to share one lookup of its source node, and the next event
+        /// looks the node up again.
+        /// </summary>
+        [Test]
+        public async Task EventSourceNodeIsLookedUpOncePerEventAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var master = Mock.Get(server.Object.NodeManager);
+                NodeId sourceNodeId = new(10, 1);
+                NodeState source = new BaseObjectState(null) { NodeId = sourceNodeId };
+                int lookups = 0;
+                master.Setup(value => value.FindNodeInAddressSpaceAsync(
+                        sourceNodeId, It.IsAny<CancellationToken>()))
+                    .Returns(() =>
+                    {
+                        Interlocked.Increment(ref lookups);
+                        return new ValueTask<NodeState?>(source);
+                    });
+
+                var nodeManager = new Mock<IAsyncNodeManager>();
+                nodeManager.Setup(value => value.ValidateEventRolePermissionsAsync(
+                        It.IsAny<IEventMonitoredItem>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
+                    .Returns(() => new ValueTask<ServiceResult>(ServiceResult.Good));
+
+                var node = new BaseObjectState(null) { NodeId = ObjectIds.Server };
+                Mock<IEventMonitoredItem> first = CreateEventMonitoredItemMock(1);
+                Mock<IEventMonitoredItem> second = CreateEventMonitoredItemMock(2);
+                Mock<IEventMonitoredItem> third = CreateEventMonitoredItemMock(3);
+                await using var monitored = new MonitoredNode2(nodeManager.Object, server.Object, node);
+                monitored.Add(first.Object);
+                monitored.Add(second.Object);
+                monitored.Add(third.Object);
+
+                for (int ii = 1; ii <= 2; ii++)
+                {
+                    var report = new BaseEventState(null);
+                    report.EventType = new PropertyState<NodeId>.Implementation<VariantBuilder>(report)
+                    {
+                        Value = ObjectTypeIds.BaseEventType
+                    };
+                    report.SourceNode = new PropertyState<NodeId>.Implementation<VariantBuilder>(report)
+                    {
+                        Value = sourceNodeId
+                    };
+
+                    await monitored.OnReportEventAsync(
+                        server.Object.DefaultSystemContext, node, report).ConfigureAwait(false);
+                    await monitored.WaitForPendingNotificationsAsync(CancellationToken.None).ConfigureAwait(false);
+
+                    Assert.That(lookups, Is.EqualTo(ii));
+                }
+
+                first.Verify(value => value.QueueEvent(It.IsAny<IFilterTarget>()), Times.Exactly(2));
+                second.Verify(value => value.QueueEvent(It.IsAny<IFilterTarget>()), Times.Exactly(2));
+                third.Verify(value => value.QueueEvent(It.IsAny<IFilterTarget>()), Times.Exactly(2));
+            }
+        }
+
+        /// <summary>
+        /// An event denied to every item by the restrictions starts no source lookup, which
+        /// nothing would await.
+        /// </summary>
+        [Test]
+        public async Task EventDeniedByRestrictionsStartsNoSourceLookupAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var nodeManager = new Mock<IAsyncNodeManager>();
+                var notifier = new BaseObjectState(null)
+                {
+                    NodeId = ObjectIds.Server,
+                    AccessRestrictions = AccessRestrictionType.EncryptionRequired
+                };
+                Mock<IEventMonitoredItem> item = CreateEventMonitoredItemMock(1);
+                await using var monitored = new MonitoredNode2(nodeManager.Object, server.Object, notifier);
+                monitored.Add(item.Object);
+
+                var report = new BaseEventState(null);
+                report.EventType = new PropertyState<NodeId>.Implementation<VariantBuilder>(report)
+                {
+                    Value = ObjectTypeIds.BaseEventType
+                };
+                report.SourceNode = new PropertyState<NodeId>.Implementation<VariantBuilder>(report)
+                {
+                    Value = new NodeId("event-source", 1)
+                };
+
+                await monitored.OnReportEventAsync(
+                    server.Object.DefaultSystemContext, notifier, report).ConfigureAwait(false);
+                await monitored.WaitForPendingNotificationsAsync(CancellationToken.None).ConfigureAwait(false);
+
+                item.Verify(value => value.QueueEvent(It.IsAny<IFilterTarget>()), Times.Never);
+                Mock.Get(server.Object.NodeManager).Verify(
+                    value => value.FindNodeInAddressSpaceAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()),
+                    Times.Never);
+            }
+        }
+
+        /// <summary>
+        /// Parallel delivery ranges share one lookup, so no discarded lookup can outlive the delivery.
+        /// </summary>
+        [Test]
+        public async Task ParallelDeliveryRangesShareOneEventSourceLookupAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                NodeId sourceNodeId = new(10, 1);
+                NodeState source = new BaseObjectState(null) { NodeId = sourceNodeId };
+                int lookups = 0;
+                Mock.Get(server.Object.NodeManager)
+                    .Setup(value => value.FindNodeInAddressSpaceAsync(sourceNodeId, It.IsAny<CancellationToken>()))
+                    .Returns(() =>
+                    {
+                        Interlocked.Increment(ref lookups);
+                        // holds the first lookup open until the other ranges have reached it.
+                        Thread.Sleep(50);
+                        return new ValueTask<NodeState?>(source);
+                    });
+                var nodeManager = new Mock<IAsyncNodeManager>();
+                nodeManager.Setup(value => value.ValidateEventRolePermissionsAsync(
+                        It.IsAny<IEventMonitoredItem>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
+                    .Returns(() => new ValueTask<ServiceResult>(ServiceResult.Good));
+
+                var node = new BaseObjectState(null) { NodeId = ObjectIds.Server };
+                await using var monitored = new MonitoredNode2(nodeManager.Object, server.Object, node)
+                {
+                    ParallelEventDeliveryBudget = -1,
+                    MinItemsPerEventDeliveryRange = 1
+                };
+                var items = new List<Mock<IEventMonitoredItem>>();
+                for (uint id = 1; id <= 16; id++)
+                {
+                    Mock<IEventMonitoredItem> item = CreateEventMonitoredItemMock(id);
+                    items.Add(item);
+                    monitored.Add(item.Object);
+                }
+
+                var report = new BaseEventState(null);
+                report.EventType = new PropertyState<NodeId>.Implementation<VariantBuilder>(report)
+                {
+                    Value = ObjectTypeIds.BaseEventType
+                };
+                report.SourceNode = new PropertyState<NodeId>.Implementation<VariantBuilder>(report)
+                {
+                    Value = sourceNodeId
+                };
+
+                await monitored.OnReportEventAsync(
+                    server.Object.DefaultSystemContext, node, report).ConfigureAwait(false);
+                await monitored.WaitForPendingNotificationsAsync(CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(lookups, Is.EqualTo(1));
+                foreach (Mock<IEventMonitoredItem> item in items)
+                {
+                    item.Verify(value => value.QueueEvent(It.IsAny<IFilterTarget>()), Times.Once);
+                }
+            }
+        }
+
+        /// <summary>
         /// A notifier restriction tightened during permission validation must be applied before event delivery.
         /// </summary>
         [Test]
@@ -553,6 +719,83 @@ namespace Opc.Ua.Server.Tests
                 await monitored.WaitForPendingNotificationsAsync(CancellationToken.None).ConfigureAwait(false);
 
                 item.Verify(value => value.QueueEvent(It.IsAny<IFilterTarget>()), Times.Never);
+            }
+        }
+
+        /// <summary>
+        /// A native session has an endpoint with a kept restriction verdict, so repeated events
+        /// take the synchronous cached path. That path must still honor changed restrictions
+        /// and invalidated grants.
+        /// </summary>
+        [Test]
+        public async Task CachedEventPermissionHonorsRestrictionsAndInvalidationOnNativeSessionAsync()
+        {
+            var fixture = new ServerFixture<StandardServer>(t => new ReferenceServer(t));
+            StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
+            try
+            {
+                (RequestHeader requestHeader, SecureChannelContext _) =
+                    await server.CreateAndActivateSessionAsync("EventPermissionCache").ConfigureAwait(false);
+                ISession? session = server.CurrentInstance.SessionManager.GetSession(requestHeader.AuthenticationToken);
+                Assert.That(session, Is.InstanceOf<global::Opc.Ua.Server.Session>());
+
+                int validations = 0;
+                var nodeManager = new Mock<IAsyncNodeManager>();
+                nodeManager.Setup(value => value.ValidateEventRolePermissionsAsync(
+                        It.IsAny<IEventMonitoredItem>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
+                    .Returns(() =>
+                    {
+                        Interlocked.Increment(ref validations);
+                        return new ValueTask<ServiceResult>(ServiceResult.Good);
+                    });
+                var item = new Mock<IEventMonitoredItem>();
+                item.Setup(value => value.Id).Returns(1);
+                item.Setup(value => value.Session).Returns(session);
+
+                var notifier = new BaseObjectState(null)
+                {
+                    NodeId = ObjectIds.Server,
+                    AccessRestrictions = AccessRestrictionType.None
+                };
+                await using var monitored = new MonitoredNode2(nodeManager.Object, server.CurrentInstance, notifier);
+                monitored.Add(item.Object);
+
+                var notification = new BaseEventState(null);
+                notification.EventType = new PropertyState<NodeId>.Implementation<VariantBuilder>(notification)
+                {
+                    Value = ObjectTypeIds.BaseEventType
+                };
+                notification.SourceNode = new PropertyState<NodeId>.Implementation<VariantBuilder>(notification)
+                {
+                    Value = ObjectIds.Server
+                };
+
+                async Task ReportAsync()
+                {
+                    await monitored.OnReportEventAsync(
+                        server.CurrentInstance.DefaultSystemContext, notifier, notification).ConfigureAwait(false);
+                    await monitored.WaitForPendingNotificationsAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+
+                await ReportAsync().ConfigureAwait(false);
+                await ReportAsync().ConfigureAwait(false);
+                Assert.That(validations, Is.EqualTo(1));
+                item.Verify(value => value.QueueEvent(It.IsAny<IFilterTarget>()), Times.Exactly(2));
+
+                // the test session has no security, so requiring encryption denies the event.
+                notifier.AccessRestrictions = AccessRestrictionType.EncryptionRequired;
+                await ReportAsync().ConfigureAwait(false);
+                item.Verify(value => value.QueueEvent(It.IsAny<IFilterTarget>()), Times.Exactly(2));
+
+                notifier.AccessRestrictions = AccessRestrictionType.None;
+                monitored.InvalidatePermissionCacheForSession(session!.Id);
+                await ReportAsync().ConfigureAwait(false);
+                Assert.That(validations, Is.EqualTo(2));
+                item.Verify(value => value.QueueEvent(It.IsAny<IFilterTarget>()), Times.Exactly(3));
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
             }
         }
 

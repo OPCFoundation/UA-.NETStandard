@@ -60,6 +60,9 @@
     <Project Path="samples/Pumps/PumpsServer/PumpsServer.csproj" />
     <Project Path="samples/Pumps/PumpsClient/PumpsClient.csproj" />
   </Folder>
+  <Folder Name="/samples/PADIM/">
+    <Project Path="samples/PADIM/PadimDemo/PadimDemo.csproj" />
+  </Folder>
   <Folder Name="/samples/Scales/">
     <Project Path="samples/Scales/ScalesServer/ScalesServer.csproj" />
     <Project Path="samples/Scales/ScalesClient/ScalesClient.csproj" />
@@ -83,6 +86,9 @@
     <Project Path="samples/MinimalApi/MinimalBoilerServer/MinimalBoilerServer.csproj" />
     <Project Path="samples/MinimalApi/MinimalCalcServer/MinimalCalcServer.csproj" />
     <Project Path="samples/MinimalApi/MinimalClient/MinimalClient.csproj" />
+  </Folder>
+  <Folder Name="/samples/Network/">
+    <Project Path="samples/Network/NetworkModelSample/NetworkModelSample.csproj" />
   </Folder>
   <Folder Name="/samples/OpenUsd/">
     <Project Path="samples/OpenUsd/GeneratorServer/GeneratorServer.csproj" />
@@ -183,6 +189,8 @@
     <Project Path="src/Opc.Ua.IA/Opc.Ua.IA.csproj" />
     <Project Path="src/Opc.Ua.ECM/Opc.Ua.ECM.csproj" />
     <Project Path="src/Opc.Ua.PADIM/Opc.Ua.PADIM.csproj" />
+    <Project Path="src/Opc.Ua.PADIM.Client/Opc.Ua.PADIM.Client.csproj" />
+    <Project Path="src/Opc.Ua.PADIM.Server/Opc.Ua.PADIM.Server.csproj" />
     <Project Path="src/Opc.Ua.PackML/Opc.Ua.PackML.csproj" />
     <Project Path="src/Opc.Ua.PackML.Client/Opc.Ua.PackML.Client.csproj" />
     <Project Path="src/Opc.Ua.PackML.Server/Opc.Ua.PackML.Server.csproj" />
@@ -439,6 +447,7 @@
     <Project Path="tests/Opc.Ua.PlasticsRubber.Tests/Opc.Ua.PlasticsRubber.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Positioning.Tests/Opc.Ua.Positioning.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Pumps.Tests/Opc.Ua.Pumps.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.PADIM.Tests/Opc.Ua.PADIM.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Scales.Tests/Opc.Ua.Scales.Tests.csproj" />
     <Project Path="tests/Opc.Ua.PackML.Tests/Opc.Ua.PackML.Tests.csproj" />
     <Project Path="tests/Opc.Ua.AMB.Tests/Opc.Ua.AMB.Tests.csproj" />

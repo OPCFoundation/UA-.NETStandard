@@ -1693,7 +1693,22 @@ namespace Opc.Ua.Client.Subscriptions
             SetPublishingQuiesced(paused, sessionRecovery: true);
         }
 
-        private void SetPublishingQuiesced(bool quiesced, bool sessionRecovery = false)
+        /// <summary>
+        /// Stops publishing and new subscription updates before the server session is handed
+        /// over. Unlike <see cref="SetSessionRecoveryPaused"/> the updates in flight are not
+        /// canceled: the channel still works, and the server may already have applied them, so
+        /// canceling would lose the results the new owner needs. <see cref="DrainAsync"/> waits
+        /// for them.
+        /// </summary>
+        internal void PauseForSessionHandoff()
+        {
+            SetPublishingQuiesced(true, sessionRecovery: true, abortSubscriptionUpdates: false);
+        }
+
+        private void SetPublishingQuiesced(
+            bool quiesced,
+            bool sessionRecovery = false,
+            bool abortSubscriptionUpdates = true)
         {
             bool? paused;
             CancellationTokenSource[] attempts = [];
@@ -1705,7 +1720,10 @@ namespace Opc.Ua.Client.Subscriptions
                     if (quiesced)
                     {
                         m_sessionAvailable.Reset();
-                        attempts = [.. m_activeSubscriptionUpdates];
+                        if (abortSubscriptionUpdates)
+                        {
+                            attempts = [.. m_activeSubscriptionUpdates];
+                        }
                     }
                     else
                     {
@@ -3426,7 +3444,15 @@ namespace Opc.Ua.Client.Subscriptions
                 uint timeoutHint = 0u;
                 bool moreNotifications = true; // Dont wait first time we enter the loop.
                 m_logger.PublishWorkerStarted(Index);
-                while (!ct.IsCancellationRequested)
+                //
+                // Check the manager's token as well as the worker's own. Admission can be
+                // cancelled by a callback that runs before the callback linking the worker's
+                // token, and this loop then resumes inline on the thread cancelling the
+                // manager. With only ct to check, nothing here awaits, so the loop would spin
+                // on that thread and the callback that cancels ct could never run.
+                //
+                CancellationToken shutdown = m_outer.ShutdownToken;
+                while (!ct.IsCancellationRequested && !shutdown.IsCancellationRequested)
                 {
                     if (!m_outer.m_running.IsSet)
                     {
@@ -3483,6 +3509,8 @@ namespace Opc.Ua.Client.Subscriptions
                         }
                         batch = await m_outer.PrepareAcknowledgementsToSendAsync(batch, attemptToken)
                             .ConfigureAwait(false);
+                        // Pool size and revised settings may change while waiting for acknowledgements.
+                        _ = CalculateTimeouts(currentLatencyMs, ref timeoutHint);
                         if (batch.Count != 0)
                         {
                             var wireAcknowledgements = new SubscriptionAcknowledgement[batch.Count];
@@ -3786,7 +3814,8 @@ namespace Opc.Ua.Client.Subscriptions
                             statusCode == StatusCodes.BadRequestTimeout)
                         {
                             // Timed out - retry with larger timeout
-                            timeoutHint += 1000; // Increase by seconds
+                            timeoutHint = (uint)Math.Min(
+                                (long)timeoutHint + 1000, (long)s_maxOperationTimeout.TotalMilliseconds);
                             m_logger.TimedOutIncreasingTimeout(Index, handle, timeoutHint);
                             moreNotifications = true;
                         }
@@ -4069,25 +4098,16 @@ namespace Opc.Ua.Client.Subscriptions
                         minPublishInterval = pi;
                     }
                 }
-                //
-                // The timeout while publishing should be twice the
-                // value for PublishingInterval * KeepAliveCount
-                // TODO: Validate this against spec
-                //
-                timeout = SaturatingTimeSpan.Multiply(timeout, 2);
-                if (timeout < s_minOperationTimeout)
-                {
-                    timeout = s_minOperationTimeout;
-                }
-                if (timeout > s_maxOperationTimeout)
-                {
-                    timeout = s_maxOperationTimeout;
-                }
-                uint newTimeout = (uint)timeout.TotalMilliseconds;
-                if (newTimeout > currentTimeout)
-                {
-                    currentTimeout = newTimeout;
-                }
+                // A quiet subscription serves one queued request per keepalive. Budget the
+                // whole worker pool plus a spare period (at least one second) for scheduling.
+                // The queue's server-side grace does not extend the enclosing request deadline.
+                TimeSpan margin = timeout < s_minOperationTimeout ? s_minOperationTimeout : timeout;
+                timeout = SaturatingTimeSpan.Multiply(timeout, Math.Max(1, m_outer.PublishWorkerCount));
+                uint newTimeout = (uint)Math.Min(
+                    Math.Ceiling(timeout.TotalMilliseconds + margin.TotalMilliseconds),
+                    s_maxOperationTimeout.TotalMilliseconds);
+                currentTimeout = Math.Min(
+                    Math.Max(newTimeout, currentTimeout), (uint)s_maxOperationTimeout.TotalMilliseconds);
                 if (minPublishInterval < latency)
                 {
                     return 0;

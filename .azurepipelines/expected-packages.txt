@@ -109,6 +109,8 @@ OPCFoundation.NetStandard.Opc.Ua.PackML
 OPCFoundation.NetStandard.Opc.Ua.PackML.Client
 OPCFoundation.NetStandard.Opc.Ua.PackML.Server
 OPCFoundation.NetStandard.Opc.Ua.PADIM
+OPCFoundation.NetStandard.Opc.Ua.PADIM.Client
+OPCFoundation.NetStandard.Opc.Ua.PADIM.Server
 OPCFoundation.NetStandard.Opc.Ua.PlasticsRubber
 OPCFoundation.NetStandard.Opc.Ua.PlasticsRubber.Client
 OPCFoundation.NetStandard.Opc.Ua.PlasticsRubber.Server

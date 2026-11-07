@@ -270,7 +270,7 @@ namespace Opc.Ua.Tools.Tests.Mcp.AutoId
         }
 
         [Test]
-        public async Task AVerifierScanIsRefusedAndEventsCarryItsResultsAsync()
+        public async Task AVerifierScanAndEventsCarryItsResultsAsync()
         {
             string verifier = await ReaderIdAsync(AutoIdMcpFixture.VerifierName).ConfigureAwait(false);
             m_fixture!.Verifier.Present(new OpticalVerifierScanResult
@@ -281,10 +281,9 @@ namespace Opc.Ua.Tools.Tests.Mcp.AutoId
             });
             try
             {
-                JsonElement refused = await CallAsync(
+                JsonElement scanned = await CallAsync(
                     "autoid_scan",
-                    new JsonObject { ["readerNodeId"] = verifier, ["cycles"] = 1 },
-                    expectError: true).ConfigureAwait(false);
+                    new JsonObject { ["readerNodeId"] = verifier, ["cycles"] = 1 }).ConfigureAwait(false);
                 JsonElement started = await CallAsync("autoid_scan_start", new JsonObject
                 {
                     ["readerNodeId"] = verifier
@@ -306,7 +305,11 @@ namespace Opc.Ua.Tools.Tests.Mcp.AutoId
 
                 Assert.Multiple(() =>
                 {
-                    Assert.That(refused.GetProperty("message").GetString(), Does.Contain("WGS84Coordinate"));
+                    Assert.That(scanned.GetProperty("status").GetString(), Is.EqualTo("SUCCESS"));
+                    Assert.That(scanned.GetProperty("results").GetArrayLength(), Is.EqualTo(1));
+                    Assert.That(
+                        scanned.GetProperty("results")[0].GetProperty("CodeType").GetString(),
+                        Is.EqualTo("RAW:STRING"));
                     Assert.That(started.GetProperty("status").GetString(), Is.EqualTo("SUCCESS"));
                     Assert.That(observed.GetProperty("stoppedBy").GetString(), Is.EqualTo("itemLimit"));
                     Assert.That(
