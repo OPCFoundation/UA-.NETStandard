@@ -247,6 +247,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Assert.That(capture.Owners[active + 1].IsAlive, Is.True, "Active generation");
                     Assert.That(capture.Owners[active + 2].IsAlive, Is.True, "Active manager");
                 }
+                if (capture.Owners[active].Target is IServerInternal activeServer &&
+                    capture.Owners[active + 1].Target is NodeManagerGeneration activeGeneration)
+                {
+                    ExecutionContext.Run(capture.ActiveContext.CreateCopy(), _ =>
+                    {
+                        Assert.That(NodeManagerReadinessScope.Allows(activeServer), Is.True);
+                        Assert.That(NodeManagerReadinessScope.Allows(activeGeneration), Is.True);
+                    }, null);
+                }
+                else
+                {
+                    Assert.Fail("The active initializer no longer owns its server or generation.");
+                }
             }
             finally
             {
