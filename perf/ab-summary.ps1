@@ -2,7 +2,8 @@ param(
     [Parameter(Position = 0)]
     [string] $File = 'ab-results.txt',
     [ValidateRange(0, 100000)]
-    [int] $ExpectedRounds = 0
+    [int] $ExpectedRounds = 0,
+    [switch] $RequireExitStatus
 )
 
 $ErrorActionPreference = 'Stop'
@@ -18,6 +19,11 @@ function Close-Result
         return
     }
 
+    if ($script:cur.exitSeen -and $script:cur.exitCode -ne 0)
+    {
+        throw "Run exited with code $($script:cur.exitCode) for side=$($script:cur.side) " +
+            "round=$($script:cur.round) scenario=$($script:cur.scenario)."
+    }
     $missing = @(
         if (-not $script:cur.resultSeen) { 'RESULT' }
         if (-not $script:cur.clientSeen) { 'client' }
@@ -25,6 +31,7 @@ function Close-Result
         if ($null -eq $script:cur.tput) { 'rate' }
         if ($null -eq $script:cur.cpu) { 'server per-op' }
         if ($null -eq $script:cur.ccpu) { 'client per-op' }
+        if ($RequireExitStatus -and -not $script:cur.exitSeen) { 'exit status' }
     )
     if ($missing.Count -ne 0)
     {
@@ -70,6 +77,7 @@ foreach ($line in Get-Content -LiteralPath $File)
         $cur = @{
             side = $side; round = $round; scenario = $scenario
             resultSeen = $false; resultLine = $null; clientSeen = $false; serverSeen = $false; failed = $false
+            exitSeen = $false; exitCode = $null
             tput = $null; rateUnit = $null; p50 = $null; p90 = $null; p99 = $null
             received = $null; expected = $null; deliv = $null; deliverySource = 'unavailable'
             errors = $null; writeErrors = $null
@@ -91,7 +99,18 @@ foreach ($line in Get-Content -LiteralPath $File)
     {
         throw "Run failed for side=$($cur.side) round=$($cur.round) scenario=$($cur.scenario): $line"
     }
-    if ($line -match '^RESULT(?:\s|$)')
+    if ($line -cmatch '^EXIT code=([0-9]{1,3})$')
+    {
+        if ($cur.exitSeen) { throw 'A result block contains multiple exit statuses.' }
+        $cur.exitCode = [int]::Parse($Matches[1], $invariant)
+        if ($cur.exitCode -gt 255) { throw 'A result block has a malformed exit status.' }
+        $cur.exitSeen = $true
+    }
+    elseif ($line -match '^EXIT(?:\s|$)')
+    {
+        throw 'A result block has a malformed exit status.'
+    }
+    elseif ($line -match '^RESULT(?:\s|$)')
     {
         if ($cur.resultSeen) { throw 'A result block contains multiple RESULT lines.' }
         if ($line -notmatch '^RESULT scenario=\S+(?:\s|$)')
@@ -314,10 +333,10 @@ function Format-Result($row)
         "serverCpuMs=$(Format-Number $row.serverCpuMs) serverCpuUs=$(Format-Number $row.cpu) " +
         "cpuUnit=[$($row.cpuUnit)] clientCpuUs=$(Format-Number $row.ccpu) " +
         "clientCpuUnit=[$($row.clientCpuUnit)] errors=$(Format-Number $row.errors) " +
-        "writeErrors=$(Format-Number $row.writeErrors)"
+        "writeErrors=$(Format-Number $row.writeErrors) exit=$(Format-Number $row.exitCode)"
 }
 
-'The result file does not establish process exit status, source or harness identity, or host isolation.'
+'Exit status is available only when recorded; source or harness identity and host isolation are not established.'
 foreach ($group in $groups)
 {
     "### scenario=$($group.Name)"

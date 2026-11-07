@@ -116,7 +116,7 @@ namespace Opc.Ua.Tools.Tests
                 Assert.That(output, Does.Match(@"(?m)^\s*cpause\s*:\s*4 \[4-4\] -> 4 \[4-4\]"));
                 Assert.That(output, Does.Match(@"(?m)^\s*cont\s*:\s*3 \[3-3\] -> 3 \[3-3\]"));
                 Assert.That(output, Does.Match(@"(?m)^\s*ccont\s*:\s*5 \[5-5\] -> 5 \[5-5\]"));
-                Assert.That(output, Does.Contain("does not establish process exit status"));
+                Assert.That(output, Does.Contain("Exit status is available only when recorded"));
             });
         }
 
@@ -230,6 +230,235 @@ namespace Opc.Ua.Tools.Tests
                     Does.Contain("received=n/a expected=n/a delivery=93% source=reported-rounded"));
                 Assert.That(output, Does.Match(@"(?m)^\s*deliv\s*:\s*93 \[93-93\] -> 93 \[93-93\]"));
                 Assert.That(output, Does.Contain("[reported-rounded input]"));
+                Assert.That(output, Does.Contain("exit=n/a"));
+            });
+        }
+
+        /// <summary>
+        /// Recorded successful exits are included for both sides of a required pair.
+        /// </summary>
+        [Test]
+        public async Task RequiredSuccessfulExitStatusesAreReportedAsync()
+        {
+            var input = new StringBuilder();
+            AppendResult(input, "A", 1, 90, 100, 1000, 3, exitCode: 0);
+            AppendResult(input, "B", 1, 92, 100, 1100, 2, exitCode: 0);
+            await WriteResultsAsync(input).ConfigureAwait(false);
+
+            (int exitCode, string output) = await InvokeAsync(1, requireExitStatus: true).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exitCode, Is.Zero, output);
+                Assert.That(output, Does.Match(@"(?m)^round=1 side=A .* exit=0\r?$"));
+                Assert.That(output, Does.Match(@"(?m)^round=1 side=B .* exit=0\r?$"));
+            });
+        }
+
+        /// <summary>
+        /// Nonzero process exits reject even an otherwise complete result block.
+        /// </summary>
+        [TestCase(1)]
+        [TestCase(124)]
+        [TestCase(127)]
+        [TestCase(137)]
+        public async Task NonzeroExitStatusFailsAsync(int failedExit)
+        {
+            var input = new StringBuilder();
+            AppendResult(input, "A", 1, 90, 100, 1000, 3, exitCode: 0);
+            AppendResult(input, "B", 1, 92, 100, 1100, 2, exitCode: failedExit);
+            await WriteResultsAsync(input).ConfigureAwait(false);
+
+            (int exitCode, string output) = await InvokeAsync(1, requireExitStatus: true).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exitCode, Is.Not.Zero);
+                Assert.That(output, Does.Contain($"Run exited with code {failedExit} for side=B round=1"));
+            });
+        }
+
+        /// <summary>
+        /// A failed process exit is reported even if it did not write a result.
+        /// </summary>
+        [Test]
+        public async Task FailedExitWithoutResultReportsExitAsync()
+        {
+            var input = new StringBuilder();
+            input.AppendLine("### side=A round=1 --scenario sub");
+            input.AppendLine("EXIT code=124");
+            await WriteResultsAsync(input).ConfigureAwait(false);
+
+            (int exitCode, string output) = await InvokeAsync(1, requireExitStatus: true).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exitCode, Is.Not.Zero);
+                Assert.That(output, Does.Contain("Run exited with code 124 for side=A round=1"));
+            });
+        }
+
+        /// <summary>
+        /// A required exit status cannot be supplied by the other side of a pair.
+        /// </summary>
+        [Test]
+        public async Task MissingRequiredExitStatusFailsAsync()
+        {
+            var input = new StringBuilder();
+            AppendResult(input, "A", 1, 90, 100, 1000, 3, exitCode: 0);
+            AppendResult(input, "B", 1, 92, 100, 1100, 2);
+            await WriteResultsAsync(input).ConfigureAwait(false);
+
+            (int exitCode, string output) = await InvokeAsync(1, requireExitStatus: true).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exitCode, Is.Not.Zero);
+                Assert.That(output, Does.Contain("Incomplete result for side=B round=1"));
+                Assert.That(output, Does.Contain("missing exit status"));
+            });
+        }
+
+        /// <summary>
+        /// Duplicate exit records cannot be presented as one process outcome.
+        /// </summary>
+        [Test]
+        public async Task DuplicateExitStatusFailsAsync()
+        {
+            var input = new StringBuilder();
+            AppendResult(input, "A", 1, 90, 100, 1000, 3, exitCode: 0);
+            input.AppendLine("EXIT code=0");
+            await WriteResultsAsync(input).ConfigureAwait(false);
+
+            (int exitCode, string output) = await InvokeAsync(1).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exitCode, Is.Not.Zero);
+                Assert.That(output, Does.Contain("multiple exit statuses"));
+            });
+        }
+
+        /// <summary>
+        /// Exit records must contain one shell status in the valid range.
+        /// </summary>
+        [TestCase("EXIT code=-1")]
+        [TestCase("EXIT code=256")]
+        [TestCase("EXIT code=abc")]
+        [TestCase("EXIT code=0 ignored")]
+        public async Task MalformedExitStatusFailsAsync(string status)
+        {
+            var input = new StringBuilder();
+            AppendResult(input, "A", 1, 90, 100, 1000, 3);
+            input.AppendLine(status);
+            await WriteResultsAsync(input).ConfigureAwait(false);
+
+            (int exitCode, string output) = await InvokeAsync(1).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exitCode, Is.Not.Zero);
+                Assert.That(output, Does.Contain("malformed exit status"));
+            });
+        }
+
+        /// <summary>
+        /// The runner records and propagates the actual status of each harness invocation.
+        /// </summary>
+        [TestCase(0, 0)]
+        [TestCase(124, 1)]
+        [Platform("Linux,MacOSX")]
+        public async Task RunnerRecordsAndPropagatesExitStatusesAsync(int candidateExit, int expectedExit)
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                throw new PlatformNotSupportedException("The runner integration test uses Unix executables.");
+            }
+
+            string tools = Path.Combine(m_directory, "tools with spaces");
+            Directory.CreateDirectory(tools);
+            string timeout = Path.Combine(tools, "timeout");
+            string baseline = Path.Combine(tools, "baseline harness");
+            string candidate = Path.Combine(tools, "candidate harness");
+            string scenarios = Path.Combine(m_directory, "scenarios.txt");
+            await WriteExecutableAsync(timeout, "#!/bin/sh\nshift\nexec \"$@\"\n").ConfigureAwait(false);
+            await WriteExecutableAsync(baseline, CreateHarnessScript(0)).ConfigureAwait(false);
+            await WriteExecutableAsync(candidate, CreateHarnessScript(candidateExit)).ConfigureAwait(false);
+            await File.WriteAllTextAsync(scenarios, "--scenario sub\n").ConfigureAwait(false);
+
+            using Process process = CreateRunnerProcess(scenarios, "1");
+            process.StartInfo.Environment["BASELINE"] = baseline;
+            process.StartInfo.Environment["CANDIDATE"] = candidate;
+            process.StartInfo.Environment["PATH"] =
+                tools + Path.PathSeparator + Environment.GetEnvironmentVariable("PATH");
+            (int runnerExit, string runnerOutput) = await RunProcessAsync(process).ConfigureAwait(false);
+            string results = await File.ReadAllTextAsync(m_results).ConfigureAwait(false);
+            (int summaryExit, string summaryOutput) = await InvokeAsync(1, requireExitStatus: true)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(runnerExit, Is.EqualTo(expectedExit), runnerOutput);
+                Assert.That(results.Split("EXIT code=", StringSplitOptions.None).Length - 1, Is.EqualTo(2));
+                Assert.That(results, Does.Contain("EXIT code=0"));
+                Assert.That(results, Does.Contain($"EXIT code={candidateExit}"));
+                Assert.That(results, Does.Contain("done"));
+                if (candidateExit == 0)
+                {
+                    Assert.That(summaryExit, Is.Zero, summaryOutput);
+                }
+                else
+                {
+                    Assert.That(summaryExit, Is.Not.Zero, summaryOutput);
+                    Assert.That(summaryOutput, Does.Contain($"Run exited with code {candidateExit} for side=B"));
+                }
+            });
+        }
+
+        /// <summary>
+        /// Invalid round counts are rejected before the existing result file is replaced.
+        /// </summary>
+        [TestCase("0")]
+        [TestCase("1x")]
+        [TestCase("100001")]
+        [Platform("Linux,MacOSX")]
+        public async Task RunnerRejectsInvalidRoundCountsWithoutReplacingResultsAsync(string rounds)
+        {
+            string scenarios = Path.Combine(m_directory, "scenarios.txt");
+            await File.WriteAllTextAsync(scenarios, "--scenario sub\n").ConfigureAwait(false);
+            await File.WriteAllTextAsync(m_results, "existing results").ConfigureAwait(false);
+            using Process process = CreateRunnerProcess(scenarios, rounds);
+
+            (int exitCode, string output) = await RunProcessAsync(process).ConfigureAwait(false);
+            string results = await File.ReadAllTextAsync(m_results).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exitCode, Is.EqualTo(2), output);
+                Assert.That(output, Does.Contain("ROUNDS must be an integer from 1 through 100000"));
+                Assert.That(results, Is.EqualTo("existing results"));
+            });
+        }
+
+        /// <summary>
+        /// An unreadable scenario list cannot replace the existing result file.
+        /// </summary>
+        [Test]
+        [Platform("Linux,MacOSX")]
+        public async Task RunnerRejectsMissingScenarioListWithoutReplacingResultsAsync()
+        {
+            string scenarios = Path.Combine(m_directory, "missing-scenarios.txt");
+            await File.WriteAllTextAsync(m_results, "existing results").ConfigureAwait(false);
+            using Process process = CreateRunnerProcess(scenarios, "1");
+
+            (int exitCode, string output) = await RunProcessAsync(process).ConfigureAwait(false);
+            string results = await File.ReadAllTextAsync(m_results).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exitCode, Is.EqualTo(2), output);
+                Assert.That(output, Does.Contain("Cannot read scenario list:"));
+                Assert.That(results, Is.EqualTo("existing results"));
             });
         }
 
@@ -525,7 +754,8 @@ namespace Opc.Ua.Tools.Tests
             string cpuUnit = "notification",
             bool includeDelivery = true,
             bool includeClientProcess = true,
-            string? clientCpuUnit = null)
+            string? clientCpuUnit = null,
+            int? exitCode = null)
         {
             input.AppendLine(FormattableString.Invariant($"### side={side} round={round} --scenario {scenario}"));
             input.AppendLine($"RESULT scenario={scenario} security={security} sessions=1 --scenario {scenario}");
@@ -553,6 +783,52 @@ namespace Opc.Ua.Tools.Tests
             }
             input.AppendLine(FormattableString.Invariant($"  per-op: allocB=10 cpuUs={cpu}.0  ({cpuUnit})"));
             input.AppendLine($"  client-per-op: allocB=20 cpuUs=1.0  ({clientCpuUnit ?? cpuUnit})");
+            if (exitCode.HasValue)
+            {
+                input.AppendLine(FormattableString.Invariant($"EXIT code={exitCode.Value}"));
+            }
+        }
+
+        private static string CreateHarnessScript(int exitCode)
+        {
+            return "#!/bin/sh\n" +
+                "out=\n" +
+                "while [ \"$#\" -gt 0 ]; do\n" +
+                "  if [ \"$1\" = --out ]; then shift; out=$1; fi\n" +
+                "  shift\n" +
+                "done\n" +
+                "printf '%s\\n' \\\n" +
+                "  'RESULT scenario=sub security=none sessions=1 --scenario sub' \\\n" +
+                "  '  client: notif/s=1000 received/expected=90.0 % received=90 expected=100' \\\n" +
+                "  '  server: cpuMs=100 pauseMs=2 contention=3' \\\n" +
+                "  '  per-op: allocB=10 cpuUs=3.0  (notification)' \\\n" +
+                "  '  client-per-op: allocB=20 cpuUs=1.0  (notification)' >> \"$out\"\n" +
+                FormattableString.Invariant($"exit {exitCode}\n");
+        }
+
+        private static async Task WriteExecutableAsync(string path, string content)
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                throw new PlatformNotSupportedException("The runner integration test uses Unix executables.");
+            }
+
+            await File.WriteAllTextAsync(path, content).ConfigureAwait(false);
+            File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+
+        private Process CreateRunnerProcess(string scenarios, string rounds)
+        {
+            var process = new Process();
+            process.StartInfo.FileName = "/bin/bash";
+            process.StartInfo.WorkingDirectory = m_directory;
+            process.StartInfo.RedirectStandardOutput = true;
+            process.StartInfo.RedirectStandardError = true;
+            process.StartInfo.ArgumentList.Add(Path.Combine(FindRepositoryRoot(), "perf", "ab.sh"));
+            process.StartInfo.Environment["SCENARIOS"] = scenarios;
+            process.StartInfo.Environment["ROUNDS"] = rounds;
+            process.StartInfo.Environment["OUT"] = m_results;
+            return process;
         }
 
         private async Task WriteResultsAsync(StringBuilder input)
@@ -561,7 +837,9 @@ namespace Opc.Ua.Tools.Tests
             await File.WriteAllTextAsync(m_results, input.ToString()).ConfigureAwait(false);
         }
 
-        private async Task<(int ExitCode, string Output)> InvokeAsync(int expectedRounds)
+        private async Task<(int ExitCode, string Output)> InvokeAsync(
+            int expectedRounds,
+            bool requireExitStatus = false)
         {
             string root = FindRepositoryRoot();
             using var process = new Process();
@@ -577,7 +855,16 @@ namespace Opc.Ua.Tools.Tests
             process.StartInfo.ArgumentList.Add(m_results);
             process.StartInfo.ArgumentList.Add("-ExpectedRounds");
             process.StartInfo.ArgumentList.Add(expectedRounds.ToString(CultureInfo.InvariantCulture));
+            if (requireExitStatus)
+            {
+                process.StartInfo.ArgumentList.Add("-RequireExitStatus");
+            }
 
+            return await RunProcessAsync(process).ConfigureAwait(false);
+        }
+
+        private static async Task<(int ExitCode, string Output)> RunProcessAsync(Process process)
+        {
             Assert.That(process.Start(), Is.True);
             Task<string> standardOutput = process.StandardOutput.ReadToEndAsync();
             Task<string> standardError = process.StandardError.ReadToEndAsync();
