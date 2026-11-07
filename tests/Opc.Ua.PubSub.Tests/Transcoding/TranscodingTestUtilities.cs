@@ -73,10 +73,12 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
         {
             var uadp = new UadpEncoderV2();
             var json = new JsonEncoderV2();
+            var avro = new AvroNetworkMessageEncoder();
             return new Dictionary<string, INetworkMessageEncoder>(StringComparer.Ordinal)
             {
                 [uadp.TransportProfileUri] = uadp,
-                [json.TransportProfileUri] = json
+                [json.TransportProfileUri] = json,
+                [avro.TransportProfileUri] = avro
             };
         }
 
@@ -132,6 +134,17 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
                 .TryDecodeAsync(frame, context.EncodingContext)
                 .ConfigureAwait(false);
             return (JsonNetworkMessageV2)decoded!;
+        }
+
+        public static async Task<AvroNetworkMessage> DecodeAvroAsync(
+            ReadOnlyMemory<byte> frame,
+            TranscodeContext context)
+        {
+            var decoder = new AvroNetworkMessageDecoder();
+            PubSubNetworkMessage? decoded = await decoder
+                .TryDecodeAsync(frame, context.EncodingContext)
+                .ConfigureAwait(false);
+            return (AvroNetworkMessage)decoded!;
         }
 
         public static PubSubConnection NewConnection(string name)
