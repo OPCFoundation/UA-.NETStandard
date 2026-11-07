@@ -1241,18 +1241,6 @@ namespace Opc.Ua.Di.Server
         }
 
         /// <summary>
-        /// Registers a composed runtime's root notifier and attaches existing event subscriptions.
-        /// </summary>
-        /// <param name="notifier">The event source owned by this node manager.</param>
-        /// <param name="cancellationToken">Cancels notifier registration.</param>
-        public ValueTask RegisterRootNotifierAsync(
-            NodeState notifier,
-            CancellationToken cancellationToken = default)
-        {
-            return AddRootNotifierAsync(notifier, cancellationToken);
-        }
-
-        /// <summary>
         /// Synchronously indexes a plain builder-created node subtree.
         /// </summary>
         /// <remarks>

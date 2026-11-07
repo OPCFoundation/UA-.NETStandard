@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server.StateMachines
@@ -934,6 +935,39 @@ namespace Opc.Ua.Server.StateMachines
             m_dispatcher.AddInitialStateSynchronizer(SyncChildToParentState);
             m_stateMachine.InitialStateSynchronization += SyncChildToParentState;
 
+            async ValueTask SyncChildToParentStateAsync(ISystemContext ctx, uint parentCurrentStateId)
+            {
+                bool attached = parentCurrentStateId == parentStateId;
+                uint? selectedState = null;
+                if (!attached)
+                {
+                    if (!preserveOnReentry)
+                    {
+                        selectedState = 0;
+                    }
+                }
+                else if (initialChildStateId != 0)
+                {
+                    bool childHasState = !(materializedChild.CurrentState?.Value.IsNullOrEmpty ?? true);
+                    if (Interlocked.Exchange(ref resetOnNextActivation, 0) != 0 ||
+                        !preserveOnReentry || !childHasState)
+                    {
+                        selectedState = initialChildStateId;
+                    }
+                }
+                if (materializedChild is FluentFiniteStateMachineState fluent)
+                {
+                    await fluent.SetSuspendedAsync(ctx, !attached, selectedState).ConfigureAwait(false);
+                }
+                else
+                {
+                    await materializedChild.SetStateAndActiveAsync(ctx, selectedState, attached)
+                        .ConfigureAwait(false);
+                }
+            }
+
+            m_stateMachine.InitialStateSynchronizationAsync += SyncChildToParentStateAsync;
+
             void ScheduleChildSynchronization(ISystemContext ctx, TState parent)
             {
                 parent.ScheduleTransitionCompletion(materializedChild.NodeId, () =>
@@ -956,6 +990,16 @@ namespace Opc.Ua.Server.StateMachines
                 if (from == parentStateId || to == parentStateId)
                 {
                     ScheduleChildSynchronization(ctx, parent);
+                }
+            });
+
+            m_dispatcher.AddAsyncTransitionSynchronizer((ctx, parent, from, to) =>
+            {
+                if (from == parentStateId || to == parentStateId)
+                {
+                    parent.ScheduleAsyncTransitionCompletion(
+                        materializedChild.NodeId,
+                        () => SyncChildToParentStateAsync(ctx, ExtractCurrentStateId(parent)));
                 }
             });
 
@@ -1064,7 +1108,7 @@ namespace Opc.Ua.Server.StateMachines
         /// the transition.</param>
         /// <param name="transitionId">The transition to fire when the
         /// timer expires — driven via
-        /// <see cref="FiniteStateMachineState.DoTransition"/>.</param>
+        /// <c>FiniteStateMachineState.DoTransition</c>.</param>
         /// <param name="causeId">The cause id reported in the audit
         /// event (0 if no human-meaningful cause).</param>
         /// <exception cref="ArgumentOutOfRangeException">
@@ -1554,6 +1598,16 @@ namespace Opc.Ua.Server.StateMachines
         private readonly StateMachineTransitionCallbackFactory? m_originalCallbacks;
 
         /// <summary>
+        /// Preserves native asynchronous coordination installed before this dispatcher.
+        /// </summary>
+        private readonly StateMachineAsyncTransitionCallbackFactory? m_originalAsyncCallbacks;
+
+        /// <summary>
+        /// Schedules native hierarchical synchronization for an admitted asynchronous transition.
+        /// </summary>
+        private readonly List<Action<ISystemContext, TState, uint, uint>> m_transitionSynchronizersAsync = [];
+
+        /// <summary>
         /// Protects timed-transition registrations and their shutdown state.
         /// </summary>
         private readonly Lock m_timerLock = new();
@@ -1586,6 +1640,7 @@ namespace Opc.Ua.Server.StateMachines
             m_context = context;
             m_timeProvider = timeProvider ?? TimeProvider.System;
             m_originalCallbacks = stateMachine.TransitionCallbackFactory;
+            m_originalAsyncCallbacks = stateMachine.AsyncTransitionCallbackFactory;
             m_logger = context.Telemetry.CreateLogger<StateMachineDispatcher<TState>>();
         }
 
@@ -1649,6 +1704,15 @@ namespace Opc.Ua.Server.StateMachines
         }
 
         /// <summary>
+        /// Registers hierarchical completion scheduling for native asynchronous transitions.
+        /// </summary>
+        public void AddAsyncTransitionSynchronizer(Action<ISystemContext, TState, uint, uint> synchronizer)
+        {
+            m_transitionSynchronizersAsync.Add(synchronizer);
+            EnsureInstalled();
+        }
+
+        /// <summary>
         /// Runs every registered synchronizer against
         /// <paramref name="stateId"/>, and re-arms the timed-transition
         /// timers to match — <c>SetState</c> fires no transition, so
@@ -1662,6 +1726,14 @@ namespace Opc.Ua.Server.StateMachines
                 SafeInvoke(() => synchronizer(context, stateId), 0, stateId);
             }
 
+            SynchronizeInitialTimers(stateId);
+        }
+
+        /// <summary>
+        /// Brings timed registrations in line with initial state without invoking synchronous child synchronizers.
+        /// </summary>
+        private void SynchronizeInitialTimers(uint stateId, bool nativeAsync = false)
+        {
             KeyValuePair<uint, TimedTransitionEntry>[] snapshot;
             lock (m_timerLock)
             {
@@ -1675,7 +1747,7 @@ namespace Opc.Ua.Server.StateMachines
             {
                 if (timed.Key == stateId)
                 {
-                    ArmTimer(timed.Key, timed.Value);
+                    ArmTimer(timed.Key, timed.Value, nativeAsync);
                 }
                 else
                 {
@@ -1832,6 +1904,12 @@ namespace Opc.Ua.Server.StateMachines
             }
             m_installed = true;
             m_stateMachine.TransitionCallbackFactory = CreateCallbacks;
+            m_stateMachine.AsyncTransitionCallbackFactory = CreateAsyncCallbacks;
+            m_stateMachine.InitialStateSynchronizationAsync += (_, stateId) =>
+            {
+                SynchronizeInitialTimers(stateId, nativeAsync: true);
+                return default;
+            };
         }
 
         /// <summary>
@@ -1852,6 +1930,95 @@ namespace Opc.Ua.Server.StateMachines
                     DispatchBefore(context, machine, transition, cause, inputs, outputs, before),
                 (context, machine, transition, cause, inputs, outputs) =>
                     DispatchAfter(context, machine, transition, cause, inputs, outputs, from, to, after));
+        }
+
+        /// <summary>
+        /// Composes native callbacks without using this dispatcher's synchronous notification coordinators.
+        /// </summary>
+        private (StateMachineTransitionHandler? Before, StateMachineTransitionAsyncHandler? After) CreateAsyncCallbacks(
+            uint from,
+            uint to,
+            StateMachineTransitionHandler? before,
+            StateMachineTransitionHandler? after,
+            StateMachineTransitionAsyncHandler? afterAsync)
+        {
+            StateMachineTransitionAsyncHandler? originalAfterAsync = afterAsync;
+            if (m_originalAsyncCallbacks != null)
+            {
+                (before, originalAfterAsync) = m_originalAsyncCallbacks(from, to, before, after, afterAsync);
+                after = null;
+            }
+            else if (m_originalCallbacks != null)
+            {
+                (before, after) = m_originalCallbacks(from, to, before, after);
+            }
+            return (
+                (context, machine, transition, cause, inputs, outputs) =>
+                    DispatchBefore(context, machine, transition, cause, inputs, outputs, before),
+                (context, machine, transition, cause, inputs, outputs, ct) =>
+                    DispatchAfterAsync(
+                        context, machine, transition, cause, inputs, outputs, from, to, after, originalAfterAsync));
+        }
+
+        /// <summary>
+        /// Awaits original native coordination and schedules native child synchronization before lifecycle observers.
+        /// </summary>
+        private async ValueTask<ServiceResult> DispatchAfterAsync(
+            ISystemContext context,
+            StateMachineState machine,
+            uint transitionId,
+            uint causeId,
+            ArrayOf<Variant> inputArguments,
+            List<Variant>? outputArguments,
+            uint from,
+            uint to,
+            StateMachineTransitionHandler? originalAfter,
+            StateMachineTransitionAsyncHandler? originalAfterAsync)
+        {
+            long revision = m_stateMachine.StateRevision;
+            if (from != 0)
+            {
+                CancelTimer(from);
+            }
+            List<Exception> failures = [];
+            ServiceResult result = ServiceResult.Good;
+            try
+            {
+                if (originalAfterAsync != null)
+                {
+                    result = await originalAfterAsync(
+                        context, machine, transitionId, causeId,
+                        inputArguments, outputArguments, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+                else if (originalAfter != null)
+                {
+                    result = originalAfter(
+                        context, machine, transitionId, causeId, inputArguments, outputArguments);
+                }
+            }
+            catch (Exception ex)
+            {
+                failures.Add(ex);
+            }
+            foreach (Action<ISystemContext, TState, uint, uint> synchronizer in m_transitionSynchronizersAsync)
+            {
+                try
+                {
+                    synchronizer(context, m_stateMachine, from, to);
+                }
+                catch (Exception ex)
+                {
+                    failures.Add(ex);
+                }
+            }
+            m_stateMachine.ScheduleAsyncTransitionObserver(
+                () => DispatchLifecycleAsync(context, from, to, revision));
+            if (failures.Count != 0)
+            {
+                throw new AggregateException("Native transition coordination failed.", failures);
+            }
+            return result;
         }
 
         /// <summary>
@@ -1989,9 +2156,103 @@ namespace Opc.Ua.Server.StateMachines
         }
 
         /// <summary>
+        /// Awaits lifecycle callbacks in exit, transition, entry order while admission retains the live state.
+        /// </summary>
+        private async ValueTask DispatchLifecycleAsync(ISystemContext context, uint from, uint to, long revision)
+        {
+            List<Exception> failures = [];
+            if (from != 0 && m_exitHandlers.TryGetValue(from, out List<Action<ISystemContext, TState>>? exits))
+            {
+                foreach (Action<ISystemContext, TState> handler in exits)
+                {
+                    InvokeObserved(() => handler(context, m_stateMachine), failures);
+                }
+            }
+            if (from != 0 && m_exitHandlersAsync.TryGetValue(
+                from, out List<Func<ISystemContext, TState, CancellationToken, ValueTask>>? asyncExits))
+            {
+                foreach (Func<ISystemContext, TState, CancellationToken, ValueTask> handler in asyncExits)
+                {
+                    await InvokeObservedAsync(
+                        () => handler(context, m_stateMachine, CancellationToken.None), failures).ConfigureAwait(false);
+                }
+            }
+            foreach (Action<ISystemContext, TState, uint, uint> observer in m_transitionObservers)
+            {
+                InvokeObserved(() => observer(context, m_stateMachine, from, to), failures);
+            }
+            foreach (Func<ISystemContext, TState, uint, uint, CancellationToken, ValueTask> observer
+                in m_transitionObserversAsync)
+            {
+                await InvokeObservedAsync(
+                    () => observer(context, m_stateMachine, from, to, CancellationToken.None), failures)
+                    .ConfigureAwait(false);
+            }
+            if (to != 0 && m_enterHandlers.TryGetValue(to, out List<Action<ISystemContext, TState>>? entries))
+            {
+                foreach (Action<ISystemContext, TState> handler in entries)
+                {
+                    InvokeObserved(() => handler(context, m_stateMachine), failures);
+                }
+            }
+            if (to != 0 && m_enterHandlersAsync.TryGetValue(
+                to, out List<Func<ISystemContext, TState, CancellationToken, ValueTask>>? asyncEntries))
+            {
+                foreach (Func<ISystemContext, TState, CancellationToken, ValueTask> handler in asyncEntries)
+                {
+                    await InvokeObservedAsync(
+                        () => handler(context, m_stateMachine, CancellationToken.None), failures).ConfigureAwait(false);
+                }
+            }
+            TimedTransitionEntry? armEntry;
+            lock (m_timerLock)
+            {
+                m_timedTransitions.TryGetValue(to, out armEntry);
+            }
+            if (to != 0 && armEntry != null && m_stateMachine.StateRevision == revision)
+            {
+                InvokeObserved(() => ArmTimer(to, armEntry, nativeAsync: true), failures);
+            }
+            if (failures.Count != 0)
+            {
+                throw new AggregateException("Native lifecycle observers failed.", failures);
+            }
+        }
+
+        /// <summary>
+        /// Retains a synchronous observer's failure without skipping subsequent lifecycle callbacks.
+        /// </summary>
+        private static void InvokeObserved(Action action, List<Exception> failures)
+        {
+            try
+            {
+                action();
+            }
+            catch (Exception ex)
+            {
+                failures.Add(ex);
+            }
+        }
+
+        /// <summary>
+        /// Retains an asynchronous observer's failure without skipping subsequent lifecycle callbacks.
+        /// </summary>
+        private static async ValueTask InvokeObservedAsync(Func<ValueTask> action, List<Exception> failures)
+        {
+            try
+            {
+                await action().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                failures.Add(ex);
+            }
+        }
+
+        /// <summary>
         /// Arms a one-shot transition whose callback must still own its registration and state revision when fired.
         /// </summary>
-        private void ArmTimer(uint stateId, TimedTransitionEntry entry)
+        private void ArmTimer(uint stateId, TimedTransitionEntry entry, bool nativeAsync = false)
         {
             TimedTransitionRegistration? previous;
             TimedTransitionRegistration registration;
@@ -2012,12 +2273,30 @@ namespace Opc.Ua.Server.StateMachines
             {
                 registration.SetTimer(m_timeProvider.CreateTimer(_ =>
                 {
+                    if (nativeAsync)
+                    {
+                        // Timer providers can invoke callbacks in the arming operation's execution context.
+                        // Do not inherit its admission: the expired transition must wait as a separate invocation.
+                        QueueTimedTransition(stateId, revision, entry, registration, nativeAsync: true);
+                        return;
+                    }
+                    bool deferred = false;
                     try
                     {
                         ServiceResult result = m_stateMachine.TryTimedTransition(
                             m_context, stateId, revision, entry.TransitionId, entry.CauseId,
                             () => !registration.IsDisposed &&
-                                ReferenceEquals(Interlocked.CompareExchange(ref entry.Active, null, registration), registration));
+                                ReferenceEquals(
+                                    Interlocked.CompareExchange(ref entry.Active, null, registration), registration));
+                        if (result.StatusCode == StatusCodes.BadInvalidState &&
+                            !registration.IsDisposed &&
+                            m_stateMachine.StateRevision == revision &&
+                            ReferenceEquals(Volatile.Read(ref entry.Active), registration))
+                        {
+                            QueueTimedTransition(stateId, revision, entry, registration, nativeAsync: false);
+                            deferred = true;
+                            return;
+                        }
                         if (ServiceResult.IsGood(result))
                         {
                             m_stateMachine.ClearChangeMasks(m_context, true);
@@ -2033,8 +2312,11 @@ namespace Opc.Ua.Server.StateMachines
                     }
                     finally
                     {
-                        Interlocked.CompareExchange(ref entry.Active, null, registration);
-                        registration.Dispose();
+                        if (!deferred)
+                        {
+                            Interlocked.CompareExchange(ref entry.Active, null, registration);
+                            registration.Dispose();
+                        }
                     }
                 }, null, entry.Timeout, Timeout.InfiniteTimeSpan));
             }
@@ -2043,6 +2325,128 @@ namespace Opc.Ua.Server.StateMachines
                 Interlocked.CompareExchange(ref entry.Active, null, registration);
                 registration.Dispose();
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// Starts an independent invocation without inheriting the admission that armed or fired the timer.
+        /// </summary>
+        private void QueueTimedTransition(
+            uint stateId,
+            long revision,
+            TimedTransitionEntry entry,
+            TimedTransitionRegistration registration,
+            bool nativeAsync)
+        {
+            ThreadPool.UnsafeQueueUserWorkItem(
+                unused =>
+                {
+                    _ = ExecuteTimedTransitionAsync(stateId, revision, entry, registration, nativeAsync);
+                }, null);
+        }
+
+        /// <summary>
+        /// Waits for live notifications to finish before validating and executing an expired native timer.
+        /// </summary>
+        private async Task ExecuteTimedTransitionAsync(
+            uint stateId,
+            long revision,
+            TimedTransitionEntry entry,
+            TimedTransitionRegistration registration,
+            bool nativeAsync)
+        {
+            try
+            {
+                if (!nativeAsync)
+                {
+                    await RetrySynchronousTimedTransitionAsync(stateId, revision, entry, registration)
+                        .ConfigureAwait(false);
+                    return;
+                }
+                ServiceResult result = await m_stateMachine.ExecuteStateOperationAsync(
+                    m_context,
+                    async cancellationToken =>
+                    {
+                        if (m_stateMachine.StateRevision != revision ||
+                            ExtractStateId(m_stateMachine.CurrentState?.Id?.Value ?? NodeId.Null) != stateId ||
+                            registration.IsDisposed ||
+                            !ReferenceEquals(
+                                Interlocked.CompareExchange(ref entry.Active, null, registration), registration))
+                        {
+                            return StatusCodes.BadInvalidState;
+                        }
+                        return entry.TransitionId == 0
+                            ? await m_stateMachine.DoCauseAsync(
+                                m_context, null, entry.CauseId, default, [], cancellationToken).ConfigureAwait(false)
+                            : await m_stateMachine.DoTransitionAsync(
+                                m_context, entry.TransitionId, entry.CauseId, default, [], cancellationToken)
+                                .ConfigureAwait(false);
+                    },
+                    registration.CancellationToken).ConfigureAwait(false);
+                if (ServiceResult.IsBad(result) && result.StatusCode != StatusCodes.BadInvalidState)
+                {
+                    m_logger.TimedTransitionRejected(stateId, result);
+                }
+            }
+            catch (OperationCanceledException) when (registration.IsDisposed)
+            {
+                // Retired timers must not retain an admission waiter or execute after shutdown.
+            }
+            catch (Exception ex)
+            {
+                m_logger.TimedTransitionFailed(ex, stateId);
+            }
+            finally
+            {
+                Interlocked.CompareExchange(ref entry.Active, null, registration);
+                registration.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Waits outside the original invocation and retries synchronous dispatch without changing override semantics.
+        /// </summary>
+        private async Task RetrySynchronousTimedTransitionAsync(
+            uint stateId,
+            long revision,
+            TimedTransitionEntry entry,
+            TimedTransitionRegistration registration)
+        {
+            while (!registration.IsDisposed &&
+                m_stateMachine.StateRevision == revision &&
+                ReferenceEquals(Volatile.Read(ref entry.Active), registration))
+            {
+                ServiceResult admitted = await m_stateMachine.ExecuteStateOperationAsync(
+                    m_context,
+                    cancellationToken =>
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        return new ValueTask<ServiceResult>(ServiceResult.Good);
+                    },
+                    registration.CancellationToken).ConfigureAwait(false);
+                if (ServiceResult.IsBad(admitted))
+                {
+                    return;
+                }
+                registration.CancellationToken.ThrowIfCancellationRequested();
+                ServiceResult result = m_stateMachine.TryTimedTransition(
+                    m_context, stateId, revision, entry.TransitionId, entry.CauseId,
+                    () => !registration.IsDisposed &&
+                        ReferenceEquals(
+                            Interlocked.CompareExchange(ref entry.Active, null, registration), registration));
+                if (ServiceResult.IsGood(result))
+                {
+                    m_stateMachine.ClearChangeMasks(m_context, true);
+                }
+                else if (result.StatusCode != StatusCodes.BadInvalidState)
+                {
+                    m_logger.TimedTransitionRejected(stateId, result);
+                }
+                if (result.StatusCode != StatusCodes.BadInvalidState ||
+                    ExtractStateId(m_stateMachine.CurrentState?.Id?.Value ?? NodeId.Null) != stateId)
+                {
+                    return;
+                }
             }
         }
 
@@ -2165,9 +2569,22 @@ namespace Opc.Ua.Server.StateMachines
         private sealed class TimedTransitionRegistration : IDisposable
         {
             /// <summary>
+            /// Captures the cancellation token before the registration can be disposed.
+            /// </summary>
+            public TimedTransitionRegistration()
+            {
+                CancellationToken = m_cancellation.Token;
+            }
+
+            /// <summary>
             /// Gets whether this registration has been retired and must no longer fire its transition.
             /// </summary>
             public bool IsDisposed => Volatile.Read(ref m_disposed) != 0;
+
+            /// <summary>
+            /// Gets the token that retires pending asynchronous admission.
+            /// </summary>
+            public CancellationToken CancellationToken { get; }
 
             /// <summary>
             /// Attaches the timer, disposing it immediately if the registration was already retired.
@@ -2184,9 +2601,25 @@ namespace Opc.Ua.Server.StateMachines
             /// <inheritdoc/>
             public void Dispose()
             {
-                Interlocked.Exchange(ref m_disposed, 1);
-                Interlocked.Exchange(ref m_timer, null)?.Dispose();
+                if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+                {
+                    return;
+                }
+                try
+                {
+                    m_cancellation.Cancel();
+                }
+                finally
+                {
+                    m_cancellation.Dispose();
+                    Interlocked.Exchange(ref m_timer, null)?.Dispose();
+                }
             }
+
+            /// <summary>
+            /// Cancels admission waits when this registration is replaced, stopped, or completed.
+            /// </summary>
+            private readonly CancellationTokenSource m_cancellation = new();
 
             /// <summary>
             /// Atomically records that the registration is no longer eligible to fire.

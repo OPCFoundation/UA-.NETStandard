@@ -113,7 +113,7 @@ namespace Opc.Ua
         {
             if (m_referencePublicationPending)
             {
-                throw new InvalidOperationException("The node references have a pending publication.");
+                throw new NodeReferencesReservedException();
             }
         }
 

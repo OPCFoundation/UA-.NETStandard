@@ -176,6 +176,7 @@ namespace Opc.Ua.Server
                 await server.DisposeAsync().ConfigureAwait(false);
                 throw new NodeManagerAlreadyRegisteredException();
             }
+            server.RegisteredFacade = manager;
             try
             {
                 ValidateHistorianReadiness(manager);
@@ -558,12 +559,21 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Gets whether this candidate's metadata is still private.
             /// </summary>
-            internal bool IsStaging { get; private set; } = true;
+            internal bool IsStaging => Volatile.Read(ref m_isStaging);
+
+            /// <summary>
+            /// Gets or sets the exact candidate facade returned by the factory.
+            /// </summary>
+            internal IAsyncNodeManager? RegisteredFacade
+            {
+                get => Volatile.Read(ref m_registeredFacade);
+                set => Volatile.Write(ref m_registeredFacade, value);
+            }
 
             /// <summary>
             /// Gets whether this facade has been detached from its published generation.
             /// </summary>
-            internal bool IsDetached { get; private set; }
+            internal bool IsDetached => Volatile.Read(ref m_isDetached);
 
             /// <summary>
             /// Gets whether preparation recorded candidate-owned historian bindings that require readiness.
@@ -625,6 +635,7 @@ namespace Opc.Ua.Server
             /// <inheritdoc/>
             public async ValueTask DisposeAsync()
             {
+                Volatile.Write(ref m_registeredFacade, null);
                 HistorianBuilder[] builders;
                 lock (m_historianBuildersLock)
                 {
@@ -831,20 +842,168 @@ namespace Opc.Ua.Server
                 => m_server.DeleteSubscriptionAsync(subscriptionId, cancellationToken);
 
             /// <summary>
+            /// Retains an owned node's external reference until the candidate is published.
+            /// </summary>
+            internal bool TryStageExternalReference(
+                AsyncCustomNodeManager owner,
+                NodeState target,
+                LocalReference reference)
+            {
+                lock (m_externalReferencesLock)
+                {
+                    if (IsDetached)
+                    {
+                        throw new InvalidOperationException(
+                            "External references cannot be added to a detached node manager.");
+                    }
+                    if (!IsStaging)
+                    {
+                        return false;
+                    }
+                    bool exists = m_stagedNodeReferences.Exists(entry =>
+                        ReferenceEquals(entry.Target, target) && SameReference(entry.Reference, reference));
+                    if (!exists)
+                    {
+                        m_stagedNodeReferences.Add((owner, target, reference));
+                    }
+                    if (m_preparedExternalReferences is { } references)
+                    {
+                        AddPreparedReference(references, reference);
+                    }
+                    return true;
+                }
+            }
+
+            /// <summary>
+            /// Checks whether a staged owned-node reference requires the source at publication.
+            /// </summary>
+            internal bool RequiresExternalSource(NodeId sourceId)
+            {
+                lock (m_externalReferencesLock)
+                {
+                    return m_stagedNodeReferences.Exists(entry => entry.Reference.SourceId == sourceId);
+                }
+            }
+
+            /// <summary>
+            /// Connects staged references to the dictionary used by address-space preparation.
+            /// </summary>
+            internal void TrackExternalReferences(Dictionary<NodeId, IList<IReference>> references)
+            {
+                lock (m_externalReferencesLock)
+                {
+                    if (m_preparedExternalReferences is not null)
+                    {
+                        throw new InvalidOperationException("External reference preparation has already started.");
+                    }
+                    m_preparedExternalReferences = references;
+                    foreach (var entry in m_stagedNodeReferences)
+                    {
+                        if (ReferenceEquals(entry.Owner.Find(entry.Target.NodeId), entry.Target))
+                        {
+                            AddPreparedReference(references, entry.Reference);
+                        }
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Discards private contributions targeting a node removed before publication.
+            /// </summary>
+            internal void DiscardNodeReferences(NodeState target)
+            {
+                lock (m_externalReferencesLock)
+                {
+                    m_stagedNodeReferences.RemoveAll(entry => ReferenceEquals(entry.Target, target));
+                    if (m_preparedExternalReferences is not { } references)
+                    {
+                        return;
+                    }
+                    foreach (KeyValuePair<NodeId, IList<IReference>> source in references)
+                    {
+                        for (int index = source.Value.Count - 1; index >= 0; index--)
+                        {
+                            IReference reference = source.Value[index];
+                            if (!reference.TargetId.IsAbsolute && (NodeId)reference.TargetId == target.NodeId)
+                            {
+                                source.Value.RemoveAt(index);
+                                RemoveCapturedReference(source.Key, reference);
+                            }
+                        }
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Forgets published contributions removed before their manager retires.
+            /// </summary>
+            internal void DiscardCapturedReferences(List<LocalReference> references)
+            {
+                lock (m_externalReferencesLock)
+                {
+                    foreach (LocalReference reference in references)
+                    {
+                        if (m_externalReferences.TryGetValue(
+                            reference.SourceId, out ReferenceDictionary<bool>? captured))
+                        {
+                            captured.Remove(new NodeStateReference(
+                                reference.ReferenceTypeId, reference.IsInverse, reference.TargetId));
+                        }
+                        if (reference.SourceId == ObjectIds.Server &&
+                            reference.ReferenceTypeId == ReferenceTypeIds.HasNotifier &&
+                            !reference.IsInverse)
+                        {
+                            m_pendingRootNotifierReferences.Remove(reference.TargetId);
+                        }
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Discards staged references whose exact target was replaced before publication.
+            /// </summary>
+            internal void PruneStagedExternalReferences()
+            {
+                lock (m_externalReferencesLock)
+                {
+                    for (int index = m_stagedNodeReferences.Count - 1; index >= 0; index--)
+                    {
+                        var entry = m_stagedNodeReferences[index];
+                        if (ReferenceEquals(entry.Owner.Find(entry.Target.NodeId), entry.Target))
+                        {
+                            continue;
+                        }
+                        m_stagedNodeReferences.RemoveAt(index);
+                        bool stillOwned = m_stagedNodeReferences.Exists(candidate =>
+                            SameReference(candidate.Reference, entry.Reference) &&
+                            ReferenceEquals(candidate.Owner.Find(candidate.Target.NodeId), candidate.Target));
+                        if (!stillOwned && m_preparedExternalReferences is { } references)
+                        {
+                            RemovePreparedReference(references, entry.Reference);
+                        }
+                    }
+                }
+            }
+
+            /// <summary>
             /// Captures the contributions whose removal belongs to publication, not address-space deletion.
             /// </summary>
             /// <param name="references">The candidate's external contributions.</param>
             internal void CaptureExternalReferences(Dictionary<NodeId, IList<IReference>> references)
             {
-                foreach (KeyValuePair<NodeId, IList<IReference>> source in references)
+                lock (m_externalReferencesLock)
                 {
-                    var contributed = new ReferenceDictionary<bool>();
-                    foreach (IReference reference in source.Value)
+                    foreach (KeyValuePair<NodeId, IList<IReference>> source in references)
                     {
-                        contributed[new NodeStateReference(
-                            reference.ReferenceTypeId, reference.IsInverse, reference.TargetId)] = true;
+                        var contributed = new ReferenceDictionary<bool>();
+                        foreach (IReference reference in source.Value)
+                        {
+                            contributed[new NodeStateReference(
+                                reference.ReferenceTypeId, reference.IsInverse, reference.TargetId)] = true;
+                        }
+                        m_externalReferences.Add(source.Key, contributed);
                     }
-                    m_externalReferences.Add(source.Key, contributed);
+                    m_externalReferencesCaptured = true;
                 }
             }
 
@@ -854,10 +1013,14 @@ namespace Opc.Ua.Server
             /// <param name="references">The inverse references discovered during deletion.</param>
             internal void ExcludePreparedReferences(List<LocalReference> references)
             {
-                references.RemoveAll(reference =>
-                    m_externalReferences.TryGetValue(reference.SourceId, out ReferenceDictionary<bool>? contributed) &&
-                    contributed.ContainsKey(new NodeStateReference(
-                        reference.ReferenceTypeId, reference.IsInverse, reference.TargetId)));
+                lock (m_externalReferencesLock)
+                {
+                    references.RemoveAll(reference =>
+                        m_externalReferences.TryGetValue(
+                            reference.SourceId, out ReferenceDictionary<bool>? contributed) &&
+                        contributed.ContainsKey(new NodeStateReference(
+                            reference.ReferenceTypeId, reference.IsInverse, reference.TargetId)));
+                }
             }
 
             /// <summary>
@@ -869,7 +1032,12 @@ namespace Opc.Ua.Server
                 ServerUris.BindTo(m_servingServerUris);
                 TypeTree.BindTo(m_servingTypes);
                 ((EncodeableFactory)Factory).BindTo(m_servingFactory);
-                IsStaging = false;
+                lock (m_externalReferencesLock)
+                {
+                    Volatile.Write(ref m_isStaging, false);
+                    m_preparedExternalReferences = null;
+                    m_stagedNodeReferences.Clear();
+                }
             }
 
             /// <summary>
@@ -891,9 +1059,28 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Retains a root-notifier reference contribution until external-reference publication.
             /// </summary>
-            internal void StageRootNotifierReference(NodeId notifierId)
+            internal bool TryStageRootNotifierReference(NodeId notifierId)
             {
-                m_pendingRootNotifierReferences.Add(notifierId);
+                lock (m_externalReferencesLock)
+                {
+                    if (IsDetached)
+                    {
+                        throw new ObjectDisposedException(nameof(StagingServer));
+                    }
+                    if (!IsStaging)
+                    {
+                        return false;
+                    }
+                    m_pendingRootNotifierReferences.Add(notifierId);
+                    m_withdrawnRootNotifierReferences.Remove(notifierId);
+                    if (m_preparedExternalReferences is { } references)
+                    {
+                        AddPreparedReference(
+                            references,
+                            new LocalReference(ObjectIds.Server, ReferenceTypeIds.HasNotifier, false, notifierId));
+                    }
+                    return true;
+                }
             }
 
             /// <summary>
@@ -901,50 +1088,153 @@ namespace Opc.Ua.Server
             /// </summary>
             internal void UnstageRootNotifierReference(NodeId notifierId)
             {
-                m_pendingRootNotifierReferences.Remove(notifierId);
+                lock (m_externalReferencesLock)
+                {
+                    if (!IsStaging)
+                    {
+                        return;
+                    }
+                    m_pendingRootNotifierReferences.Remove(notifierId);
+                    m_withdrawnRootNotifierReferences.Add(notifierId);
+                    if (m_preparedExternalReferences is { } references)
+                    {
+                        RemovePreparedReference(
+                            references,
+                            new LocalReference(ObjectIds.Server, ReferenceTypeIds.HasNotifier, false, notifierId));
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Gets roots withdrawn while prepared reference updates may already have captured them.
+            /// </summary>
+            internal NodeId[] GetWithdrawnRootNotifierReferences()
+            {
+                lock (m_externalReferencesLock)
+                {
+                    return [.. m_withdrawnRootNotifierReferences];
+                }
+            }
+
+            /// <summary>
+            /// Releases a withdrawn root after its serving reference has been reconciled.
+            /// </summary>
+            internal void ForgetWithdrawnRootNotifierReference(NodeId notifierId)
+            {
+                lock (m_externalReferencesLock)
+                {
+                    m_withdrawnRootNotifierReferences.Remove(notifierId);
+                }
             }
 
             /// <summary>
             /// Merges retained root-notifier contributions into the prepared external-reference set.
             /// </summary>
             internal void AppendRootNotifierReferences(
-                IDictionary<NodeId, IList<IReference>> externalReferences)
+                Dictionary<NodeId, IList<IReference>> externalReferences)
             {
-                if (m_pendingRootNotifierReferences.Count == 0)
+                lock (m_externalReferencesLock)
+                {
+                    foreach (NodeId notifierId in m_pendingRootNotifierReferences)
+                    {
+                        AddPreparedReference(
+                            externalReferences,
+                            new LocalReference(ObjectIds.Server, ReferenceTypeIds.HasNotifier, false, notifierId));
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Adds a contribution once and records additions made after the initial capture.
+            /// </summary>
+            private void AddPreparedReference(
+                Dictionary<NodeId, IList<IReference>> references,
+                LocalReference reference)
+            {
+                if (!references.TryGetValue(reference.SourceId, out IList<IReference>? sourceReferences))
+                {
+                    references.Add(reference.SourceId, sourceReferences = []);
+                }
+                bool exists = false;
+                foreach (IReference existing in sourceReferences)
+                {
+                    if (SameReference(existing, reference))
+                    {
+                        exists = true;
+                        break;
+                    }
+                }
+                var addition = new NodeStateReference(
+                    reference.ReferenceTypeId, reference.IsInverse, reference.TargetId);
+                if (!exists)
+                {
+                    sourceReferences.Add(addition);
+                }
+                if (m_externalReferencesCaptured)
+                {
+                    if (!m_externalReferences.TryGetValue(
+                        reference.SourceId, out ReferenceDictionary<bool>? captured))
+                    {
+                        m_externalReferences.Add(reference.SourceId, captured = new ReferenceDictionary<bool>());
+                    }
+                    captured[addition] = true;
+                }
+            }
+
+            /// <summary>
+            /// Removes one staged contribution from the prepared and captured sets.
+            /// </summary>
+            private void RemovePreparedReference(
+                Dictionary<NodeId, IList<IReference>> references,
+                LocalReference reference)
+            {
+                if (!references.TryGetValue(reference.SourceId, out IList<IReference>? sourceReferences))
                 {
                     return;
                 }
-
-                if (!externalReferences.TryGetValue(
-                    ObjectIds.Server,
-                    out IList<IReference>? serverReferences))
+                for (int index = sourceReferences.Count - 1; index >= 0; index--)
                 {
-                    externalReferences.Add(ObjectIds.Server, serverReferences = []);
-                }
-
-                foreach (NodeId notifierId in m_pendingRootNotifierReferences)
-                {
-                    bool exists = false;
-                    foreach (IReference reference in serverReferences)
+                    IReference existing = sourceReferences[index];
+                    if (SameReference(existing, reference))
                     {
-                        if (reference.ReferenceTypeId == ReferenceTypeIds.HasNotifier &&
-                            !reference.IsInverse &&
-                            reference.TargetId == notifierId)
-                        {
-                            exists = true;
-                            break;
-                        }
-                    }
-                    if (!exists)
-                    {
-                        serverReferences.Add(new ReferenceNode
-                        {
-                            ReferenceTypeId = ReferenceTypeIds.HasNotifier,
-                            IsInverse = false,
-                            TargetId = notifierId
-                        });
+                        sourceReferences.RemoveAt(index);
+                        RemoveCapturedReference(reference.SourceId, existing);
                     }
                 }
+            }
+
+            /// <summary>
+            /// Removes a contribution from the captured set when it has already been captured.
+            /// </summary>
+            private void RemoveCapturedReference(NodeId sourceId, IReference reference)
+            {
+                if (m_externalReferences.TryGetValue(sourceId, out ReferenceDictionary<bool>? captured))
+                {
+                    captured.Remove(new NodeStateReference(
+                        reference.ReferenceTypeId, reference.IsInverse, reference.TargetId));
+                }
+            }
+
+            /// <summary>
+            /// Compares the external source and reference coordinates.
+            /// </summary>
+            private static bool SameReference(LocalReference left, LocalReference right)
+            {
+                return left.SourceId == right.SourceId &&
+                    left.ReferenceTypeId == right.ReferenceTypeId &&
+                    left.IsInverse == right.IsInverse &&
+                    left.TargetId == right.TargetId;
+            }
+
+            /// <summary>
+            /// Compares a prepared reference with a local contribution.
+            /// </summary>
+            private static bool SameReference(IReference left, LocalReference right)
+            {
+                return left.ReferenceTypeId == right.ReferenceTypeId &&
+                    left.IsInverse == right.IsInverse &&
+                    !left.TargetId.IsAbsolute &&
+                    (NodeId)left.TargetId == right.TargetId;
             }
 
             /// <summary>
@@ -963,11 +1253,15 @@ namespace Opc.Ua.Server
             /// </summary>
             internal void Detach()
             {
-                if (IsDetached)
+                lock (m_externalReferencesLock)
                 {
-                    return;
+                    if (IsDetached)
+                    {
+                        return;
+                    }
+                    Volatile.Write(ref m_isDetached, true);
+                    Volatile.Write(ref m_registeredFacade, null);
                 }
-                IsDetached = true;
                 RetireHistorianRegistrations();
                 RevokeServiceLevelControl();
                 TypeTree.Detach();
@@ -990,6 +1284,18 @@ namespace Opc.Ua.Server
             /// <summary>The running server whose non-metadata services are forwarded.</summary>
             private readonly IServerInternal m_server;
 
+            /// <summary>The exact facade associated with this candidate.</summary>
+            private IAsyncNodeManager? m_registeredFacade;
+
+            /// <summary>Whether the candidate's metadata is still private.</summary>
+            private bool m_isStaging = true;
+
+            /// <summary>Whether the candidate's metadata handles have been detached.</summary>
+            private bool m_isDetached;
+
+            /// <summary>Roots withdrawn before publication and reconciled against the serving view.</summary>
+            private readonly HashSet<NodeId> m_withdrawnRootNotifierReferences = [];
+
             /// <summary>Canonical handles captured before any durable publication decision.</summary>
             private readonly NamespaceTable m_servingNamespaceUris;
             private readonly StringTable m_servingServerUris;
@@ -1005,8 +1311,21 @@ namespace Opc.Ua.Server
             /// <summary>Retains root-notifier reference intent until external-reference publication.</summary>
             private readonly HashSet<NodeId> m_pendingRootNotifierReferences = [];
 
+            /// <summary>Serializes private external-reference bookkeeping.</summary>
+            private readonly Lock m_externalReferencesLock = new();
+
+            /// <summary>Retains the exact owners of staged reference targets.</summary>
+            private readonly List<(AsyncCustomNodeManager Owner, NodeState Target, LocalReference Reference)>
+                m_stagedNodeReferences = [];
+
+            /// <summary>The candidate's mutable external-reference set before publication.</summary>
+            private Dictionary<NodeId, IList<IReference>>? m_preparedExternalReferences;
+
             /// <summary>Frozen reference contributions reconciled by publication before physical deletion.</summary>
             private readonly Dictionary<NodeId, ReferenceDictionary<bool>> m_externalReferences = [];
+
+            /// <summary>Whether the candidate's contributions have been captured for retirement.</summary>
+            private bool m_externalReferencesCaptured;
 
             private readonly Lock m_serviceLevelControlLock = new();
             private Action<byte>? m_serviceLevelControlWriter;

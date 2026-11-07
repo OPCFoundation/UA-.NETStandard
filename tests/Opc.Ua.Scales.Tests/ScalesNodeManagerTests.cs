@@ -702,6 +702,150 @@ namespace Opc.Ua.Scales.Tests
         }
 
         [Test]
+        public async Task PackMLModeStateSubsetsFilterAdvertisedGraphAndCommandsAsync()
+        {
+            ScaleHandle scale = await CreateAsync(ScaleKind.Simple);
+            PackMLStateMachineController packMl = scale.PackML!;
+            PackMLBaseStateMachineState state = scale.Scale.State!;
+            PackMLMachineStateMachineState machine = state.MachineState!;
+            PackMLExecuteStateMachineState execute = machine.ExecuteState!;
+            ArrayOf<uint> limitedStates = new[]
+            {
+                PackMLStateNumbers.Cleared,
+                PackMLStateNumbers.Running,
+                PackMLStateNumbers.Idle,
+                PackMLStateNumbers.Execute
+            }.ToArrayOf();
+            Assert.That(
+                packMl.SetSupportedStates(new[] { PackMLStateNumbers.Aborted }.ToArrayOf()).StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            Assert.That(packMl.SupportedStates.Count, Is.EqualTo(19));
+
+            Assert.That(ServiceResult.IsGood(packMl.SetSupportedStates(2, limitedStates)), Is.True);
+            Assert.That(ServiceResult.IsGood(packMl.SetMode(2)), Is.True);
+            Assert.That(packMl.CurrentMode, Is.EqualTo(2));
+            Assert.That(packMl.SupportedStates.Span.ToArray(), Is.EquivalentTo(limitedStates.Span.ToArray()));
+            Assert.That(state.AvailableStates!.Value.Span.ToArray()
+                .Select(id => id.TryGetValue(out uint value) ? value : 0u), Is.EqualTo(new uint[]
+            {
+                PackML.Objects.PackMLBaseStateMachineType_Cleared
+            }));
+            Assert.That(machine.AvailableStates!.Value.Span.ToArray()
+                .Select(id => id.TryGetValue(out uint value) ? value : 0u), Is.EqualTo(new uint[]
+            {
+                PackML.Objects.PackMLMachineStateMachineType_Running
+            }));
+            Assert.That(
+                execute.AvailableStates!.Value.Span.ToArray()
+                    .Select(id => id.TryGetValue(out uint value) ? value : 0u),
+                Is.EqualTo(new[]
+                {
+                    PackML.Objects.PackMLExecuteStateMachineType_Idle,
+                    PackML.Objects.PackMLExecuteStateMachineType_Execute
+                }));
+            Assert.That(
+                execute.AvailableTransitions!.Value.Span.ToArray().Any(
+                    id => id.TryGetValue(out uint value) &&
+                        value == PackML.Objects.PackMLExecuteStateMachineType_IdleToStarting),
+                Is.False);
+            Assert.That(packMl.CanExecute(PackMLCommand.Start), Is.False);
+            Assert.That(execute.Start!.Executable, Is.False);
+
+            Assert.That(
+                ServiceResult.IsGood(packMl.SetSupportedStates(
+                    3,
+                    new[] { PackMLStateNumbers.Aborted }.ToArrayOf())),
+                Is.True);
+            Assert.That(packMl.SetMode(3).StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            Assert.That(packMl.CurrentMode, Is.EqualTo(2));
+
+            Assert.That(ServiceResult.IsGood(packMl.SetMode(1)), Is.True);
+            Assert.That(packMl.CanExecute(PackMLCommand.Start), Is.True);
+            Assert.That(execute.Start.Executable, Is.True);
+        }
+
+        [Test]
+        public async Task PackMLConfiguredStatesValidateInitialStateAndInactiveMethodsAsync()
+        {
+            ScaleHandle scale = await CreateAsync(ScaleKind.Simple);
+            PackMLStateMachineController packMl = scale.PackML!;
+            PackMLBaseStateMachineState state = scale.Scale.State!;
+            PackMLExecuteStateMachineState execute = state.MachineState!.ExecuteState!;
+            ArrayOf<uint> abortedOnly = [PackMLStateNumbers.Aborted];
+
+            packMl.ConfigureStates(abortedOnly, PackMLInitialState.Aborted);
+            Assert.That(packMl.CurrentState, Is.EqualTo(PackMLStateNumbers.Aborted));
+            Assert.That(execute.Start!.Executable, Is.False);
+            Assert.That(
+                execute.Start.OnCall!(m_fixture.Context, execute.Start, execute.NodeId, default).StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+
+            Assert.Throws<ArgumentException>(() => packMl.Initialize(PackMLInitialState.Stopped));
+            Assert.That(packMl.CurrentState, Is.EqualTo(PackMLStateNumbers.Aborted));
+            Assert.Throws<ArgumentException>(() =>
+                packMl.ConfigureStates(
+                    new[] { PackMLStateNumbers.Aborted, PackMLStateNumbers.Aborted }.ToArrayOf(),
+                    PackMLInitialState.Aborted));
+        }
+
+        [Test]
+        public async Task PackMLConfiguredModeRejectsResetIntoAnExcludedStateAsync()
+        {
+            ScaleHandle scale = await CreateAsync(ScaleKind.Simple);
+            PackMLStateMachineController packMl = scale.PackML!;
+            PackMLMachineStateMachineState machine = scale.Scale.State!.MachineState!;
+
+            Assert.That(ServiceResult.IsGood(packMl.SetMode(7)), Is.True);
+            packMl.ConfigureStates(
+                new[]
+                {
+                    PackMLStateNumbers.Cleared,
+                    PackMLStateNumbers.Stopped,
+                    PackMLStateNumbers.Aborting,
+                    PackMLStateNumbers.Aborted
+                }.ToArrayOf(),
+                PackMLInitialState.Stopped);
+
+            Assert.That(packMl.CurrentState, Is.EqualTo(PackMLStateNumbers.Stopped));
+            Assert.That(packMl.CanExecute(PackMLCommand.Reset), Is.False);
+            Assert.That(machine.Reset!.Executable, Is.False);
+            Assert.That(
+                Call(machine.Reset, machine.NodeId).StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+        }
+
+        [Test]
+        public async Task PackMLActingStateCannotCompleteIntoAnExcludedStateAsync()
+        {
+            ScaleHandle scale = await CreateAsync(ScaleKind.Simple);
+            PackMLStateMachineController packMl = scale.PackML!;
+            PackMLExecuteStateMachineState execute = scale.Scale.State!.MachineState!.ExecuteState!;
+            packMl.AutoCompleteActingStates = false;
+            packMl.ConfigureStates(
+                new[]
+                {
+                    PackMLStateNumbers.Cleared,
+                    PackMLStateNumbers.Running,
+                    PackMLStateNumbers.Idle,
+                    PackMLStateNumbers.Starting
+                }.ToArrayOf(),
+                PackMLInitialState.Idle);
+
+            Assert.That(packMl.CanExecute(PackMLCommand.Start), Is.True);
+            Assert.That(ServiceResult.IsGood(packMl.Execute(PackMLCommand.Start)), Is.True);
+            Assert.That(packMl.CurrentState, Is.EqualTo(PackMLStateNumbers.Starting));
+            Assert.That(
+                execute.AvailableTransitions!.Value.Span.ToArray().Any(
+                    id => id.TryGetValue(out uint value) &&
+                        value == PackML.Objects.PackMLExecuteStateMachineType_StartingToExecute),
+                Is.False);
+            Assert.That(
+                packMl.CompleteActingState().StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            Assert.That(packMl.CurrentState, Is.EqualTo(PackMLStateNumbers.Starting));
+        }
+
+        [Test]
         public async Task PackMLCommandGuardCanVetoAndCallBackIntoTheControllerAsync()
         {
             ScaleHandle scale = await CreateAsync(ScaleKind.Simple);
@@ -839,6 +983,76 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(observed, Is.EqualTo(reported));
             Assert.That(packMl.StartParameters.Count, Is.EqualTo(1));
             Assert.That(packMl.StartParameters[0].ID, Is.EqualTo(7));
+        }
+
+        [Test]
+        public async Task PackMLAsyncPublicationReportsNotificationAndStateChangedFailuresAsync()
+        {
+            ScaleHandle scale = await CreateAsync(ScaleKind.Simple).ConfigureAwait(false);
+            PackMLStateMachineController packMl = scale.PackML!;
+            FiniteStateVariableState currentState = scale.Scale.State!.CurrentState!;
+            var notificationError = new InvalidOperationException("Notification failed.");
+            var handlerError = new InvalidOperationException("StateChanged handler failed.");
+            var finalPublication = new PropertyState(currentState)
+            {
+                BrowseName = new QualifiedName("FinalPublication", currentState.BrowseName.NamespaceIndex)
+            };
+            currentState.AddChild(finalPublication);
+            finalPublication.ClearChangeMasks(m_fixture.Context, false);
+            currentState.OnStateChangedAsync = (_, _, _, _) =>
+            {
+                if (packMl.StateMachine.GetStateId(currentState.Id!.Value) ==
+                    Opc.Ua.PackML.Objects.PackMLBaseStateMachineType_Aborted)
+                {
+                    // This child was visited before its owner's sink; retain its
+                    // mask for the final composite publication after QueueChanged.
+                    finalPublication.UpdateChangeMasks(NodeStateChangeMasks.Value);
+                }
+                return default;
+            };
+            finalPublication.OnStateChangedAsync = async (_, _, _, _) =>
+            {
+                await Task.Yield();
+                throw notificationError;
+            };
+            packMl.StateChanged += (_, _) => throw handlerError;
+
+            AggregateException? failure = await Assert.ThrowsAsync<AggregateException>(async () =>
+                await packMl.ExecuteAsync(PackMLCommand.Abort).ConfigureAwait(false));
+
+            Assert.That(failure, Is.Not.Null);
+            Assert.That(
+                failure!.InnerExceptions,
+                Is.EqualTo(new Exception[] { notificationError, handlerError }));
+            Assert.That(packMl.CurrentState, Is.EqualTo(PackMLStateNumbers.Aborted));
+        }
+
+        [Test]
+        public async Task PackMLAsyncRejectedCommandPublishesNoChangeMasksAsync()
+        {
+            ScaleHandle scale = await CreateAsync(ScaleKind.Simple).ConfigureAwait(false);
+            PackMLStateMachineController packMl = scale.PackML!;
+            PackMLBaseStateMachineState stateMachine = scale.Scale.State!;
+            FiniteStateVariableState currentState = stateMachine.CurrentState!;
+            int notifications = 0;
+            currentState.OnStateChangedAsync = (_, _, _, _) =>
+            {
+                notifications++;
+                return default;
+            };
+            stateMachine.OnCheckUserPermission = (_, _, _, _, _, _) =>
+                ServiceResult.Create(StatusCodes.BadUserAccessDenied, "The test denies the transition.");
+            // A pending change made by other code must stay pending, as it does
+            // when the synchronous Execute rejects the same command.
+            currentState.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            uint before = packMl.CurrentState;
+
+            ServiceResult result = await packMl.ExecuteAsync(PackMLCommand.Abort).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+            Assert.That(packMl.CurrentState, Is.EqualTo(before));
+            Assert.That(notifications, Is.Zero);
+            Assert.That(currentState.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.Value));
         }
 
         [Test]
