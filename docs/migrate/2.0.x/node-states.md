@@ -1,6 +1,6 @@
 # Node States and INodeCache
 
-> **When to read this:** Read this when migrating custom NodeManagers, their interfaces and transfer overrides, `NodeState` clone / read / write helpers (`Clone` -> `CreateCopy`, removed `BaseVariableState` helpers), the new `INodeManager3` role-permission hooks, `OnAfterCreate(CancellationToken)`, predefined-node processing, generics on `BaseVariableState` / `BaseVariableTypeState`, code that took `lock (node)` on a `NodeState` or used `NodeBrowser.DataLock`, or `INodeCache.InvalidateNode`.
+> **When to read this:** Read this when migrating custom NodeManagers, their interfaces and service or transfer overrides, `NodeState` clone / read / write helpers (`Clone` -> `CreateCopy`, removed `BaseVariableState` helpers), the new `INodeManager3` role-permission hooks, `OnAfterCreate(CancellationToken)`, predefined-node processing, generics on `BaseVariableState` / `BaseVariableTypeState`, code that took `lock (node)` on a `NodeState` or used `NodeBrowser.DataLock`, or `INodeCache.InvalidateNode`.
 
 ## Contents
 
@@ -304,6 +304,49 @@ overrides an old overload must move its override to the overload accepting
 `MonitoredItemTransferOptions`; the old override is not invoked by the new
 dispatch path. Review the transfer logic for deferred initial values as part
 of that change.
+
+#### Protected service overrides
+
+Subclasses of `CustomNodeManager2` that override the hooks below must update
+their signatures. In 1.5.378 these hooks accepted `IList<T>` for the request
+collection; the current signatures use the following inputs:
+
+| Protected hook | Request input |
+| --- | --- |
+| `Read` | `ArrayOf<ReadValueId>` |
+| `Write` | `ArrayOf<WriteValue>` |
+| `HistoryRead`, `HistoryReleaseContinuationPoints` | `ArrayOf<HistoryReadValueId>` |
+| `HistoryReadRawModified`, `HistoryReadProcessed` | `ArrayOf<HistoryReadValueId>` |
+| `HistoryReadAtTime`, `HistoryReadEvents` | `ArrayOf<HistoryReadValueId>` |
+| `HistoryUpdate` | `ArrayOf<HistoryUpdateDetails>` |
+| `HistoryUpdateData` | `ArrayOf<UpdateDataDetails>` |
+| `HistoryUpdateStructureData` | `ArrayOf<UpdateStructureDataDetails>` |
+| `HistoryUpdateEvents` | `ArrayOf<UpdateEventDetails>` |
+| `HistoryDeleteRawModified` | `ArrayOf<DeleteRawModifiedDetails>` |
+| `HistoryDeleteAtTime` | `ArrayOf<DeleteAtTimeDetails>` |
+| `HistoryDeleteEvents` | `ArrayOf<DeleteEventDetails>` |
+| `CallInternalAsync(OperationContext, ...)` | `ArrayOf<CallMethodRequest>` |
+
+The result and error collections remain `IList<T>`. For example, a protected
+`Read` override now has this signature:
+
+```csharp
+protected override void Read(
+    ServerSystemContext context,
+    ArrayOf<ReadValueId> nodesToRead,
+    IList<DataValue> values,
+    IList<ServiceResult> errors,
+    List<NodeHandle> nodesToValidate,
+    IDictionary<NodeId, NodeState> cache)
+{
+    base.Read(context, nodesToRead, values, errors, nodesToValidate, cache);
+}
+```
+
+The old protected signatures are not present in the current implementation.
+An override with an old signature will not compile against it. Update the
+override and any base calls, then rebuild the subclass. Compatibility with
+previously compiled 1.5.378 subclasses has not been qualified.
 
 ### INodeManager3 - new role-permission and method-resolution hooks
 
