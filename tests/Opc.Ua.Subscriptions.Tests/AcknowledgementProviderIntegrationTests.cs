@@ -167,7 +167,11 @@ namespace Opc.Ua.Subscriptions.Tests
                     DisableUnboundedItemMode = !partitioned
                 });
             Assert.That(session.TryGetSubscriptionManager(out ISubscriptionManager? manager), Is.True);
-            await using ISubscription subscription = manager!.Add(handler, options);
+            // Concurrent responses can trigger Republish, whose continuation metadata is intentionally unknown.
+            // Keep this live-Publish assertion on one worker before creating either physical partition.
+            manager!.MinPublishWorkerCount = 1;
+            manager.MaxPublishWorkerCount = 1;
+            await using ISubscription subscription = manager.Add(handler, options);
             var items = new List<Client.Subscriptions.MonitoredItems.IMonitoredItem>();
             int expected = partitioned ? 6 : 3;
             for (int i = 0; i < expected; i++)
@@ -183,6 +187,7 @@ namespace Opc.Ua.Subscriptions.Tests
             options.CurrentValue = options.CurrentValue with { PublishingEnabled = true };
             await WaitForAsync(() => handler.Messages.Count >= expected, ct).ConfigureAwait(false);
 
+            Assert.That(manager.PublishWorkerCount, Is.EqualTo(1));
             SubscriptionNotificationMessage[] messages = [.. handler.Messages.Take(expected)];
             IGrouping<uint, SubscriptionNotificationMessage>[] groups =
                 [.. messages.GroupBy(message => message.Acknowledgement.SubscriptionId)];
