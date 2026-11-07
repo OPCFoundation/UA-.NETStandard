@@ -1191,7 +1191,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         private const string kNamespaceUri = "urn:test:change-set-cleanup";
 
         /// <summary>
-        /// A retained prepared unit and cleanup task do not own a candidate after provider disposal completes.
+        /// Retained cleanup and validation tasks do not own candidates after their owners finish cleanup.
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
@@ -1259,6 +1259,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     GC.KeepAlive(prepared);
                 }
             }
+            await AssertRetainedValidationReleasesCandidateAsync(failInspection: failCleanup).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1617,6 +1618,157 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// Retains a real validation task and inspection view after the writer releases its batches.
+        /// </summary>
+        private static async Task AssertRetainedValidationReleasesCandidateAsync(bool failInspection)
+        {
+            await using var harness = new ChangeSetCleanupHarness();
+            long revision = harness.Lifecycle.Revision;
+            await using ILifecycleWriter writer = await harness.Lifecycle.BeginAsync().ConfigureAwait(false);
+            (IPreparedChanges inspected,
+                Task validation,
+                WeakReference candidate,
+                InvalidOperationException failure,
+                CleanupCallCounts cleanupCalls) = await CompletePrivateValidationAsync(writer, failInspection)
+                .ConfigureAwait(false);
+            try
+            {
+                Assert.That(inspected.Registrations.Count, Is.EqualTo(1));
+                Assert.That(inspected.Slots.Count, Is.EqualTo(1));
+                NodeManagerRegistrationSnapshot snapshot = inspected.Registrations[0];
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(harness.Writer.ActiveOperationCount, Is.EqualTo(1));
+                    Assert.That(harness.Lifecycle.Revision, Is.EqualTo(revision));
+                    Assert.That(snapshot.Slot.TryGetCurrent(out _), Is.False);
+                    Assert.That(inspected.IsCommitted, Is.False);
+                    Assert.That(validation.Status, Is.EqualTo(
+                        failInspection ? TaskStatus.Faulted : TaskStatus.RanToCompletion));
+                    if (failInspection)
+                    {
+                        Assert.That(validation.Exception?.InnerException, Is.SameAs(failure));
+                    }
+                    Assert.That(cleanupCalls.DeleteCount, Is.EqualTo(1));
+                    Assert.That(cleanupCalls.DisposeCount, Is.EqualTo(1));
+                }
+
+                await writer.DisposeAsync().ConfigureAwait(false);
+                Assert.That(harness.Writer.ActiveOperationCount, Is.Zero);
+                await Task.Yield();
+                for (int attempt = 0; attempt < 3 && candidate.IsAlive; attempt++)
+                {
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                    GC.Collect();
+                }
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(candidate.IsAlive, Is.False);
+                    Assert.That(snapshot.TryGetNodeManager(out _), Is.False);
+                    Assert.That(snapshot.TryGetRegistration(out _), Is.False);
+                    Assert.That(snapshot.Slot.TryGetCurrent(out _), Is.False);
+                    Assert.That(inspected.Slots[0], Is.SameAs(snapshot.Slot));
+                    Assert.That(inspected.Registrations[0].Id, Is.EqualTo(snapshot.Id));
+                    Assert.That(inspected.IsCommitted, Is.False);
+                    Assert.That(validation.Status, Is.EqualTo(
+                        failInspection ? TaskStatus.Faulted : TaskStatus.RanToCompletion));
+                    if (failInspection)
+                    {
+                        Assert.That(validation.Exception?.InnerException, Is.SameAs(failure));
+                    }
+                    Assert.That(cleanupCalls.DeleteCount, Is.EqualTo(1));
+                    Assert.That(cleanupCalls.DisposeCount, Is.EqualTo(1));
+                }
+            }
+            finally
+            {
+                GC.KeepAlive(inspected);
+                GC.KeepAlive(validation);
+                GC.KeepAlive(failure);
+                GC.KeepAlive(writer);
+            }
+        }
+
+        /// <summary>
+        /// Completes real validation outside the collection assertion's stack.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static async Task<(
+            IPreparedChanges Inspected,
+            Task Validation,
+            WeakReference Candidate,
+            InvalidOperationException Failure,
+            CleanupCallCounts CleanupCalls)> CompletePrivateValidationAsync(
+            ILifecycleWriter writer,
+            bool failInspection)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var cleanupCalls = new CleanupCallCounts();
+            var factory = new ValidationCandidateFactory(cleanupCalls);
+            var entered = new TaskCompletionSource<IPreparedChanges>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var failure = new InvalidOperationException("Private validation inspection failed.");
+            Task validation = writer.ValidateAsync(
+                [LifecycleChange.Add(factory)], async (changes, token) =>
+                {
+                    entered.TrySetResult(changes);
+                    await release.Task.WaitAsync(token).ConfigureAwait(false);
+                    if (failInspection)
+                    {
+                        throw failure;
+                    }
+                }, timeout.Token).AsTask();
+            IPreparedChanges inspected;
+            try
+            {
+                Task first = await Task.WhenAny(entered.Task, validation).WaitAsync(timeout.Token)
+                    .ConfigureAwait(false);
+                if (ReferenceEquals(first, validation))
+                {
+                    await validation.ConfigureAwait(false);
+                    throw new AssertionException("Validation completed before inspection was entered.");
+                }
+                inspected = await entered.Task.ConfigureAwait(false);
+                Assert.That(inspected.Registrations.Count, Is.EqualTo(1));
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(validation.IsCompleted, Is.False);
+                    Assert.That(factory.Candidate?.IsAlive, Is.True);
+                    Assert.That(inspected.Registrations[0].TryGetNodeManager(out _), Is.True);
+                    Assert.That(inspected.Registrations[0].TryGetRegistration(out _), Is.True);
+                    Assert.That(cleanupCalls.DeleteCount, Is.Zero);
+                    Assert.That(cleanupCalls.DisposeCount, Is.Zero);
+                }
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+
+            InvalidOperationException? observed = null;
+            try
+            {
+                await validation.WaitAsync(timeout.Token).ConfigureAwait(false);
+            }
+            catch (InvalidOperationException exception)
+            {
+                observed = exception;
+            }
+            if (failInspection)
+            {
+                Assert.That(observed, Is.SameAs(failure));
+            }
+            else
+            {
+                Assert.That(observed, Is.Null);
+            }
+            WeakReference candidate = factory.Candidate ??
+                throw new AssertionException("Validation did not create its candidate.");
+            return (inspected, validation, candidate, failure, cleanupCalls);
+        }
+
         private static Mock<IAsyncNodeManager> CreateManager(string namespaceUri)
         {
             var manager = new Mock<IAsyncNodeManager>();
@@ -1648,6 +1800,42 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     return new ValueTask<IAsyncNodeManager>(manager.Object);
                 });
             return factory.Object;
+        }
+
+        /// <summary>
+        /// Creates a candidate without retaining it in the factory after creation.
+        /// </summary>
+        private sealed class ValidationCandidateFactory(CleanupCallCounts cleanupCalls) : IAsyncNodeManagerFactory
+        {
+            /// <inheritdoc/>
+            public ArrayOf<string> NamespacesUris => [kNamespaceUri];
+
+            /// <summary>
+            /// Gets a non-owning reference to the created candidate.
+            /// </summary>
+            public WeakReference? Candidate { get; private set; }
+
+            /// <inheritdoc/>
+            public ValueTask<IAsyncNodeManager> CreateAsync(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                CancellationToken cancellationToken = default)
+            {
+                if (Candidate is not null)
+                {
+                    throw new InvalidOperationException("Validation created more than one candidate.");
+                }
+                Mock<IAsyncNodeManager> manager = CreateManager(kNamespaceUri);
+                manager.As<IDisposable>()
+                    .Setup(value => value.Dispose())
+                    .Callback(() => cleanupCalls.DisposeCount++);
+                manager.Setup(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()))
+                    .Callback((CancellationToken _) => cleanupCalls.DeleteCount++)
+                    .Returns(default(ValueTask));
+                IAsyncNodeManager candidate = manager.Object;
+                Candidate = new WeakReference(candidate);
+                return new ValueTask<IAsyncNodeManager>(candidate);
+            }
         }
 
         /// <summary>
