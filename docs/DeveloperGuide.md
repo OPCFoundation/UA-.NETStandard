@@ -226,7 +226,7 @@ you need to exercise:
 | Fixture | Scope |
 | --- | --- |
 | `ChangePreparerTests` | Private metadata and candidate ownership |
-| `NodeManagerGenerationTests` | Admission, retirement, quiescence and deferred-event delivery |
+| `NodeManagerGenerationTests` | Slot identity, ownership, admission, quiescence and deferred-event delivery |
 | `StripedCounterTests` | Balanced entries and cross-thread exits |
 | `NodeManagerRegistrationTests` | Registration metadata and namespace copying |
 | `NodeManagerLifecycleCompatibilityTests` | Convenience-adapter retry, prepared-owner cleanup and retirement status |

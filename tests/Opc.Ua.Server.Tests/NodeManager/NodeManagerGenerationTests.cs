@@ -420,6 +420,129 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Unpublishing an old generation cannot clear its replacement from the shared slot.
+        /// </summary>
+        [Test]
+        public void StaleUnpublishDoesNotWithdrawReplacement()
+        {
+            var slot = new NodeManagerSlot();
+            IAsyncNodeManager originalManager = CreateNodeManager().Object;
+            IAsyncNodeManager replacementManager = CreateNodeManager().Object;
+            var original = new NodeManagerGeneration(slot, 1, originalManager, NodeManagerGenerationState.Live);
+            var replacement = new NodeManagerGeneration(slot, 2, replacementManager, NodeManagerGenerationState.Live);
+
+            Assert.That(slot.TryGetCurrent(out _), Is.False);
+            slot.Publish(original);
+            Assert.That(slot.TryGetCurrent(out NodeManagerSlotSnapshot captured), Is.True);
+
+            slot.Publish(replacement);
+            slot.Unpublish(original);
+
+            Assert.That(slot.TryGetCurrent(out NodeManagerSlotSnapshot current), Is.True);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(current.Slot, Is.SameAs(slot));
+                Assert.That(current.Generation, Is.EqualTo(2));
+                Assert.That(current.NodeManager, Is.SameAs(replacementManager));
+                Assert.That(captured.Slot, Is.SameAs(slot));
+                Assert.That(captured.Generation, Is.EqualTo(1));
+                Assert.That(captured.NodeManager, Is.SameAs(originalManager));
+            }
+
+            slot.Unpublish(replacement);
+            slot.Unpublish(original);
+            Assert.That(slot.TryGetCurrent(out _), Is.False);
+        }
+
+        /// <summary>
+        /// A generation token follows the assigned slot identifier and distinguishes other generations.
+        /// </summary>
+        [Test]
+        public void GenerationReferenceTracksAssignedSlotAndExactGeneration()
+        {
+            var slot = new NodeManagerSlot();
+            var otherSlot = new NodeManagerSlot();
+            var original = new NodeManagerGeneration(
+                slot, 1, CreateNodeManager().Object, NodeManagerGenerationState.Live);
+            var replacement = new NodeManagerGeneration(
+                slot, 2, CreateNodeManager().Object, NodeManagerGenerationState.Live);
+            var unrelated = new NodeManagerGeneration(
+                otherSlot, 1, CreateNodeManager().Object, NodeManagerGenerationState.Live);
+            NodeManagerGenerationReference reference = original.Reference;
+            Guid initialId = slot.Id;
+            Guid registrationId = Guid.Parse("36df9618-23ff-44aa-bdcb-72fcaa291f6e");
+            Guid ignoredId = Guid.Parse("5d539f6b-d940-4db4-b4b2-95e42fc43a45");
+            otherSlot.SetRegistrationId(ignoredId);
+
+            Assert.That(reference.SlotId, Is.EqualTo(initialId));
+            slot.SetRegistrationId(registrationId);
+            slot.SetRegistrationId(ignoredId);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(slot.Id, Is.EqualTo(registrationId));
+                Assert.That(reference.SlotId, Is.EqualTo(registrationId));
+                Assert.That(reference.Number, Is.EqualTo(1));
+                Assert.That(reference.Identifies(original), Is.True);
+                Assert.That(reference.Identifies(replacement), Is.False);
+                Assert.That(reference.Identifies(unrelated), Is.False);
+                Assert.That(reference.TryGetGeneration(out NodeManagerGeneration? resolved), Is.True);
+                Assert.That(resolved, Is.SameAs(original));
+            }
+        }
+
+        /// <summary>
+        /// A retained slot and generation token do not own an unpublished generation or its manager.
+        /// </summary>
+        [Test]
+        public void UnpublishedGenerationReferenceDoesNotRetainManager()
+        {
+            (
+                NodeManagerSlot slot,
+                NodeManagerGenerationReference reference,
+                WeakReference<IAsyncNodeManager> manager,
+                WeakReference<NodeManagerGeneration> generation) = CreateUnpublishedGenerationReference();
+
+            CollectGenerationTargets();
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(slot.TryGetCurrent(out _), Is.False);
+                Assert.That(reference.SlotId, Is.EqualTo(slot.Id));
+                Assert.That(reference.Number, Is.EqualTo(1));
+                Assert.That(reference.TryGetGeneration(out _), Is.False);
+                Assert.That(generation.TryGetTarget(out _), Is.False);
+                Assert.That(manager.TryGetTarget(out _), Is.False);
+            }
+            GC.KeepAlive(slot);
+            GC.KeepAlive(reference);
+        }
+
+        /// <summary>
+        /// A captured slot snapshot retains the manager, but not the generation, after unpublication.
+        /// </summary>
+        [Test]
+        public void CapturedSlotSnapshotRetainsManagerAfterUnpublication()
+        {
+            (
+                NodeManagerSlotSnapshot snapshot,
+                WeakReference<IAsyncNodeManager> manager,
+                WeakReference<NodeManagerGeneration> generation) = CaptureUnpublishedSlotSnapshot();
+
+            CollectGenerationTargets();
+
+            Assert.That(manager.TryGetTarget(out IAsyncNodeManager? retained), Is.True);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(snapshot.Slot.TryGetCurrent(out _), Is.False);
+                Assert.That(snapshot.Generation, Is.EqualTo(1));
+                Assert.That(snapshot.NodeManager, Is.SameAs(retained));
+                Assert.That(generation.TryGetTarget(out _), Is.False);
+            }
+            GC.KeepAlive(snapshot);
+        }
+
+        /// <summary>
         /// Registry and facade caches do not retain a resource after its last owner is released.
         /// </summary>
         [Test]
@@ -496,6 +619,56 @@ namespace Opc.Ua.Server.Tests.NodeManager
             IAsyncNodeManager facade = CreateResourceFacade(resource, false);
             NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(facade);
             return (new(facade), new(resource), new(generation));
+        }
+
+        /// <summary>
+        /// Returns a slot and token after removing their published generation.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static (
+            NodeManagerSlot Slot,
+            NodeManagerGenerationReference Reference,
+            WeakReference<IAsyncNodeManager> Manager,
+            WeakReference<NodeManagerGeneration> Generation) CreateUnpublishedGenerationReference()
+        {
+            var slot = new NodeManagerSlot();
+            IAsyncNodeManager manager = CreateNodeManager().Object;
+            var generation = new NodeManagerGeneration(slot, 1, manager, NodeManagerGenerationState.Live);
+            slot.Publish(generation);
+            slot.Unpublish(generation);
+            return (slot, generation.Reference, new(manager), new(generation));
+        }
+
+        /// <summary>
+        /// Captures a slot snapshot before removing its published generation.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static (
+            NodeManagerSlotSnapshot Snapshot,
+            WeakReference<IAsyncNodeManager> Manager,
+            WeakReference<NodeManagerGeneration> Generation) CaptureUnpublishedSlotSnapshot()
+        {
+            var slot = new NodeManagerSlot();
+            IAsyncNodeManager manager = CreateNodeManager().Object;
+            var generation = new NodeManagerGeneration(slot, 1, manager, NodeManagerGenerationState.Live);
+            slot.Publish(generation);
+            Assert.That(slot.TryGetCurrent(out NodeManagerSlotSnapshot snapshot), Is.True);
+            slot.Unpublish(generation);
+            return (snapshot, new(manager), new(generation));
+        }
+
+        /// <summary>
+        /// Collects generation targets after their construction frames have returned.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void CollectGenerationTargets()
+        {
+            for (int attempt = 0; attempt < 3; attempt++)
+            {
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+            }
         }
 
         /// <summary>
