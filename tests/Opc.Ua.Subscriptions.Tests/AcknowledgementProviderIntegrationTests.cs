@@ -155,64 +155,116 @@ namespace Opc.Ua.Subscriptions.Tests
             await using ManagedSessionType session = await ConnectAsync(
                 nameof(NativeSplitPublishMetadataSurvivesPartitionForwardingAsync), observer, classic: false, ct)
                 .ConfigureAwait(false);
-            var handler = new MessageCollectingHandler();
-            var options = new OptionsMonitor<Client.Subscriptions.SubscriptionOptions>(
-                new Client.Subscriptions.SubscriptionOptions
-                {
-                    PublishingEnabled = false,
-                    PublishingInterval = TimeSpan.FromMilliseconds(100),
-                    KeepAliveCount = 1,
-                    MaxNotificationsPerPublish = 1,
-                    MaxMonitoredItemsPerPartition = 3,
-                    DisableUnboundedItemMode = !partitioned
-                });
-            Assert.That(session.TryGetSubscriptionManager(out ISubscriptionManager? manager), Is.True);
-            // Concurrent publish workers can deliver the responses out of order. A message overtaken
-            // that way is republished, and a Republish response has no MoreNotifications to preserve.
-            manager!.MinPublishWorkerCount = 1;
-            manager.MaxPublishWorkerCount = 1;
-            await using ISubscription subscription = manager.Add(handler, options);
-            var items = new List<Client.Subscriptions.MonitoredItems.IMonitoredItem>();
-            int expected = partitioned ? 6 : 3;
-            for (int i = 0; i < expected; i++)
+            if (ReferenceServer is null)
             {
-                Assert.That(subscription.TryAddMonitoredItem(
-                    $"state-{i}",
-                    VariableIds.Server_ServerStatus_State,
-                    value => value with { QueueSize = 1, SamplingInterval = TimeSpan.FromMilliseconds(100) },
-                    out Client.Subscriptions.MonitoredItems.IMonitoredItem? item), Is.True);
-                items.Add(item!);
+                Assert.Ignore("Publish marker correlation requires the local reference server.");
             }
-            await WaitForAsync(() => items.All(item => item.Created), ct).ConfigureAwait(false);
-            options.CurrentValue = options.CurrentValue with { PublishingEnabled = true };
-            await WaitForAsync(() => handler.Messages.Count >= expected, ct).ConfigureAwait(false);
-
-            Assert.That(manager.PublishWorkerCount, Is.EqualTo(1));
-            SubscriptionNotificationMessage[] messages = [.. handler.Messages.Take(expected)];
-            IGrouping<uint, SubscriptionNotificationMessage>[] groups =
-                [.. messages.GroupBy(message => message.Acknowledgement.SubscriptionId)];
-            Assert.That(groups, Has.Length.EqualTo(partitioned ? 2 : 1));
-            foreach (IGrouping<uint, SubscriptionNotificationMessage> group in groups)
+            IServiceResponseMutator? originalResponseMutator = ReferenceServer.ResponseMutator;
+            var responseObserver = new PublishResponseObserver();
+            ReferenceServer.ResponseMutator = responseObserver;
+            try
             {
-                SubscriptionNotificationMessage[] ordered =
-                    [.. group.OrderBy(message => message.Acknowledgement.SequenceNumber)];
-                Assert.That(ordered.Any(message => message.MoreNotifications.HasValue), Is.True);
-                for (int i = 0; i < ordered.Length; i++)
-                {
-                    if (ordered[i].MoreNotifications is bool moreNotifications)
+                var handler = new MessageCollectingHandler();
+                var options = new OptionsMonitor<Client.Subscriptions.SubscriptionOptions>(
+                    new Client.Subscriptions.SubscriptionOptions
                     {
-                        Assert.That(moreNotifications, Is.EqualTo(i < ordered.Length - 1));
+                        PublishingEnabled = false,
+                        PublishingInterval = TimeSpan.FromMilliseconds(100),
+                        KeepAliveCount = 1,
+                        MaxNotificationsPerPublish = 1,
+                        MaxMonitoredItemsPerPartition = 3,
+                        DisableUnboundedItemMode = !partitioned
+                    });
+                Assert.That(session.TryGetSubscriptionManager(out ISubscriptionManager? manager), Is.True);
+                // Concurrent publish workers can deliver the responses out of order. A message overtaken
+                // that way is republished, and a Republish response has no MoreNotifications to preserve.
+                manager!.MinPublishWorkerCount = 1;
+                manager.MaxPublishWorkerCount = 1;
+                await using ISubscription subscription = manager.Add(handler, options);
+                var items = new List<Client.Subscriptions.MonitoredItems.IMonitoredItem>();
+                int expected = partitioned ? 6 : 3;
+                for (int i = 0; i < expected; i++)
+                {
+                    Assert.That(subscription.TryAddMonitoredItem(
+                        $"state-{i}",
+                        VariableIds.Server_ServerStatus_State,
+                        value => value with { QueueSize = 1, SamplingInterval = TimeSpan.FromMilliseconds(100) },
+                        out Client.Subscriptions.MonitoredItems.IMonitoredItem? item), Is.True);
+                    items.Add(item!);
+                }
+                await WaitForAsync(() => items.All(item => item.Created), ct).ConfigureAwait(false);
+                options.CurrentValue = options.CurrentValue with { PublishingEnabled = true };
+                await WaitForAsync(() => handler.Messages.Count >= expected, ct).ConfigureAwait(false);
+
+                Assert.That(manager.PublishWorkerCount, Is.EqualTo(1));
+                SubscriptionNotificationMessage[] messages = [.. handler.Messages];
+                Assert.That(messages, Has.Length.EqualTo(expected),
+                    $"Unexpected observed notification count. Server responses: " +
+                    responseObserver.GetDiagnostics());
+                IGrouping<uint, SubscriptionNotificationMessage>[] groups =
+                    [.. messages.GroupBy(message => message.Acknowledgement.SubscriptionId)];
+                Assert.That(groups, Has.Length.EqualTo(partitioned ? 2 : 1));
+                PublishObservation[] responses = responseObserver.Snapshot();
+                foreach (IGrouping<uint, SubscriptionNotificationMessage> group in groups)
+                {
+                    SubscriptionNotificationMessage[] ordered =
+                        [.. group.OrderBy(message => message.Acknowledgement.SequenceNumber)];
+                    Assert.That(ordered, Has.Length.EqualTo(3));
+                    for (int i = 0; i < ordered.Length; i++)
+                    {
+                        SubscriptionNotificationMessage message = ordered[i];
+                        bool expectedMoreNotifications = i < ordered.Length - 1;
+                        PublishObservation[] publishResponses =
+                        [
+                            .. responses.Where(response =>
+                                !response.Republished &&
+                                response.SubscriptionId == group.Key &&
+                                response.SequenceNumber == message.Acknowledgement.SequenceNumber)
+                        ];
+                        Assert.That(publishResponses, Has.Length.EqualTo(1),
+                            $"Missing or duplicate Publish response marker for {group.Key}-" +
+                            $"{message.Acknowledgement.SequenceNumber}. Observed responses: " +
+                            responseObserver.GetDiagnostics());
+                        Assert.That(publishResponses[0].MoreNotifications, Is.EqualTo(expectedMoreNotifications),
+                            $"Unexpected server Publish response marker for {group.Key}-" +
+                            $"{message.Acknowledgement.SequenceNumber}. Observed responses: " +
+                            responseObserver.GetDiagnostics());
+
+                        if (message.MoreNotifications is bool moreNotifications)
+                        {
+                            Assert.That(moreNotifications, Is.EqualTo(expectedMoreNotifications));
+                        }
+                        else
+                        {
+                            Assert.That(responses.Any(response =>
+                                response.Republished &&
+                                response.SubscriptionId == group.Key &&
+                                response.SequenceNumber == message.Acknowledgement.SequenceNumber),
+                                Is.True,
+                                $"A null marker is valid only for a delivered Republish response. " +
+                                $"Observed responses: {responseObserver.GetDiagnostics()}");
+                        }
+                    }
+                    Assert.That(ordered.All(message => message.Notifications[0].DataChanges.Count == 1), Is.True);
+                    foreach (SubscriptionNotificationMessage message in ordered)
+                    {
+                        Assert.That(observer.WasAcknowledged(message.Acknowledgement), Is.False);
+                        session.Confirm(message.Acknowledgement);
                     }
                 }
-                Assert.That(ordered.All(message => message.Notifications[0].DataChanges.Count == 1), Is.True);
-                foreach (SubscriptionNotificationMessage message in ordered)
-                {
-                    Assert.That(observer.WasAcknowledged(message.Acknowledgement), Is.False);
-                    session.Confirm(message.Acknowledgement);
-                }
+                await WaitForAsync(
+                    () => messages.All(message => observer.WasAcknowledged(message.Acknowledgement)), ct)
+                    .ConfigureAwait(false);
             }
-            await WaitForAsync(() => messages.All(message => observer.WasAcknowledged(message.Acknowledgement)), ct)
-                .ConfigureAwait(false);
+            catch
+            {
+                TestContext.Progress.WriteLine(responseObserver.GetDiagnostics());
+                throw;
+            }
+            finally
+            {
+                ReferenceServer.ResponseMutator = originalResponseMutator;
+            }
         }
 
         /// <summary>
@@ -458,6 +510,55 @@ namespace Opc.Ua.Subscriptions.Tests
 
             private readonly ConcurrentDictionary<AcknowledgementHandle, byte> m_acknowledged = new();
         }
+
+        private sealed class PublishResponseObserver : IServiceResponseMutator
+        {
+            public ValueTask<IServiceResponse> MutateResponseAsync(
+                IServiceRequest request,
+                IServiceResponse response,
+                CancellationToken cancellationToken = default)
+            {
+                if (request is PublishRequest &&
+                    response is PublishResponse publishResponse &&
+                    publishResponse.NotificationMessage.NotificationData.Count > 0)
+                {
+                    m_observations.Enqueue(new PublishObservation(
+                        publishResponse.SubscriptionId,
+                        publishResponse.NotificationMessage.SequenceNumber,
+                        publishResponse.MoreNotifications,
+                        Republished: false));
+                }
+                else if (request is RepublishRequest republishRequest &&
+                    response is RepublishResponse republishResponse &&
+                    republishResponse.NotificationMessage.NotificationData.Count > 0)
+                {
+                    m_observations.Enqueue(new PublishObservation(
+                        republishRequest.SubscriptionId,
+                        republishResponse.NotificationMessage.SequenceNumber,
+                        MoreNotifications: null,
+                        Republished: true));
+                }
+                return new ValueTask<IServiceResponse>(response);
+            }
+
+            private PublishObservation[] Snapshot()
+            {
+                return [.. m_observations];
+            }
+
+            private string GetDiagnostics()
+            {
+                return string.Join(Environment.NewLine, Snapshot());
+            }
+
+            private readonly ConcurrentQueue<PublishObservation> m_observations = new();
+        }
+
+        private readonly record struct PublishObservation(
+            uint SubscriptionId,
+            uint SequenceNumber,
+            bool? MoreNotifications,
+            bool Republished);
 
         private sealed class MessageCollectingHandler : ISubscriptionNotificationMessageHandler
         {
