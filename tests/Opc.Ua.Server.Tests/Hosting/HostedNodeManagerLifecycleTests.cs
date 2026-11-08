@@ -94,13 +94,16 @@ namespace Opc.Ua.Server.Tests.Hosting
             inner.SetupGet(owner => owner.SupportsPublicationIsolation).Returns(true);
             var hosted = new HostedNodeManagerLifecycle();
             hosted.Attach(inner.Object);
+            INodeManagerLifecycle lifecycle = hosted;
 
-            Assert.That(hosted.Revision, Is.EqualTo(17));
-            Assert.That(hosted.Slots[0], Is.SameAs(registration.Slot));
-            Assert.That(hosted.Registrations[0], Is.SameAs(registration));
-            Assert.That(hosted.IsShuttingDown, Is.True);
-            Assert.That(hosted.SupportsPreparedPublication, Is.True);
-            Assert.That(hosted.SupportsPublicationIsolation, Is.True);
+            Assert.That(inner.Object, Is.Not.InstanceOf<INodeManagerPublicationLifecycle>());
+            Assert.That(hosted, Is.InstanceOf<INodeManagerPublicationLifecycle>());
+            Assert.That(lifecycle.Revision, Is.EqualTo(17));
+            Assert.That(lifecycle.Slots[0], Is.SameAs(registration.Slot));
+            Assert.That(lifecycle.Registrations[0], Is.SameAs(registration));
+            Assert.That(lifecycle.IsShuttingDown, Is.True);
+            Assert.That(lifecycle.SupportsPreparedPublication, Is.True);
+            Assert.That(lifecycle.SupportsPublicationIsolation, Is.True);
             inner.VerifyAll();
         }
 
@@ -118,11 +121,13 @@ namespace Opc.Ua.Server.Tests.Hosting
                 .Returns(new ValueTask<IPreparedNodeManagerBatch>(prepared.Object));
             var hosted = new HostedNodeManagerLifecycle();
             hosted.Attach(inner.Object);
+            INodeManagerLifecycle lifecycle = hosted;
 
+            Assert.That(inner.Object, Is.Not.InstanceOf<INodeManagerPublicationLifecycle>());
             await using (IPreparedNodeManagerBatch actual = compatibilityEntryPoint
                 ? await hosted.PrepareAsync(changes, Mock.Of<IOperationContext>(), cancellation.Token)
                     .ConfigureAwait(false)
-                : await hosted.PrepareAsync(changes, cancellation.Token).ConfigureAwait(false))
+                : await lifecycle.PrepareAsync(changes, cancellation.Token).ConfigureAwait(false))
             {
                 Assert.That(actual, Is.SameAs(prepared.Object));
             }
@@ -144,8 +149,10 @@ namespace Opc.Ua.Server.Tests.Hosting
             inner.Setup(owner => owner.CapturePublication()).Returns(capture.Object);
             var hosted = new HostedNodeManagerLifecycle();
             hosted.Attach(inner.Object);
+            INodeManagerLifecycle lifecycle = hosted;
 
-            INodeManagerPublicationCapture actualCapture = hosted.CapturePublication();
+            Assert.That(inner.Object, Is.Not.InstanceOf<INodeManagerPublicationLifecycle>());
+            INodeManagerPublicationCapture actualCapture = lifecycle.CapturePublication();
             INodeManagerPublication actual = legacyContext
                 ? await actualCapture.BeginAsync(Mock.Of<IOperationContext>(), cancellation.Token)
                     .ConfigureAwait(false)
