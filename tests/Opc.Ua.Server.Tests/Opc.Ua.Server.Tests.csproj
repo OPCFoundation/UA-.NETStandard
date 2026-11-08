@@ -4,7 +4,7 @@
     <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
     <RootNamespace>Opc.Ua.Server.Tests</RootNamespace>
     <GenerateProgramFile>false</GenerateProgramFile>
-    <!-- The lifecycle compatibility suite intentionally exercises the one-release obsolete extension shims.
+    <!-- The lifecycle compatibility suite exercises obsolete extension shims.
          TODO: Remove CS0618 when those compatibility tests and shims are retired. -->
     <NoWarn>$(NoWarn);CS0618</NoWarn>
     <!-- The coverage NodeSet models are consumed in-process by the coverage

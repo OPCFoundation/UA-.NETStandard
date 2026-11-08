@@ -38,7 +38,7 @@ using Opc.Ua.Server.Hosting;
 namespace Opc.Ua.Server.Tests.Hosting
 {
     /// <summary>
-    /// Exercises hosted canonical forwarding and the one-release compatibility transaction shims.
+    /// Exercises hosted canonical forwarding and compatibility transaction shims.
     /// </summary>
     [TestFixture]
     [Category("Hosting")]

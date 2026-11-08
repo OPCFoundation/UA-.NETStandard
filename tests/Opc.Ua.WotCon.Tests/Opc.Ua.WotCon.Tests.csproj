@@ -4,7 +4,7 @@
     <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
     <RootNamespace>Opc.Ua.WotCon.Tests</RootNamespace>
     <GenerateProgramFile>false</GenerateProgramFile>
-    <!-- Lifecycle compatibility cases intentionally exercise the one-release obsolete extension shims.
+    <!-- Lifecycle compatibility cases exercise obsolete extension shims.
          TODO: Remove CS0618 when those compatibility tests and shims are retired. -->
     <NoWarn>$(NoWarn);CS1591;CA2007;CA2000;CA1014;CS0618</NoWarn>
   </PropertyGroup>
