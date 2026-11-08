@@ -69,6 +69,33 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Empty and null entries are rejected before preparation effects.
+        /// </summary>
+        [Test]
+        [SetCulture("en-us")]
+        [SetUICulture("en-us")]
+        public async Task SlotChangeSetRejectsEmptyAndNullEntriesAsync()
+        {
+            await using var harness = new NodeManagerLifecycleBatchConflictTests.BatchConflictHarness();
+            INodeManagerLifecycle lifecycle = harness.Lifecycle;
+            long revision = lifecycle.Revision;
+            NodeManagerRoutingTable.RoutingSnapshot routing =
+                ((IDynamicNodeManagerBatchHost)harness.Master).RoutingRevision;
+            await Assert.ThatAsync(async () => await ((INodeManagerLifecycle)null!).ApplyAsync([])
+                .ConfigureAwait(false),
+                Throws.ArgumentNullException.With.Property(nameof(ArgumentException.ParamName)).EqualTo("lifecycle"))
+                .ConfigureAwait(false);
+            await Assert.ThatAsync(async () => await lifecycle.ApplyAsync([]).ConfigureAwait(false),
+                Throws.ArgumentException).ConfigureAwait(false);
+            await Assert.ThatAsync(async () => await lifecycle.ApplyAsync(ArrayOf<LifecycleChange>.Null)
+                .ConfigureAwait(false), Throws.ArgumentException).ConfigureAwait(false);
+            await Assert.ThatAsync(async () => await lifecycle.ApplyAsync([null!]).ConfigureAwait(false),
+                Throws.ArgumentException).ConfigureAwait(false);
+            Assert.That(lifecycle.Revision, Is.EqualTo(revision));
+            Assert.That(((IDynamicNodeManagerBatchHost)harness.Master).RoutingRevision, Is.SameAs(routing));
+        }
+
+        /// <summary>
         /// Rejects null lifecycle arguments before consulting server services.
         /// </summary>
         [Test]

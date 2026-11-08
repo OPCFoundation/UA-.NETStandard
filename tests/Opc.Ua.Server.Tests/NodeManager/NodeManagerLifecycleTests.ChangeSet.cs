@@ -791,27 +791,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// Empty and null entries are rejected before preparation effects.
-        /// </summary>
-        [Test]
-        public async Task SlotChangeSetRejectsEmptyAndNullEntriesAsync()
-        {
-            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
-            long revision = lifecycle.Revision;
-            await Assert.ThatAsync(async () => await ((INodeManagerLifecycle)null!).ApplyAsync([])
-                .ConfigureAwait(false),
-                Throws.ArgumentNullException.With.Property(nameof(ArgumentException.ParamName)).EqualTo("lifecycle"))
-                .ConfigureAwait(false);
-            await Assert.ThatAsync(async () => await lifecycle.ApplyAsync([]).ConfigureAwait(false),
-                Throws.ArgumentException).ConfigureAwait(false);
-            await Assert.ThatAsync(async () => await lifecycle.ApplyAsync(ArrayOf<LifecycleChange>.Null)
-                .ConfigureAwait(false), Throws.ArgumentException).ConfigureAwait(false);
-            await Assert.ThatAsync(async () => await lifecycle.ApplyAsync([null!]).ConfigureAwait(false),
-                Throws.ArgumentException).ConfigureAwait(false);
-            Assert.That(lifecycle.Revision, Is.EqualTo(revision));
-        }
-
-        /// <summary>
         /// An old provider cannot turn a slot reload into an unrelated addition without failing before decision.
         /// </summary>
         [Test]
