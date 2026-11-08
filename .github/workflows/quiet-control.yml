@@ -1,0 +1,112 @@
+name: Quiet subscription exact-head diagnostic
+run-name: Quiet subscription fa65ac80 unchanged controls
+
+on:
+  push:
+    branches: [diagnostic/quiet-subscription-fa65ac80-20261108]
+    paths: [.github/workflows/quiet-control.yml]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: quiet-control-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  unchanged:
+    if: github.run_attempt == 1
+    runs-on: macos-latest
+    timeout-minutes: 35
+    env:
+      NBGV_SetCloudBuildVersionVars: 'false'
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        ref: fa65ac80dcb8bff2a1789569f482a64ba928a4f9
+        fetch-depth: 0
+        persist-credentials: false
+    - name: Verify predecessor and immutable source
+      shell: pwsh
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $run = gh api repos/OPCFoundation/UA-.NETStandard/actions/runs/42499377576 | ConvertFrom-Json
+        if ($LASTEXITCODE -ne 0 -or $run.status -ne 'completed') { throw 'Predecessor has not finished.' }
+        $head = git rev-parse HEAD
+        if ($LASTEXITCODE -ne 0 -or $head -ne 'fa65ac80dcb8bff2a1789569f482a64ba928a4f9') {
+          throw 'Unexpected tested source.'
+        }
+        New-Item -ItemType Directory -Force evidence | Out-Null
+        [ordered]@{
+          kind = 'unchanged exact-head source; isolated controls with CI coverage'
+          source = $head
+          definition = $env:GITHUB_SHA
+          predecessor = 42499377576
+          predecessorStatus = $run.status
+          run = $env:GITHUB_RUN_ID
+          attempt = $env:GITHUB_RUN_ATTEMPT
+          platform = [System.Runtime.InteropServices.RuntimeInformation]::OSDescription
+          repeats = 6
+        } | ConvertTo-Json | Set-Content evidence/provenance.json
+    - uses: actions/setup-dotnet@v6
+      with:
+        global-json-file: global.json
+    - name: Build unchanged subscription tests
+      shell: pwsh
+      run: |
+        dotnet --info 2>&1 | Tee-Object evidence/dotnet-info.txt
+        dotnet build tests/Opc.Ua.Subscriptions.Tests/Opc.Ua.Subscriptions.Tests.csproj --configuration Release --framework net10.0 /p:CustomTestTarget=net10.0 /p:CollectCoverage=true 2>&1 | Tee-Object evidence/build.txt
+        if ($LASTEXITCODE -ne 0) { throw "Build failed: $LASTEXITCODE" }
+        git diff --exit-code
+        if ($LASTEXITCODE -ne 0) { throw 'Build changed tracked source.' }
+    - name: Run six unchanged paired controls
+      timeout-minutes: 12
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $project = 'tests/Opc.Ua.Subscriptions.Tests/Opc.Ua.Subscriptions.Tests.csproj'
+        $filter = 'FullyQualifiedName~AcknowledgementProviderIntegrationTests.QuietSubscriptionAcknowledgementSurvivesConcurrentPublishesAsync'
+        $failed = $false
+        $results = @()
+        for ($i = 1; $i -le 6; $i++) {
+          $dir = "evidence/unchanged-$i"
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          $arguments = @('test', $project, '--no-build', '--configuration', 'Release',
+            '--framework', 'net10.0', '/p:CustomTestTarget=net10.0', '--filter', $filter,
+            '--logger', 'trx;LogFileName=control.trx', '--logger', 'console;verbosity=detailed',
+            '--results-directory', $dir, '--blame-hang-timeout', '2m',
+            '--blame-hang-dump-type', 'mini', '--blame-crash',
+            '/p:CollectCoverage=true', '--collect:XPlat Code Coverage',
+            '--settings', './tests/coverlet.runsettings.xml')
+          "dotnet $($arguments -join ' ')" | Set-Content "$dir/command.txt"
+          & dotnet @arguments 2>&1 | Tee-Object "$dir/console.txt"
+          $exit = $LASTEXITCODE
+          $trxPath = "$dir/control.trx"
+          if (!(Test-Path $trxPath)) { throw "Missing results for repetition $i, exit $exit." }
+          [xml]$trx = Get-Content -Raw $trxPath
+          $cases = @($trx.TestRun.Results.UnitTestResult)
+          if ($cases.Count -ne 2 -or @($cases | Where-Object { $_.testName -notlike 'QuietSubscriptionAcknowledgementSurvivesConcurrentPublishesAsync(*)' }).Count -ne 0) {
+            throw "Unexpected selected cases in repetition $i."
+          }
+          $results += [ordered]@{ repetition = $i; exit = $exit; cases = @($cases | ForEach-Object {
+            [ordered]@{ name = $_.testName; outcome = $_.outcome; duration = $_.duration }
+          }) }
+          $results | ConvertTo-Json -Depth 6 | Set-Content evidence/results.json
+          if (@($cases | Where-Object { $_.outcome -ne 'Passed' }).Count -ne 0 -or $exit -ne 0) {
+            $failed = $true
+            break
+          }
+        }
+        git diff --exit-code
+        if ($LASTEXITCODE -ne 0) { throw 'Tests changed tracked source.' }
+        if ($failed) { throw 'A control failed; see retained evidence.' }
+    - uses: actions/upload-artifact@v7
+      if: always()
+      with:
+        name: quiet-control-unchanged-${{ github.run_id }}
+        path: evidence
+        if-no-files-found: error
+        retention-days: 7
