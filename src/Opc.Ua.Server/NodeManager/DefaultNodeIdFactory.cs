@@ -30,7 +30,11 @@
 using System;
 using System.Buffers;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Globalization;
+#if NET
+using System.Runtime.InteropServices;
+#endif
 using System.Security.Cryptography;
 using System.Text;
 
@@ -486,9 +490,8 @@ namespace Opc.Ua.Server
         {
             for (int attempt = 0; attempt < kMaxCounterAttempts; attempt++)
             {
-                var nodeId = new NodeId(
-                    Utils.IncrementIdentifier(ref m_allocation.LastUsedId),
-                    DefaultNamespaceIndex);
+                uint identifier = Utils.IncrementIdentifier(ref m_allocation.LastUsedId);
+                var nodeId = new NodeId(identifier, DefaultNamespaceIndex);
 
                 // The counter mints into the same numeric space a hash does -
                 // the counter base is a 32 bit value like any other - so a
@@ -504,7 +507,7 @@ namespace Opc.Ua.Server
                 // collide with itself, but about keeping its identifiers out
                 // of the way of the modes that can.
                 if (!m_detectCollisionsRequested ||
-                    m_allocation.MintedIdentifiers.TryAdd(nodeId, kCounterWitness))
+                    m_allocation.TryReserveNumeric(identifier, DefaultNamespaceIndex))
                 {
                     return nodeId;
                 }
@@ -663,7 +666,11 @@ namespace Opc.Ua.Server
                         return MintNumericWithoutCollision(hash, namespaceIndex);
                     }
                     nodeId = new NodeId(ToIdentifier(hash), namespaceIndex);
-                    break;
+                    if (!m_allocation.ClaimNumeric(ToIdentifier(hash), namespaceIndex, ToWitness(hash)))
+                    {
+                        throw CreateCollisionError(nodeId, canonicalPath);
+                    }
+                    return nodeId;
                 case NodeIdAssignmentMode.Guid:
                     nodeId = new NodeId(ToGuid(hash), namespaceIndex);
                     break;
@@ -677,26 +684,6 @@ namespace Opc.Ua.Server
             return nodeId;
         }
 
-        /// <summary>
-        /// Raises an error when a second browse path lands on an identifier
-        /// this factory already minted for a different one.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// Minting the same path twice is normal - <c>AssignNodeIds</c> walks
-        /// a subtree on every create pass - so the record keeps a witness of
-        /// the path alongside the identifier and only a *differing* witness
-        /// is a collision. The witness is the tail of the same hash, so two
-        /// paths would have to agree on the identifier and on a further 64
-        /// bits before a real collision could pass as a re-mint.
-        /// </para>
-        /// <para>
-        /// The alternative to raising is worse than a failed start: the
-        /// predefined-node index takes the last writer, so a collision would
-        /// silently replace one node with the other and the address space
-        /// would be quietly wrong.
-        /// </para>
-        /// </remarks>
         /// <summary>
         /// Mints a numeric identifier when collisions are not raised, moving a
         /// path whose identifier is already taken by a different path to the
@@ -727,10 +714,9 @@ namespace Opc.Ua.Server
 
             for (int attempt = 0; attempt < kMaxProbeAttempts; attempt++)
             {
-                var nodeId = new NodeId(identifier, namespaceIndex);
-                if (m_allocation.MintedIdentifiers.GetOrAdd(nodeId, witness) == witness)
+                if (m_allocation.ClaimNumeric(identifier, namespaceIndex, witness))
                 {
-                    return nodeId;
+                    return new NodeId(identifier, namespaceIndex);
                 }
 
                 // 0 is skipped: a numeric identifier of 0 is the null NodeId
@@ -745,6 +731,26 @@ namespace Opc.Ua.Server
                 kMaxProbeAttempts);
         }
 
+        /// <summary>
+        /// Raises an error when a second browse path lands on an identifier
+        /// this factory already minted for a different one.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Minting the same path twice is normal - <c>AssignNodeIds</c> walks
+        /// a subtree on every create pass - so the record keeps a witness of
+        /// the path alongside the identifier and only a *differing* witness
+        /// is a collision. The witness is the tail of the same hash, so two
+        /// paths would have to agree on the identifier and on a further 64
+        /// bits before a real collision could pass as a re-mint.
+        /// </para>
+        /// <para>
+        /// The alternative to raising is worse than a failed start: the
+        /// predefined-node index takes the last writer, so a collision would
+        /// silently replace one node with the other and the address space
+        /// would be quietly wrong.
+        /// </para>
+        /// </remarks>
         private void GuardAgainstCollision(
             NodeId nodeId,
             ReadOnlySpan<byte> hash,
@@ -762,7 +768,12 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            throw ServiceResultException.Create(
+            throw CreateCollisionError(nodeId, canonicalPath);
+        }
+
+        private ServiceResultException CreateCollisionError(NodeId nodeId, ReadOnlySpan<char> canonicalPath)
+        {
+            return ServiceResultException.Create(
                 StatusCodes.BadConfigurationError,
                 "The NodeId '{0}' was already minted from a different browse path, so '{1}' " +
                 "cannot be given it. Two distinct browse paths hashed to one {2} identifier. " +
@@ -1398,10 +1409,73 @@ namespace Opc.Ua.Server
                 = kCounterBase | ((uint)DateTime.UtcNow.Ticks & 0x0FFFFFFF);
 
             /// <summary>
-            /// The identifiers minted so far, each with a witness of the
-            /// browse path it came from.
+            /// The Guid and Opaque identifiers minted so far, each with a
+            /// witness of the browse path it came from. Kept only while
+            /// collisions are detected.
             /// </summary>
             public readonly ConcurrentDictionary<NodeId, ulong> MintedIdentifiers = new();
+
+            /// <summary>
+            /// Claims a numeric identifier for the browse path with the
+            /// specified witness.
+            /// </summary>
+            /// <returns>
+            /// <c>true</c> when the identifier was free or the same path
+            /// already holds it; <c>false</c> when a different path or a
+            /// counter value holds it.
+            /// </returns>
+            public bool ClaimNumeric(uint identifier, ushort namespaceIndex, ulong witness)
+            {
+                ulong key = ToNumericKey(identifier, namespaceIndex);
+                lock (m_numericIdentifiers)
+                {
+#if NET
+                    ref ulong held = ref CollectionsMarshal.GetValueRefOrAddDefault(
+                        m_numericIdentifiers, key, out bool exists);
+                    if (!exists)
+                    {
+                        held = witness;
+                        return true;
+                    }
+                    return held == witness;
+#else
+                    if (m_numericIdentifiers.TryGetValue(key, out ulong held))
+                    {
+                        return held == witness;
+                    }
+                    m_numericIdentifiers.Add(key, witness);
+                    return true;
+#endif
+                }
+            }
+
+            /// <summary>
+            /// Reserves a numeric counter identifier if nothing holds it yet.
+            /// </summary>
+            public bool TryReserveNumeric(uint identifier, ushort namespaceIndex)
+            {
+                lock (m_numericIdentifiers)
+                {
+                    return m_numericIdentifiers.TryAdd(
+                        ToNumericKey(identifier, namespaceIndex),
+                        kCounterWitness);
+                }
+            }
+
+            private static ulong ToNumericKey(uint identifier, ushort namespaceIndex)
+            {
+                return ((ulong)namespaceIndex << 32) | identifier;
+            }
+
+            /// <summary>
+            /// The numeric identifiers minted or reserved so far, keyed by
+            /// namespace and identifier, each with a witness of the browse
+            /// path it came from (<see cref="kCounterWitness"/> for counter
+            /// values). A plain dictionary under a lock costs about 24 bytes
+            /// per identifier and no allocation per entry, so it is kept for
+            /// every numeric factory, not only while collisions are detected.
+            /// </summary>
+            private readonly Dictionary<ulong, ulong> m_numericIdentifiers = [];
         }
 
         /// <summary>
