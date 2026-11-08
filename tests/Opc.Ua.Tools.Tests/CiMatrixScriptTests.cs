@@ -627,6 +627,7 @@ namespace Opc.Ua.Tools.Tests
                         "wot-other-core",
                         "wot-other-integration",
                         "wot-other-identity-integration",
+                        "wot-other-identity-di-integration",
                         "wot-other-legacy-integration"
                     ] : ["wot-materialization", "wot-other"];
                 Assert.That(
@@ -701,7 +702,10 @@ namespace Opc.Ua.Tools.Tests
                             profile.First().Os == "macos" &&
                             testName.Contains(".WotRegistryIdentityLiveTests", StringComparison.Ordinal))
                         {
-                            expectedShard = "wot-other-identity-integration";
+                            expectedShard = testName.Contains(
+                                ".WotRegistryIdentityLiveTests(True).", StringComparison.Ordinal)
+                                ? "wot-other-identity-di-integration"
+                                : "wot-other-identity-integration";
                         }
                         if (integration && profile.First().Framework != "net48" &&
                             profile.First().Os == "macos" &&
@@ -765,7 +769,9 @@ namespace Opc.Ua.Tools.Tests
         /// </summary>
         private static bool MatchesWotFilter(string filter, string testName, string[] categories)
         {
-            return filter.Split('&').All(term => term switch
+            // VSTest filter values escape parentheses; the test names do not.
+            return filter.Split('&').Select(term => term.Replace("\\(", "(", StringComparison.Ordinal)
+                .Replace("\\)", ")", StringComparison.Ordinal)).All(term => term switch
             {
                 "" => true,
                 _ when term.StartsWith("FullyQualifiedName!~", StringComparison.Ordinal) =>

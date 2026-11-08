@@ -490,10 +490,13 @@ function Get-TestProjectShards([string] $project, [string] $framework, [string] 
             if ($framework -ne 'net48') {
                 $liveEvents = "${materialization}WotEventModesLiveTests."
                 # Live tests create RSA, P256 and P384 certificates per test, which is
-                # slow on macOS. In the 2026-11-07 run the remaining integration tests
-                # took 41 minutes, so the registry identity and legacy classes
-                # (17 and 11 minutes) get their own entries under the 45-minute ceiling.
+                # slow on macOS: the other integration tests took 41 minutes in one
+                # entry. The registry identity fixtures (direct and dependency
+                # injection, up to 15 minutes each) and the legacy classes (up to
+                # 19 minutes) get their own entries under the 45-minute ceiling.
+                # VSTest filters need the fixture argument parentheses escaped.
                 $registryIdentity = 'Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests'
+                $registryIdentityDi = "${registryIdentity}\(True\)"
                 $legacy = 'Opc.Ua.WotCon.Tests.WotLegacy'
                 return @(
                     @{
@@ -538,6 +541,17 @@ function Get-TestProjectShards([string] $project, [string] $framework, [string] 
                             "FullyQualifiedName!~${materialization}"
                             'TestCategory=Integration'
                             "FullyQualifiedName~${registryIdentity}"
+                            "FullyQualifiedName!~${registryIdentityDi}"
+                        ) -join '&'
+                        hangTimeout = ''
+                    }
+                    @{
+                        id = 'wot-other-identity-di-integration'
+                        name = 'wot-other-identity-di-integration'
+                        filter = @(
+                            "FullyQualifiedName!~${materialization}"
+                            'TestCategory=Integration'
+                            "FullyQualifiedName~${registryIdentityDi}"
                         ) -join '&'
                         hangTimeout = ''
                     }
