@@ -741,7 +741,14 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(scale.Scale.ProductionOutput.TotalPackagesWeighed!.ItemCount!.WrappedValue.GetUInt64(),
                 Is.EqualTo(3UL));
             Assert.That(giveawayNotifications, Is.GreaterThanOrEqualTo(2));
-            firstProduct.NominalWeight!.WrappedValue = Variant.From(12.0);
+            Assert.That(ServiceResult.IsGood(await firstProduct.NominalWeight!.WriteAttributeAsync(
+                m_fixture.Context, Attributes.Value, default,
+                new DataValue(Variant.From(12.0))).ConfigureAwait(false)), Is.True);
+            var immediateGiveAway = new DataValue();
+            Assert.That(ServiceResult.IsGood(first.GiveAway.ReadAttribute(
+                m_fixture.Context, Attributes.Value, default, default, ref immediateGiveAway)), Is.True);
+            Assert.That(immediateGiveAway.WrappedValue.GetDouble(), Is.EqualTo(-4));
+            Assert.That(immediateGiveAway.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
             Assert.That(ServiceResult.IsGood(await reporter.RecordRejectedAsync(
                 double.NaN, CheckweigherRejectReason.Other).ConfigureAwait(false)), Is.True);
             Assert.That(first.GiveAway.WrappedValue.GetDouble(), Is.EqualTo(-4));
@@ -769,6 +776,128 @@ namespace Opc.Ua.Scales.Tests
                 1, (CheckweigherRejectReason)999).ConfigureAwait(false)).StatusCode,
                 Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
             Assert.That(first.TotalPackages!.ItemCount!.WrappedValue.GetUInt64(), Is.EqualTo(1UL));
+        }
+
+        /// <summary>
+        /// Recorder initialization retries without counting an item after a callback failure.
+        /// </summary>
+        [Test]
+        public async Task CheckweigherRecorderInitializationFailureRetriesBeforeCountingAsync()
+        {
+            ScaleHandle scale = await CreateAsync(ScaleKind.Checkweigher, "InitializationFailure", builder =>
+                builder.WithProductionPreset(preset => preset.AllowSelection()
+                    .AddProduct("A", new LocalizedText("A")).Select("A"))).ConfigureAwait(false);
+            var product = (CheckweigherProductState)scale.ProductionPreset!.ActiveProduct!;
+            var statistic = (CheckweigherStatisticState)product.Statistic!;
+            int initializations = 0;
+            var failure = new InvalidOperationException("initialization callback");
+            statistic.StartTime!.OnStateChangedAsync = (_, _, _, _) =>
+            {
+                initializations++;
+                return initializations == 1
+                    ? new ValueTask(Task.FromException(failure)) : default;
+            };
+            Assert.That(Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await scale.Checkweigher!.RecordAcceptedAsync(10).ConfigureAwait(false)), Is.SameAs(failure));
+            Assert.That(statistic.TotalPackages!.ItemCount!.WrappedValue.GetUInt64(), Is.Zero);
+            Assert.That(scale.Scale.ProductionOutput!.TotalPackages!.ItemCount!.WrappedValue.GetUInt64(), Is.Zero);
+            Assert.That(ServiceResult.IsGood(await scale.Checkweigher!.RecordAcceptedAsync(10)
+                .ConfigureAwait(false)), Is.True);
+            Assert.That(initializations, Is.EqualTo(2));
+            Assert.That(statistic.TotalPackages.ItemCount.WrappedValue.GetUInt64(), Is.EqualTo(1UL));
+            Assert.That(scale.Scale.ProductionOutput.TotalPackages.ItemCount.WrappedValue.GetUInt64(),
+                Is.EqualTo(1UL));
+        }
+
+        /// <summary>
+        /// Notification failures propagate after both product and scale counts have committed.
+        /// </summary>
+        [Test]
+        public async Task CheckweigherNotificationFailurePreservesCommittedTotalsAsync()
+        {
+            ScaleHandle scale = await CreateAsync(ScaleKind.Checkweigher, "ReportFailure", builder =>
+                builder.WithProductionPreset(preset => preset.AllowSelection()
+                    .AddProduct("A", new LocalizedText("A")).Select("A"))).ConfigureAwait(false);
+            var product = (CheckweigherProductState)scale.ProductionPreset!.ActiveProduct!;
+            var statistic = (CheckweigherStatisticState)product.Statistic!;
+            var failure = new InvalidOperationException("count callback");
+            statistic.TotalPackages!.ItemCount!.OnStateChangedAsync = (_, _, _, _) =>
+                new ValueTask(Task.FromException(failure));
+            Assert.That(Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await scale.Checkweigher!.RecordAcceptedAsync(10).ConfigureAwait(false)), Is.SameAs(failure));
+            Assert.That(statistic.TotalPackages.ItemCount.WrappedValue.GetUInt64(), Is.EqualTo(1UL));
+            Assert.That(statistic.TotalPackagesAccepted!.ItemCount!.WrappedValue.GetUInt64(), Is.EqualTo(1UL));
+            Assert.That(scale.Scale.ProductionOutput!.TotalPackages!.ItemCount!.WrappedValue.GetUInt64(),
+                Is.EqualTo(1UL));
+            statistic.TotalPackages.ItemCount.OnStateChangedAsync = null;
+            Assert.That(ServiceResult.IsGood(await scale.Checkweigher!.RecordAcceptedAsync(20)
+                .ConfigureAwait(false)), Is.True);
+            Assert.That(statistic.TotalPackages.ItemCount.WrappedValue.GetUInt64(), Is.EqualTo(2UL));
+            Assert.That(statistic.TotalPackagesAccepted.ItemCount.WrappedValue.GetUInt64(), Is.EqualTo(2UL));
+            Assert.That(scale.Scale.ProductionOutput.TotalPackages.ItemCount.WrappedValue.GetUInt64(),
+                Is.EqualTo(2UL));
+        }
+
+        /// <summary>
+        /// Report callbacks can await another report after both original statistic caches commit.
+        /// </summary>
+        [Test]
+        public async Task CheckweigherReportCallbackAwaitsNestedReportAsync()
+        {
+            ScaleHandle scale = await CreateAsync(ScaleKind.Checkweigher, "NestedReport", builder =>
+                builder.WithProductionPreset(preset => preset.AllowSelection()
+                    .AddProduct("A", new LocalizedText("A")).Select("A"))).ConfigureAwait(false);
+            var product = (CheckweigherProductState)scale.ProductionPreset!.ActiveProduct!;
+            var statistic = (CheckweigherStatisticState)product.Statistic!;
+            using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            int notifications = 0;
+            statistic.TotalPackages!.ItemCount!.OnStateChangedAsync = async (_, _, _, _) =>
+            {
+                if (Interlocked.Increment(ref notifications) == 1)
+                {
+                    Assert.That(scale.Scale.ProductionOutput!.TotalPackages!.ItemCount!.WrappedValue.GetUInt64(),
+                        Is.EqualTo(1UL));
+                    Assert.That(ServiceResult.IsGood(await scale.Checkweigher!.RecordAcceptedAsync(
+                        20, cancellationToken: cancellation.Token).ConfigureAwait(false)), Is.True);
+                }
+            };
+            Assert.That(ServiceResult.IsGood(await scale.Checkweigher!.RecordAcceptedAsync(
+                10, cancellationToken: cancellation.Token).ConfigureAwait(false)), Is.True);
+            Assert.That(statistic.TotalPackages.ItemCount.WrappedValue.GetUInt64(), Is.EqualTo(2UL));
+            Assert.That(scale.Scale.ProductionOutput!.TotalPackages!.ItemCount!.WrappedValue.GetUInt64(),
+                Is.EqualTo(2UL));
+        }
+
+        /// <summary>
+        /// Removed products do not lend their periods to a new product with the same id.
+        /// </summary>
+        [Test]
+        public async Task CheckweigherProductRemovalAndRecreationOwnIndependentPeriodsAsync()
+        {
+            ScaleHandle scale = await CreateAsync(ScaleKind.Checkweigher, "RetiredPeriod", builder =>
+                builder.WithProductionPreset(preset => preset.AllowSelection().AllowManagement()
+                    .AddProduct("A", new LocalizedText("A"))
+                    .AddProduct("B", new LocalizedText("B")).Select("A"))).ConfigureAwait(false);
+            ScaleProductionPreset preset = scale.ProductionPreset!;
+            var first = (CheckweigherProductState)preset.ActiveProduct!;
+            Assert.That(ServiceResult.IsGood(await scale.Checkweigher!.RecordAcceptedAsync(10)
+                .ConfigureAwait(false)), Is.True);
+            Assert.That((await preset.RemoveAsync("A").ConfigureAwait(false)).StatusCode,
+                Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(preset.Find("A"), Is.SameAs(first));
+            Assert.That(ServiceResult.IsGood(preset.Switch("B")), Is.True);
+            Assert.That(ServiceResult.IsGood(await preset.RemoveAsync("A").ConfigureAwait(false)), Is.True);
+            Assert.That(preset.Find("A"), Is.Null);
+            var replacement = (CheckweigherProductState)preset.AddProduct("A", new LocalizedText("A"));
+            Assert.That(replacement, Is.Not.SameAs(first));
+            Assert.That(replacement.Statistic, Is.Not.SameAs(first.Statistic));
+            Assert.That(ServiceResult.IsGood(preset.Switch("A")), Is.True);
+            Assert.That(ServiceResult.IsGood(await new CheckweigherController(scale).RecordAcceptedAsync(20)
+                .ConfigureAwait(false)), Is.True);
+            Assert.That(replacement.Statistic!.TotalPackages!.ItemCount!.WrappedValue.GetUInt64(), Is.EqualTo(1UL));
+            Assert.That(first.Statistic!.TotalPackages!.ItemCount!.WrappedValue.GetUInt64(), Is.EqualTo(1UL));
+            Assert.That(scale.Scale.ProductionOutput!.TotalPackages!.ItemCount!.WrappedValue.GetUInt64(),
+                Is.EqualTo(2UL));
         }
 
         /// <summary>

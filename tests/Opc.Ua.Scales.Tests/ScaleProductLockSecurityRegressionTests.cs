@@ -1817,6 +1817,144 @@ namespace Opc.Ua.Scales.Tests
         }
 
         /// <summary>
+        /// Missing weights retain measured aggregates with incomplete quality until the statistic period resets.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task StatisticAggregatesPreserveMissingWeightQualityAsync(bool asynchronous)
+        {
+            using var harness = new Harness();
+            var statistic = new StatisticState(null);
+            statistic.AddTotalPackages(harness.Context);
+            StatisticCounterState counter = statistic.TotalPackages!;
+            counter.AddSumWeight(harness.Context);
+            counter.AddMinValue(harness.Context);
+            counter.AddMaxValue(harness.Context);
+            counter.AddMeanValue(harness.Context);
+            counter.AddStandardDeviation(harness.Context);
+            var recorder = new ScaleStatistics(harness.Context, statistic, ScaleStatisticsObservationMode.FullCheck);
+            async Task Record(double weight)
+            {
+                if (asynchronous)
+                {
+                    await recorder.RecordAsync(weight).ConfigureAwait(false);
+                }
+                else
+                {
+                    recorder.Record(weight);
+                }
+            }
+            async Task Reset()
+            {
+                if (asynchronous)
+                {
+                    await recorder.ResetAsync("period").ConfigureAwait(false);
+                }
+                else
+                {
+                    recorder.Reset("period");
+                }
+            }
+            void Check(BaseVariableState variable, double value, StatusCode quality)
+            {
+                Assert.That(variable.WrappedValue.GetDouble(), Is.EqualTo(value));
+                Assert.That(variable.StatusCode, Is.EqualTo(quality));
+            }
+            foreach (BaseVariableState variable in new BaseVariableState[]
+            {
+                counter.MinValue!, counter.MaxValue!, counter.MeanValue!
+            })
+            {
+                Check(variable, 0, StatusCodes.BadNoData);
+            }
+            await Record(double.NaN).ConfigureAwait(false);
+            Check(counter.SumWeight!, 0, StatusCodes.BadNoData);
+            Check(counter.MeanValue!, 0, StatusCodes.BadNoData);
+            await Reset().ConfigureAwait(false);
+            Check(counter.SumWeight!, 0, StatusCodes.Good);
+            Check(counter.MinValue!, 0, StatusCodes.BadNoData);
+            await Record(10).ConfigureAwait(false);
+            Check(counter.SumWeight!, 10, StatusCodes.Good);
+            Check(counter.MeanValue!, 10, StatusCodes.Good);
+            await Record(double.NaN).ConfigureAwait(false);
+            Assert.That(counter.ItemCount!.WrappedValue.GetUInt64(), Is.EqualTo(2UL));
+            Check(counter.SumWeight!, 10, StatusCodes.UncertainSubNormal);
+            Check(counter.MinValue!, 10, StatusCodes.UncertainSubNormal);
+            Check(counter.MaxValue!, 10, StatusCodes.UncertainSubNormal);
+            Check(counter.MeanValue!, 10, StatusCodes.UncertainSubNormal);
+            Check(counter.StandardDeviation!, 0, StatusCodes.UncertainSubNormal);
+            await Record(20).ConfigureAwait(false);
+            Check(counter.SumWeight!, 30, StatusCodes.UncertainSubNormal);
+            await Reset().ConfigureAwait(false);
+            Assert.That(counter.ItemCount.WrappedValue.GetUInt64(), Is.Zero);
+            Check(counter.SumWeight!, 0, StatusCodes.Good);
+            Check(counter.MaxValue!, 0, StatusCodes.BadNoData);
+            await Record(20).ConfigureAwait(false);
+            Check(counter.SumWeight!, 20, StatusCodes.Good);
+            Check(counter.MinValue!, 20, StatusCodes.Good);
+            Check(counter.MaxValue!, 20, StatusCodes.Good);
+            Check(counter.MeanValue!, 20, StatusCodes.Good);
+        }
+
+        /// <summary>
+        /// Infinite weights reject before changing counters through every direct disposition entrypoint.
+        /// </summary>
+        [TestCase(false, 0)]
+        [TestCase(false, 1)]
+        [TestCase(false, 2)]
+        [TestCase(true, 0)]
+        [TestCase(true, 1)]
+        [TestCase(true, 2)]
+        public void StatisticInfiniteWeightsRejectBeforeMutation(bool asynchronous, int disposition)
+        {
+            using var harness = new Harness();
+            var statistic = new CheckweigherStatisticState(null);
+            statistic.AddTotalPackages(harness.Context);
+            var recorder = new ScaleStatistics(harness.Context, statistic);
+            foreach (double weight in new[] { double.NegativeInfinity, double.PositiveInfinity })
+            {
+                if (asynchronous)
+                {
+                    Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+                    {
+                        switch (disposition)
+                        {
+                            case 0:
+                                await recorder.RecordAsync(weight).ConfigureAwait(false);
+                                break;
+                            case 1:
+                                await recorder.RecordAcceptedAsync(weight, false, null).ConfigureAwait(false);
+                                break;
+                            default:
+                                await recorder.RecordRejectedAsync(weight, CheckweigherRejectReason.Other, null)
+                                    .ConfigureAwait(false);
+                                break;
+                        }
+                    });
+                }
+                else
+                {
+                    Assert.Throws<ArgumentOutOfRangeException>(() =>
+                    {
+                        switch (disposition)
+                        {
+                            case 0:
+                                recorder.Record(weight);
+                                break;
+                            case 1:
+                                recorder.RecordAccepted(weight);
+                                break;
+                            default:
+                                recorder.RecordRejected(weight, CheckweigherRejectReason.Other);
+                                break;
+                        }
+                    });
+                }
+                Assert.That(statistic.TotalPackages!.ItemCount!.WrappedValue.GetUInt64(), Is.Zero);
+            }
+        }
+
+        /// <summary>
         /// Giveaway uses current nominal weight and accepted-weight moments independently of optional UA counters.
         /// </summary>
         [TestCase(false, false)]

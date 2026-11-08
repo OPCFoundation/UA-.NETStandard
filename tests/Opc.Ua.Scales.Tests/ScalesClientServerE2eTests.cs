@@ -362,6 +362,61 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(await m_client.GetKindAsync(NodeId.Null), Is.Null);
         }
 
+        /// <summary>
+        /// Nominal writes update giveaway value and quality before the next client read.
+        /// </summary>
+        [Test]
+        public async Task NominalWeightServiceWritesImmediatelyRefreshGiveAwayAsync()
+        {
+            ScaleHandle scale = await m_runtime.CreateScaleAsync(
+                new QualifiedName("NominalWrite", m_runtime.InstanceNamespaceIndex),
+                ScaleKind.Checkweigher,
+                builder => builder
+                    .WithIdentification(ScalesNodeManagerTests.Identity("NominalWrite"))
+                    .WithProductionOutput()
+                    .WithProductionPreset(preset => preset.AllowSelection()
+                        .AddProduct("A", new LocalizedText("A"), (_, state) =>
+                        {
+                            BaseVariableState nominal = ((CheckweigherProductState)state).NominalWeight!;
+                            nominal.WrappedValue = Variant.From(10.0);
+                            nominal.AccessLevel |= AccessLevels.StatusWrite;
+                            nominal.UserAccessLevel |= AccessLevels.StatusWrite;
+                        })
+                        .Select("A")), CancellationToken.None);
+            var product = (CheckweigherProductState)scale.ProductionPreset!.ActiveProduct!;
+            var statistic = (CheckweigherStatisticState)product.Statistic!;
+            CheckweigherController recorder = scale.Checkweigher!;
+            Assert.That(ServiceResult.IsGood(await recorder.RecordAcceptedAsync(9)), Is.True);
+            Assert.That(ServiceResult.IsGood(await recorder.RecordAcceptedAsync(11)), Is.True);
+
+            foreach ((double nominal, StatusCode quality, double expected) in new[]
+            {
+                (12.0, StatusCodes.Good, -4.0),
+                (14.0, StatusCodes.BadDeviceFailure, -4.0),
+                (13.0, StatusCodes.Uncertain, -6.0),
+                (10.0, StatusCodes.Good, 0.0)
+            })
+            {
+                WriteResponse written = await m_session.WriteAsync(null, new[]
+                {
+                    new WriteValue
+                    {
+                        NodeId = product.NominalWeight!.NodeId,
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue(Variant.From(nominal)) { StatusCode = quality }
+                    }
+                }.ToArrayOf(), CancellationToken.None);
+                Assert.That(written.Results[0], Is.EqualTo(StatusCodes.Good));
+                ReadResponse read = await m_session.ReadAsync(null, 0, TimestampsToReturn.Both, new[]
+                {
+                    new ReadValueId { NodeId = statistic.GiveAway!.NodeId, AttributeId = Attributes.Value }
+                }.ToArrayOf(), CancellationToken.None);
+                Assert.That(read.Results[0].WrappedValue.GetDouble(), Is.EqualTo(expected));
+                Assert.That(read.Results[0].StatusCode, Is.EqualTo(quality));
+                Assert.That(statistic.TotalPackagesAccepted!.ItemCount!.WrappedValue.GetUInt64(), Is.EqualTo(2UL));
+            }
+        }
+
         [Test]
         public async Task ClientReadsRegisteredItemsPricesAndCompletedFillsWithSourceMetadataAsync()
         {
