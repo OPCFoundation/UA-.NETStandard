@@ -395,6 +395,11 @@ foreach ($project in $projectList) {
         if (-not [string]::IsNullOrWhiteSpace($projectFilter)) {
             $testArguments += @('--filter', $projectFilter)
         }
+        # Keep per-test progress visible while diagnosing the WotCon shard timeout.
+        if ($stem -eq 'Opc.Ua.WotCon.Tests' -and
+            $projectFilter -like '*FullyQualifiedName!~Opc.Ua.WotCon.Tests.Materialization.*') {
+            $testArguments += @('--logger', 'console;verbosity=detailed')
+        }
         # Above the adapter's default 2,000-case limit, a non-category
         # selection becomes an empty engine filter and runs the whole assembly.
         # Apply this after coverage options and share one runsettings delimiter.
