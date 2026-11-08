@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).ECM.Client</AssemblyName>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
+    <PackageId>$(PackagePrefix).Opc.Ua.ECM.Client</PackageId>
+    <RootNamespace>Opc.Ua.ECM.Client</RootNamespace>
+    <Description>Typed generated-proxy ECM client access preserving Call status and device ReturnCode.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.ECM\Opc.Ua.ECM.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Di.Client\Opc.Ua.Di.Client.csproj" />
+    <ProjectReference Include="..\Opc.Ua.IA.Client\Opc.Ua.IA.Client.csproj" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <AdditionalFiles Include="..\Opc.Ua.ECM\Model\Opc.Ua.ECM.NodeSet2.xml">
+      <ModelSourceGeneratorName>ECM</ModelSourceGeneratorName>
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/ECM/</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorPrefix>Opc.Ua.ECM</ModelSourceGeneratorPrefix>
+    </AdditionalFiles>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+  <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <PropertyGroup>
+    <ModelSourceGeneratorVersion>v105</ModelSourceGeneratorVersion>
+    <ModelSourceGeneratorClientAccessorsOnly>true</ModelSourceGeneratorClientAccessorsOnly>
+    <ModelSourceGeneratorClientAccessorNamespace>Opc.Ua.ECM.Client</ModelSourceGeneratorClientAccessorNamespace>
+    <ModelSourceGeneratorClientAccessorClassName>EcmClientMembers</ModelSourceGeneratorClientAccessorClassName>
+    <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
+  </PropertyGroup>
+</Project>

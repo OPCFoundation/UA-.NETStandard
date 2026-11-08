@@ -719,12 +719,21 @@ namespace Opc.Ua.Machinery.Tests
                                     Opc.Ua.Machinery.Energy.Namespaces.MachineryEnergy,
                                     m_fixture!.Manager.SystemContext.NamespaceUris))
                             .AddMeasurementValue(
-                                new QualifiedName("AcActivePowerTotal"),
+                                new QualifiedName("CustomPower"),
                                 Variant.From(12.5),
                                 measurementId: 1)
                             .AddMeasurementValue(
+                                new QualifiedName("AcActivePowerTotal"),
+                                Variant.From(12.5f))
+                            .AddMeasurementValue(
                                 new QualifiedName("CustomInt"),
                                 Variant.From(7));
+                        ushort vendorNamespace = (ushort)m_fixture!.Manager.SystemContext.NamespaceUris
+                            .GetIndexOrAppend("urn:machinery:vendor-measurements");
+                        electricity.Main.AddMeasurementValue(
+                            new QualifiedName("AcActivePowerTotal", vendorNamespace),
+                            Variant.From(12.5),
+                            measurementId: 1);
                         // Second WithInterface call hits the already-present branch.
                         electricity.Main.WithInterface(
                             NodeId.Create(
@@ -735,6 +744,26 @@ namespace Opc.Ua.Machinery.Tests
                             () => electricity.Main.AddMeasurementValue(
                                 default,
                                 Variant.From(1)));
+                        ServiceResultException wrongMeasurementId = Assert.Throws<ServiceResultException>(
+                            () => electricity.Main.AddMeasurementValue(
+                                new QualifiedName("AcActivePowerTotal"),
+                                Variant.From(1f),
+                                measurementId: 1))!;
+                        Assert.That(wrongMeasurementId.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+                        ServiceResultException wrongValueType = Assert.Throws<ServiceResultException>(
+                            () => electricity.Main.AddMeasurementValue(
+                                new QualifiedName("AcActivePowerTotal"),
+                                Variant.From(1d)))!;
+                        Assert.That(wrongValueType.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+                        ServiceResultException wrongEngineeringUnits = Assert.Throws<ServiceResultException>(
+                            () => electricity.Main.AddMeasurementValue(
+                                new QualifiedName("AcActivePowerTotal"),
+                                Variant.From(1f),
+                                new EUInformation("kW", "kilowatt", "http://www.opcfoundation.org/UA/units/un/cefact")
+                                {
+                                    UnitId = 0x4B5754
+                                }))!;
+                        Assert.That(wrongEngineeringUnits.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
                         Assert.Throws<ArgumentNullException>(
                             () => electricity.Main.WithInterface(NodeId.Null));
                     }))

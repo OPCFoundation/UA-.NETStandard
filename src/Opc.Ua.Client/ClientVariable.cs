@@ -112,6 +112,17 @@ namespace Opc.Ua.Client
         /// </summary>
         public async ValueTask WriteAsync(T value, CancellationToken cancellationToken = default)
         {
+            await WriteWithStatusAsync(value, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Writes a typed value and retains Good or Uncertain operation status.
+        /// Bad operation status throws without treating the write as accepted.
+        /// </summary>
+        public async ValueTask<StatusCode> WriteWithStatusAsync(
+            T value,
+            CancellationToken cancellationToken = default)
+        {
             if (!Writable)
             {
                 throw ServiceResultException.Create(StatusCodes.BadNotWritable,
@@ -129,12 +140,17 @@ namespace Opc.Ua.Client
             ];
             WriteResponse response = await m_owner.Session.WriteAsync(null, writes,
                 cancellationToken).ConfigureAwait(false);
+            if (StatusCode.IsBad(response.ResponseHeader.ServiceResult))
+            {
+                throw new ServiceResultException(response.ResponseHeader.ServiceResult);
+            }
             ClientBase.ValidateResponse(response.Results, writes);
             ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, writes);
             if (StatusCode.IsBad(response.Results[0]))
             {
                 throw new ServiceResultException(response.Results[0]);
             }
+            return response.Results[0];
         }
 
         /// <summary>
