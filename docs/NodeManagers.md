@@ -1281,12 +1281,20 @@ registration handle must retain one explicitly. The legacy
 `NodeManagerBatchResult` continues to expose strong registration and slot
 snapshots during the compatibility period.
 
-Routing, candidate ownership and generation lookup use the same resource identity.
-Standard adapters and custom facades that expose the same synchronous manager
-share one generation; the first registered facade remains its owner. An alias
-cannot register a retiring resource again or assign a live resource to another
-slot. Converting a native asynchronous manager through a synchronous adapter
-preserves its generation identity.
+Lifecycle registration reserves a resource identity across standard adapters
+and custom facades that expose the same synchronous manager. Standard adapters
+normalize to the underlying manager, while distinct custom facades can have
+separate generation identities. Registration can associate a facade with an
+existing resource generation without changing that generation's owner. An
+addition is rejected when the resource's reserved generation is retiring; a
+live resource cannot be assigned to another slot. Converting a native
+asynchronous manager through a synchronous adapter preserves its generation
+identity.
+
+If a resource already has a generation owned by another instance, source
+admission can reject a newly published facade's bound event and data emissions.
+All-events dispatch can also select the earlier owner. Avoid publishing a custom
+facade after another instance has acquired the resource generation.
 
 The routing swap commits the transaction. A later callback failure cannot
 abort it. Retain `LifecycleResult` and retry unfinished
