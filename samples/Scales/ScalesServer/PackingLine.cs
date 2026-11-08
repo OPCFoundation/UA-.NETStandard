@@ -117,7 +117,7 @@ namespace ScalesSample
                             .AddProduct("CEREAL-500", new LocalizedText("Cereal 500 g"), NominalWeight(0.5))
                             .AddProduct("CEREAL-375", new LocalizedText("Cereal 375 g"), NominalWeight(0.375))
                             .Select("CEREAL-500"))
-                        .WithProductionOutput()
+                        .WithProductionOutput(ScaleStatisticsObservationMode.FullCheck)
                         .AddFeederModule("Infeed", feeder => feeder
                             .WithIdentification(Identity("Contoso Conveyors", "CV-7", "Belt"))
                             .WithMachineryBuildingBlocks()

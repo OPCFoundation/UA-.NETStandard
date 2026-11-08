@@ -1751,6 +1751,217 @@ namespace Opc.Ua.Scales.Tests
         }
 
         /// <summary>
+        /// Both deviation equations retain their configured meaning across reset and synchronous or async recording.
+        /// </summary>
+        [TestCase(ScaleStatisticsObservationMode.Sample, false, false)]
+        [TestCase(ScaleStatisticsObservationMode.Sample, false, true)]
+        [TestCase(ScaleStatisticsObservationMode.Sample, true, false)]
+        [TestCase(ScaleStatisticsObservationMode.Sample, true, true)]
+        [TestCase(ScaleStatisticsObservationMode.FullCheck, false, false)]
+        [TestCase(ScaleStatisticsObservationMode.FullCheck, false, true)]
+        [TestCase(ScaleStatisticsObservationMode.FullCheck, true, false)]
+        [TestCase(ScaleStatisticsObservationMode.FullCheck, true, true)]
+        public async Task StatisticDeviationUsesConfiguredObservationModeAsync(
+            ScaleStatisticsObservationMode mode, bool asynchronous, bool includeDeviation)
+        {
+            using var harness = new Harness();
+            var statistic = new StatisticState(null);
+            statistic.AddTotalPackages(harness.Context);
+            if (includeDeviation)
+            {
+                statistic.TotalPackages!.AddStandardDeviation(harness.Context);
+            }
+            var recorder = new ScaleStatistics(harness.Context, statistic, mode);
+            async Task Record(double weight)
+            {
+                if (asynchronous)
+                {
+                    await recorder.RecordAsync(weight).ConfigureAwait(false);
+                }
+                else
+                {
+                    recorder.Record(weight);
+                }
+            }
+            void CheckDeviation(double expected)
+            {
+                if (includeDeviation)
+                {
+                    Assert.That(statistic.TotalPackages!.StandardDeviation!.WrappedValue.GetDouble(),
+                        Is.EqualTo(expected).Within(1e-10));
+                    Assert.That(statistic.TotalPackages.StandardDeviation.StatusCode,
+                        Is.EqualTo((StatusCode)StatusCodes.Good));
+                }
+                else
+                {
+                    Assert.That(statistic.TotalPackages!.StandardDeviation, Is.Null);
+                }
+            }
+            Assert.That(recorder.ObservationMode, Is.EqualTo(mode));
+            recorder.Reset();
+            CheckDeviation(0);
+            await Record(1).ConfigureAwait(false);
+            CheckDeviation(0);
+            await Record(3).ConfigureAwait(false);
+            CheckDeviation(mode == ScaleStatisticsObservationMode.Sample ? Math.Sqrt(2) : 1);
+            await Record(5).ConfigureAwait(false);
+            CheckDeviation(mode == ScaleStatisticsObservationMode.Sample ? 2 : Math.Sqrt(8.0 / 3));
+            recorder.Reset();
+            CheckDeviation(0);
+            await Record(-1).ConfigureAwait(false);
+            await Record(1).ConfigureAwait(false);
+            CheckDeviation(mode == ScaleStatisticsObservationMode.Sample ? Math.Sqrt(2) : 1);
+            Assert.That(statistic.TotalPackages!.ItemCount!.WrappedValue.GetUInt64(), Is.EqualTo(2UL));
+        }
+
+        /// <summary>
+        /// Giveaway uses current nominal weight and accepted-weight moments independently of optional UA counters.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public void CheckweigherGiveAwayUsesCurrentNominalWeight(bool acceptedCounter, bool includeGiveAway)
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.Checkweigher, (context, state) =>
+            {
+                var checkweigher = (CheckweigherProductState)state;
+                checkweigher.NominalWeight!.WrappedValue = Variant.From(10.0);
+                checkweigher.AddStatistic(context);
+            });
+            var product = (CheckweigherProductState)scale.ProductionPreset!.ActiveProduct!;
+            var statistic = (CheckweigherStatisticState)product.Statistic!;
+            if (acceptedCounter)
+            {
+                statistic.AddTotalPackagesAccepted(harness.Context);
+            }
+            if (includeGiveAway)
+            {
+                statistic.AddGiveAway(harness.Context);
+            }
+            var recorder = new ScaleStatistics(harness.Context, statistic, ScaleStatisticsObservationMode.FullCheck);
+            void CheckGiveAway(double expected)
+            {
+                if (includeGiveAway)
+                {
+                    Assert.That(statistic.GiveAway!.WrappedValue.GetDouble(), Is.EqualTo(expected).Within(1e-10));
+                    Assert.That(statistic.GiveAway.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+                }
+                else
+                {
+                    Assert.That(statistic.GiveAway, Is.Null);
+                }
+            }
+            recorder.Reset();
+            CheckGiveAway(0);
+            recorder.RecordRejected(20, CheckweigherRejectReason.Metal);
+            CheckGiveAway(0);
+            recorder.RecordAccepted(9);
+            CheckGiveAway(-1);
+            recorder.RecordAccepted(11);
+            CheckGiveAway(0);
+            recorder.RecordAccepted(12);
+            CheckGiveAway(2);
+            recorder.RecordRejected(30, CheckweigherRejectReason.Metal);
+            CheckGiveAway(2);
+            product.NominalWeight!.WrappedValue = Variant.From(12.0);
+            recorder.RecordRejected(double.NaN, CheckweigherRejectReason.Vision);
+            CheckGiveAway(-4);
+            if (acceptedCounter)
+            {
+                Assert.That(statistic.TotalPackagesAccepted!.ItemCount!.WrappedValue.GetUInt64(), Is.EqualTo(3UL));
+                Assert.That(statistic.TotalPackagesAccepted.MeanValue, Is.Null);
+            }
+            else
+            {
+                Assert.That(statistic.TotalPackagesAccepted, Is.Null);
+            }
+            recorder.Reset();
+            CheckGiveAway(0);
+            recorder.RecordAccepted(13);
+            CheckGiveAway(1);
+            if (includeGiveAway)
+            {
+                product.NominalWeight.StatusCode = StatusCodes.BadOutOfService;
+                recorder.RecordRejected(0, CheckweigherRejectReason.Metal);
+                Assert.That(statistic.GiveAway!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadOutOfService));
+                Assert.That(statistic.GiveAway.WrappedValue.GetDouble(), Is.EqualTo(1));
+                product.NominalWeight.StatusCode = StatusCodes.Good;
+                product.NominalWeight.WrappedValue = Variant.From("invalid");
+                recorder.RecordRejected(0, CheckweigherRejectReason.Metal);
+                Assert.That(statistic.GiveAway.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNoData));
+                Assert.That(statistic.GiveAway.WrappedValue.GetDouble(), Is.EqualTo(1));
+                product.NominalWeight.WrappedValue = Variant.From(14.0);
+                product.NominalWeight.StatusCode = StatusCodes.UncertainDataSubNormal;
+                recorder.RecordRejected(0, CheckweigherRejectReason.Metal);
+                Assert.That(statistic.GiveAway.StatusCode,
+                    Is.EqualTo((StatusCode)StatusCodes.UncertainDataSubNormal));
+                Assert.That(statistic.GiveAway.WrappedValue.GetDouble(), Is.EqualTo(-1));
+            }
+        }
+
+        /// <summary>
+        /// Direct recorders accept an explicit nominal weight and reject invalid configuration.
+        /// </summary>
+        [Test]
+        public void StatisticRecorderValidatesModeAndExplicitNominalWeight()
+        {
+            using var harness = new Harness();
+            var statistic = new CheckweigherStatisticState(null);
+            statistic.AddGiveAway(harness.Context);
+            var recorder = new ScaleStatistics(
+                harness.Context, statistic, ScaleStatisticsObservationMode.FullCheck, nominalWeight: 10);
+            recorder.RecordAccepted(9);
+            Assert.That(statistic.GiveAway!.WrappedValue.GetDouble(), Is.EqualTo(-1));
+            recorder.RecordAccepted(double.NaN);
+            Assert.That(statistic.GiveAway.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNoData));
+            Assert.That(statistic.GiveAway.WrappedValue.GetDouble(), Is.EqualTo(-1));
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                new ScaleStatistics(harness.Context, statistic, (ScaleStatisticsObservationMode)2));
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                new ScaleStatistics(harness.Context, statistic, ScaleStatisticsObservationMode.Sample, double.NaN));
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                new ScaleStatistics(
+                    harness.Context, statistic, ScaleStatisticsObservationMode.Sample, double.PositiveInfinity));
+            Assert.Throws<ArgumentNullException>(() =>
+                new ScaleStatistics(null!, statistic, ScaleStatisticsObservationMode.Sample));
+            Assert.Throws<ArgumentNullException>(() =>
+                new ScaleStatistics(harness.Context, null!, ScaleStatisticsObservationMode.Sample));
+        }
+
+        /// <summary>
+        /// Missing nominal weight and nonfinite results keep explicit bad quality instead of publishing a guess.
+        /// </summary>
+        [Test]
+        public void StatisticGiveAwayRejectsMissingNominalWeightAndNonfiniteResult()
+        {
+            using var harness = new Harness();
+            var missingNominalStatistic = new CheckweigherStatisticState(null);
+            missingNominalStatistic.AddGiveAway(harness.Context);
+            var missingNominal = new ScaleStatistics(
+                harness.Context, missingNominalStatistic, ScaleStatisticsObservationMode.FullCheck);
+            missingNominal.Reset();
+            missingNominal.RecordAccepted(1);
+            Assert.That(missingNominalStatistic.GiveAway!.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadNoData));
+            Assert.That(missingNominalStatistic.GiveAway.WrappedValue.GetDouble(), Is.Zero);
+
+            var statistic = new CheckweigherStatisticState(null);
+            statistic.AddGiveAway(harness.Context);
+            var recorder = new ScaleStatistics(
+                harness.Context, statistic, ScaleStatisticsObservationMode.FullCheck, nominalWeight: 0);
+            recorder.RecordAccepted(double.MaxValue);
+            Assert.That(statistic.GiveAway!.WrappedValue.GetDouble(), Is.EqualTo(double.MaxValue));
+            recorder.RecordAccepted(double.MaxValue);
+            Assert.That(statistic.GiveAway.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadOutOfRange));
+            Assert.That(statistic.GiveAway.WrappedValue.GetDouble(), Is.EqualTo(double.MaxValue));
+            recorder.Reset();
+            Assert.That(statistic.GiveAway.WrappedValue.GetDouble(), Is.Zero);
+            Assert.That(statistic.GiveAway.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+        }
+
+        /// <summary>
         /// A queued writer runs after notification dispatch and retains its own deferred notification.
         /// </summary>
         [Test]

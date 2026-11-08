@@ -372,6 +372,18 @@ namespace Opc.Ua.Scales.Server.Builders
             return this;
         }
 
+        /// <inheritdoc/>
+        public IScaleBuilder WithProductionOutput(ScaleStatisticsObservationMode observationMode)
+        {
+            if (observationMode is not (
+                ScaleStatisticsObservationMode.Sample or ScaleStatisticsObservationMode.FullCheck))
+            {
+                throw new ArgumentOutOfRangeException(nameof(observationMode));
+            }
+            m_statisticsObservationMode = observationMode;
+            return WithProductionOutput();
+        }
+
         public IScaleBuilder WithPackMLState()
         {
             Scale.AddState(Context);
@@ -743,7 +755,8 @@ namespace Opc.Ua.Scales.Server.Builders
                     m_priceCalculator,
                     m_completedFills,
                     m_vehicleAggregation,
-                    m_pieceCountingTotals));
+                    m_pieceCountingTotals,
+                    m_statisticsObservationMode));
             if (handle.Recipes != null)
             {
                 m_configureRecipes?.Invoke(handle.Recipes);
@@ -930,6 +943,11 @@ namespace Opc.Ua.Scales.Server.Builders
 
         /// <summary>Whether optional per-product piece-count totals are enabled.</summary>
         private bool m_pieceCountingTotals;
+
+        /// <summary>
+        /// The selected statistical observation mode.
+        /// </summary>
+        private ScaleStatisticsObservationMode m_statisticsObservationMode;
     }
 
     /// <summary>
@@ -1242,6 +1260,18 @@ namespace Opc.Ua.Scales.Server.Builders
             return this;
         }
 
+        /// <inheritdoc/>
+        public IScaleSystemBuilder WithProductionOutput(ScaleStatisticsObservationMode observationMode)
+        {
+            if (observationMode is not (
+                ScaleStatisticsObservationMode.Sample or ScaleStatisticsObservationMode.FullCheck))
+            {
+                throw new ArgumentOutOfRangeException(nameof(observationMode));
+            }
+            m_statisticsObservationMode = observationMode;
+            return WithProductionOutput();
+        }
+
         public IScaleSystemBuilder WithPackMLState()
         {
             System.AddSystemState(Context);
@@ -1301,7 +1331,7 @@ namespace Opc.Ua.Scales.Server.Builders
 
         public ScaleSystemHandle CreateHandle()
         {
-            var handle = new ScaleSystemHandle(m_services, System);
+            var handle = new ScaleSystemHandle(m_services, System, m_statisticsObservationMode);
             if (handle.ProductionPreset != null && m_preset != null)
             {
                 handle.ProductionPreset.Lockable = m_preset.Lockable;
@@ -1322,5 +1352,10 @@ namespace Opc.Ua.Scales.Server.Builders
         private ProductionPresetBuilder? m_preset;
         private bool m_identified;
         private bool m_processState;
+
+        /// <summary>
+        /// The selected system statistical observation mode.
+        /// </summary>
+        private ScaleStatisticsObservationMode m_statisticsObservationMode;
     }
 }

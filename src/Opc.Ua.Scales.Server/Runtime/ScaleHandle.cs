@@ -200,6 +200,7 @@ namespace Opc.Ua.Scales.Server.Runtime
             Scale = scale;
             Kind = kind;
             Unit = configuration.Unit;
+            StatisticsObservationMode = configuration.StatisticsObservationMode;
             m_engine = new ScaleWeighingEngine(configuration.Ranges, services.Options.ZeroSettingRange)
             {
                 LegalForTrade = configuration.LegalForTrade,
@@ -257,7 +258,9 @@ namespace Opc.Ua.Scales.Server.Runtime
             }
             if (scale.ProductionOutput != null)
             {
-                ProductionOutput = new ScaleStatistics(services.Context, scale.ProductionOutput, m_writeGate);
+                ProductionOutput = new ScaleStatistics(
+                    services.Context, scale.ProductionOutput, m_writeGate,
+                    observationMode: StatisticsObservationMode);
             }
             if (configuration.ItemProcessing)
             {
@@ -649,6 +652,11 @@ namespace Opc.Ua.Scales.Server.Runtime
         }
 
         internal ScaleRuntimeServices Services => m_services;
+
+        /// <summary>
+        /// Gets the observation mode inherited by product-local statistic recorders.
+        /// </summary>
+        internal ScaleStatisticsObservationMode StatisticsObservationMode { get; }
 
         /// <summary>
         /// Gets the shared writer gate for this scale and its live statistics.
@@ -1248,6 +1256,7 @@ namespace Opc.Ua.Scales.Server.Runtime
     /// <param name="CompletedFills">Whether completed totalizing-hopper fills are reported.</param>
     /// <param name="VehicleAggregation">The optional per-vehicle aggregation rule.</param>
     /// <param name="PieceCountingTotals">Whether per-product piece-counting totals are enabled.</param>
+    /// <param name="StatisticsObservationMode">The sample or 100%-check deviation equation.</param>
     internal sealed record ScaleConfiguration(
         IReadOnlyList<WeighingRangeDefinition> Ranges,
         EUInformation Unit,
@@ -1259,7 +1268,8 @@ namespace Opc.Ua.Scales.Server.Runtime
         IScalePriceCalculator? PriceCalculator = null,
         bool CompletedFills = false,
         Func<string, VehicleWeightAggregation>? VehicleAggregation = null,
-        bool PieceCountingTotals = false);
+        bool PieceCountingTotals = false,
+        ScaleStatisticsObservationMode StatisticsObservationMode = ScaleStatisticsObservationMode.Sample);
 
     /// <summary>
     /// Sets the OPC 40001-1 state machines, which the model supplies without

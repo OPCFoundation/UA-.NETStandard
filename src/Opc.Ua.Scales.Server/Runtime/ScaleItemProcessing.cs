@@ -333,7 +333,8 @@ namespace Opc.Ua.Scales.Server.Runtime
                                     m_owner.Services.Context,
                                     product.Statistic,
                                     m_owner.WriteOperations,
-                                    initialize: false);
+                                    initialize: false,
+                                    observationMode: m_owner.StatisticsObservationMode);
                                 m_statistics.Add(product.Statistic, statistics);
                                 await statistics.InitializeAsync().ConfigureAwait(false);
                             }
@@ -517,7 +518,8 @@ namespace Opc.Ua.Scales.Server.Runtime
                                     m_owner.Services.Context,
                                     product.Statistic,
                                     m_owner.WriteOperations,
-                                    initialize: false);
+                                    initialize: false,
+                                    observationMode: m_owner.StatisticsObservationMode);
                                 m_statistics.Add(product.Statistic, statistics);
                                 await statistics.InitializeAsync().ConfigureAwait(false);
                             }

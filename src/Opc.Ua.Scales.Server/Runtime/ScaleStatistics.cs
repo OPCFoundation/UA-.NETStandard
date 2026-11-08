@@ -35,6 +35,22 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Scales.Server.Runtime
 {
     /// <summary>
+    /// Selects the standard-deviation equation in OPC 40200 §7.20.3.
+    /// </summary>
+    public enum ScaleStatisticsObservationMode
+    {
+        /// <summary>
+        /// Estimates deviation from a sample, using n minus one as the divisor.
+        /// </summary>
+        Sample,
+
+        /// <summary>
+        /// Computes deviation for a 100% check, using n as the divisor.
+        /// </summary>
+        FullCheck
+    }
+
+    /// <summary>
     /// Why a checkweigher rejected a package, mapped onto the
     /// <c>PackagesRejectedBy*</c> counters of <c>CheckweigherStatisticType</c>
     /// (OPC 40200 §7.19).
@@ -84,20 +100,51 @@ namespace Opc.Ua.Scales.Server.Runtime
     public sealed class ScaleStatistics
     {
         /// <summary>
+        /// Creates a direct statistic recorder with an explicit observation mode.
+        /// </summary>
+        /// <param name="context">The statistic's system context.</param>
+        /// <param name="statistic">The statistic to update.</param>
+        /// <param name="observationMode">The equation used for standard deviation.</param>
+        /// <param name="nominalWeight">The nominal weight, or null to read the parent checkweigher product.</param>
+        public ScaleStatistics(
+            ISystemContext context,
+            StatisticState statistic,
+            ScaleStatisticsObservationMode observationMode,
+            double? nominalWeight = null)
+            : this(context, statistic, null, observationMode: observationMode, nominalWeight: nominalWeight)
+        {
+        }
+
+        /// <summary>
         /// Creates the statistic writer and initializes its period unless initialization is deferred.
         /// </summary>
         /// <param name="context">The context for the statistic nodes.</param>
         /// <param name="statistic">The statistic node.</param>
         /// <param name="writeGate">The owning scale gate, when the statistic belongs to a scale.</param>
         /// <param name="initialize">Whether to publish the initial start time synchronously.</param>
+        /// <param name="observationMode">The sample or 100%-check deviation equation.</param>
+        /// <param name="nominalWeight">The optional nominal weight for a direct recorder.</param>
         internal ScaleStatistics(
             ISystemContext context,
             StatisticState statistic,
             ScaleWriteGate? writeGate = null,
-            bool initialize = true)
+            bool initialize = true,
+            ScaleStatisticsObservationMode observationMode = ScaleStatisticsObservationMode.Sample,
+            double? nominalWeight = null)
         {
-            m_context = context;
-            Statistic = statistic;
+            m_context = context ?? throw new ArgumentNullException(nameof(context));
+            Statistic = statistic ?? throw new ArgumentNullException(nameof(statistic));
+            if (observationMode is not (
+                ScaleStatisticsObservationMode.Sample or ScaleStatisticsObservationMode.FullCheck))
+            {
+                throw new ArgumentOutOfRangeException(nameof(observationMode));
+            }
+            if (nominalWeight is { } nominal && (double.IsNaN(nominal) || double.IsInfinity(nominal)))
+            {
+                throw new ArgumentOutOfRangeException(nameof(nominalWeight));
+            }
+            ObservationMode = observationMode;
+            m_nominalWeight = nominalWeight;
             m_writeGate = writeGate;
             if (initialize)
             {
@@ -109,6 +156,11 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// Gets the statistic node.
         /// </summary>
         public StatisticState Statistic { get; }
+
+        /// <summary>
+        /// Gets the configured sample or 100%-check equation.
+        /// </summary>
+        public ScaleStatisticsObservationMode ObservationMode { get; }
 
         /// <summary>
         /// Records one weighed item.
@@ -159,6 +211,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                     if (Statistic is CheckweigherStatisticState checkweigher)
                     {
                         m_acceptedCount++;
+                        m_acceptedWeights.Add(weight);
                         if (belowLowerToleranceLimit1)
                         {
                             m_acceptedBelowToleranceCount++;
@@ -169,6 +222,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                             Count(checkweigher.PackagesAcceptedWithLowerToleranceLimit1, weight);
                         }
                         UpdatePercentage(checkweigher);
+                        UpdateGiveAway(checkweigher);
                     }
                     PublishLastItem(weight, itemId);
                 }
@@ -213,6 +267,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                             },
                             weight);
                         UpdatePercentage(checkweigher);
+                        UpdateGiveAway(checkweigher);
                     }
                     if (!double.IsNaN(weight))
                     {
@@ -235,6 +290,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                     m_accumulators.Clear();
                     m_acceptedCount = 0;
                     m_acceptedBelowToleranceCount = 0;
+                    m_acceptedWeights = new Accumulator();
                     var counters = new List<BaseInstanceState>();
                     Statistic.GetChildren(m_context, counters);
                     foreach (BaseInstanceState child in counters)
@@ -248,6 +304,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                     {
                         // Derived from the counters, so it restarts with them.
                         ScaleValues.Set(m_context, checkweigher.PercentageLowerToleranceLimit, Variant.From(0.0));
+                        ScaleValues.Set(m_context, checkweigher.GiveAway, Variant.From(0.0));
                     }
                     ScaleValues.Set(m_context, Statistic.StartTime, DateTimeUtc.Now);
                     if (resetCondition != null)
@@ -358,10 +415,10 @@ namespace Opc.Ua.Scales.Server.Runtime
                     .ConfigureAwait(false);
                 await ScaleValues.SetAsync(m_context, counter.MeanValue, Variant.From(accumulator.Mean))
                     .ConfigureAwait(false);
-                await ScaleValues.SetAsync(
-                    m_context, counter.StandardDeviation, Variant.From(accumulator.StandardDeviation))
-                    .ConfigureAwait(false);
             }
+            await ScaleValues.SetAsync(
+                m_context, counter.StandardDeviation, Variant.From(accumulator.Deviation(ObservationMode)))
+                .ConfigureAwait(false);
         }
 
         /// <summary>
@@ -398,8 +455,9 @@ namespace Opc.Ua.Scales.Server.Runtime
                 ScaleValues.Set(m_context, counter.MinValue, Variant.From(accumulator.Min));
                 ScaleValues.Set(m_context, counter.MaxValue, Variant.From(accumulator.Max));
                 ScaleValues.Set(m_context, counter.MeanValue, Variant.From(accumulator.Mean));
-                ScaleValues.Set(m_context, counter.StandardDeviation, Variant.From(accumulator.StandardDeviation));
             }
+            ScaleValues.Set(
+                m_context, counter.StandardDeviation, Variant.From(accumulator.Deviation(ObservationMode)));
         }
 
         private void ResetCounter(StatisticCounterState counter)
@@ -423,6 +481,61 @@ namespace Opc.Ua.Scales.Server.Runtime
                 m_context,
                 checkweigher.PercentageLowerToleranceLimit,
                 Variant.From(m_acceptedCount == 0 ? 0.0 : 100.0 * m_acceptedBelowToleranceCount / m_acceptedCount));
+        }
+
+        /// <summary>
+        /// Publishes the signed accepted-weight deviation from the nominal weight (§7.19.3).
+        /// </summary>
+        private void UpdateGiveAway(CheckweigherStatisticState checkweigher)
+        {
+            BaseVariableState? giveAway = checkweigher.GiveAway;
+            if (giveAway == null)
+            {
+                return;
+            }
+            if (m_acceptedCount == 0)
+            {
+                ScaleValues.Set(m_context, giveAway, Variant.From(0.0));
+                return;
+            }
+            double nominal;
+            StatusCode quality = StatusCodes.Good;
+            if (m_nominalWeight is { } configured)
+            {
+                nominal = configured;
+            }
+            else if (Statistic.Parent is CheckweigherProductState product && product.NominalWeight is { } target)
+            {
+                quality = target.StatusCode;
+                if (!ScaleItemPublisher.TryNumber(target.WrappedValue, out nominal))
+                {
+                    quality = StatusCodes.BadNoData;
+                }
+            }
+            else
+            {
+                nominal = 0;
+                quality = StatusCodes.BadNoData;
+            }
+            if (m_acceptedWeights.Weighed != m_acceptedCount)
+            {
+                quality = StatusCodes.BadNoData;
+            }
+            if (!StatusCode.IsBad(quality))
+            {
+                double value = (m_acceptedWeights.Mean - nominal) * m_acceptedCount;
+                if (double.IsNaN(value) || double.IsInfinity(value))
+                {
+                    quality = StatusCodes.BadOutOfRange;
+                }
+                else
+                {
+                    giveAway.WrappedValue = Variant.From(value);
+                }
+            }
+            giveAway.StatusCode = quality;
+            giveAway.Timestamp = DateTimeUtc.Now;
+            giveAway.ClearChangeMasks(m_context, includeChildren: false);
         }
 
         private void PublishLastItem(double weight, string? itemId)
@@ -478,7 +591,18 @@ namespace Opc.Ua.Scales.Server.Runtime
 
             public double Mean { get; private set; }
 
-            public double StandardDeviation => Weighed > 1 ? Math.Sqrt(m_m2 / (Weighed - 1)) : 0;
+            /// <summary>
+            /// Calculates the configured equation, retaining zero for empty statistics and one-item samples.
+            /// </summary>
+            public double Deviation(ScaleStatisticsObservationMode mode)
+            {
+                ulong minimum = mode == ScaleStatisticsObservationMode.Sample ? 2UL : 1UL;
+                if (Weighed < minimum)
+                {
+                    return 0;
+                }
+                return Math.Sqrt(m_m2 / (mode == ScaleStatisticsObservationMode.Sample ? Weighed - 1 : Weighed));
+            }
 
             public void Add(double weight)
             {
@@ -511,6 +635,16 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// The accepted TU1-TU2 item count, independent of optional published counters.
         /// </summary>
         private ulong m_acceptedBelowToleranceCount;
+
+        /// <summary>
+        /// Accepted weight moments, independent of optional published counter nodes.
+        /// </summary>
+        private Accumulator m_acceptedWeights = new();
+
+        /// <summary>
+        /// The optional nominal weight supplied to a direct recorder.
+        /// </summary>
+        private readonly double? m_nominalWeight;
 
         /// <summary>
         /// The owning scale's writer gate, when this statistic belongs to a scale.

@@ -640,6 +640,30 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(alarm.VendorNotificationId.Value, Is.EqualTo("VENDOR_POWER"));
         }
 
+        /// <summary>
+        /// Fluent configuration selects the deviation equation for scale and system recorders.
+        /// </summary>
+        [TestCase(ScaleStatisticsObservationMode.Sample)]
+        [TestCase(ScaleStatisticsObservationMode.FullCheck)]
+        public async Task FluentStatisticsObservationModeReachesScaleAndSystemAsync(ScaleStatisticsObservationMode mode)
+        {
+            ScaleHandle scale = await CreateAsync(ScaleKind.Simple,
+                extra: builder => builder.WithProductionOutput(mode).WithProductionOutput()).ConfigureAwait(false);
+            ScaleSystemHandle system = await m_fixture.Manager.CreateScaleSystemAsync(
+                m_fixture.Name("StatisticSystem"),
+                builder => builder.WithIdentification(Identity("StatisticSystem"))
+                    .WithProductionOutput(mode).WithProductionOutput())
+                .ConfigureAwait(false);
+            foreach (ScaleStatistics recorder in new[] { scale.ProductionOutput!, system.ProductionOutput! })
+            {
+                Assert.That(recorder.ObservationMode, Is.EqualTo(mode));
+                recorder.Record(1);
+                recorder.Record(3);
+                Assert.That(recorder.Statistic.TotalPackages!.StandardDeviation!.WrappedValue.GetDouble(),
+                    Is.EqualTo(mode == ScaleStatisticsObservationMode.Sample ? Math.Sqrt(2) : 1).Within(1e-10));
+            }
+        }
+
         [Test]
         public async Task CommandInterceptorCanVetoACommandAsync()
         {

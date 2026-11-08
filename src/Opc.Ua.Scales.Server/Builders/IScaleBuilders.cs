@@ -137,6 +137,12 @@ namespace Opc.Ua.Scales.Server.Builders
         IScaleBuilder WithProductionOutput();
 
         /// <summary>
+        /// Adds production statistics with the selected sample or 100%-check deviation equation.
+        /// </summary>
+        /// <param name="observationMode">The equation used for this scale's statistics.</param>
+        IScaleBuilder WithProductionOutput(ScaleStatisticsObservationMode observationMode);
+
+        /// <summary>
         /// Adds the PackML state machine (<c>State</c>) with all its methods
         /// (the "PackML State Information" conformance unit).
         /// </summary>
@@ -462,6 +468,12 @@ namespace Opc.Ua.Scales.Server.Builders
         /// <c>ResetGlobalStatistics</c>.
         /// </summary>
         IScaleSystemBuilder WithProductionOutput();
+
+        /// <summary>
+        /// Adds system production statistics with the selected deviation equation.
+        /// </summary>
+        /// <param name="observationMode">The sample or 100%-check observation mode.</param>
+        IScaleSystemBuilder WithProductionOutput(ScaleStatisticsObservationMode observationMode);
 
         /// <summary>
         /// Adds the PackML state machine (<c>SystemState</c>).

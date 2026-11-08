@@ -581,11 +581,35 @@ The methods and the local API share the same rules.
   accepted-total or band-counter nodes are absent. `Reset` clears both counts;
   with no accepted items the percentage is zero.
 
-Statistics support remains **Partial** for OPC 40200 v2.00. The runtime computes
-sample standard deviation, but it has no observation-mode setting to distinguish
-samples from a 100% check. The v2.00 equations for `StandardDeviation` and
-`GiveAway` have not been verified from an authoritative rendering, so the
-sample calculation is not evidence of support for both observation modes.
+`WithProductionOutput(ScaleStatisticsObservationMode.Sample)` selects the sample
+standard-deviation equation; `FullCheck` selects the equation for a 100% check.
+The selected mode also applies to product-local acquisition statistics.
+The default is `Sample`; parameterless calls preserve a previously selected mode.
+Direct recorders accept the mode in the `ScaleStatistics` constructor. The
+runtime uses Welford's weight moments with divisor `n - 1` for samples and `n`
+for a full check. Empty statistics and one-item samples publish zero, as an
+implementation convention rather than a requirement of the specification.
+
+On a checkweigher, `GiveAway` is `(acceptedMean - currentNominalWeight) *
+acceptedCount` (§7.19.3), including negative results. The accepted-weight
+accumulator does not depend on the optional `TotalPackagesAccepted` node.
+The calculation reads the current product `NominalWeight` on each accepted or
+rejected-item report, rather than accumulating deviations against historical
+nominal weights. A direct recorder may instead receive an explicit nominal
+weight. Reset and a period with no accepted items publish zero. Missing nominal
+data or an accepted item without measured weight preserves the last value with
+`BadNoData`; a nonfinite result preserves it with `BadOutOfRange`. A bad nominal
+status is propagated without changing the last value; uncertain nominal data
+can produce a value with the same uncertain status.
+
+The packing-line sample selects `FullCheck` for its checkweigher because the
+simulation reports every package.
+
+Both deviation equations and the giveaway equation are verified in the
+[VDMA 40200:2025-04 co-publication](https://www.vdma.eu/en/catalog-detail/-/catalog/14137),
+which identifies itself as identical to OPC 40200 Release 2.00: §7.19.3 on
+page 72 and §7.20.3 on page 74. Statistical support remains **Partial** until
+the implementation and its observation-mode and optional-node tests are validated.
 
 ### Type controllers
 
@@ -1240,7 +1264,7 @@ are left out (`ScaleFacetsBringTheMachineIdentificationTheyIncludeAsync`,
 | *Scales DataChange* | ✅ | `ClientStreamsWeightsEventsAndAlarmsAsync` |
 | `ScaleEventType` / `ScaleAlarmType` with Annex C ids, vendor ids > 5000 | ✅ | `EventsAndVendorEventsCanBeRaisedAsync`; `FailedZeroOrTareRaisesAFaultAndOverloadAnAlarmAsync`; `ClientStreamsWeightsEventsAndAlarmsAsync` |
 | Optional notification parameters, help source, and vendor identifier | 🧪 | `NotificationMetadataEventsRetainParametersAndHelp`; `NotificationMetadataAlarmTransitionsCopyAndClearFields`; client filters and decoding include all three optional fields. |
-| Checkweigher accepted-item percentage and statistical equations | Partial | `CheckweigherTolerancePercentageUsesAcceptedMeasurements` covers absent optional counters, rejections, reset, and zero accepted items. Sample/full-check `StandardDeviation` and `GiveAway` equations remain unverified for v2.00. |
+| Checkweigher accepted-item percentage and statistical equations | Partial | `CheckweigherTolerancePercentageUsesAcceptedMeasurements`; `StatisticDeviationUsesConfiguredObservationModeAsync`; `CheckweigherGiveAwayUsesCurrentNominalWeight`; `StatisticRecorderValidatesModeAndExplicitNominalWeight`; `FluentStatisticsObservationModeReachesScaleAndSystemAsync`. Source equations are verified; runtime validation remains pending. |
 | Notifier hierarchy with `HasNotifier`, nested sources subscribable | ✅ | `ClientSubscribesToANestedScaleThroughTheNotifierHierarchyAsync` |
 | PackML state information with transition events | ✅ | `PackMLMethodsWalkTheStateMachineAsync`; `PackMLActingStatesCanBeCompletedByTheEquipmentAsync`; `ClientDrivesThePackMLStateMachineAsync`; advertised as *PackML State Information*: `PackMLStateInformationIsClaimedWithAPackMLStateMachineAsync` |
 | Machinery Machine Identification, Find Machines | ✅ | `IdentificationWithoutMandatoryFieldsIsRejectedAsync`; `ClientDiscoversEveryScaleOnceWithItsKindAsync` |

@@ -258,7 +258,16 @@ namespace Opc.Ua.Scales.Server.Runtime
     /// </summary>
     public sealed class ScaleSystemHandle
     {
-        internal ScaleSystemHandle(ScaleRuntimeServices services, ScaleSystemState system)
+        /// <summary>
+        /// Creates the system runtime with the selected statistical observation mode.
+        /// </summary>
+        /// <param name="services">The owning node manager's runtime services.</param>
+        /// <param name="system">The registered scale system.</param>
+        /// <param name="observationMode">The sample or 100%-check deviation equation.</param>
+        internal ScaleSystemHandle(
+            ScaleRuntimeServices services,
+            ScaleSystemState system,
+            ScaleStatisticsObservationMode observationMode = ScaleStatisticsObservationMode.Sample)
         {
             m_services = services;
             System = system;
@@ -279,7 +288,7 @@ namespace Opc.Ua.Scales.Server.Runtime
             }
             if (system.ProductionOutput != null)
             {
-                ProductionOutput = new ScaleStatistics(services.Context, system.ProductionOutput);
+                ProductionOutput = new ScaleStatistics(services.Context, system.ProductionOutput, observationMode);
             }
             if (system.ResetGlobalStatistics != null)
             {
