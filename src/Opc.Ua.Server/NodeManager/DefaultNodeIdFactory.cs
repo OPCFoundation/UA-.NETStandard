@@ -67,11 +67,12 @@ namespace Opc.Ua.Server
         /// The default. Numeric identifiers are the most compact form on the
         /// wire and the most readable in client UIs. A 32 bit hash is also
         /// the only mode of this class where a collision between two distinct
-        /// browse paths is realistically possible, so the factory records
-        /// what it mints and raises
-        /// <see cref="StatusCodes.BadConfigurationError"/> if two paths ever
-        /// land on one identifier rather than letting one node silently
-        /// replace the other.
+        /// browse paths is realistically possible, so the factory always
+        /// records what it mints in this mode rather than letting one node
+        /// silently replace the other. A path that lands on an identifier
+        /// already minted for a different path moves to the next free
+        /// identifier; with collision detection on, the factory raises
+        /// <see cref="StatusCodes.BadConfigurationError"/> instead.
         /// </remarks>
         Numeric,
 
@@ -215,11 +216,14 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <remarks>
         /// <para>
-        /// On in a debug build, off otherwise. The record costs memory that
-        /// grows with the address space and a lookup on every mint, which is
-        /// worth paying while a model is being developed - when a collision
-        /// is a bug to find - and not in production, where the odds are
-        /// remote and the cost is permanent.
+        /// On in a debug build, off otherwise. Watching raises
+        /// <see cref="StatusCodes.BadConfigurationError"/> on a collision,
+        /// which is what is wanted while a model is being developed - when a
+        /// collision is a bug to find. Without watching, a
+        /// <see cref="NodeIdAssignmentMode.Numeric"/> factory still keeps its
+        /// record and resolves a collision by moving the later path to the
+        /// next free identifier, so two nodes never share one identity; the
+        /// 128 bit modes keep no record unless watching.
         /// </para>
         /// <para>
         /// This is the fallback for a factory built without an explicit
@@ -654,6 +658,10 @@ namespace Opc.Ua.Server
             switch (Mode)
             {
                 case NodeIdAssignmentMode.Numeric:
+                    if (!DetectsCollisions)
+                    {
+                        return MintNumericWithoutCollision(hash, namespaceIndex);
+                    }
                     nodeId = new NodeId(ToIdentifier(hash), namespaceIndex);
                     break;
                 case NodeIdAssignmentMode.Guid:
@@ -689,6 +697,54 @@ namespace Opc.Ua.Server
         /// would be quietly wrong.
         /// </para>
         /// </remarks>
+        /// <summary>
+        /// Mints a numeric identifier when collisions are not raised, moving a
+        /// path whose identifier is already taken by a different path to the
+        /// next free identifier.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// A 32 bit identifier collides with realistic odds once a namespace
+        /// holds tens of thousands of minted paths (about 1 % at 10,000 and
+        /// 25 % at 50,000), and the predefined-node index takes the last
+        /// writer, so two nodes would silently share one identity. The record
+        /// is therefore kept for this mode whatever the collision policy
+        /// says; the policy only decides between raising and resolving.
+        /// </para>
+        /// <para>
+        /// The first path to mint an identifier keeps it, so every path that
+        /// does not collide keeps the identifier it always had. A later path
+        /// that lands on it probes the following identifiers and takes the
+        /// first one that is free or that it already holds, which makes a
+        /// re-mint of the same path return the same identifier. Which of two
+        /// colliding paths moves follows the order they are minted in.
+        /// </para>
+        /// </remarks>
+        private NodeId MintNumericWithoutCollision(ReadOnlySpan<byte> hash, ushort namespaceIndex)
+        {
+            uint identifier = ToIdentifier(hash);
+            ulong witness = ToWitness(hash);
+
+            for (int attempt = 0; attempt < kMaxProbeAttempts; attempt++)
+            {
+                var nodeId = new NodeId(identifier, namespaceIndex);
+                if (m_allocation.MintedIdentifiers.GetOrAdd(nodeId, witness) == witness)
+                {
+                    return nodeId;
+                }
+
+                // 0 is skipped: a numeric identifier of 0 is the null NodeId
+                // in namespace 0 and is reserved by convention elsewhere.
+                identifier = identifier == uint.MaxValue ? 1u : identifier + 1u;
+            }
+
+            throw ServiceResultException.Create(
+                StatusCodes.BadConfigurationError,
+                "No free numeric NodeId was found in namespace {0} after {1} attempts.",
+                namespaceIndex,
+                kMaxProbeAttempts);
+        }
+
         private void GuardAgainstCollision(
             NodeId nodeId,
             ReadOnlySpan<byte> hash,
@@ -1257,6 +1313,12 @@ namespace Opc.Ua.Server
         /// no browse path has already claimed.
         /// </summary>
         private const int kMaxCounterAttempts = 1024;
+
+        /// <summary>
+        /// How many identifiers a colliding numeric mint probes before it
+        /// gives up.
+        /// </summary>
+        private const int kMaxProbeAttempts = 1024;
 
         /// <summary>
         /// The longest canonical path built on the stack. Longer ones come
