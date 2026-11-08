@@ -489,7 +489,6 @@ function Get-TestProjectShards([string] $project, [string] $framework, [string] 
             }
             if ($framework -ne 'net48') {
                 $liveEvents = "${materialization}WotEventModesLiveTests."
-                # Parameterized NUnit fixtures can append arguments to the class name.
                 # Live tests create RSA, P256 and P384 certificates per test, which is
                 # slow on macOS: the other integration tests took 41 minutes in one
                 # entry. The registry identity fixtures (direct and dependency
