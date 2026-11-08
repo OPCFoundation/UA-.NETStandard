@@ -355,6 +355,438 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         /// <summary>
+        /// Preserves the provisioned certificate until the last application releases a shared manager identity.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        [NonParallelizable]
+        public async Task SharedConfigurationKeepsCertificateIdentityUntilLastApplicationAsync(
+            bool reverseDisposal,
+            bool templateCopy)
+        {
+            long leaksBefore = Certificate.InstancesLeaked;
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            await using var first = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            ApplicationConfiguration configuration = await first.Build(ApplicationUri, ProductUri).AsClient()
+                .AddSecurityConfiguration(
+                    [
+                        new CertificateIdentifier
+                        {
+                            SubjectName = SubjectName,
+                            StoreType = CertificateStoreType.Directory,
+                            StorePath = m_pkiRoot,
+                            CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
+                        }
+                    ],
+                    m_pkiRoot)
+                .CreateAsync();
+            Assert.That(await first.CheckApplicationInstanceCertificatesAsync(true), Is.True);
+            CertificateManager manager = first.CertificateManager ??
+                throw new InvalidOperationException("Provisioning did not create a certificate manager.");
+            ApplicationConfiguration shared = templateCopy
+                ? new ApplicationConfiguration(configuration)
+                : configuration;
+            await using var second = new ApplicationInstance(shared, telemetry);
+            string thumbprint;
+            using (CertificateEntryCollection certificates = manager.SnapshotApplicationCertificates())
+            {
+                Assert.That(certificates, Has.Count.EqualTo(1));
+                thumbprint = certificates[0].Certificate.Thumbprint;
+            }
+
+            ApplicationInstance released = reverseDisposal ? second : first;
+            ApplicationInstance remaining = reverseDisposal ? first : second;
+            await released.DisposeAsync();
+            await released.DisposeAsync();
+            Assert.That(remaining.CertificateManager, Is.SameAs(manager));
+            await manager.LoadApplicationCertificatesAsync(
+                configuration.SecurityConfiguration, configuration.ApplicationUri);
+            using (CertificateEntryCollection certificates = manager.SnapshotApplicationCertificates())
+            {
+                Assert.That(certificates, Has.Count.EqualTo(1));
+                Assert.That(certificates[0].Certificate.Thumbprint, Is.EqualTo(thumbprint));
+                Assert.That(certificates[0].Certificate.HasPrivateKey, Is.True);
+            }
+
+            await remaining.DisposeAsync();
+            await Assert.ThrowsAsync<ObjectDisposedException>(
+                () => manager.LoadApplicationCertificatesAsync(configuration.SecurityConfiguration));
+            using CertificateEntryCollection disposedCertificates = manager.SnapshotApplicationCertificates();
+            Assert.That(disposedCertificates, Is.Empty);
+            Assert.That(Certificate.InstancesLeaked, Is.EqualTo(leaksBefore));
+        }
+
+        /// <summary>
+        /// Assignments after both applications attach acquire a reference for each active application.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ManagerAssignedAfterBothApplicationsAttachAsync(bool reverseDisposal)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var configuration = new ApplicationConfiguration(telemetry);
+            await using var first = new ApplicationInstance(configuration, telemetry);
+            await using var second = new ApplicationInstance(configuration, telemetry);
+            var manager = new CertificateManager(telemetry);
+            configuration.CertificateManager = manager;
+            ApplicationInstance released = reverseDisposal ? second : first;
+            ApplicationInstance remaining = reverseDisposal ? first : second;
+            await released.DisposeAsync();
+            using (ICertificateStore store = manager.OpenCertificateStore(
+                m_pkiRoot, CertificateStoreType.Directory, false))
+            {
+                Assert.That(store, Is.Not.Null);
+            }
+            await remaining.DisposeAsync();
+            await Assert.ThrowsAsync<ObjectDisposedException>(
+                () => manager.LoadApplicationCertificatesAsync(configuration.SecurityConfiguration));
+        }
+
+        /// <summary>
+        /// Base validation creates a manager owned by both applications when they attach before validation.
+        /// </summary>
+        [Test]
+        public async Task SharedConfigurationValidationAfterBothApplicationsAttachAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            await using var first = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            first.Build(ApplicationUri, ProductUri).AsClient().AddSecurityConfiguration(
+                ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                    SubjectName, CertificateStoreType.Directory, m_pkiRoot),
+                m_pkiRoot);
+            ApplicationConfiguration configuration = first.ApplicationConfiguration!;
+            await using var second = new ApplicationInstance(configuration, telemetry);
+            Assert.That(configuration.CertificateManager, Is.Null);
+            await configuration.ValidateAsync(ApplicationType.Client);
+            CertificateManager manager = configuration.CertificateManager as CertificateManager ??
+                throw new InvalidOperationException("Validation did not create a certificate manager.");
+            await first.DisposeAsync();
+            using (ICertificateStore store = manager.OpenCertificateStore(
+                m_pkiRoot, CertificateStoreType.Directory, false))
+            {
+                Assert.That(store, Is.Not.Null);
+            }
+            await second.DisposeAsync();
+            await Assert.ThrowsAsync<ObjectDisposedException>(
+                () => manager.LoadApplicationCertificatesAsync(configuration.SecurityConfiguration));
+        }
+
+        /// <summary>
+        /// Base validation cannot create an unowned manager after the last application releases an empty configuration.
+        /// </summary>
+        [Test]
+        public async Task ValidationAfterFinalReleaseDoesNotCreateManagerAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            await using var application = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            application.Build(ApplicationUri, ProductUri).AsClient().AddSecurityConfiguration(
+                ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                    SubjectName, CertificateStoreType.Directory, m_pkiRoot),
+                m_pkiRoot);
+            ApplicationConfiguration configuration = application.ApplicationConfiguration!;
+            await application.DisposeAsync();
+            await Assert.ThrowsAsync<ObjectDisposedException>(
+                () => configuration.ValidateAsync(ApplicationType.Client));
+            Assert.That(configuration.CertificateManager, Is.Null);
+        }
+
+        /// <summary>
+        /// Independent configurations and template copies share manager identity and retain their own replacements.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task SharedManagerAcrossConfigurationsRetainsReplacementsAsync(
+            bool reverseDisposal,
+            bool templateCopy)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var manager = new CertificateManager(telemetry);
+            var firstReplacement = new CertificateManager(telemetry);
+            var secondReplacement = new CertificateManager(telemetry);
+            var firstConfiguration = new ApplicationConfiguration(telemetry) { CertificateManager = manager };
+            var secondConfiguration = templateCopy
+                ? new ApplicationConfiguration(firstConfiguration)
+                : new ApplicationConfiguration(telemetry) { CertificateManager = manager };
+            await using var first = new ApplicationInstance(firstConfiguration, telemetry);
+            await using var second = new ApplicationInstance(secondConfiguration, telemetry);
+            firstConfiguration.CertificateManager = firstReplacement;
+            firstConfiguration.CertificateManager = Mock.Of<ICertificateManager>();
+            secondConfiguration.CertificateManager = secondReplacement;
+            first.ApplicationConfiguration = new ApplicationConfiguration(telemetry);
+            first.ApplicationConfiguration = firstConfiguration;
+
+            ApplicationInstance released = reverseDisposal ? second : first;
+            ApplicationInstance remaining = reverseDisposal ? first : second;
+            CertificateManager releasedReplacement = reverseDisposal ? secondReplacement : firstReplacement;
+            CertificateManager remainingReplacement = reverseDisposal ? firstReplacement : secondReplacement;
+            await released.DisposeAsync();
+            await Assert.ThrowsAsync<ObjectDisposedException>(
+                () => releasedReplacement.LoadApplicationCertificatesAsync(firstConfiguration.SecurityConfiguration));
+            using (ICertificateStore store = manager.OpenCertificateStore(
+                m_pkiRoot, CertificateStoreType.Directory, false))
+            {
+                Assert.That(store, Is.Not.Null);
+            }
+            using (ICertificateStore store = remainingReplacement.OpenCertificateStore(
+                m_pkiRoot, CertificateStoreType.Directory, false))
+            {
+                Assert.That(store, Is.Not.Null);
+            }
+
+            await remaining.DisposeAsync();
+            await Assert.ThrowsAsync<ObjectDisposedException>(
+                () => manager.LoadApplicationCertificatesAsync(firstConfiguration.SecurityConfiguration));
+            await Assert.ThrowsAsync<ObjectDisposedException>(
+                () => remainingReplacement.LoadApplicationCertificatesAsync(firstConfiguration.SecurityConfiguration));
+        }
+
+        /// <summary>
+        /// Replacement after one application's disposal belongs to the remaining application.
+        /// </summary>
+        [Test]
+        public async Task SharedConfigurationReplacementAfterFirstDisposalRemainsOwnedAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var original = new CertificateManager(telemetry);
+            var replacement = new CertificateManager(telemetry);
+            var configuration = new ApplicationConfiguration(telemetry) { CertificateManager = original };
+            await using var first = new ApplicationInstance(configuration, telemetry);
+            await using var second = new ApplicationInstance(configuration, telemetry);
+            await first.DisposeAsync();
+            configuration.CertificateManager = replacement;
+            configuration.CertificateManager = Mock.Of<ICertificateManager>();
+            await first.DisposeAsync();
+            using (ICertificateStore store = replacement.OpenCertificateStore(
+                m_pkiRoot, CertificateStoreType.Directory, false))
+            {
+                Assert.That(store, Is.Not.Null);
+            }
+            await second.DisposeAsync();
+            await Assert.ThrowsAsync<ObjectDisposedException>(
+                () => original.LoadApplicationCertificatesAsync(configuration.SecurityConfiguration));
+            await Assert.ThrowsAsync<ObjectDisposedException>(
+                () => replacement.LoadApplicationCertificatesAsync(configuration.SecurityConfiguration));
+        }
+
+        /// <summary>
+        /// Container ownership applies to manager identity, including applications attached before borrowing is marked.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        [TestCase(false, null)]
+        [TestCase(true, null)]
+        public async Task BorrowedManagerSharedAcrossApplicationsRemainsContainerOwnedAsync(
+            bool reverseDisposal,
+            bool? templateCopy)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            await using var manager = new CertificateManager(telemetry);
+            var configuration = new ApplicationConfiguration(telemetry) { CertificateManager = manager };
+            ApplicationConfiguration shared = templateCopy switch
+            {
+                true => new ApplicationConfiguration(configuration),
+                false => configuration,
+                null => new ApplicationConfiguration(telemetry) { CertificateManager = manager }
+            };
+            await using var first = new ApplicationInstance(configuration, telemetry);
+            await using var second = new ApplicationInstance(shared, telemetry);
+            first.MarkCertificateManagerBorrowed();
+            await (reverseDisposal ? second : first).DisposeAsync();
+            using (ICertificateStore store = manager.OpenCertificateStore(
+                m_pkiRoot, CertificateStoreType.Directory, false))
+            {
+                Assert.That(store, Is.Not.Null);
+            }
+            await (reverseDisposal ? first : second).DisposeAsync();
+            using (ICertificateStore store = manager.OpenCertificateStore(
+                m_pkiRoot, CertificateStoreType.Directory, false))
+            {
+                Assert.That(store, Is.Not.Null);
+            }
+        }
+
+        /// <summary>
+        /// Disposal callers await server shutdown; another application may attach before the final release.
+        /// </summary>
+        [Test]
+        public async Task ConcurrentApplicationDisposalRetainsSharedManagerUntilServerStopsAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var manager = new CertificateManager(telemetry);
+            var configuration = new ApplicationConfiguration(telemetry) { CertificateManager = manager };
+            await using var first = new ApplicationInstance(configuration, telemetry);
+            await using var second = new ApplicationInstance(configuration, telemetry);
+            var stop = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var server = new Mock<IServerBase>();
+            server.Setup(value => value.StopAsync(It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask(stop.Task));
+            await first.StartAsync(server.Object);
+            Task disposal = first.DisposeAsync().AsTask();
+            Task repeatedDisposal = first.DisposeAsync().AsTask();
+            Assert.That(disposal.IsCompleted, Is.False);
+            Assert.That(repeatedDisposal.IsCompleted, Is.False);
+            try
+            {
+                Assert.Throws<ObjectDisposedException>(
+                    () => first.ApplicationConfiguration = new ApplicationConfiguration(telemetry));
+                await second.DisposeAsync();
+                await using var third = new ApplicationInstance(configuration, telemetry);
+                stop.SetResult(true);
+                await Task.WhenAll(disposal, repeatedDisposal);
+                server.Verify(value => value.StopAsync(It.IsAny<CancellationToken>()), Times.Once);
+                server.Verify(value => value.Dispose(), Times.Once);
+                using (ICertificateStore store = manager.OpenCertificateStore(
+                    m_pkiRoot, CertificateStoreType.Directory, false))
+                {
+                    Assert.That(store, Is.Not.Null);
+                }
+                await third.DisposeAsync();
+                await Assert.ThrowsAsync<ObjectDisposedException>(
+                    () => manager.LoadApplicationCertificatesAsync(configuration.SecurityConfiguration));
+            }
+            finally
+            {
+                stop.TrySetResult(true);
+                await Task.WhenAll(disposal, repeatedDisposal);
+            }
+        }
+
+        /// <summary>
+        /// Parallel final releases across configurations retire one shared manager without losing disposal work.
+        /// </summary>
+        [Test]
+        public async Task ConcurrentFinalReleasesDisposeSharedManagerAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var manager = new CertificateManager(telemetry);
+            var configuration = new ApplicationConfiguration(telemetry) { CertificateManager = manager };
+            await using var first = new ApplicationInstance(configuration, telemetry);
+            await using var second = new ApplicationInstance(new ApplicationConfiguration(configuration), telemetry);
+            var stop = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var firstServer = new Mock<IServerBase>();
+            var secondServer = new Mock<IServerBase>();
+            firstServer.Setup(value => value.StopAsync(It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask(stop.Task));
+            secondServer.Setup(value => value.StopAsync(It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask(stop.Task));
+            await first.StartAsync(firstServer.Object);
+            await second.StartAsync(secondServer.Object);
+            Task firstDisposal = first.DisposeAsync().AsTask();
+            Task secondDisposal = second.DisposeAsync().AsTask();
+            try
+            {
+                Assert.That(firstDisposal.IsCompleted, Is.False);
+                Assert.That(secondDisposal.IsCompleted, Is.False);
+                using (ICertificateStore store = manager.OpenCertificateStore(
+                    m_pkiRoot, CertificateStoreType.Directory, false))
+                {
+                    Assert.That(store, Is.Not.Null);
+                }
+            }
+            finally
+            {
+                stop.TrySetResult(true);
+                await Task.WhenAll(firstDisposal, secondDisposal);
+            }
+            firstServer.Verify(value => value.Dispose(), Times.Once);
+            secondServer.Verify(value => value.Dispose(), Times.Once);
+            await Assert.ThrowsAsync<ObjectDisposedException>(
+                () => manager.LoadApplicationCertificatesAsync(configuration.SecurityConfiguration));
+        }
+
+        /// <summary>
+        /// An unattached template does not retain ownership or allow adoption after the final manager release.
+        /// </summary>
+        [Test]
+        public async Task LateTemplateAdoptionRejectsRetiredManagerAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var manager = new CertificateManager(telemetry);
+            var configuration = new ApplicationConfiguration(telemetry) { CertificateManager = manager };
+            var template = new ApplicationConfiguration(configuration);
+            await using var application = new ApplicationInstance(configuration, telemetry);
+            await application.DisposeAsync();
+            Assert.Throws<ObjectDisposedException>(() => new ApplicationInstance(template, telemetry));
+            Assert.Throws<ObjectDisposedException>(() => new ApplicationInstance(configuration, telemetry));
+            Assert.Throws<ObjectDisposedException>(
+                () => new ApplicationConfiguration(telemetry).CertificateManager = manager);
+        }
+
+        /// <summary>
+        /// Failed adoption leaves the existing configuration and all prospective manager reference counts unchanged.
+        /// </summary>
+        [Test]
+        public async Task FailedConfigurationAdoptionDoesNotAcquirePartialReferencesAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var retired = new CertificateManager(telemetry);
+            var prospectiveManager = new CertificateManager(telemetry);
+            var currentManager = new CertificateManager(telemetry);
+            var retiringConfiguration = new ApplicationConfiguration(telemetry) { CertificateManager = retired };
+            var prospective = new ApplicationConfiguration(telemetry)
+            {
+                CertificateManager = prospectiveManager
+            };
+            prospective.CertificateManager = retired;
+            prospective.CertificateManager = prospectiveManager;
+            await using var retiringApplication = new ApplicationInstance(retiringConfiguration, telemetry);
+            await retiringApplication.DisposeAsync();
+            var current = new ApplicationConfiguration(telemetry) { CertificateManager = currentManager };
+            await using var application = new ApplicationInstance(current, telemetry);
+            Assert.Throws<ObjectDisposedException>(() => application.ApplicationConfiguration = prospective);
+            Assert.That(application.ApplicationConfiguration, Is.SameAs(current));
+            await application.DisposeAsync();
+            await Assert.ThrowsAsync<ObjectDisposedException>(
+                () => currentManager.LoadApplicationCertificatesAsync(current.SecurityConfiguration));
+            await using var finalOwner = new ApplicationInstance(
+                new ApplicationConfiguration(telemetry) { CertificateManager = prospectiveManager }, telemetry);
+            using (ICertificateStore store = prospectiveManager.OpenCertificateStore(
+                m_pkiRoot, CertificateStoreType.Directory, false))
+            {
+                Assert.That(store, Is.Not.Null);
+            }
+            await finalOwner.DisposeAsync();
+            await Assert.ThrowsAsync<ObjectDisposedException>(
+                () => prospectiveManager.LoadApplicationCertificatesAsync(current.SecurityConfiguration));
+        }
+
+        /// <summary>
+        /// Server disposal failure still releases manager assignments, and repeated callers receive the same failure.
+        /// </summary>
+        [Test]
+        public async Task ServerDisposalFailureStillReleasesCertificateManagersAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var original = new CertificateManager(telemetry);
+            var replacement = new CertificateManager(telemetry);
+            var configuration = new ApplicationConfiguration(telemetry) { CertificateManager = original };
+            var application = new ApplicationInstance(configuration, telemetry);
+            configuration.CertificateManager = replacement;
+            var failure = new InvalidOperationException("Server disposal failed.");
+            var server = new Mock<IServerBase>();
+            server.Setup(value => value.Dispose()).Throws(failure);
+            await application.StartAsync(server.Object);
+            AggregateException? observed = await Assert.ThrowsAsync<AggregateException>(
+                async () => await application.DisposeAsync());
+            Assert.That(observed!.InnerExceptions, Has.Count.EqualTo(1));
+            Assert.That(observed.InnerExceptions[0], Is.SameAs(failure));
+            AggregateException? repeated = await Assert.ThrowsAsync<AggregateException>(
+                async () => await application.DisposeAsync());
+            Assert.That(repeated, Is.SameAs(observed));
+            server.Verify(value => value.Dispose(), Times.Once);
+            await Assert.ThrowsAsync<ObjectDisposedException>(
+                () => original.LoadApplicationCertificatesAsync(configuration.SecurityConfiguration));
+            await Assert.ThrowsAsync<ObjectDisposedException>(
+                () => replacement.LoadApplicationCertificatesAsync(configuration.SecurityConfiguration));
+        }
+
+        /// <summary>
         /// Verifies cleanup of the exact validation-created manager after a custom validator replaces it and fails.
         /// </summary>
         [TestCase(false, false)]
@@ -383,12 +815,26 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         /// <summary>
+        /// Failed loading cannot dispose a validation-created manager still leased by another application.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task LoaderPreservesCreatedManagerSharedWithActiveApplicationAsync(bool loadFile, bool cancel)
+        {
+            await VerifyLoadFailureManagerLifetimeAsync(
+                loadFile, cancel, markReplacementBorrowed: true, shareCreatedManager: true);
+        }
+
+        /// <summary>
         /// Checks both manager identities and the original failure after file or stream loading fails.
         /// </summary>
         private async Task VerifyLoadFailureManagerLifetimeAsync(
             bool loadFile,
             bool cancel,
-            bool markReplacementBorrowed)
+            bool markReplacementBorrowed,
+            bool shareCreatedManager = false)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             await using var borrowedManager = new CertificateManager(telemetry);
@@ -396,7 +842,8 @@ namespace Opc.Ua.Configuration.Tests
             Exception failure = cancel
                 ? new OperationCanceledException(token)
                 : new InvalidOperationException("Custom validation failed.");
-            var scenario = new LoadFailureScenario(telemetry, borrowedManager, failure, markReplacementBorrowed);
+            var scenario = new LoadFailureScenario(
+                telemetry, borrowedManager, failure, markReplacementBorrowed, shareCreatedManager);
             ReplacingValidationConfiguration.CurrentScenario.Value = scenario;
             await using var application = new ApplicationInstance(telemetry)
             {
@@ -428,6 +875,15 @@ namespace Opc.Ua.Configuration.Tests
                 }
                 Assert.That(application.ApplicationConfiguration, Is.Null);
                 Assert.That(scenario.CreatedManager, Is.Not.Null.And.Not.SameAs(borrowedManager));
+                if (shareCreatedManager)
+                {
+                    using (ICertificateStore sharedStore = scenario.CreatedManager!.OpenCertificateStore(
+                        m_pkiRoot, CertificateStoreType.Directory, false))
+                    {
+                        Assert.That(sharedStore, Is.Not.Null);
+                    }
+                    await scenario.BorrowingApplication!.DisposeAsync();
+                }
                 await Assert.ThrowsAsync<ObjectDisposedException>(
                     () => scenario.CreatedManager!.LoadApplicationCertificatesAsync(
                         scenario.Configuration!.SecurityConfiguration));
@@ -2234,10 +2690,19 @@ namespace Opc.Ua.Configuration.Tests
                 m_scenario.CreatedManager = CertificateManager as CertificateManager ??
                     throw new InvalidOperationException("Base validation did not create a certificate manager.");
                 m_scenario.Configuration = this;
+                if (m_scenario.ShareCreatedManager)
+                {
+                    m_scenario.BorrowingApplication = new ApplicationInstance(this, m_scenario.Telemetry);
+                }
                 CertificateManager = m_scenario.BorrowedManager;
                 if (m_scenario.MarkReplacementBorrowed)
                 {
-                    m_scenario.BorrowingApplication = new ApplicationInstance(this, m_scenario.Telemetry);
+                    m_scenario.BorrowingApplication ??= new ApplicationInstance(
+                        new ApplicationConfiguration(m_scenario.Telemetry)
+                        {
+                            CertificateManager = m_scenario.BorrowedManager
+                        },
+                        m_scenario.Telemetry);
                     m_scenario.BorrowingApplication.MarkCertificateManagerBorrowed();
                 }
                 throw m_scenario.Failure;
@@ -2256,7 +2721,8 @@ namespace Opc.Ua.Configuration.Tests
             ITelemetryContext telemetry,
             CertificateManager borrowedManager,
             Exception failure,
-            bool markReplacementBorrowed)
+            bool markReplacementBorrowed,
+            bool shareCreatedManager)
         {
             /// <summary>
             /// The telemetry used by the borrowing application.
@@ -2272,6 +2738,11 @@ namespace Opc.Ua.Configuration.Tests
             /// Whether the validator explicitly registers the replacement as borrowed.
             /// </summary>
             public bool MarkReplacementBorrowed { get; } = markReplacementBorrowed;
+
+            /// <summary>
+            /// Whether another application acquires the validation-created manager before loading fails.
+            /// </summary>
+            public bool ShareCreatedManager { get; } = shareCreatedManager;
 
             /// <summary>
             /// The exact error returned by custom validation.

@@ -47,13 +47,34 @@ namespace Opc.Ua.Configuration
     public class ApplicationInstance : IApplicationInstance
     {
         /// <inheritdoc/>
-        public ValueTask DisposeAsync()
+        public async ValueTask DisposeAsync()
         {
+            TaskCompletionSource<bool>? completion = null;
+            Task disposal;
             lock (m_disposalLock)
             {
-                m_disposeTask ??= DisposeCoreAsync();
-                return new ValueTask(m_disposeTask);
+                if (m_disposeTask == null)
+                {
+                    m_disposalStarted = true;
+                    completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    m_disposeTask = completion.Task;
+                }
+                disposal = m_disposeTask;
             }
+            if (completion != null)
+            {
+                try
+                {
+                    await DisposeCoreAsync().ConfigureAwait(false);
+                    completion.SetResult(true);
+                }
+                catch (Exception e)
+                {
+                    completion.SetException(e);
+                }
+            }
+            GC.SuppressFinalize(this);
+            await disposal.ConfigureAwait(false);
         }
 
         /// <summary>
@@ -61,6 +82,7 @@ namespace Opc.Ua.Configuration
         /// </summary>
         private async Task DisposeCoreAsync()
         {
+            List<Exception>? disposalFailures = null;
             if (Server != null)
             {
                 try
@@ -71,25 +93,25 @@ namespace Opc.Ua.Configuration
                 {
                     m_logger.ErrorStoppingServerDuringDispose(e);
                 }
-                Server.Dispose();
-                Server = null;
-            }
-
-            SetCertificateManagerOwnership();
-            foreach (ApplicationConfiguration configuration in m_certificateManagerConfigurations)
-            {
-                foreach (CertificateManager certificateManager in configuration.GetCertificateManagers())
+                try
                 {
-                    m_ownedCertificateManagers.Add(certificateManager);
+                    Server.Dispose();
+                }
+                catch (Exception e)
+                {
+                    disposalFailures = [e];
+                }
+                finally
+                {
+                    Server = null;
                 }
             }
-            m_ownedCertificateManagers.RemoveWhere(IsCertificateManagerBorrowed);
-            List<Exception>? disposalFailures = null;
-            foreach (CertificateManager certificateManager in m_ownedCertificateManagers)
+
+            foreach (ApplicationConfiguration configuration in m_certificateManagerConfigurations)
             {
                 try
                 {
-                    await certificateManager.DisposeAsync().ConfigureAwait(false);
+                    await configuration.ReleaseCertificateManagersAsync().ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
@@ -97,10 +119,8 @@ namespace Opc.Ua.Configuration
                     disposalFailures.Add(e);
                 }
             }
-            m_ownedCertificateManagers.Clear();
             m_certificateManagerConfigurations.Clear();
 
-            GC.SuppressFinalize(this);
             if (disposalFailures != null)
             {
                 throw new AggregateException(disposalFailures);
@@ -167,11 +187,22 @@ namespace Opc.Ua.Configuration
         /// <inheritdoc/>
         public ApplicationConfiguration? ApplicationConfiguration
         {
-            get => m_applicationConfiguration;
+            get
+            {
+                lock (m_disposalLock)
+                {
+                    return m_applicationConfiguration;
+                }
+            }
             set
             {
-                m_applicationConfiguration = value;
-                SetCertificateManagerOwnership();
+                lock (m_disposalLock)
+                {
+                    ThrowIfDisposing();
+                    TrackCertificateManagerConfiguration(value);
+                    m_applicationConfiguration = value;
+                    CertificateManager = value?.CertificateManager as CertificateManager;
+                }
             }
         }
 
@@ -400,13 +431,15 @@ namespace Opc.Ua.Configuration
             }
             if (certificateManager == null)
             {
-                // The application instance owns this fallback manager.
-                CertificateManager manager = CertificateManagerFactory.Create(
-                    securityConfiguration,
-                    m_telemetry!);
-                CertificateManager = manager;
-                m_ownedCertificateManagers.Add(manager);
-                certificateManager = manager;
+                lock (m_disposalLock)
+                {
+                    ThrowIfDisposing();
+                    // Publish the fallback before disposal can release the configuration's lease.
+                    certificateManager = configuration.CertificateManager ?? CertificateManagerFactory.Create(
+                        securityConfiguration,
+                        m_telemetry!);
+                    configuration.CertificateManager = certificateManager;
+                }
             }
             CertificateManager = certificateManager as CertificateManager;
             configuration.CertificateManager = certificateManager;
@@ -631,10 +664,11 @@ namespace Opc.Ua.Configuration
         /// </summary>
         internal void SetCertificateManagerOwnership()
         {
-            CertificateManager = ApplicationConfiguration?.CertificateManager as CertificateManager;
-            if (ApplicationConfiguration is { } configuration)
+            lock (m_disposalLock)
             {
-                m_certificateManagerConfigurations.Add(configuration);
+                ThrowIfDisposing();
+                TrackCertificateManagerConfiguration(m_applicationConfiguration);
+                CertificateManager = m_applicationConfiguration?.CertificateManager as CertificateManager;
             }
         }
 
@@ -643,26 +677,38 @@ namespace Opc.Ua.Configuration
         /// </summary>
         internal void MarkCertificateManagerBorrowed()
         {
-            if (ApplicationConfiguration?.CertificateManager is { } certificateManager)
+            lock (m_disposalLock)
             {
-                ApplicationConfiguration.SetBorrowedCertificateManager(certificateManager);
+                ThrowIfDisposing();
+                if (m_applicationConfiguration?.CertificateManager is { } certificateManager)
+                {
+                    m_applicationConfiguration.SetBorrowedCertificateManager(certificateManager);
+                }
+                SetCertificateManagerOwnership();
             }
-            SetCertificateManagerOwnership();
         }
 
         /// <summary>
-        /// Keeps container ownership when a borrowed manager is reassigned through another tracked configuration.
+        /// Acquires a configuration lease once and retains it across configuration replacement.
         /// </summary>
-        private bool IsCertificateManagerBorrowed(CertificateManager certificateManager)
+        private void TrackCertificateManagerConfiguration(ApplicationConfiguration? configuration)
         {
-            foreach (ApplicationConfiguration configuration in m_certificateManagerConfigurations)
+            if (configuration != null && !m_certificateManagerConfigurations.Contains(configuration))
             {
-                if (configuration.IsCertificateManagerBorrowed(certificateManager))
-                {
-                    return true;
-                }
+                configuration.AcquireCertificateManagers();
+                m_certificateManagerConfigurations.Add(configuration);
             }
-            return false;
+        }
+
+        /// <summary>
+        /// Rejects new configuration ownership after asynchronous disposal starts.
+        /// </summary>
+        private void ThrowIfDisposing()
+        {
+            if (m_disposalStarted)
+            {
+                throw new ObjectDisposedException(nameof(ApplicationInstance));
+            }
         }
 
         /// <summary>
@@ -1355,12 +1401,7 @@ namespace Opc.Ua.Configuration
         private ApplicationConfiguration? m_applicationConfiguration;
 
         /// <summary>
-        /// Tracks concrete certificate managers owned and disposed by this instance.
-        /// </summary>
-        private readonly HashSet<CertificateManager> m_ownedCertificateManagers = [];
-
-        /// <summary>
-        /// Tracks configuration provenance even after the application's configuration has been replaced.
+        /// Holds one lease per configuration, including configurations replaced during the application's lifetime.
         /// </summary>
         private readonly HashSet<ApplicationConfiguration> m_certificateManagerConfigurations = [];
 
@@ -1373,6 +1414,11 @@ namespace Opc.Ua.Configuration
         /// The cleanup task awaited by every disposal caller.
         /// </summary>
         private Task? m_disposeTask;
+
+        /// <summary>
+        /// Prevents configuration adoption while server shutdown or manager release is in progress.
+        /// </summary>
+        private bool m_disposalStarted;
         private IKeyPairGenerator? m_keyPairGenerator;
     }
 
