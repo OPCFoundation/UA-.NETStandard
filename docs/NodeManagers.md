@@ -1411,8 +1411,8 @@ subscriptions:
 
 Neither transition retains a generation for existing items or future continuation requests.
 Requests already pinned to the old routing view may finish under ordinary request lifetime
-management; continuation points from a retired generation are invalid when its gate closes (see
-[Continuation points](#continuation-points)).
+management. The built-in Session store rejects continuation resumes after their generation's gate
+closes (see [Continuation points](#continuation-points)).
 
 #### MonitoredItems
 
@@ -1546,26 +1546,39 @@ An implementation the server cannot migrate safely fails with
 
 #### Continuation points
 
-A continuation point carries a weak identity for the generation that issued it; it does not keep
-that generation, its NodeManager, or its routing view alive. `BrowseNext` and `HistoryRead` resume
-only while the issuing generation's gate is open. After retirement closes that gate, the server
-returns `BadContinuationPointInvalid` and disposes the saved cursor. An already-admitted request
-may finish on its pinned immutable view, but a later page resolves target nodes through that
-request's current view. The Session's current permissions are checked on every page, and another
-Session cannot consume its token.
+A continuation point carries a weak identity for the generation that issued it. That identity
+alone does not keep the generation, its NodeManager, or its routing view alive. The point's
+`Data` can retain a cursor that holds other objects. For example, a `DirectoryBrowser` created
+by a `FileSystemNodeManager` can retain that manager as its host. `ContinuationPoint.Dispose`
+disposes `Data` when it implements `IDisposable` but does not clear the property. A caller or
+custom store that keeps the point can therefore retain its host after disposal.
+
+For `BrowseNext`, the server checks the issuing generation before the NodeManager resumes the
+cursor. For `HistoryRead`, the server performs this check when the Session uses its built-in
+continuation-point store. A resume after the checked generation's gate closes returns
+`BadContinuationPointInvalid`. An already-admitted request may finish on its pinned immutable view,
+but a later page resolves target nodes through that request's current view. The Session's current
+permissions are checked on every page, and another Session cannot consume its token.
 
 Retirement waits for request-view epochs and generation-gated background work, not saved
-continuation points. Releasing a point, cache eviction, cancellation, or Session close still
-disposes its cursor state. Paged Browse does not require pre-enumerating targets or declaring
-dependencies; the file-system `DirectoryBrowser` continues to use ordinary cursor pagination.
-History providers likewise need not capture or declare NodeManager dependencies; pages from a
-retired generation are rejected rather than preserving access to its provider. See
+continuation points. The built-in Session store invalidates saved cursors during retirement.
+Releasing a point, cache eviction, cancellation, or Session close also disposes their cursor
+state. The reclaimer does not notify custom `ISessionContinuationPoints` implementations, and
+custom history continuations use the NodeManager's history dispatch path instead of the built-in
+saved-generation path. Their retirement behavior needs separate validation; see
+[Retained lifecycle API](#retained-lifecycle-api).
+
+Paged Browse does not require pre-enumerating targets or declaring dependencies; the file-system
+`DirectoryBrowser` uses ordinary cursor pagination. With the built-in Session store, history
+providers likewise need not capture or declare NodeManager dependencies; pages from a retired
+generation are rejected rather than preserving access to its provider. See
 [historian pagination](HistoricalAccess.md#read-pagination--historianresumetoken-and-historianpaget).
 
-A portable history record preserves the provider identity and resume token, not a process-local
-generation identity. A standby validates the provider and captures its local owning generation
-before admitting the restored cursor. Later pages still require that generation's gate to remain
-open; local retirement invalidates the cursor rather than rebinding it to a replacement.
+The built-in Session store's portable history record preserves the provider identity and resume
+token, not a process-local generation identity. A standby validates the provider and captures its
+local owning generation before admitting the restored cursor. Later pages still require that
+generation's gate to remain open; local retirement invalidates the cursor rather than rebinding
+it to a replacement.
 
 #### Namespaces
 
