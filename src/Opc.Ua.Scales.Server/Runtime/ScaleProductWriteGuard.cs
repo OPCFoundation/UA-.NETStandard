@@ -69,8 +69,10 @@ namespace Opc.Ua.Scales.Server.Runtime
         {
             ProductState? product = null;
             ScaleDeviceState? scaleRoot = null;
+            bool asynchronousChangeMaskNotifications = false;
             for (NodeState? ancestor = node; ancestor is BaseInstanceState instance; ancestor = instance.Parent)
             {
+                asynchronousChangeMaskNotifications |= instance is MultiStateValueDiscreteState;
                 if (instance is ProductState owner)
                 {
                     product = owner;
@@ -81,7 +83,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                     break;
                 }
             }
-            Bind(services, node, product, scaleRoot, writeGate);
+            Bind(services, node, product, scaleRoot, writeGate, asynchronousChangeMaskNotifications);
         }
 
         /// <summary>
@@ -120,14 +122,16 @@ namespace Opc.Ua.Scales.Server.Runtime
             NodeState node,
             ProductState? product,
             ScaleDeviceState? scaleRoot,
-            ScaleWriteGate? writeGate)
+            ScaleWriteGate? writeGate,
+            bool asynchronousChangeMaskNotifications)
         {
             product = node as ProductState ?? product;
             scaleRoot = node as ScaleDeviceState ?? scaleRoot;
+            asynchronousChangeMaskNotifications |= node is MultiStateValueDiscreteState;
             writeGate ??= FindWriteGate(services, node, product, scaleRoot);
             if (writeGate != null)
             {
-                node.BindWriteOperationExecutor(writeGate.NodeWriteExecutor);
+                node.BindWriteOperationExecutor(writeGate.NodeWriteExecutor, asynchronousChangeMaskNotifications);
                 if (node is BaseVariableState variable &&
                     (variable.AccessLevel & AccessLevels.CurrentWrite) != 0 &&
                     variable.OnWriteValueAsync == null &&
@@ -160,7 +164,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                 {
                     continue;
                 }
-                Bind(services, child, product, scaleRoot, writeGate);
+                Bind(services, child, product, scaleRoot, writeGate, asynchronousChangeMaskNotifications);
             }
         }
 

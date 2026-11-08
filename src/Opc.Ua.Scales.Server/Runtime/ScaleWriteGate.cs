@@ -40,7 +40,7 @@ namespace Opc.Ua.Scales.Server.Runtime
     internal sealed class ScaleWriteGate
     {
         /// <summary>
-        /// Identifies an asynchronous notification flow that may reenter this gate for a nested write.
+        /// Identifies a notification flow that may reenter this gate for a nested asynchronous write.
         /// </summary>
         private sealed class NotificationScope
         {
@@ -147,6 +147,63 @@ namespace Opc.Ua.Scales.Server.Runtime
                     return true;
                 },
                 out _);
+        }
+
+        /// <summary>
+        /// Transfers a completed synchronous mutation to inline notification admission without an unprotected interval.
+        /// </summary>
+        /// <typeparam name="T">The mutation result type.</typeparam>
+        /// <param name="operation">The complete mutation.</param>
+        /// <param name="notifications">The inline notification delivery.</param>
+        /// <param name="result">The mutation result, or the default value when rejected.</param>
+        /// <returns>Whether the mutation and notification delivery ran.</returns>
+        internal bool TryExecuteWithNotifications<T>(Func<T> operation, Action notifications, out T result)
+        {
+            if (operation == null)
+            {
+                throw new ArgumentNullException(nameof(operation));
+            }
+            if (notifications == null)
+            {
+                throw new ArgumentNullException(nameof(notifications));
+            }
+            if (!TryAdmitSynchronous())
+            {
+                result = default!;
+                return false;
+            }
+
+            bool notifying = false;
+            try
+            {
+                result = operation();
+                TransferSynchronousToNotifications();
+                notifying = true;
+                NotificationScope? previousScope = m_notificationScope.Value;
+                var scope = new NotificationScope(this);
+                m_notificationScope.Value = scope;
+                try
+                {
+                    notifications();
+                }
+                finally
+                {
+                    scope.Deactivate();
+                    m_notificationScope.Value = previousScope;
+                }
+                return true;
+            }
+            finally
+            {
+                if (notifying)
+                {
+                    ExitNotifications();
+                }
+                else
+                {
+                    ReleaseSynchronous();
+                }
+            }
         }
 
         /// <summary>
@@ -414,6 +471,25 @@ namespace Opc.Ua.Scales.Server.Runtime
         }
 
         /// <summary>
+        /// Releases mutation ownership while retaining notification admission and waking nested asynchronous writers.
+        /// </summary>
+        private void TransferSynchronousToNotifications()
+        {
+            TaskCompletionSource<bool>? stateChanged = null;
+            lock (m_stateLock)
+            {
+                m_notificationsInProgress++;
+                m_synchronousWriters--;
+                if (m_synchronousWriters == 0)
+                {
+                    stateChanged = m_stateChanged;
+                    m_stateChanged = null;
+                }
+            }
+            stateChanged?.TrySetResult(true);
+        }
+
+        /// <summary>
         /// Releases asynchronous ownership and wakes queued operations.
         /// </summary>
         private void ReleaseAsynchronous()
@@ -447,7 +523,7 @@ namespace Opc.Ua.Scales.Server.Runtime
         }
 
         /// <summary>
-        /// Gets whether the current asynchronous flow is inside this gate's notification callback.
+        /// Gets whether the current flow is inside this gate's notification callback.
         /// </summary>
         private bool IsNotificationScopeActive =>
             m_notificationScope.Value is { IsActive: true } scope && ReferenceEquals(scope.Gate, this);
@@ -483,7 +559,7 @@ namespace Opc.Ua.Scales.Server.Runtime
         private int m_synchronousWriters;
 
         /// <summary>
-        /// The number of active or pending asynchronous notification operations.
+        /// The number of active inline notifications and active or pending asynchronous notification operations.
         /// </summary>
         private int m_notificationsInProgress;
 

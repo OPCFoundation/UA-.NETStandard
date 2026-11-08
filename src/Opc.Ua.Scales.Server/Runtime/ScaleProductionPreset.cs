@@ -142,7 +142,9 @@ namespace Opc.Ua.Scales.Server.Runtime
                 }
             }
             BindMethods();
-            PublishCurrentProducts();
+            var notifications = new List<Action>();
+            PublishCurrentProducts(notifications);
+            DispatchNotifications(notifications);
         }
 
         /// <summary>
@@ -291,13 +293,14 @@ namespace Opc.Ua.Scales.Server.Runtime
             Action<ProductState>? configure = null)
         {
             ServiceResult result = ServiceResult.Good;
-            ProductState product = ExecuteSynchronouslyOrThrow(() => AddProductCore(
+            ProductState product = ExecuteWithNotifications(notifications => AddProductCore(
                     m_services.Context,
                     productId,
                     productName,
                     m_allowedProductType,
                     configure,
                     lockForCaller: false,
+                    notifications,
                     out result));
             return ServiceResult.IsBad(result) ? throw new ServiceResultException(result) : product;
         }
@@ -308,7 +311,8 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <param name="productId">The product id.</param>
         public ServiceResult Select(string productId)
         {
-            return RunSynchronous(() => SelectCore(m_services.Context, productId, checkLock: false));
+            return RunWithNotifications(notifications =>
+                SelectCore(m_services.Context, productId, checkLock: false, notifications));
         }
 
         /// <summary>
@@ -317,7 +321,8 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <param name="productId">The product id.</param>
         public ServiceResult Deselect(string productId)
         {
-            return RunSynchronous(() => DeselectCore(m_services.Context, productId, checkLock: false));
+            return RunWithNotifications(notifications =>
+                DeselectCore(m_services.Context, productId, checkLock: false, notifications));
         }
 
         /// <summary>
@@ -326,7 +331,8 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <param name="productId">The product id to switch to.</param>
         public ServiceResult Switch(string productId)
         {
-            return RunSynchronous(() => SwitchCore(m_services.Context, productId, checkLock: false));
+            return RunWithNotifications(notifications =>
+                SwitchCore(m_services.Context, productId, checkLock: false, notifications));
         }
 
         /// <summary>
@@ -355,7 +361,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                     ref productNodeId) =>
                 {
                     NodeId createdProductId = default;
-                    ServiceResult result = RunSynchronous(() =>
+                    ServiceResult result = RunWithNotifications(notifications =>
                     {
                         ProductState product = AddProductCore(
                             context,
@@ -364,6 +370,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                             productType,
                             configure: null,
                             lockForCaller: true,
+                            notifications,
                             out ServiceResult result);
                         if (ServiceResult.IsGood(result))
                         {
@@ -387,13 +394,16 @@ namespace Opc.Ua.Scales.Server.Runtime
                 };
             };
             Preset.SelectProduct?.OnCall = (context, method, objectId, productId) =>
-                RunSynchronous(() => SelectCore(context, productId, checkLock: true));
+                RunWithNotifications(notifications => SelectCore(context, productId, checkLock: true, notifications));
             Preset.DeselectProduct?.OnCall = (context, method, objectId, productId) =>
-                RunSynchronous(() => DeselectCore(context, productId, checkLock: true));
+                RunWithNotifications(notifications => DeselectCore(context, productId, checkLock: true, notifications));
             Preset.SwitchProduct?.OnCall = (context, method, objectId, productId) =>
-                RunSynchronous(() => SwitchCore(context, productId, checkLock: true));
+                RunWithNotifications(notifications => SwitchCore(context, productId, checkLock: true, notifications));
         }
 
+        /// <summary>
+        /// Publishes a configured product and collects its notification for delivery after mutation admission.
+        /// </summary>
         private ProductState AddProductCore(
             ISystemContext callContext,
             string productId,
@@ -401,6 +411,7 @@ namespace Opc.Ua.Scales.Server.Runtime
             NodeId productType,
             Action<ProductState>? configure,
             bool lockForCaller,
+            List<Action> notifications,
             out ServiceResult result)
         {
             NodeState? products;
@@ -514,7 +525,7 @@ namespace Opc.Ua.Scales.Server.Runtime
             {
                 m_services.Register(product);
             }
-            Preset.ClearChangeMasks(m_services.Context, includeChildren: true);
+            notifications.Add(() => Preset.ClearChangeMasks(m_services.Context, includeChildren: true));
             result = ServiceResult.Good;
             return product;
         }
@@ -578,7 +589,11 @@ namespace Opc.Ua.Scales.Server.Runtime
             return ServiceResult.Good;
         }
 
-        private ServiceResult SelectCore(ISystemContext callContext, string productId, bool checkLock)
+        /// <summary>
+        /// Adds a product to processing and collects selection notifications while holding the preset lock.
+        /// </summary>
+        private ServiceResult SelectCore(
+            ISystemContext callContext, string productId, bool checkLock, List<Action> notifications)
         {
             bool changed;
             lock (m_lock)
@@ -604,17 +619,21 @@ namespace Opc.Ua.Scales.Server.Runtime
                 {
                     m_current.Add(productId!);
                     SetMode(product, processing: true);
-                    PublishCurrentProducts();
+                    PublishCurrentProducts(notifications);
                 }
             }
             if (changed)
             {
-                CurrentProductsChanged?.Invoke(this, EventArgs.Empty);
+                notifications.Add(() => CurrentProductsChanged?.Invoke(this, EventArgs.Empty));
             }
             return ServiceResult.Good;
         }
 
-        private ServiceResult DeselectCore(ISystemContext callContext, string productId, bool checkLock)
+        /// <summary>
+        /// Removes a product from processing and collects selection notifications while holding the preset lock.
+        /// </summary>
+        private ServiceResult DeselectCore(
+            ISystemContext callContext, string productId, bool checkLock, List<Action> notifications)
         {
             bool changed;
             lock (m_lock)
@@ -639,12 +658,12 @@ namespace Opc.Ua.Scales.Server.Runtime
                 if (changed)
                 {
                     SetMode(product, processing: false);
-                    PublishCurrentProducts();
+                    PublishCurrentProducts(notifications);
                 }
             }
             if (changed)
             {
-                CurrentProductsChanged?.Invoke(this, EventArgs.Empty);
+                notifications.Add(() => CurrentProductsChanged?.Invoke(this, EventArgs.Empty));
             }
             return ServiceResult.Good;
         }
@@ -664,7 +683,11 @@ namespace Opc.Ua.Scales.Server.Runtime
             }
         }
 
-        private ServiceResult SwitchCore(ISystemContext callContext, string productId, bool checkLock)
+        /// <summary>
+        /// Replaces the product in processing and collects selection notifications while holding the preset lock.
+        /// </summary>
+        private ServiceResult SwitchCore(
+            ISystemContext callContext, string productId, bool checkLock, List<Action> notifications)
         {
             bool changed;
             lock (m_lock)
@@ -716,12 +739,12 @@ namespace Opc.Ua.Scales.Server.Runtime
                     m_current.Clear();
                     m_current.Add(productId!);
                     SetMode(next, processing: true);
-                    PublishCurrentProducts();
+                    PublishCurrentProducts(notifications);
                 }
             }
             if (changed)
             {
-                CurrentProductsChanged?.Invoke(this, EventArgs.Empty);
+                notifications.Add(() => CurrentProductsChanged?.Invoke(this, EventArgs.Empty));
             }
             return ServiceResult.Good;
         }
@@ -1149,17 +1172,78 @@ namespace Opc.Ua.Scales.Server.Runtime
             }
         }
 
-        private void PublishCurrentProducts()
+        /// <summary>
+        /// Commits the current-product snapshot and captures the ordered node traversal without invoking callbacks.
+        /// </summary>
+        private void PublishCurrentProducts(List<Action> notifications)
         {
             m_currentProducts = m_current.ToArray().ToArrayOf();
             if (Preset.CurrentProducts != null)
             {
                 Preset.CurrentProducts.Value = m_currentProducts;
-                ScaleValues.Touch(m_services.Context, Preset.CurrentProducts);
+                Preset.CurrentProducts.StatusCode = StatusCodes.Good;
+                Preset.CurrentProducts.Timestamp = DateTimeUtc.Now;
+                BaseDataVariableState<ArrayOf<string>> currentProducts = Preset.CurrentProducts;
+                notifications.Add(() => currentProducts.ClearChangeMasks(m_services.Context, includeChildren: false));
             }
             foreach (ProductState product in m_products.Values)
             {
-                product.ClearChangeMasks(m_services.Context, includeChildren: true);
+                notifications.Add(() => product.ClearChangeMasks(m_services.Context, includeChildren: true));
+            }
+        }
+
+        /// <summary>
+        /// Runs a preset mutation under admission, then delivers its notifications on the caller's thread.
+        /// </summary>
+        /// <param name="action">The mutation that collects notifications in delivery order.</param>
+        /// <returns>The mutation result, or BadInvalidState when admission is unavailable.</returns>
+        private ServiceResult RunWithNotifications(Func<List<Action>, ServiceResult> action)
+        {
+            var notifications = new List<Action>();
+            if (m_writeGate == null)
+            {
+                ServiceResult result = action(notifications);
+                DispatchNotifications(notifications);
+                return result;
+            }
+            return m_writeGate.TryExecuteWithNotifications(
+                () => action(notifications),
+                () => DispatchNotifications(notifications),
+                out ServiceResult admittedResult)
+                ? admittedResult
+                : WriteInProgress();
+        }
+
+        /// <summary>
+        /// Runs application preset work under admission, then delivers its notifications on the caller's thread.
+        /// </summary>
+        /// <typeparam name="T">The mutation result type.</typeparam>
+        /// <param name="action">The mutation that collects notifications in delivery order.</param>
+        /// <returns>The mutation result.</returns>
+        private T ExecuteWithNotifications<T>(Func<List<Action>, T> action)
+        {
+            var notifications = new List<Action>();
+            if (m_writeGate == null)
+            {
+                T result = action(notifications);
+                DispatchNotifications(notifications);
+                return result;
+            }
+            return m_writeGate.TryExecuteWithNotifications(
+                () => action(notifications), () => DispatchNotifications(notifications), out T admittedResult)
+                ? admittedResult
+                : throw new ServiceResultException(WriteInProgress());
+        }
+
+        /// <summary>
+        /// Delivers collected notifications inline, propagating callback failures before subsequent callbacks run.
+        /// </summary>
+        /// <param name="notifications">The notifications in mutation order.</param>
+        private static void DispatchNotifications(List<Action> notifications)
+        {
+            foreach (Action notification in notifications)
+            {
+                notification();
             }
         }
 

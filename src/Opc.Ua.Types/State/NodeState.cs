@@ -3431,7 +3431,8 @@ namespace Opc.Ua
         /// <remarks>
         /// When the caller retains a serialization gate while invoking or awaiting this method, state-change sinks
         /// must not await or synchronously block on an operation that needs the same gate.
-        /// When a Value write defers notification, its subsequent dispatch rejects synchronous writes and
+        /// Nodes bound for asynchronous notification dispatch retain notification admission throughout each
+        /// traversal, even when no masks were pending at entry. Their dispatch rejects synchronous writes and
         /// permits nested asynchronous writes from the state-change sink.
         /// </remarks>
         /// <param name="context">The context that describes how to access the system containing the data.</param>
@@ -3442,48 +3443,15 @@ namespace Opc.Ua
             bool includeChildren,
             CancellationToken cancellationToken = default)
         {
-            long consumedGeneration = Volatile.Read(ref m_consumedChangeMaskGeneration);
-            long deferredGeneration = Volatile.Read(ref m_deferredChangeMaskGeneration);
             if (m_writeOperationExecutor is { } executor &&
-                deferredGeneration != consumedGeneration)
+                Volatile.Read(ref m_asynchronousChangeMaskNotifications) != 0)
             {
-                return ClearChangeMasksWithNotificationAdmissionAsync(
-                    executor,
-                    context,
-                    includeChildren,
-                    deferredGeneration,
-                    consumedGeneration,
+                return executor.ExecuteNotificationsAsync(
+                    ct => ClearChangeMasksCoreAsync(context, includeChildren, ct),
                     cancellationToken);
             }
 
             return ClearChangeMasksCoreAsync(context, includeChildren, cancellationToken);
-        }
-
-        /// <summary>
-        /// Clears deferred change masks under notification admission and consumes the captured generation.
-        /// </summary>
-        /// <param name="executor">The executor for this node's write operations.</param>
-        /// <param name="context">The context that describes how to access the system containing the data.</param>
-        /// <param name="includeChildren">Whether to clear masks recursively for all children.</param>
-        /// <param name="deferredGeneration">The notification generation handled by this flush.</param>
-        /// <param name="consumedGeneration">The generation consumed when this flush started.</param>
-        /// <param name="cancellationToken">The cancellation token.</param>
-        private async ValueTask ClearChangeMasksWithNotificationAdmissionAsync(
-            NodeWriteOperationExecutor executor,
-            ISystemContext context,
-            bool includeChildren,
-            long deferredGeneration,
-            long consumedGeneration,
-            CancellationToken cancellationToken)
-        {
-            await executor.ExecuteNotificationsAsync(
-                async ct =>
-                {
-                    await ClearChangeMasksCoreAsync(context, includeChildren, ct).ConfigureAwait(false);
-                    Interlocked.CompareExchange(
-                        ref m_consumedChangeMaskGeneration, deferredGeneration, consumedGeneration);
-                },
-                cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -5233,9 +5201,18 @@ namespace Opc.Ua
         /// Binds an internal executor for complete Value writes on this node.
         /// </summary>
         /// <param name="executor">The operation executor.</param>
-        internal void BindWriteOperationExecutor(NodeWriteOperationExecutor executor)
+        /// <param name="asynchronousChangeMaskNotifications">
+        /// Whether asynchronous clears retain notification admission throughout dispatch.
+        /// </param>
+        internal void BindWriteOperationExecutor(
+            NodeWriteOperationExecutor executor,
+            bool asynchronousChangeMaskNotifications = false)
         {
             m_writeOperationExecutor = executor ?? throw new ArgumentNullException(nameof(executor));
+            if (asynchronousChangeMaskNotifications)
+            {
+                Volatile.Write(ref m_asynchronousChangeMaskNotifications, 1);
+            }
         }
 
         /// <summary>
@@ -5248,7 +5225,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            Interlocked.Increment(ref m_deferredChangeMaskGeneration);
+            Volatile.Write(ref m_asynchronousChangeMaskNotifications, 1);
             return true;
         }
 
@@ -7111,14 +7088,9 @@ namespace Opc.Ua
         private NodeWriteOperationExecutor? m_writeOperationExecutor;
 
         /// <summary>
-        /// The latest Value write generation deferred until its write admission ends.
+        /// Whether asynchronous mask clearing must retain notification admission for this node's lifetime.
         /// </summary>
-        private long m_deferredChangeMaskGeneration;
-
-        /// <summary>
-        /// The latest deferred change-mask generation consumed by a completed notification flush.
-        /// </summary>
-        private long m_consumedChangeMaskGeneration;
+        private int m_asynchronousChangeMaskNotifications;
 
         /// <summary>Lazily published; see <see cref="GetOrCreateNotifiersLock"/>.</summary>
         private Lock? m_notifiersLock;

@@ -194,13 +194,8 @@ namespace Opc.Ua
                     bool resolved = false;
                     if (!accepted.WrappedValue.IsNull)
                     {
-                        bool overflowingUnsigned = accepted.WrappedValue.TypeInfo.IsScalar &&
-                            accepted.WrappedValue.TypeInfo.BuiltInType == BuiltInType.UInt64 &&
-                            !TryGetIntegerValue(accepted.WrappedValue, out _);
-                        ServiceResult acceptedValidation = overflowingUnsigned
-                            ? ServiceResult.Good
-                            : ValidateEnumValue(
-                                context, accepted.WrappedValue, out text, out dictionaryEntries, out resolved);
+                        ServiceResult acceptedValidation = ValidateEnumValue(
+                            context, accepted.WrappedValue, out text, out dictionaryEntries, out resolved);
                         if (ServiceResult.IsBad(acceptedValidation))
                         {
                             return acceptedValidation;

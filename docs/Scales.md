@@ -749,7 +749,42 @@ through the native cache path and updates `ValueAsText` before admission is
 released. Service notification delivery still uses the existing awaited
 `ClearChangeMasksAsync` traversal; it is not part of this cache-write admission.
 The native path checks access and value type before enum membership, unlike the
-synchronous path's enum-first ordering.
+synchronous path's enum-first ordering. A `UInt64` value above `Int64.MaxValue`
+returns `BadOutOfRange` before the application hook or either cache value changes.
+The legacy synchronous writer retains its ordinary-cache fallback for this
+overflow case. Native async writes use the rejection recommended, rather than
+required, by [OPC UA Part 8 section 5.3.3.4](https://reference.opcfoundation.org/specs/OPC-10000-8/v1.05.07/5.3.3.4).
+[EnumValueType.Value](https://reference.opcfoundation.org/specs/OPC-10000-3/v1.05.06/8.39)
+is represented as `Int64`. Accepted-sample validation also rejects an
+overflowing cached value and leaves `ValueAsText` unchanged; it does not roll
+back a cache mutation made after commit. The internal post-commit hook is not
+part of the public provider contract, and providers cannot return a replacement
+`Variant` through `AttributeWriteResult`.
+
+Bound enum nodes and their descendants require admission for every asynchronous
+notification traversal throughout their lifetime. `ClearChangeMasksAsync`
+retains notification admission throughout the traversal, including overlapping clears that initially
+find no pending masks. A state-change sink may await a native asynchronous Value
+write to the same node or another node on the same scale. Only the active
+notification flow has this permission; unrelated asynchronous writers wait, and
+synchronous writes return `BadInvalidState` until every notification scope ends.
+Completed clears do not remove this dispatch policy.
+
+Synchronous `ClearChangeMasks` retains its existing inline callback and exception
+behavior. It does not establish the asynchronous notification scope.
+`AddProduct` and product-selection methods commit their mutations under scale
+admission, then transfer that admission to a notification scope and run their
+collected notifications inline after releasing the preset lock. The transfer
+has no interval in which unrelated writers can enter. Synchronous writes reject
+throughout delivery; only nested asynchronous writers in the active callback
+flow can enter. The collection retains the product traversal
+order, with `CurrentProducts` notified before the product subtrees and
+`CurrentProductsChanged` raised last. Callbacks can await same-scale writes or
+read the preset from another thread without waiting for a lock retained by the
+caller. A callback exception propagates to the synchronous caller, restores the
+failed node's change masks, and prevents subsequent notifications from running;
+it does not undo the completed preset mutation. Direct `UpdateEnumValue` calls
+also retain inline notification delivery and exception propagation.
 
 This retains the NodeSet `CurrentWrite` behavior of `NotificationCategory`
 (`i=328`, `i=325`) and `NotificationId` (`i=353`, `i=134`).
@@ -767,12 +802,14 @@ On other executor-bound nodes, configure `OnWriteValueAsync` or
 
 This rule applies to nodes bound to the Scales executor. Unbound nodes retain
 their existing synchronous fallback, and non-Value attributes retain their
-existing dispatch without Value-write admission. No thread, ambient or context
-identity grants an admission bypass.
+existing dispatch without Value-write admission. A thread or system-context
+identity does not grant write admission; the active asynchronous notification
+flow is the explicit exception described above.
 
-Admission remains held through each awaited notification. A notification sink
-must not await another asynchronous write or acquisition on the same scale:
-that operation needs the admission held by the notification's caller.
+Acquisition publication retains its admission through each awaited notification.
+Its sink must not await another write or acquisition on the same scale, because
+publication still owns that admission. This restriction does not apply to the
+separate enum notification dispatch after Value-write admission ends.
 
 Direct assignments to mutable node properties, including `Value`,
 `WrappedValue`, `StatusCode` and `Timestamp`, require application serialization.
@@ -1194,7 +1231,7 @@ are left out (`ScaleFacetsBringTheMachineIdentificationTheyIncludeAsync`,
 | Method veto through `CommandInterceptor` | 🧪 | `CommandInterceptorCanVetoACommandAsync`; `PieceCountingLocalCallsMatchTheMethodsAsync` |
 | Runtime members thread-safe against method calls | 🧪 | `EquipmentReportsAreAtomicAgainstTheScaleLockAsync`; `CalibrationReportsAreAtomicAgainstTheScaleLockAsync` |
 | Awaited acquisition publication and runtime/OPC UA Value-write admission | 🔧 | `CatchweigherNotificationRejectsOverlappingSynchronousWritersAsync`; `CatchweigherReportsSerializeAndWaitingCancellationReleasesAdmissionAsync`; `CatchweigherNotificationFailureLeavesSequenceRetryableAsync`; `HopperNotificationRejectsOverlapAfterTipCounterSetterAsync`; `ProductValueWritesPreserveConcurrentSynchronousAdmissionAsync`; `ProductValueWriteAsyncWaitsForAcquisitionAndRejectsSyncOverlapAsync`; `BoundWriteExecutorPreservesSynchronousArrayAndTimestampSemanticsAsync`; `WriteAttributeAsyncIsNonVirtualAndGuardsCoreOverrideThroughCacheCommitAsync`; `WriteAttributeAsyncGuardsCoreOverrideWithoutBaseCallAsync`; `CoreOverrideSameNodePublicWriteCancellationReleasesAdmissionAsync`. Direct property assignments require application serialization. |
-| Native notification enum writes and dependent text | ✅ / 🧪 | `ClientWritesGeneratedNotificationEnumsAndRejectsSparseGapsAsync`; `RegisteredNotificationFieldsUseNativeEnumerationPolicyAsync`; `NativeEnumerationPolicyPreservesSparseAndMissingTablesAsync`; `NativeEnumerationPolicyPreservesValidationPrecedenceAsync`; `NativeEnumerationTextNotificationsAwaitExplicitFlushAsync`; `OrdinaryCachePostCommitHonorsCommitBoundaryAsync`. |
+| Native notification enum writes and dependent text | ✅ / 🧪 | `ClientWritesGeneratedNotificationEnumsAndRejectsSparseGapsAsync`; `RegisteredNotificationFieldsUseNativeEnumerationPolicyAsync`; `NativeEnumerationPolicyPreservesSparseAndMissingTablesAsync`; `NativeEnumerationPolicyPreservesValidationPrecedenceAsync`; `NativeEnumerationTextFlushAllowsSameNodeNestedScaleWriteAsync`; `NativeEnumerationSynchronousTraversalsPreserveInlineNotificationsAsync`; `OrdinaryCachePostCommitHonorsCommitBoundaryAsync`. |
 | Local operator calls for piece counting and vehicle weighing | 🧪 | `PieceCountingLocalCallsMatchTheMethodsAsync`; `VehicleLocalCallsMatchTheMethodsAsync` |
 | Recipe events raised outside the lock | 🧪 | `HandlersMayCompleteElementsSynchronouslyAsync`; `LongChainOfSatisfiedConditionsCompletesWithoutRecursion` |
 | Recipe subscriber failures and controller shutdown | 🧪 | `TimerDrivenSubscriberFailuresAreLoggedAfterEveryNotification`; `SynchronousCallersStillObserveSubscriberFailures`; `DisposeStopsDeliveryWithoutWaitingForARunningCallbackAsync`; `DisposeAsyncWaitsForARunningCallbackAsync`; `DisposeAsyncFromACallbackCompletesAfterTheCallbackReturnsAsync`; `DisposeAsyncAfterDisposeWaitsForTheRunningCallbackAsync`; `DisposeAsyncAfterDisposeWaitsForTheTimerAsync`; `DisposeAsyncAfterDisposeWaitsForARunningTimerCallbackAsync`; `TimerDisposalFailureIsLoggedAndPropagatedAsync` |

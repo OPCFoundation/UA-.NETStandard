@@ -569,11 +569,15 @@ namespace Opc.Ua.Scales.Tests
         }
 
         /// <summary>
-        /// Signed sparse values and overflowing UInt64 conversion retain the synchronous semantic rules.
+        /// Native async enum writes reject UInt64 overflow while the legacy synchronous cache fallback is retained.
         /// </summary>
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task NativeEnumerationPolicyPreservesIntegerConversionRulesAsync(bool overflowingUnsigned)
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task NativeEnumerationPolicyPreservesIntegerConversionRulesAsync(
+            bool overflowingUnsigned,
+            bool asynchronous)
         {
             using var harness = new Harness();
             ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
@@ -591,21 +595,87 @@ namespace Opc.Ua.Scales.Tests
             DateTimeUtc initialTextTimestamp = text.Timestamp;
             Variant input = overflowingUnsigned ? Variant.From(ulong.MaxValue) : Variant.From(-4L);
 
-            AssertGood(await WriteAsync(harness.Owner, variable, input).ConfigureAwait(false));
+            Variant initialValue = variable.Value;
+            ServiceResult result = asynchronous
+                ? await WriteAsync(harness.Owner, variable, input).ConfigureAwait(false)
+                : Write(harness.Owner, variable, input);
 
             if (overflowingUnsigned)
             {
-                // Existing conversion rules defer to ordinary cache writing if UInt64 cannot fit Int64.
-                Assert.That(variable.Value.GetUInt64(), Is.EqualTo(ulong.MaxValue));
+                if (asynchronous)
+                {
+                    Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadOutOfRange));
+                    Assert.That(variable.Value, Is.EqualTo(initialValue));
+                    Assert.That(variable.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+                }
+                else
+                {
+                    AssertGood(result);
+                    Assert.That(variable.Value.GetUInt64(), Is.EqualTo(ulong.MaxValue));
+                    Assert.That(variable.ChangeMasks & NodeStateChangeMasks.Value,
+                        Is.EqualTo(NodeStateChangeMasks.Value));
+                }
                 Assert.That(text.Value.Text, Is.EqualTo("initial"));
                 Assert.That(text.StatusCode, Is.EqualTo(initialTextStatus));
                 Assert.That(text.Timestamp, Is.EqualTo(initialTextTimestamp));
+                Assert.That(text.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
             }
             else
             {
+                AssertGood(result);
                 Assert.That(variable.Value.GetInt64(), Is.EqualTo(-4L));
                 Assert.That(text.Value.Text, Is.EqualTo("negative"));
             }
+        }
+
+        /// <summary>
+        /// An internal post-commit cache mutation cannot bypass validation of the accepted enumeration sample.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task NativeEnumerationRejectsInternalPostCommitOverflowAsync(bool simple)
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            ProductState product = scale.ProductionPreset!.ActiveProduct!;
+            MultiStateValueDiscreteState variable = CreateNativeEnumeration(product);
+            variable.DataType = Ua.DataTypeIds.UInt64;
+            variable.Value = Variant.From(1UL);
+            product.AddChild(variable);
+            await product.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+            PropertyState<LocalizedText> text = variable.ValueAsText!;
+            StatusCode textStatus = text.StatusCode;
+            DateTimeUtc textTimestamp = text.Timestamp;
+            int calls = 0;
+            ValueTask<AttributeWriteResult> WriteValue()
+            {
+                calls++;
+                return new ValueTask<AttributeWriteResult>(new AttributeWriteResult(ServiceResult.Good)
+                {
+                    AfterOrdinaryCacheCommit = () => variable.WrappedValue = Variant.From(ulong.MaxValue)
+                });
+            }
+            if (simple)
+            {
+                variable.OnSimpleWriteValueAsync = (_, _, _, _) => WriteValue();
+            }
+            else
+            {
+                variable.OnWriteValueAsync = (_, _, _, _, _) => WriteValue();
+            }
+
+            ServiceResult result = await WriteAsync(harness.Owner, variable, Variant.From(4UL)).ConfigureAwait(false);
+
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadOutOfRange));
+            Assert.That(variable.Value.GetUInt64(), Is.EqualTo(ulong.MaxValue));
+            Assert.That(variable.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(variable.Timestamp, Is.Not.EqualTo(DateTimeUtc.MinValue));
+            Assert.That(variable.ChangeMasks & NodeStateChangeMasks.Value, Is.EqualTo(NodeStateChangeMasks.Value));
+            Assert.That(text.Value.Text, Is.EqualTo("initial"));
+            Assert.That(text.StatusCode, Is.EqualTo(textStatus));
+            Assert.That(text.Timestamp, Is.EqualTo(textTimestamp));
+            Assert.That(text.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
         }
 
         /// <summary>
@@ -957,6 +1027,615 @@ namespace Opc.Ua.Scales.Tests
         }
 
         /// <summary>
+        /// A flush that began before a reentrant write retains notification admission until dispatch completes.
+        /// </summary>
+        [Test]
+        public async Task NativeEnumerationOverlappingFlushRetainsNotificationAdmissionAsync()
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            ProductState product = scale.ProductionPreset!.ActiveProduct!;
+            MultiStateValueDiscreteState variable = CreateNativeEnumeration(product);
+            product.AddChild(variable);
+            await product.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+            var firstCallbackEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var allowNestedWrite = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var nestedWriteCompleted = new TaskCompletionSource<ServiceResult>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseFirstFlush = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var earlierChildEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseEarlierChild = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            int calls = 0;
+            StatusCode synchronousWriteStatus = StatusCodes.Good;
+            PropertyState<LocalizedText> text = variable.ValueAsText!;
+            text.OnStateChangedAsync = async (_, _, _, cancellationToken) =>
+            {
+                calls++;
+                if (calls == 1)
+                {
+                    firstCallbackEntered.TrySetResult(true);
+                    await allowNestedWrite.Task.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken)
+                        .ConfigureAwait(false);
+                    ServiceResult nestedWriteResult = await variable.WriteAttributeAsync(
+                        harness.Owner,
+                        Attributes.Value,
+                        NumericRange.Null,
+                        new DataValue(Variant.From(1u)),
+                        cancellationToken).AsTask()
+                        .WaitAsync(TimeSpan.FromSeconds(15), cancellationToken)
+                        .ConfigureAwait(false);
+                    nestedWriteCompleted.TrySetResult(nestedWriteResult);
+                    await releaseFirstFlush.Task.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    synchronousWriteStatus = Write(
+                        harness.Owner, variable, Variant.From(4u)).StatusCode;
+                }
+            };
+            PropertyState<ArrayOf<EnumValueType>> earlierChild = variable.EnumValues!;
+            earlierChild.OnStateChangedAsync = async (_, _, _, cancellationToken) =>
+            {
+                earlierChildEntered.TrySetResult(true);
+                await releaseEarlierChild.Task.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken)
+                    .ConfigureAwait(false);
+            };
+
+            Task firstFlush = Task.CompletedTask;
+            Task overlappingFlush = Task.CompletedTask;
+            Task delayedFlush = Task.CompletedTask;
+            try
+            {
+                AssertGood(await WriteAsync(harness.Owner, variable, Variant.From(4u)).ConfigureAwait(false));
+                firstFlush = variable.ClearChangeMasksAsync(harness.Context, true).AsTask();
+                await firstCallbackEntered.Task.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+
+                overlappingFlush = variable.ClearChangeMasksAsync(harness.Context, true).AsTask();
+                await overlappingFlush.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+
+                earlierChild.UpdateChangeMasks(NodeStateChangeMasks.Value);
+                delayedFlush = variable.ClearChangeMasksAsync(harness.Context, true).AsTask();
+                await earlierChildEntered.Task.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+                allowNestedWrite.TrySetResult(true);
+                AssertGood(await nestedWriteCompleted.Task.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false));
+                releaseFirstFlush.TrySetResult(true);
+                await firstFlush.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+
+                releaseEarlierChild.TrySetResult(true);
+                await delayedFlush.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+            }
+            finally
+            {
+                allowNestedWrite.TrySetResult(true);
+                releaseFirstFlush.TrySetResult(true);
+                releaseEarlierChild.TrySetResult(true);
+                await Task.WhenAll(firstFlush, overlappingFlush, delayedFlush)
+                    .WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+            }
+
+            Assert.That(calls, Is.EqualTo(2));
+            Assert.That(synchronousWriteStatus, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            Assert.That(variable.Value.GetUInt32(), Is.EqualTo(1u));
+            Assert.That(text.Value.Text, Is.EqualTo("one"));
+            Assert.That(variable.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+            Assert.That(text.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+        }
+
+        /// <summary>
+        /// Admission covers a parent mask created after a clean flush entered an earlier child's callback.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task NativeEnumerationInitiallyCleanFlushProtectsParentNotificationAsync(bool queueExternalWrite)
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            ProductState product = scale.ProductionPreset!.ActiveProduct!;
+            MultiStateValueDiscreteState variable = CreateNativeEnumeration(product);
+            product.AddChild(variable);
+            await product.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+            var childWriteCompleted = new TaskCompletionSource<ServiceResult>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseChild = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            PropertyState<ArrayOf<EnumValueType>> child = variable.EnumValues!;
+            child.OnStateChangedAsync = async (_, _, _, cancellationToken) =>
+            {
+                ServiceResult result = await variable.WriteAttributeAsync(
+                    harness.Owner,
+                    Attributes.Value,
+                    NumericRange.Null,
+                    new DataValue(Variant.From(4u)),
+                    cancellationToken).AsTask().WaitAsync(TimeSpan.FromSeconds(15), cancellationToken)
+                    .ConfigureAwait(false);
+                childWriteCompleted.TrySetResult(result);
+                await releaseChild.Task.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken)
+                    .ConfigureAwait(false);
+            };
+            int calls = 0;
+            StatusCode synchronousWriteStatus = StatusCodes.Good;
+            ServiceResult nestedWriteResult = StatusCodes.BadInvalidState;
+            variable.OnStateChangedAsync = async (_, _, changeMasks, cancellationToken) =>
+            {
+                calls++;
+                Assert.That(changeMasks & NodeStateChangeMasks.Value, Is.EqualTo(NodeStateChangeMasks.Value));
+                synchronousWriteStatus = Write(harness.Owner, variable, Variant.From(1u)).StatusCode;
+                nestedWriteResult = await variable.WriteAttributeAsync(
+                    harness.Owner,
+                    Attributes.Value,
+                    NumericRange.Null,
+                    new DataValue(Variant.From(1u)),
+                    cancellationToken).AsTask().WaitAsync(TimeSpan.FromSeconds(15), cancellationToken)
+                    .ConfigureAwait(false);
+            };
+
+            Assert.That(variable.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+            Assert.That(variable.ValueAsText!.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+            child.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            Task flush = variable.ClearChangeMasksAsync(harness.Context, true).AsTask();
+            Task<ServiceResult>? externalWrite = null;
+            try
+            {
+                AssertGood(await childWriteCompleted.Task.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false));
+                if (queueExternalWrite)
+                {
+                    externalWrite = WriteAsync(harness.Owner, variable, Variant.From(4u)).AsTask();
+                    Assert.That(externalWrite.IsCompleted, Is.False);
+                }
+                releaseChild.TrySetResult(true);
+                await flush.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+                if (externalWrite != null)
+                {
+                    AssertGood(await externalWrite.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false));
+                }
+            }
+            finally
+            {
+                releaseChild.TrySetResult(true);
+                await flush.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+                if (externalWrite != null)
+                {
+                    await externalWrite.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+                }
+            }
+
+            Assert.That(calls, Is.EqualTo(1));
+            AssertGood(nestedWriteResult);
+            Assert.That(synchronousWriteStatus, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            Assert.That(variable.Value.GetUInt32(), Is.EqualTo(queueExternalWrite ? 4u : 1u));
+            Assert.That(variable.ValueAsText.Value.Text, Is.EqualTo(queueExternalWrite ? "four" : "one"));
+            Assert.That(variable.ChangeMasks & NodeStateChangeMasks.Value, Is.EqualTo(NodeStateChangeMasks.Value));
+            Assert.That(variable.ValueAsText.ChangeMasks & NodeStateChangeMasks.Value,
+                Is.EqualTo(NodeStateChangeMasks.Value));
+        }
+
+        /// <summary>
+        /// A callback failure after an overlapping clear restores its mask without removing dispatch admission.
+        /// </summary>
+        [Test]
+        public async Task NativeEnumerationOverlappingFlushFailurePreservesNotificationAdmissionAsync()
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            ProductState product = scale.ProductionPreset!.ActiveProduct!;
+            MultiStateValueDiscreteState variable = CreateNativeEnumeration(product);
+            product.AddChild(variable);
+            await product.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var failure = new InvalidOperationException("Notification callback failed.");
+            PropertyState<LocalizedText> text = variable.ValueAsText!;
+            int calls = 0;
+            StatusCode synchronousWriteStatus = StatusCodes.Good;
+            text.OnStateChangedAsync = async (_, _, changeMasks, cancellationToken) =>
+            {
+                calls++;
+                Assert.That(changeMasks & NodeStateChangeMasks.Value, Is.EqualTo(NodeStateChangeMasks.Value));
+                if (calls == 1)
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken).ConfigureAwait(false);
+                    throw failure;
+                }
+                synchronousWriteStatus = Write(harness.Owner, variable, Variant.From(1u)).StatusCode;
+            };
+
+            AssertGood(await WriteAsync(harness.Owner, variable, Variant.From(4u)).ConfigureAwait(false));
+            Task firstFlush = variable.ClearChangeMasksAsync(harness.Context, true).AsTask();
+            try
+            {
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+                await variable.ClearChangeMasksAsync(harness.Context, true).AsTask()
+                    .WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                InvalidOperationException? observed = await Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await firstFlush.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false))
+                    .ConfigureAwait(false);
+                Assert.That(observed, Is.SameAs(failure));
+            }
+
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(variable.Value.GetUInt32(), Is.EqualTo(4u));
+            Assert.That(text.Value.Text, Is.EqualTo("four"));
+            Assert.That(text.ChangeMasks & NodeStateChangeMasks.Value, Is.EqualTo(NodeStateChangeMasks.Value));
+            await variable.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+            Assert.That(calls, Is.EqualTo(2));
+            Assert.That(synchronousWriteStatus, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            Assert.That(variable.Value.GetUInt32(), Is.EqualTo(4u));
+            Assert.That(text.Value.Text, Is.EqualTo("four"));
+            Assert.That(variable.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+            Assert.That(text.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+            AssertGood(Write(harness.Owner, variable, Variant.From(1u)));
+        }
+
+        /// <summary>
+        /// Existing synchronous traversals deliver pending enum notifications inline and restore failed callbacks.
+        /// </summary>
+        [TestCase("AddProduct", false, false)]
+        [TestCase("AddProduct", false, true)]
+        [TestCase("AddProduct", true, false)]
+        [TestCase("AddProduct", true, true)]
+        [TestCase("Select", false, false)]
+        [TestCase("Select", false, true)]
+        [TestCase("Select", true, false)]
+        [TestCase("Select", true, true)]
+        [TestCase("UpdateEnumValue", false, false)]
+        [TestCase("UpdateEnumValue", false, true)]
+        [TestCase("UpdateEnumValue", true, false)]
+        [TestCase("UpdateEnumValue", true, true)]
+        public async Task NativeEnumerationSynchronousTraversalsPreserveInlineNotificationsAsync(
+            string traversal,
+            bool callbackThrows,
+            bool asynchronousWrite)
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            ScaleProductionPreset preset = scale.ProductionPreset!;
+            ProductState product = preset.ActiveProduct!;
+            MultiStateValueDiscreteState variable = CreateNativeEnumeration(product);
+            product.AddChild(variable);
+            await product.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+            PropertyState<LocalizedText> text = variable.ValueAsText!;
+            if (asynchronousWrite)
+            {
+                AssertGood(await WriteAsync(harness.Owner, variable, Variant.From(4u)).ConfigureAwait(false));
+            }
+            else
+            {
+                variable.Value = Variant.From(4u);
+                text.Value = new LocalizedText("manual");
+            }
+            bool returned = false;
+            int calls = 0;
+            int callerThread = Environment.CurrentManagedThreadId;
+            var failure = new InvalidOperationException("Synchronous subscriber failed.");
+            text.OnStateChanged = (_, _, masks) =>
+            {
+                calls++;
+                Assert.That(returned, Is.False);
+                Assert.That(Environment.CurrentManagedThreadId, Is.EqualTo(callerThread));
+                Assert.That(masks & NodeStateChangeMasks.Value, Is.EqualTo(NodeStateChangeMasks.Value));
+                if (traversal != "UpdateEnumValue")
+                {
+                    Assert.That(Write(harness.Owner, variable, Variant.From(1u)).StatusCode,
+                        Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                }
+                if (callbackThrows)
+                {
+                    throw failure;
+                }
+            };
+            void Traverse()
+            {
+                switch (traversal)
+                {
+                    case "AddProduct":
+                        preset.AddProduct("C", new LocalizedText("C"),
+                            state => ConfigureFillingProduct(harness.Context, state));
+                        break;
+                    case "Select":
+                        AssertGood(preset.Select("B"));
+                        break;
+                    case "UpdateEnumValue":
+                        AssertGood(variable.UpdateEnumValue(harness.Context, new DataValue(Variant.From(1u))));
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException(nameof(traversal));
+                }
+            }
+
+            if (callbackThrows)
+            {
+                Assert.That(Assert.Throws<InvalidOperationException>(Traverse), Is.SameAs(failure));
+            }
+            else
+            {
+                Traverse();
+            }
+            returned = true;
+
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(text.ChangeMasks & NodeStateChangeMasks.Value,
+                Is.EqualTo(callbackThrows ? NodeStateChangeMasks.Value : NodeStateChangeMasks.None));
+            Assert.That(text.Value.Text,
+                Is.EqualTo(traversal == "UpdateEnumValue" ? "one" : asynchronousWrite ? "four" : "manual"));
+            if (callbackThrows)
+            {
+                callbackThrows = false;
+                returned = false;
+                await text.ClearChangeMasksAsync(harness.Context, false).ConfigureAwait(false);
+                returned = true;
+                Assert.That(calls, Is.EqualTo(2));
+                Assert.That(text.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+            }
+            AssertGood(Write(harness.Owner, variable, Variant.From(4u)));
+        }
+
+        /// <summary>
+        /// Synchronous preset traversal allows its awaited sink to finish a same-scale write.
+        /// </summary>
+        [TestCase("Select", false, false)]
+        [TestCase("Select", true, false)]
+        [TestCase("Select", true, true)]
+        [TestCase("AddProduct", false, false)]
+        [TestCase("AddProduct", true, false)]
+        [TestCase("AddProduct", true, true)]
+        public async Task NativeEnumerationSynchronousPresetTraversalAllowsNestedWriteAsync(
+            string traversal,
+            bool useScaleAdmission,
+            bool throughMethod)
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            ScaleProductionPreset preset = scale.ProductionPreset!;
+            ProductState product = preset.ActiveProduct!;
+            MultiStateValueDiscreteState variable = CreateNativeEnumeration(product);
+            product.AddChild(variable);
+            await product.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+            if (!useScaleAdmission)
+            {
+                variable.BindWriteOperationExecutor(new NodeWriteOperationExecutor(
+                    operation => operation(),
+                    (operation, token) => operation(token)));
+            }
+            using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var nestedWriteStarted = new TaskCompletionSource<Task<ServiceResult>>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            variable.ValueAsText!.OnStateChangedAsync = async (_, _, _, _) =>
+            {
+                Task<ServiceResult> nestedWrite = variable.WriteAttributeAsync(
+                    harness.Owner,
+                    Attributes.Value,
+                    NumericRange.Null,
+                    new DataValue(Variant.From(1u)),
+                    cancellation.Token).AsTask();
+                nestedWriteStarted.TrySetResult(nestedWrite);
+                await nestedWrite.ConfigureAwait(false);
+            };
+            AssertGood(await WriteAsync(harness.Owner, variable, Variant.From(4u)).ConfigureAwait(false));
+            Task<ServiceResult> selection = Task.Run(async () =>
+            {
+                if (throughMethod)
+                {
+                    return traversal == "AddProduct"
+                        ? await CallAsync(harness.Owner, preset.Preset.AddProduct!, preset.Preset.NodeId,
+                            [Variant.From("C"), Variant.From("C"), Variant.From(NodeId.Null)]).ConfigureAwait(false)
+                        : await CallAsync(harness.Owner, preset.Preset.SelectProduct!, preset.Preset.NodeId,
+                            [Variant.From("B")]).ConfigureAwait(false);
+                }
+                if (traversal == "AddProduct")
+                {
+                    preset.AddProduct("C", new LocalizedText("C"),
+                        state => ConfigureFillingProduct(harness.Context, state));
+                    return ServiceResult.Good;
+                }
+                return preset.Select("B");
+            });
+            try
+            {
+                Task<ServiceResult> nestedWrite = await nestedWriteStarted.Task.WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+                AssertGood(await nestedWrite.WaitAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false));
+                AssertGood(await selection.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false));
+            }
+            finally
+            {
+                cancellation.Cancel();
+                try
+                {
+                    await selection.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    Assert.That(cancellation.IsCancellationRequested, Is.True);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Awaited preset sinks can read the preset from another thread and propagate failures to the caller.
+        /// </summary>
+        [TestCase("AddProduct", false)]
+        [TestCase("AddProduct", true)]
+        [TestCase("Select", false)]
+        [TestCase("Select", true)]
+        [TestCase("Deselect", false)]
+        [TestCase("Deselect", true)]
+        [TestCase("Switch", false)]
+        [TestCase("Switch", true)]
+        public async Task NativeEnumerationSynchronousPresetSinkReleasesMutationLocksAsync(
+            string traversal, bool callbackThrows)
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            ScaleProductionPreset preset = scale.ProductionPreset!;
+            ProductState product = preset.ActiveProduct!;
+            MultiStateValueDiscreteState variable = CreateNativeEnumeration(product);
+            product.AddChild(variable);
+            await product.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+            AssertGood(await WriteAsync(harness.Owner, variable, Variant.From(4u)).ConfigureAwait(false));
+            PropertyState<LocalizedText> text = variable.ValueAsText!;
+            var failure = new InvalidOperationException("Awaited subscriber failed.");
+            var order = new List<string>();
+            text.OnStateChanged = (_, _, _) =>
+            {
+                Assert.That(Write(harness.Owner, variable, Variant.From(1u)).StatusCode,
+                    Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                order.Add("synchronous");
+            };
+            text.OnStateChangedAsync = async (_, _, _, cancellationToken) =>
+            {
+                ProductState? found = await Task.Run(() => preset.Find("A"))
+                    .WaitAsync(TimeSpan.FromSeconds(5), cancellationToken)
+                    .ConfigureAwait(false);
+                Assert.That(found, Is.SameAs(product));
+                Assert.That(Write(harness.Owner, variable, Variant.From(1u)).StatusCode,
+                    Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                order.Add("asynchronous");
+                if (callbackThrows)
+                {
+                    throw failure;
+                }
+            };
+            preset.CurrentProductsChanged += (_, _) =>
+            {
+                Assert.That(Write(harness.Owner, variable, Variant.From(1u)).StatusCode,
+                    Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                order.Add("selection");
+            };
+            void Traverse()
+            {
+                switch (traversal)
+                {
+                    case "AddProduct":
+                        preset.AddProduct("C", new LocalizedText("C"),
+                            state => ConfigureFillingProduct(harness.Context, state));
+                        break;
+                    case "Select":
+                        AssertGood(preset.Select("B"));
+                        break;
+                    case "Deselect":
+                        AssertGood(preset.Deselect("A"));
+                        break;
+                    case "Switch":
+                        AssertGood(preset.Switch("B"));
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException(nameof(traversal));
+                }
+            }
+
+            if (callbackThrows)
+            {
+                Assert.That(Assert.Throws<InvalidOperationException>(Traverse), Is.SameAs(failure));
+            }
+            else
+            {
+                Traverse();
+            }
+            Assert.That(order, Is.EqualTo(
+                callbackThrows || traversal == "AddProduct"
+                    ? s_nodeNotificationOrder
+                    : s_selectionNotificationOrder));
+            Assert.That(text.ChangeMasks & NodeStateChangeMasks.Value,
+                Is.EqualTo(callbackThrows ? NodeStateChangeMasks.Value : NodeStateChangeMasks.None));
+            Assert.That(preset.Products.ContainsKey("C"), Is.EqualTo(traversal == "AddProduct"));
+            Assert.That(preset.CurrentProducts.ToArray(),
+                Is.EqualTo(traversal switch
+                {
+                    "Select" => s_selectedProducts,
+                    "Deselect" => Array.Empty<string>(),
+                    "Switch" => s_switchedProducts,
+                    _ => s_initialProducts
+                }));
+            if (callbackThrows)
+            {
+                callbackThrows = false;
+                order.Clear();
+                await text.ClearChangeMasksAsync(harness.Context, false).ConfigureAwait(false);
+                Assert.That(order, Is.EqualTo(s_nodeNotificationOrder));
+                Assert.That(text.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+            }
+            AssertGood(Write(harness.Owner, variable, Variant.From(1u)));
+        }
+
+        /// <summary>
+        /// Inline selection notifications admit nested async writes without exposing selection to unrelated writers.
+        /// </summary>
+        [Test]
+        public async Task NativeEnumerationSynchronousSelectionRetainsNotificationAdmissionAsync()
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            ScaleProductionPreset preset = scale.ProductionPreset!;
+            ProductState product = preset.ActiveProduct!;
+            MultiStateValueDiscreteState variable = CreateNativeEnumeration(product);
+            product.AddChild(variable);
+            await product.ClearChangeMasksAsync(harness.Context, true).ConfigureAwait(false);
+            AssertGood(await WriteAsync(harness.Owner, variable, Variant.From(4u)).ConfigureAwait(false));
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            PropertyState<LocalizedText> text = variable.ValueAsText!;
+            var order = new List<string>();
+            text.OnStateChanged = (_, _, _) => order.Add("synchronous");
+            text.OnStateChangedAsync = async (_, _, _, cancellationToken) =>
+            {
+                entered.TrySetResult(true);
+                await release.Task.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken).ConfigureAwait(false);
+                AssertGood(await WriteAsync(harness.Owner, variable, Variant.From(1u)).ConfigureAwait(false));
+                Assert.That(preset.CurrentProducts.ToArray(), Is.EqualTo(s_selectedProducts));
+                order.Add("asynchronous");
+            };
+            preset.CurrentProductsChanged += (_, _) =>
+            {
+                Assert.That(preset.CurrentProducts.ToArray(), Is.EqualTo(s_selectedProducts));
+                Assert.That(Write(harness.Owner, variable, Variant.From(4u)).StatusCode,
+                    Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                order.Add("selection");
+            };
+
+            Task<ServiceResult> selection = Task.Run(() => preset.Select("B"));
+            Task<ServiceResult>? externalWrite = null;
+            try
+            {
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+                Assert.That(selection.IsCompleted, Is.False);
+                Assert.That(preset.CurrentProducts.ToArray(), Is.EqualTo(s_selectedProducts));
+                externalWrite = WriteAsync(harness.Owner, variable, Variant.From(4u)).AsTask();
+                Assert.That(externalWrite.IsCompleted, Is.False);
+                Assert.That(Write(harness.Owner, variable, Variant.From(1u)).StatusCode,
+                    Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                Assert.That(preset.Deselect("A").StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                release.TrySetResult(true);
+                AssertGood(await selection.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false));
+                AssertGood(await externalWrite.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await selection.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+                if (externalWrite != null)
+                {
+                    await externalWrite.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+                }
+            }
+
+            Assert.That(order, Is.EqualTo(s_selectionNotificationOrder));
+            Assert.That(preset.CurrentProducts.ToArray(), Is.EqualTo(s_selectedProducts));
+            Assert.That(text.ChangeMasks & NodeStateChangeMasks.Value, Is.EqualTo(NodeStateChangeMasks.Value));
+            AssertGood(Write(harness.Owner, variable, Variant.From(1u)));
+        }
+
+        /// <summary>
         /// A queued writer runs after notification dispatch and retains its own deferred notification.
         /// </summary>
         [Test]
@@ -1171,7 +1850,7 @@ namespace Opc.Ua.Scales.Tests
                 {
                     dependentStateUpdates++;
                     textChangeMasks |= changeMasks;
-                    return ValueTask.CompletedTask;
+                    return default;
                 };
                 AssertGood(await WriteAsync(harness.Owner, variable, Variant.From(4u)).ConfigureAwait(false));
                 Assert.That(variable.Value.GetUInt32(), Is.EqualTo(4u));
@@ -2083,6 +2762,21 @@ namespace Opc.Ua.Scales.Tests
         /// <summary>A slice shorter than its requested range.</summary>
         private static readonly double[] s_invalidSlice = [20.0];
 
+        /// <summary>The initial single-product selection.</summary>
+        private static readonly string[] s_initialProducts = ["A"];
+
+        /// <summary>The committed two-product selection.</summary>
+        private static readonly string[] s_selectedProducts = ["A", "B"];
+
+        /// <summary>The replacement single-product selection.</summary>
+        private static readonly string[] s_switchedProducts = ["B"];
+
+        /// <summary>The synchronous and awaited node notification order.</summary>
+        private static readonly string[] s_nodeNotificationOrder = ["synchronous", "asynchronous"];
+
+        /// <summary>The node notification order followed by the selection event.</summary>
+        private static readonly string[] s_selectionNotificationOrder = ["synchronous", "asynchronous", "selection"];
+
         /// <summary>
         /// Builds real scale nodes, controllers and locks with in-memory address-space services.
         /// </summary>
@@ -2522,13 +3216,13 @@ namespace Opc.Ua.Scales.Tests
             {
                 valueNotifications++;
                 valueChangeMasks |= changeMasks;
-                return ValueTask.CompletedTask;
+                return default;
             };
             textState.OnStateChangedAsync = (_, _, changeMasks, _) =>
             {
                 textNotifications++;
                 textChangeMasks |= changeMasks;
-                return ValueTask.CompletedTask;
+                return default;
             };
             variable.OnSimpleWriteValueAsync = (_, _, value, _) =>
             {
