@@ -239,13 +239,9 @@ namespace Opc.Ua.XRegistry.Server
                 XRegistryDependencyClosure closure = closures[ii];
 
                 bool inScope = selectedXids.Count == 0 || IsInScope(closure, selectedXids);
-                if (!inScope)
-                {
-                    continue;
-                }
 
                 ArrayOf<XRegistryRefreshItemResult> closureResults = await ProcessClosureAsync(
-                    closure, newGeneration, force, dryRun, ct).ConfigureAwait(false);
+                    closure, newGeneration, force && inScope, dryRun, ct).ConfigureAwait(false);
 
                 foreach (XRegistryRefreshItemResult result in closureResults)
                 {
