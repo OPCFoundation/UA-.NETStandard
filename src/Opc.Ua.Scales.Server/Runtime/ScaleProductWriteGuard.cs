@@ -131,7 +131,39 @@ namespace Opc.Ua.Scales.Server.Runtime
             writeGate ??= FindWriteGate(services, node, product, scaleRoot);
             if (writeGate != null)
             {
-                node.BindWriteOperationExecutor(writeGate.NodeWriteExecutor, asynchronousChangeMaskNotifications);
+                ScaleWriteGate gate = writeGate;
+                var executor = new NodeWriteOperationExecutor(
+                    operation => gate.NodeWriteExecutor.ExecuteSynchronously(() =>
+                    {
+                        ServiceResult result = operation();
+                        if (ServiceResult.IsGood(result))
+                        {
+                            services.RefreshNominalDerivedValue(node)?
+                                .ClearChangeMasks(services.Context, includeChildren: false);
+                        }
+                        return result;
+                    }),
+                    async (operation, cancellationToken) =>
+                    {
+                        BaseVariableState? derived = null;
+                        ServiceResult result = await gate.NodeWriteExecutor.ExecuteAsynchronouslyAsync(async ct =>
+                        {
+                            ServiceResult writeResult = await operation(ct).ConfigureAwait(false);
+                            if (ServiceResult.IsGood(writeResult))
+                            {
+                                derived = services.RefreshNominalDerivedValue(node);
+                            }
+                            return writeResult;
+                        }, cancellationToken).ConfigureAwait(false);
+                        if (derived != null)
+                        {
+                            await derived.ClearChangeMasksAsync(services.Context, includeChildren: false)
+                                .ConfigureAwait(false);
+                        }
+                        return result;
+                    },
+                    gate.NodeWriteExecutor.ExecuteNotificationsAsync);
+                node.BindWriteOperationExecutor(executor, asynchronousChangeMaskNotifications);
                 if (node is BaseVariableState variable &&
                     (variable.AccessLevel & AccessLevels.CurrentWrite) != 0 &&
                     variable.OnWriteValueAsync == null &&

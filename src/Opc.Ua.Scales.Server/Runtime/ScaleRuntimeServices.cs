@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -311,6 +312,39 @@ namespace Opc.Ua.Scales.Server.Runtime
                 ScaleProductWriteGuard.Bind(this, node, writeGate);
             }
         }
+
+        /// <summary>
+        /// Associates a product nominal value with its initialized recorder without retaining deleted products.
+        /// </summary>
+        internal void BindNominalRecorder(CheckweigherStatisticState statistic, ScaleStatistics recorder)
+        {
+            if (statistic.Parent is CheckweigherProductState product && product.NominalWeight is { } nominal)
+            {
+                m_nominalRecorders.Remove(nominal);
+                m_nominalRecorders.Add(nominal, recorder);
+            }
+        }
+
+        /// <summary>
+        /// Refreshes derived cache state after the owning nominal value has committed.
+        /// </summary>
+        internal BaseVariableState? RefreshNominalDerivedValue(NodeState node)
+        {
+            return node is BaseVariableState variable &&
+                m_nominalRecorders.TryGetValue(variable, out ScaleStatistics? recorder)
+                ? recorder.RefreshGiveAway() : null;
+        }
+
+        /// <summary>
+        /// Releases the nominal-value association when its product is removed.
+        /// </summary>
+        internal void RetireNominalRecorder(BaseVariableState nominal)
+        {
+            m_nominalRecorders.Remove(nominal);
+        }
+
+        /// <summary>The nominal-value associations do not own product lifetimes.</summary>
+        private readonly ConditionalWeakTable<BaseVariableState, ScaleStatistics> m_nominalRecorders = new();
 
         /// <summary>Protects resource adoption and disposal.</summary>
         private readonly Lock m_resourceGate = new();

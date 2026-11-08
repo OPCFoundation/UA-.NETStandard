@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.PackML;
@@ -252,7 +253,8 @@ namespace Opc.Ua.Scales.Server.Runtime
                             }
                         }
                         : null,
-                    m_writeGate)
+                    m_writeGate,
+                    RetireProductStatistics)
                 {
                     Lockable = configuration.LockableProducts
                 };
@@ -681,7 +683,8 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <summary>
         /// Retains product recorders shared by all checkweigher controllers using this scale's write admission.
         /// </summary>
-        internal Dictionary<CheckweigherStatisticState, ScaleStatistics> CheckweigherStatistics { get; } = [];
+        internal ConditionalWeakTable<CheckweigherStatisticState, ScaleStatistics>
+            CheckweigherStatistics { get; } = new();
 
         /// <summary>
         /// Runs an asynchronous operation while owning the scale's live writer state.
@@ -775,6 +778,27 @@ namespace Opc.Ua.Scales.Server.Runtime
         public ValueTask<ServiceResult> RegisterWeightAsync(CancellationToken cancellationToken = default)
         {
             return RegisterWeightAsync(null, cancellationToken);
+        }
+
+        /// <summary>
+        /// Releases every product-period association when its subtree leaves the preset.
+        /// </summary>
+        private void RetireProductStatistics(ProductState product)
+        {
+            if (product.Statistic is { } statistic)
+            {
+                if (statistic is CheckweigherStatisticState checkweigher)
+                {
+                    CheckweigherStatistics.Remove(checkweigher);
+                }
+                Catchweigher?.RetireStatistics(statistic);
+                TotalizingHopper?.RetireStatistics(statistic);
+            }
+            if (product is CheckweigherProductState checkweigherProduct &&
+                checkweigherProduct.NominalWeight is { } nominal)
+            {
+                m_services.RetireNominalRecorder(nominal);
+            }
         }
 
         /// <summary>

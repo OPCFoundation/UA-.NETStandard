@@ -599,6 +599,17 @@ weighed observations exist for the selected equation. These status choices are
 runtime policy; the specification defines the equations but not their no-data
 status behavior.
 
+An unweighed item still increments `ItemCount`, but its missing weight makes the
+weight aggregates incomplete. `SumWeight`, min, max, mean and a defined deviation
+retain the measured-subset result with `UncertainSubNormal`; no weighed
+observations produce `BadNoData`. An empty sum is zero with Good quality, while
+empty min, max and mean use zero placeholders with `BadNoData`. A later weighed
+item does not restore complete quality for a period that contains an unweighed
+item. Reset starts a new period and restores quality as new measurements arrive.
+An overflowing aggregate retains its last finite value with `BadOutOfRange`.
+Direct `Record`, `RecordAccepted` and `RecordRejected` calls reject positive and
+negative infinity with `ArgumentOutOfRangeException` before changing counters.
+
 Counter `Weighed` is true when all items recorded in that category contribute
 to `TotalPackagesWeighed`. An entirely unweighed category publishes false.
 A category containing both weighed and unweighed items publishes false with
@@ -639,9 +650,13 @@ data or an accepted item without measured weight preserves the last value with
 `BadNoData`; a nonfinite result preserves it with `BadOutOfRange`. A bad nominal
 status is propagated without changing the last value; uncertain nominal data
 can produce a value with the same uncertain status.
-Changing `NominalWeight` alone does not yet recompute `GiveAway`; until the
-next accepted or rejected report, an immediate read still returns the previous
-value and status. This limitation is part of the Partial support rating.
+After the product recorder is initialized, a supported native or OPC UA Value
+write to `NominalWeight` recomputes `GiveAway` before releasing cache-write
+admission. The derived notification follows after writer ownership is released,
+so an asynchronous callback may await another same-scale write. Recalculation
+does not depend on clearing the nominal node's change masks or on the manager's
+monitored-item implementation. Assigning `WrappedValue` directly bypasses this
+write path; the next accepted or rejected report then refreshes the result.
 
 The packing-line sample selects `FullCheck` for its checkweigher because the
 simulation reports every package.
@@ -657,8 +672,10 @@ weight or from a generic registered-item report.
 `WithProductionOutput` initializes the checkweigher product statistics before
 registration, including products added later through the preset. Each product
 retains its own recorder and the scale's observation mode. Switching products
-does not reset a period. A report holds the active-product reservation and
-asynchronous write admission until both targets' notifications complete.
+does not reset a period. A report holds the active-product reservation
+until both targets' notifications complete. It commits
+both statistic caches before atomically transferring writer admission to
+notification admission; same-flow asynchronous callbacks can therefore reenter.
 `ResetAsync` resets the selected product and scale totals; other products'
 periods remain unchanged.
 
@@ -668,6 +685,17 @@ counts but not the weighed count. Missing selected-product statistics returns
 `BadInvalidState` before recording. The existing direct `ScaleStatistics`
 methods update only the statistic passed to that recorder; generic scale
 `ProductionOutput` is not a checkweigher product statistic.
+
+A recorder whose initialization callback throws is not cached; a later report
+retries initialization before counting its item. After report-cache commit, a
+notification exception propagates without undoing either product or scale
+counts. Remaining notifications do not run. A repeated call is a new report,
+not a retry identified by `itemId`: this controller does not provide duplicate
+suppression. Successful product removal explicitly retires its recorder and
+nominal-value associations; rejected removal of an active product preserves them.
+The associations also use weak keys, so they do not independently retain a
+removed statistic and its parent subtree. Re-adding the same product id creates
+an independent period.
 
 Both deviation equations and the giveaway equation are verified in the
 [VDMA 40200:2025-04 co-publication](https://www.vdma.eu/en/catalog-detail/-/catalog/14137),

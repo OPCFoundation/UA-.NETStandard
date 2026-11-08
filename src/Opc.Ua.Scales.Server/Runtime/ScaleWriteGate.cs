@@ -336,6 +336,72 @@ namespace Opc.Ua.Scales.Server.Runtime
         }
 
         /// <summary>
+        /// Commits a report before atomically transferring writer ownership to its notification flow.
+        /// </summary>
+        /// <param name="operation">The cache mutation, without report callbacks.</param>
+        /// <param name="notifications">The notifications collected by the mutation.</param>
+        /// <param name="cancellationToken">Cancels before mutation admission.</param>
+        internal async ValueTask<ServiceResult> ExecuteWithNotificationsAsync(
+            Func<CancellationToken, ValueTask<ServiceResult>> operation,
+            Func<ValueTask> notifications,
+            CancellationToken cancellationToken)
+        {
+            if (operation == null)
+            {
+                throw new ArgumentNullException(nameof(operation));
+            }
+            if (notifications == null)
+            {
+                throw new ArgumentNullException(nameof(notifications));
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            if (IsCorrelatedPublicationActive)
+            {
+                return CorrelatedPublicationRejected();
+            }
+            await EnterAsynchronousAsync(cancellationToken).ConfigureAwait(false);
+            bool notifying = false;
+            try
+            {
+                ServiceResult result = await operation(cancellationToken).ConfigureAwait(false);
+                TaskCompletionSource<bool>? stateChanged;
+                lock (m_stateLock)
+                {
+                    m_notificationsInProgress++;
+                    m_asyncOwner = false;
+                    stateChanged = m_stateChanged;
+                    m_stateChanged = null;
+                }
+                notifying = true;
+                stateChanged?.TrySetResult(true);
+                NotificationScope? previous = m_notificationScope.Value;
+                var scope = new NotificationScope(this);
+                m_notificationScope.Value = scope;
+                try
+                {
+                    await notifications().ConfigureAwait(false);
+                }
+                finally
+                {
+                    scope.Deactivate();
+                    m_notificationScope.Value = previous;
+                }
+                return result;
+            }
+            finally
+            {
+                if (notifying)
+                {
+                    ExitNotifications();
+                }
+                else
+                {
+                    ReleaseAsynchronous();
+                }
+            }
+        }
+
+        /// <summary>
         /// Runs asynchronous state-change notifications while rejecting synchronous writes.
         /// </summary>
         /// <remarks>

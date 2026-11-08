@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Scales.Server.Builders;
@@ -400,10 +401,18 @@ namespace Opc.Ua.Scales.Server.Runtime
                 recorder = new ScaleStatistics(
                     m_owner.Services.Context, statistic, m_owner.WriteOperations,
                     initialize: false, observationMode: m_owner.StatisticsObservationMode);
-                m_statistics.Add(statistic, recorder);
                 await recorder.InitializeAsync().ConfigureAwait(false);
+                m_statistics.Add(statistic, recorder);
             }
             return recorder;
+        }
+
+        /// <summary>
+        /// Releases the cached period after its product leaves the preset.
+        /// </summary>
+        internal void RetireStatistics(StatisticState statistic)
+        {
+            m_statistics.Remove(statistic);
         }
 
         /// <summary>
@@ -469,7 +478,8 @@ namespace Opc.Ua.Scales.Server.Runtime
         private readonly IScalePriceCalculator? m_calculator;
 
         /// <summary>Product-local accumulators.</summary>
-        private readonly Dictionary<StatisticState, ScaleStatistics> m_statistics = [];
+        private readonly ConditionalWeakTable<StatisticState, ScaleStatistics>
+            m_statistics = new();
 
         /// <summary>The committed acquisition high-water mark, independent of production counters.</summary>
         private ulong m_lastSequence;
@@ -577,8 +587,8 @@ namespace Opc.Ua.Scales.Server.Runtime
                                     m_owner.WriteOperations,
                                     initialize: false,
                                     observationMode: m_owner.StatisticsObservationMode);
-                                m_statistics.Add(product.Statistic, statistics);
                                 await statistics.InitializeAsync().ConfigureAwait(false);
+                                m_statistics.Add(product.Statistic, statistics);
                             }
                             await statistics.RecordItemAsync(normalized, null, null).ConfigureAwait(false);
                         }
@@ -595,11 +605,20 @@ namespace Opc.Ua.Scales.Server.Runtime
             return result;
         }
 
+        /// <summary>
+        /// Releases the cached period after its product leaves the preset.
+        /// </summary>
+        internal void RetireStatistics(StatisticState statistic)
+        {
+            m_statistics.Remove(statistic);
+        }
+
         /// <summary>The owning totalizing hopper.</summary>
         private readonly ScaleHandle m_owner;
 
         /// <summary>Product-local accumulators.</summary>
-        private readonly Dictionary<StatisticState, ScaleStatistics> m_statistics = [];
+        private readonly ConditionalWeakTable<StatisticState, ScaleStatistics>
+            m_statistics = new();
 
         /// <summary>The committed fill sequence, retained across counter resets and product switches.</summary>
         private ulong m_lastSequence;

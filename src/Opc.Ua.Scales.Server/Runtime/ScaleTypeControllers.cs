@@ -160,35 +160,55 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <summary>
         /// Publishes both targets while retaining the selected product and asynchronous write admission.
         /// </summary>
-        private ValueTask<ServiceResult> RecordAsync(
+        private async ValueTask<ServiceResult> RecordAsync(
             bool accepted, double weight, bool belowTolerance, CheckweigherRejectReason reason,
             string? itemId, CancellationToken cancellationToken)
         {
-            return m_owner.ExecuteWriteOperationAsync(async _ =>
+            var notifications = new List<NodeState>();
+            ScaleProductionPreset.ActiveProductReservation? reservation = null;
+            try
             {
-                using ScaleProductionPreset.ActiveProductReservation? reservation =
-                    m_owner.ProductionPreset?.ReserveActiveProduct();
-                ScaleStatistics? output = m_owner.ProductionOutput;
-                if (reservation?.Product is not CheckweigherProductState product ||
-                    product.Statistic is not CheckweigherStatisticState statistic || output == null)
+                return await m_owner.WriteOperations.ExecuteWithNotificationsAsync(async _ =>
                 {
-                    return ServiceResult.Create(
-                        StatusCodes.BadInvalidState, "Checkweigher reporting requires selected product statistics.");
-                }
-                ScaleStatistics recorder = await RecorderAsync(statistic).ConfigureAwait(false);
-                if (accepted)
+                    reservation = m_owner.ProductionPreset?.ReserveActiveProduct();
+                    ScaleStatistics? output = m_owner.ProductionOutput;
+                    if (reservation?.Product is not CheckweigherProductState product ||
+                        product.Statistic is not CheckweigherStatisticState statistic || output == null)
+                    {
+                        return ServiceResult.Create(
+                            StatusCodes.BadInvalidState,
+                            "Checkweigher reporting requires selected product statistics.");
+                    }
+                    ScaleStatistics recorder = await RecorderAsync(statistic).ConfigureAwait(false);
+                    await recorder.DeferNotificationsAsync(notifications, () =>
+                        output.DeferNotificationsAsync(notifications, async () =>
+                        {
+                            if (accepted)
+                            {
+                                await recorder.RecordAcceptedAsync(weight, belowTolerance, itemId)
+                                    .ConfigureAwait(false);
+                                await output.RecordAcceptedAsync(weight, belowTolerance, itemId).ConfigureAwait(false);
+                            }
+                            else
+                            {
+                                await recorder.RecordRejectedAsync(weight, reason, itemId).ConfigureAwait(false);
+                                await output.RecordRejectedAsync(weight, reason, itemId).ConfigureAwait(false);
+                            }
+                        })).ConfigureAwait(false);
+                    return ServiceResult.Good;
+                }, async () =>
                 {
-                    await recorder.RecordAcceptedAsync(weight, belowTolerance, itemId).ConfigureAwait(false);
-                    await output.RecordAcceptedAsync(weight, belowTolerance, itemId)
-                        .ConfigureAwait(false);
-                }
-                else
-                {
-                    await recorder.RecordRejectedAsync(weight, reason, itemId).ConfigureAwait(false);
-                    await output.RecordRejectedAsync(weight, reason, itemId).ConfigureAwait(false);
-                }
-                return ServiceResult.Good;
-            }, cancellationToken);
+                    foreach (NodeState node in notifications)
+                    {
+                        await node.ClearChangeMasksAsync(m_owner.Services.Context, includeChildren: false)
+                            .ConfigureAwait(false);
+                    }
+                }, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                reservation?.Dispose();
+            }
         }
 
         /// <summary>
@@ -200,8 +220,9 @@ namespace Opc.Ua.Scales.Server.Runtime
             {
                 recorder = new ScaleStatistics(m_owner.Services.Context, statistic, m_owner.WriteOperations,
                     initialize: false, observationMode: m_owner.StatisticsObservationMode);
-                m_owner.CheckweigherStatistics.Add(statistic, recorder);
                 await recorder.InitializeAsync().ConfigureAwait(false);
+                m_owner.CheckweigherStatistics.Add(statistic, recorder);
+                m_owner.Services.BindNominalRecorder(statistic, recorder);
             }
             return recorder;
         }

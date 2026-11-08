@@ -150,6 +150,7 @@ namespace Opc.Ua.Scales.Server.Runtime
             {
                 foreach (StatisticCounterState counter in SnapshotCounters())
                 {
+                    SetAggregates(counter, null);
                     SetDeviation(counter, null);
                 }
                 ScaleValues.Set(context, statistic.StartTime, DateTimeUtc.Now);
@@ -173,6 +174,7 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <param name="itemId">The item id published on <c>LastItem</c>.</param>
         public void Record(double weight, string? itemId = null)
         {
+            ValidateWeight(weight);
             ExecuteSynchronous(() =>
             {
                 lock (m_lock)
@@ -196,6 +198,7 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <param name="itemId">The item id published on <c>LastItem</c>.</param>
         internal async ValueTask RecordAsync(double weight, string? itemId = null)
         {
+            ValidateWeight(weight);
             m_totalCount++;
             await CountAsync(Statistic.TotalPackages, weight).ConfigureAwait(false);
             if (!double.IsNaN(weight))
@@ -216,6 +219,7 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <param name="itemId">The item id.</param>
         public void RecordAccepted(double weight, bool belowLowerToleranceLimit1 = false, string? itemId = null)
         {
+            ValidateWeight(weight);
             ExecuteSynchronous(() =>
             {
                 lock (m_lock)
@@ -256,6 +260,7 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <param name="itemId">The item id.</param>
         public void RecordRejected(double weight, CheckweigherRejectReason reason, string? itemId = null)
         {
+            ValidateWeight(weight);
             ExecuteSynchronous(() =>
             {
                 lock (m_lock)
@@ -291,6 +296,7 @@ namespace Opc.Ua.Scales.Server.Runtime
         internal async ValueTask RecordAcceptedAsync(
             double weight, bool belowLowerToleranceLimit1, string? itemId)
         {
+            ValidateWeight(weight);
             m_totalCount++;
             await CountAsync(Statistic.TotalPackages, weight).ConfigureAwait(false);
             if (!double.IsNaN(weight))
@@ -325,6 +331,7 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <param name="itemId">The equipment item identifier.</param>
         internal async ValueTask RecordRejectedAsync(double weight, CheckweigherRejectReason reason, string? itemId)
         {
+            ValidateWeight(weight);
             m_totalCount++;
             await CountAsync(Statistic.TotalPackages, weight).ConfigureAwait(false);
             if (!double.IsNaN(weight))
@@ -369,12 +376,12 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// </summary>
         private async ValueTask UpdateDerivedAsync(CheckweigherStatisticState checkweigher)
         {
-            await ScaleValues.SetAsync(m_context, checkweigher.PercentageLowerToleranceLimit,
+            await SetAsync(checkweigher.PercentageLowerToleranceLimit,
                 Variant.From(m_acceptedCount == 0 ? 0.0 : 100.0 * m_acceptedBelowToleranceCount / m_acceptedCount))
                 .ConfigureAwait(false);
             if (SetGiveAway(checkweigher) is { } giveAway)
             {
-                await giveAway.ClearChangeMasksAsync(m_context, includeChildren: false).ConfigureAwait(false);
+                await NotifyAsync(giveAway).ConfigureAwait(false);
             }
         }
 
@@ -432,11 +439,14 @@ namespace Opc.Ua.Scales.Server.Runtime
                 await ScaleValues.SetAsync(m_context, counter.Weighed, InitialWeighed(counter)).ConfigureAwait(false);
                 foreach (BaseVariableState? value in new BaseVariableState?[]
                 {
-                    counter.SumWeight, counter.MinValue, counter.MaxValue, counter.MeanValue,
                     counter.PercentageOfTotal
                 })
                 {
                     await ScaleValues.SetAsync(m_context, value, Variant.From(0.0)).ConfigureAwait(false);
+                }
+                foreach (BaseVariableState value in SetAggregates(counter, null))
+                {
+                    await value.ClearChangeMasksAsync(m_context, includeChildren: false).ConfigureAwait(false);
                 }
                 if (SetDeviation(counter, null) is { } deviation)
                 {
@@ -498,6 +508,10 @@ namespace Opc.Ua.Scales.Server.Runtime
         {
             foreach (StatisticCounterState counter in SnapshotCounters())
             {
+                foreach (BaseVariableState value in SetAggregates(counter, null))
+                {
+                    await value.ClearChangeMasksAsync(m_context, includeChildren: false).ConfigureAwait(false);
+                }
                 if (SetDeviation(counter, null) is { } deviation)
                 {
                     await deviation.ClearChangeMasksAsync(m_context, includeChildren: false).ConfigureAwait(false);
@@ -587,7 +601,7 @@ namespace Opc.Ua.Scales.Server.Runtime
         {
             foreach ((BaseVariableState variable, double percentage) in CounterPercentages())
             {
-                await ScaleValues.SetAsync(m_context, variable, Variant.From(percentage)).ConfigureAwait(false);
+                await SetAsync(variable, Variant.From(percentage)).ConfigureAwait(false);
             }
         }
 
@@ -615,26 +629,19 @@ namespace Opc.Ua.Scales.Server.Runtime
                 accumulator.Add(weight);
             }
 
-            await ScaleValues.SetAsync(m_context, counter.ItemCount, Variant.From(accumulator.Count))
+            await SetAsync(counter.ItemCount, Variant.From(accumulator.Count))
                 .ConfigureAwait(false);
             if (SetWeighed(counter, accumulator) is { } weighed)
             {
-                await weighed.ClearChangeMasksAsync(m_context, includeChildren: false).ConfigureAwait(false);
+                await NotifyAsync(weighed).ConfigureAwait(false);
             }
-            if (accumulator.Weighed > 0)
+            foreach (BaseVariableState value in SetAggregates(counter, accumulator))
             {
-                await ScaleValues.SetAsync(m_context, counter.SumWeight, Variant.From(accumulator.Sum))
-                    .ConfigureAwait(false);
-                await ScaleValues.SetAsync(m_context, counter.MinValue, Variant.From(accumulator.Min))
-                    .ConfigureAwait(false);
-                await ScaleValues.SetAsync(m_context, counter.MaxValue, Variant.From(accumulator.Max))
-                    .ConfigureAwait(false);
-                await ScaleValues.SetAsync(m_context, counter.MeanValue, Variant.From(accumulator.Mean))
-                    .ConfigureAwait(false);
+                await NotifyAsync(value).ConfigureAwait(false);
             }
             if (SetDeviation(counter, accumulator) is { } deviation)
             {
-                await deviation.ClearChangeMasksAsync(m_context, includeChildren: false).ConfigureAwait(false);
+                await NotifyAsync(deviation).ConfigureAwait(false);
             }
         }
 
@@ -650,10 +657,76 @@ namespace Opc.Ua.Scales.Server.Runtime
             }
             ulong minimum = ObservationMode == ScaleStatisticsObservationMode.Sample ? 2UL : 1UL;
             bool defined = accumulator != null && accumulator.Weighed >= minimum;
-            deviation.WrappedValue = Variant.From(defined ? accumulator!.Deviation(ObservationMode) : 0.0);
-            deviation.StatusCode = defined ? StatusCodes.Good : StatusCodes.BadNoData;
-            deviation.Timestamp = DateTimeUtc.Now;
+            SetAggregate(deviation, defined ? accumulator!.Deviation(ObservationMode) : 0.0,
+                defined ? AggregateQuality(accumulator!) : StatusCodes.BadNoData);
             return deviation;
+        }
+
+        /// <summary>
+        /// Updates measurement aggregates with quality describing missing or overflowing weights.
+        /// </summary>
+        private static List<BaseVariableState> SetAggregates(
+            StatisticCounterState counter, Accumulator? accumulator)
+        {
+            var variables = new List<BaseVariableState>();
+            bool measured = accumulator != null && accumulator.Weighed > 0;
+            StatusCode quality = measured ? AggregateQuality(accumulator!) : StatusCodes.BadNoData;
+            if (counter.SumWeight is { } sum)
+            {
+                SetAggregate(sum, accumulator?.Sum ?? 0.0,
+                    accumulator == null || accumulator.Count == 0 ? StatusCodes.Good : quality);
+                variables.Add(sum);
+            }
+            foreach ((BaseVariableState? variable, double value) in new[]
+            {
+                (counter.MinValue, measured ? accumulator!.Min : 0.0),
+                (counter.MaxValue, measured ? accumulator!.Max : 0.0),
+                (counter.MeanValue, measured ? accumulator!.Mean : 0.0)
+            })
+            {
+                if (variable != null)
+                {
+                    SetAggregate(variable, value, quality);
+                    variables.Add(variable);
+                }
+            }
+            return variables;
+        }
+
+        /// <summary>
+        /// Distinguishes a measured subset from the complete counter population.
+        /// </summary>
+        private static StatusCode AggregateQuality(Accumulator accumulator)
+        {
+            return accumulator.Weighed == accumulator.Count ? StatusCodes.Good : StatusCodes.UncertainSubNormal;
+        }
+
+        /// <summary>
+        /// Retains the last finite value when an aggregate overflows and reports that failure.
+        /// </summary>
+        private static void SetAggregate(BaseVariableState variable, double value, StatusCode quality)
+        {
+            if (double.IsNaN(value) || double.IsInfinity(value))
+            {
+                variable.StatusCode = StatusCodes.BadOutOfRange;
+            }
+            else
+            {
+                variable.WrappedValue = Variant.From(value);
+                variable.StatusCode = quality;
+            }
+            variable.Timestamp = DateTimeUtc.Now;
+        }
+
+        /// <summary>
+        /// Rejects infinite input before any counter is changed; NaN denotes an unweighed item.
+        /// </summary>
+        private static void ValidateWeight(double weight)
+        {
+            if (double.IsInfinity(weight))
+            {
+                throw new ArgumentOutOfRangeException(nameof(weight));
+            }
         }
 
         /// <summary>
@@ -704,12 +777,9 @@ namespace Opc.Ua.Scales.Server.Runtime
 
             ScaleValues.Set(m_context, counter.ItemCount, Variant.From(accumulator.Count));
             SetWeighed(counter, accumulator)?.ClearChangeMasks(m_context, includeChildren: false);
-            if (accumulator.Weighed > 0)
+            foreach (BaseVariableState value in SetAggregates(counter, accumulator))
             {
-                ScaleValues.Set(m_context, counter.SumWeight, Variant.From(accumulator.Sum));
-                ScaleValues.Set(m_context, counter.MinValue, Variant.From(accumulator.Min));
-                ScaleValues.Set(m_context, counter.MaxValue, Variant.From(accumulator.Max));
-                ScaleValues.Set(m_context, counter.MeanValue, Variant.From(accumulator.Mean));
+                value.ClearChangeMasks(m_context, includeChildren: false);
             }
             SetDeviation(counter, accumulator)?.ClearChangeMasks(m_context, includeChildren: false);
         }
@@ -718,10 +788,10 @@ namespace Opc.Ua.Scales.Server.Runtime
         {
             ScaleValues.Set(m_context, counter.ItemCount, Variant.From(0UL));
             ScaleValues.Set(m_context, counter.Weighed, InitialWeighed(counter));
-            ScaleValues.Set(m_context, counter.SumWeight, Variant.From(0.0));
-            ScaleValues.Set(m_context, counter.MinValue, Variant.From(0.0));
-            ScaleValues.Set(m_context, counter.MaxValue, Variant.From(0.0));
-            ScaleValues.Set(m_context, counter.MeanValue, Variant.From(0.0));
+            foreach (BaseVariableState value in SetAggregates(counter, null))
+            {
+                value.ClearChangeMasks(m_context, includeChildren: false);
+            }
             SetDeviation(counter, null)?.ClearChangeMasks(m_context, includeChildren: false);
             ScaleValues.Set(m_context, counter.PercentageOfTotal, Variant.From(0.0));
         }
@@ -756,6 +826,17 @@ namespace Opc.Ua.Scales.Server.Runtime
         private void UpdateGiveAway(CheckweigherStatisticState checkweigher)
         {
             SetGiveAway(checkweigher)?.ClearChangeMasks(m_context, includeChildren: false);
+        }
+
+        /// <summary>
+        /// Recomputes giveaway after a complete nominal cache write while its scale still owns admission.
+        /// </summary>
+        internal BaseVariableState? RefreshGiveAway()
+        {
+            lock (m_lock)
+            {
+                return Statistic is CheckweigherStatisticState checkweigher ? SetGiveAway(checkweigher) : null;
+            }
         }
 
         /// <summary>
@@ -842,16 +923,60 @@ namespace Opc.Ua.Scales.Server.Runtime
             }
             if (item.MeasuredWeight != null)
             {
-                await ScaleValues.SetAsync(
-                    m_context,
+                await SetAsync(
                     item.MeasuredWeight,
                     Variant.From(new ExtensionObject(new WeightType { Gross = weight, Net = weight, Tare = 0 })))
                     .ConfigureAwait(false);
             }
             if (itemId != null)
             {
-                await ScaleValues.SetAsync(m_context, item.ItemId, Variant.From(itemId)).ConfigureAwait(false);
+                await SetAsync(item.ItemId, Variant.From(itemId)).ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// Stages one recorder's cache changes into a shared notification sequence.
+        /// </summary>
+        internal async ValueTask DeferNotificationsAsync(List<NodeState> notifications, Func<ValueTask> operation)
+        {
+            List<NodeState>? previous = m_deferredNotifications;
+            m_deferredNotifications = notifications;
+            try
+            {
+                await operation().ConfigureAwait(false);
+            }
+            finally
+            {
+                m_deferredNotifications = previous;
+            }
+        }
+
+        /// <summary>
+        /// Commits a value before dispatching or collecting its notification.
+        /// </summary>
+        private ValueTask SetAsync(BaseVariableState? variable, Variant value)
+        {
+            if (variable == null)
+            {
+                return default;
+            }
+            variable.WrappedValue = value;
+            variable.StatusCode = StatusCodes.Good;
+            variable.Timestamp = DateTimeUtc.Now;
+            return NotifyAsync(variable);
+        }
+
+        /// <summary>
+        /// Retains notification order while multiple recorder caches are committed.
+        /// </summary>
+        private ValueTask NotifyAsync(NodeState node)
+        {
+            if (m_deferredNotifications is { } notifications)
+            {
+                notifications.Add(node);
+                return default;
+            }
+            return node.ClearChangeMasksAsync(m_context, includeChildren: false);
         }
 
         private sealed class Accumulator
@@ -917,6 +1042,9 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// Accepted weight moments, independent of optional published counter nodes.
         /// </summary>
         private Accumulator m_acceptedWeights = new();
+
+        /// <summary>The current report's shared deferred notification sequence, owned by scale admission.</summary>
+        private List<NodeState>? m_deferredNotifications;
 
         /// <summary>
         /// The optional nominal weight supplied to a direct recorder.

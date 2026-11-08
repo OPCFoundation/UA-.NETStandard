@@ -117,7 +117,8 @@ namespace Opc.Ua.Scales.Server.Runtime
             NodeId allowedProductType,
             Func<ArrayOf<EUInformation>> allowedUnits,
             Action<ProductState>? initializeProduct = null,
-            ScaleWriteGate? writeGate = null)
+            ScaleWriteGate? writeGate = null,
+            Action<ProductState>? retireProduct = null)
         {
             m_services = services;
             Preset = preset;
@@ -125,6 +126,7 @@ namespace Opc.Ua.Scales.Server.Runtime
             m_allowedUnits = allowedUnits;
             m_initializeProduct = initializeProduct;
             m_writeGate = writeGate;
+            m_retireProduct = retireProduct;
 
             var products = new List<ProductState>();
             if (preset.Products != null)
@@ -578,6 +580,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                 {
                     Preset.Products?.RemoveChild(product);
                 }
+                m_retireProduct?.Invoke(product);
             }
             finally
             {
@@ -1317,6 +1320,11 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// Initializes explicitly configured runtime members before registering a new product.
         /// </summary>
         private readonly Action<ProductState>? m_initializeProduct;
+
+        /// <summary>
+        /// Retires runtime state after a product subtree has been removed.
+        /// </summary>
+        private readonly Action<ProductState>? m_retireProduct;
 
         /// <summary>
         /// The owning scale's writer gate.
