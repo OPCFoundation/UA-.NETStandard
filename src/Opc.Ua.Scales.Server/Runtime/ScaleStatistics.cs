@@ -148,6 +148,10 @@ namespace Opc.Ua.Scales.Server.Runtime
             m_writeGate = writeGate;
             if (initialize)
             {
+                foreach (StatisticCounterState counter in SnapshotCounters())
+                {
+                    SetDeviation(counter, null);
+                }
                 ScaleValues.Set(context, statistic.StartTime, DateTimeUtc.Now);
             }
         }
@@ -173,9 +177,14 @@ namespace Opc.Ua.Scales.Server.Runtime
             {
                 lock (m_lock)
                 {
+                    m_totalCount++;
                     Count(Statistic.TotalPackages, weight);
-                    Count(Statistic.TotalPackagesWeighed, weight);
+                    if (!double.IsNaN(weight))
+                    {
+                        Count(Statistic.TotalPackagesWeighed, weight);
+                    }
                     PublishLastItem(weight, itemId);
+                    UpdateCounterPercentages();
                 }
             });
         }
@@ -187,9 +196,14 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <param name="itemId">The item id published on <c>LastItem</c>.</param>
         internal async ValueTask RecordAsync(double weight, string? itemId = null)
         {
+            m_totalCount++;
             await CountAsync(Statistic.TotalPackages, weight).ConfigureAwait(false);
-            await CountAsync(Statistic.TotalPackagesWeighed, weight).ConfigureAwait(false);
+            if (!double.IsNaN(weight))
+            {
+                await CountAsync(Statistic.TotalPackagesWeighed, weight).ConfigureAwait(false);
+            }
             await PublishLastItemAsync(weight, itemId).ConfigureAwait(false);
+            await UpdateCounterPercentagesAsync().ConfigureAwait(false);
         }
 
         /// <summary>
@@ -206,8 +220,12 @@ namespace Opc.Ua.Scales.Server.Runtime
             {
                 lock (m_lock)
                 {
+                    m_totalCount++;
                     Count(Statistic.TotalPackages, weight);
-                    Count(Statistic.TotalPackagesWeighed, weight);
+                    if (!double.IsNaN(weight))
+                    {
+                        Count(Statistic.TotalPackagesWeighed, weight);
+                    }
                     if (Statistic is CheckweigherStatisticState checkweigher)
                     {
                         m_acceptedCount++;
@@ -225,6 +243,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                         UpdateGiveAway(checkweigher);
                     }
                     PublishLastItem(weight, itemId);
+                    UpdateCounterPercentages();
                 }
             });
         }
@@ -241,6 +260,7 @@ namespace Opc.Ua.Scales.Server.Runtime
             {
                 lock (m_lock)
                 {
+                    m_totalCount++;
                     Count(Statistic.TotalPackages, weight);
                     if (!double.IsNaN(weight))
                     {
@@ -249,23 +269,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                     if (Statistic is CheckweigherStatisticState checkweigher)
                     {
                         Count(checkweigher.TotalPackagesRejected, weight);
-                        Count(
-                            reason switch
-                            {
-                                CheckweigherRejectReason.LowerToleranceLimit1 =>
-                                    checkweigher.PackagesRejectedByLowerToleranceLimit1,
-                                CheckweigherRejectReason.LowerToleranceLimit2 =>
-                                    checkweigher.PackagesRejectedByLowerToleranceLimit2,
-                                CheckweigherRejectReason.MeanValueRequirement =>
-                                    checkweigher.PackagesRejectedByMeanValueRequirement,
-                                CheckweigherRejectReason.Metal => checkweigher.PackagesRejectedByMetal,
-                                CheckweigherRejectReason.Vision => checkweigher.PackagesRejectedByVision,
-                                CheckweigherRejectReason.XRay => checkweigher.PackagesRejectedByXRay,
-                                CheckweigherRejectReason.DistanceFault => checkweigher.PackagesRejectedByDistanceFault,
-                                CheckweigherRejectReason.Length => checkweigher.PackagesRejectedByLength,
-                                _ => null
-                            },
-                            weight);
+                        Count(RejectedCounter(checkweigher, reason), weight);
                         UpdatePercentage(checkweigher);
                         UpdateGiveAway(checkweigher);
                     }
@@ -273,8 +277,105 @@ namespace Opc.Ua.Scales.Server.Runtime
                     {
                         PublishLastItem(weight, itemId);
                     }
+                    UpdateCounterPercentages();
                 }
             });
+        }
+
+        /// <summary>
+        /// Records explicit acceptance while the owning scale retains asynchronous admission.
+        /// </summary>
+        /// <param name="weight">The accepted package weight.</param>
+        /// <param name="belowLowerToleranceLimit1">Whether the accepted package is in the TU1-TU2 band.</param>
+        /// <param name="itemId">The equipment item identifier.</param>
+        internal async ValueTask RecordAcceptedAsync(
+            double weight, bool belowLowerToleranceLimit1, string? itemId)
+        {
+            m_totalCount++;
+            await CountAsync(Statistic.TotalPackages, weight).ConfigureAwait(false);
+            if (!double.IsNaN(weight))
+            {
+                await CountAsync(Statistic.TotalPackagesWeighed, weight).ConfigureAwait(false);
+            }
+            if (Statistic is CheckweigherStatisticState checkweigher)
+            {
+                m_acceptedCount++;
+                m_acceptedWeights.Add(weight);
+                if (belowLowerToleranceLimit1)
+                {
+                    m_acceptedBelowToleranceCount++;
+                }
+                await CountAsync(checkweigher.TotalPackagesAccepted, weight).ConfigureAwait(false);
+                if (belowLowerToleranceLimit1)
+                {
+                    await CountAsync(checkweigher.PackagesAcceptedWithLowerToleranceLimit1, weight)
+                        .ConfigureAwait(false);
+                }
+                await UpdateDerivedAsync(checkweigher).ConfigureAwait(false);
+            }
+            await PublishLastItemAsync(weight, itemId).ConfigureAwait(false);
+            await UpdateCounterPercentagesAsync().ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Records explicit rejection while the owning scale retains asynchronous admission.
+        /// </summary>
+        /// <param name="weight">The package weight, or NaN when it was not weighed.</param>
+        /// <param name="reason">The equipment's rejection reason.</param>
+        /// <param name="itemId">The equipment item identifier.</param>
+        internal async ValueTask RecordRejectedAsync(double weight, CheckweigherRejectReason reason, string? itemId)
+        {
+            m_totalCount++;
+            await CountAsync(Statistic.TotalPackages, weight).ConfigureAwait(false);
+            if (!double.IsNaN(weight))
+            {
+                await CountAsync(Statistic.TotalPackagesWeighed, weight).ConfigureAwait(false);
+            }
+            if (Statistic is CheckweigherStatisticState checkweigher)
+            {
+                await CountAsync(checkweigher.TotalPackagesRejected, weight).ConfigureAwait(false);
+                await CountAsync(RejectedCounter(checkweigher, reason), weight).ConfigureAwait(false);
+                await UpdateDerivedAsync(checkweigher).ConfigureAwait(false);
+            }
+            if (!double.IsNaN(weight))
+            {
+                await PublishLastItemAsync(weight, itemId).ConfigureAwait(false);
+            }
+            await UpdateCounterPercentagesAsync().ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Resolves the optional counter corresponding to an equipment rejection reason.
+        /// </summary>
+        private static RejectedStatisticCounterState? RejectedCounter(
+            CheckweigherStatisticState checkweigher, CheckweigherRejectReason reason)
+        {
+            return reason switch
+            {
+                CheckweigherRejectReason.LowerToleranceLimit1 => checkweigher.PackagesRejectedByLowerToleranceLimit1,
+                CheckweigherRejectReason.LowerToleranceLimit2 => checkweigher.PackagesRejectedByLowerToleranceLimit2,
+                CheckweigherRejectReason.MeanValueRequirement => checkweigher.PackagesRejectedByMeanValueRequirement,
+                CheckweigherRejectReason.Metal => checkweigher.PackagesRejectedByMetal,
+                CheckweigherRejectReason.Vision => checkweigher.PackagesRejectedByVision,
+                CheckweigherRejectReason.XRay => checkweigher.PackagesRejectedByXRay,
+                CheckweigherRejectReason.DistanceFault => checkweigher.PackagesRejectedByDistanceFault,
+                CheckweigherRejectReason.Length => checkweigher.PackagesRejectedByLength,
+                _ => null
+            };
+        }
+
+        /// <summary>
+        /// Publishes accepted percentage and giveaway through native asynchronous notifications.
+        /// </summary>
+        private async ValueTask UpdateDerivedAsync(CheckweigherStatisticState checkweigher)
+        {
+            await ScaleValues.SetAsync(m_context, checkweigher.PercentageLowerToleranceLimit,
+                Variant.From(m_acceptedCount == 0 ? 0.0 : 100.0 * m_acceptedBelowToleranceCount / m_acceptedCount))
+                .ConfigureAwait(false);
+            if (SetGiveAway(checkweigher) is { } giveAway)
+            {
+                await giveAway.ClearChangeMasksAsync(m_context, includeChildren: false).ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -287,18 +388,15 @@ namespace Opc.Ua.Scales.Server.Runtime
             {
                 lock (m_lock)
                 {
+                    List<StatisticCounterState> counters = SnapshotCounters();
                     m_accumulators.Clear();
+                    m_totalCount = 0;
                     m_acceptedCount = 0;
                     m_acceptedBelowToleranceCount = 0;
                     m_acceptedWeights = new Accumulator();
-                    var counters = new List<BaseInstanceState>();
-                    Statistic.GetChildren(m_context, counters);
-                    foreach (BaseInstanceState child in counters)
+                    foreach (StatisticCounterState counter in counters)
                     {
-                        if (child is StatisticCounterState counter)
-                        {
-                            ResetCounter(counter);
-                        }
+                        ResetCounter(counter);
                     }
                     if (Statistic is CheckweigherStatisticState checkweigher)
                     {
@@ -317,6 +415,49 @@ namespace Opc.Ua.Scales.Server.Runtime
         }
 
         /// <summary>
+        /// Resets a period while the owning scale retains asynchronous admission.
+        /// </summary>
+        /// <param name="resetCondition">The equipment's reset reason.</param>
+        internal async ValueTask ResetAsync(string? resetCondition)
+        {
+            List<StatisticCounterState> counters = SnapshotCounters();
+            m_accumulators.Clear();
+            m_totalCount = 0;
+            m_acceptedCount = 0;
+            m_acceptedBelowToleranceCount = 0;
+            m_acceptedWeights = new Accumulator();
+            foreach (StatisticCounterState counter in counters)
+            {
+                await ScaleValues.SetAsync(m_context, counter.ItemCount, Variant.From(0UL)).ConfigureAwait(false);
+                await ScaleValues.SetAsync(m_context, counter.Weighed, InitialWeighed(counter)).ConfigureAwait(false);
+                foreach (BaseVariableState? value in new BaseVariableState?[]
+                {
+                    counter.SumWeight, counter.MinValue, counter.MaxValue, counter.MeanValue,
+                    counter.PercentageOfTotal
+                })
+                {
+                    await ScaleValues.SetAsync(m_context, value, Variant.From(0.0)).ConfigureAwait(false);
+                }
+                if (SetDeviation(counter, null) is { } deviation)
+                {
+                    await deviation.ClearChangeMasksAsync(m_context, includeChildren: false).ConfigureAwait(false);
+                }
+            }
+            if (Statistic is CheckweigherStatisticState checkweigher)
+            {
+                await UpdateDerivedAsync(checkweigher).ConfigureAwait(false);
+            }
+            await ScaleValues.SetAsync(m_context, Statistic.StartTime, Variant.From(DateTimeUtc.Now))
+                .ConfigureAwait(false);
+            if (resetCondition != null)
+            {
+                await ScaleValues.SetAsync(m_context, Statistic.ResetCondition, Variant.From(resetCondition))
+                    .ConfigureAwait(false);
+            }
+            await Statistic.ClearChangeMasksAsync(m_context, includeChildren: true).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Records a provider acquisition and preserves the complete registered item and source metadata.
         /// </summary>
         internal void RecordItem(ScaleItemReport report, string? zoneName, ScaleItemPrice? price)
@@ -325,9 +466,11 @@ namespace Opc.Ua.Scales.Server.Runtime
             {
                 lock (m_lock)
                 {
+                    m_totalCount++;
                     Count(Statistic.TotalPackages, report.Weight.Net);
                     Count(Statistic.TotalPackagesWeighed, report.Weight.Net);
                     ScaleItemPublisher.Publish(m_context, Statistic.LastItem, report, zoneName, price);
+                    UpdateCounterPercentages();
                 }
             });
         }
@@ -342,6 +485,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                 lock (m_lock)
                 {
                     Count(counter, weight);
+                    UpdateCounterPercentages();
                 }
             });
         }
@@ -350,9 +494,16 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// Publishes the initial period start time asynchronously.
         /// </summary>
         /// <returns>A task that completes after the live variable is notified.</returns>
-        internal ValueTask InitializeAsync()
+        internal async ValueTask InitializeAsync()
         {
-            return ScaleValues.SetAsync(m_context, Statistic.StartTime, DateTimeUtc.Now);
+            foreach (StatisticCounterState counter in SnapshotCounters())
+            {
+                if (SetDeviation(counter, null) is { } deviation)
+                {
+                    await deviation.ClearChangeMasksAsync(m_context, includeChildren: false).ConfigureAwait(false);
+                }
+            }
+            await ScaleValues.SetAsync(m_context, Statistic.StartTime, DateTimeUtc.Now).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -363,10 +514,12 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <param name="price">The calculated or equipment-supplied price.</param>
         internal async ValueTask RecordItemAsync(ScaleItemReport report, string? zoneName, ScaleItemPrice? price)
         {
+            m_totalCount++;
             await CountAsync(Statistic.TotalPackages, report.Weight.Net).ConfigureAwait(false);
             await CountAsync(Statistic.TotalPackagesWeighed, report.Weight.Net).ConfigureAwait(false);
             await ScaleItemPublisher.PublishAsync(
                 m_context, Statistic.LastItem, report, zoneName, price).ConfigureAwait(false);
+            await UpdateCounterPercentagesAsync().ConfigureAwait(false);
         }
 
         /// <summary>
@@ -374,9 +527,68 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// </summary>
         /// <param name="counter">The zone counter.</param>
         /// <param name="weight">The acquisition weight.</param>
-        internal ValueTask RecordCounterAsync(StatisticCounterState counter, double weight)
+        internal async ValueTask RecordCounterAsync(StatisticCounterState counter, double weight)
         {
-            return CountAsync(counter, weight);
+            await CountAsync(counter, weight).ConfigureAwait(false);
+            await UpdateCounterPercentagesAsync().ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Captures direct and separately registered counters before their values are changed or reset.
+        /// </summary>
+        private List<StatisticCounterState> SnapshotCounters()
+        {
+            var children = new List<BaseInstanceState>();
+            Statistic.GetChildren(m_context, children);
+            var counters = new HashSet<StatisticCounterState>(m_accumulators.Keys);
+            foreach (BaseInstanceState child in children)
+            {
+                if (child is StatisticCounterState counter)
+                {
+                    counters.Add(counter);
+                }
+            }
+            return [.. counters];
+        }
+
+        /// <summary>
+        /// Captures percentages for all exposed counters against a denominator independent of optional total nodes.
+        /// </summary>
+        private List<(BaseVariableState Variable, double Percentage)> CounterPercentages()
+        {
+            var percentages = new List<(BaseVariableState Variable, double Percentage)>();
+            foreach (StatisticCounterState counter in SnapshotCounters())
+            {
+                if (counter.PercentageOfTotal is { } variable)
+                {
+                    ulong count = m_accumulators.TryGetValue(counter, out Accumulator? accumulator)
+                        ? accumulator.Count : 0;
+                    percentages.Add((variable, m_totalCount == 0 ? 0.0 : 100.0 * count / m_totalCount));
+                }
+            }
+            return percentages;
+        }
+
+        /// <summary>
+        /// Refreshes percentages even when only another counter or the denominator changed.
+        /// </summary>
+        private void UpdateCounterPercentages()
+        {
+            foreach ((BaseVariableState variable, double percentage) in CounterPercentages())
+            {
+                ScaleValues.Set(m_context, variable, Variant.From(percentage));
+            }
+        }
+
+        /// <summary>
+        /// Refreshes all exposed counter percentages through asynchronous notifications.
+        /// </summary>
+        private async ValueTask UpdateCounterPercentagesAsync()
+        {
+            foreach ((BaseVariableState variable, double percentage) in CounterPercentages())
+            {
+                await ScaleValues.SetAsync(m_context, variable, Variant.From(percentage)).ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -405,6 +617,10 @@ namespace Opc.Ua.Scales.Server.Runtime
 
             await ScaleValues.SetAsync(m_context, counter.ItemCount, Variant.From(accumulator.Count))
                 .ConfigureAwait(false);
+            if (SetWeighed(counter, accumulator) is { } weighed)
+            {
+                await weighed.ClearChangeMasksAsync(m_context, includeChildren: false).ConfigureAwait(false);
+            }
             if (accumulator.Weighed > 0)
             {
                 await ScaleValues.SetAsync(m_context, counter.SumWeight, Variant.From(accumulator.Sum))
@@ -416,9 +632,47 @@ namespace Opc.Ua.Scales.Server.Runtime
                 await ScaleValues.SetAsync(m_context, counter.MeanValue, Variant.From(accumulator.Mean))
                     .ConfigureAwait(false);
             }
-            await ScaleValues.SetAsync(
-                m_context, counter.StandardDeviation, Variant.From(accumulator.Deviation(ObservationMode)))
-                .ConfigureAwait(false);
+            if (SetDeviation(counter, accumulator) is { } deviation)
+            {
+                await deviation.ClearChangeMasksAsync(m_context, includeChildren: false).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Updates deviation quality when the selected equation has insufficient weighed observations.
+        /// </summary>
+        private BaseVariableState? SetDeviation(StatisticCounterState counter, Accumulator? accumulator)
+        {
+            BaseVariableState? deviation = counter.StandardDeviation;
+            if (deviation == null)
+            {
+                return null;
+            }
+            ulong minimum = ObservationMode == ScaleStatisticsObservationMode.Sample ? 2UL : 1UL;
+            bool defined = accumulator != null && accumulator.Weighed >= minimum;
+            deviation.WrappedValue = Variant.From(defined ? accumulator!.Deviation(ObservationMode) : 0.0);
+            deviation.StatusCode = defined ? StatusCodes.Good : StatusCodes.BadNoData;
+            deviation.Timestamp = DateTimeUtc.Now;
+            return deviation;
+        }
+
+        /// <summary>
+        /// Publishes whether all counted items were weighed and marks mixed categories as uncertain.
+        /// </summary>
+        private BaseVariableState? SetWeighed(StatisticCounterState counter, Accumulator accumulator)
+        {
+            BaseVariableState? weighed = counter.Weighed;
+            if (weighed == null)
+            {
+                return null;
+            }
+            weighed.WrappedValue = Variant.From(
+                counter != Statistic.TotalPackages && accumulator.Weighed == accumulator.Count);
+            weighed.StatusCode = counter != Statistic.TotalPackages &&
+                accumulator.Weighed > 0 && accumulator.Weighed < accumulator.Count
+                ? StatusCodes.UncertainSubNormal : StatusCodes.Good;
+            weighed.Timestamp = DateTimeUtc.Now;
+            return weighed;
         }
 
         /// <summary>
@@ -449,6 +703,7 @@ namespace Opc.Ua.Scales.Server.Runtime
             accumulator.Add(weight);
 
             ScaleValues.Set(m_context, counter.ItemCount, Variant.From(accumulator.Count));
+            SetWeighed(counter, accumulator)?.ClearChangeMasks(m_context, includeChildren: false);
             if (accumulator.Weighed > 0)
             {
                 ScaleValues.Set(m_context, counter.SumWeight, Variant.From(accumulator.Sum));
@@ -456,19 +711,31 @@ namespace Opc.Ua.Scales.Server.Runtime
                 ScaleValues.Set(m_context, counter.MaxValue, Variant.From(accumulator.Max));
                 ScaleValues.Set(m_context, counter.MeanValue, Variant.From(accumulator.Mean));
             }
-            ScaleValues.Set(
-                m_context, counter.StandardDeviation, Variant.From(accumulator.Deviation(ObservationMode)));
+            SetDeviation(counter, accumulator)?.ClearChangeMasks(m_context, includeChildren: false);
         }
 
         private void ResetCounter(StatisticCounterState counter)
         {
             ScaleValues.Set(m_context, counter.ItemCount, Variant.From(0UL));
+            ScaleValues.Set(m_context, counter.Weighed, InitialWeighed(counter));
             ScaleValues.Set(m_context, counter.SumWeight, Variant.From(0.0));
             ScaleValues.Set(m_context, counter.MinValue, Variant.From(0.0));
             ScaleValues.Set(m_context, counter.MaxValue, Variant.From(0.0));
             ScaleValues.Set(m_context, counter.MeanValue, Variant.From(0.0));
-            ScaleValues.Set(m_context, counter.StandardDeviation, Variant.From(0.0));
+            SetDeviation(counter, null)?.ClearChangeMasks(m_context, includeChildren: false);
             ScaleValues.Set(m_context, counter.PercentageOfTotal, Variant.From(0.0));
+        }
+
+        /// <summary>
+        /// Identifies measurement-only categories before the first item in a reset period.
+        /// </summary>
+        private bool InitialWeighed(StatisticCounterState counter)
+        {
+            return counter == Statistic.TotalPackagesWeighed ||
+                counter.Parent is ZoneState ||
+                (Statistic is CheckweigherStatisticState checkweigher &&
+                    (counter == checkweigher.TotalPackagesAccepted ||
+                        counter == checkweigher.PackagesAcceptedWithLowerToleranceLimit1));
         }
 
         private void UpdatePercentage(CheckweigherStatisticState checkweigher)
@@ -488,15 +755,25 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// </summary>
         private void UpdateGiveAway(CheckweigherStatisticState checkweigher)
         {
+            SetGiveAway(checkweigher)?.ClearChangeMasks(m_context, includeChildren: false);
+        }
+
+        /// <summary>
+        /// Updates giveaway value and quality without dispatching the node notification.
+        /// </summary>
+        private BaseVariableState? SetGiveAway(CheckweigherStatisticState checkweigher)
+        {
             BaseVariableState? giveAway = checkweigher.GiveAway;
             if (giveAway == null)
             {
-                return;
+                return null;
             }
             if (m_acceptedCount == 0)
             {
-                ScaleValues.Set(m_context, giveAway, Variant.From(0.0));
-                return;
+                giveAway.WrappedValue = Variant.From(0.0);
+                giveAway.StatusCode = StatusCodes.Good;
+                giveAway.Timestamp = DateTimeUtc.Now;
+                return giveAway;
             }
             double nominal;
             StatusCode quality = StatusCodes.Good;
@@ -535,7 +812,7 @@ namespace Opc.Ua.Scales.Server.Runtime
             }
             giveAway.StatusCode = quality;
             giveAway.Timestamp = DateTimeUtc.Now;
-            giveAway.ClearChangeMasks(m_context, includeChildren: false);
+            return giveAway;
         }
 
         private void PublishLastItem(double weight, string? itemId)
@@ -592,15 +869,10 @@ namespace Opc.Ua.Scales.Server.Runtime
             public double Mean { get; private set; }
 
             /// <summary>
-            /// Calculates the configured equation, retaining zero for empty statistics and one-item samples.
+            /// Calculates the configured equation after the caller has checked the minimum observation count.
             /// </summary>
             public double Deviation(ScaleStatisticsObservationMode mode)
             {
-                ulong minimum = mode == ScaleStatisticsObservationMode.Sample ? 2UL : 1UL;
-                if (Weighed < minimum)
-                {
-                    return 0;
-                }
                 return Math.Sqrt(m_m2 / (mode == ScaleStatisticsObservationMode.Sample ? Weighed - 1 : Weighed));
             }
 
@@ -625,6 +897,11 @@ namespace Opc.Ua.Scales.Server.Runtime
 
         private readonly ISystemContext m_context;
         private readonly Dictionary<StatisticCounterState, Accumulator> m_accumulators = [];
+
+        /// <summary>
+        /// The overall package count, independent of optional published total-counter nodes.
+        /// </summary>
+        private ulong m_totalCount;
 
         /// <summary>
         /// The accepted item count, independent of optional published counters.

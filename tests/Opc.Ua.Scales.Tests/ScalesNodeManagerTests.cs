@@ -664,6 +664,140 @@ namespace Opc.Ua.Scales.Tests
             }
         }
 
+        /// <summary>
+        /// Fluent equipment reports update generic scale totals and registered product-specific statistics asynchronously.
+        /// </summary>
+        [TestCase(ScaleStatisticsObservationMode.Sample)]
+        [TestCase(ScaleStatisticsObservationMode.FullCheck)]
+        public async Task FluentCheckweigherReportsUpdateSelectedProductStatisticsAsync(
+            ScaleStatisticsObservationMode mode)
+        {
+            ScaleHandle scale = await m_fixture.Manager.CreateScaleAsync(
+                m_fixture.Name("DispositionScale"), ScaleKind.Checkweigher, builder => builder
+                    .WithIdentification(Identity("DispositionScale"))
+                    .WithWeighingRange(new WeighingRangeDefinition(0, 100, 0.01, 0.01))
+                    .WithProductionOutput(mode)
+                    .WithProductionPreset(preset => preset.AllowSelection().AllowManagement()
+                        .AddProduct("A", new LocalizedText("A"), (_, state) =>
+                            ((CheckweigherProductState)state).NominalWeight!.WrappedValue = Variant.From(10.0))
+                        .AddProduct("B", new LocalizedText("B"), (_, state) =>
+                            ((CheckweigherProductState)state).NominalWeight!.WrappedValue = Variant.From(20.0))
+                        .Select("A"))).ConfigureAwait(false);
+            CheckweigherController reporter = scale.Checkweigher!;
+            Assert.That(scale.Scale.ProductionOutput, Is.TypeOf<StatisticState>());
+            var firstProduct = (CheckweigherProductState)scale.ProductionPreset!.ActiveProduct!;
+            Assert.That(firstProduct.Statistic, Is.TypeOf<CheckweigherStatisticState>());
+            var first = (CheckweigherStatisticState)firstProduct.Statistic!;
+            void CheckWeighed(StatisticCounterState counter, bool expected, uint status = StatusCodes.Good)
+            {
+                BaseVariableState variable = counter.Weighed!;
+                Assert.That(m_fixture.Manager.FindPredefinedNode(variable.NodeId), Is.SameAs(variable));
+                var value = new DataValue();
+                Assert.That(ServiceResult.IsBad(variable.ReadAttribute(
+                    m_fixture.Context, Attributes.Value, default, default, ref value)), Is.False);
+                Assert.That(value.WrappedValue.GetBoolean(), Is.EqualTo(expected));
+                Assert.That(value.StatusCode, Is.EqualTo((StatusCode)status));
+            }
+            Assert.That(first, Is.Not.SameAs(scale.Scale.ProductionOutput));
+            CheckWeighed(first.TotalPackagesWeighed!, true);
+            Assert.That(m_fixture.Manager.FindPredefinedNode(first.GiveAway!.NodeId), Is.SameAs(first.GiveAway));
+            Assert.That(m_fixture.Manager.FindPredefinedNode(first.TotalPackagesAccepted!.NodeId),
+                Is.SameAs(first.TotalPackagesAccepted));
+            int giveawayNotifications = 0;
+            first.GiveAway.OnStateChanged = (_, _, _) =>
+                Assert.Fail("Async checkweigher reporting invoked a synchronous-only giveaway callback.");
+            first.GiveAway.OnStateChangedAsync = async (_, _, _, _) =>
+            {
+                await Task.Yield();
+                giveawayNotifications++;
+            };
+            Assert.That(ServiceResult.IsGood(await reporter.RecordAcceptedAsync(
+                9, belowLowerToleranceLimit1: true).ConfigureAwait(false)), Is.True);
+            Assert.That(first.GiveAway.WrappedValue.GetDouble(), Is.EqualTo(-1));
+            CheckWeighed(first.TotalPackagesAccepted, true);
+            Assert.That(first.TotalPackagesAccepted.StandardDeviation!.StatusCode,
+                Is.EqualTo((StatusCode)(mode == ScaleStatisticsObservationMode.Sample
+                    ? StatusCodes.BadNoData : StatusCodes.Good)));
+            Assert.That(ServiceResult.IsGood(await new CheckweigherController(scale)
+                .RecordAcceptedAsync(11).ConfigureAwait(false)), Is.True);
+            Assert.That(ServiceResult.IsGood(await reporter.RecordRejectedAsync(
+                30, CheckweigherRejectReason.Metal).ConfigureAwait(false)), Is.True);
+            CheckWeighed(first.TotalPackagesRejected!, true);
+            CheckWeighed(first.PackagesRejectedByMetal!, true);
+            Assert.That(ServiceResult.IsGood(await reporter.RecordRejectedAsync(
+                double.NaN, CheckweigherRejectReason.Vision).ConfigureAwait(false)), Is.True);
+            Assert.That(first.TotalPackagesAccepted.ItemCount!.WrappedValue.GetUInt64(), Is.EqualTo(2UL));
+            Assert.That(first.TotalPackagesRejected!.ItemCount!.WrappedValue.GetUInt64(), Is.EqualTo(2UL));
+            CheckWeighed(first.TotalPackagesRejected, false, StatusCodes.UncertainSubNormal);
+            CheckWeighed(first.PackagesRejectedByVision!, false);
+            Assert.That(first.PackagesRejectedByMetal!.ItemCount!.WrappedValue.GetUInt64(), Is.EqualTo(1UL));
+            Assert.That(first.PackagesRejectedByVision!.ItemCount!.WrappedValue.GetUInt64(), Is.EqualTo(1UL));
+            Assert.That(first.TotalPackagesAccepted.StandardDeviation!.WrappedValue.GetDouble(),
+                Is.EqualTo(mode == ScaleStatisticsObservationMode.Sample ? Math.Sqrt(2) : 1).Within(1e-10));
+            Assert.That(first.PercentageLowerToleranceLimit!.WrappedValue.GetDouble(), Is.EqualTo(50));
+            Assert.That(first.GiveAway.WrappedValue.GetDouble(), Is.Zero);
+            Assert.That(scale.Scale.ProductionOutput!.TotalPackages!.ItemCount!.WrappedValue.GetUInt64(),
+                Is.EqualTo(4UL));
+            Assert.That(scale.Scale.ProductionOutput.TotalPackagesWeighed!.ItemCount!.WrappedValue.GetUInt64(),
+                Is.EqualTo(3UL));
+            Assert.That(giveawayNotifications, Is.GreaterThanOrEqualTo(2));
+            firstProduct.NominalWeight!.WrappedValue = Variant.From(12.0);
+            Assert.That(ServiceResult.IsGood(await reporter.RecordRejectedAsync(
+                double.NaN, CheckweigherRejectReason.Other).ConfigureAwait(false)), Is.True);
+            Assert.That(first.GiveAway.WrappedValue.GetDouble(), Is.EqualTo(-4));
+            scale.ProductionPreset.Select("B");
+            var second = (CheckweigherStatisticState)
+                ((CheckweigherProductState)scale.ProductionPreset.ActiveProduct!).Statistic!;
+            Assert.That(ServiceResult.IsGood(await reporter.RecordAcceptedAsync(21).ConfigureAwait(false)), Is.True);
+            Assert.That(second.GiveAway!.WrappedValue.GetDouble(), Is.EqualTo(1));
+            Assert.That(first.TotalPackagesAccepted.ItemCount.WrappedValue.GetUInt64(), Is.EqualTo(2UL));
+            scale.ProductionPreset.Select("A");
+            Assert.That(ServiceResult.IsGood(await reporter.RecordAcceptedAsync(13).ConfigureAwait(false)), Is.True);
+            Assert.That(first.TotalPackagesAccepted.ItemCount.WrappedValue.GetUInt64(), Is.EqualTo(3UL));
+            Assert.That(first.GiveAway.WrappedValue.GetDouble(), Is.EqualTo(-3));
+            Assert.That(ServiceResult.IsGood(await reporter.ResetAsync("period").ConfigureAwait(false)), Is.True);
+            Assert.That(first.TotalPackagesAccepted.ItemCount.WrappedValue.GetUInt64(), Is.Zero);
+            Assert.That(first.GiveAway.WrappedValue.GetDouble(), Is.Zero);
+            Assert.That(first.PercentageLowerToleranceLimit.WrappedValue.GetDouble(), Is.Zero);
+            Assert.That(first.ResetCondition!.Value, Is.EqualTo("period"));
+            Assert.That(second.TotalPackagesAccepted!.ItemCount!.WrappedValue.GetUInt64(), Is.EqualTo(1UL));
+            Assert.That(ServiceResult.IsGood(await reporter.RecordAcceptedAsync(13).ConfigureAwait(false)), Is.True);
+            Assert.That(first.GiveAway.WrappedValue.GetDouble(), Is.EqualTo(1));
+            Assert.That((await reporter.RecordAcceptedAsync(double.NaN).ConfigureAwait(false)).StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That((await reporter.RecordRejectedAsync(
+                1, (CheckweigherRejectReason)999).ConfigureAwait(false)).StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(first.TotalPackages!.ItemCount!.WrappedValue.GetUInt64(), Is.EqualTo(1UL));
+        }
+
+        /// <summary>
+        /// Reports without a selected product reject before changing scale totals.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CheckweigherReportsRequireSelectedProductAsync(bool includePreset)
+        {
+            ScaleHandle scale = await CreateAsync(ScaleKind.Checkweigher, extra: builder =>
+            {
+                if (includePreset)
+                {
+                    builder.WithProductionPreset(preset => preset.AddProduct("A", new LocalizedText("A")));
+                }
+            }).ConfigureAwait(false);
+            Assert.That((await scale.Checkweigher!.RecordAcceptedAsync(1).ConfigureAwait(false)).StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            Assert.That((await scale.Checkweigher.RecordRejectedAsync(
+                1, CheckweigherRejectReason.Metal).ConfigureAwait(false)).StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            Assert.That((await scale.Checkweigher.ResetAsync().ConfigureAwait(false)).StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            Assert.That(scale.Scale.ProductionOutput!.TotalPackages!.ItemCount!.WrappedValue.GetUInt64(), Is.Zero);
+            Assert.Throws<ArgumentNullException>(() => new CheckweigherController(null!));
+            ScaleHandle simple = await CreateAsync(ScaleKind.Simple, "NotCheckweigher").ConfigureAwait(false);
+            Assert.Throws<ArgumentException>(() => new CheckweigherController(simple));
+        }
+
         [Test]
         public async Task CommandInterceptorCanVetoACommandAsync()
         {

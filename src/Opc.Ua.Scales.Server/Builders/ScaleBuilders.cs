@@ -701,6 +701,16 @@ namespace Opc.Ua.Scales.Server.Builders
             }
 
             m_preset?.Finish();
+            if (Kind == ScaleKind.Checkweigher && Scale.ProductionOutput != null &&
+                Scale.ProductionPreset?.Products is { } checkweigherProducts)
+            {
+                var products = new List<BaseInstanceState>();
+                checkweigherProducts.GetChildren(Context, products);
+                foreach (CheckweigherProductState product in products.OfType<CheckweigherProductState>())
+                {
+                    CheckweigherController.InitializeProduct(Context, product);
+                }
+            }
             if (m_itemProcessing || m_completedFills || m_vehicleAggregation != null || m_pieceCountingTotals)
             {
                 if (Scale.ProductionPreset?.Products == null)
@@ -888,6 +898,7 @@ namespace Opc.Ua.Scales.Server.Builders
                 counter.AddMaxValue(context);
                 counter.AddMeanValue(context);
                 counter.AddStandardDeviation(context);
+                counter.StandardDeviation!.StatusCode = StatusCodes.BadNoData;
                 ScaleValues.Set(context, counter.ItemCount, Variant.From(0UL));
                 ScaleValues.Set(context, counter.Weighed, counter == statistic.TotalPackagesWeighed);
             }

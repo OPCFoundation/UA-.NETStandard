@@ -348,11 +348,12 @@ namespace Opc.Ua.Scales.Server.Runtime
                 }
                 if (alarm.HelpSource != null)
                 {
-                    alarm.HelpSource.WrappedValue = Variant.From(helpSource);
+                    alarm.HelpSource.WrappedValue = helpSource == null ? Variant.Null : Variant.From(helpSource);
                 }
                 if (alarm.VendorNotificationId != null)
                 {
-                    alarm.VendorNotificationId.WrappedValue = Variant.From(vendorNotificationId);
+                    alarm.VendorNotificationId.WrappedValue = vendorNotificationId == null
+                        ? Variant.Null : Variant.From(vendorNotificationId);
                 }
                 alarm.SetActiveState(m_context, active);
                 if (active)

@@ -60,7 +60,7 @@ namespace ScalesSample
             while (!stoppingToken.IsCancellationRequested)
             {
                 tick++;
-                WeighPackage(random, tick);
+                await WeighPackageAsync(random, tick, stoppingToken).ConfigureAwait(false);
 #pragma warning disable CA5394 // Simulated load noise, not security relevant
                 m_line.Laboratory.PublishLoad(0.1 + (random.NextDouble() * 0.000004), stable: tick % 4 != 0);
 #pragma warning restore CA5394
@@ -153,7 +153,10 @@ namespace ScalesSample
             }
         }
 
-        private void WeighPackage(Random random, int tick)
+        /// <summary>
+        /// Reports every simulated package's explicit disposition to scale and product statistics.
+        /// </summary>
+        private async ValueTask WeighPackageAsync(Random random, int tick, CancellationToken cancellationToken)
         {
             ScaleHandle checkweigher = m_line.Checkweigher;
 #pragma warning disable CA5394 // Simulated load noise, not security relevant
@@ -167,7 +170,13 @@ namespace ScalesSample
             // Nominal 500 g: packages below T1 (-15 g) are rejected, as OIML R 87 asks.
             if (weight < 0.485)
             {
-                checkweigher.ProductionOutput?.RecordRejected(weight, CheckweigherRejectReason.LowerToleranceLimit1);
+                ServiceResult result = await checkweigher.Checkweigher!.RecordRejectedAsync(
+                    weight, CheckweigherRejectReason.LowerToleranceLimit1, cancellationToken: cancellationToken)
+                    .ConfigureAwait(false);
+                if (ServiceResult.IsBad(result))
+                {
+                    throw new ServiceResultException(result);
+                }
                 checkweigher.Notifications.RaiseEvent(
                     ScaleNotificationId.BadPack,
                     new LocalizedText(FormattableString.Invariant($"Package of {weight:F4} kg rejected.")),
@@ -176,7 +185,13 @@ namespace ScalesSample
             }
             else
             {
-                checkweigher.ProductionOutput?.RecordAccepted(weight, belowLowerToleranceLimit1: weight < 0.5);
+                ServiceResult result = await checkweigher.Checkweigher!.RecordAcceptedAsync(
+                    weight, belowLowerToleranceLimit1: weight < 0.5, cancellationToken: cancellationToken)
+                    .ConfigureAwait(false);
+                if (ServiceResult.IsBad(result))
+                {
+                    throw new ServiceResultException(result);
+                }
             }
 
             // Every 20 s the label printer runs out of labels for a few seconds.

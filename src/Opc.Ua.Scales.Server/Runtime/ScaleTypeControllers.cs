@@ -32,9 +32,185 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Scales.Server.Builders;
 
 namespace Opc.Ua.Scales.Server.Runtime
 {
+    /// <summary>
+    /// Records equipment-supplied checkweigher dispositions in scale totals and the selected product's statistics.
+    /// </summary>
+    public sealed class CheckweigherController
+    {
+        /// <summary>
+        /// Creates a direct reporting controller for a configured checkweigher.
+        /// </summary>
+        /// <param name="owner">The scale whose preset and write admission own the reports.</param>
+        public CheckweigherController(ScaleHandle owner)
+        {
+            m_owner = owner ?? throw new ArgumentNullException(nameof(owner));
+            if (owner.Kind != ScaleKind.Checkweigher)
+            {
+                throw new ArgumentException("Checkweigher reporting requires a checkweigher scale.", nameof(owner));
+            }
+        }
+
+        /// <summary>
+        /// Records a package that the equipment accepted without deriving its disposition from its weight.
+        /// </summary>
+        /// <param name="weight">The measured package weight in the scale's unit.</param>
+        /// <param name="belowLowerToleranceLimit1">Whether the accepted package is in the TU1-TU2 band.</param>
+        /// <param name="itemId">The equipment item identifier.</param>
+        /// <param name="cancellationToken">Cancels before write admission.</param>
+        /// <returns>The publication result.</returns>
+        public ValueTask<ServiceResult> RecordAcceptedAsync(
+            double weight,
+            bool belowLowerToleranceLimit1 = false,
+            string? itemId = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (double.IsNaN(weight) || double.IsInfinity(weight))
+            {
+                return new ValueTask<ServiceResult>(ServiceResult.Create(
+                    StatusCodes.BadInvalidArgument, "An accepted package requires a finite measured weight."));
+            }
+            return RecordAsync(true, weight, belowLowerToleranceLimit1, CheckweigherRejectReason.Other,
+                itemId, cancellationToken);
+        }
+
+        /// <summary>
+        /// Records a package that the equipment rejected for its explicitly supplied reason.
+        /// </summary>
+        /// <param name="weight">The package weight, or NaN when the equipment did not weigh it.</param>
+        /// <param name="reason">The equipment's rejection reason.</param>
+        /// <param name="itemId">The equipment item identifier.</param>
+        /// <param name="cancellationToken">Cancels before write admission.</param>
+        /// <returns>The publication result.</returns>
+        public ValueTask<ServiceResult> RecordRejectedAsync(
+            double weight,
+            CheckweigherRejectReason reason,
+            string? itemId = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (double.IsInfinity(weight) || (uint)reason > (uint)CheckweigherRejectReason.Length)
+            {
+                return new ValueTask<ServiceResult>(ServiceResult.Create(
+                    StatusCodes.BadInvalidArgument, "The rejected weight or rejection reason is invalid."));
+            }
+            return RecordAsync(false, weight, false, reason, itemId, cancellationToken);
+        }
+
+        /// <summary>
+        /// Resets the selected product's statistics and the scale production period.
+        /// </summary>
+        /// <param name="resetCondition">The equipment's reset reason.</param>
+        /// <param name="cancellationToken">Cancels before write admission.</param>
+        /// <returns>The reset result.</returns>
+        public ValueTask<ServiceResult> ResetAsync(
+            string? resetCondition = null, CancellationToken cancellationToken = default)
+        {
+            return m_owner.ExecuteWriteOperationAsync(async _ =>
+            {
+                using ScaleProductionPreset.ActiveProductReservation? reservation =
+                    m_owner.ProductionPreset?.ReserveActiveProduct();
+                ScaleStatistics? output = m_owner.ProductionOutput;
+                if (reservation?.Product is not CheckweigherProductState product ||
+                    product.Statistic is not CheckweigherStatisticState statistic || output == null)
+                {
+                    return ServiceResult.Create(
+                        StatusCodes.BadInvalidState, "Checkweigher reset requires selected product statistics.");
+                }
+                ScaleStatistics recorder = await RecorderAsync(statistic).ConfigureAwait(false);
+                await recorder.ResetAsync(resetCondition).ConfigureAwait(false);
+                await output.ResetAsync(resetCondition).ConfigureAwait(false);
+                return ServiceResult.Good;
+            }, cancellationToken);
+        }
+
+        /// <summary>
+        /// Initializes product-local nodes before the product is registered.
+        /// </summary>
+        internal static void InitializeProduct(ISystemContext context, CheckweigherProductState product)
+        {
+            product.AddStatistic(context);
+            if (product.Statistic is not CheckweigherStatisticState statistic)
+            {
+                throw new ServiceResultException(StatusCodes.BadConfigurationError,
+                    "A checkweigher product requires CheckweigherStatisticType statistics.");
+            }
+            ScaleBuilder.AddStatisticMembers(context, statistic);
+            statistic.AddTotalPackagesAccepted(context);
+            statistic.AddTotalPackagesRejected(context);
+            statistic.AddPackagesAcceptedWithLowerToleranceLimit1(context);
+            statistic.AddPackagesRejectedByLowerToleranceLimit1(context);
+            statistic.AddPackagesRejectedByLowerToleranceLimit2(context);
+            statistic.AddPackagesRejectedByMeanValueRequirement(context);
+            statistic.AddPackagesRejectedByMetal(context);
+            statistic.AddPackagesRejectedByVision(context);
+            statistic.AddPackagesRejectedByXRay(context);
+            statistic.AddPackagesRejectedByDistanceFault(context);
+            statistic.AddPackagesRejectedByLength(context);
+            statistic.AddPercentageLowerToleranceLimit(context);
+            statistic.AddGiveAway(context);
+            statistic.TotalPackagesAccepted!.AddMeanValue(context).AddStandardDeviation(context);
+            statistic.TotalPackagesAccepted.StandardDeviation!.StatusCode = StatusCodes.BadNoData;
+            ScaleValues.Set(context, statistic.TotalPackagesAccepted.Weighed, true);
+            ScaleValues.Set(context, statistic.PackagesAcceptedWithLowerToleranceLimit1!.Weighed, true);
+        }
+
+        /// <summary>
+        /// Publishes both targets while retaining the selected product and asynchronous write admission.
+        /// </summary>
+        private ValueTask<ServiceResult> RecordAsync(
+            bool accepted, double weight, bool belowTolerance, CheckweigherRejectReason reason,
+            string? itemId, CancellationToken cancellationToken)
+        {
+            return m_owner.ExecuteWriteOperationAsync(async _ =>
+            {
+                using ScaleProductionPreset.ActiveProductReservation? reservation =
+                    m_owner.ProductionPreset?.ReserveActiveProduct();
+                ScaleStatistics? output = m_owner.ProductionOutput;
+                if (reservation?.Product is not CheckweigherProductState product ||
+                    product.Statistic is not CheckweigherStatisticState statistic || output == null)
+                {
+                    return ServiceResult.Create(
+                        StatusCodes.BadInvalidState, "Checkweigher reporting requires selected product statistics.");
+                }
+                ScaleStatistics recorder = await RecorderAsync(statistic).ConfigureAwait(false);
+                if (accepted)
+                {
+                    await recorder.RecordAcceptedAsync(weight, belowTolerance, itemId).ConfigureAwait(false);
+                    await output.RecordAcceptedAsync(weight, belowTolerance, itemId)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    await recorder.RecordRejectedAsync(weight, reason, itemId).ConfigureAwait(false);
+                    await output.RecordRejectedAsync(weight, reason, itemId).ConfigureAwait(false);
+                }
+                return ServiceResult.Good;
+            }, cancellationToken);
+        }
+
+        /// <summary>
+        /// Retains one recorder per product statistic so switching products preserves their independent periods.
+        /// </summary>
+        private async ValueTask<ScaleStatistics> RecorderAsync(CheckweigherStatisticState statistic)
+        {
+            if (!m_owner.CheckweigherStatistics.TryGetValue(statistic, out ScaleStatistics? recorder))
+            {
+                recorder = new ScaleStatistics(m_owner.Services.Context, statistic, m_owner.WriteOperations,
+                    initialize: false, observationMode: m_owner.StatisticsObservationMode);
+                m_owner.CheckweigherStatistics.Add(statistic, recorder);
+                await recorder.InitializeAsync().ConfigureAwait(false);
+            }
+            return recorder;
+        }
+
+        /// <summary>The scale owning publication and product-selection admission.</summary>
+        private readonly ScaleHandle m_owner;
+
+    }
+
     /// <summary>
     /// Runtime of a <c>ContinuousScaleType</c> (OPC 40200 §7.24): the flow
     /// rate, the rate-control figures and the totalizers.

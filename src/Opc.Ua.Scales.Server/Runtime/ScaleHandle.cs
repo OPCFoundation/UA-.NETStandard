@@ -228,7 +228,8 @@ namespace Opc.Ua.Scales.Server.Runtime
                     services.ScalesId(ScalesModel.ProductTypeOf(kind)),
                     () => AllowedEngineeringUnits,
                     configuration.ItemProcessing || configuration.CompletedFills ||
-                        configuration.VehicleAggregation != null || Kind == ScaleKind.PieceCounting
+                        configuration.VehicleAggregation != null || Kind == ScaleKind.PieceCounting ||
+                        (Kind == ScaleKind.Checkweigher && scale.ProductionOutput != null)
                         ? product =>
                         {
                             if (configuration.ItemProcessing || configuration.CompletedFills)
@@ -243,6 +244,11 @@ namespace Opc.Ua.Scales.Server.Runtime
                             {
                                 PieceCountingController.InitializeProduct(
                                     services.Context, pieceCounting, configuration.PieceCountingTotals, Unit);
+                            }
+                            if (Kind == ScaleKind.Checkweigher && scale.ProductionOutput != null &&
+                                product is CheckweigherProductState checkweigher)
+                            {
+                                CheckweigherController.InitializeProduct(services.Context, checkweigher);
                             }
                         }
                         : null,
@@ -261,6 +267,10 @@ namespace Opc.Ua.Scales.Server.Runtime
                 ProductionOutput = new ScaleStatistics(
                     services.Context, scale.ProductionOutput, m_writeGate,
                     observationMode: StatisticsObservationMode);
+            }
+            if (Kind == ScaleKind.Checkweigher)
+            {
+                Checkweigher = new CheckweigherController(this);
             }
             if (configuration.ItemProcessing)
             {
@@ -370,6 +380,11 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// them.
         /// </summary>
         public ScaleStatistics? ProductionOutput { get; }
+
+        /// <summary>
+        /// Gets the equipment-disposition reporter for a checkweigher.
+        /// </summary>
+        public CheckweigherController? Checkweigher { get; }
 
         /// <summary>
         /// Gets the continuous-scale controller.
@@ -662,6 +677,11 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// Gets the shared writer gate for this scale and its live statistics.
         /// </summary>
         internal ScaleWriteGate WriteOperations => m_writeGate;
+
+        /// <summary>
+        /// Retains product recorders shared by all checkweigher controllers using this scale's write admission.
+        /// </summary>
+        internal Dictionary<CheckweigherStatisticState, ScaleStatistics> CheckweigherStatistics { get; } = [];
 
         /// <summary>
         /// Runs an asynchronous operation while owning the scale's live writer state.

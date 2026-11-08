@@ -1783,14 +1783,14 @@ namespace Opc.Ua.Scales.Tests
                     recorder.Record(weight);
                 }
             }
-            void CheckDeviation(double expected)
+            void CheckDeviation(double expected, uint status = StatusCodes.Good)
             {
                 if (includeDeviation)
                 {
                     Assert.That(statistic.TotalPackages!.StandardDeviation!.WrappedValue.GetDouble(),
                         Is.EqualTo(expected).Within(1e-10));
                     Assert.That(statistic.TotalPackages.StandardDeviation.StatusCode,
-                        Is.EqualTo((StatusCode)StatusCodes.Good));
+                        Is.EqualTo((StatusCode)status));
                 }
                 else
                 {
@@ -1798,16 +1798,18 @@ namespace Opc.Ua.Scales.Tests
                 }
             }
             Assert.That(recorder.ObservationMode, Is.EqualTo(mode));
+            CheckDeviation(0, StatusCodes.BadNoData);
             recorder.Reset();
-            CheckDeviation(0);
+            CheckDeviation(0, StatusCodes.BadNoData);
             await Record(1).ConfigureAwait(false);
-            CheckDeviation(0);
+            CheckDeviation(0, mode == ScaleStatisticsObservationMode.Sample
+                ? StatusCodes.BadNoData : StatusCodes.Good);
             await Record(3).ConfigureAwait(false);
             CheckDeviation(mode == ScaleStatisticsObservationMode.Sample ? Math.Sqrt(2) : 1);
             await Record(5).ConfigureAwait(false);
             CheckDeviation(mode == ScaleStatisticsObservationMode.Sample ? 2 : Math.Sqrt(8.0 / 3));
             recorder.Reset();
-            CheckDeviation(0);
+            CheckDeviation(0, StatusCodes.BadNoData);
             await Record(-1).ConfigureAwait(false);
             await Record(1).ConfigureAwait(false);
             CheckDeviation(mode == ScaleStatisticsObservationMode.Sample ? Math.Sqrt(2) : 1);
@@ -1959,6 +1961,128 @@ namespace Opc.Ua.Scales.Tests
             recorder.Reset();
             Assert.That(statistic.GiveAway.WrappedValue.GetDouble(), Is.Zero);
             Assert.That(statistic.GiveAway.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+        }
+
+        /// <summary>
+        /// Every optional counter percentage follows overall packages, including unchanged rejection counters.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task StatisticCounterPercentagesFollowOverallPackagesAsync(bool asynchronous, bool includeTotals)
+        {
+            using var harness = new Harness();
+            var statistic = new CheckweigherStatisticState(null);
+            if (includeTotals)
+            {
+                statistic.AddTotalPackages(harness.Context);
+                statistic.TotalPackages!.AddPercentageOfTotal(harness.Context);
+                statistic.AddTotalPackagesAccepted(harness.Context);
+                statistic.TotalPackagesAccepted!.AddPercentageOfTotal(harness.Context);
+            }
+            statistic.AddTotalPackagesWeighed(harness.Context);
+            statistic.TotalPackagesWeighed!.AddPercentageOfTotal(harness.Context);
+            statistic.AddPackagesRejectedByMetal(harness.Context);
+            statistic.PackagesRejectedByMetal!.AddPercentageOfTotal(harness.Context);
+            statistic.AddPackagesRejectedByVision(harness.Context);
+            statistic.PackagesRejectedByVision!.AddPercentageOfTotal(harness.Context);
+            var recorder = new ScaleStatistics(
+                harness.Context, statistic, ScaleStatisticsObservationMode.FullCheck, nominalWeight: 10);
+            async Task Accepted(double weight)
+            {
+                if (asynchronous)
+                {
+                    await recorder.RecordAcceptedAsync(weight, false, null).ConfigureAwait(false);
+                }
+                else
+                {
+                    recorder.RecordAccepted(weight);
+                }
+            }
+            async Task Rejected(double weight, CheckweigherRejectReason reason)
+            {
+                if (asynchronous)
+                {
+                    await recorder.RecordRejectedAsync(weight, reason, null).ConfigureAwait(false);
+                }
+                else
+                {
+                    recorder.RecordRejected(weight, reason);
+                }
+            }
+            async Task Reset()
+            {
+                if (asynchronous)
+                {
+                    await recorder.ResetAsync(null).ConfigureAwait(false);
+                }
+                else
+                {
+                    recorder.Reset();
+                }
+            }
+            await Reset().ConfigureAwait(false);
+            Assert.That(statistic.TotalPackagesWeighed.PercentageOfTotal!.WrappedValue.GetDouble(), Is.Zero);
+            await Accepted(double.NaN).ConfigureAwait(false);
+            Assert.That(statistic.TotalPackagesWeighed.ItemCount!.WrappedValue.GetUInt64(), Is.Zero);
+            await Accepted(9).ConfigureAwait(false);
+            Assert.That(statistic.TotalPackagesWeighed.PercentageOfTotal.WrappedValue.GetDouble(), Is.EqualTo(50));
+            await Rejected(20, CheckweigherRejectReason.Metal).ConfigureAwait(false);
+            Assert.That(statistic.PackagesRejectedByMetal.PercentageOfTotal!.WrappedValue.GetDouble(),
+                Is.EqualTo(100.0 / 3).Within(1e-10));
+            await Rejected(double.NaN, CheckweigherRejectReason.Vision).ConfigureAwait(false);
+            Assert.That(statistic.TotalPackagesWeighed.ItemCount.WrappedValue.GetUInt64(), Is.EqualTo(2UL));
+            Assert.That(statistic.PackagesRejectedByMetal.ItemCount!.WrappedValue.GetUInt64(), Is.EqualTo(1UL));
+            Assert.That(statistic.PackagesRejectedByMetal.PercentageOfTotal.WrappedValue.GetDouble(), Is.EqualTo(25));
+            Assert.That(statistic.PackagesRejectedByVision.PercentageOfTotal!.WrappedValue.GetDouble(), Is.EqualTo(25));
+            await Accepted(11).ConfigureAwait(false);
+            Assert.That(statistic.PackagesRejectedByMetal.PercentageOfTotal.WrappedValue.GetDouble(), Is.EqualTo(20));
+            Assert.That(statistic.PackagesRejectedByVision.PercentageOfTotal.WrappedValue.GetDouble(), Is.EqualTo(20));
+            Assert.That(statistic.TotalPackagesWeighed.PercentageOfTotal.WrappedValue.GetDouble(), Is.EqualTo(60));
+            if (includeTotals)
+            {
+                Assert.That(statistic.TotalPackages!.PercentageOfTotal!.WrappedValue.GetDouble(), Is.EqualTo(100));
+                Assert.That(statistic.TotalPackagesAccepted!.PercentageOfTotal!.WrappedValue.GetDouble(),
+                    Is.EqualTo(60));
+            }
+            else
+            {
+                Assert.That(statistic.TotalPackages, Is.Null);
+                Assert.That(statistic.TotalPackagesAccepted, Is.Null);
+            }
+            var zone = new ZoneState(null);
+            zone.AddZoneStatistic(harness.Context);
+            StatisticCounterState zoneCounter = zone.ZoneStatistic!;
+            zoneCounter.AddPercentageOfTotal(harness.Context);
+            if (asynchronous)
+            {
+                await recorder.RecordCounterAsync(zoneCounter, 11).ConfigureAwait(false);
+            }
+            else
+            {
+                recorder.RecordCounter(zoneCounter, 11);
+            }
+            Assert.That(zoneCounter.ItemCount!.WrappedValue.GetUInt64(), Is.EqualTo(1UL));
+            Assert.That(zoneCounter.Weighed!.WrappedValue.GetBoolean(), Is.True);
+            await Reset().ConfigureAwait(false);
+            Assert.That(zoneCounter.ItemCount.WrappedValue.GetUInt64(), Is.Zero);
+            Assert.That(zoneCounter.PercentageOfTotal!.WrappedValue.GetDouble(), Is.Zero);
+            Assert.That(statistic.PackagesRejectedByMetal.PercentageOfTotal.WrappedValue.GetDouble(), Is.Zero);
+            Assert.That(statistic.PackagesRejectedByVision.PercentageOfTotal.WrappedValue.GetDouble(), Is.Zero);
+            await Rejected(20, CheckweigherRejectReason.Metal).ConfigureAwait(false);
+            Assert.That(statistic.PackagesRejectedByMetal.PercentageOfTotal.WrappedValue.GetDouble(), Is.EqualTo(100));
+            Assert.That(statistic.TotalPackagesWeighed.PercentageOfTotal.WrappedValue.GetDouble(), Is.EqualTo(100));
+            if (asynchronous)
+            {
+                await recorder.RecordCounterAsync(zoneCounter, 20).ConfigureAwait(false);
+            }
+            else
+            {
+                recorder.RecordCounter(zoneCounter, 20);
+            }
+            Assert.That(zoneCounter.ItemCount.WrappedValue.GetUInt64(), Is.EqualTo(1UL));
+            Assert.That(zoneCounter.PercentageOfTotal.WrappedValue.GetDouble(), Is.EqualTo(100));
         }
 
         /// <summary>

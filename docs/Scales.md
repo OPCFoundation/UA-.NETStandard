@@ -417,7 +417,7 @@ required interface member.
 | `WithZeroAndTare(presetTare)` | `SetZero`, `SetTare`, `ClearTare` and, unless `presetTare` is false, `SetPresetTare` |
 | `WithRegisterWeight()` | `RegisterWeight` and `RegisteredWeight` |
 | `WithProductionPreset(configure)` | `ProductionPreset` with products; see below |
-| `WithProductionOutput()` | `ProductionOutput` statistics (`CheckweigherStatisticType` counters on a checkweigher) |
+| `WithProductionOutput()` | Generic scale `ProductionOutput` statistics. On a checkweigher, also initializes each product's separate `CheckweigherStatisticType` nodes for explicit disposition reports |
 | `WithPackMLState()` | The PackML `State` machine, driven by `PackMLStateMachineController` |
 | `WithMachineryBuildingBlocks()` | `MachineryItemState`, `MachineryOperationMode` and the `MachineryBuildingBlocks` folder, wired as add-ins |
 | `WithProcessState(id, message)` | `ProcessStateId` and `ProcessStateMessage` |
@@ -580,6 +580,11 @@ The methods and the local API share the same rules.
   enter the denominator. These counts are maintained even when the optional
   accepted-total or band-counter nodes are absent. `Reset` clears both counts;
   with no accepted items the percentage is zero.
+- Optional counter `PercentageOfTotal` divides each counter's item count by
+  the overall package count (§7.20.3). Every report refreshes counters whose
+  own count did not change. The denominator remains available without the
+  optional `TotalPackages` node. An accepted unweighed item does not increment
+  `TotalPackagesWeighed`.
 
 `WithProductionOutput(ScaleStatisticsObservationMode.Sample)` selects the sample
 standard-deviation equation; `FullCheck` selects the equation for a 100% check.
@@ -587,8 +592,27 @@ The selected mode also applies to product-local acquisition statistics.
 The default is `Sample`; parameterless calls preserve a previously selected mode.
 Direct recorders accept the mode in the `ScaleStatistics` constructor. The
 runtime uses Welford's weight moments with divisor `n - 1` for samples and `n`
-for a full check. Empty statistics and one-item samples publish zero, as an
-implementation convention rather than a requirement of the specification.
+for a full check. Empty statistics and one-item samples publish a numeric
+placeholder of zero with `BadNoData`, not a computed deviation. A one-item full
+check publishes zero with Good quality. Reset restores `BadNoData` until enough
+weighed observations exist for the selected equation. These status choices are
+runtime policy; the specification defines the equations but not their no-data
+status behavior.
+
+Counter `Weighed` is true when all items recorded in that category contribute
+to `TotalPackagesWeighed`. An entirely unweighed category publishes false.
+A category containing both weighed and unweighed items publishes false with
+`UncertainSubNormal`: a Boolean cannot describe its partial contribution.
+The overall `TotalPackages` counter remains false because it counts packages
+without requiring a measurement. Mixed-category representation remains a
+conformance limitation under the Partial rating.
+
+Recorder reset includes zone counters previously recorded through that same
+recorder, even though those counters are outside the statistic's child nodes.
+The catchweigher acquisition controller does not yet expose its retained
+product recorder for reset. Constructing another recorder over the same nodes
+does not reset the acquisition controller's private moments; product-period
+reset on that path remains unsupported under the Partial rating.
 
 On a checkweigher, `GiveAway` is `(acceptedMean - currentNominalWeight) *
 acceptedCount` (§7.19.3), including negative results. The accepted-weight
@@ -601,9 +625,35 @@ data or an accepted item without measured weight preserves the last value with
 `BadNoData`; a nonfinite result preserves it with `BadOutOfRange`. A bad nominal
 status is propagated without changing the last value; uncertain nominal data
 can produce a value with the same uncertain status.
+Changing `NominalWeight` alone does not yet recompute `GiveAway`; until the
+next accepted or rejected report, an immediate read still returns the previous
+value and status. This limitation is part of the Partial support rating.
 
 The packing-line sample selects `FullCheck` for its checkweigher because the
 simulation reports every package.
+
+### `CheckweigherController`
+
+`scale.Checkweigher.RecordAcceptedAsync` and `RecordRejectedAsync` update both
+the generic scale totals and the selected product's separate acceptance,
+rejection, percentage, and giveaway statistics. The equipment supplies the
+disposition and rejection reason; the controller does not infer acceptance from
+weight or from a generic registered-item report.
+
+`WithProductionOutput` initializes the checkweigher product statistics before
+registration, including products added later through the preset. Each product
+retains its own recorder and the scale's observation mode. Switching products
+does not reset a period. A report holds the active-product reservation and
+asynchronous write admission until both targets' notifications complete.
+`ResetAsync` resets the selected product and scale totals; other products'
+periods remain unchanged.
+
+Accepted reports require a finite measured weight. Rejected reports accept
+`NaN` for an unweighed package, which increments the package and rejection
+counts but not the weighed count. Missing selected-product statistics returns
+`BadInvalidState` before recording. The existing direct `ScaleStatistics`
+methods update only the statistic passed to that recorder; generic scale
+`ProductionOutput` is not a checkweigher product statistic.
 
 Both deviation equations and the giveaway equation are verified in the
 [VDMA 40200:2025-04 co-publication](https://www.vdma.eu/en/catalog-detail/-/catalog/14137),
@@ -1265,6 +1315,7 @@ are left out (`ScaleFacetsBringTheMachineIdentificationTheyIncludeAsync`,
 | `ScaleEventType` / `ScaleAlarmType` with Annex C ids, vendor ids > 5000 | ✅ | `EventsAndVendorEventsCanBeRaisedAsync`; `FailedZeroOrTareRaisesAFaultAndOverloadAnAlarmAsync`; `ClientStreamsWeightsEventsAndAlarmsAsync` |
 | Optional notification parameters, help source, and vendor identifier | 🧪 | `NotificationMetadataEventsRetainParametersAndHelp`; `NotificationMetadataAlarmTransitionsCopyAndClearFields`; client filters and decoding include all three optional fields. |
 | Checkweigher accepted-item percentage and statistical equations | Partial | `CheckweigherTolerancePercentageUsesAcceptedMeasurements`; `StatisticDeviationUsesConfiguredObservationModeAsync`; `CheckweigherGiveAwayUsesCurrentNominalWeight`; `StatisticRecorderValidatesModeAndExplicitNominalWeight`; `FluentStatisticsObservationModeReachesScaleAndSystemAsync`. Source equations are verified; runtime validation remains pending. |
+| Checkweigher equipment-disposition reporting | Partial | `FluentCheckweigherReportsUpdateSelectedProductStatisticsAsync` covers separate generic/product runtime types, registered nodes, explicit async dispositions, both deviation modes, product switching, current nominal weight, and reset. Runtime validation remains pending. |
 | Notifier hierarchy with `HasNotifier`, nested sources subscribable | ✅ | `ClientSubscribesToANestedScaleThroughTheNotifierHierarchyAsync` |
 | PackML state information with transition events | ✅ | `PackMLMethodsWalkTheStateMachineAsync`; `PackMLActingStatesCanBeCompletedByTheEquipmentAsync`; `ClientDrivesThePackMLStateMachineAsync`; advertised as *PackML State Information*: `PackMLStateInformationIsClaimedWithAPackMLStateMachineAsync` |
 | Machinery Machine Identification, Find Machines | ✅ | `IdentificationWithoutMandatoryFieldsIsRejectedAsync`; `ClientDiscoversEveryScaleOnceWithItsKindAsync` |
