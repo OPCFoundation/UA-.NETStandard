@@ -531,6 +531,8 @@ namespace Opc.Ua.Tools.Tests
                 ("Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.TestAsync", "server-node-lifecycle"),
                 ("Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.RejectsPreparedBatchAsync",
                     "server-node-lifecycle"),
+                ("Opc.Ua.Server.Tests.NodeManager.nodemanagerlifecycletests.PreparedBatchAsync",
+                    "server-node-management"),
                 ("Opc.Ua.Server.Tests.Hosting.HostedNodeManagerLifecycleTests.PreparedBatchAsync",
                     "server-node-management"),
                 ("Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTestsExtra.PreparedBatchAsync",
@@ -657,9 +659,11 @@ namespace Opc.Ua.Tools.Tests
                 ]
                 : [
                     "Opc.Ua.WotCon.Tests.Registry.ExampleTests.ExampleAsync",
+                    "Opc.Ua.WotCon.Tests.materialization.ExampleTests.ExampleAsync",
                     "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests.ExampleAsync",
                     "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests(False).ExampleAsync",
                     "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTestsExtra.ExampleAsync",
+                    "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityLiveTests.ExampleAsync",
                     "Opc.Ua.WotCon.Tests.wotregistryidentitylivetests.ExampleAsync"
                 ];
             string[][] exclusionCategories =
@@ -667,6 +671,8 @@ namespace Opc.Ua.Tools.Tests
                 [],
                 ["LongRunning"],
                 ["Stress"],
+                ["longrunning"],
+                ["stress"],
                 ["LongRunning", "Stress"]
             ];
             foreach (IGrouping<string, MatrixEntry> profile in wot.GroupBy(entry => entry.Profile))
@@ -676,7 +682,9 @@ namespace Opc.Ua.Tools.Tests
                     foreach (string[] exclusions in exclusionCategories)
                     {
                         string[] categories = integration ? [.. exclusions, "Integration"] : exclusions;
-                        bool allowed = profile.First().Tier != "mainline" || exclusions.Length == 0;
+                        bool allowed = profile.First().Tier != "mainline" ||
+                            (!exclusions.Contains("LongRunning", StringComparer.Ordinal) &&
+                             !exclusions.Contains("Stress", StringComparer.Ordinal));
                         string[] matches = profile
                             .Where(entry => MatchesWotFilter(entry.Filter, testName, categories))
                             .Select(entry => entry.Shard)
@@ -696,7 +704,9 @@ namespace Opc.Ua.Tools.Tests
                         }
                         if (!materialization && integration && profile.First().Framework != "net48" &&
                             profile.First().Os == "macos" &&
-                            testName.Contains(".WotRegistryIdentityLiveTests", StringComparison.OrdinalIgnoreCase))
+                            testName.Contains(
+                                "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
+                                StringComparison.Ordinal))
                         {
                             expectedShard = "wot-other-identity-integration";
                         }
@@ -756,17 +766,18 @@ namespace Opc.Ua.Tools.Tests
         /// </summary>
         private static bool MatchesWotFilter(string filter, string testName, string[] categories)
         {
+            // The default NUnit adapter uses case-sensitive engine filters.
             return filter.Split('&').All(term => term switch
             {
                 "" => true,
                 _ when term.StartsWith("FullyQualifiedName!~", StringComparison.Ordinal) =>
-                    !testName.Contains(term["FullyQualifiedName!~".Length..], StringComparison.OrdinalIgnoreCase),
+                    !testName.Contains(term["FullyQualifiedName!~".Length..], StringComparison.Ordinal),
                 _ when term.StartsWith("FullyQualifiedName~", StringComparison.Ordinal) =>
-                    testName.Contains(term["FullyQualifiedName~".Length..], StringComparison.OrdinalIgnoreCase),
+                    testName.Contains(term["FullyQualifiedName~".Length..], StringComparison.Ordinal),
                 _ when term.StartsWith("TestCategory!=", StringComparison.Ordinal) =>
-                    !categories.Contains(term["TestCategory!=".Length..], StringComparer.OrdinalIgnoreCase),
+                    !categories.Contains(term["TestCategory!=".Length..], StringComparer.Ordinal),
                 _ when term.StartsWith("TestCategory=", StringComparison.Ordinal) =>
-                    categories.Contains(term["TestCategory=".Length..], StringComparer.OrdinalIgnoreCase),
+                    categories.Contains(term["TestCategory=".Length..], StringComparer.Ordinal),
                 _ => throw new InvalidOperationException($"Unsupported WoT filter term '{term}'.")
             });
         }
@@ -787,11 +798,11 @@ namespace Opc.Ua.Tools.Tests
                 }
                 if (expression.StartsWith("TestCategory!=", StringComparison.Ordinal))
                 {
-                    return !categories.Contains(expression["TestCategory!=".Length..], StringComparer.OrdinalIgnoreCase);
+                    return !categories.Contains(expression["TestCategory!=".Length..], StringComparer.Ordinal);
                 }
                 if (expression.StartsWith("TestCategory=", StringComparison.Ordinal))
                 {
-                    return categories.Contains(expression["TestCategory=".Length..], StringComparer.OrdinalIgnoreCase);
+                    return categories.Contains(expression["TestCategory=".Length..], StringComparer.Ordinal);
                 }
 
                 string[] alternatives = expression.Split('|');
@@ -816,7 +827,7 @@ namespace Opc.Ua.Tools.Tests
                         throw new InvalidOperationException($"Unsupported server filter term '{alternative}'.");
                     }
 
-                    bool contains = testName.Contains(needle, StringComparison.OrdinalIgnoreCase);
+                    bool contains = testName.Contains(needle, StringComparison.Ordinal);
                     return excluded ? !contains : contains;
                 });
                 return matches;
