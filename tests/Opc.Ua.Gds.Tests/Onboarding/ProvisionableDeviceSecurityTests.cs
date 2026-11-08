@@ -350,7 +350,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(retained[0].ApplicationUri, Is.EqualTo("urn:first:registrar"));
             Assert.That(retained[0].ApplicationType, Is.EqualTo(ApplicationType.Server));
             Assert.That(retained[0].DiscoveryUrls.ToArray(),
-                Is.EqualTo(new[] { "opc.tcp://registrar:4840" }));
+                Is.EqualTo(s_expectedRegistrarDiscoveryUrls));
             Assert.That(retained[1], Is.Not.SameAs(secondCandidate));
             Assert.That(retained[1].ApplicationUri, Is.EqualTo("urn:second:registrar"));
             Assert.That(retained[1].ApplicationType, Is.EqualTo(ApplicationType.ClientAndServer));
@@ -395,7 +395,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                         throw expected;
                     }
                     published = values;
-                    return default(ValueTask);
+                    return default;
                 });
             store.Setup(value => value.ReadAsync(It.IsAny<CancellationToken>()))
                 .Returns(() => new ValueTask<ArrayOf<ApplicationDescription>>(published));
@@ -429,7 +429,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(retained.Count, Is.EqualTo(1));
             Assert.That(retained[0].ApplicationUri, Is.EqualTo("urn:previous:registrar"));
             Assert.That(retained[0].DiscoveryUrls.ToArray(),
-                Is.EqualTo(new[] { "opc.tcp://registrar:4840" }));
+                Is.EqualTo(s_expectedRegistrarDiscoveryUrls));
             store.Verify(value => value.ReplaceAsync(
                 It.IsAny<ArrayOf<ApplicationDescription>>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
             store.Verify(value => value.ReadAsync(It.IsAny<CancellationToken>()), Times.Once);
@@ -525,7 +525,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         {
             var store = new Mock<IProvisionableDeviceRegistrarStore>(MockBehavior.Strict);
             using var security = Create();
-            IProvisionableDeviceRegistrarConfiguration configuration = security;
+            ProvisionableDeviceSecurity configuration = security;
 
             ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await configuration.ReplaceRegistrarEndpointsAsync(
@@ -1065,7 +1065,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(published[0].DiscoveryProfileUri, Is.EqualTo("urn:profile:discovery"));
             Assert.That(published[0].ApplicationType, Is.EqualTo(ApplicationType.Server));
             Assert.That(published[0].DiscoveryUrls.ToArray(),
-                Is.EqualTo(new[] { "opc.tcp://registrar:4840" }));
+                Is.EqualTo(s_expectedRegistrarDiscoveryUrls));
             Assert.That(await security.GetStageAsync().ConfigureAwait(false),
                 Is.EqualTo(ProvisionableDeviceSecurityStage.Unconfigured));
             holdingStore.Verify(value => value.ReplaceAsync(
@@ -2450,6 +2450,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         {
             return ByteString.From(certificate.RawData.AsSpan());
         }
+
+        /// <summary>The unchanged discovery URL retained across candidate publication.</summary>
+        private static readonly string[] s_expectedRegistrarDiscoveryUrls = ["opc.tcp://registrar:4840"];
 
         /// <summary>The URI owned by this DCA.</summary>
         private const string kApplicationUri = "urn:device:dca";

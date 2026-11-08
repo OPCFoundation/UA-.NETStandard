@@ -411,10 +411,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             await authorized.Task.ConfigureAwait(false);
             await operation.ConfigureAwait(false);
 
-            Assert.That(security.Object is IProvisionableDeviceRegistrarConfiguration, Is.False);
+            Assert.That(security.Object, Is.Not.InstanceOf<IProvisionableDeviceRegistrarConfiguration>());
             Assert.That(operationWaited, Is.True);
             Assert.That(storeCalledBeforeAuthorization, Is.False);
-            Assert.That(calls, Is.EqualTo(new[] { "authorize", "authorized", "replace" }));
+            Assert.That(calls, Is.EqualTo(s_expectedLegacyPublicationCalls));
             Assert.That(captured.Count, Is.EqualTo(1));
             Assert.That(captured[0], Is.Not.SameAs(candidate));
             Assert.That(captured[0].ApplicationUri, Is.EqualTo("urn:registrar:one"));
@@ -735,6 +735,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         /// The discovery URL expected on the copied registrar description.
         /// </summary>
         private static readonly string[] s_expectedRegistrarDiscoveryUrls = ["opc.tcp://registrar:4840"];
+
+        /// <summary>The authorization sequence preceding legacy candidate publication.</summary>
+        private static readonly string[] s_expectedLegacyPublicationCalls = ["authorize", "authorized", "replace"];
         /// <summary>
         /// The ticket identifier returned by the generated request-tickets method.
         /// </summary>

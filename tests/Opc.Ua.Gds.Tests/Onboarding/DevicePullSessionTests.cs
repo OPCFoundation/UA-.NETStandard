@@ -64,7 +64,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             var applicationId = new NodeId("device", 1);
             var requestId = new NodeId("request", 1);
             var profile = new PullDcaCertificateProfile(new NodeId("group", 1),
-                ObjectTypeIds.RsaSha256ApplicationCertificateType);
+                global::Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType);
             var trust = new TrustListDataType();
             var localIdentity = new Mock<IPullDcaIdentityProvider>(MockBehavior.Strict);
             localIdentity.Setup(value => value.ActivateAsync(identity, It.IsAny<CancellationToken>()))

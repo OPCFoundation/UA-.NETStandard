@@ -90,7 +90,8 @@ namespace OnboardingDevice
                 throw new InvalidOperationException("The pull registrar application URI is not configured.");
             ArrayOf<ApplicationDescription> candidates = await m_registrars.ReadAsync(ct).ConfigureAwait(false);
             PullDcaRegistrarSelection.RequireConfiguredEndpoint(candidates, expectedApplicationUri, endpoint);
-            await using DevicePullSession.Attempt attempt = await m_sessions.BeginAsync(ct).ConfigureAwait(false);
+            DevicePullSession.Attempt attempt = await m_sessions.BeginAsync(ct).ConfigureAwait(false);
+            await using var attemptLifetime = attempt.ConfigureAwait(false);
             ManagedSession session = attempt.Session;
             await RequireRegistrarIdentityAsync(session, expectedApplicationUri, ct).ConfigureAwait(false);
 
