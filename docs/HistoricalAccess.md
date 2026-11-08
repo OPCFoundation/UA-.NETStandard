@@ -687,10 +687,11 @@ Pagination rules:
 4. **Do not** put live resources (cursors, transactions, connections) into a token. The token is retained server-side behind the wire continuation identifier and can outlive the originating task. Encode just enough state (typically the next timestamp or a keyset offset) to resume cleanly.
 
 The default Session cache retains a history continuation while it is saved or
-being used by a request. Its state includes the provider cursor and the original
-query parameters. A continuation records only a weak identity for its issuing
-NodeManager generation; it does not keep that generation alive. Every resumed
-read checks the caller's current permissions, and a continuation from a retired
+being used by a request. Its state holds the provider, the source node when
+available, the provider cursor, and the original query parameters. The issuing
+NodeManager generation is identified weakly, but the provider and source node
+can hold other strong references. Every resumed read through the default cache
+checks the caller's current permissions, and a continuation from a retired
 generation returns `BadContinuationPointInvalid`. For Annotations reads, the
 requested Property is remembered separately from the provider's source Variable.
 
@@ -711,16 +712,21 @@ admitted only while the issuing generation's gate is open; target resolution
 uses the current request view. Retirement closes the gate, so a stale identifier
 returns `BadContinuationPointInvalid` before the provider is called. The
 continuation cache supplied by `Session` stores state and disposes it on
-completion, release, eviction, cancellation, or Session teardown; it does not
-retain NodeManagers. See
+completion, release, eviction, cancellation, or Session teardown. A caller that
+keeps the disposed state can still retain its provider and source node. See
 [NodeManager continuation points](NodeManagers.md#continuation-points).
 
-Replicated history continuation records let a standby identify and remove
-records belonging to the original Session. They do not contain the live
-provider, source Node or NodeManager instance that executed the read.
-A standby therefore returns `BadContinuationPointInvalid` for such a record.
-The client starts a new HistoryRead against the standby instead of resuming
-the old provider cursor.
+The generic `IContinuationPointStore` mirrors continuation identity and, for
+Browse, request parameters, but does not reconstruct a NodeManager's cursor.
+A standby that only has that record returns `BadContinuationPointInvalid`,
+and the client starts a new `HistoryRead`.
+
+When an `IHistoryContinuationPointStore` is configured, the historian codec
+can restore a portable history record on a standby. It requires a matching
+provider identity and portable-resume-token support. With `MasterNodeManager`,
+the codec also validates the source and captures the standby's owning
+generation before admitting the cursor. An incompatible record is not restored,
+so the client must start a new `HistoryRead`.
 
 Resuming a continuation is an atomic claim. The dispatcher keeps the claimed
 state unchanged until it has durably saved a fresh successor. Provider,

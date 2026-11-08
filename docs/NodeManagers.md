@@ -220,9 +220,10 @@ Multiple managers can serve the same namespace. `RegisterNamespaceManager(string
 An admitted request owns its routing view on `OperationContext`, before application admission callbacks run.
 Dispatch and permission lookups use that explicit view; completing the request releases it. Independent
 background work does not inherit the request's routes through `ExecutionContext`: contextless master lookups
-read live routes, and internal subscriber contexts are not permanently pinned. Browse and history continuation
-resumes validate the issuing generation and resolve later-page targets through the request's current view. Metadata lookups
-use shared additive type and encodeable registrations, not request-selected metadata images.
+read live routes, and internal subscriber contexts are not permanently pinned. Browse continuations validate
+their issuing generation; history continuations do the same with the built-in Session store. Later-page targets
+resolve through the request's current view. Metadata lookups use shared additive type and encodeable registrations,
+not request-selected metadata images.
 
 Service dispatch borrows an unpinned `OperationContext` without taking ownership of the context itself.
 Nested and overlapping calls on that same context share one captured routing view until the last

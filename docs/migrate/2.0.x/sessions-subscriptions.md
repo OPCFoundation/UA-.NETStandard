@@ -21,7 +21,7 @@
 - [Subscriptions and Transports](#subscriptions-and-transports)
   - [Durable subscriptions and reshaped Subscription tree](#durable-subscriptions-and-reshaped-subscription-tree)
   - [Request completion is owned by `OperationContext`](#request-completion-is-owned-by-operationcontext)
-  - [`Opc.Ua.Server.ISession`: `IsClosing` and `InvalidateContinuationPoints`](#opcuaserverisession-isclosing-and-invalidatecontinuationpoints)
+  - [`Opc.Ua.Server.ISession`: `IsClosing`](#opcuaserverisession-isclosing)
   - [`Opc.Ua.Server.ISubscription`: the publish pipeline is server-internal](#opcuaserverisubscription-the-publish-pipeline-is-server-internal)
   - [`EventFilter.Validate` accepts partially valid select clauses](#eventfiltervalidate-accepts-partially-valid-select-clauses)
   - [PubSub](#pubsub)
@@ -407,20 +407,22 @@ after calling `base` left it registered forever, because the caller never receiv
 nothing disposed it. Override `protected virtual ValueTask OnRequestValidatedAsync(OperationContext)`
 instead; throwing from it rejects the request and completes it.
 
-### `Opc.Ua.Server.ISession`: `IsClosing` and `InvalidateContinuationPoints`
+<a id="opcuaserverisession-isclosing-and-invalidatecontinuationpoints"></a>
+
+### `Opc.Ua.Server.ISession`: `IsClosing`
 
 **Source-breaking for custom implementations.** This is the **server-side** `Opc.Ua.Server.ISession`,
 implemented by the server's `Session` — not the client-side `Opc.Ua.Client.ISession` discussed above.
-It gains `bool IsClosing` and `void InvalidateContinuationPoints(IAsyncNodeManager)`.
+It gains `bool IsClosing`.
 
 `IsClosing` reports that the Session is being torn down, so work that would create new state for it
 is rejected instead of started. It is one way: a Session that started closing never serves new work
-again, even if the close itself fails. `InvalidateContinuationPoints` drops the saved Browse and
-history continuation points that would otherwise keep a retired NodeManager reachable.
+again, even if the close itself fails. Custom implementations must report `IsClosing` as true when
+teardown starts and keep it true. The built-in server `Session` implements this behavior.
 
-Custom implementations must add both. Returning `false` from `IsClosing` and doing nothing in
-`InvalidateContinuationPoints` preserves the previous behaviour; the built-in server `Session`
-already implements them.
+The interface does not define an `InvalidateContinuationPoints` method. Retirement invalidates
+saved points in the built-in Session store, but the reclaimer does not notify custom continuation
+stores. See [NodeManager continuation points](../../NodeManagers.md#continuation-points).
 
 ### `Opc.Ua.Server.ISubscription`: the publish pipeline is server-internal
 
