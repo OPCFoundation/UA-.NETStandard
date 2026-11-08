@@ -60,5 +60,12 @@ namespace Opc.Ua.Di.Server.Locking
         /// <param name="elementId">The protected topology element.</param>
         /// <param name="sessionId">The closing session.</param>
         void ReleaseSession(NodeId elementId, NodeId sessionId);
+
+        /// <summary>
+        /// Releases lock ownership when the topology element is removed. Admitted activities continue,
+        /// and completion does not restore the removed element's ownership.
+        /// </summary>
+        /// <param name="elementId">The removed topology element.</param>
+        void ReleaseElement(NodeId elementId);
     }
 }

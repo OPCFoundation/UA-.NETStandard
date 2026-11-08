@@ -263,6 +263,35 @@ namespace Opc.Ua.Server.Historian
             }
         }
 
+        /// <summary>
+        /// Cancels an unsuccessful synchronous setup and observes consumer completion without blocking its caller.
+        /// </summary>
+        internal void Abort()
+        {
+            if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+            {
+                return;
+            }
+            m_channel.Writer.TryComplete();
+            try
+            {
+                m_shutdownCts.Cancel();
+            }
+            finally
+            {
+                _ = m_consumer.ContinueWith(
+                    static (completed, state) =>
+                    {
+                        _ = completed.Exception;
+                        ((CancellationTokenSource)state!).Dispose();
+                    },
+                    m_shutdownCts,
+                    CancellationToken.None,
+                    TaskContinuationOptions.ExecuteSynchronously,
+                    TaskScheduler.Default);
+            }
+        }
+
         private async Task ConsumeAsync(CancellationToken ct)
         {
             try

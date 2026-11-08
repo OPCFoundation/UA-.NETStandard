@@ -67,6 +67,13 @@ namespace Opc.Ua.SourceGeneration
         public bool OmitObjectTypeProxies { get; set; }
 
         /// <summary>
+        /// Emits additional typed WithStatusAsync proxy methods that preserve
+        /// the Call operation status separately from declared output arguments.
+        /// Bad statuses throw before output decoding. Disabled by default.
+        /// </summary>
+        public bool ObjectTypeProxyMethodsWithStatus { get; set; }
+
+        /// <summary>
         /// When set to <c>true</c>, the
         /// <see cref="StateMachineIdsGenerator"/> is suppressed and no
         /// <c>{TypeName}Ids</c> classes (nested <c>StateIds</c> /

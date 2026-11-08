@@ -432,7 +432,7 @@ namespace Opc.Ua.Di.Server
                 {
                     return;
                 }
-                Service.BreakLock(owner.SystemContext, Element.NodeId);
+                Service.ReleaseElement(Element.NodeId);
                 if (ReferenceEquals(Interlocked.CompareExchange(ref m_owner, null, owner), owner))
                 {
                     lock (owner.m_lockRegistrationsGate)

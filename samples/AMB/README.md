@@ -7,7 +7,7 @@ manageable assets, and a client that finds and reads them with `AmbClient`.
 | Sample | What it does |
 | --- | --- |
 | [AmbServer](AmbServer/) | Serves a cooling pump, the flow sensor it relies on and a hydraulic press as assets, and simulates their health alarms and maintenance |
-| [AmbClient](AmbClient/) | Discovers every asset, prints a snapshot of each, the location hierarchies, adds and removes a documentation link, and streams health alarms and maintenance activities |
+| [AmbClient](AmbClient/) | Discovers every asset, prints a snapshot of each, the location hierarchies, adds and removes a documentation link, streams health alarms and maintenance activities, and can explicitly follow sub-assets across servers |
 
 The [Asset Management Basics developer guide](../../docs/AMB.md)
 explains every API used here.
@@ -21,11 +21,30 @@ dotnet run --project samples/AMB/AmbServer -- --port 62553
 dotnet run --project samples/AMB/AmbClient -- --insecure --seconds 60
 ```
 
+For historical reads, start the server with `--history true`. The client reads
+the preceding hour of health values, health events and maintenance events after
+the live observation interval. Use `--seconds 400` to observe maintenance
+execution, actual-detail updates, completion and replanning. The server uses
+the shared in-memory historian: raw health values retain one hour and at most
+3600 samples per node, while events remain for the server process lifetime.
+Stopping the server discards history; `--state` persists asset configuration
+only. Production retention and restart history require a persistent Part 11
+provider.
+
 `--insecure` makes the client accept the server's self-signed certificate;
 never use it in production. The client also takes `--url <endpoint>` (default
 `opc.tcp://localhost:62553/AmbServer`), `--seconds <n>` (how long to stream,
 `0` to skip) and `--asset-id <id>` (writes a new AssetId to the first asset
-that has one and finds the asset by it).
+that has one and finds the asset by it). To follow cross-server sub-assets,
+pass `--follow-remote` and one `--remote-server <application-uri>=<endpoint-url>`
+for each remote server. The sample checks that the discovered endpoint belongs
+to the mapped application URI and uses the same certificate policy as its
+primary connection. A remote link without a mapping is an error. Without
+`--follow-remote`, the client keeps its existing single-server traversal.
+
+Both applications accept `--pki-root <absolute-directory>` to place certificate
+stores outside local application data. Use separate roots for the server and
+client when running isolated examples.
 
 The server keeps what clients write - AssetIds, edited and added
 documentation links, the writable location and local time - below the local
@@ -59,6 +78,9 @@ manager builds its address space, which is why `Plant` and
 | `WriteAssetIdAsync`, `FindAssetsAsync` | Configuring an AssetId and finding the asset by it |
 | `ObserveHealthAlarmsAsync`, `AcknowledgeAsync` | Health alarms with severity, fault category and root causes; a cleared alarm is acknowledged |
 | `ObserveMaintenanceAsync` | Maintenance activities moving through Planned, Executing and Finished |
+| `GetHistoryCapabilitiesAsync` | History-read attributes for the asset's health variable and event notifier |
+| `ReadHealthHistoryAsync`, `ReadHealthEventsAsync`, `ReadPastMaintenanceAsync` | Earlier health values and immutable events through Part 11, when the server opts into history |
+| `EnumerateSubAssetsAcrossServersAsync` | Explicit remote traversal through mapped server application URIs; the resolver owns endpoint and certificate policy |
 
 [`SampleSession.cs`](AmbClient/SampleSession.cs) is the session setup. It
 keeps the `ApplicationInstance` alive until the session closes, because the

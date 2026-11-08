@@ -28,9 +28,12 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Di.Server.Locking;
+using Opc.Ua.Server;
 
 namespace Opc.Ua.Di.Tests
 {
@@ -136,6 +139,27 @@ namespace Opc.Ua.Di.Tests
         }
 
         /// <summary>
+        /// Element removal retains ownership until admitted work drains, then releases it permanently.
+        /// </summary>
+        [Test]
+        public void ElementReleaseWaitsForActivityAndNeverRestoresLock()
+        {
+            using var service = new DefaultLockService();
+            SessionSystemContext owner = Context("owner");
+            SessionSystemContext other = Context("other");
+            Assert.That(service.InitLock(owner, s_element, "owner"), Is.Zero);
+            using IDisposable? activity = service.EnterActivity(owner, s_element);
+
+            service.ReleaseElement(s_element);
+
+            Assert.That(service.GetState(s_element).Locked, Is.True);
+            Assert.That(service.InitLock(other, s_element, "other"), Is.EqualTo(-1));
+            activity!.Dispose();
+            Assert.That(service.GetState(s_element).Locked, Is.False);
+            Assert.That(service.InitLock(other, s_element, "other"), Is.Zero);
+        }
+
+        /// <summary>
         /// Explicit release or break never recreates a lock when an older request completes.
         /// </summary>
         [TestCase(false)]
@@ -148,7 +172,7 @@ namespace Opc.Ua.Di.Tests
             Assert.That(service.InitLock(owner, s_element, "owner"), Is.Zero);
             using IDisposable? activity = service.EnterActivity(owner, s_element);
             int released = breakLock
-                ? service.BreakLock(other, s_element)
+                ? service.BreakLock(AdminContext(), s_element)
                 : service.ExitLock(owner, s_element);
             Assert.That(released, Is.Zero);
             Assert.That(service.GetState(s_element).Locked, Is.False);
@@ -185,7 +209,7 @@ namespace Opc.Ua.Di.Tests
         /// The generated Lock properties read the live service, with Duration encoded in milliseconds.
         /// </summary>
         [Test]
-        public void BoundPropertiesReadLiveStateAndMilliseconds()
+        public async Task BoundPropertiesReadLiveStateAndMilliseconds()
         {
             var clock = new Clock();
             using var service = new DefaultLockService(TimeSpan.FromSeconds(30), clock);
@@ -197,19 +221,24 @@ namespace Opc.Ua.Di.Tests
             node.BindToLockService(s_element, service);
             SessionSystemContext context = Context("owner");
             Assert.That(service.InitLock(context, s_element, "application"), Is.Zero);
-            Variant locked = default;
-            Assert.That(node.Locked.OnSimpleReadValue!(context, node.Locked, ref locked),
-                Is.EqualTo(ServiceResult.Good));
-            Assert.That(locked.GetBoolean(), Is.True);
+            AttributeSimpleReadResult locked = await node.Locked.OnSimpleReadValueAsync!(
+                context, node.Locked, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(locked.Value.TryGetValue(out bool isLocked), Is.True);
+            Assert.That(isLocked, Is.True);
             clock.Advance(7);
-            Variant remaining = default;
-            node.RemainingLockTime.OnSimpleReadValue!(context, node.RemainingLockTime, ref remaining);
-            Assert.That(remaining.GetDouble(), Is.EqualTo(23000));
+            AttributeSimpleReadResult remaining = await node.RemainingLockTime.OnSimpleReadValueAsync!(
+                context, node.RemainingLockTime, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(remaining.Value.TryGetValue(out double remainingMilliseconds), Is.True);
+            Assert.That(remainingMilliseconds, Is.EqualTo(23000));
             clock.Advance(23);
-            node.Locked.OnSimpleReadValue!(context, node.Locked, ref locked);
-            Assert.That(locked.GetBoolean(), Is.False);
-            node.RemainingLockTime.OnSimpleReadValue!(context, node.RemainingLockTime, ref remaining);
-            Assert.That(remaining.GetDouble(), Is.Zero);
+            locked = await node.Locked.OnSimpleReadValueAsync!(
+                context, node.Locked, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(locked.Value.TryGetValue(out isLocked), Is.True);
+            Assert.That(isLocked, Is.False);
+            remaining = await node.RemainingLockTime.OnSimpleReadValueAsync!(
+                context, node.RemainingLockTime, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(remaining.Value.TryGetValue(out remainingMilliseconds), Is.True);
+            Assert.That(remainingMilliseconds, Is.Zero);
         }
 
         /// <summary>
@@ -233,6 +262,24 @@ namespace Opc.Ua.Di.Tests
                 SessionId = new NodeId(session, 2),
                 UserIdentity = new UserIdentity(new AnonymousIdentityToken())
             };
+        }
+
+        /// <summary>
+        /// Creates an authenticated SecurityAdmin caller on an encrypted channel.
+        /// </summary>
+        private static SessionSystemContext AdminContext()
+        {
+            var identity = new Mock<IUserIdentity>();
+            identity.SetupGet(value => value.TokenType).Returns(UserTokenType.UserName);
+            identity.SetupGet(value => value.GrantedRoleIds)
+                .Returns([global::Opc.Ua.ObjectIds.WellKnownRole_SecurityAdmin]);
+            var channel = new SecureChannelContext(
+                "test-channel",
+                new EndpointDescription { SecurityMode = MessageSecurityMode.SignAndEncrypt },
+                RequestEncoding.Binary);
+            var operation = new OperationContext(
+                new RequestHeader(), channel, RequestType.Call, RequestLifetime.None, identity.Object);
+            return new SessionSystemContext(operation, telemetry: null!);
         }
 
         /// <summary>The protected element.</summary>

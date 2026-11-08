@@ -54,7 +54,7 @@ namespace Opc.Ua.Di.Server.Locking
     /// without subtree admission can use <see cref="AttachToSessionManager"/> for session cleanup.
     /// </para>
     /// </remarks>
-    public sealed class DefaultLockService : ILockActivityService, IDisposable
+    public sealed class DefaultLockService : ILockActivityService, ILockOwnershipService, IDisposable
     {
         /// <summary>
         /// Creates a new lock service. <paramref name="lockDuration"/>
@@ -126,6 +126,33 @@ namespace Opc.Ua.Di.Server.Locking
         }
 
         /// <inheritdoc/>
+        public bool IsLockOwner(ISystemContext context, NodeId elementId)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (elementId.IsNull)
+            {
+                throw new ArgumentNullException(nameof(elementId));
+            }
+
+            NodeId sessionId = ResolveSessionId(context);
+            if (sessionId.IsNull)
+            {
+                return false;
+            }
+
+            lock (m_gate)
+            {
+                return m_records.TryGetValue(elementId, out Record? record) &&
+                    record.SessionId == sessionId &&
+                    !record.ReleaseAfterActivities &&
+                    (record.Activities > 0 || record.ExpiresAt > m_timeProvider.GetUtcNow());
+            }
+        }
+
+        /// <inheritdoc/>
         public int InitLock(
             ISystemContext context,
             NodeId elementId,
@@ -142,6 +169,10 @@ namespace Opc.Ua.Di.Server.Locking
             clientContext ??= string.Empty;
 
             (NodeId sessionId, string user) = ResolveCallerIdentity(context);
+            if (sessionId.IsNull)
+            {
+                return LockStatus.CouldNotLock;
+            }
             lock (m_gate)
             {
                 DateTimeOffset now = m_timeProvider.GetUtcNow();
@@ -238,6 +269,11 @@ namespace Opc.Ua.Di.Server.Locking
             {
                 throw new ArgumentNullException(nameof(elementId));
             }
+            ServiceResult authorization = RoleAuthorizationGate.CheckAdmin(context);
+            if (ServiceResult.IsBad(authorization))
+            {
+                throw new ServiceResultException(authorization);
+            }
             Record existing;
             lock (m_gate)
             {
@@ -264,6 +300,10 @@ namespace Opc.Ua.Di.Server.Locking
                 throw new ArgumentNullException(nameof(elementId));
             }
             (NodeId sessionId, _) = ResolveCallerIdentity(context);
+            if (sessionId.IsNull && modifying)
+            {
+                throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+            }
             lock (m_gate)
             {
                 if (TryGetActiveRecord(elementId, m_timeProvider.GetUtcNow(), out Record? record))
@@ -312,6 +352,7 @@ namespace Opc.Ua.Di.Server.Locking
                     if (record.Activities > 0)
                     {
                         record.SessionClosed = true;
+                        record.ReleaseAfterActivities = true;
                     }
                     else
                     {
@@ -323,6 +364,30 @@ namespace Opc.Ua.Di.Server.Locking
             if (released != null)
             {
                 m_logger?.LockReleasedAfterSessionClosed(elementId, released.SessionId);
+            }
+        }
+
+        /// <inheritdoc/>
+        public void ReleaseElement(NodeId elementId)
+        {
+            if (elementId.IsNull)
+            {
+                throw new ArgumentNullException(nameof(elementId));
+            }
+
+            lock (m_gate)
+            {
+                if (m_records.TryGetValue(elementId, out Record? record))
+                {
+                    if (record.Activities > 0)
+                    {
+                        record.ReleaseAfterActivities = true;
+                    }
+                    else
+                    {
+                        m_records.Remove(elementId);
+                    }
+                }
             }
         }
 
@@ -388,7 +453,7 @@ namespace Opc.Ua.Di.Server.Locking
         /// </summary>
         private void CompleteActivity(NodeId elementId, NodeId sessionId)
         {
-            bool released = false;
+            bool releasedAfterSessionClosed = false;
             lock (m_gate)
             {
                 if (m_activities.TryGetValue(elementId, out Dictionary<NodeId, int>? active) &&
@@ -412,10 +477,10 @@ namespace Opc.Ua.Di.Server.Locking
                     record.Activities--;
                     if (record.Activities == 0)
                     {
-                        if (record.SessionClosed)
+                        if (record.ReleaseAfterActivities)
                         {
                             m_records.Remove(elementId);
-                            released = true;
+                            releasedAfterSessionClosed = record.SessionClosed;
                         }
                         else
                         {
@@ -424,31 +489,27 @@ namespace Opc.Ua.Di.Server.Locking
                     }
                 }
             }
-            if (released)
+            if (releasedAfterSessionClosed)
             {
                 m_logger?.LockReleasedAfterSessionClosed(elementId, sessionId);
             }
         }
 
         /// <summary>
-        /// Uses session identity for UA requests and retains the direct-context compatibility fallback.
+        /// Uses only the session identifier supplied by a UA request context.
         /// </summary>
         private static (NodeId SessionId, string User) ResolveCallerIdentity(ISystemContext context)
         {
-            // The standard server context carries the session id;
-            // fall back to a deterministic synthetic id derived from
-            // the user when the context is a non-server SystemContext
-            // (e.g. when invoked from tests).
-            if (context is ISessionSystemContext server &&
-                server.SessionId is { } sid &&
-                !sid.IsNull)
-            {
-                return (sid, context.UserId ?? string.Empty);
-            }
-            // No session id available — synthesise one from the user
-            // identity so tests can still distinguish callers.
-            string userKey = context.UserId ?? "anonymous";
-            return (new NodeId(userKey, 0), userKey);
+            NodeId sessionId = ResolveSessionId(context);
+            return (sessionId, context.UserId ?? string.Empty);
+        }
+
+        /// <summary>
+        /// Resolves a session identifier without deriving identity from a user name.
+        /// </summary>
+        private static NodeId ResolveSessionId(ISystemContext context)
+        {
+            return context is ISessionSystemContext { SessionId: NodeId sessionId } ? sessionId : NodeId.Null;
         }
 
         /// <summary>The default inactivity timeout.</summary>
@@ -520,6 +581,11 @@ namespace Opc.Ua.Di.Server.Locking
             /// Gets or sets whether ownership must be released after request drain.
             /// </summary>
             public bool SessionClosed { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether to release ownership after the final admitted activity completes.
+            /// </summary>
+            public bool ReleaseAfterActivities { get; set; }
         }
 
         /// <summary>

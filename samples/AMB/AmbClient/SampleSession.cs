@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -60,9 +61,10 @@ namespace AmbSample.Client
         public static async Task<SampleSession> ConnectAsync(
             AmbClientOptions options,
             ITelemetryContext telemetry,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            string? expectedServerUri = null)
         {
-            string pkiRoot = GetPrivateStateRoot();
+            string pkiRoot = options.PkiRoot ?? GetPrivateStateRoot();
             var configuration = new ApplicationConfiguration(telemetry)
             {
                 ApplicationName = "AmbClient",
@@ -124,6 +126,16 @@ namespace AmbSample.Client
                         StatusCodes.BadTimeout,
                         "Could not reach {0}.",
                         options.ServerUrl);
+                if (!string.IsNullOrEmpty(expectedServerUri) &&
+                    !string.Equals(
+                        endpointDescription.Server?.ApplicationUri,
+                        expectedServerUri,
+                        StringComparison.Ordinal))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadServerUriInvalid,
+                        "The endpoint does not belong to the requested server application URI.");
+                }
 
                 ManagedSession session = await CreateSessionBuilder(
                     configuration, telemetry, options, endpointDescription)
@@ -246,5 +258,74 @@ namespace AmbSample.Client
         }
 
         private readonly ApplicationInstance m_application;
+    }
+
+    /// <summary>
+    /// Resolves explicitly configured remote server application URIs and owns
+    /// the sample sessions until the traversal finishes.
+    /// </summary>
+    internal sealed class SampleRemoteSessionResolver : IAsyncDisposable
+    {
+        /// <summary>
+        /// Creates the resolver.
+        /// </summary>
+        public SampleRemoteSessionResolver(AmbClientOptions options, ITelemetryContext telemetry)
+        {
+            m_options = options ?? throw new ArgumentNullException(nameof(options));
+            m_telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
+        }
+
+        /// <summary>
+        /// Resolves a server application URI from the command-line mapping.
+        /// </summary>
+        public async Task<ManagedSession> ResolveAsync(string serverUri, CancellationToken cancellationToken)
+        {
+            if (m_sessions.TryGetValue(serverUri, out SampleSession? existing))
+            {
+                return existing.Session;
+            }
+            if (!m_options.RemoteServers.TryGetValue(serverUri, out string? endpointUrl))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadServerUriInvalid,
+                    $"No endpoint URL was configured for remote server '{serverUri}'.");
+            }
+            SampleSession connection = await SampleSession.ConnectAsync(
+                m_options with { ServerUrl = endpointUrl },
+                m_telemetry,
+                cancellationToken,
+                serverUri).ConfigureAwait(false);
+            m_sessions.Add(serverUri, connection);
+            return connection.Session;
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask DisposeAsync()
+        {
+            List<Exception>? failures = null;
+            foreach (SampleSession session in m_sessions.Values)
+            {
+                try
+                {
+                    await session.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception exception)
+                {
+                    (failures ??= []).Add(exception);
+                }
+            }
+            if (failures is { Count: 1 })
+            {
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failures[0]).Throw();
+            }
+            if (failures is { Count: > 1 })
+            {
+                throw new AggregateException("One or more remote AMB sessions could not be disposed.", failures);
+            }
+        }
+
+        private readonly AmbClientOptions m_options;
+        private readonly ITelemetryContext m_telemetry;
+        private readonly Dictionary<string, SampleSession> m_sessions = new(StringComparer.Ordinal);
     }
 }

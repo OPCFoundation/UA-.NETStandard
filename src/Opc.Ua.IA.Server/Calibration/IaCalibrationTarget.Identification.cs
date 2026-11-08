@@ -56,7 +56,7 @@ namespace Opc.Ua.IA.Server
             if (!identity.Manufacturer.IsNull)
             {
                 vendor.AddManufacturer(m_context);
-                vendor.Manufacturer!.Value = identity.Manufacturer;
+                vendor.Manufacturer!.Value = identity.Manufacturer.Copy();
             }
             if (identity.ManufacturerUri != null)
             {
@@ -66,7 +66,7 @@ namespace Opc.Ua.IA.Server
             if (!identity.Model.IsNull)
             {
                 vendor.AddModel(m_context);
-                vendor.Model!.Value = identity.Model;
+                vendor.Model!.Value = identity.Model.Copy();
             }
             if (identity.ProductCode != null)
             {
@@ -129,7 +129,7 @@ namespace Opc.Ua.IA.Server
             if (!identity.ComponentName.IsNull)
             {
                 tag.AddComponentName(m_context);
-                tag.ComponentName!.Value = identity.ComponentName;
+                tag.ComponentName!.Value = identity.ComponentName.Copy();
             }
             AttachNameplateProperties(tag, group);
         }

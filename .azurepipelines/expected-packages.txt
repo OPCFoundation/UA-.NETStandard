@@ -39,6 +39,8 @@ OPCFoundation.NetStandard.Opc.Ua.Di
 OPCFoundation.NetStandard.Opc.Ua.Di.Client
 OPCFoundation.NetStandard.Opc.Ua.Di.Server
 OPCFoundation.NetStandard.Opc.Ua.ECM
+OPCFoundation.NetStandard.Opc.Ua.ECM.Client
+OPCFoundation.NetStandard.Opc.Ua.ECM.Server
 OPCFoundation.NetStandard.Opc.Ua.Extrusion
 OPCFoundation.NetStandard.Opc.Ua.Extrusion.Client
 OPCFoundation.NetStandard.Opc.Ua.Extrusion.Server

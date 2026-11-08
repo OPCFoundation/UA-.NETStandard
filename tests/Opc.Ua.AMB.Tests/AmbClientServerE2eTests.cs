@@ -72,6 +72,65 @@ namespace Opc.Ua.AMB.Tests
         private static readonly string[] s_levels = ["Plant1", "Plant1/Hall3", "Plant1/Hall3/Line2"];
 
         [Test]
+        public async Task RemoteSubAssetsAreFollowedAcrossTwoHostedServersWithoutTakingSessionOwnershipAsync()
+        {
+            const string sourceUri = "urn:localhost:AmbRemoteSource";
+            const string targetUri = "urn:localhost:AmbRemoteTarget";
+            await using Plant source = await Plant.StartAsync("AmbRemoteSource", null).ConfigureAwait(false);
+            await using Plant target = await Plant.StartAsync("AmbRemoteTarget", null).ConfigureAwait(false);
+            uint targetIndex = source.Server.Server.ServerUris.GetIndexOrAppend(targetUri);
+            uint sourceIndex = target.Server.Server.ServerUris.GetIndexOrAppend(sourceUri);
+            NodeState sourceMotor = await source.Server.FindNodeAsync<NodeState>(source.Motor!.NodeId)
+                .ConfigureAwait(false);
+            NodeState targetMotor = await target.Server.FindNodeAsync<NodeState>(target.Motor!.NodeId)
+                .ConfigureAwait(false);
+            ExpandedNodeId remotePump = NodeId.ToExpandedNodeId(
+                target.Pump!.NodeId, target.Server.Server.NamespaceUris).WithServerIndex(targetIndex);
+            sourceMotor.AddReference(Ua.ReferenceTypeIds.HasComponent, false, remotePump);
+            targetMotor.AddReference(Ua.ReferenceTypeIds.HasComponent, false, NodeId.ToExpandedNodeId(
+                source.Pump!.NodeId, source.Server.Server.NamespaceUris).WithServerIndex(sourceIndex));
+            await using Connection local = await Connection.OpenAsync(source.Server, "remote-source")
+                .ConfigureAwait(false);
+            await using Connection remote = await Connection.OpenAsync(target.Server, "remote-target")
+                .ConfigureAwait(false);
+            using var timeout = new CancellationTokenSource(s_timeout);
+            int resolutions = 0;
+            var client = new AmbClient(local.Session, NUnitTelemetryContext.Create(), new AmbClientOptions
+            {
+                MaximumBrowseReferences = 4096,
+                RemoteSessionResolver = (uri, token) =>
+                {
+                    token.ThrowIfCancellationRequested();
+                    Assert.That(uri, Is.EqualTo(targetUri));
+                    resolutions++;
+                    return Task.FromResult(remote.Session);
+                }
+            });
+            var found = new List<AssetSubAssetReference>();
+
+            await foreach (AssetSubAssetReference subAsset in client
+                .EnumerateSubAssetsAcrossServersAsync(source.Pump.NodeId, timeout.Token).ConfigureAwait(false))
+            {
+                found.Add(subAsset);
+            }
+
+            Assert.That(found, Is.EqualTo(new[]
+            {
+                new AssetSubAssetReference(sourceUri, NodeId.ToExpandedNodeId(
+                    source.Motor.NodeId, local.Session.NamespaceUris)),
+                new AssetSubAssetReference(targetUri, NodeId.ToExpandedNodeId(
+                    target.Pump.NodeId, remote.Session.NamespaceUris)),
+                new AssetSubAssetReference(targetUri, NodeId.ToExpandedNodeId(
+                    target.Motor.NodeId, remote.Session.NamespaceUris))
+            }));
+            Assert.That(resolutions, Is.EqualTo(1), "The cycle to the source reuses the root session.");
+            DataValue alive = await remote.Session.ReadValueAsync(
+                Ua.VariableIds.Server_NamespaceArray, timeout.Token).ConfigureAwait(false);
+            Assert.That(alive.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(remote.Session.Disposed, Is.False);
+        }
+
+        [Test]
         public async Task BoundedClientReadsAndEditsThePlantOnABorrowedSessionAsync()
         {
             await using Plant plant = await Plant.StartAsync(

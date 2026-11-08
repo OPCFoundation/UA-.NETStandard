@@ -28,6 +28,9 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
+using Opc.Ua.Server;
 
 namespace Opc.Ua.Di.Server.Locking
 {
@@ -43,10 +46,11 @@ namespace Opc.Ua.Di.Server.Locking
         /// Routes the <c>InitLock</c>, <c>RenewLock</c>, <c>ExitLock</c>
         /// and <c>BreakLock</c> method calls on
         /// <paramref name="lockState"/> through
-        /// <paramref name="service"/>, and seeds the
+        /// <paramref name="service"/>, and binds authoritative reads for the
         /// <c>Locked</c> / <c>LockingClient</c> / <c>LockingUser</c> /
         /// <c>RemainingLockTime</c> property values from the current
-        /// lock state.
+        /// lock state. Method completion publishes the resulting properties.
+        /// Schedule <see cref="RefreshLockStateAsync"/> to publish expiry and session-close changes.
         /// </summary>
         /// <param name="lockState">The <see cref="LockingServicesState"/>
         /// instance (typically the <c>Lock</c> child of a
@@ -75,73 +79,188 @@ namespace Opc.Ua.Di.Server.Locking
             {
                 throw new ArgumentNullException(nameof(service));
             }
-            if (lockState.Locked is { } locked)
+            BindRead(lockState.Locked, service, elementId, static state => new Variant(state.Locked));
+            BindRead(lockState.LockingClient, service, elementId, static state => new Variant(state.LockingClient));
+            BindRead(lockState.LockingUser, service, elementId, static state => new Variant(state.LockingUser));
+            BindRead(lockState.RemainingLockTime, service, elementId,
+                static state => new Variant(state.RemainingLockTimeSeconds * 1000));
+            if (lockState.InitLock != null)
             {
-                locked.Value = service.GetState(elementId).Locked;
-                locked.OnSimpleReadValue = (ISystemContext _, NodeState _, ref Variant value) =>
+                lockState.InitLock.OnCall = null;
+                lockState.InitLock.OnCallAsync = async (ctx, _method, _objectId, context, cancellationToken) =>
                 {
-                    value = Variant.From(service.GetState(elementId).Locked);
-                    return ServiceResult.Good;
+                    cancellationToken.ThrowIfCancellationRequested();
+                    int status = service.InitLock(ctx, elementId, context);
+                    await RefreshAsync(lockState, service, elementId, ctx, cancellationToken)
+                        .ConfigureAwait(false);
+                    return new InitLockMethodStateResult
+                    {
+                        ServiceResult = ServiceResult.Good,
+                        InitLockStatus = status
+                    };
                 };
             }
-            if (lockState.LockingClient is { } client)
-            {
-                client.Value = service.GetState(elementId).LockingClient;
-                client.OnSimpleReadValue = (ISystemContext _, NodeState _, ref Variant value) =>
-                {
-                    value = Variant.From(service.GetState(elementId).LockingClient);
-                    return ServiceResult.Good;
-                };
-            }
-            if (lockState.LockingUser is { } user)
-            {
-                user.Value = service.GetState(elementId).LockingUser;
-                user.OnSimpleReadValue = (ISystemContext _, NodeState _, ref Variant value) =>
-                {
-                    value = Variant.From(service.GetState(elementId).LockingUser);
-                    return ServiceResult.Good;
-                };
-            }
-            if (lockState.RemainingLockTime is { } remaining)
-            {
-                remaining.Value = service.GetState(elementId).RemainingLockTimeSeconds * 1000;
-                remaining.OnSimpleReadValue = (ISystemContext _, NodeState _, ref Variant value) =>
-                {
-                    value = Variant.From(service.GetState(elementId).RemainingLockTimeSeconds * 1000);
-                    return ServiceResult.Good;
-                };
-            }
-            lockState.InitLock?.OnCall = (ctx, _method,
-                                              _objectId, context,
-                                              ref initLockStatus) =>
-                {
-                    initLockStatus = service.InitLock(ctx, elementId, context);
-                    return ServiceResult.Good;
-                };
 
-            lockState.RenewLock?.OnCall = (ctx, _method,
-                                               _objectId,
-                                               ref renewLockStatus) =>
+            if (lockState.RenewLock != null)
+            {
+                lockState.RenewLock.OnCall = null;
+                lockState.RenewLock.OnCallAsync = async (ctx, _method, _objectId, cancellationToken) =>
                 {
-                    renewLockStatus = service.RenewLock(ctx, elementId);
-                    return ServiceResult.Good;
+                    cancellationToken.ThrowIfCancellationRequested();
+                    int status = service.RenewLock(ctx, elementId);
+                    await RefreshAsync(lockState, service, elementId, ctx, cancellationToken)
+                        .ConfigureAwait(false);
+                    return new RenewLockMethodStateResult
+                    {
+                        ServiceResult = ServiceResult.Good,
+                        RenewLockStatus = status
+                    };
                 };
+            }
 
-            lockState.ExitLock?.OnCall = (ctx, _method,
-                                              _objectId,
-                                              ref exitLockStatus) =>
+            if (lockState.ExitLock != null)
+            {
+                lockState.ExitLock.OnCall = null;
+                lockState.ExitLock.OnCallAsync = async (ctx, _method, _objectId, cancellationToken) =>
                 {
-                    exitLockStatus = service.ExitLock(ctx, elementId);
-                    return ServiceResult.Good;
+                    cancellationToken.ThrowIfCancellationRequested();
+                    int status = service.ExitLock(ctx, elementId);
+                    await RefreshAsync(lockState, service, elementId, ctx, cancellationToken)
+                        .ConfigureAwait(false);
+                    return new ExitLockMethodStateResult
+                    {
+                        ServiceResult = ServiceResult.Good,
+                        ExitLockStatus = status
+                    };
                 };
+            }
 
-            lockState.BreakLock?.OnCall = (ctx, _method,
-                                               _objectId,
-                                               ref breakLockStatus) =>
+            if (lockState.BreakLock != null)
+            {
+                lockState.BreakLock.OnCall = null;
+                lockState.BreakLock.OnCallAsync = async (ctx, _method, _objectId, cancellationToken) =>
                 {
-                    breakLockStatus = service.BreakLock(ctx, elementId);
-                    return ServiceResult.Good;
+                    cancellationToken.ThrowIfCancellationRequested();
+                    ServiceResult authorization = RoleAuthorizationGate.CheckAdmin(ctx);
+                    if (ServiceResult.IsBad(authorization))
+                    {
+                        return new BreakLockMethodStateResult
+                        {
+                            ServiceResult = authorization
+                        };
+                    }
+                    int status = service.BreakLock(ctx, elementId);
+                    await RefreshAsync(lockState, service, elementId, ctx, cancellationToken)
+                        .ConfigureAwait(false);
+                    return new BreakLockMethodStateResult
+                    {
+                        ServiceResult = ServiceResult.Good,
+                        BreakLockStatus = status
+                    };
                 };
+            }
+        }
+
+        /// <summary>
+        /// Publishes lease expiry or session-close changes for monitored properties without renewing the lease.
+        /// The address-space owner schedules this alongside its other acquisitions.
+        /// </summary>
+        public static async ValueTask RefreshLockStateAsync(
+            this LockingServicesState lockState,
+            ILockService service,
+            NodeId elementId,
+            ISystemContext context,
+            CancellationToken cancellationToken = default)
+        {
+            if (lockState == null)
+            {
+                throw new ArgumentNullException(nameof(lockState));
+            }
+            if (service == null)
+            {
+                throw new ArgumentNullException(nameof(service));
+            }
+            if (elementId.IsNull)
+            {
+                throw new ArgumentNullException(nameof(elementId));
+            }
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            await RefreshAsync(lockState, service, elementId, context, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Reads the authoritative lease without renewing it, including expiry and session-close changes.
+        /// </summary>
+        private static void BindRead(
+            BaseVariableState? property,
+            ILockService service,
+            NodeId elementId,
+            Func<LockState, Variant> select)
+        {
+            if (property == null)
+            {
+                return;
+            }
+            property.OnSimpleReadValueAsync = (_, _, ct) =>
+            {
+                ct.ThrowIfCancellationRequested();
+                return new ValueTask<AttributeSimpleReadResult>(
+                    new AttributeSimpleReadResult(ServiceResult.Good, select(service.GetState(elementId))));
+            };
+        }
+
+        /// <summary>
+        /// Publishes a method's resulting lease state without requiring a second client read.
+        /// </summary>
+        private static async ValueTask RefreshAsync(
+            LockingServicesState node,
+            ILockService service,
+            NodeId elementId,
+            ISystemContext context,
+            CancellationToken cancellationToken)
+        {
+            if (!UpdateLockProperties(node, service, elementId))
+            {
+                return;
+            }
+            await node.ClearChangeMasksAsync(context, true, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Updates available lock properties from the authoritative service state.
+        /// </summary>
+        private static bool UpdateLockProperties(
+            LockingServicesState node,
+            ILockService service,
+            NodeId elementId)
+        {
+            if (node.Locked == null && node.LockingClient == null &&
+                node.LockingUser == null && node.RemainingLockTime == null)
+            {
+                return false;
+            }
+            LockState state = service.GetState(elementId);
+            if (node.Locked != null)
+            {
+                node.Locked.Value = state.Locked;
+            }
+            if (node.LockingClient != null)
+            {
+                node.LockingClient.Value = state.LockingClient;
+            }
+            if (node.LockingUser != null)
+            {
+                node.LockingUser.Value = state.LockingUser;
+            }
+            if (node.RemainingLockTime != null)
+            {
+                node.RemainingLockTime.Value = state.RemainingLockTimeSeconds * 1000;
+            }
+            return true;
         }
     }
 }
