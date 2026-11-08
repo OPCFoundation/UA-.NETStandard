@@ -39,6 +39,7 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Gds.Server.Diagnostics;
 using Opc.Ua.Gds.Server.Identity;
+using Opc.Ua.Gds.Server.Onboarding;
 using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
@@ -109,6 +110,13 @@ namespace Opc.Ua.Gds.Server
         /// Gets or sets the trust-list manager for named store access.
         /// </summary>
         public ICertificateTrustListManager? TrustListManager { get; set; }
+
+        /// <summary>
+        /// Gets or sets the optional device-onboarding gate for certificate requests and delivery.
+        /// Configure before loading the address space. A known onboarding relation must pass this gate;
+        /// unrelated applications retain the existing GDS role and privilege checks.
+        /// </summary>
+        public IDeviceRegistrarCertificateAuthorization? DeviceRegistrarCertificateAuthorization { get; set; }
 
         private readonly NodeId m_directoryId;
         private readonly NodeId m_defaultApplicationGroupId;
@@ -215,6 +223,10 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
+        // Everything the Directory object, its certificate groups and
+        // the authorization service need is resolved against the
+        // loaded address space here, once, from the source-generated
+        // CreateAddressSpaceAsync.
         /// <summary>
         /// Brings the GDS up and binds its handlers to the loaded model.
         /// </summary>
@@ -249,7 +261,7 @@ namespace Opc.Ua.Gds.Server
                 throw new ArgumentNullException(nameof(builder));
             }
 
-            m_certTypeMap = CreateCertificateTypeMap();
+            m_certTypeMap = s_certificateTypeMap;
             m_database.NamespaceIndex = ApplicationsNamespaceIndex;
             m_request.NamespaceIndex = ApplicationsNamespaceIndex;
 
@@ -320,27 +332,27 @@ namespace Opc.Ua.Gds.Server
             SelfAdministered<GetApplicationMethodState>(
                     directory, BrowseNames.GetApplication)
                 .OnCall = OnGetApplication;
-            SelfAdministered<StartNewKeyPairRequestMethodState>(
+            OnboardingCertificateMethod<StartNewKeyPairRequestMethodState>(
                     directory, BrowseNames.StartNewKeyPairRequest)
-                .OnCall = OnStartNewKeyPairRequest;
-            SelfAdministered<StartSigningRequestMethodState>(
+                .OnCallAsync = OnStartNewKeyPairRequestAsync;
+            OnboardingCertificateMethod<StartSigningRequestMethodState>(
                     directory, BrowseNames.StartSigningRequest)
                 .OnCallAsync = OnStartSigningRequestAsync;
-            SelfAdministered<FinishRequestMethodState>(
+            OnboardingCertificateMethod<FinishRequestMethodState>(
                     directory, BrowseNames.FinishRequest)
                 .OnCallAsync = OnFinishRequestAsync;
             SelfAdministered<GetCertificateGroupsMethodState>(
                     directory, BrowseNames.GetCertificateGroups)
                 .OnCall = OnGetCertificateGroups;
-            SelfAdministered<GetTrustListMethodState>(
+            OnboardingCertificateMethod<GetTrustListMethodState>(
                     directory, BrowseNames.GetTrustList)
-                .OnCall = OnGetTrustList;
+                .OnCallAsync = OnGetTrustListAsync;
             SelfAdministered<GetCertificateStatusMethodState>(
                     directory, BrowseNames.GetCertificateStatus)
                 .OnCall = OnGetCertificateStatus;
-            SelfAdministered<GetCertificatesMethodState>(
+            OnboardingCertificateMethod<GetCertificatesMethodState>(
                     directory, BrowseNames.GetCertificates)
-                .OnCall = OnGetCertificates;
+                .OnCallAsync = OnGetCertificatesAsync;
         }
 
         /// <summary>
@@ -526,6 +538,11 @@ namespace Opc.Ua.Gds.Server
                 new TrustList.SecureAccess(
                     (context, _) => AuthorizationHelper.HasTrustListWriteAccess(context)),
                 Server.Telemetry);
+            if (DeviceRegistrarCertificateAuthorization != null)
+            {
+                trustList.SetReadAuthorization(AuthorizeOnboardingTrustListReadAsync);
+                ConfigureOnboardingTrustListMethods(certificateGroup.DefaultTrustList);
+            }
             if (!string.Equals(groupId, "DefaultHttpsGroup", StringComparison.OrdinalIgnoreCase) &&
                 !string.Equals(groupId, "DefaultUserTokenGroup", StringComparison.OrdinalIgnoreCase))
             {
@@ -1025,6 +1042,14 @@ namespace Opc.Ua.Gds.Server
 #endif
                 }
             };
+        }
+
+        /// <summary>
+        /// Gets the GDS certificate type identifier associated with a supported certificate type node.
+        /// </summary>
+        internal static bool TryGetCertificateTypeName(NodeId certificateTypeId, out string? certificateTypeName)
+        {
+            return s_certificateTypeMap.TryGetValue(certificateTypeId, out certificateTypeName);
         }
 
         /// <summary>
@@ -1822,20 +1847,12 @@ namespace Opc.Ua.Gds.Server
         }
 #endif
 
-        private ServiceResult OnGetCertificates(
-            ISystemContext context,
-            MethodState method,
-            NodeId objectId,
+        private ServiceResult GetCertificatesCore(
             NodeId applicationId,
             NodeId certificateGroupId,
             ref ArrayOf<NodeId> certificateTypeIds,
             ref ArrayOf<ByteString> certificates)
         {
-            AuthorizationHelper.HasAuthorization(
-                context,
-                AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
-                applicationId);
-
             var certificateTypeIdsList = new List<NodeId>();
             var certificatesList = new List<ByteString>();
 
@@ -2039,6 +2056,50 @@ namespace Opc.Ua.Gds.Server
             return [.. names];
         }
 
+        /// <summary>
+        /// Authorizes the exact onboarding relation before accepting a new private-key request.
+        /// </summary>
+        internal async ValueTask<StartNewKeyPairRequestMethodStateResult> OnStartNewKeyPairRequestAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            NodeId applicationId,
+            NodeId certificateGroupId,
+            NodeId certificateTypeId,
+            string subjectName,
+            ArrayOf<string> domainNames,
+            string privateKeyFormat,
+            string privateKeyPassword,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
+                await AuthorizeCertificateApplicationAsync(context, applicationId, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception error)
+            {
+                Server.ReportCertificateRequestedAuditEvent(
+                    context, objectId, method,
+                    [
+                        applicationId, certificateGroupId, certificateTypeId, subjectName, domainNames,
+                        privateKeyFormat, Diagnostics.AuditEvents.RedactedPrivateKeyPassword
+                    ],
+                    certificateGroupId, certificateTypeId, m_logger, error);
+                throw;
+            }
+            NodeId requestId = default;
+            ServiceResult result = StartNewKeyPairRequestCore(
+                context, method, objectId, applicationId, certificateGroupId, certificateTypeId,
+                subjectName, domainNames, privateKeyFormat, privateKeyPassword, ref requestId,
+                authorizationChecked: true);
+            return new StartNewKeyPairRequestMethodStateResult { RequestId = requestId, ServiceResult = result };
+        }
+
+        /// <summary>
+        /// Retains the synchronous internal entry point for callers without asynchronous onboarding authorization.
+        /// </summary>
         internal ServiceResult OnStartNewKeyPairRequest(
             ISystemContext context,
             MethodState method,
@@ -2051,6 +2112,29 @@ namespace Opc.Ua.Gds.Server
             string privateKeyFormat,
             string privateKeyPassword,
             ref NodeId requestId)
+        {
+            return StartNewKeyPairRequestCore(
+                context, method, objectId, applicationId, certificateGroupId, certificateTypeId,
+                subjectName, domainNames, privateKeyFormat, privateKeyPassword, ref requestId,
+                authorizationChecked: false);
+        }
+
+        /// <summary>
+        /// Performs the existing synchronous request-store operation after its caller's authorization.
+        /// </summary>
+        private ServiceResult StartNewKeyPairRequestCore(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            NodeId applicationId,
+            NodeId certificateGroupId,
+            NodeId certificateTypeId,
+            string subjectName,
+            ArrayOf<string> domainNames,
+            string privateKeyFormat,
+            string privateKeyPassword,
+            ref NodeId requestId,
+            bool authorizationChecked)
         {
             // Per OPC 10000-12 §7.6.4 / §7.9.3, CertificateRequestedAuditEvent
             // is emitted after the method outcome is known so Status reflects
@@ -2066,10 +2150,18 @@ namespace Opc.Ua.Gds.Server
                 // OPC 10000-12 §7.9.4: the private key password is an input
                 // and the private key an output, so the channel must be encrypted.
                 AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
-                AuthorizationHelper.HasAuthorization(
-                    context,
-                    AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
-                    applicationId);
+                if (!authorizationChecked)
+                {
+                    if (DeviceRegistrarCertificateAuthorization != null)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadNotSupported, "Onboarding authorization requires the asynchronous handler.");
+                    }
+                    AuthorizationHelper.HasAuthorization(
+                        context,
+                        AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
+                        applicationId);
+                }
 
                 ApplicationRecordDataType? application = m_database.GetApplication(applicationId);
 
@@ -2253,10 +2345,8 @@ namespace Opc.Ua.Gds.Server
             {
                 // OPC 10000-12 §7.9.3: shall be called from an encrypted SecureChannel.
                 AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
-                AuthorizationHelper.HasAuthorization(
-                    context,
-                    AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
-                    applicationId);
+                await AuthorizeCertificateApplicationAsync(context, applicationId, cancellationToken)
+                    .ConfigureAwait(false);
 
                 ApplicationRecordDataType? application = m_database.GetApplication(applicationId);
 
@@ -2417,11 +2507,47 @@ namespace Opc.Ua.Gds.Server
             // OPC 10000-12 §7.9.5: the private key is returned, so the
             // channel must be encrypted (Bad_SecurityModeInsufficient).
             AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
-            AuthorizationHelper.HasAuthorization(
-                context,
-                AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
-                applicationId);
+            bool onboarding = await AuthorizeCertificateApplicationAsync(context, applicationId, cancellationToken)
+                .ConfigureAwait(false);
+            ICertificateRequestIssuanceStore? issuanceStore = CertificateRequestIssuanceStore;
+            if (onboarding && issuanceStore == null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError, "Onboarding certificate completion requires an issuance store.");
+            }
+            if (issuanceStore == null)
+            {
+                return await FinishCertificateRequestCoreAsync(
+                    context, method, objectId, applicationId, requestId, null, cancellationToken).ConfigureAwait(false);
+            }
+            await m_finishRequestGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                // Authorization may have changed while another completion was publishing its receipt.
+                await AuthorizeCertificateApplicationAsync(context, applicationId, cancellationToken)
+                    .ConfigureAwait(false);
+                return await FinishCertificateRequestCoreAsync(
+                    context, method, objectId, applicationId, requestId, issuanceStore, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                m_finishRequestGate.Release();
+            }
+        }
 
+        /// <summary>
+        /// Completes an authorized request, retaining its exact issuance before any device privilege changes.
+        /// </summary>
+        private async ValueTask<FinishRequestMethodStateResult> FinishCertificateRequestCoreAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            NodeId applicationId,
+            NodeId requestId,
+            ICertificateRequestIssuanceStore? issuanceStore,
+            CancellationToken cancellationToken)
+        {
             var result = new FinishRequestMethodStateResult();
 
             ApplicationRecordDataType? application = m_database.GetApplication(applicationId);
@@ -2491,138 +2617,147 @@ namespace Opc.Ua.Gds.Server
                 return result;
             }
 
-            // distinguish cert creation at approval/complete time
-            Certificate? certificate = null;
-            if (result.Certificate.IsEmpty)
+            if (issuanceStore != null)
             {
-                state = m_request.ReadRequest(
-                    applicationId,
-                    requestId,
-                    out certificateGroupId,
-                    out certificateTypeId,
-                    out ByteString certificateRequest,
-                    out string? subjectName,
-                    out string[]? domainNames,
-                    out string? privateKeyFormat,
-                    out ReadOnlySpan<char> privateKeyPassword);
-
-                result.ServiceResult = VerifyApprovedState(state)!;
-                if (result.ServiceResult != null)
+                CertificateRequestIssuance receipt = await issuanceStore.GetOrCreateAsync(
+                    applicationId, requestId,
+                    async token =>
+                    {
+                        FinishRequestMethodStateResult issued = await GenerateCertificateIssuanceAsync(
+                            application, applicationId, requestId, certificateGroup, certificateTypeNodeId,
+                            generatedCertificate, privateKey, token).ConfigureAwait(false);
+                        if (ServiceResult.IsBad(issued.ServiceResult))
+                        {
+                            throw new ServiceResultException(issued.ServiceResult);
+                        }
+                        return new CertificateRequestIssuance(
+                            certificateGroupId!, certificateTypeId!, issued.Certificate, issued.PrivateKey,
+                            issued.IssuerCertificates);
+                    },
+                    cancellationToken).ConfigureAwait(false);
+                if (!string.Equals(receipt.CertificateGroupId, certificateGroupId, StringComparison.Ordinal) ||
+                    !string.Equals(receipt.CertificateTypeId, certificateTypeId, StringComparison.Ordinal) ||
+                    (!generatedCertificate.IsEmpty && generatedCertificate != receipt.Certificate) ||
+                    (!privateKey.IsEmpty && privateKey != receipt.PrivateKey))
                 {
-                    return result;
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidState, "The retained issuance does not match the approved request.");
                 }
-
-                if (!certificateRequest.IsEmpty)
-                {
-                    try
-                    {
-                        certificate = await certificateGroup.SigningRequestAsync(
-                            application,
-                            certificateTypeNodeId,
-                            GetDefaultDomainNames(application),
-                            certificateRequest,
-                            cancellationToken).ConfigureAwait(false);
-                    }
-                    catch (Exception e)
-                    {
-                        m_logger.FinishRequestIssueFailed(e, requestId, application.ApplicationUri);
-                        result.ServiceResult = CreateIssueFailureResult(
-                            e,
-                            "Certificate",
-                            applicationId,
-                            application);
-                        return result;
-                    }
-                }
-                else
-                {
-                    X509Certificate2KeyPair? newKeyPair = null;
-                    try
-                    {
-                        newKeyPair = await certificateGroup.NewKeyPairRequestAsync(
-                            application,
-                            certificateTypeNodeId,
-                            subjectName!,
-                            domainNames!,
-                            privateKeyFormat!,
-                            privateKeyPassword.ToArray(),
-                            cancellationToken).ConfigureAwait(false);
-                    }
-                    catch (Exception e)
-                    {
-                        m_logger.FinishRequestIssueFailed(e, requestId, application.ApplicationUri);
-                        result.ServiceResult = CreateIssueFailureResult(
-                            e,
-                            "New Key Pair Certificate",
-                            applicationId,
-                            application);
-                        return result;
-                    }
-
-                    certificate = newKeyPair.Certificate;
-                    result.PrivateKey = newKeyPair.PrivateKey;
-                }
-
-                result.Certificate = certificate.RawData.ToByteString();
+                result.Certificate = receipt.Certificate;
+                result.PrivateKey = receipt.PrivateKey;
+                result.IssuerCertificates = receipt.IssuerCertificates;
             }
             else
             {
-                certificate = Certificate.FromRawData(result.Certificate);
+                result = await GenerateCertificateIssuanceAsync(
+                    application, applicationId, requestId, certificateGroup, certificateTypeNodeId,
+                    generatedCertificate, privateKey, cancellationToken).ConfigureAwait(false);
+                if (ServiceResult.IsBad(result.ServiceResult))
+                {
+                    return result;
+                }
             }
 
-            // Per OPC 10000-12 §7.6.6 FinishRequest returns the chain of
-            // issuer certificates so the application can validate the new
-            // certificate without depending on its local issuer store. The
-            // chain is built from the in-memory CertificateGroup state to
-            // avoid contending with concurrent SigningRequestAsync /
-            // NewKeyPairRequestAsync writes against the AuthoritiesStore.
+            if (DeviceRegistrarCertificateAuthorization is { } onboarding)
+            {
+                await onboarding.RecordCertificateIssuedAsync(
+                    context, application, result.Certificate, cancellationToken).ConfigureAwait(false);
+            }
+
+            await PublishCertificateIssuanceAsync(
+                applicationId, requestId, certificateGroup, certificateTypeNodeId, result.Certificate,
+                cancellationToken).ConfigureAwait(false);
+
+            // FinishRequest has only applicationId/requestId inputs. Never place private-key output in audit.
+            ArrayOf<Variant> inputArguments = [applicationId, requestId];
+            Server.ReportCertificateDeliveredAuditEvent(context, objectId, method, inputArguments, m_logger);
+
+            result.ServiceResult = ServiceResult.Good;
+            return result;
+        }
+
+        /// <summary>
+        /// Produces the certificate, private-key output and issuer chain without publishing device privilege.
+        /// </summary>
+        private async ValueTask<FinishRequestMethodStateResult> GenerateCertificateIssuanceAsync(
+            ApplicationRecordDataType application,
+            NodeId applicationId,
+            NodeId requestId,
+            ICertificateGroup certificateGroup,
+            NodeId certificateTypeNodeId,
+            ByteString generatedCertificate,
+            ByteString privateKey,
+            CancellationToken cancellationToken)
+        {
+            var result = new FinishRequestMethodStateResult
+            {
+                Certificate = generatedCertificate,
+                PrivateKey = privateKey
+            };
+            Certificate? certificate = null;
             try
             {
-                result.IssuerCertificates = BuildIssuerCertificateChain(
-                    certificate,
-                    certificateGroup,
-                    certificateTypeNodeId);
-
-                // store new app certificate
-                var certificateStoreIdentifier = new CertificateStoreIdentifier(
-                    m_globalDiscoveryServerConfiguration.ApplicationCertificatesStorePath!);
-                using (ICertificateStore store = certificateStoreIdentifier.OpenStore(Server.Telemetry))
+                if (generatedCertificate.IsEmpty)
                 {
-                    if (store != null)
+                    CertificateRequestState state = m_request.ReadRequest(
+                        applicationId, requestId, out _, out _,
+                        out ByteString certificateRequest, out string? subjectName,
+                        out string[]? domainNames, out string? privateKeyFormat,
+                        out ReadOnlySpan<char> privateKeyPassword);
+                    result.ServiceResult = VerifyApprovedState(state)!;
+                    if (result.ServiceResult != null)
                     {
-                        await store.AddAsync(certificate, null, cancellationToken).ConfigureAwait(false);
+                        return result;
                     }
+                    try
+                    {
+                        if (!certificateRequest.IsEmpty)
+                        {
+                            certificate = await certificateGroup.SigningRequestAsync(
+                                application, certificateTypeNodeId, GetDefaultDomainNames(application),
+                                certificateRequest, cancellationToken).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            char[] password = privateKeyPassword.ToArray();
+                            try
+                            {
+                                X509Certificate2KeyPair pair = await certificateGroup.NewKeyPairRequestAsync(
+                                    application, certificateTypeNodeId, subjectName!, domainNames!, privateKeyFormat!,
+                                    password, cancellationToken).ConfigureAwait(false);
+                                certificate = pair.Certificate;
+                                result.PrivateKey = pair.PrivateKey;
+                            }
+                            finally
+                            {
+                                Array.Clear(password, 0, password.Length);
+                            }
+                        }
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch (Exception error)
+                    {
+                        m_logger.FinishRequestIssueFailed(error, requestId, application.ApplicationUri);
+                        result.ServiceResult = CreateIssueFailureResult(
+                            error, certificateRequest.IsEmpty ? "New Key Pair Certificate" : "Certificate",
+                            applicationId, application);
+                        return result;
+                    }
+                    result.Certificate = certificate.RawData.ToByteString();
                 }
-
-                m_database.SetApplicationCertificate(
-                    applicationId,
-                    m_certTypeMap[certificateTypeNodeId],
-                    result.Certificate);
-
-                m_database.SetApplicationTrustLists(
-                    applicationId,
-                    m_certTypeMap[certificateTypeNodeId],
-                    certificateGroup.Configuration.TrustedListPath);
-
-                m_request.AcceptRequest(requestId, result.Certificate);
-
-                // Per OPC 10000-12 §7.6.6 the FinishRequest method takes
-                // only (applicationId, requestId) as input. The previous
-                // implementation included the returned PrivateKey in the audit
-                // payload, which would leak the secret. Only true input
-                // arguments are recorded; if a private key needs to be reflected
-                // in audit it must be passed via the redacted placeholder.
-                ArrayOf<Variant> inputArguments = [applicationId, requestId];
-                Server.ReportCertificateDeliveredAuditEvent(context, objectId, method, inputArguments, m_logger);
-
-                result.ServiceResult = ServiceResult.Good;
+                else
+                {
+                    certificate = Certificate.FromRawData(generatedCertificate);
+                }
+                result.IssuerCertificates = BuildIssuerCertificateChain(
+                    certificate, certificateGroup, certificateTypeNodeId);
                 return result;
             }
             finally
             {
-                // Dispose the local owning handle even if any of the store /
-                // database / audit operations above throw (the certificate's
-                // raw data was already copied into result.Certificate).
                 certificate?.Dispose();
             }
         }
@@ -2666,11 +2801,27 @@ namespace Opc.Ua.Gds.Server
             NodeId certificateGroupId,
             ref NodeId trustListId)
         {
+            if (DeviceRegistrarCertificateAuthorization != null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "Onboarding authorization requires the asynchronous handler.");
+            }
             AuthorizationHelper.HasAuthorization(
                 context,
                 AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
                 applicationId);
 
+            return GetTrustListCore(applicationId, certificateGroupId, ref trustListId);
+        }
+
+        /// <summary>
+        /// Resolves the group TrustList after the caller's application-specific authorization.
+        /// </summary>
+        private ServiceResult GetTrustListCore(
+            NodeId applicationId,
+            NodeId certificateGroupId,
+            ref NodeId trustListId)
+        {
             ApplicationRecordDataType? application = m_database.GetApplication(applicationId);
 
             if (application == null)
@@ -3355,6 +3506,14 @@ namespace Opc.Ua.Gds.Server
             {
                 failures.Add(error);
             }
+            try
+            {
+                m_finishRequestGate.Dispose();
+            }
+            catch (Exception error) when (error is not OutOfMemoryException)
+            {
+                failures.Add(error);
+            }
             foreach (ICertificateGroup certificateGroup in m_ownedCertificateGroups)
             {
                 try
@@ -3401,6 +3560,7 @@ namespace Opc.Ua.Gds.Server
         private readonly Dictionary<NodeId, ICertificateGroup> m_certificateGroups;
         private Dictionary<NodeId, string> m_certTypeMap = [];
         private IKeyCredentialRequestStore? m_keyCredentialStore;
+        private static readonly Dictionary<NodeId, string> s_certificateTypeMap = CreateCertificateTypeMap();
 
         /// <summary>
         /// Gets or sets the key-credential request store used by

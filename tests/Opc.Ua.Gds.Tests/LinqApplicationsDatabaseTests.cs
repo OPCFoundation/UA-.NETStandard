@@ -292,6 +292,33 @@ namespace Opc.Ua.Gds.Tests
                 Is.EqualTo(CertificateRequestState.Approved));
         }
 
+        /// <summary>
+        /// Pending signing requests retain recovery evidence without publishing issued credentials.
+        /// </summary>
+        [Test]
+        public void ReadPendingSigningRequestRetainsRecoveryEvidence()
+        {
+            var database = new LinqApplicationsDatabase();
+            NodeId application = database.RegisterApplication(CreateServerApplication("urn:test:a", "ServerA"));
+            ByteString csr = ByteString.From([1, 2, 3]);
+            NodeId request = database.StartSigningRequest(
+                application, "DefaultApplicationGroup", "RsaSha256ApplicationCertificateType", csr, "admin");
+
+            Assert.That(database.ReadRequest(application, request,
+                out string? group, out string? type, out ByteString retainedCsr,
+                out _, out _, out _, out _), Is.EqualTo(CertificateRequestState.New));
+            Assert.That(group, Is.EqualTo("DefaultApplicationGroup"));
+            Assert.That(type, Is.EqualTo("RsaSha256ApplicationCertificateType"));
+            Assert.That(retainedCsr, Is.EqualTo(csr));
+            Assert.That(database.FinishRequest(application, request,
+                out string? finishedGroup, out string? finishedType, out ByteString certificate,
+                out ByteString privateKey), Is.EqualTo(CertificateRequestState.New));
+            Assert.That(finishedGroup, Is.Null);
+            Assert.That(finishedType, Is.Null);
+            Assert.That(certificate.IsEmpty, Is.True);
+            Assert.That(privateKey.IsEmpty, Is.True);
+        }
+
         [Test]
         public void StartRequestForAnotherGroupKeepsFirstRequestPending()
         {

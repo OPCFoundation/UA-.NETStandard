@@ -30,11 +30,40 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Gds.Server.Onboarding;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
 
 namespace Opc.Ua.Gds.Server.Hosting
 {
+    /// <summary>
+    /// Selects the registrar namespace and issuance gate for the hosted GDS, not a cohosted regular server.
+    /// </summary>
+    internal sealed class GdsDeviceRegistrarRegistration
+    {
+        /// <summary>
+        /// Borrows the container-owned registrar factory and its certificate authorization.
+        /// </summary>
+        public GdsDeviceRegistrarRegistration(
+            DeviceRegistrarNodeManagerFactory factory,
+            IDeviceRegistrarCertificateAuthorization certificateAuthorization)
+        {
+            Factory = factory ?? throw new ArgumentNullException(nameof(factory));
+            CertificateAuthorization = certificateAuthorization ??
+                throw new ArgumentNullException(nameof(certificateAuthorization));
+        }
+
+        /// <summary>
+        /// Gets the registrar factory selected through the GDS builder.
+        /// </summary>
+        public DeviceRegistrarNodeManagerFactory Factory { get; }
+
+        /// <summary>
+        /// Gets the argument-specific issuance gate selected for that registrar.
+        /// </summary>
+        public IDeviceRegistrarCertificateAuthorization CertificateAuthorization { get; }
+    }
+
     /// <summary>
     /// Records a call of the GDS builder's <c>AddDefaultIdentityAuthenticators</c>.
     /// </summary>
