@@ -29,6 +29,7 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -38,8 +39,12 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
+using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
 using Opc.Ua.Identity;
+using Opc.Ua.Security.Certificates;
+using OnboardingClientSample;
+using DeviceRegistrarTypeClient = Opc.Ua.Onboarding.DeviceRegistrarTypeClient;
 
 try
 {
@@ -49,6 +54,15 @@ try
     builder.Logging.AddConsole();
     builder.Logging.SetMinimumLevel(LogLevel.Error);
 
+    int timeoutSeconds = 90;
+    string? configuredTimeout = builder.Configuration["operationTimeoutSeconds"];
+    if (configuredTimeout != null &&
+        (!int.TryParse(configuredTimeout, out timeoutSeconds) || timeoutSeconds is < 1 or > 3600))
+    {
+        throw new ArgumentException("--operationTimeoutSeconds must be an integer from 1 to 3600.");
+    }
+    using var operation = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
+    CancellationToken ct = operation.Token;
     string endpoint = builder.Configuration["endpoint"] ??
         "opc.tcp://localhost:62560/OnboardingRegistrar";
     string pkiRoot = builder.Configuration["pkiRoot"] ??
@@ -59,6 +73,47 @@ try
     bool useAnonymous = bool.TryParse(
         builder.Configuration["anonymous"],
         out bool anonymous) && anonymous;
+    bool runPull = bool.TryParse(builder.Configuration["pull"], out bool pull) && pull;
+    OnboardingSoftwareStatus? softwareStatus =
+        OnboardingSoftwareStatus.FromConfiguration(builder.Configuration);
+    string? externalAuthentication = builder.Configuration["externalAuthentication"];
+    if (externalAuthentication != null && !bool.TryParse(externalAuthentication, out _))
+    {
+        throw new ArgumentException("--externalAuthentication must be true or false.");
+    }
+    bool runExternalAuthentication = bool.TryParse(externalAuthentication, out bool external) && external;
+    if (runExternalAuthentication && (!runPull ||
+        builder.Configuration["signingJournal"] != null ||
+        builder.Configuration["resumeApplicationId"] != null ||
+        builder.Configuration["resumeRequestId"] != null ||
+        builder.Configuration["resumeSigningKeyCertificate"] != null ||
+        builder.Configuration["exportSigningKeyCertificate"] != null ||
+        builder.Configuration["deviceTicket"] != null ||
+        builder.Configuration["compositeTicket"] != null ||
+        (bool.TryParse(builder.Configuration["prepareTickets"], out bool prepare) && prepare)))
+    {
+        throw new ArgumentException(
+            "External authentication requires --pull and installed DCA credentials; " +
+            "omit ticket and recovery options.");
+    }
+    string? signingJournal = builder.Configuration["signingJournal"];
+    string? signingKeyStore = builder.Configuration["signingKeyStore"];
+    bool discardSigningRequest =
+        bool.TryParse(builder.Configuration["discardSigningRequest"], out bool discard) && discard;
+    if ((signingJournal == null) != (signingKeyStore == null) || (signingJournal != null && !runPull))
+    {
+        throw new ArgumentException("--signingJournal and --signingKeyStore are used together with --pull.");
+    }
+    if (discardSigningRequest && signingJournal == null)
+    {
+        throw new ArgumentException("--discardSigningRequest requires --signingJournal and --signingKeyStore.");
+    }
+    if (signingJournal != null && (builder.Configuration["resumeApplicationId"] != null ||
+        builder.Configuration["resumeRequestId"] != null ||
+        builder.Configuration["resumeSigningKeyCertificate"] != null))
+    {
+        throw new ArgumentException("The --resume* options cannot be combined with --signingJournal.");
+    }
     IClientIdentityProvider? identityProvider = null;
     if (!useAnonymous)
     {
@@ -74,7 +129,7 @@ try
             await passwordStore.SetAsync(
                     passwordId,
                     passwordBytes,
-                    CancellationToken.None)
+                    ct)
                 .ConfigureAwait(false);
         }
         finally
@@ -92,12 +147,13 @@ try
         .AddClient(options =>
         {
             options.ApplicationName = "OnboardingClient";
+            options.SubjectName = Utils.ReplaceDCLocalhost("CN=OnboardingClient, O=OPC Foundation, DC=localhost");
             options.ApplicationUri =
                 "urn:localhost:OPCFoundation:OnboardingClient";
             options.ProductUri =
                 "uri:opcfoundation.org:UA-.NETStandard:OnboardingClient";
             options.PkiRoot = pkiRoot;
-            options.AutoAcceptUntrustedCertificates = true;
+            options.AutoAcceptUntrustedCertificates = false;
             options.RejectSHA1SignedCertificates = true;
             options.MinimumCertificateKeySize = 2048;
             options.Session = new ManagedSessionOptions
@@ -116,78 +172,272 @@ try
     {
         clientBuilder.AddIdentityProvider(identity => identity.Add(identityProvider));
     }
-    clientBuilder
-        .AddGdsClient()
-        .AddOnboardingClient();
+    IGdsClientBuilder gds = clientBuilder.AddGdsClient().AddOnboardingClient();
+    ManagedSession? selectedSession = null;
+    if (runPull)
+    {
+        builder.Services.AddSingleton(services => new OnboardingDeviceCredentials(
+            services.GetRequiredService<IOpcUaApplicationConfigurationProvider>().Configuration,
+            services.GetRequiredService<ITelemetryContext>(),
+            services.GetServices<ICertificateStoreProvider>().ToArray().ToArrayOf()));
+        builder.Services.AddSingleton<IPullDcaIdentityProvider>(services =>
+            services.GetRequiredService<OnboardingDeviceCredentials>());
+        builder.Services.AddSingleton<IPullDcaCredentialProvider>(services =>
+            services.GetRequiredService<OnboardingDeviceCredentials>());
+        if (signingJournal != null)
+        {
+            builder.Services.AddSingleton<IPullDcaSigningRecoveryProvider>(services =>
+                services.GetRequiredService<OnboardingDeviceCredentials>());
+        }
+        builder.Services.AddSingleton<Func<PullDcaRegistrar, CancellationToken, ValueTask<ManagedSession>>>(
+            (_, cancellationToken) =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                ManagedSession session = selectedSession ??
+                    throw new InvalidOperationException("The sample has not connected to its selected registrar.");
+                if (session.Disposed)
+                {
+                    throw new ObjectDisposedException(nameof(ManagedSession));
+                }
+                return new ValueTask<ManagedSession>(session);
+            });
+        gds.AddPullDcaWorkflow();
+    }
 
     using IHost host = builder.Build();
-    await host.StartAsync(CancellationToken.None).ConfigureAwait(false);
+    if (runExternalAuthentication)
+    {
+        host.Services.GetRequiredService<IOpcUaApplicationConfigurationProvider>()
+            .Application.DisableCertificateAutoCreation = true;
+    }
+    if (bool.TryParse(builder.Configuration["prepareTickets"], out bool prepareTickets) && prepareTickets)
+    {
+        string registrarPkiRoot = builder.Configuration["registrarPkiRoot"] ??
+            throw new InvalidOperationException("Set --registrarPkiRoot when preparing demo certificates.");
+        string trustPath = builder.Configuration["ticketAuthorityTrustPath"] ??
+            throw new InvalidOperationException("Set --ticketAuthorityTrustPath when preparing demo tickets.");
+        await OnboardingDemoTickets.PrepareAsync(
+            pkiRoot, registrarPkiRoot, trustPath, builder.Configuration["untrustedClientPkiRoot"],
+            host.Services.GetRequiredService<ITelemetryContext>(),
+            ct)
+            .ConfigureAwait(false);
+        Console.WriteLine("ONBOARDING_TICKETS_READY");
+        return 0;
+    }
+    await host.StartAsync(ct).ConfigureAwait(false);
     try
     {
         Func<CancellationToken, Task<ManagedSession>> connect =
             host.Services.GetRequiredService<
                 Func<CancellationToken, Task<ManagedSession>>>();
-        ManagedSession session = await connect(CancellationToken.None)
+        ManagedSession session = await connect(ct)
             .ConfigureAwait(false);
-        await using (session.ConfigureAwait(false))
+        await using var sessionLifetime = session.ConfigureAwait(false);
+        selectedSession = session;
+        if (softwareStatus != null)
         {
-            Console.WriteLine("Server namespaces:");
-            for (int i = 0; i < session.NamespaceUris.Count; i++)
-            {
-                Console.WriteLine($"  ns={i}: {session.NamespaceUris.GetString((uint)i)}");
-            }
-            NodeId registrarId = ExpandedNodeId.ToNodeId(
-                Opc.Ua.Onboarding.ObjectIds.DeviceRegistrar_Administration,
-                session.NamespaceUris);
-            if (registrarId.IsNull)
+            NodeId deviceRegistrarId = ExpandedNodeId.ToNodeId(
+                Opc.Ua.Onboarding.ObjectIds.DeviceRegistrar, session.NamespaceUris);
+            if (deviceRegistrarId.IsNull)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadNodeIdUnknown,
                     "The server did not publish the OPC 10000-21 namespace.");
             }
-
-            Func<NodeId, CancellationToken, ValueTask<OnboardingClient>>
-                createOnboardingClient = host.Services.GetRequiredService<
-                    Func<NodeId, CancellationToken, ValueTask<OnboardingClient>>>();
-            OnboardingClient onboarding = await createOnboardingClient(
-                    registrarId,
-                    CancellationToken.None)
-                .ConfigureAwait(false);
-            ArrayOf<ByteString> tickets =
-            [
-                new ByteString(Encoding.UTF8.GetBytes("demo-ticket-one")),
-                new ByteString(Encoding.UTF8.GetBytes("demo-ticket-two"))
-            ];
-
-            ArrayOf<StatusCode> registered = await onboarding
-                .RegisterTicketsAsync(tickets)
-                .ConfigureAwait(false);
-            RequireStatus(registered, 0, StatusCodes.Good, "register ticket one");
-            RequireStatus(registered, 1, StatusCodes.Good, "register ticket two");
-            Console.WriteLine(
-                $"REGISTER {registered[0]} {registered[1]}");
-
-            ArrayOf<StatusCode> removed = await onboarding
-                .UnregisterTicketsAsync([tickets[0]])
-                .ConfigureAwait(false);
-            RequireStatus(removed, 0, StatusCodes.Good, "unregister ticket one");
-            Console.WriteLine($"UNREGISTER {removed[0]}");
-
-            ArrayOf<StatusCode> removedAgain = await onboarding
-                .UnregisterTicketsAsync([tickets[0]])
-                .ConfigureAwait(false);
-            RequireStatus(
-                removedAgain,
-                0,
-                StatusCodes.BadNotFound,
-                "unregister ticket one again");
-            Console.WriteLine($"UNREGISTER_AGAIN {removedAgain[0]}");
-            Console.WriteLine("ONBOARDING_DEMO_OK");
+            var registrar = new DeviceRegistrarTypeClient(
+                session, deviceRegistrarId, host.Services.GetRequiredService<ITelemetryContext>());
+            await softwareStatus.ReportAsync(registrar, ct).ConfigureAwait(false);
+            Console.WriteLine("ONBOARDING_SOFTWARE_STATUS_REPORTED");
+            return 0;
         }
+        if (runPull)
+        {
+            ApplicationConfiguration configuration = await host.Services
+                .GetRequiredService<IOpcUaApplicationConfigurationProvider>().GetAsync(ct)
+                .ConfigureAwait(false);
+            ICertificateManager certificates = configuration.CertificateManager ??
+                throw new ServiceResultException(StatusCodes.BadConfigurationError);
+            using CertificateEntry identity = certificates.AcquireApplicationCertificateByType(
+                ObjectTypeIds.RsaSha256ApplicationCertificateType) ??
+                throw new ServiceResultException(StatusCodes.BadConfigurationError);
+            var issuerBytes = new ByteString[identity.IssuerChain.Count];
+            for (int i = 0; i < issuerBytes.Length; i++)
+            {
+                issuerBytes[i] = ByteString.From(identity.IssuerChain[i].RawData.AsSpan());
+            }
+            NodeId deviceRegistrar = ExpandedNodeId.ToNodeId(
+                Opc.Ua.Onboarding.ObjectIds.DeviceRegistrar, session.NamespaceUris);
+            NodeId directory = ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, session.NamespaceUris);
+            NodeId group = ExpandedNodeId.ToNodeId(
+                Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup, session.NamespaceUris);
+            var registrar = new PullDcaRegistrar(new Uri(endpoint), deviceRegistrar, directory);
+            var profile = new PullDcaCertificateProfile(group, ObjectTypeIds.RsaSha256ApplicationCertificateType);
+            if (runExternalAuthentication)
+            {
+                PullDcaExternalAuthenticationResult externalResult =
+                    await host.Services.GetRequiredService<PullDcaWorkflow>()
+                        .RunExternalAuthenticationAsync(registrar, [], cancellationToken: ct).ConfigureAwait(false);
+                Console.WriteLine($"PULL_DCA_EXTERNAL_AUTHENTICATED {externalResult.Managers.Count}");
+                return 0;
+            }
+            if (signingJournal != null)
+            {
+                OnboardingDeviceCredentials credentials =
+                    host.Services.GetRequiredService<OnboardingDeviceCredentials>();
+                credentials.UseSigningJournal(
+                    signingJournal,
+                    new CertificateStoreIdentifier(
+                        signingKeyStore ?? throw new InvalidOperationException("Set --signingKeyStore."),
+                        CertificateStoreType.Directory,
+                        false),
+                    session.NamespaceUris);
+                OnboardingSigningRequestState state = await credentials.GetSigningRequestStateAsync(ct)
+                    .ConfigureAwait(false);
+                if (discardSigningRequest)
+                {
+                    await credentials.DiscardSigningRequestAsync(ct).ConfigureAwait(false);
+                    Console.WriteLine($"PULL_DCA_REQUEST_DISCARDED {state}");
+                    return 0;
+                }
+                switch (state)
+                {
+                    case OnboardingSigningRequestState.Started:
+                        OnboardingJournaledSigningRequest journaled = await credentials
+                            .RestoreJournaledSigningRequestAsync(registrar, ct).ConfigureAwait(false);
+                        await host.Services.GetRequiredService<PullDcaWorkflow>()
+                            .CompleteCertificateRequestAsync(registrar, journaled.ApplicationId,
+                                journaled.RequestId, journaled.Profile, cancellationToken: ct)
+                            .ConfigureAwait(false);
+                        await session.ReloadInstanceCertificateAsync(ct).ConfigureAwait(false);
+                        await session.ReconnectAsync(null, null, ct).ConfigureAwait(false);
+                        Console.WriteLine($"PULL_DCA_REQUEST_INSTALLED {journaled.ApplicationId}");
+                        return 0;
+                    case OnboardingSigningRequestState.Prepared:
+                        throw new InvalidOperationException(
+                            "The StartSigningRequest outcome is unknown. Run again with " +
+                            "--discardSigningRequest true, then start a new request.");
+                    case OnboardingSigningRequestState.Installed:
+                        await credentials.DiscardSigningRequestAsync(ct).ConfigureAwait(false);
+                        Console.WriteLine("PULL_DCA_REQUEST_CLEANED");
+                        return 0;
+                    case OnboardingSigningRequestState.None:
+                        break;
+                    default:
+                        throw new InvalidOperationException($"Unknown signing request state {state}.");
+                }
+            }
+            string? resumeApplication = builder.Configuration["resumeApplicationId"];
+            string? resumeRequest = builder.Configuration["resumeRequestId"];
+            string? resumeKey = builder.Configuration["resumeSigningKeyCertificate"];
+            if (resumeApplication != null || resumeRequest != null || resumeKey != null)
+            {
+                if (string.IsNullOrWhiteSpace(resumeApplication) || string.IsNullOrWhiteSpace(resumeRequest) ||
+                    string.IsNullOrWhiteSpace(resumeKey))
+                {
+                    throw new ArgumentException(
+                        "Resumption requires --resumeApplicationId, --resumeRequestId and " +
+                        "--resumeSigningKeyCertificate from the original local signing request.");
+                }
+                NodeId applicationId = ExpandedNodeId.ToNodeId(
+                    ExpandedNodeId.Parse(resumeApplication), session.NamespaceUris);
+                NodeId requestId = ExpandedNodeId.ToNodeId(
+                    ExpandedNodeId.Parse(resumeRequest), session.NamespaceUris);
+                ByteString original = ByteString.From(
+                    await File.ReadAllBytesAsync(resumeKey, ct).ConfigureAwait(false));
+                await host.Services.GetRequiredService<OnboardingDeviceCredentials>()
+                    .RestoreSigningRequestAsync(applicationId, profile, original, ct).ConfigureAwait(false);
+                await host.Services.GetRequiredService<PullDcaWorkflow>()
+                    .CompleteCertificateRequestAsync(registrar, applicationId, requestId, profile,
+                        cancellationToken: ct).ConfigureAwait(false);
+                await session.ReloadInstanceCertificateAsync(ct).ConfigureAwait(false);
+                await session.ReconnectAsync(null, null, ct).ConfigureAwait(false);
+                Console.WriteLine($"PULL_DCA_REQUEST_INSTALLED {applicationId}");
+                return 0;
+            }
+            string ticketPath = builder.Configuration["deviceTicket"] ??
+                throw new InvalidOperationException("Set --deviceTicket to this device's signed ticket.");
+            string? signingKeySnapshot = builder.Configuration["exportSigningKeyCertificate"];
+            if (signingKeySnapshot != null)
+            {
+                await File.WriteAllBytesAsync(signingKeySnapshot, identity.Certificate.RawData, ct)
+                    .ConfigureAwait(false);
+            }
+            var offer = new PullDcaIdentityOffer(
+                [ByteString.From(identity.Certificate.RawData.AsSpan())], issuerBytes,
+                [await File.ReadAllTextAsync(ticketPath, ct).ConfigureAwait(false)]);
+            var request = new PullDcaRequest(offer, profile, []);
+            PullDcaResult result;
+            try
+            {
+                result = await host.Services.GetRequiredService<PullDcaWorkflow>()
+                    .RunAsync(registrar, request, cancellationToken: ct).ConfigureAwait(false);
+            }
+            catch (PullDcaCertificatePendingException pending)
+            {
+                Console.WriteLine("PULL_DCA_PENDING_APPLICATION " +
+                    NodeId.ToExpandedNodeId(pending.ApplicationId, session.NamespaceUris));
+                Console.WriteLine("PULL_DCA_PENDING_REQUEST " +
+                    NodeId.ToExpandedNodeId(pending.RequestId, session.NamespaceUris));
+                throw;
+            }
+            Console.WriteLine($"PULL_DCA_INSTALLED {result.Identity.ApplicationId}");
+            return 0;
+        }
+        Console.WriteLine("Server namespaces:");
+        for (int i = 0; i < session.NamespaceUris.Count; i++)
+        {
+            Console.WriteLine($"  ns={i}: {session.NamespaceUris.GetString((uint)i)}");
+        }
+        NodeId registrarId = ExpandedNodeId.ToNodeId(
+            Opc.Ua.Onboarding.ObjectIds.DeviceRegistrar_Administration,
+            session.NamespaceUris);
+        if (registrarId.IsNull)
+        {
+            throw new ServiceResultException(
+                StatusCodes.BadNodeIdUnknown,
+                "The server did not publish the OPC 10000-21 namespace.");
+        }
+
+        var onboarding = new OnboardingClient(
+            session, registrarId, host.Services.GetRequiredService<ITelemetryContext>());
+        ArrayOf<string> tickets =
+        [
+            await File.ReadAllTextAsync(Path.Combine(pkiRoot, "ticket-1.json"), ct).ConfigureAwait(false),
+            await File.ReadAllTextAsync(Path.Combine(pkiRoot, "ticket-2.json"), ct).ConfigureAwait(false)
+        ];
+
+        ArrayOf<StatusCode> registered = await onboarding
+            .RegisterTicketsAsync(tickets, ct)
+            .ConfigureAwait(false);
+        RequireStatus(registered, 0, StatusCodes.Good, "register ticket one");
+        RequireStatus(registered, 1, StatusCodes.Good, "register ticket two");
+        Console.WriteLine(
+            $"REGISTER {registered[0]} {registered[1]}");
+        ArrayOf<StatusCode> invalid = await onboarding.RegisterTicketsAsync(["{}"], ct).ConfigureAwait(false);
+        RequireStatus(invalid, 0, StatusCodes.BadTicketInvalid, "reject malformed ticket");
+        Console.WriteLine($"INVALID_TICKET_REJECTED {invalid[0]}");
+
+        ArrayOf<StatusCode> removed = await onboarding
+            .UnregisterTicketsAsync([tickets[0]], ct)
+            .ConfigureAwait(false);
+        RequireStatus(removed, 0, StatusCodes.Good, "unregister ticket one");
+        Console.WriteLine($"UNREGISTER {removed[0]}");
+
+        ArrayOf<StatusCode> removedAgain = await onboarding
+            .UnregisterTicketsAsync([tickets[0]], ct)
+            .ConfigureAwait(false);
+        RequireStatus(
+            removedAgain,
+            0,
+            StatusCodes.BadNotFound,
+            "unregister ticket one again");
+        Console.WriteLine($"UNREGISTER_AGAIN {removedAgain[0]}");
+        Console.WriteLine("ONBOARDING_DEMO_OK");
     }
     finally
     {
-        await host.StopAsync(CancellationToken.None).ConfigureAwait(false);
+        using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        await host.StopAsync(cleanup.Token).ConfigureAwait(false);
     }
     return 0;
 }

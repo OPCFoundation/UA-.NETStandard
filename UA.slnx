@@ -42,6 +42,7 @@
   </Folder>
   <Folder Name="/samples/Gds/">
     <Project Path="samples/Gds/OnboardingClient/OnboardingClient.csproj" />
+    <Project Path="samples/Gds/OnboardingDevice/OnboardingDevice.csproj" />
     <Project Path="samples/Gds/OnboardingRegistrar/OnboardingRegistrar.csproj" />
   </Folder>
   <Folder Name="/samples/AutoID/">

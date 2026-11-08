@@ -268,6 +268,28 @@ namespace Opc.Ua.Gds.Tests
         }
 
         /// <summary>
+        /// Reconnection can reuse one-time administrator credentials without caching them on the client.
+        /// </summary>
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task ConnectInternalAsyncCanUseUncachedAdministratorCredentialsAsync()
+        {
+            await using var fixture = new ClientContext("push.test", "push.test");
+            await using var client = new ServerPushConfigurationClient(fixture.Configuration, fixture.Factory);
+
+            await client.ConnectInternalAsync(
+                fixture.Endpoint,
+                updateBeforeConnect: true,
+                expectedEndpoint: null,
+                userIdentity: fixture.Administrator,
+                ct: CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(client.AdminCredentials, Is.Null);
+            Assert.That(fixture.ActivatedIdentity, Is.SameAs(fixture.Administrator));
+            Assert.That(fixture.FactoryCalls, Is.EqualTo(1));
+        }
+
+        /// <summary>
         /// Empty and null key values retain the certificate-only workflow on nonconfidential channels.
         /// </summary>
         [TestCase(MessageSecurityMode.None, false)]

@@ -30,8 +30,11 @@ The SDK provides full or partial support for these core areas:
   transports, with platform-dependent DTLS profile limits.
 - Parts 16-20 and 23: state machines, aliases, roles, dictionary references,
   file transfer and common reference types.
-- Part 21: registrar ticket administration; the complete device-facing
-  onboarding state machine is outside the implemented scope.
+- Part 21: [ticket validation, registrar runtime and pull/push workflows](GDS.md#opc-10000-21-onboardingclient),
+  with retained device credentials, security reset, managed Client provisioning,
+  provider-backed Server/ClientAndServer push and a Part 22 `Resources` parent reference.
+  FDO protocols and credential installation remain external; the GDS guide
+  describes the remaining recovery and `ConfigurationFile` gaps.
 - Part 22: [Base Network Model](BaseNetworkModel.md) runtime, typed clients and
   an in-memory simulator, including defined optional capabilities when supplied
   by the provider; applications supply production network providers.
@@ -180,11 +183,13 @@ canonical URI string before claiming a facet):
   `src/Opc.Ua.Server/StateMachines/`. The reference server's
   `BoilerStateMachineState` is an end-to-end sample. See
   [State Machines](StateMachines.md).
-- **File Access** (Part 20) — Server-side `FileSystemNodeManager` +
+- **File Access** (Part 20, partial) — Server-side `FileSystemNodeManager` +
   `IFileSystemProvider` in `src/Opc.Ua.Server/FileSystem/`. The
   reference server enables it via the `EnableFileSystemNodeManager`
   option. The matching System.IO-style client lives in
-  [`FileSystemClient`](FileSystemClient.md).
+  [`FileSystemClient`](FileSystemClient.md). The shared file handler rejects
+  combined Read + Write opens. A conflicting write-only open on a writable file
+  can return `Bad_InvalidState` where Part 20 requires `Bad_NotWritable`.
 - **Node Management** (Part 4 service set) —
   `INodeManagementAsyncNodeManager` opt-in plus a per-NodeManager
   `AllowNodeManagement` gate for `AddNodes` / `DeleteNodes` /
@@ -641,9 +646,33 @@ OPC UA Part 12 areas:
 - **[KeyCredentialService](KeyCredentialService.md)** (OPC 10000-12 §8) —
   Credential issuance for non-OPC UA services such as MQTT brokers and
   REST APIs, backed by `IKeyCredentialRequestStore` / `ISecretStore`.
-- **Registrar ticket administration** (OPC 10000-21) -
-  `OnboardingClient`, `ITicketStore` and the declared registrar methods.
-  This is not the complete device-facing onboarding state machine; see
+- **Device registrar components** (OPC 10000-21) -
+  Validated ticket administration, ticket signing, composite-aware identity
+  selection, ticket-scoped identity trust, registrar authorization and shared
+  certificate issuance, typed pull/push workflows, and a singleton device host
+  with retained factory credentials and security reset. Providers own software
+  approval and state retention; restart durability depends on selecting a
+  durable provider. The bounded push scheduler accepts work in process and does
+  not persist the queue. Registrar push provisions managed Client
+  applications and supports managed Server/ClientAndServer applications when
+  the host supplies authoritative discovery URLs, installed certificates,
+  endpoints, user identities and explicit client trust. The default managed-
+  application verifier supports UA-TCP and HTTPS with independently validated
+  TLS and application identities. The sample can be configured for
+  one managed Server or ClientAndServer application after DCA proof. The
+  provisionable-device factory adds a Part 22 `Resources` parent reference, but
+  shared Resources manager integration is not implemented. Registrar push uses
+  the configured certificate type by default and permits a host-selected type
+  for each managed application; the selected type must be advertised by its
+  certificate group. Per-entry remote `ConfigurationFile`
+  update/confirm and restart recovery use optional application-scoped Part 12
+  providers. The originally selected certificate type is retained during recovery.
+  The optional external-authentication handoff uses an injectable provider for
+  dedicated CA trust and configured product/DCA approval; typed external pull
+  and registrar push reuse the existing lifecycle. FDO protocols and credential
+  installation remain external.
+  Connected recovery fixtures are present; their execution status is tracked
+  separately. See
   [the implemented scope](GDS.md#opc-10000-21-onboardingclient).
 
 See the [GDS Developer Guide](GDS.md) for the implemented facets, provider-dependent
@@ -882,7 +911,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 10000-9: Alarms and Conditions](https://reference.opcfoundation.org/specs/OPC-10000-9) | 1.05.06 | Full | - |
 | [OPC 10000-10: Programs](https://reference.opcfoundation.org/specs/OPC-10000-10) | 1.05.00 | Full | - |
 | [OPC 10000-11: Historical Access](https://reference.opcfoundation.org/specs/OPC-10000-11) | 1.05.04 | Full | - |
-| [OPC 10000-12: Discovery and Global Services](https://reference.opcfoundation.org/specs/OPC-10000-12) | 1.05.07 | Partial | GDS remote-application proxy incomplete; AuthorizationServices configuration folder absent |
+| [OPC 10000-12: Discovery and Global Services](https://reference.opcfoundation.org/specs/OPC-10000-12) | 1.05.07 | Partial | `ConfigurationFile` transfer and open-handle behavior are incomplete. Shorter replacement semantics are unresolved, and `AuthorizationServices` is absent. [Details](GDS.md#remaining-optional--unsupported-part-12-items) |
 | [OPC 10000-13: Aggregates](https://reference.opcfoundation.org/specs/OPC-10000-13) | 1.05.07 | Full | - |
 | [OPC 10000-14: PubSub](https://reference.opcfoundation.org/specs/OPC-10000-14) | 1.05.06 | Partial | Curve25519/Curve448 DTLS profiles unavailable; other DTLS profiles depend on platform probes |
 | [OPC 10000-15: Safety](https://reference.opcfoundation.org/specs/OPC-10000-15) | 1.05.04 | No | - |
@@ -890,8 +919,8 @@ does not establish executable management, serialization or logging methods.
 | [OPC 10000-17: Alias Names](https://reference.opcfoundation.org/specs/OPC-10000-17) | 1.05.07 | Full | - |
 | [OPC 10000-18: Role-Based Security](https://reference.opcfoundation.org/specs/OPC-10000-18) | 1.05.06 | Full | - |
 | [OPC 10000-19: Dictionary Reference](https://reference.opcfoundation.org/specs/OPC-10000-19) | 1.05.03 | Full | - |
-| [OPC 10000-20: File Transfer](https://reference.opcfoundation.org/specs/OPC-10000-20) | 1.05.06 | Full | - |
-| [OPC 10000-21: Device Onboarding](https://reference.opcfoundation.org/specs/OPC-10000-21) | 1.05.04 | Partial | Registrar tickets only; complete device-facing onboarding state machine missing |
+| [OPC 10000-20: File Transfer](https://reference.opcfoundation.org/specs/OPC-10000-20) | 1.05.06 | Partial | Combined Read + Write opens are rejected. A conflicting write open can return `Bad_InvalidState` instead of `Bad_NotWritable`. |
+| [OPC 10000-21: Device Onboarding](https://reference.opcfoundation.org/specs/OPC-10000-21) | 1.05.04 | Partial | Initial pull cannot request a new key pair, and §7.2 recovery after a lost accepted response is incomplete. Managed-application updates and restart recovery depend on host providers. The Part 22 `Resources` integration is absent, and `ConfigurationFile` transfer is partial. Push acceptance is process-local. Hosts must reconcile registrar and device state before retrying after a restart or interruption. [Details](GDS.md#opc-10000-21-onboardingclient) |
 | [OPC 10000-22: Base Network Model](https://reference.opcfoundation.org/specs/OPC-10000-22) | 1.05.04 | Full | Defined optional interface, mapping, TSN and LLDP capabilities are provider-backed; production adapters remain application-supplied |
 | [OPC 10000-23: Common ReferenceTypes](https://reference.opcfoundation.org/specs/OPC-10000-23) | 1.05.02 | Full | - |
 | [OPC 10000-24: Scheduler](https://reference.opcfoundation.org/specs/OPC-10000-24) | 1.05.02 | No | - |

@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Threading;
@@ -111,8 +112,431 @@ namespace Opc.Ua
         /// <c>ICertificateManager</c> aggregates registry, trust-list,
         /// validation, lifecycle, and trust-list-file capabilities; use it
         /// directly for validation, lifecycle, and trust-list operations.
+        /// Directly assigned concrete managers, including replacements, are reference counted
+        /// across attached <c>ApplicationInstance</c> objects and configuration template copies.
+        /// The last application releases the manager. Dependency-injection providers borrow
+        /// injected managers from their container, which remains their only disposer.
+        /// A configuration alone does not extend a manager's lifetime. Attach template copies
+        /// before the last owning application releases the manager; retired managers cannot be adopted again.
+        /// A released configuration can be reused by assigning a fresh manager and attaching an application.
+        /// Assignment history belonging to retired managers is pruned before the new ownership period begins.
         /// </remarks>
-        public ICertificateManager CertificateManager { get; set; } = null!;
+        public ICertificateManager CertificateManager
+        {
+            get
+            {
+                lock (m_certificateManagerLock)
+                {
+                    // Preserve the public signature while lazy initialization can still leave the backing field null.
+                    return m_certificateManager!;
+                }
+            }
+            set
+            {
+                lock (m_certificateManagerLock)
+                {
+                    lock (s_certificateManagerLifetimeLock)
+                    {
+                        if (value is CertificateManager manager)
+                        {
+                            CertificateManagerLifetime lifetime = GetCertificateManagerLifetime(manager);
+                            lifetime.ThrowIfDisposing();
+                            PruneRetiredCertificateManagers();
+                            TrackCertificateManager(manager, lifetime);
+                        }
+                        else
+                        {
+                            // Custom managers are never owned, but reuse still clears retired concrete history.
+                            PruneRetiredCertificateManagers();
+                        }
+                        m_certificateManagerLeaseReleased = false;
+                    }
+                    m_certificateManager = value;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Captures admission to the current ownership period without invoking manager factories or callbacks.
+        /// </summary>
+        internal int CaptureCertificateManagerGeneration()
+        {
+            lock (m_certificateManagerLock)
+            {
+                if (m_certificateManagerLeaseReleased)
+                {
+                    throw new ObjectDisposedException(nameof(ApplicationConfiguration));
+                }
+                return m_certificateManagerGeneration;
+            }
+        }
+
+        /// <summary>
+        /// Checks manager lifetime before validation opens stores and captures this ownership period.
+        /// </summary>
+        /// <param name="manager">The manager owned by the captured generation.</param>
+        private int CaptureValidationCertificateManagerGeneration(out ICertificateManager? manager)
+        {
+            lock (m_certificateManagerLock)
+            {
+                if (m_certificateManager is CertificateManager concreteManager)
+                {
+                    lock (s_certificateManagerLifetimeLock)
+                    {
+                        GetCertificateManagerLifetime(concreteManager).ThrowIfDisposing();
+                    }
+                }
+                if (m_certificateManagerLeaseReleased)
+                {
+                    throw new ObjectDisposedException(nameof(ApplicationConfiguration));
+                }
+                manager = m_certificateManager;
+                return m_certificateManagerGeneration;
+            }
+        }
+
+        /// <summary>
+        /// Rejects a retired validation without substituting the current manager for its captured identity.
+        /// </summary>
+        /// <param name="generation">The ownership generation captured before validation.</param>
+        /// <param name="manager">The manager captured or initialized for that generation.</param>
+        private void RequireValidationCertificateManagerGeneration(int generation, ICertificateManager? manager)
+        {
+            lock (m_certificateManagerLock)
+            {
+                if (manager is CertificateManager concreteManager)
+                {
+                    lock (s_certificateManagerLifetimeLock)
+                    {
+                        GetCertificateManagerLifetime(concreteManager).ThrowIfDisposing();
+                    }
+                }
+                if (m_certificateManagerLeaseReleased || generation != m_certificateManagerGeneration)
+                {
+                    throw new ObjectDisposedException(nameof(ApplicationConfiguration));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Initializes a missing manager once per ownership period without overwriting replacements.
+        /// </summary>
+        /// <remarks>
+        /// Callers from an ownership period that ends during creation receive <see cref="ObjectDisposedException"/>.
+        /// Applications attached after that release start or join initialization for the new period.
+        /// </remarks>
+        internal async ValueTask<ICertificateManager> GetOrCreateCertificateManagerAsync(
+            ITelemetryContext telemetry,
+            CertificateManager? fallback = null,
+            bool validationCreated = false,
+            int? expectedGeneration = null)
+        {
+            TaskCompletionSource<ICertificateManager>? completion = null;
+            Task<ICertificateManager> initialization;
+            int generation;
+            lock (m_certificateManagerLock)
+            {
+                generation = m_certificateManagerGeneration;
+                if (expectedGeneration.HasValue && expectedGeneration.Value != generation)
+                {
+                    throw new ObjectDisposedException(nameof(ApplicationConfiguration));
+                }
+                if (m_certificateManager != null)
+                {
+                    if (m_certificateManager is CertificateManager manager)
+                    {
+                        lock (s_certificateManagerLifetimeLock)
+                        {
+                            GetCertificateManagerLifetime(manager).ThrowIfDisposing();
+                        }
+                    }
+                    return m_certificateManager;
+                }
+                if (m_certificateManagerLeaseReleased)
+                {
+                    throw new ObjectDisposedException(nameof(ApplicationConfiguration));
+                }
+                if (m_certificateManagerInitialization == null ||
+                    m_certificateManagerInitializationGeneration != generation)
+                {
+                    if (fallback != null)
+                    {
+                        CertificateManager = fallback;
+                        return fallback;
+                    }
+                    completion = new TaskCompletionSource<ICertificateManager>(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
+                    m_certificateManagerInitialization = completion.Task;
+                    m_certificateManagerInitializationGeneration = generation;
+                }
+                initialization = m_certificateManagerInitialization;
+            }
+            if (completion != null)
+            {
+                try
+                {
+                    bool releasedDuringCreation;
+                    ICertificateManager? selected = null;
+                    CertificateManagerLifetime? createdLifetime = null;
+                    CertificateManager? created = null;
+                    try
+                    {
+                        created = CertificateManagerFactory.Create(SecurityConfiguration, telemetry);
+                        lock (m_certificateManagerLock)
+                        {
+                            releasedDuringCreation = m_certificateManagerLeaseReleased ||
+                                generation != m_certificateManagerGeneration;
+                            // The factory runs outside the lock, so another caller may have published a manager.
+                            ICertificateManager? current = Volatile.Read(ref m_certificateManager);
+                            if (!releasedDuringCreation && current == null)
+                            {
+                                lock (s_certificateManagerLifetimeLock)
+                                {
+                                    createdLifetime = GetCertificateManagerLifetime(created);
+                                    TrackCertificateManager(created, createdLifetime);
+                                    if (validationCreated)
+                                    {
+                                        m_validationCreatedCertificateManagers.Add(created);
+                                    }
+                                }
+                                selected = created;
+                                m_certificateManager = selected;
+                                created = null; // ownership transferred to the configuration leases
+                            }
+                            else if (!releasedDuringCreation)
+                            {
+                                // The setter already tracked a manager assigned during creation, so the unpublished
+                                // manager has no consumers and is disposed below instead of joining the leases.
+                                selected = current;
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        // Disposes a manager that was never published, including when publication throws.
+                        if (created != null)
+                        {
+                            await created.DisposeAsync().ConfigureAwait(false);
+                        }
+                    }
+                    CertificateManagerLifetime? releasedCreation = null;
+                    bool retiredBeforePublication;
+                    lock (m_certificateManagerLock)
+                    {
+                        retiredBeforePublication = releasedDuringCreation || m_certificateManagerLeaseReleased ||
+                            generation != m_certificateManagerGeneration;
+                        selected = Volatile.Read(ref m_certificateManager) ?? selected;
+                        lock (s_certificateManagerLifetimeLock)
+                        {
+                            // A release between publication and this check owns disposal of the created manager.
+                            if (createdLifetime != null && createdLifetime.Disposing)
+                            {
+                                releasedCreation = createdLifetime;
+                                retiredBeforePublication = true;
+                            }
+                            if (selected is CertificateManager current &&
+                                GetCertificateManagerLifetime(current).Disposing)
+                            {
+                                retiredBeforePublication = true;
+                            }
+                        }
+                    }
+                    if (releasedCreation != null)
+                    {
+                        try
+                        {
+                            await releasedCreation.DisposeAsync().ConfigureAwait(false);
+                        }
+                        catch (Exception e)
+                        {
+                            // The releasing application reports the disposal failure; callers only observe retirement.
+                            throw new ObjectDisposedException(
+                                "The certificate manager ownership period ended during initialization.", e);
+                        }
+                    }
+                    if (retiredBeforePublication || selected == null)
+                    {
+                        throw new ObjectDisposedException(nameof(ApplicationConfiguration));
+                    }
+                    completion.SetResult(selected);
+                }
+                catch (Exception e)
+                {
+                    completion.SetException(e);
+                }
+                finally
+                {
+                    lock (m_certificateManagerLock)
+                    {
+                        if (ReferenceEquals(m_certificateManagerInitialization, completion.Task))
+                        {
+                            m_certificateManagerInitialization = null;
+                        }
+                    }
+                }
+            }
+            return await initialization.ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Records one assignment and acquires references for the applications already attached to this configuration.
+        /// </summary>
+        private void TrackCertificateManager(CertificateManager manager, CertificateManagerLifetime lifetime)
+        {
+            if (m_certificateManagers.Add(manager))
+            {
+                lifetime.References += m_certificateManagerUsers;
+            }
+        }
+
+        /// <summary>
+        /// Removes retired ownership history only when no application still holds this configuration.
+        /// </summary>
+        private void PruneRetiredCertificateManagers()
+        {
+            if (m_certificateManagerUsers == 0)
+            {
+                m_certificateManagers.RemoveWhere(
+                    static manager => GetCertificateManagerLifetime(manager).Disposing);
+                m_validationCreatedCertificateManagers.RemoveWhere(
+                    static manager => GetCertificateManagerLifetime(manager).Disposing);
+            }
+        }
+
+        /// <summary>
+        /// Records container ownership before publishing an injected manager to application consumers.
+        /// </summary>
+        internal void SetBorrowedCertificateManager(ICertificateManager certificateManager)
+        {
+            if (certificateManager is null)
+            {
+                throw new ArgumentNullException(nameof(certificateManager));
+            }
+            lock (m_certificateManagerLock)
+            {
+                if (certificateManager is CertificateManager manager)
+                {
+                    lock (s_certificateManagerLifetimeLock)
+                    {
+                        CertificateManagerLifetime lifetime = GetCertificateManagerLifetime(manager);
+                        lifetime.ThrowIfDisposing();
+                        lifetime.Borrowed = true;
+                    }
+                }
+                CertificateManager = certificateManager;
+            }
+        }
+
+        /// <summary>
+        /// Acquires one application reference to every assigned manager, including replacements and later assignments.
+        /// </summary>
+        internal void AcquireCertificateManagers()
+        {
+            lock (m_certificateManagerLock)
+            {
+                lock (s_certificateManagerLifetimeLock)
+                {
+                    if (m_certificateManager is CertificateManager current)
+                    {
+                        GetCertificateManagerLifetime(current).ThrowIfDisposing();
+                    }
+                    PruneRetiredCertificateManagers();
+                    foreach (CertificateManager manager in m_certificateManagers)
+                    {
+                        GetCertificateManagerLifetime(manager).ThrowIfDisposing();
+                    }
+                    foreach (CertificateManager manager in m_certificateManagers)
+                    {
+                        GetCertificateManagerLifetime(manager).References++;
+                    }
+                    m_certificateManagerUsers++;
+                    m_certificateManagerLeaseReleased = false;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Releases one application's references and awaits disposal of managers with no remaining application.
+        /// </summary>
+        internal async ValueTask ReleaseCertificateManagersAsync()
+        {
+            var disposing = new List<CertificateManagerLifetime>();
+            lock (m_certificateManagerLock)
+            {
+                lock (s_certificateManagerLifetimeLock)
+                {
+                    if (m_certificateManagerUsers == 0)
+                    {
+                        throw new InvalidOperationException("The configuration has no certificate-manager lease.");
+                    }
+                    m_certificateManagerUsers--;
+                    m_certificateManagerLeaseReleased = m_certificateManagerUsers == 0;
+                    if (m_certificateManagerLeaseReleased)
+                    {
+                        m_certificateManagerGeneration++;
+                    }
+                    foreach (CertificateManager manager in m_certificateManagers)
+                    {
+                        CertificateManagerLifetime lifetime = GetCertificateManagerLifetime(manager);
+                        lifetime.References--;
+                        if (lifetime.References == 0 && !lifetime.Borrowed)
+                        {
+                            lifetime.Disposing = true;
+                            disposing.Add(lifetime);
+                        }
+                    }
+                }
+            }
+            await DisposeCertificateManagerLifetimesAsync(disposing).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Disposes every retired manager even if an earlier disposal fails.
+        /// </summary>
+        private static async ValueTask DisposeCertificateManagerLifetimesAsync(
+            List<CertificateManagerLifetime> disposing)
+        {
+            List<Exception>? failures = null;
+            foreach (CertificateManagerLifetime lifetime in disposing)
+            {
+                try
+                {
+                    await lifetime.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    failures ??= [];
+                    failures.Add(e);
+                }
+            }
+            if (failures != null)
+            {
+                throw new AggregateException(failures);
+            }
+        }
+
+        /// <summary>
+        /// Determines whether a manager was supplied by a dependency-injection container.
+        /// </summary>
+        internal bool IsCertificateManagerBorrowed(CertificateManager certificateManager)
+        {
+            lock (m_certificateManagerLock)
+            {
+                lock (s_certificateManagerLifetimeLock)
+                {
+                    return GetCertificateManagerLifetime(certificateManager).Borrowed;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Resolves shared ownership by manager identity, independently of configuration identity.
+        /// </summary>
+        private static CertificateManagerLifetime GetCertificateManagerLifetime(CertificateManager manager)
+        {
+            return s_certificateManagerLifetimes.GetValue(
+                manager, static value => new CertificateManagerLifetime(value));
+        }
 
         /// <summary>
         /// Returns the domain names which the server is configured to use.
@@ -472,6 +896,10 @@ namespace Opc.Ua
                     certificatePasswordProvider,
                     ct).ConfigureAwait(false);
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception e)
             {
                 throw ServiceResultException.ConfigurationError(
@@ -537,7 +965,7 @@ namespace Opc.Ua
             _ = applyTraceSettings;
             systemType ??= typeof(ApplicationConfiguration);
 
-            ApplicationConfiguration configuration;
+            ApplicationConfiguration? configuration = null;
             try
             {
                 using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry!);
@@ -556,23 +984,81 @@ namespace Opc.Ua
                 configuration.ServerConfiguration?.ValidateSecurityPolicies();
                 configuration.DiscoveryServerConfiguration?.ValidateSecurityPolicies();
             }
+            catch (OperationCanceledException e)
+            {
+                if (configuration != null)
+                {
+                    await configuration.DisposeCertificateManagersOnLoadFailureAsync(e).ConfigureAwait(false);
+                }
+                throw;
+            }
             catch (Exception e)
             {
+                if (configuration != null)
+                {
+                    await configuration.DisposeCertificateManagersOnLoadFailureAsync(e).ConfigureAwait(false);
+                }
                 throw ServiceResultException.ConfigurationError(
                     e,
                     "Configuration could not be loaded.\nError is: {0}",
                     e.Message);
             }
 
-            if (certificatePasswordProvider != null)
+            try
             {
-                configuration.SecurityConfiguration.CertificatePasswordProvider
-                    = certificatePasswordProvider;
+                if (certificatePasswordProvider != null)
+                {
+                    configuration.SecurityConfiguration.CertificatePasswordProvider = certificatePasswordProvider;
+                }
+                await configuration.ValidateAsync(applicationType, ct).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                await configuration.DisposeCertificateManagersOnLoadFailureAsync(e).ConfigureAwait(false);
+                throw;
             }
 
-            await configuration.ValidateAsync(applicationType, ct).ConfigureAwait(false);
-
             return configuration;
+        }
+
+        /// <summary>
+        /// Cleans up managers created by base validation, preserving externally assigned replacements and load errors.
+        /// </summary>
+        private async ValueTask DisposeCertificateManagersOnLoadFailureAsync(Exception failure)
+        {
+            List<Exception>? failures = null;
+            var disposing = new List<CertificateManagerLifetime>();
+            lock (m_certificateManagerLock)
+            {
+                lock (s_certificateManagerLifetimeLock)
+                {
+                    foreach (CertificateManager manager in m_validationCreatedCertificateManagers)
+                    {
+                        CertificateManagerLifetime lifetime = GetCertificateManagerLifetime(manager);
+                        if (lifetime.References == 0 && !lifetime.Borrowed)
+                        {
+                            lifetime.Disposing = true;
+                            disposing.Add(lifetime);
+                        }
+                    }
+                }
+            }
+            foreach (CertificateManagerLifetime lifetime in disposing)
+            {
+                try
+                {
+                    await lifetime.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    failures ??= [failure];
+                    failures.Add(e);
+                }
+            }
+            if (failures != null)
+            {
+                throw new AggregateException(failures);
+            }
         }
 
         /// <summary>
@@ -638,6 +1124,8 @@ namespace Opc.Ua
             ApplicationType applicationType,
             CancellationToken ct = default)
         {
+            int certificateManagerGeneration =
+                CaptureValidationCertificateManagerGeneration(out ICertificateManager? validationManager);
             if (string.IsNullOrEmpty(ApplicationName))
             {
                 throw ServiceResultException.ConfigurationError(
@@ -650,7 +1138,16 @@ namespace Opc.Ua
                     "SecurityConfiguration must be specified.");
             }
 
-            SecurityConfiguration.Validate(m_telemetry, CertificateManager as ICertificateStoreResolver);
+            try
+            {
+                SecurityConfiguration.Validate(m_telemetry, validationManager as ICertificateStoreResolver);
+            }
+            catch (ServiceResultException)
+            {
+                RequireValidationCertificateManagerGeneration(certificateManagerGeneration, validationManager);
+                throw;
+            }
+            RequireValidationCertificateManagerGeneration(certificateManagerGeneration, validationManager);
 
             string GenerateDefaultUri()
             {
@@ -722,23 +1219,23 @@ namespace Opc.Ua
             // configuration so consumers (Session, ClientChannelManager,
             // server bring-up) can rely on it being non-null even when
             // the configuration was not built through ApplicationInstance.
-            // The lifetime of this instance is owned by the surrounding
-            // ApplicationInstance (or the test fixture), which disposes
-            // the configuration's CertificateManager on shutdown.
-            CertificateManager ??= CertificateManagerFactory.Create(
-                SecurityConfiguration,
-                m_telemetry);
+            // Attached applications share ownership, including assignments made after attachment.
+            ICertificateManager initializedManager = await GetOrCreateCertificateManagerAsync(
+                m_telemetry, validationCreated: true, expectedGeneration: certificateManagerGeneration)
+                .ConfigureAwait(false);
+            RequireValidationCertificateManagerGeneration(certificateManagerGeneration, initializedManager);
 
             // Eagerly load configured application certificates into the
             // manager registry so consumers (Session, validator, etc) can
             // resolve them via ICertificateRegistry without depending on
             // the legacy CertificateIdentifier cache.
-            if (CertificateManager is CertificateManager certManager)
+            if (initializedManager is CertificateManager certManager)
             {
                 await certManager
                     .LoadApplicationCertificatesAsync(SecurityConfiguration, ApplicationUri, ct)
                     .ConfigureAwait(false);
             }
+            RequireValidationCertificateManagerGeneration(certificateManagerGeneration, initializedManager);
         }
 
         /// <summary>
@@ -901,6 +1398,133 @@ namespace Opc.Ua
             where T : IEncodeable
         {
             Utils.UpdateExtension(ref m_extensions, elementName, value, m_telemetry);
+        }
+
+        /// <summary>
+        /// Protects certificate-manager assignment provenance.
+        /// </summary>
+        private readonly Lock m_certificateManagerLock = new();
+
+        /// <summary>
+        /// Records every concrete manager assigned to the configuration.
+        /// </summary>
+        private readonly HashSet<CertificateManager> m_certificateManagers = [];
+
+        /// <summary>
+        /// Records exact factory-created managers for cleanup when configuration loading fails.
+        /// </summary>
+        private readonly HashSet<CertificateManager> m_validationCreatedCertificateManagers = [];
+
+        /// <summary>
+        /// Counts applications attached to this configuration, including its assignment history.
+        /// </summary>
+        private int m_certificateManagerUsers;
+
+        /// <summary>
+        /// Prevents validation from creating an unowned manager after the last application releases
+        /// an empty configuration.
+        /// </summary>
+        private bool m_certificateManagerLeaseReleased;
+
+        /// <summary>
+        /// Distinguishes pending initialization from later ownership periods after configuration reuse.
+        /// </summary>
+        private int m_certificateManagerGeneration;
+
+        /// <summary>
+        /// Serializes reference acquisition, release, and borrowed provenance across configuration copies.
+        /// </summary>
+        private static readonly Lock s_certificateManagerLifetimeLock = new();
+
+        /// <summary>
+        /// Shares manager lifetimes without keeping unreachable configurations or managers alive.
+        /// </summary>
+        private static readonly ConditionalWeakTable<CertificateManager, CertificateManagerLifetime>
+            s_certificateManagerLifetimes = new();
+
+        /// <summary>
+        /// The currently configured certificate manager.
+        /// </summary>
+        private ICertificateManager? m_certificateManager;
+
+        /// <summary>
+        /// Shares pending initialization across application instances without holding ownership locks across callbacks.
+        /// </summary>
+        private Task<ICertificateManager>? m_certificateManagerInitialization;
+
+        /// <summary>
+        /// Prevents callers from a later ownership period joining initialization started before final release.
+        /// </summary>
+        private int m_certificateManagerInitializationGeneration;
+
+        /// <summary>
+        /// Retains one disposal result for a manager shared by multiple application configurations.
+        /// </summary>
+        private sealed class CertificateManagerLifetime
+        {
+            /// <summary>
+            /// Creates an ownership record for one concrete manager identity.
+            /// </summary>
+            public CertificateManagerLifetime(CertificateManager manager)
+            {
+                m_manager = manager;
+            }
+
+            /// <summary>
+            /// Gets or sets the number of attached application references.
+            /// </summary>
+            public int References { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether the manager's disposer is its dependency-injection container.
+            /// </summary>
+            public bool Borrowed { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether the final application release has retired this manager.
+            /// </summary>
+            public bool Disposing { get; set; }
+
+            /// <summary>
+            /// Rejects adoption after the final application release, including while disposal is pending.
+            /// </summary>
+            public void ThrowIfDisposing()
+            {
+                if (Disposing)
+                {
+                    throw new ObjectDisposedException(nameof(CertificateManager));
+                }
+            }
+
+            /// <summary>
+            /// Runs manager disposal once outside ownership locks and shares its result with cleanup callers.
+            /// </summary>
+            public async ValueTask DisposeAsync()
+            {
+                if (Interlocked.CompareExchange(ref m_disposalRunner, 1, 0) == 0)
+                {
+                    try
+                    {
+                        await m_manager.DisposeAsync().ConfigureAwait(false);
+                        m_disposalCompletion.SetResult(true);
+                    }
+                    catch (Exception e)
+                    {
+                        m_disposalCompletion.SetException(e);
+                    }
+                }
+                await m_disposalCompletion.Task.ConfigureAwait(false);
+            }
+
+            /// <summary>Shares the completed disposal or its failure.</summary>
+            private readonly TaskCompletionSource<bool> m_disposalCompletion =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>Identifies the single caller that runs manager disposal.</summary>
+            private int m_disposalRunner;
+
+            /// <summary>The manager released after its last application reference.</summary>
+            private readonly CertificateManager m_manager;
         }
     }
 
