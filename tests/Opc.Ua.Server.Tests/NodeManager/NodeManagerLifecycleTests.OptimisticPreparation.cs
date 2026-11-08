@@ -920,5 +920,356 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await release.Task.WaitAsync(token).ConfigureAwait(false);
             }
         }
+
+        /// <summary>
+        /// A collected nested owner cannot cause its already-bound routing conflict to be rebound to the outer batch.
+        /// </summary>
+        [Test]
+        public async Task CollectedNestedRoutingConflictDoesNotRebindAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+            var host = (IDynamicNodeManagerBatchHost)m_server.CurrentInstance.NodeManager;
+            Mock<IAsyncNodeManager> owner = CreateLifecycleNodeManager(kModelNamespaceUri);
+            var ownerFactory = new Mock<IAsyncNodeManagerFactory>();
+            ownerFactory.Setup(value => value.CreateAsync(
+                It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(owner.Object);
+            NodeManagerRegistration ownerRegistration = await lifecycle.AddAsync(ownerFactory.Object, timeout.Token)
+                .ConfigureAwait(false);
+
+            int ownerNamespaceIndex = m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri);
+            Assert.That(ownerNamespaceIndex, Is.GreaterThanOrEqualTo(0));
+            var source = new NodeId(9911, (ushort)ownerNamespaceIndex);
+            Mock<IAsyncNodeManager> candidate = CreateLifecycleNodeManager(kSecondModelNamespaceUri);
+            candidate.Setup(value => value.CreateAddressSpaceAsync(
+                It.IsAny<IDictionary<NodeId, IList<IReference>>>(), It.IsAny<CancellationToken>()))
+                .Callback((IDictionary<NodeId, IList<IReference>> references, CancellationToken _) =>
+                    references.Add(source,
+                        [new NodeStateReference(ReferenceTypeIds.HasComponent, false, new NodeId(9912))]))
+                .Returns(default(ValueTask));
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory.Setup(value => value.CreateAsync(
+                It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(candidate.Object);
+
+            int ownerCalls = 0;
+            int outerDecisions = 0;
+            int[] nestedDecisions = [0];
+            NodeManagerRoutingTable.RoutingSnapshot?[] independentSnapshotCapture = [null];
+            NodeManagerRoutingConflictException? nestedMarker = null;
+            WeakReference<IPreparedNodeManagerBatch>? nestedObserver = null;
+            NodeManagerRoutingTable.RoutingSnapshot? publishedSnapshot = null;
+            long publishedRevision = -1;
+            int initialRegistrationCount = lifecycle.Registrations.Count;
+            NodeManagerRoutingTable.RoutingSnapshot snapshot = host.RoutingRevision;
+            long initialRevision = snapshot.Revision;
+            Assert.That(lifecycle.Revision, Is.EqualTo(initialRevision));
+            Assert.That(host.RoutingRevision, Is.SameAs(snapshot));
+
+            await using IPreparedNodeManagerBatch outer = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(factory.Object)], timeout.Token).ConfigureAwait(false);
+            Assert.That(host.RoutingRevision, Is.SameAs(snapshot));
+            Assert.That(lifecycle.Revision, Is.EqualTo(initialRevision));
+            Assert.That(NodeManagerGenerationRegistry.GetOrCreate(candidate.Object).Gate.State,
+                Is.EqualTo(NodeManagerGenerationState.Prepared));
+
+            owner.Setup(value => value.GetManagerHandleAsync(source, It.IsAny<CancellationToken>()))
+                .Returns((NodeId _, CancellationToken token) => ResolveNestedAsync(token));
+            Exception? observed = await Assert.CatchAsync<Exception>(() => outer.CommitAsync(_ =>
+            {
+                Interlocked.Increment(ref outerDecisions);
+                return default;
+            }, timeout.Token).AsTask()).ConfigureAwait(false);
+            await outer.DisposeAsync().ConfigureAwait(false);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(nestedMarker, Is.Not.Null);
+                Assert.That(observed, Is.SameAs(nestedMarker));
+                Assert.That(nestedObserver is not null && !IsNestedRoutingConflictOwnerAlive(nestedObserver), Is.True);
+                Assert.That(nestedMarker?.Batch, Is.Null);
+                Assert.That(nestedMarker?.IsBound, Is.True);
+                Assert.That(nestedMarker?.RoutingRevision, Is.SameAs(snapshot));
+                Assert.That(ownerCalls, Is.EqualTo(1));
+                Assert.That(nestedDecisions[0], Is.Zero);
+                Assert.That(outerDecisions, Is.Zero);
+                Assert.That(outer.IsCommitted, Is.False);
+                Assert.That(NodeManagerGenerationRegistry.GetOrCreate(candidate.Object).Gate.State,
+                    Is.EqualTo(NodeManagerGenerationState.Aborted));
+                Assert.That(publishedSnapshot, Is.Not.Null);
+                Assert.That(publishedSnapshot, Is.Not.SameAs(snapshot));
+                Assert.That(publishedRevision, Is.EqualTo(initialRevision + 1));
+                Assert.That(publishedSnapshot?.Revision, Is.EqualTo(publishedRevision));
+                Assert.That(snapshot.Revision, Is.EqualTo(initialRevision));
+                Assert.That(host.RoutingRevision, Is.SameAs(publishedSnapshot));
+                Assert.That(lifecycle.Revision, Is.EqualTo(publishedRevision));
+                Assert.That(lifecycle.Registrations.Count, Is.EqualTo(initialRegistrationCount + 1));
+                Assert.That(lifecycle.Registrations.ToList(), Does.Contain(ownerRegistration));
+                Assert.That(m_server.CurrentInstance.NamespaceUris.GetIndex(kSecondModelNamespaceUri), Is.EqualTo(-1));
+                Assert.That(m_server.CurrentInstance.NamespaceUris.GetIndex(kSecondModelNamespaceUri + ":Nested"),
+                    Is.EqualTo(-1));
+                Assert.That(m_server.CurrentInstance.NamespaceUris.GetIndex(kSecondModelNamespaceUri + ":Independent"),
+                    Is.GreaterThanOrEqualTo(0));
+            }
+            owner.Verify(value => value.GetManagerHandleAsync(source, It.IsAny<CancellationToken>()), Times.Once);
+            factory.Verify(value => value.CreateAsync(
+                It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()),
+                Times.Once);
+            candidate.Verify(value => value.CreateAddressSpaceAsync(
+                It.IsAny<IDictionary<NodeId, IList<IReference>>>(), It.IsAny<CancellationToken>()), Times.Once);
+            candidate.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
+            GC.KeepAlive(snapshot);
+            GC.KeepAlive(nestedMarker);
+            GC.KeepAlive(outer);
+
+            async ValueTask<object> ResolveNestedAsync(CancellationToken token)
+            {
+                if (Interlocked.Increment(ref ownerCalls) != 1)
+                {
+                    throw new SentinelException();
+                }
+                Assert.That(host.RoutingRevision, Is.SameAs(snapshot));
+                (NodeManagerRoutingConflictException marker, WeakReference<IPreparedNodeManagerBatch> observer) =
+                    await CreateCollectibleNestedRoutingConflictAsync(
+                        lifecycle, host, snapshot, outer, nestedDecisions, independentSnapshotCapture, token)
+                        .ConfigureAwait(false);
+
+                // Give the completed helper's awaiter a chance to leave this callback's frame.
+                await Task.Yield();
+                nestedMarker = marker;
+                nestedObserver = observer;
+                NodeManagerRoutingTable.RoutingSnapshot independent = independentSnapshotCapture[0] ??
+                    throw new InvalidOperationException("The independent publication was not captured.");
+                long independentRevision = independent.Revision;
+                publishedSnapshot = independent;
+                publishedRevision = independentRevision;
+                Assert.That(independent, Is.Not.SameAs(snapshot));
+                Assert.That(independentRevision, Is.EqualTo(initialRevision + 1));
+                Assert.That(host.RoutingRevision, Is.SameAs(independent));
+                Assert.That(lifecycle.Revision, Is.EqualTo(independentRevision));
+
+                CollectNestedRoutingConflictOwner(observer);
+                Assert.That(IsNestedRoutingConflictOwnerAlive(observer), Is.False,
+                    "The real nested prepared batch must be collected before its raw marker is thrown.");
+                Assert.That(marker.Batch, Is.Null);
+                Assert.That(marker.IsBound, Is.True);
+                Assert.That(marker.RoutingRevision, Is.SameAs(snapshot));
+                Assert.That(host.RoutingRevision, Is.SameAs(independent));
+                Assert.That(lifecycle.Revision, Is.EqualTo(independentRevision));
+                GC.KeepAlive(snapshot);
+                GC.KeepAlive(marker);
+                throw marker;
+            }
+        }
+
+        /// <summary>
+        /// An unbound conflict for another routing view must also bypass the real batch's binding filter.
+        /// </summary>
+        [Test]
+        public async Task UnboundRoutingConflictForDifferentViewIsNotReboundAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+            var host = (IDynamicNodeManagerBatchHost)m_server.CurrentInstance.NodeManager;
+            NodeManagerRoutingTable.RoutingSnapshot foreignSnapshot = host.RoutingRevision;
+            Mock<IAsyncNodeManager> owner = CreateLifecycleNodeManager(kModelNamespaceUri);
+            var ownerFactory = new Mock<IAsyncNodeManagerFactory>();
+            ownerFactory.Setup(value => value.CreateAsync(
+                It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(owner.Object);
+            await lifecycle.AddAsync(ownerFactory.Object, timeout.Token).ConfigureAwait(false);
+
+            NodeManagerRoutingTable.RoutingSnapshot snapshot = host.RoutingRevision;
+            Assert.That(snapshot, Is.Not.SameAs(foreignSnapshot));
+            int ownerNamespaceIndex = m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri);
+            Assert.That(ownerNamespaceIndex, Is.GreaterThanOrEqualTo(0));
+            var source = new NodeId(9913, (ushort)ownerNamespaceIndex);
+            var foreignFailure = new NodeManagerRoutingConflictException("Unrelated routing view.", foreignSnapshot);
+            owner.Setup(value => value.GetManagerHandleAsync(source, It.IsAny<CancellationToken>()))
+                .Throws(foreignFailure);
+
+            Mock<IAsyncNodeManager> candidate = CreateLifecycleNodeManager(kSecondModelNamespaceUri);
+            candidate.Setup(value => value.CreateAddressSpaceAsync(
+                It.IsAny<IDictionary<NodeId, IList<IReference>>>(), It.IsAny<CancellationToken>()))
+                .Callback((IDictionary<NodeId, IList<IReference>> references, CancellationToken _) =>
+                    references.Add(source,
+                        [new NodeStateReference(ReferenceTypeIds.HasComponent, false, new NodeId(9914))]))
+                .Returns(default(ValueTask));
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory.Setup(value => value.CreateAsync(
+                It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(candidate.Object);
+            await using IPreparedNodeManagerBatch outer = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(factory.Object)], timeout.Token).ConfigureAwait(false);
+            Assert.That(host.RoutingRevision, Is.SameAs(snapshot));
+
+            int decisions = 0;
+            Exception? observed = await Assert.CatchAsync<Exception>(() => outer.CommitAsync(_ =>
+            {
+                decisions++;
+                return default;
+            }, timeout.Token).AsTask()).ConfigureAwait(false);
+            await outer.DisposeAsync().ConfigureAwait(false);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(observed, Is.SameAs(foreignFailure));
+                Assert.That(foreignFailure.IsBound, Is.False);
+                Assert.That(foreignFailure.Batch, Is.Null);
+                Assert.That(foreignFailure.RoutingRevision, Is.SameAs(foreignSnapshot));
+                Assert.That(decisions, Is.Zero);
+                Assert.That(outer.IsCommitted, Is.False);
+                Assert.That(host.RoutingRevision, Is.SameAs(snapshot));
+                Assert.That(lifecycle.Revision, Is.EqualTo(snapshot.Revision));
+                Assert.That(NodeManagerGenerationRegistry.GetOrCreate(candidate.Object).Gate.State,
+                    Is.EqualTo(NodeManagerGenerationState.Aborted));
+                Assert.That(m_server.CurrentInstance.NamespaceUris.GetIndex(kSecondModelNamespaceUri), Is.EqualTo(-1));
+            }
+            owner.Verify(value => value.GetManagerHandleAsync(source, It.IsAny<CancellationToken>()), Times.Once);
+            candidate.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
+            GC.KeepAlive(foreignSnapshot);
+            GC.KeepAlive(foreignFailure);
+        }
+
+        /// <summary>
+        /// Produces a real bound nested conflict without returning its prepared owner or its completion tasks.
+        /// </summary>
+        [System.Runtime.CompilerServices.MethodImpl(
+            System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        private static async Task<(
+            NodeManagerRoutingConflictException Marker,
+            WeakReference<IPreparedNodeManagerBatch> Observer)> CreateCollectibleNestedRoutingConflictAsync(
+            INodeManagerLifecycle lifecycle,
+            IDynamicNodeManagerBatchHost host,
+            NodeManagerRoutingTable.RoutingSnapshot snapshot,
+            IPreparedNodeManagerBatch outer,
+            int[] nestedDecisions,
+            NodeManagerRoutingTable.RoutingSnapshot?[] independentSnapshotCapture,
+            CancellationToken cancellationToken)
+        {
+            Assert.That(host.RoutingRevision, Is.SameAs(snapshot));
+            ValueTask<IPreparedNodeManagerBatch> preparation = lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
+                    CreateOptions(kSecondModelNamespaceUri + ":Nested", kSecondRegistrationValue)))],
+                cancellationToken);
+            IPreparedNodeManagerBatch? nested = await preparation.ConfigureAwait(false);
+            preparation = default;
+            var observer = new WeakReference<IPreparedNodeManagerBatch>(nested);
+            NodeManagerRoutingConflictException? marker = null;
+            NodeManagerRoutingTable.RoutingSnapshot? independentSnapshot = null;
+            try
+            {
+                Assert.That(host.RoutingRevision, Is.SameAs(snapshot));
+                Assert.That(ReferenceEquals(nested, outer), Is.False);
+                NodeManagerRegistration independent = await lifecycle.AddAsync(
+                    new RuntimeNodeSetNodeManagerFactory(
+                        CreateOptions(kSecondModelNamespaceUri + ":Independent", kSecondRegistrationValue)),
+                    cancellationToken).ConfigureAwait(false);
+                independentSnapshot = host.RoutingRevision;
+                independentSnapshotCapture[0] = independentSnapshot;
+                Assert.That(independentSnapshot, Is.Not.SameAs(snapshot));
+                Assert.That(independentSnapshot.Revision, Is.EqualTo(snapshot.Revision + 1));
+                Assert.That(lifecycle.Revision, Is.EqualTo(independentSnapshot.Revision));
+                Assert.That(lifecycle.Registrations.ToList(), Does.Contain(independent));
+
+                ValueTask<NodeManagerBatchResult> commit = nested.CommitAsync(_ =>
+                {
+                    Interlocked.Increment(ref nestedDecisions[0]);
+                    return default;
+                }, cancellationToken);
+                try
+                {
+                    await commit.ConfigureAwait(false);
+                    Assert.Fail("The independently superseded nested batch must fail before its decision.");
+                }
+                catch (InvalidOperationException failure)
+                {
+                    Assert.That(failure, Is.TypeOf<InvalidOperationException>());
+                    Assert.That(failure.InnerException, Is.TypeOf<NodeManagerRoutingConflictException>());
+                    marker = (NodeManagerRoutingConflictException)failure.InnerException!;
+                    AssertNestedRoutingConflictOwnership(marker, nested, snapshot);
+                    Assert.That(nested.IsCommitted, Is.False);
+                }
+                finally
+                {
+                    commit = default;
+                }
+                Assert.That(nestedDecisions[0], Is.Zero);
+                Assert.That(host.RoutingRevision, Is.SameAs(independentSnapshot));
+            }
+            finally
+            {
+                ValueTask disposal = default;
+                try
+                {
+                    disposal = nested.DisposeAsync();
+                    nested = null;
+                    await disposal.ConfigureAwait(false);
+                }
+                finally
+                {
+                    // This local is hoisted by the async state machine; NoInlining alone does not release it.
+                    nested = null;
+                    disposal = default;
+                }
+            }
+
+            // Leave no nested owner, await-using resource, or owner-bearing task in the returned result.
+            await Task.Yield();
+            Assert.That(host.RoutingRevision, Is.SameAs(independentSnapshot));
+            Assert.That(lifecycle.Revision, Is.EqualTo(snapshot.Revision + 1));
+            GC.KeepAlive(snapshot);
+            GC.KeepAlive(outer);
+            return (marker!, observer);
+        }
+
+        /// <summary>
+        /// Checks the live owner in a frame that cannot retain it during later collection.
+        /// </summary>
+        [System.Runtime.CompilerServices.MethodImpl(
+            System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        private static void AssertNestedRoutingConflictOwnership(
+            NodeManagerRoutingConflictException marker,
+            IPreparedNodeManagerBatch nested,
+            NodeManagerRoutingTable.RoutingSnapshot snapshot)
+        {
+            Assert.That(marker.IsBound, Is.True);
+            Assert.That(ReferenceEquals(marker.Batch, nested), Is.True);
+            Assert.That(marker.RoutingRevision, Is.SameAs(snapshot));
+            Assert.That(marker.InnerException, Is.TypeOf<NodeManagerRoutingConflictException>());
+            var hostFailure = (NodeManagerRoutingConflictException)marker.InnerException!;
+            Assert.That(hostFailure.IsBound, Is.False);
+            Assert.That(hostFailure.Batch, Is.Null);
+            Assert.That(hostFailure.RoutingRevision, Is.SameAs(snapshot));
+            GC.KeepAlive(nested);
+        }
+
+        /// <summary>
+        /// Performs bounded full collections without retaining the observed batch in a polling frame.
+        /// </summary>
+        [System.Runtime.CompilerServices.MethodImpl(
+            System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        private static void CollectNestedRoutingConflictOwner(WeakReference<IPreparedNodeManagerBatch> observer)
+        {
+            for (int attempt = 0; attempt < 10; attempt++)
+            {
+                CollectLifecycleOwnershipTargets();
+                if (!IsNestedRoutingConflictOwnerAlive(observer))
+                {
+                    return;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Checks whether the nested batch is still alive without retaining it during collection.
+        /// </summary>
+        [System.Runtime.CompilerServices.MethodImpl(
+            System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        private static bool IsNestedRoutingConflictOwnerAlive(WeakReference<IPreparedNodeManagerBatch> observer)
+        {
+            return observer.TryGetTarget(out _);
+        }
     }
 }

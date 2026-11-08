@@ -73,12 +73,19 @@ namespace Opc.Ua.Server
             IPreparedNodeManagerBatch batch)
             : base(failure.Message, failure)
         {
-            Batch = batch;
+            m_batch = new WeakReference<IPreparedNodeManagerBatch>(
+                batch ?? throw new ArgumentNullException(nameof(batch)));
         }
 
         /// <summary>
-        /// Gets the prepared batch whose captured serving revision became stale.
+        /// Gets the live prepared batch whose captured serving revision became stale, if available.
         /// </summary>
-        internal IPreparedNodeManagerBatch? Batch { get; }
+        internal IPreparedNodeManagerBatch? Batch =>
+            m_batch is not null && m_batch.TryGetTarget(out IPreparedNodeManagerBatch? batch)
+                ? batch
+                : null;
+
+        /// <summary>The prepared batch's non-owning identity.</summary>
+        private readonly WeakReference<IPreparedNodeManagerBatch>? m_batch;
     }
 }

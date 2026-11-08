@@ -3200,7 +3200,7 @@ namespace Opc.Ua.Server
                             this, decideAsync, cancellationToken, publishCommittedState).ConfigureAwait(false);
                     }
                     catch (NodeManagerRoutingConflictException failure) when (
-                        failure.Batch is null && ReferenceEquals(failure.RoutingRevision, RoutingRevision))
+                        !failure.IsBound && ReferenceEquals(failure.RoutingRevision, RoutingRevision))
                     {
                         throw new InvalidOperationException(
                             failure.Message, new NodeManagerRoutingConflictException(failure, this));
