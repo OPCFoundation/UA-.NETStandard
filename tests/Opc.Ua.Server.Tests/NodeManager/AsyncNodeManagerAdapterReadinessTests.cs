@@ -41,7 +41,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
     [TestFixture]
     [Category("NodeManager")]
     [Parallelizable(ParallelScope.All)]
-    public class AsyncNodeManagerAdapterReadinessTests
+    public sealed class AsyncNodeManagerAdapterReadinessTests
     {
         /// <summary>
         /// Disposing a round-trip facade reaches its underlying asynchronous manager exactly once.
@@ -67,6 +67,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             asyncDisposable.Verify(value => value.DisposeAsync(), asynchronous ? Times.Once() : Times.Never());
         }
 
+        /// <summary>
+        /// Async readiness takes precedence and receives the caller's cancellation token.
+        /// </summary>
         [Test]
         public async Task AsyncReadinessIsPreferredOverSyncReadinessAsync()
         {
@@ -74,14 +77,18 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var asyncReady = manager.As<INodeManagerReadinessNotification>();
             var syncReady = manager.As<ISyncNodeManagerReadinessNotification>();
             using var adapter = new AsyncNodeManagerAdapter(manager.Object);
+            using var cancellation = new CancellationTokenSource();
 
-            await adapter.OnServerReadyAsync(CancellationToken.None).ConfigureAwait(false);
+            await adapter.OnServerReadyAsync(cancellation.Token).ConfigureAwait(false);
 
-            asyncReady.Verify(m => m.OnServerReadyAsync(It.IsAny<CancellationToken>()), Times.Once);
+            asyncReady.Verify(m => m.OnServerReadyAsync(cancellation.Token), Times.Once);
             syncReady.Verify(m => m.OnServerReady(), Times.Never);
             Assert.That(NodeManagerReadiness.IsParticipant(adapter), Is.True);
         }
 
+        /// <summary>
+        /// A synchronous readiness participant is called once when no asynchronous participant exists.
+        /// </summary>
         [Test]
         public async Task SyncOnlyReadinessIsInvokedOnceAsync()
         {
@@ -89,24 +96,28 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var syncReady = manager.As<ISyncNodeManagerReadinessNotification>();
             using var adapter = new AsyncNodeManagerAdapter(manager.Object);
 
+            Assert.That(manager.Object, Is.Not.InstanceOf<INodeManagerReadinessNotification>());
             await adapter.OnServerReadyAsync(CancellationToken.None).ConfigureAwait(false);
 
             syncReady.Verify(m => m.OnServerReady(), Times.Once);
             Assert.That(NodeManagerReadiness.IsParticipant(adapter), Is.True);
         }
 
+        /// <summary>
+        /// A canceled token prevents the synchronous readiness callback from running.
+        /// </summary>
         [Test]
-        public void SyncReadinessIsNotInvokedWhenCancelledBeforeCall()
+        public async Task SyncReadinessIsNotInvokedWhenCancelledBeforeCall()
         {
             var manager = new Mock<INodeManager>();
             var syncReady = manager.As<ISyncNodeManagerReadinessNotification>();
             using var adapter = new AsyncNodeManagerAdapter(manager.Object);
             using var cts = new CancellationTokenSource();
-            cts.Cancel();
+            await cts.CancelAsync().ConfigureAwait(false);
 
-            Assert.That(
+            await Assert.ThatAsync(
                 async () => await adapter.OnServerReadyAsync(cts.Token).ConfigureAwait(false),
-                Throws.InstanceOf<OperationCanceledException>());
+                Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
             syncReady.Verify(m => m.OnServerReady(), Times.Never);
         }
 
