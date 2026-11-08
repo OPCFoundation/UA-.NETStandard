@@ -220,7 +220,7 @@ namespace Opc.Ua
                                 generation != m_certificateManagerGeneration;
                             // The factory runs outside the lock, so another caller may have published a manager.
                             ICertificateManager? current = Volatile.Read(ref m_certificateManager);
-                            if (!releasedDuringCreation && (current == null || m_certificateManagerUsers > 0))
+                            if (!releasedDuringCreation && current == null)
                             {
                                 lock (s_certificateManagerLifetimeLock)
                                 {
@@ -231,13 +231,14 @@ namespace Opc.Ua
                                         m_validationCreatedCertificateManagers.Add(created);
                                     }
                                 }
-                                selected = current ?? created;
+                                selected = created;
                                 m_certificateManager = selected;
                                 created = null; // ownership transferred to the configuration leases
                             }
                             else if (!releasedDuringCreation)
                             {
-                                // An unattached configuration keeps a manager assigned during creation.
+                                // The setter already tracked a manager assigned during creation, so the unpublished
+                                // manager has no consumers and is disposed below instead of joining the leases.
                                 selected = current;
                             }
                         }

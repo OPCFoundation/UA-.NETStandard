@@ -529,6 +529,8 @@ namespace Opc.Ua.Configuration.Tests
             {
                 Assert.That(manager, Is.SameAs(external));
             }
+            // A manager created but never published must not join the leases of the attached applications.
+            Assert.That(GetTrackedCertificateManagers(configuration), Is.EquivalentTo(new[] { manager }));
             await first.DisposeAsync();
             using (ICertificateStore store = manager.OpenCertificateStore(
                 m_pkiRoot, CertificateStoreType.Directory, false))
@@ -549,6 +551,18 @@ namespace Opc.Ua.Configuration.Tests
             }
         }
 
+        /// <summary>
+        /// Reads the managers whose lifetimes follow the configuration leases.
+        /// </summary>
+        private static CertificateManager[] GetTrackedCertificateManagers(ApplicationConfiguration configuration)
+        {
+            System.Reflection.FieldInfo field = typeof(ApplicationConfiguration).GetField(
+                "m_certificateManagers",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic) ??
+                throw new InvalidOperationException("The configuration does not track certificate managers.");
+            var managers = (HashSet<CertificateManager>)field.GetValue(configuration)!;
+            return [.. managers];
+        }
         /// <summary>
         /// An application attached after final release does not join initialization from the retired ownership period.
         /// </summary>
