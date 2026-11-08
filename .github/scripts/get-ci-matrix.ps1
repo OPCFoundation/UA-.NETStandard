@@ -489,6 +489,7 @@ function Get-TestProjectShards([string] $project, [string] $framework, [string] 
             }
             if ($framework -ne 'net48') {
                 $liveEvents = "${materialization}WotEventModesLiveTests."
+                $registryIdentity = 'Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests'
                 return @(
                     @{
                         id = 'wot-materialization-core'
@@ -517,7 +518,21 @@ function Get-TestProjectShards([string] $project, [string] $framework, [string] 
                     @{
                         id = 'wot-other-integration'
                         name = 'wot-other-integration'
-                        filter = "FullyQualifiedName!~${materialization}&TestCategory=Integration"
+                        filter = @(
+                            "FullyQualifiedName!~${materialization}"
+                            'TestCategory=Integration'
+                            "FullyQualifiedName!~${registryIdentity}"
+                        ) -join '&'
+                        hangTimeout = ''
+                    }
+                    @{
+                        id = 'wot-other-identity-integration'
+                        name = 'wot-other-identity-integration'
+                        filter = @(
+                            "FullyQualifiedName!~${materialization}"
+                            'TestCategory=Integration'
+                            "FullyQualifiedName~${registryIdentity}"
+                        ) -join '&'
                         hangTimeout = ''
                     }
                 )
