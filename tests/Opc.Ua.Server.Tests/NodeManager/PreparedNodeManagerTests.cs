@@ -141,6 +141,94 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// A disposed changes unit can recover its original registration while its manager remains available.
+        /// </summary>
+        [Test]
+        public async Task DisposedChangesReconstructOriginalRegistrationFromRetainedManagerAsync()
+        {
+            IAsyncNodeManager manager = Mock.Of<IAsyncNodeManager>();
+            (IPreparedChanges changes, WeakReference<NodeManagerRegistration> original) =
+                await CreateDisposedChangesWithRetainedManagerAsync(manager, committed: true).ConfigureAwait(false);
+
+            await Task.Yield();
+            CollectFully();
+
+            NodeManagerRegistrationSnapshot snapshot = changes.Registrations[0];
+            Assert.That(original.TryGetTarget(out _), Is.False);
+            Assert.That(changes.IsCommitted, Is.True);
+            Assert.That(snapshot.Slot.TryGetCurrent(out _), Is.True);
+            Assert.That(snapshot.TryGetRegistration(out NodeManagerRegistration? recovered), Is.True);
+            Assert.That(recovered, Is.Not.Null);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(recovered!.Slot, Is.SameAs(snapshot.Slot));
+                Assert.That(recovered.Id, Is.EqualTo(snapshot.Id));
+                Assert.That(recovered.Generation, Is.EqualTo(snapshot.Generation));
+                Assert.That(recovered.NodeManager, Is.SameAs(manager));
+            }
+            GC.KeepAlive(manager);
+            GC.KeepAlive(changes);
+        }
+
+        /// <summary>
+        /// Disposed changes cannot acquire a later candidate's slot or change its registration identifier.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DisposedChangesSnapshotDoesNotRebindToReusedCandidateSlotAsync(bool registerNewCandidate)
+        {
+            IAsyncNodeManager manager = Mock.Of<IAsyncNodeManager>();
+            (IPreparedChanges changes, WeakReference<NodeManagerRegistration> original) =
+                await CreateDisposedChangesWithRetainedManagerAsync(manager, committed: false).ConfigureAwait(false);
+
+            await Task.Yield();
+            CollectFully();
+            NodeManagerRegistrationSnapshot snapshot = changes.Registrations[0];
+            Assert.That(original.TryGetTarget(out _), Is.False);
+            Assert.That(changes.IsCommitted, Is.False);
+            Assert.That(snapshot.Slot.TryGetCurrent(out _), Is.False);
+            Assert.That(snapshot.TryGetNodeManager(out IAsyncNodeManager? retained), Is.True);
+            Assert.That(retained, Is.SameAs(manager));
+
+            NodeManagerGeneration oldGeneration = NodeManagerGenerationRegistry.GetOrCreate(manager);
+            Assert.That(oldGeneration.Slot, Is.SameAs(snapshot.Slot));
+            Assert.That(oldGeneration.Gate.State, Is.EqualTo(NodeManagerGenerationState.Aborted));
+            NodeManagerGeneration newGeneration = NodeManagerGenerationRegistry.CreateAddition(manager);
+            Assert.That(newGeneration.Slot, Is.Not.SameAs(snapshot.Slot));
+            Assert.That(newGeneration.Number, Is.EqualTo(snapshot.Generation));
+
+            NodeManagerRegistration? newRegistration = registerNewCandidate
+                ? new NodeManagerRegistration(
+                    Guid.Parse("1741ba1f-6eee-4df8-a896-47f58a24ef0c"), newGeneration.Number, manager)
+                : null;
+            Guid newSlotId = newGeneration.Slot.Id;
+
+            bool acquired = snapshot.TryGetRegistration(out NodeManagerRegistration? recovered);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(newGeneration.Slot.Id, Is.EqualTo(newSlotId));
+                Assert.That(recovered is not null, Is.EqualTo(acquired));
+                if (recovered is not null)
+                {
+                    Assert.That(recovered.Slot, Is.SameAs(snapshot.Slot));
+                    Assert.That(recovered.Id, Is.EqualTo(snapshot.Id));
+                    Assert.That(recovered.Generation, Is.EqualTo(snapshot.Generation));
+                    Assert.That(recovered.NodeManager, Is.SameAs(manager));
+                }
+                if (newRegistration is not null)
+                {
+                    Assert.That(newRegistration.Slot, Is.SameAs(newGeneration.Slot));
+                    Assert.That(newRegistration.Id, Is.EqualTo(newSlotId));
+                }
+            }
+            GC.KeepAlive(oldGeneration);
+            GC.KeepAlive(newRegistration);
+            GC.KeepAlive(manager);
+            GC.KeepAlive(changes);
+        }
+
+        /// <summary>
         /// Failed provider cleanup remains observable and retryable instead of dropping the outstanding owner.
         /// </summary>
         [Test]
@@ -400,6 +488,41 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await changes.DisposeAsync().ConfigureAwait(false);
             provider.Verify(value => value.DisposeAsync(), Times.Once);
             return (changes, owner, providerReference);
+        }
+
+        /// <summary>
+        /// Disposes the prepared provider while a separate owner retains its manager.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static async Task<(IPreparedChanges Changes, WeakReference<NodeManagerRegistration> Registration)>
+            CreateDisposedChangesWithRetainedManagerAsync(IAsyncNodeManager manager, bool committed)
+        {
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.CreateAddition(manager);
+            var registration = new NodeManagerRegistration(
+                Guid.Parse("1bd46abf-ceb4-4a81-8243-51bab3b9d1c8"), generation.Number, manager);
+            if (committed)
+            {
+                generation.Gate.Activate();
+                generation.Slot.Publish(generation);
+            }
+            var provider = new Mock<IPreparedNodeManagerBatch>(MockBehavior.Strict);
+            provider.SetupGet(value => value.Registrations)
+                .Returns(new ArrayOf<NodeManagerRegistration>([registration]));
+            provider.SetupGet(value => value.IsCommitted).Returns(committed);
+            provider.Setup(value => value.DisposeAsync())
+                .Callback(() =>
+                {
+                    if (!committed)
+                    {
+                        generation.Gate.Abort();
+                    }
+                })
+                .Returns(default(ValueTask));
+            var changes = new PreparedLifecycleChanges(
+                provider.Object, [LifecycleChange.Add(Mock.Of<IAsyncNodeManagerFactory>())]);
+            await changes.DisposeAsync().ConfigureAwait(false);
+            provider.Verify(value => value.DisposeAsync(), Times.Once);
+            return (changes, new WeakReference<NodeManagerRegistration>(registration));
         }
 
         /// <summary>
