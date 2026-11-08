@@ -167,5 +167,18 @@ namespace Opc.Ua
         private readonly TaskCompletionSource<bool> m_tcs = new(
             TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly PublishRequest? m_publish;
+
+        /// <summary>
+        /// The bytes the request still retains once it parked without its payload, or 0 when
+        /// it keeps its full decoded-request cost. Set at admission, before the request is
+        /// queued, and not changed afterwards.
+        /// </summary>
+        internal long RetainedCost;
+
+        /// <summary>
+        /// The decoded-request charge for <see cref="RetainedCost"/>, held by the queue entry
+        /// of the request instead of its full cost once it parked.
+        /// </summary>
+        internal FairRequestQueue.StageHold RetainedCostHold;
     }
 }

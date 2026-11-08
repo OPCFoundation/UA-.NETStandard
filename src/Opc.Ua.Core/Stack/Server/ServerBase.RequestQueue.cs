@@ -558,7 +558,7 @@ namespace Opc.Ua
                         if (parkSink.ReleasesPayload && !processing.IsCompleted)
                         {
                             // the parked request no longer retains its decoded payload
-                            entry?.ReleaseRequestCost();
+                            entry?.ReleaseRequestCost(parkSink);
                         }
                     }
                 }
