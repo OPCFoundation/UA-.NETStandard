@@ -617,6 +617,12 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(entries.DisposeCount, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies retirement waits for cursor cleanup when the continuation is released before or during retirement.
+        /// </summary>
+        /// <param name="releaseContinuationFirst">
+        /// Whether BrowseNext releases the continuation before retirement starts.
+        /// </param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task GenerationRetirementWaitsForDirectoryCursorCleanupAsync(bool releaseContinuationFirst)
@@ -633,9 +639,13 @@ namespace Opc.Ua.Server.Tests.FileSystem
             var sessions = new Mock<ISessionManager>();
             sessions.Setup(value => value.GetSessions()).Returns([session.Object]);
             m_server.SetupGet(value => value.SessionManager).Returns(sessions.Object);
+            await using MasterNodeManager? master = releaseContinuationFirst
+                ? DeterministicServerMock.CreateMasterNodeManager(m_server, [m_manager])
+                : null;
 
-            var point = new ContinuationPoint
+            using var point = new ContinuationPoint
             {
+                Id = Guid.NewGuid(),
                 Manager = m_manager,
                 NodeToBrowse = new NodeHandle
                 {
@@ -662,12 +672,6 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 cleanupEntered.TrySetResult(true);
                 await releaseCleanup.Task.ConfigureAwait(false);
             };
-            if (releaseContinuationFirst)
-            {
-                points.Clear();
-                await cleanupEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-            }
-
             var destroyCompleted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             bool destroyedWhileCursorCleanupWasHeld = false;
             var host = new Mock<IDynamicNodeManagerHost>();
@@ -684,7 +688,6 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 .Returns(ValueTask.CompletedTask);
 
             NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(m_manager);
-            generation.Gate.Retire();
             var retired = new GenerationReclaimer.RetiredGeneration(
                 m_server.Object,
                 host.Object,
@@ -692,26 +695,53 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 [],
                 needsDetachment: false);
             using var reclaimer = new GenerationReclaimer();
-            reclaimer.Enqueue([retired]);
-            reclaimer.Activate([retired]);
-            Task reclamation = reclaimer.ReclaimReadyAsync([retired]).AsTask();
-
+            Task? reclamation = null;
             try
             {
+                if (releaseContinuationFirst)
+                {
+                    ByteString token = point.Id.ToByteArray().ToByteString();
+                    using var releaseContext = new OperationContext(
+                        new RequestHeader(), null!, RequestType.BrowseNext, RequestLifetime.None, session.Object);
+                    (ArrayOf<BrowseResult> released, _) = await master!.BrowseNextAsync(
+                        releaseContext, true, [token]).ConfigureAwait(false);
+                    Assert.That(released.Count, Is.EqualTo(1));
+                    Assert.That(released[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(released[0].ContinuationPoint.IsEmpty, Is.True);
+                    Assert.That(points.RestoreBrowse(token), Is.Null);
+                    Assert.That(points.HasBrowseForManager(m_manager), Is.False);
+                    await cleanupEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    Assert.That(entries.DisposeCount, Is.EqualTo(1));
+                    Assert.That(entries.Disposed.Task.IsCompleted, Is.False);
+                }
+
+                generation.Gate.Retire();
+                reclaimer.Enqueue([retired]);
+                reclaimer.Activate([retired]);
+                reclaimer.Schedule();
+                reclamation = reclaimer.ReclaimReadyAsync([retired]).AsTask();
                 if (!releaseContinuationFirst)
                 {
                     await cleanupEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
                 }
                 _ = await Task.WhenAny(destroyCompleted.Task, Task.Delay(TimeSpan.FromSeconds(1), timeout.Token))
                     .ConfigureAwait(false);
+                timeout.Token.ThrowIfCancellationRequested();
+                Assert.That(destroyCompleted.Task.IsCompleted, Is.False,
+                    "Address-space destruction must wait for the cursor cleanup.");
+                Assert.That(retired.Retirement.IsCompleted, Is.False,
+                    "Retirement must remain pending while the cursor cleanup is blocked.");
             }
             finally
             {
                 releaseCleanup.TrySetResult(true);
                 try
                 {
-                    await reclamation.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
-                    await retired.Retirement.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    if (reclamation is not null)
+                    {
+                        await reclamation.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                        await retired.Retirement.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    }
                 }
                 finally
                 {
@@ -719,8 +749,11 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 }
             }
 
+            Assert.That(destroyCompleted.Task.IsCompleted, Is.True);
             Assert.That(destroyedWhileCursorCleanupWasHeld, Is.False,
                 "The address space must not finish deletion while its Browse cursor cleanup is still running.");
+            host.Verify(value => value.DestroyAddressSpaceAsync(
+                m_manager, It.IsAny<CancellationToken>()), Times.Once);
             await entries.Disposed.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
             Assert.That(entries.DisposeCount, Is.EqualTo(1));
         }
