@@ -822,6 +822,53 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         }
 
         /// <summary>
+        /// A parked Publish keeps its full charge when the smaller one cannot be admitted beside
+        /// it, and a swap that runs after the entry was disposed returns what it admitted.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void RetainedChargeIsNotSwappedWhenItCannotBeAdmittedOrTheEntryIsGone(bool reservations)
+        {
+            const long requestCost = 5000;
+            TestProvider provider = reservations
+                ? new ReservingTestProvider(costCapacity: requestCost)
+                : new TestProvider(costCapacity: requestCost);
+            NodeId token = provider.AddOwner("A");
+            using var queue = CreateQueue(provider, requestCost: requestCost);
+            var request = new TestRequest(token, serviceRequest: new PublishRequest(), payloadReleasingSink: true);
+            Enqueue(queue, request);
+            FairRequestQueue.Entry entry = Dequeue(queue);
+            Assert.That(request.ParkSink.RetainedCost, Is.GreaterThan(0).And.LessThan(requestCost));
+
+            // a sink that keeps its payload has nothing to swap
+            entry.ReleaseRequestCost(new RequestParkSink());
+            Assert.That(provider.Used(ResourceIsolationStage.RequestQueueBytes), Is.EqualTo(requestCost));
+
+            // the budget holds only the full charge, so the retained one is refused and the full one stays
+            entry.ReleaseRequestCost(request.ParkSink);
+            Assert.That(provider.Used(ResourceIsolationStage.RequestQueueBytes), Is.EqualTo(requestCost));
+
+            entry.Dispose();
+            Assert.That(provider.TotalUsed, Is.Zero);
+            entry.ReleaseRequestCost(request.ParkSink);
+            Assert.That(provider.TotalUsed, Is.Zero);
+        }
+
+        /// <summary>
+        /// The retained estimate of a parked Publish grows with the audit entry id it keeps.
+        /// </summary>
+        [Test]
+        public void ParkSinkEstimateCountsTheAuditEntryId()
+        {
+            var publish = new PublishRequest();
+            var sink = new RequestParkSink(publish);
+            long withoutAudit = sink.EstimateRetainedBytes();
+            publish.RequestHeader.AuditEntryId = "audit";
+            Assert.That(sink.EstimateRetainedBytes(), Is.EqualTo(withoutAudit + 10));
+            Assert.That(new RequestParkSink().EstimateRetainedBytes(), Is.Zero);
+        }
+
+        /// <summary>
         /// Only a Publish drops its payload when it parks: other parkable requests (a Session
         /// establishment waiting for the limiter) still need theirs after the wait.
         /// </summary>
