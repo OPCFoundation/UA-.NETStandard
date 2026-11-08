@@ -428,22 +428,28 @@ namespace Opc.Ua.Di.Server
             public void Dispose()
             {
                 DiNodeManager? owner = Volatile.Read(ref m_owner);
-                if (owner == null)
+                if (owner == null ||
+                    !ReferenceEquals(Interlocked.CompareExchange(ref m_owner, null, owner), owner))
                 {
                     return;
                 }
-                Service.ReleaseElement(Element.NodeId);
-                if (ReferenceEquals(Interlocked.CompareExchange(ref m_owner, null, owner), owner))
+                try
                 {
-                    lock (owner.m_lockRegistrationsGate)
+                    Service.ReleaseElement(Element.NodeId);
+                }
+                catch
+                {
+                    Interlocked.CompareExchange(ref m_owner, owner, null);
+                    throw;
+                }
+                lock (owner.m_lockRegistrationsGate)
+                {
+                    if (m_sessions != null)
                     {
-                        if (m_sessions != null)
-                        {
-                            m_sessions.SessionClosing -= OnSessionClosing;
-                            m_sessions = null;
-                        }
-                        owner.m_lockRegistrations.Remove(Element.NodeId);
+                        m_sessions.SessionClosing -= OnSessionClosing;
+                        m_sessions = null;
                     }
+                    owner.m_lockRegistrations.Remove(Element.NodeId);
                 }
             }
 
