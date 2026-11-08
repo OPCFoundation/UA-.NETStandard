@@ -230,8 +230,9 @@ try
         Func<CancellationToken, Task<ManagedSession>> connect =
             host.Services.GetRequiredService<
                 Func<CancellationToken, Task<ManagedSession>>>();
-        await using ManagedSession session = await connect(ct)
+        ManagedSession session = await connect(ct)
             .ConfigureAwait(false);
+        await using var sessionLifetime = session.ConfigureAwait(false);
         selectedSession = session;
         if (softwareStatus != null)
         {

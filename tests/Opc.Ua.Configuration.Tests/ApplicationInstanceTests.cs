@@ -1503,7 +1503,7 @@ namespace Opc.Ua.Configuration.Tests
             ReplacingValidationConfiguration.CurrentScenario.Value = scenario;
             await using var application = new ApplicationInstance(telemetry)
             {
-                ApplicationType = ApplicationType.Client,
+                ApplicationType = ApplicationType.Server,
                 ConfigurationType = typeof(ReplacingValidationConfiguration)
             };
             string? configPath = Utils.GetAbsoluteFilePath(

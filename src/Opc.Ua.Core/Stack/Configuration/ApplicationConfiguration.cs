@@ -172,6 +172,28 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Checks manager lifetime before validation opens stores and captures this ownership period.
+        /// </summary>
+        private int CaptureValidationCertificateManagerGeneration()
+        {
+            lock (m_certificateManagerLock)
+            {
+                if (m_certificateManager is CertificateManager manager)
+                {
+                    lock (s_certificateManagerLifetimeLock)
+                    {
+                        GetCertificateManagerLifetime(manager).ThrowIfDisposing();
+                    }
+                }
+                if (m_certificateManagerLeaseReleased)
+                {
+                    throw new ObjectDisposedException(nameof(ApplicationConfiguration));
+                }
+                return m_certificateManagerGeneration;
+            }
+        }
+
+        /// <summary>
         /// Initializes a missing manager once per ownership period without overwriting replacements.
         /// </summary>
         /// <remarks>
@@ -1077,6 +1099,7 @@ namespace Opc.Ua
             ApplicationType applicationType,
             CancellationToken ct = default)
         {
+            int certificateManagerGeneration = CaptureValidationCertificateManagerGeneration();
             if (string.IsNullOrEmpty(ApplicationName))
             {
                 throw ServiceResultException.ConfigurationError(
@@ -1162,7 +1185,9 @@ namespace Opc.Ua
             // server bring-up) can rely on it being non-null even when
             // the configuration was not built through ApplicationInstance.
             // Attached applications share ownership, including assignments made after attachment.
-            await GetOrCreateCertificateManagerAsync(m_telemetry, validationCreated: true).ConfigureAwait(false);
+            await GetOrCreateCertificateManagerAsync(
+                m_telemetry, validationCreated: true, expectedGeneration: certificateManagerGeneration)
+                .ConfigureAwait(false);
 
             // Eagerly load configured application certificates into the
             // manager registry so consumers (Session, validator, etc) can
