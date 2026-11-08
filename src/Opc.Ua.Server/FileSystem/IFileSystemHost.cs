@@ -68,7 +68,7 @@ namespace Opc.Ua.Server.FileSystem
         /// Retains an asynchronous directory cursor cleanup started by synchronous browser disposal,
         /// so the host can join it before tearing down the resources the cursor uses.
         /// </summary>
-        /// <param name="cleanup">The cleanup task; it records its own failures and never faults.</param>
+        /// <param name="cleanup">The task returned by the browser's asynchronous cleanup.</param>
         void TrackCursorCleanup(Task cleanup);
 
         /// <summary>

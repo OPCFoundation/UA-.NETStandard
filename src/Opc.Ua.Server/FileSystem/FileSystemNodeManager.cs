@@ -333,8 +333,8 @@ namespace Opc.Ua.Server.FileSystem
         }
 
         /// <summary>
-        /// Waits until every tracked asynchronous directory cursor cleanup has completed,
-        /// including cleanups started while an earlier batch was being awaited.
+        /// Waits for the cursor cleanup tasks recorded by the host, including tasks added while an
+        /// earlier batch is being awaited.
         /// </summary>
         private async ValueTask WaitForCursorCleanupsAsync()
         {
