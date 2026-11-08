@@ -867,6 +867,132 @@ namespace Opc.Ua.Scales.Tests
         }
 
         /// <summary>
+        /// Initialization observers reject nested reports before the first item is counted.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CheckweigherInitializationRejectsNestedReportsWithoutDeadlockAsync(bool aggregate)
+        {
+            ScaleHandle scale = await CreateAsync(ScaleKind.Checkweigher, "NestedInitialization", builder =>
+                builder.WithProductionPreset(preset => preset.AllowSelection()
+                    .AddProduct("A", new LocalizedText("A")).Select("A"))).ConfigureAwait(false);
+            var product = (CheckweigherProductState)scale.ProductionPreset!.ActiveProduct!;
+            var statistic = (CheckweigherStatisticState)product.Statistic!;
+            BaseVariableState observed = aggregate
+                ? statistic.TotalPackagesAccepted!.MeanValue! : statistic.StartTime!;
+            int synchronousCallbacks = 0;
+            int asynchronousCallbacks = 0;
+            observed.OnStateChanged = (_, _, _) => synchronousCallbacks++;
+            observed.OnStateChangedAsync = async (_, _, _, _) =>
+            {
+                int callback = ++asynchronousCallbacks;
+                Assert.That(synchronousCallbacks, Is.EqualTo(callback));
+                if (callback == 1)
+                {
+                    Assert.That(statistic.TotalPackages!.ItemCount!.WrappedValue.GetUInt64(), Is.Zero);
+                    Assert.That(scale.CheckweigherStatistics.TryGetValue(statistic, out _), Is.False);
+                    using var bounded = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+                    ServiceResult nested = await scale.Checkweigher!.RecordAcceptedAsync(
+                        20, cancellationToken: bounded.Token).ConfigureAwait(false);
+                    Assert.That(nested.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                    Assert.That(statistic.TotalPackages.ItemCount.WrappedValue.GetUInt64(), Is.Zero);
+                }
+            };
+            try
+            {
+                using var bounded = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                Assert.That(ServiceResult.IsGood(await scale.Checkweigher!.RecordAcceptedAsync(
+                    10, cancellationToken: bounded.Token).ConfigureAwait(false)), Is.True);
+                Assert.That(asynchronousCallbacks, Is.GreaterThanOrEqualTo(1));
+                Assert.That(synchronousCallbacks, Is.EqualTo(asynchronousCallbacks));
+                Assert.That(statistic.TotalPackages!.ItemCount!.WrappedValue.GetUInt64(), Is.EqualTo(1UL));
+                Assert.That(scale.Scale.ProductionOutput!.TotalPackages!.ItemCount!.WrappedValue.GetUInt64(),
+                    Is.EqualTo(1UL));
+                Assert.That(scale.CheckweigherStatistics.TryGetValue(statistic, out _), Is.True);
+            }
+            finally
+            {
+                observed.OnStateChanged = null;
+                observed.OnStateChangedAsync = null;
+            }
+            Assert.That(ServiceResult.IsGood(await scale.Checkweigher!.RecordAcceptedAsync(20)
+                .ConfigureAwait(false)), Is.True);
+            Assert.That(statistic.TotalPackages!.ItemCount!.WrappedValue.GetUInt64(), Is.EqualTo(2UL));
+        }
+
+        /// <summary>
+        /// Reset observers reject nested mutations while external reports wait for the completed reset.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CheckweigherResetRejectsNestedMutationsWithoutDeadlockAsync(bool nativeWrite)
+        {
+            ScaleHandle scale = await CreateAsync(ScaleKind.Checkweigher, "NestedReset", builder =>
+                builder.WithProductionPreset(preset => preset.AllowSelection()
+                    .AddProduct("A", new LocalizedText("A"), (_, state) =>
+                        ((CheckweigherProductState)state).NominalWeight!.WrappedValue = Variant.From(10.0))
+                    .Select("A"))).ConfigureAwait(false);
+            var product = (CheckweigherProductState)scale.ProductionPreset!.ActiveProduct!;
+            var statistic = (CheckweigherStatisticState)product.Statistic!;
+            Assert.That(ServiceResult.IsGood(await scale.Checkweigher!.RecordAcceptedAsync(10)
+                .ConfigureAwait(false)), Is.True);
+            BaseVariableState count = statistic.TotalPackages!.ItemCount!;
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var bounded = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            int synchronousCallbacks = 0;
+            int asynchronousCallbacks = 0;
+            count.OnStateChanged = (_, _, _) => synchronousCallbacks++;
+            count.OnStateChangedAsync = async (_, _, _, _) =>
+            {
+                int callback = ++asynchronousCallbacks;
+                Assert.That(synchronousCallbacks, Is.EqualTo(callback));
+                if (callback == 1)
+                {
+                    using var nestedTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+                    ServiceResult nested = nativeWrite
+                        ? await product.NominalWeight!.WriteAttributeAsync(
+                            m_fixture.Context, Attributes.Value, default, new DataValue(Variant.From(14.0)),
+                            nestedTimeout.Token).ConfigureAwait(false)
+                        : await scale.Checkweigher.RecordAcceptedAsync(
+                            20, cancellationToken: nestedTimeout.Token).ConfigureAwait(false);
+                    Assert.That(nested.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                    Assert.That(count.WrappedValue.GetUInt64(), Is.Zero);
+                    Assert.That(product.NominalWeight!.WrappedValue.GetDouble(), Is.EqualTo(10.0));
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(bounded.Token).ConfigureAwait(false);
+                }
+            };
+            Task<ServiceResult> reset = scale.Checkweigher.ResetAsync("period", bounded.Token).AsTask();
+            Task<ServiceResult>? external = null;
+            try
+            {
+                await entered.Task.WaitAsync(bounded.Token).ConfigureAwait(false);
+                external = scale.Checkweigher.RecordAcceptedAsync(
+                    30, cancellationToken: bounded.Token).AsTask();
+                Assert.That(external.IsCompleted, Is.False);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                try
+                {
+                    Assert.That(ServiceResult.IsGood(await reset.ConfigureAwait(false)), Is.True);
+                }
+                finally
+                {
+                    count.OnStateChanged = null;
+                    count.OnStateChangedAsync = null;
+                }
+            }
+            Assert.That(external, Is.Not.Null);
+            Assert.That(ServiceResult.IsGood(await external!.ConfigureAwait(false)), Is.True);
+            Assert.That(count.WrappedValue.GetUInt64(), Is.EqualTo(1UL));
+            Assert.That(scale.Scale.ProductionOutput!.TotalPackages!.ItemCount!.WrappedValue.GetUInt64(),
+                Is.EqualTo(1UL));
+        }
+
+        /// <summary>
         /// Notification failures propagate after both product and scale counts have committed.
         /// </summary>
         [TestCase(false)]

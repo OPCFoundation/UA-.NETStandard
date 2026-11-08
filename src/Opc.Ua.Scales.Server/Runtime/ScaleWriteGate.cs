@@ -122,7 +122,7 @@ namespace Opc.Ua.Scales.Server.Runtime
         internal NodeWriteOperationExecutor NodeWriteExecutor { get; }
 
         /// <summary>
-        /// Gets whether the current flow is publishing a correlated statistic reset.
+        /// Gets whether the current flow is delivering a correlated publication.
         /// </summary>
         internal bool IsCorrelatedPublicationActive => m_correlatedPublication.Value?.IsActive == true;
 
@@ -680,7 +680,7 @@ namespace Opc.Ua.Scales.Server.Runtime
         private static ServiceResult CorrelatedPublicationRejected()
         {
             return ServiceResult.Create(
-                StatusCodes.BadInvalidState, "A product statistic reset is delivering notifications in this flow.");
+                StatusCodes.BadInvalidState, "A correlated scale publication is delivering notifications in this flow.");
         }
 
         /// <summary>

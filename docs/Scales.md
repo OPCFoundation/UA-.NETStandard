@@ -680,7 +680,10 @@ until both targets' notifications complete. It commits
 both statistic caches before atomically transferring writer admission to
 notification admission; same-flow asynchronous callbacks can therefore reenter.
 `ResetAsync` resets the selected product and scale totals; other products'
-periods remain unchanged.
+periods remain unchanged. Its callbacks use the same correlated-publication
+restriction as catchweigher product-period reset: nested reports, resets,
+scalar registration, and native Value writes return `BadInvalidState`, while
+external asynchronous writers wait.
 
 Accepted reports require a finite measured weight. Rejected reports accept
 `NaN` for an unweighed package, which increments the package and rejection
@@ -690,8 +693,12 @@ methods update only the statistic passed to that recorder; generic scale
 `ProductionOutput` is not a checkweigher product statistic.
 
 A recorder whose initialization callback throws is not cached; a later report
-retries initialization before counting its item. After report-cache commit, a
-notification exception propagates without undoing either product or scale
+retries initialization before counting its item. Initialization observers run
+before the recorder is cached or the first item is counted. Same-flow writes
+return `BadInvalidState` during initialization rather than waiting for their
+own publisher. Synchronous observers still precede asynchronous observers.
+After report-cache commit, a notification exception propagates without undoing
+either product or scale
 counts. Remaining notifications do not run. A repeated call is a new report,
 not a retry identified by `itemId`: this controller does not provide duplicate
 suppression. Successful product removal explicitly retires its recorder and
@@ -703,8 +710,10 @@ an independent period.
 Both deviation equations and the giveaway equation are verified in the
 [VDMA 40200:2025-04 co-publication](https://www.vdma.eu/en/catalog-detail/-/catalog/14137),
 which identifies itself as identical to OPC 40200 Release 2.00: §7.19.3 on
-page 72 and §7.20.3 on page 74. Statistical support remains **Partial** until
-the implementation and its observation-mode and optional-node tests are validated.
+page 72 and §7.20.3 on page 74. The runtime implements both observation modes,
+current-nominal GiveAway refresh, optional counters, and quality propagation.
+OPC 40200 support remains **Partial** because mixed-category `Weighed`
+representation and overlapping notification-flow isolation remain unresolved.
 
 ### Type controllers
 
@@ -847,12 +856,20 @@ Publication awaits each live-node notification before the next setter.
 A catchweigher publishes the product item, registered weight, output statistics,
 product statistics and zone counter in that order. A completed hopper fill
 publishes `TipCounter` before the registered weight and statistics. The sequence
-is committed only after those notifications return, and `WeightRegistered` runs
-after the product reservation is released.
+is consumed before the first output-statistic counter changes, or before the
+first product-statistic counter when no output statistic exists. A hopper
+consumes it before changing `TipCounter`. `WeightRegistered` runs only after
+publication completes and the product reservation is released.
 
 A notification exception stops publication at that point. Already-written
-values remain, the sequence is not committed and `WeightRegistered` does not
-run; this is not a rollback of the acquisition. Cancellation is checked before
+values remain and `WeightRegistered` does not run; this is not a rollback of the
+acquisition. A catchweigher failure before counting, including an early
+`LastItem` observer exception, leaves the sequence available for retry. Once
+counting has started, the same sequence returns `BadEntryExists` even if later
+notifications fail. A failed hopper `TipCounter` notification likewise consumes
+the sequence before any registered-weight or statistic publication. Partial
+state remains visible and requires application reconciliation; retrying does
+not replay the counters. Cancellation is checked before
 publication begins and does not interrupt the individual notifications once
 publication has started.
 
@@ -950,9 +967,11 @@ identity does not grant write admission; the active asynchronous notification
 flow is the explicit exception described above.
 
 Acquisition publication retains its admission through each awaited notification.
-Its sink must not await another write or acquisition on the same scale, because
-publication still owns that admission. This restriction does not apply to the
-separate enum notification dispatch after Value-write admission ends.
+Writes or acquisitions invoked by its own notification flow return
+`BadInvalidState` rather than waiting for their publisher. External asynchronous
+writers remain queued until publication finishes or throws. This restriction
+does not apply to the separate enum notification dispatch after Value-write
+admission ends.
 
 Direct assignments to mutable node properties, including `Value`,
 `WrappedValue`, `StatusCode` and `Timestamp`, require application serialization.
@@ -1318,8 +1337,9 @@ path · ❌ not shipped.
 
 The tables identify implementation paths and their tests, not certification.
 Test names identify the cases associated with each behavior; names alone do not
-establish that the cases have passed. OPC 40200 support remains Partial while
-optional statistic fields and notification metadata are incomplete. A scale
+establish that the cases have passed. OPC 40200 support remains Partial because
+mixed-category `Weighed` representation and isolation between overlapping
+notification flows remain unresolved. A scale
 without PackML requires explicit application release or an allowing release
 callback before starting a recipe.
 
@@ -1363,8 +1383,9 @@ are left out (`ScaleFacetsBringTheMachineIdentificationTheyIncludeAsync`,
 | *Scales DataChange* | ✅ | `ClientStreamsWeightsEventsAndAlarmsAsync` |
 | `ScaleEventType` / `ScaleAlarmType` with Annex C ids, vendor ids > 5000 | ✅ | `EventsAndVendorEventsCanBeRaisedAsync`; `FailedZeroOrTareRaisesAFaultAndOverloadAnAlarmAsync`; `ClientStreamsWeightsEventsAndAlarmsAsync` |
 | Optional notification parameters, help source, and vendor identifier | 🧪 | `NotificationMetadataEventsRetainParametersAndHelp`; `NotificationMetadataAlarmTransitionsCopyAndClearFields`; client filters and decoding include all three optional fields. |
-| Checkweigher accepted-item percentage and statistical equations | Partial | `CheckweigherTolerancePercentageUsesAcceptedMeasurements`; `StatisticDeviationUsesConfiguredObservationModeAsync`; `CheckweigherGiveAwayUsesCurrentNominalWeight`; `StatisticRecorderValidatesModeAndExplicitNominalWeight`; `FluentStatisticsObservationModeReachesScaleAndSystemAsync`. Source equations are verified; runtime validation remains pending. |
-| Checkweigher equipment-disposition reporting | Partial | `FluentCheckweigherReportsUpdateSelectedProductStatisticsAsync` covers separate generic/product runtime types, registered nodes, explicit async dispositions, both deviation modes, product switching, current nominal weight, and reset. Runtime validation remains pending. |
+| Checkweigher accepted-item percentage and statistical equations | 🧪 | `CheckweigherTolerancePercentageUsesAcceptedMeasurements`; `StatisticDeviationUsesConfiguredObservationModeAsync`; `CheckweigherGiveAwayUsesCurrentNominalWeight`; `StatisticRecorderValidatesModeAndExplicitNominalWeight`; `FluentStatisticsObservationModeReachesScaleAndSystemAsync`; `NominalWeightServiceWritesImmediatelyRefreshGiveAwayAsync`. Mixed-category `Weighed` representation remains unresolved. |
+| Checkweigher equipment-disposition reporting | 🧪 | `FluentCheckweigherReportsUpdateSelectedProductStatisticsAsync` covers separate generic/product runtime types, registered nodes, explicit async dispositions, both deviation modes, product switching, current nominal weight, and reset. |
+| Initialization, reset, and acquisition callback writes; acquisition retry boundaries | 🧪 | `CheckweigherInitializationRejectsNestedReportsWithoutDeadlockAsync`; `CheckweigherResetRejectsNestedMutationsWithoutDeadlockAsync`; `AcquisitionObserversRejectNestedMutationsWithoutDeadlockAsync`; `AcquisitionLateNotificationFailureDoesNotCountRetryTwiceAsync`; `HopperTipNotificationFailureConsumesSequenceBeforeRetryAsync`; `CatchweigherNotificationFailureLeavesSequenceRetryableAsync`. Correlated callback writes reject without waiting; late acquisition failure retains partial state and consumes the sequence, while early `LastItem` failure permits retry. Ordinary enum notification reentry remains separate. |
 | Notifier hierarchy with `HasNotifier`, nested sources subscribable | ✅ | `ClientSubscribesToANestedScaleThroughTheNotifierHierarchyAsync` |
 | PackML state information with transition events | ✅ | `PackMLMethodsWalkTheStateMachineAsync`; `PackMLActingStatesCanBeCompletedByTheEquipmentAsync`; `ClientDrivesThePackMLStateMachineAsync`; advertised as *PackML State Information*: `PackMLStateInformationIsClaimedWithAPackMLStateMachineAsync` |
 | Machinery Machine Identification, Find Machines | ✅ | `IdentificationWithoutMandatoryFieldsIsRejectedAsync`; `ClientDiscoversEveryScaleOnceWithItsKindAsync` |

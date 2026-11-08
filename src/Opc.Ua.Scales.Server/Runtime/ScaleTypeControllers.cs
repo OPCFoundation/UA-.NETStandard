@@ -119,9 +119,12 @@ namespace Opc.Ua.Scales.Server.Runtime
                     return ServiceResult.Create(
                         StatusCodes.BadInvalidState, "Checkweigher reset requires selected product statistics.");
                 }
-                ScaleStatistics recorder = await RecorderAsync(statistic).ConfigureAwait(false);
-                await recorder.ResetAsync(resetCondition).ConfigureAwait(false);
-                await output.ResetAsync(resetCondition).ConfigureAwait(false);
+                await m_owner.WriteOperations.ExecuteCorrelatedPublicationAsync(async () =>
+                {
+                    ScaleStatistics recorder = await RecorderAsync(statistic).ConfigureAwait(false);
+                    await recorder.ResetAsync(resetCondition).ConfigureAwait(false);
+                    await output.ResetAsync(resetCondition).ConfigureAwait(false);
+                }).ConfigureAwait(false);
                 return ServiceResult.Good;
             }, cancellationToken);
         }
@@ -220,7 +223,8 @@ namespace Opc.Ua.Scales.Server.Runtime
             {
                 recorder = new ScaleStatistics(m_owner.Services.Context, statistic, m_owner.WriteOperations,
                     initialize: false, observationMode: m_owner.StatisticsObservationMode);
-                await recorder.InitializeAsync().ConfigureAwait(false);
+                await m_owner.WriteOperations.ExecuteCorrelatedPublicationAsync(
+                    recorder.InitializeAsync).ConfigureAwait(false);
                 m_owner.CheckweigherStatistics.Add(statistic, recorder);
                 m_owner.Services.BindNominalRecorder(statistic, recorder);
             }

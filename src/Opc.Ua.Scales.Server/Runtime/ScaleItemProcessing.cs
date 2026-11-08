@@ -312,7 +312,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                 price = price with { Currency = ScaleItemPublisher.CopyCurrency(price.Currency) };
             }
             cancellationToken.ThrowIfCancellationRequested();
-            ServiceResult result = await m_owner.ExecuteWriteOperationAsync(
+            ServiceResult result = await m_owner.ExecuteAcquisitionOperationAsync(
                 async ct =>
                 {
                     ct.ThrowIfCancellationRequested();
@@ -367,10 +367,12 @@ namespace Opc.Ua.Scales.Server.Runtime
                             normalized,
                             zoneName,
                             price).ConfigureAwait(false);
-                        await m_owner.RecordAcquisitionAsync(normalized, zoneName, price).ConfigureAwait(false);
+                        await m_owner.RecordAcquisitionAsync(normalized, zoneName, price,
+                            () => m_lastSequence = normalized.Sequence).ConfigureAwait(false);
                         if (product.Statistic != null)
                         {
                             ScaleStatistics statistics = await RecorderAsync(product.Statistic).ConfigureAwait(false);
+                            m_lastSequence = normalized.Sequence;
                             await statistics.RecordItemAsync(normalized, zoneName, price).ConfigureAwait(false);
                             if (zone?.ZoneStatistic is { } counter)
                             {
@@ -421,7 +423,7 @@ namespace Opc.Ua.Scales.Server.Runtime
         private static ServiceResult ResetInProgress()
         {
             return ServiceResult.Create(
-                StatusCodes.BadInvalidState, "A product statistic reset is delivering notifications in this flow.");
+                StatusCodes.BadInvalidState, "A correlated scale publication is delivering notifications in this flow.");
         }
 
         /// <summary>
@@ -533,7 +535,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                     StatusCodes.BadInvalidState, "No production preset is configured.");
             }
 
-            ServiceResult result = await m_owner.ExecuteWriteOperationAsync(
+            ServiceResult result = await m_owner.ExecuteAcquisitionOperationAsync(
                 async ct =>
                 {
                     ct.ThrowIfCancellationRequested();
@@ -572,6 +574,7 @@ namespace Opc.Ua.Scales.Server.Runtime
 
                     if (ServiceResult.IsGood(validation))
                     {
+                        m_lastSequence = report.Sequence;
                         await ScaleValues.SetAsync(
                             m_owner.Services.Context,
                             product!.TipCounter,

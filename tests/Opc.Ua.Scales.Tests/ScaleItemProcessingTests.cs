@@ -982,6 +982,139 @@ namespace Opc.Ua.Scales.Tests
         }
 
         /// <summary>
+        /// Acquisition observers reject nested mutations instead of waiting for their own publisher.
+        /// </summary>
+        [TestCase(ScaleKind.Catchweigher, false)]
+        [TestCase(ScaleKind.Catchweigher, true)]
+        [TestCase(ScaleKind.TotalizingHopper, false)]
+        [TestCase(ScaleKind.TotalizingHopper, true)]
+        public async Task AcquisitionObserversRejectNestedMutationsWithoutDeadlockAsync(ScaleKind kind, bool report)
+        {
+            ScaleHandle scale = await CreateAsync(kind).ConfigureAwait(false);
+            ProductState product = scale.ProductionPreset!.ActiveProduct!;
+            BaseVariableState count = scale.ProductionOutput!.Statistic.TotalPackages!.ItemCount!;
+            int callbacks = 0;
+            count.OnStateChangedAsync = async (_, _, _, _) =>
+            {
+                if (Interlocked.Increment(ref callbacks) == 1)
+                {
+                    using var bounded = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+                    ServiceResult nested;
+                    if (report)
+                    {
+                        nested = kind == ScaleKind.Catchweigher
+                            ? await scale.Catchweigher!.ReportAsync(Item(2), bounded.Token).ConfigureAwait(false)
+                            : await scale.TotalizingHopper!.ReportCompletedFillAsync(Item(2), bounded.Token)
+                                .ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        nested = await product.ProductId!.WriteAttributeAsync(
+                            m_fixture.Context, Attributes.Value, default, new DataValue(Variant.From("A")),
+                            bounded.Token).ConfigureAwait(false);
+                    }
+                    Assert.That(nested.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                    Assert.That(product.ProductId!.WrappedValue.GetString(), Is.EqualTo("A"));
+                }
+            };
+            try
+            {
+                using var bounded = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                ServiceResult result = kind == ScaleKind.Catchweigher
+                    ? await scale.Catchweigher!.ReportAsync(Item(1), bounded.Token).ConfigureAwait(false)
+                    : await scale.TotalizingHopper!.ReportCompletedFillAsync(Item(1), bounded.Token)
+                        .ConfigureAwait(false);
+                AssertGood(result);
+                Assert.That(callbacks, Is.GreaterThanOrEqualTo(1));
+                Assert.That(Count(scale.ProductionOutput.Statistic), Is.EqualTo(1UL));
+            }
+            finally
+            {
+                count.OnStateChangedAsync = null;
+            }
+        }
+
+        /// <summary>
+        /// Retrying a late notification failure must not count the same equipment acquisition twice.
+        /// </summary>
+        [TestCase(ScaleKind.Catchweigher)]
+        [TestCase(ScaleKind.TotalizingHopper)]
+        public async Task AcquisitionLateNotificationFailureDoesNotCountRetryTwiceAsync(ScaleKind kind)
+        {
+            ScaleHandle scale = await CreateAsync(kind).ConfigureAwait(false);
+            ProductState product = scale.ProductionPreset!.ActiveProduct!;
+            BaseVariableState count = scale.ProductionOutput!.Statistic.TotalPackages!.ItemCount!;
+            var failure = new InvalidOperationException("late production count notification");
+            count.OnStateChangedAsync = (_, _, _, _) => new ValueTask(Task.FromException(failure));
+            try
+            {
+                InvalidOperationException? caught = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                {
+                    if (kind == ScaleKind.Catchweigher)
+                    {
+                        await scale.Catchweigher!.ReportAsync(Item(1)).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await scale.TotalizingHopper!.ReportCompletedFillAsync(Item(1)).ConfigureAwait(false);
+                    }
+                }).ConfigureAwait(false);
+                Assert.That(caught, Is.SameAs(failure));
+                Assert.That(Count(scale.ProductionOutput.Statistic), Is.EqualTo(1UL));
+            }
+            finally
+            {
+                count.OnStateChangedAsync = null;
+            }
+            if (kind == ScaleKind.Catchweigher)
+            {
+                Assert.That((await scale.Catchweigher!.ReportAsync(Item(1)).ConfigureAwait(false)).StatusCode,
+                    Is.EqualTo((StatusCode)StatusCodes.BadEntryExists));
+            }
+            else
+            {
+                Assert.That((await scale.TotalizingHopper!.ReportCompletedFillAsync(Item(1))
+                    .ConfigureAwait(false)).StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadEntryExists));
+            }
+            Assert.That(Count(scale.ProductionOutput.Statistic), Is.EqualTo(1UL));
+            if (product is TotalizingHopperProductState hopper)
+            {
+                Assert.That(hopper.TipCounter!.WrappedValue.GetUInt64(), Is.EqualTo(1UL));
+            }
+        }
+
+        /// <summary>
+        /// A failed TipCounter notification consumes the fill without replaying the increment.
+        /// </summary>
+        [Test]
+        public async Task HopperTipNotificationFailureConsumesSequenceBeforeRetryAsync()
+        {
+            ScaleHandle scale = await CreateAsync(ScaleKind.TotalizingHopper).ConfigureAwait(false);
+            var product = (TotalizingHopperProductState)scale.ProductionPreset!.ActiveProduct!;
+            var failure = new InvalidOperationException("tip notification");
+            product.TipCounter!.OnStateChangedAsync = (_, _, _, _) => new ValueTask(Task.FromException(failure));
+            try
+            {
+                InvalidOperationException? caught = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await scale.TotalizingHopper!.ReportCompletedFillAsync(Item(1)).ConfigureAwait(false))
+                    .ConfigureAwait(false);
+                Assert.That(caught, Is.SameAs(failure));
+            }
+            finally
+            {
+                product.TipCounter.OnStateChangedAsync = null;
+            }
+            Assert.That(product.TipCounter.WrappedValue.GetUInt64(), Is.EqualTo(1UL));
+            Assert.That(Count(scale.ProductionOutput!.Statistic), Is.Zero);
+            Assert.That((await scale.TotalizingHopper!.ReportCompletedFillAsync(Item(1))
+                .ConfigureAwait(false)).StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadEntryExists));
+            Assert.That(product.TipCounter.WrappedValue.GetUInt64(), Is.EqualTo(1UL));
+            AssertGood(await scale.TotalizingHopper.ReportCompletedFillAsync(Item(2)).ConfigureAwait(false));
+            Assert.That(product.TipCounter.WrappedValue.GetUInt64(), Is.EqualTo(2UL));
+            Assert.That(Count(scale.ProductionOutput.Statistic), Is.EqualTo(1UL));
+        }
+
+        /// <summary>
         /// Verifies failed notification leaves the sequence available for retry without registering the partial item.
         /// </summary>
         [Test]

@@ -712,6 +712,30 @@ namespace Opc.Ua.Scales.Server.Runtime
             return m_writeGate.ExecuteAsynchronouslyAsync(operation, cancellationToken);
         }
 
+        /// <summary>
+        /// Publishes an acquisition under writer admission while rejecting callback-nested mutations.
+        /// </summary>
+        /// <param name="operation">The ordered acquisition publication.</param>
+        /// <param name="cancellationToken">Cancels before admission.</param>
+        internal ValueTask<ServiceResult> ExecuteAcquisitionOperationAsync(
+            Func<CancellationToken, ValueTask<ServiceResult>> operation,
+            CancellationToken cancellationToken)
+        {
+            if (operation == null)
+            {
+                throw new ArgumentNullException(nameof(operation));
+            }
+            return ExecuteWriteOperationAsync(async ct =>
+            {
+                ServiceResult result = ServiceResult.Good;
+                await m_writeGate.ExecuteCorrelatedPublicationAsync(async () =>
+                {
+                    result = await operation(ct).ConfigureAwait(false);
+                }).ConfigureAwait(false);
+                return result;
+            }, cancellationToken);
+        }
+
         internal ScaleWeighingEngine Engine => m_engine;
 
         /// <summary>
@@ -736,10 +760,12 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <param name="report">The normalized acquisition.</param>
         /// <param name="zoneName">The classified zone name.</param>
         /// <param name="price">The calculated or equipment-supplied price.</param>
+        /// <param name="beforeCounting">Consumes the acquisition sequence before counters can change.</param>
         internal async ValueTask RecordAcquisitionAsync(
             ScaleItemReport report,
             string? zoneName,
-            ScaleItemPrice? price)
+            ScaleItemPrice? price,
+            Action? beforeCounting = null)
         {
             lock (m_lock)
             {
@@ -749,6 +775,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                 m_services.Context, Scale.RegisteredWeight, report.Weight).ConfigureAwait(false);
             if (ProductionOutput != null)
             {
+                beforeCounting?.Invoke();
                 await ProductionOutput.RecordItemAsync(report, zoneName, price).ConfigureAwait(false);
             }
         }
