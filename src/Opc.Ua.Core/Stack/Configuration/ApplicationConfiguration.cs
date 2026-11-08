@@ -127,7 +127,8 @@ namespace Opc.Ua
             {
                 lock (m_certificateManagerLock)
                 {
-                    return m_certificateManager;
+                    // Preserve the public signature while lazy initialization can still leave the backing field null.
+                    return m_certificateManager!;
                 }
             }
             set
@@ -219,7 +220,7 @@ namespace Opc.Ua
                             releasedDuringCreation = m_certificateManagerLeaseReleased ||
                                 generation != m_certificateManagerGeneration;
                             // The factory runs outside the lock, so another caller may have published a manager.
-                            ICertificateManager? current = m_certificateManager;
+                            ICertificateManager? current = Volatile.Read(ref m_certificateManager);
                             if (!releasedDuringCreation && current == null)
                             {
                                 lock (s_certificateManagerLifetimeLock)
@@ -257,7 +258,7 @@ namespace Opc.Ua
                     {
                         retiredBeforePublication = releasedDuringCreation || m_certificateManagerLeaseReleased ||
                             generation != m_certificateManagerGeneration;
-                        selected = m_certificateManager ?? selected;
+                        selected = Volatile.Read(ref m_certificateManager) ?? selected;
                         lock (s_certificateManagerLifetimeLock)
                         {
                             // A release between publication and this check owns disposal of the created manager.
@@ -1362,7 +1363,7 @@ namespace Opc.Ua
         /// <summary>
         /// The currently configured certificate manager.
         /// </summary>
-        private ICertificateManager m_certificateManager = null!;
+        private ICertificateManager? m_certificateManager;
 
         /// <summary>
         /// Shares pending initialization across application instances without holding ownership locks across callbacks.
