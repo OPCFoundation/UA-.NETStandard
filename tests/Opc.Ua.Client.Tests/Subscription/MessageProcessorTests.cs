@@ -98,6 +98,31 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         [Test]
+        public async Task AvailableInRetransmissionQueueShouldReturnACopyOfTheLatestValuesAsync()
+        {
+            var sut = new TestMessageProcessor(m_mockServices.Object, m_completion, m_telemetry);
+            await using (sut.ConfigureAwait(false))
+            {
+                Assert.That(sut.AvailableInRetransmissionQueue, Is.Empty);
+
+                sut.AvailableInRetransmissionQueue = [1, 2, 3];
+                IReadOnlyList<uint> first = sut.AvailableInRetransmissionQueue;
+
+                // Shorter than the storage, then longer than it, then none.
+                sut.AvailableInRetransmissionQueue = [4];
+                Assert.That(first, Is.EqualTo(new uint[] { 1, 2, 3 }));
+                Assert.That(sut.AvailableInRetransmissionQueue, Is.EqualTo(new uint[] { 4 }));
+
+                uint[] many = [.. Enumerable.Range(10, 100).Select(i => (uint)i)];
+                sut.AvailableInRetransmissionQueue = many;
+                Assert.That(sut.AvailableInRetransmissionQueue, Is.EqualTo(many));
+
+                sut.AvailableInRetransmissionQueue = null!;
+                Assert.That(sut.AvailableInRetransmissionQueue, Is.Empty);
+            }
+        }
+
+        [Test]
         public async Task OnPublishReceivedKeepAliveShouldDispatchKeepAliveAsync()
         {
             // Arrange
