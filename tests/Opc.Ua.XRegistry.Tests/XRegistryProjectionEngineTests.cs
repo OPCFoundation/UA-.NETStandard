@@ -2384,6 +2384,42 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         /// <summary>
+        /// Live FileType state (Open/Close changing OpenCount) changes without a new
+        /// change token. A reconcile that skips the unchanged Resource metadata must still
+        /// mirror the default Version's FileType Properties and publish their changes.
+        /// </summary>
+        [Test]
+        public async Task LogicalResourceMirrorsDefaultVersionFileTypePropertiesWithStableTokenAsync()
+        {
+            var strategy = new VersionedTestStrategy();
+            ProjectionHarness harness = ProjectionHarness.Create(suppliedStrategy: strategy);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+            var stable = new object();
+            strategy.Snapshot = new TestSnapshot(
+                [new TestGroup("schemas", [new TokenVersionedTestResource("schemas", "pump", "v1", stable)])]);
+            await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
+
+            ResourceState logicalNode = FindLogicalResourceNode(harness, "pump");
+            ResourceState v1Node = FindVersionNode(harness, "v1");
+            v1Node.Size!.Value = 12345UL;
+            v1Node.OpenCount!.Value = 2;
+
+            strategy.Snapshot = new TestSnapshot(
+                [new TestGroup("schemas", [new TokenVersionedTestResource("schemas", "pump", "v1", stable)])]);
+            await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
+
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(logicalNode.Size!.Value, Is.EqualTo(12345UL));
+                    Assert.That(logicalNode.OpenCount!.Value, Is.EqualTo((ushort)2));
+                    Assert.That(logicalNode.OpenCount.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+                    Assert.That(v1Node.OpenCount.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+                });
+        }
+
+        /// <summary>
         /// Reviewer issue #4 regression (read side): the logical Resource's
         /// (non-Meta) Labels container was created but never synced, leaving it
         /// permanently empty regardless of the selected default Version's

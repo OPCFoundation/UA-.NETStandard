@@ -595,9 +595,16 @@ namespace Opc.Ua.XRegistry.Server
                     res = await CreateResourceNodeAsync(entry, resource, eventSnapshot, ct)
                         .ConfigureAwait(false);
                     entry.Resources[key] = res;
+                    // The group clear skips Resources, so publish the new subtree here.
+                    res.Node.ClearChangeMasks(m_context.SystemContext, includeChildren: true);
                     res.AppliedChangeToken = changeToken;
                 }
-                else if (changeToken is null || !ReferenceEquals(res.AppliedChangeToken, changeToken))
+                else if (changeToken is not null && ReferenceEquals(res.AppliedChangeToken, changeToken))
+                {
+                    // Unchanged metadata; still publish live file state (Open/Close/Size).
+                    ClearFileTypeChangeMasks(res.Node);
+                }
+                else
                 {
                     ApplyResourceProperties(res, resource, eventSnapshot);
                     m_strategy.ConfigureResourceNode(res.Node, resource);
@@ -634,6 +641,40 @@ namespace Opc.Ua.XRegistry.Server
             {
                 await RemoveResourceNodeAsync(entry, resourceKey, ct).ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// Mirrors the default Version's live FileType Properties onto a logical Resource
+        /// whose metadata reconcile was skipped, and publishes the FileType Properties of
+        /// the logical Resource and its Versions without walking their subtrees.
+        /// </summary>
+        private void PublishLiveFileTypeState(LogicalResourceEntry logical, string defaultVersionId)
+        {
+            foreach (ResourceEntry version in logical.Versions.Values)
+            {
+                ClearFileTypeChangeMasks(version.Node);
+            }
+            if (logical.Versions.TryGetValue(defaultVersionId, out ResourceEntry? defaultVersion))
+            {
+                MirrorFileTypeProperties(logical.LogicalNode, defaultVersion.Node);
+            }
+            ClearFileTypeChangeMasks(logical.LogicalNode);
+        }
+
+        /// <summary>
+        /// Publishes pending changes of the FileType Properties that file operations
+        /// change outside a registry commit.
+        /// </summary>
+        private void ClearFileTypeChangeMasks(ResourceState node)
+        {
+            ISystemContext context = m_context.SystemContext;
+            node.Size?.ClearChangeMasks(context, includeChildren: false);
+            node.Writable?.ClearChangeMasks(context, includeChildren: false);
+            node.UserWritable?.ClearChangeMasks(context, includeChildren: false);
+            node.OpenCount?.ClearChangeMasks(context, includeChildren: false);
+            node.MimeType?.ClearChangeMasks(context, includeChildren: false);
+            node.LastModifiedTime?.ClearChangeMasks(context, includeChildren: false);
+            node.MaxByteStringLength?.ClearChangeMasks(context, includeChildren: false);
         }
 
         /// <summary>
@@ -686,21 +727,24 @@ namespace Opc.Ua.XRegistry.Server
                 List<IXRegistryProjectionResource> versions = pair.Value;
                 seenResourceIds.Add(resourceId);
 
-                // Skip a logical Resource whose projected inputs are unchanged since it was
-                // last reconciled: one registry change must not revisit every Resource.
-                object? changeToken = SharedChangeToken(versions);
-                if (changeToken is not null &&
-                    entry.LogicalResources.TryGetValue(resourceId, out LogicalResourceEntry? current) &&
-                    ReferenceEquals(current.AppliedChangeToken, changeToken))
-                {
-                    continue;
-                }
-
                 // Find the default version for logical resource property delegation.
                 IXRegistryProjectionResource defaultVersion = versions
                     .OfType<IXRegistryProjectionResourceMeta>()
                     .FirstOrDefault(m => m.IsDefaultVersion) as IXRegistryProjectionResource
                     ?? versions[0];
+
+                // Skip a logical Resource whose projected inputs are unchanged since it was
+                // last reconciled: one registry change must not revisit every Resource. Live
+                // FileType state (OpenCount, Size, ...) changes without a new token, so it is
+                // still mirrored from the default Version and published.
+                object? changeToken = SharedChangeToken(versions);
+                if (changeToken is not null &&
+                    entry.LogicalResources.TryGetValue(resourceId, out LogicalResourceEntry? current) &&
+                    ReferenceEquals(current.AppliedChangeToken, changeToken))
+                {
+                    PublishLiveFileTypeState(current, defaultVersion.VersionId);
+                    continue;
+                }
 
                 if (!entry.LogicalResources.TryGetValue(
                     resourceId,
