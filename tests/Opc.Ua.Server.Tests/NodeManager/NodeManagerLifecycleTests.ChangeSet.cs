@@ -1234,24 +1234,33 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// A disposed prepared unit does not retain its candidate through an independently held resource.
+        /// Private cleanup releases its candidate whether the caller retains the unit or its resource.
         /// </summary>
+        /// <param name="retainPrepared">Whether the caller retains the disposed prepared unit.</param>
         /// <param name="retainResource">Whether the caller retains the candidate's synchronous resource.</param>
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task DisposedPreparedUnitReleasesCandidateWithIndependentResourceAsync(bool retainResource)
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task DisposedPreparedUnitReleasesCandidateWithIndependentResourceAsync(
+            bool retainPrepared,
+            bool retainResource)
         {
-            (IPreparedChanges prepared,
+            (IPreparedChanges? prepared,
+                WeakReference preparedReference,
                 WeakReference candidate,
                 WeakReference server,
                 WeakReference resource,
                 INodeManager? retainedResource) =
-                await DisposeBorrowedCandidateAndServerAsync(retainResource).ConfigureAwait(false);
+                await DisposeBorrowedCandidateAndServerAsync(retainPrepared, retainResource).ConfigureAwait(false);
             await Task.Yield();
             try
             {
                 for (int attempt = 0;
-                    attempt < 3 && (candidate.IsAlive || server.IsAlive || (!retainResource && resource.IsAlive));
+                    attempt < 3 &&
+                        (candidate.IsAlive || server.IsAlive ||
+                            (!retainPrepared && preparedReference.IsAlive) ||
+                            (!retainResource && resource.IsAlive));
                     attempt++)
                 {
                     GC.Collect();
@@ -1259,17 +1268,22 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     GC.Collect();
                 }
 
-                NodeManagerRegistrationSnapshot snapshot = prepared.Registrations[0];
                 using (Assert.EnterMultipleScope())
                 {
                     Assert.That(candidate.IsAlive, Is.False);
                     Assert.That(server.IsAlive, Is.False);
+                    Assert.That(preparedReference.IsAlive, Is.EqualTo(retainPrepared));
+                    Assert.That(prepared is not null, Is.EqualTo(retainPrepared));
                     Assert.That(resource.IsAlive, Is.EqualTo(retainResource));
                     Assert.That(retainedResource is not null, Is.EqualTo(retainResource));
-                    Assert.That(prepared.IsCommitted, Is.False);
-                    Assert.That(snapshot.Slot.TryGetCurrent(out _), Is.False);
-                    Assert.That(snapshot.TryGetNodeManager(out _), Is.False);
-                    Assert.That(snapshot.TryGetRegistration(out _), Is.False);
+                    if (prepared is not null)
+                    {
+                        NodeManagerRegistrationSnapshot snapshot = prepared.Registrations[0];
+                        Assert.That(prepared.IsCommitted, Is.False);
+                        Assert.That(snapshot.Slot.TryGetCurrent(out _), Is.False);
+                        Assert.That(snapshot.TryGetNodeManager(out _), Is.False);
+                        Assert.That(snapshot.TryGetRegistration(out _), Is.False);
+                    }
                     if (retainedResource is not null)
                     {
                         Assert.That(retainedResource.NamespaceUris, Does.Contain(kNamespaceUri));
@@ -1617,11 +1631,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// </summary>
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static async Task<(
-            IPreparedChanges Prepared,
+            IPreparedChanges? Prepared,
+            WeakReference PreparedReference,
             WeakReference Candidate,
             WeakReference Server,
             WeakReference Resource,
-            INodeManager? RetainedResource)> DisposeBorrowedCandidateAndServerAsync(bool retainResource)
+            INodeManager? RetainedResource)> DisposeBorrowedCandidateAndServerAsync(
+            bool retainPrepared,
+            bool retainResource)
         {
             await using var harness = new ChangeSetCleanupHarness();
             var resource = new Mock<INodeManager>();
@@ -1634,13 +1651,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var resourceReference = new WeakReference(resource.Object);
             IPreparedChanges prepared = await harness.Lifecycle.PrepareAsync(
                 [LifecycleChange.Add(CreateFactory(candidate))]).ConfigureAwait(false);
+            var preparedReference = new WeakReference(prepared);
             await prepared.DisposeAsync().ConfigureAwait(false);
 
             Assert.That(harness.Writer.ActiveOperationCount, Is.Zero);
             candidate.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
             candidate.As<IDisposable>().Verify(value => value.Dispose(), Times.Once);
             resource.As<IDisposable>().Verify(value => value.Dispose(), Times.Never);
-            return (prepared, candidateReference, serverReference, resourceReference,
+            return (retainPrepared ? prepared : null, preparedReference, candidateReference, serverReference,
+                resourceReference,
                 retainResource ? resource.Object : null);
         }
 
