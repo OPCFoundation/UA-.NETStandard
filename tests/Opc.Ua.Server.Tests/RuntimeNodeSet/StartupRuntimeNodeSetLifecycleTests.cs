@@ -893,13 +893,13 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         public void RecordFactory(IServerInternal server)
         {
             FactorySawMaster = server.NodeManager is not null;
-            if (m_lifecycle is not INodeManagerPublicationLifecycle publication)
+            if (m_lifecycle is not INodeManagerPublicationLifecycle)
             {
                 throw new NotSupportedException("The startup probe requires the publication lifecycle.");
             }
             try
             {
-                _ = publication.CapturePublication();
+                _ = m_lifecycle.CapturePublication();
             }
             catch (InvalidOperationException)
             {
