@@ -30,6 +30,8 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Moq;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Vision.Server;
@@ -62,7 +64,10 @@ namespace Opc.Ua.Vision.Tests
         public async Task StartAsync(MachineVisionParts parts = MachineVisionParts.None)
         {
             m_fixture = new ServerFixture<StandardServer>(
-                telemetry => new StandardServer(telemetry))
+                telemetry => new StandardServer(telemetry)
+                {
+                    SessionManagerFactory = new DirectSessionManagerFactory()
+                })
             {
                 AutoAccept = true,
                 SecurityNone = true
@@ -92,6 +97,62 @@ namespace Opc.Ua.Vision.Tests
             {
                 await m_fixture.StopAsync().ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// Registers the logical sessions used by direct method tests alongside real client sessions.
+        /// </summary>
+        private sealed class DirectSessionManagerFactory : ISessionManagerFactory
+        {
+            /// <inheritdoc/>
+            public ISessionManager Create(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                TimeProvider timeProvider,
+                Func<string, Certificate?> serverCertificateProvider) =>
+                new DirectSessionManager(server, configuration, timeProvider);
+        }
+
+        /// <summary>
+        /// Keeps direct test identities visible to FileType session-lifetime validation.
+        /// </summary>
+        private sealed class DirectSessionManager : SessionManager
+        {
+            /// <summary>
+            /// Creates the ordinary manager with the two logical direct-call sessions.
+            /// </summary>
+            public DirectSessionManager(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                TimeProvider timeProvider)
+                : base(server, configuration, timeProvider)
+            {
+                m_directSessions = [CreateDirectSession(1), CreateDirectSession(2)];
+            }
+
+            /// <inheritdoc/>
+            public override IList<ISession> GetSessions()
+            {
+                IList<ISession> sessions = base.GetSessions();
+                foreach (Mock<ISession> session in m_directSessions)
+                {
+                    sessions.Add(session.Object);
+                }
+                return sessions;
+            }
+
+            /// <summary>
+            /// Creates a live registry entry for a direct-call identity.
+            /// </summary>
+            private static Mock<ISession> CreateDirectSession(uint id)
+            {
+                var session = new Mock<ISession>();
+                session.SetupGet(value => value.Id).Returns(new NodeId(id));
+                return session;
+            }
+
+            /// <summary>The direct-call registry entries owned by this fixture.</summary>
+            private readonly ArrayOf<Mock<ISession>> m_directSessions;
         }
     }
 }

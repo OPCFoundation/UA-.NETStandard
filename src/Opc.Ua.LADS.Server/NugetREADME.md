@@ -48,13 +48,33 @@ Machinery node manager.
 
 ## Providers
 
+`Locking()` opts a device into DI session ownership for UA writes and method
+calls throughout its subtree, including AMB configuration and result-file
+methods. Other sessions can still read values and browse. Use
+`Locking(ILockActivityService)` to supply the shared DI service directly, or
+register that interface before `AddLads`. Omitting the option preserves legacy
+behavior. Direct application handles remain trusted; releasing a DI lock does
+not stop an executing physical program.
+
 `ILadsDeviceProvider` and `ILadsFunctionProvider` can veto a transition or
 execute it against hardware. An `ILadsProgramExecutor` receives a
 `LadsProgramRun` that reports steps, applies setpoints and adds result variables
 and files. In-memory providers are registered by default, so a device works
 without hardware.
 
+`RunningOperations()` opts a functional unit into Hold/Unhold,
+Suspend/Unsuspend, orderly completion and Complete-to-Reset. The executor must
+implement `ILadsControlledProgramExecutor` and acknowledge equipment operations
+before the corresponding stable state is published. The default executor
+pauses processing checkpoints and delays; an existing executor that implements
+only `ILadsProgramExecutor` retains its original contract.
+
 `LadsServerOptions` limits the result file size and the number of retained
-results.
+results. Its `Store` option accepts an injectable `ILadsStore`.
+`FileSystemLadsStore` retains templates, completed results and file bytes,
+maintenance records and counters across process restarts. Completed results
+and their files are saved before publication; storage errors are reported
+without substituting a memory provider. Interrupted execution is recorded but
+never resumed.
 
 See the [LADS guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/LADS.md).
