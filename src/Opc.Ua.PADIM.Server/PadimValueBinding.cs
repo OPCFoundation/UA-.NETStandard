@@ -105,8 +105,8 @@ namespace Opc.Ua.PADIM.Server
                 throw new ArgumentException("A unit and finite ordered engineering range are required.", nameof(range));
             }
 
-            PropertyState engineeringUnits = analog.EngineeringUnits!;
-            Variant previousUnits = engineeringUnits.Value;
+            PropertyState<EUInformation> engineeringUnits = analog.EngineeringUnits!;
+            Variant previousUnits = Variant.FromStructure(engineeringUnits.Value);
             PropertyState? previousRangeProperty = analog.EURange;
             Variant previousRange = previousRangeProperty?.Value ?? default;
             bool isRegistered = ReferenceEquals(
