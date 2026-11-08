@@ -561,17 +561,26 @@ Analyzer `UA0027` reports every remaining `NodeBrowser.DataLock` reference.
 ### Browse continuation lifetime
 
 `IBrowseContinuationDependencies` and `TryGetContinuationDependencies` are no
-longer part of the continuation contract. A Browse continuation records the
-issuing generation weakly and does not retain its NodeManager, routing view, or
-reference targets. `BrowseNext` succeeds only while that generation's gate is
-open; after retirement, the server returns `BadContinuationPointInvalid`.
-Targets on later pages are resolved through the current request view.
+longer part of the continuation contract. A Browse continuation stores a weak
+identity for its recorded generation. The identity alone does not retain the
+generation, its NodeManager, or a routing view. `ContinuationPoint.Data` and
+`NodeToBrowse` can still retain cursor data, a node handle, or objects reachable
+from them. The base `ContinuationPoint.Dispose` implementation disposes `Data`
+when it implements `IDisposable` but does not clear the property. A caller or
+custom store that retains the point can therefore retain those objects after
+disposal.
+
+A `BrowseNext` request that resumes a point must enter the recorded generation's
+gate. If entry fails, the server returns `BadContinuationPointInvalid`. A
+release request can dispose the point even if the gate is closed. Targets on
+later pages are resolved through the current request view.
 
 Do not implement dependency enumeration to support pagination. A lazy browser
 can keep its cursor in `ContinuationPoint.Data` and return references through
 `Next()` or `NextAsync()` as before. The standard file-system
-`DirectoryBrowser` continues to work without pre-enumerating entries or
-capturing target owners.
+`DirectoryBrowser` works without pre-enumerating entries or capturing target
+owners. A point that retains this browser can also retain its
+`FileSystemNodeManager` host, even after the point is disposed.
 
 ### NodeBrowser gains an async iteration seam
 
