@@ -166,11 +166,19 @@ namespace Opc.Ua.Gds.Server.Onboarding
             }
             AuthorizationHelper.HasAuthorization(context, [Role.SecurityAdmin]);
             ArrayOf<ApplicationDescription> detached = SnapshotRegistrars(registrars);
-            if (m_security != null)
+            if (m_security is IProvisionableDeviceRegistrarConfiguration configuration)
             {
-                await m_security.RequireRegistrarAsync(context, cancellationToken).ConfigureAwait(false);
+                await configuration.ReplaceRegistrarEndpointsAsync(context, m_registrars, detached, cancellationToken)
+                    .ConfigureAwait(false);
             }
-            await m_registrars.ReplaceAsync(detached, cancellationToken).ConfigureAwait(false);
+            else
+            {
+                if (m_security != null)
+                {
+                    await m_security.RequireRegistrarAsync(context, cancellationToken).ConfigureAwait(false);
+                }
+                await m_registrars.ReplaceAsync(detached, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         /// <summary>

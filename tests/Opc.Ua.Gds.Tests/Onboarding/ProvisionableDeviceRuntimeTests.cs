@@ -311,6 +311,120 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
+        /// The optional configuration interface owns publication instead of claiming the engineering client.
+        /// </summary>
+        [Test]
+        public async Task SetRegistrarEndpointsDispatchesToRegistrarConfigurationWithoutLegacyClaim()
+        {
+            var security = new Mock<IProvisionableDeviceSecurity>(MockBehavior.Strict);
+            Mock<IProvisionableDeviceRegistrarConfiguration> configuration =
+                security.As<IProvisionableDeviceRegistrarConfiguration>();
+            var store = new Mock<IProvisionableDeviceRegistrarStore>(MockBehavior.Strict);
+            SessionSystemContext context = Context();
+            using var cancellation = new CancellationTokenSource();
+            ApplicationDescription candidate = Registrar();
+            ArrayOf<ApplicationDescription> captured = default;
+            configuration.Setup(value => value.ReplaceRegistrarEndpointsAsync(
+                    context, store.Object, It.IsAny<ArrayOf<ApplicationDescription>>(), cancellation.Token))
+                .Callback<ISystemContext, IProvisionableDeviceRegistrarStore, ArrayOf<ApplicationDescription>,
+                    CancellationToken>((_, _, values, _) =>
+                {
+                    captured = values;
+                    candidate.ApplicationUri = "urn:mutated:registrar";
+                    candidate.DiscoveryUrls = ["opc.tcp://mutated:4840"];
+                })
+                .Returns(default(ValueTask));
+            var runtime = new ProvisionableDeviceRuntime(
+                false, [], Mock.Of<ITicketStore>(), Mock.Of<IOnboardingTicketValidator>(),
+                store.Object, security.Object);
+
+            await runtime.SetRegistrarEndpointsAsync(context, [candidate], cancellation.Token).ConfigureAwait(false);
+
+            Assert.That(captured.Count, Is.EqualTo(1));
+            Assert.That(captured[0], Is.Not.SameAs(candidate));
+            Assert.That(captured[0].ApplicationUri, Is.EqualTo("urn:registrar:one"));
+            Assert.That(captured[0].DiscoveryUrls.ToArray(), Is.EqualTo(s_expectedRegistrarDiscoveryUrls));
+            configuration.Verify(value => value.ReplaceRegistrarEndpointsAsync(
+                context, store.Object, It.IsAny<ArrayOf<ApplicationDescription>>(), cancellation.Token), Times.Once);
+            security.Verify(value => value.RequireRegistrarAsync(
+                It.IsAny<ISystemContext>(), It.IsAny<CancellationToken>()), Times.Never);
+            store.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Custom security providers without the optional interface retain the previous ordered fallback.
+        /// </summary>
+        [Test]
+        public async Task SetRegistrarEndpointsFallsBackToLegacyProviderBeforePublishing()
+        {
+            var security = new Mock<IProvisionableDeviceSecurity>(MockBehavior.Strict);
+            var store = new Mock<IProvisionableDeviceRegistrarStore>(MockBehavior.Strict);
+            var calls = new List<string>();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var authorized = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            SessionSystemContext context = Context();
+            using var cancellation = new CancellationTokenSource();
+            ArrayOf<ApplicationDescription> captured = default;
+            security.Setup(value => value.RequireRegistrarAsync(context, cancellation.Token))
+                .Returns(async (ISystemContext _, CancellationToken token) =>
+                {
+                    calls.Add("authorize");
+                    entered.TrySetResult(true);
+                    await release.Task.ConfigureAwait(false);
+                    token.ThrowIfCancellationRequested();
+                    calls.Add("authorized");
+                    authorized.TrySetResult(true);
+                });
+            store.Setup(value => value.ReplaceAsync(
+                    It.IsAny<ArrayOf<ApplicationDescription>>(), cancellation.Token))
+                .Callback<ArrayOf<ApplicationDescription>, CancellationToken>((values, _) =>
+                {
+                    calls.Add("replace");
+                    captured = values;
+                })
+                .Returns(default(ValueTask));
+            var runtime = new ProvisionableDeviceRuntime(
+                false, [], Mock.Of<ITicketStore>(), Mock.Of<IOnboardingTicketValidator>(),
+                store.Object, security.Object);
+            ApplicationDescription candidate = Registrar();
+
+            Task operation = runtime.SetRegistrarEndpointsAsync(
+                context, [candidate], cancellation.Token).AsTask();
+            Task completed = await Task.WhenAny(entered.Task, operation).ConfigureAwait(false);
+            if (completed == operation && !entered.Task.IsCompleted)
+            {
+                await operation.ConfigureAwait(false);
+                throw new AssertionException("Legacy authorization was not invoked.");
+            }
+            bool operationWaited;
+            bool storeCalledBeforeAuthorization;
+            try
+            {
+                operationWaited = !operation.IsCompleted;
+                storeCalledBeforeAuthorization = calls.Contains("replace");
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+            await authorized.Task.ConfigureAwait(false);
+            await operation.ConfigureAwait(false);
+
+            Assert.That(security.Object is IProvisionableDeviceRegistrarConfiguration, Is.False);
+            Assert.That(operationWaited, Is.True);
+            Assert.That(storeCalledBeforeAuthorization, Is.False);
+            Assert.That(calls, Is.EqualTo(new[] { "authorize", "authorized", "replace" }));
+            Assert.That(captured.Count, Is.EqualTo(1));
+            Assert.That(captured[0], Is.Not.SameAs(candidate));
+            Assert.That(captured[0].ApplicationUri, Is.EqualTo("urn:registrar:one"));
+            Assert.That(captured[0].DiscoveryUrls.ToArray(), Is.EqualTo(s_expectedRegistrarDiscoveryUrls));
+            security.Verify(value => value.RequireRegistrarAsync(context, cancellation.Token), Times.Once);
+            store.Verify(value => value.ReplaceAsync(
+                It.IsAny<ArrayOf<ApplicationDescription>>(), cancellation.Token), Times.Once);
+        }
+
+        /// <summary>
         /// Direct and fluent runtimes consult the selected device security provider before changing candidates.
         /// </summary>
         [TestCase(false)]

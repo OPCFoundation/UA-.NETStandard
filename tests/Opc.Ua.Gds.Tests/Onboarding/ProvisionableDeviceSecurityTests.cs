@@ -32,7 +32,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client.Tests.SessionContexts;
+using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Onboarding;
+using Opc.Ua.Onboarding;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
@@ -301,6 +303,744 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Is.EqualTo(ProvisionableDeviceSecurityStage.Installed));
             m_installer.Verify(value => value.InstallAsync(
                 It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+        }
+
+        /// <summary>
+        /// An engineering client can publish a different registrar without becoming the pending push owner.
+        /// </summary>
+        [Test]
+        public async Task RegistrarPublicationPreservesUnconfiguredStateAcrossRestartAndAllowsPull()
+        {
+            Mock<ISecretStore> storage = ForwardStorage();
+            var store = new Mock<IProvisionableDeviceRegistrarStore>(MockBehavior.Strict);
+            ArrayOf<ApplicationDescription> published = default;
+            store.Setup(value => value.ReplaceAsync(
+                    It.IsAny<ArrayOf<ApplicationDescription>>(), It.IsAny<CancellationToken>()))
+                .Callback<ArrayOf<ApplicationDescription>, CancellationToken>((values, _) => published = values)
+                .Returns(default(ValueTask));
+            store.Setup(value => value.ReadAsync(It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<ArrayOf<ApplicationDescription>>(published));
+            ApplicationDescription candidate = Registrar();
+            ApplicationDescription secondCandidate = Registrar("urn:second:registrar");
+            secondCandidate.ApplicationType = ApplicationType.ClientAndServer;
+
+            using (var initial = Create(storage.Object))
+            {
+                var runtime = CreateRuntime(store.Object, initial);
+                await runtime.SetRegistrarEndpointsAsync(
+                    Context(m_otherRegistrar), [candidate, secondCandidate]).ConfigureAwait(false);
+                Assert.That(await initial.GetStageAsync().ConfigureAwait(false),
+                    Is.EqualTo(ProvisionableDeviceSecurityStage.Unconfigured));
+                storage.Verify(value => value.SetAsync(
+                    It.IsAny<SecretIdentifier>(), It.IsAny<ReadOnlyMemory<byte>>(),
+                    It.IsAny<CancellationToken>()), Times.Never);
+            }
+            candidate.ApplicationUri = "urn:mutated:registrar";
+            candidate.DiscoveryUrls = ["opc.tcp://mutated:4840"];
+            using var restarted = Create();
+            await restarted.RecoverAsync().ConfigureAwait(false);
+            ArrayOf<ApplicationDescription> retained =
+                await store.Object.ReadAsync().ConfigureAwait(false);
+
+            Assert.That(m_otherRegistrar.Thumbprint, Is.Not.EqualTo(m_firstRegistrar.Thumbprint));
+            Assert.That(await restarted.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Unconfigured));
+            Assert.That(retained.Count, Is.EqualTo(2));
+            Assert.That(retained[0], Is.Not.SameAs(candidate));
+            Assert.That(retained[0].ApplicationUri, Is.EqualTo("urn:first:registrar"));
+            Assert.That(retained[0].ApplicationType, Is.EqualTo(ApplicationType.Server));
+            Assert.That(retained[0].DiscoveryUrls.ToArray(),
+                Is.EqualTo(new[] { "opc.tcp://registrar:4840" }));
+            Assert.That(retained[1], Is.Not.SameAs(secondCandidate));
+            Assert.That(retained[1].ApplicationUri, Is.EqualTo("urn:second:registrar"));
+            Assert.That(retained[1].ApplicationType, Is.EqualTo(ApplicationType.ClientAndServer));
+            m_certificates.VerifyNoOtherCalls();
+
+            await using SessionRequestContextTestContext session = PullSession();
+            await restarted.InstallFromPullAsync(
+                session.ManagedSession, retained[0].ApplicationUri!, Credentials()).ConfigureAwait(false);
+
+            Assert.That(await restarted.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Installed));
+            m_certificates.Verify(value => value.ValidateAsync(
+                It.IsAny<CertificateCollection>(), TrustListIdentifier.Peers,
+                It.Is<ValidationOptions>(options => options.TrustScope == null &&
+                    options.AutoAcceptUntrustedCertificates == false &&
+                    options.RejectUnknownRevocationStatus == true),
+                It.IsAny<CancellationToken>()), Times.Once);
+            m_installer.Verify(value => value.InstallAsync(
+                It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()), Times.Once);
+            store.Verify(value => value.ReplaceAsync(
+                It.IsAny<ArrayOf<ApplicationDescription>>(), It.IsAny<CancellationToken>()), Times.Once);
+            store.Verify(value => value.ReadAsync(It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
+        /// A failed atomic store replacement preserves both the preceding candidates and the security stage.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RegistrarPublicationFailurePreservesCandidatesAndSecurityStage(bool installed)
+        {
+            var store = new Mock<IProvisionableDeviceRegistrarStore>(MockBehavior.Strict);
+            ArrayOf<ApplicationDescription> published = default;
+            bool failPublication = false;
+            var expected = new IOException("Registrar publication failed before replacement.");
+            store.Setup(value => value.ReplaceAsync(
+                    It.IsAny<ArrayOf<ApplicationDescription>>(), It.IsAny<CancellationToken>()))
+                .Returns((ArrayOf<ApplicationDescription> values, CancellationToken _) =>
+                {
+                    if (failPublication)
+                    {
+                        throw expected;
+                    }
+                    published = values;
+                    return default(ValueTask);
+                });
+            store.Setup(value => value.ReadAsync(It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<ArrayOf<ApplicationDescription>>(published));
+            ProvisionableDeviceSecurityStage expectedStage = installed
+                ? ProvisionableDeviceSecurityStage.Installed
+                : ProvisionableDeviceSecurityStage.Unconfigured;
+
+            using (var initial = Create())
+            {
+                if (installed)
+                {
+                    await initial.InstallAsync(Context(m_firstRegistrar), Credentials()).ConfigureAwait(false);
+                }
+                var runtime = CreateRuntime(store.Object, initial);
+                await runtime.SetRegistrarEndpointsAsync(
+                    Context(m_firstRegistrar), [Registrar("urn:previous:registrar")]).ConfigureAwait(false);
+                failPublication = true;
+
+                IOException? failure = await Assert.ThrowsAsync<IOException>(async () =>
+                    await runtime.SetRegistrarEndpointsAsync(
+                        Context(m_firstRegistrar), [Registrar("urn:replacement:registrar")]).ConfigureAwait(false));
+
+                Assert.That(failure, Is.SameAs(expected));
+                Assert.That(await initial.GetStageAsync().ConfigureAwait(false), Is.EqualTo(expectedStage));
+            }
+            using var restarted = Create();
+            ArrayOf<ApplicationDescription> retained =
+                await store.Object.ReadAsync().ConfigureAwait(false);
+
+            Assert.That(await restarted.GetStageAsync().ConfigureAwait(false), Is.EqualTo(expectedStage));
+            Assert.That(retained.Count, Is.EqualTo(1));
+            Assert.That(retained[0].ApplicationUri, Is.EqualTo("urn:previous:registrar"));
+            Assert.That(retained[0].DiscoveryUrls.ToArray(),
+                Is.EqualTo(new[] { "opc.tcp://registrar:4840" }));
+            store.Verify(value => value.ReplaceAsync(
+                It.IsAny<ArrayOf<ApplicationDescription>>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+            store.Verify(value => value.ReadAsync(It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
+        /// Neither the active push owner nor another peer may replace candidates during a pending transition.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PendingPushOwnershipRejectsPublicationWithoutChangingOwner(bool installing)
+        {
+            var store = new Mock<IProvisionableDeviceRegistrarStore>(MockBehavior.Strict);
+            ProvisionableDeviceSecurityStage expectedStage = installing
+                ? ProvisionableDeviceSecurityStage.Installing
+                : ProvisionableDeviceSecurityStage.Configuring;
+            using (var initial = Create())
+            {
+                if (installing)
+                {
+                    m_installer.Setup(value => value.InstallAsync(
+                            It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()))
+                        .Throws(new IOException("Installation remains pending."));
+                    await Assert.ThrowsAsync<IOException>(async () =>
+                        await initial.InstallAsync(Context(m_firstRegistrar), Credentials()).ConfigureAwait(false));
+                }
+                else
+                {
+                    await initial.RequireRegistrarAsync(Context(m_firstRegistrar)).ConfigureAwait(false);
+                }
+
+                ServiceResultException? ownerFailure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await initial.ReplaceRegistrarEndpointsAsync(
+                        Context(m_firstRegistrar), store.Object, [Registrar()]).ConfigureAwait(false));
+                ServiceResultException? otherFailure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await initial.ReplaceRegistrarEndpointsAsync(
+                        Context(m_otherRegistrar), store.Object, [Registrar()]).ConfigureAwait(false));
+
+                Assert.That(ownerFailure!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(otherFailure!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                Assert.That(await initial.GetStageAsync().ConfigureAwait(false), Is.EqualTo(expectedStage));
+            }
+            using var restarted = Create();
+            await restarted.RequireRegistrarAsync(Context(m_firstRegistrar)).ConfigureAwait(false);
+            ServiceResultException? denied = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await restarted.RequireRegistrarAsync(Context(m_otherRegistrar)).ConfigureAwait(false));
+
+            Assert.That(denied!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(await restarted.GetStageAsync().ConfigureAwait(false), Is.EqualTo(expectedStage));
+            store.VerifyNoOtherCalls();
+            m_installer.Verify(value => value.InstallAsync(
+                It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()),
+                Times.Exactly(installing ? 1 : 0));
+        }
+
+        /// <summary>
+        /// An interrupted reset rejects every administrative peer without publishing candidates.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ResettingRejectsRegistrarPublicationForEveryPeer(bool otherPeer)
+        {
+            var store = new Mock<IProvisionableDeviceRegistrarStore>(MockBehavior.Strict);
+            m_installer.Setup(value => value.ResetToServerDefaultsAsync(It.IsAny<CancellationToken>()))
+                .Throws(new IOException("Reset remains pending."));
+            using var security = Create();
+            await Assert.ThrowsAsync<IOException>(async () =>
+                await security.ResetToServerDefaultsAsync().ConfigureAwait(false));
+            Certificate peer = otherPeer ? m_otherRegistrar : m_firstRegistrar;
+
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await security.ReplaceRegistrarEndpointsAsync(
+                    Context(peer), store.Object, [Registrar()]).ConfigureAwait(false));
+
+            Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Resetting));
+            store.VerifyNoOtherCalls();
+            m_installer.Verify(value => value.ResetToServerDefaultsAsync(It.IsAny<CancellationToken>()), Times.Once);
+            m_certificates.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Calling the optional interface directly still requires actual session, role, peer and channel evidence.
+        /// </summary>
+        [TestCase("role")]
+        [TestCase("session")]
+        [TestCase("identity")]
+        [TestCase("peer")]
+        [TestCase("encryption")]
+        [TestCase("policy")]
+        public async Task RegistrarConfigurationRejectsInvalidEvidenceBeforePublication(string scenario)
+        {
+            var store = new Mock<IProvisionableDeviceRegistrarStore>(MockBehavior.Strict);
+            using var security = Create();
+            IProvisionableDeviceRegistrarConfiguration configuration = security;
+
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await configuration.ReplaceRegistrarEndpointsAsync(
+                    Context(m_firstRegistrar, scenario), store.Object, [Registrar()]).ConfigureAwait(false));
+
+            StatusCode expected = scenario switch
+            {
+                "encryption" => StatusCodes.BadSecurityModeInsufficient,
+                "peer" => StatusCodes.BadSecurityChecksFailed,
+                _ => StatusCodes.BadUserAccessDenied
+            };
+            Assert.That(failure!.StatusCode, Is.EqualTo(expected));
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Unconfigured));
+            store.VerifyNoOtherCalls();
+            m_installer.VerifyNoOtherCalls();
+            m_certificates.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Advertising a candidate does not make its actual pull-session certificate trusted.
+        /// </summary>
+        [Test]
+        public async Task PublishedRegistrarMetadataDoesNotBypassPullCertificateTrust()
+        {
+            var store = new Mock<IProvisionableDeviceRegistrarStore>(MockBehavior.Strict);
+            ArrayOf<ApplicationDescription> published = default;
+            store.Setup(value => value.ReplaceAsync(
+                    It.IsAny<ArrayOf<ApplicationDescription>>(), It.IsAny<CancellationToken>()))
+                .Callback<ArrayOf<ApplicationDescription>, CancellationToken>((values, _) => published = values)
+                .Returns(default(ValueTask));
+            using var security = Create();
+            var runtime = CreateRuntime(store.Object, security);
+            await runtime.SetRegistrarEndpointsAsync(
+                Context(m_otherRegistrar), [Registrar()]).ConfigureAwait(false);
+            m_certificates.Setup(value => value.ValidateAsync(
+                    It.IsAny<CertificateCollection>(), TrustListIdentifier.Peers,
+                    It.Is<ValidationOptions>(options => options.TrustScope == null),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CertificateValidationResult(false, StatusCodes.BadCertificateUntrusted, [], false));
+            await using SessionRequestContextTestContext session = PullSession();
+
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await security.InstallFromPullAsync(
+                    session.ManagedSession, "urn:first:registrar", Credentials()).ConfigureAwait(false));
+
+            Assert.That(published.Count, Is.EqualTo(1));
+            Assert.That(published[0].ApplicationUri, Is.EqualTo("urn:first:registrar"));
+            Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUntrusted));
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Unconfigured));
+            m_certificates.Verify(value => value.ValidateAsync(
+                It.IsAny<CertificateCollection>(), TrustListIdentifier.Peers,
+                It.Is<ValidationOptions>(options => options.TrustScope == null &&
+                    options.AutoAcceptUntrustedCertificates == false),
+                It.IsAny<CancellationToken>()), Times.Once);
+            m_installer.Verify(value => value.InstallAsync(
+                It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()), Times.Never);
+            store.Verify(value => value.ReplaceAsync(
+                It.IsAny<ArrayOf<ApplicationDescription>>(), It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
+        /// Installed devices authorize the authenticated caller against installed trust, not candidate metadata.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task InstalledRegistrarPublicationRequiresCurrentPeerTrust(bool trusted)
+        {
+            using var security = Create();
+            await security.InstallAsync(Context(m_firstRegistrar), Credentials()).ConfigureAwait(false);
+            m_certificates.Invocations.Clear();
+            ValidationOptions? observedOptions = null;
+            string? observedThumbprint = null;
+            m_certificates.Setup(value => value.ValidateAsync(
+                    It.IsAny<CertificateCollection>(), TrustListIdentifier.Peers,
+                    It.IsAny<ValidationOptions>(), It.IsAny<CancellationToken>()))
+                .Returns((CertificateCollection chain, TrustListIdentifier? _, ValidationOptions? options,
+                    CancellationToken _) =>
+                {
+                    observedThumbprint = chain[0].Thumbprint;
+                    observedOptions = options;
+                    return Task.FromResult(trusted ? CertificateValidationResult.Success :
+                        new CertificateValidationResult(false, StatusCodes.BadCertificateUntrusted, [], false));
+                });
+            var store = new Mock<IProvisionableDeviceRegistrarStore>(MockBehavior.Strict);
+            ArrayOf<ApplicationDescription> published = default;
+            store.Setup(value => value.ReplaceAsync(
+                    It.IsAny<ArrayOf<ApplicationDescription>>(), It.IsAny<CancellationToken>()))
+                .Callback<ArrayOf<ApplicationDescription>, CancellationToken>((values, _) => published = values)
+                .Returns(default(ValueTask));
+            Certificate caller = trusted ? m_firstRegistrar : m_otherRegistrar;
+
+            if (trusted)
+            {
+                await security.ReplaceRegistrarEndpointsAsync(
+                    Context(caller), store.Object, [Registrar("urn:other:registrar")]).ConfigureAwait(false);
+            }
+            else
+            {
+                ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await security.ReplaceRegistrarEndpointsAsync(
+                        Context(caller), store.Object, [Registrar("urn:other:registrar")]).ConfigureAwait(false));
+                Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUntrusted));
+            }
+
+            ValidationOptions validation = observedOptions ??
+                throw new AssertionException("The authenticated caller was not validated.");
+            var trust = validation.TrustScope ??
+                throw new AssertionException("Installed trust was not supplied to the validator.");
+            Assert.That(observedThumbprint, Is.EqualTo(caller.Thumbprint));
+            Assert.That(trust.TrustedCertificates,
+                Is.EqualTo(new[] { Encoded(m_firstRegistrar), Encoded(m_dca) }.ToArrayOf()));
+            Assert.That(validation.AutoAcceptUntrustedCertificates, Is.False);
+            Assert.That(validation.RecordRejectedCertificates, Is.False);
+            Assert.That(validation.AcceptError!(
+                m_otherRegistrar, new ServiceResult(StatusCodes.BadCertificateUntrusted)), Is.False);
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Installed));
+            if (trusted)
+            {
+                Assert.That(published.Count, Is.EqualTo(1));
+                Assert.That(published[0].ApplicationUri, Is.EqualTo("urn:other:registrar"));
+            }
+            m_certificates.Verify(value => value.ValidateAsync(
+                It.IsAny<CertificateCollection>(), TrustListIdentifier.Peers,
+                It.IsAny<ValidationOptions>(), It.IsAny<CancellationToken>()), Times.Once);
+            store.Verify(value => value.ReplaceAsync(
+                It.IsAny<ArrayOf<ApplicationDescription>>(), It.IsAny<CancellationToken>()),
+                Times.Exactly(trusted ? 1 : 0));
+            m_installer.Verify(value => value.InstallAsync(
+                It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
+        /// Direct callers cannot bypass discovery-candidate validation performed by the runtime.
+        /// </summary>
+        [TestCase("uri")]
+        [TestCase("missing")]
+        [TestCase("client")]
+        [TestCase("empty")]
+        [TestCase("endpoint")]
+        [TestCase("later")]
+        public async Task RegistrarConfigurationRejectsInvalidCandidateBeforePublication(string scenario)
+        {
+            ApplicationDescription candidate = Registrar();
+            switch (scenario)
+            {
+                case "uri":
+                    candidate.ApplicationUri = "relative";
+                    break;
+                case "missing":
+                    candidate = null!;
+                    break;
+                case "client":
+                    candidate.ApplicationType = ApplicationType.Client;
+                    break;
+                case "empty":
+                    candidate.DiscoveryUrls = [];
+                    break;
+                case "endpoint":
+                case "later":
+                    candidate.DiscoveryUrls = ["relative"];
+                    break;
+            }
+            var store = new Mock<IProvisionableDeviceRegistrarStore>(MockBehavior.Strict);
+            using var security = Create();
+            ArrayOf<ApplicationDescription> candidates = scenario == "later"
+                ? [Registrar(), candidate]
+                : [candidate];
+
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await security.ReplaceRegistrarEndpointsAsync(
+                    Context(m_firstRegistrar), store.Object, candidates).ConfigureAwait(false));
+
+            Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Unconfigured));
+            store.VerifyNoOtherCalls();
+            m_installer.VerifyNoOtherCalls();
+            m_certificates.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// An explicit empty replacement clears candidates without claiming the device.
+        /// </summary>
+        [Test]
+        public async Task RegistrarConfigurationAllowsExplicitClearWithoutClaimingDevice()
+        {
+            var store = new Mock<IProvisionableDeviceRegistrarStore>(MockBehavior.Strict);
+            ArrayOf<ApplicationDescription> published = [Registrar()];
+            store.Setup(value => value.ReplaceAsync(
+                    It.IsAny<ArrayOf<ApplicationDescription>>(), It.IsAny<CancellationToken>()))
+                .Callback<ArrayOf<ApplicationDescription>, CancellationToken>((values, _) => published = values)
+                .Returns(default(ValueTask));
+            using var security = Create();
+
+            await security.ReplaceRegistrarEndpointsAsync(
+                Context(m_firstRegistrar), store.Object, ArrayOf<ApplicationDescription>.Empty).ConfigureAwait(false);
+
+            Assert.That(published.Count, Is.Zero);
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Unconfigured));
+            store.Verify(value => value.ReplaceAsync(
+                It.IsAny<ArrayOf<ApplicationDescription>>(), It.IsAny<CancellationToken>()), Times.Once);
+            m_installer.VerifyNoOtherCalls();
+            m_certificates.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// A pre-cancelled publication never reads the checkpoint or invokes the registrar store.
+        /// </summary>
+        [Test]
+        public async Task CancelledRegistrarPublicationDoesNotReadOrPublish()
+        {
+            Mock<ISecretStore> storage = ForwardStorage();
+            var store = new Mock<IProvisionableDeviceRegistrarStore>(MockBehavior.Strict);
+            using var security = Create(storage.Object);
+            using var cancellation = new CancellationTokenSource();
+            await cancellation.CancelAsync().ConfigureAwait(false);
+
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
+                await security.ReplaceRegistrarEndpointsAsync(
+                    Context(m_firstRegistrar), store.Object, [Registrar()], cancellation.Token).ConfigureAwait(false));
+
+            storage.Verify(value => value.GetAsync(
+                It.IsAny<SecretIdentifier>(), It.IsAny<CancellationToken>()), Times.Never);
+            storage.Verify(value => value.SetAsync(
+                It.IsAny<SecretIdentifier>(), It.IsAny<ReadOnlyMemory<byte>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+            store.VerifyNoOtherCalls();
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Unconfigured));
+        }
+
+        /// <summary>
+        /// A push claim cannot take ownership until the asynchronous candidate replacement has finished.
+        /// </summary>
+        [Test]
+        public async Task PushClaimWaitsForRegistrarPublicationAndBecomesOnlyOwner()
+        {
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            bool storeEntered = false;
+            bool storeCompleted = false;
+            bool checkpointReadDuringStore = false;
+            bool checkpointWrittenBeforeStoreCompleted = false;
+            Mock<ISecretStore> storage = ForwardStorage();
+            storage.Setup(value => value.GetAsync(
+                    It.IsAny<SecretIdentifier>(), It.IsAny<CancellationToken>()))
+                .Returns((SecretIdentifier id, CancellationToken token) =>
+                {
+                    if (storeEntered && !storeCompleted)
+                    {
+                        checkpointReadDuringStore = true;
+                    }
+                    return m_secrets.GetAsync(id, token);
+                });
+            storage.Setup(value => value.SetAsync(
+                    It.IsAny<SecretIdentifier>(), It.IsAny<ReadOnlyMemory<byte>>(), It.IsAny<CancellationToken>()))
+                .Returns((SecretIdentifier id, ReadOnlyMemory<byte> bytes, CancellationToken token) =>
+                {
+                    if (!storeCompleted)
+                    {
+                        checkpointWrittenBeforeStoreCompleted = true;
+                    }
+                    return m_secrets.SetAsync(id, bytes, token);
+                });
+            var store = new Mock<IProvisionableDeviceRegistrarStore>(MockBehavior.Strict);
+            ArrayOf<ApplicationDescription> published = default;
+            store.Setup(value => value.ReplaceAsync(
+                    It.IsAny<ArrayOf<ApplicationDescription>>(), It.IsAny<CancellationToken>()))
+                .Returns(async (ArrayOf<ApplicationDescription> values, CancellationToken token) =>
+                {
+                    published = values;
+                    storeEntered = true;
+                    entered.TrySetResult(true);
+                    await release.Task.ConfigureAwait(false);
+                    token.ThrowIfCancellationRequested();
+                    storeCompleted = true;
+                });
+            using var security = Create(storage.Object);
+            var runtime = CreateRuntime(store.Object, security);
+            Task publication = runtime.SetRegistrarEndpointsAsync(
+                Context(m_otherRegistrar), [Registrar()]).AsTask();
+            await WaitForStoreEntryAsync(entered.Task, publication).ConfigureAwait(false);
+            Task claim;
+            bool claimWaited;
+            bool publicationWaited;
+            try
+            {
+                claim = security.RequireRegistrarAsync(Context(m_firstRegistrar)).AsTask();
+                claimWaited = !claim.IsCompleted;
+                publicationWaited = !publication.IsCompleted;
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+            await publication.ConfigureAwait(false);
+            await claim.ConfigureAwait(false);
+
+            Assert.That(publicationWaited, Is.True);
+            Assert.That(claimWaited, Is.True);
+            Assert.That(checkpointReadDuringStore, Is.False);
+            Assert.That(checkpointWrittenBeforeStoreCompleted, Is.False);
+            Assert.That(published.Count, Is.EqualTo(1));
+            Assert.That(published[0].ApplicationUri, Is.EqualTo("urn:first:registrar"));
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Configuring));
+            await security.RequireRegistrarAsync(Context(m_firstRegistrar)).ConfigureAwait(false);
+            ServiceResultException? denied = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await security.RequireRegistrarAsync(Context(m_otherRegistrar)).ConfigureAwait(false));
+            Assert.That(denied!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            storage.Verify(value => value.SetAsync(
+                It.IsAny<SecretIdentifier>(), It.IsAny<ReadOnlyMemory<byte>>(),
+                It.IsAny<CancellationToken>()), Times.Once);
+            store.Verify(value => value.ReplaceAsync(
+                It.IsAny<ArrayOf<ApplicationDescription>>(), It.IsAny<CancellationToken>()), Times.Once);
+            m_installer.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// An asynchronously failed store operation releases the gate without reserving the device.
+        /// </summary>
+        [Test]
+        public async Task FailedInFlightRegistrarPublicationReleasesGateWithoutClaimingDevice()
+        {
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var expected = new IOException("Asynchronous registrar publication failed.");
+            var store = new Mock<IProvisionableDeviceRegistrarStore>(MockBehavior.Strict);
+            ArrayOf<ApplicationDescription> previous = [Registrar("urn:previous:registrar")];
+            store.Setup(value => value.ReplaceAsync(
+                    It.IsAny<ArrayOf<ApplicationDescription>>(), It.IsAny<CancellationToken>()))
+                .Returns(async (ArrayOf<ApplicationDescription> _, CancellationToken token) =>
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.ConfigureAwait(false);
+                    token.ThrowIfCancellationRequested();
+                    throw expected;
+                });
+            store.Setup(value => value.ReadAsync(It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<ArrayOf<ApplicationDescription>>(previous));
+            using var security = Create();
+            var runtime = CreateRuntime(store.Object, security);
+            Task publication = runtime.SetRegistrarEndpointsAsync(
+                Context(m_otherRegistrar), [Registrar()]).AsTask();
+            await WaitForStoreEntryAsync(entered.Task, publication).ConfigureAwait(false);
+            bool publicationWaited = !publication.IsCompleted;
+            release.TrySetResult(true);
+
+            IOException? failure = await Assert.ThrowsAsync<IOException>(async () =>
+                await publication.ConfigureAwait(false));
+            ArrayOf<ApplicationDescription> retained =
+                await store.Object.ReadAsync().ConfigureAwait(false);
+
+            Assert.That(publicationWaited, Is.True);
+            Assert.That(failure, Is.SameAs(expected));
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Unconfigured));
+            Assert.That(retained.Count, Is.EqualTo(1));
+            Assert.That(retained[0].ApplicationUri, Is.EqualTo("urn:previous:registrar"));
+            await security.RequireRegistrarAsync(Context(m_firstRegistrar)).ConfigureAwait(false);
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Configuring));
+            ServiceResultException? denied = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await security.RequireRegistrarAsync(Context(m_otherRegistrar)).ConfigureAwait(false));
+            Assert.That(denied!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            store.Verify(value => value.ReplaceAsync(
+                It.IsAny<ArrayOf<ApplicationDescription>>(), It.IsAny<CancellationToken>()), Times.Once);
+            store.Verify(value => value.ReadAsync(It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
+        /// Reset cannot run its platform effect while a candidate replacement still owns the security gate.
+        /// </summary>
+        [Test]
+        public async Task ResetWaitsForRegistrarPublicationToComplete()
+        {
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            bool storeEntered = false;
+            bool storeCompleted = false;
+            bool checkpointReadDuringStore = false;
+            bool resetObservedCompletedStore = false;
+            Mock<ISecretStore> storage = ForwardStorage();
+            storage.Setup(value => value.GetAsync(
+                    It.IsAny<SecretIdentifier>(), It.IsAny<CancellationToken>()))
+                .Returns((SecretIdentifier id, CancellationToken token) =>
+                {
+                    if (storeEntered && !storeCompleted)
+                    {
+                        checkpointReadDuringStore = true;
+                    }
+                    return m_secrets.GetAsync(id, token);
+                });
+            storage.Setup(value => value.SetAsync(
+                    It.IsAny<SecretIdentifier>(), It.IsAny<ReadOnlyMemory<byte>>(), It.IsAny<CancellationToken>()))
+                .Returns((SecretIdentifier id, ReadOnlyMemory<byte> bytes, CancellationToken token) =>
+                    m_secrets.SetAsync(id, bytes, token));
+            var store = new Mock<IProvisionableDeviceRegistrarStore>(MockBehavior.Strict);
+            store.Setup(value => value.ReplaceAsync(
+                    It.IsAny<ArrayOf<ApplicationDescription>>(), It.IsAny<CancellationToken>()))
+                .Returns(async (ArrayOf<ApplicationDescription> _, CancellationToken token) =>
+                {
+                    storeEntered = true;
+                    entered.TrySetResult(true);
+                    await release.Task.ConfigureAwait(false);
+                    token.ThrowIfCancellationRequested();
+                    storeCompleted = true;
+                });
+            m_installer.Setup(value => value.ResetToServerDefaultsAsync(It.IsAny<CancellationToken>()))
+                .Callback(() => resetObservedCompletedStore = storeCompleted)
+                .Returns(default(ValueTask));
+            using var security = Create(storage.Object);
+            Task publication = security.ReplaceRegistrarEndpointsAsync(
+                Context(m_otherRegistrar), store.Object, [Registrar()]).AsTask();
+            await WaitForStoreEntryAsync(entered.Task, publication).ConfigureAwait(false);
+            Task reset;
+            bool resetWaited;
+            try
+            {
+                reset = security.ResetToServerDefaultsAsync().AsTask();
+                resetWaited = !reset.IsCompleted;
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+            await publication.ConfigureAwait(false);
+            await reset.ConfigureAwait(false);
+
+            Assert.That(resetWaited, Is.True);
+            Assert.That(checkpointReadDuringStore, Is.False);
+            Assert.That(resetObservedCompletedStore, Is.True);
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Unconfigured));
+            store.Verify(value => value.ReplaceAsync(
+                It.IsAny<ArrayOf<ApplicationDescription>>(), It.IsAny<CancellationToken>()), Times.Once);
+            m_installer.Verify(value => value.ResetToServerDefaultsAsync(It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
+        /// The direct configuration interface snapshots model objects before waiting for another operation.
+        /// </summary>
+        [Test]
+        public async Task RegistrarConfigurationSnapshotsCandidatesBeforeWaitingForGate()
+        {
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var holdingStore = new Mock<IProvisionableDeviceRegistrarStore>(MockBehavior.Strict);
+            holdingStore.Setup(value => value.ReplaceAsync(
+                    It.IsAny<ArrayOf<ApplicationDescription>>(), It.IsAny<CancellationToken>()))
+                .Returns(async (ArrayOf<ApplicationDescription> _, CancellationToken token) =>
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.ConfigureAwait(false);
+                    token.ThrowIfCancellationRequested();
+                });
+            var receivingStore = new Mock<IProvisionableDeviceRegistrarStore>(MockBehavior.Strict);
+            ArrayOf<ApplicationDescription> published = default;
+            receivingStore.Setup(value => value.ReplaceAsync(
+                    It.IsAny<ArrayOf<ApplicationDescription>>(), It.IsAny<CancellationToken>()))
+                .Callback<ArrayOf<ApplicationDescription>, CancellationToken>((values, _) => published = values)
+                .Returns(default(ValueTask));
+            using var security = Create();
+            Task first = security.ReplaceRegistrarEndpointsAsync(
+                Context(m_firstRegistrar), holdingStore.Object, [Registrar("urn:holding:registrar")]).AsTask();
+            await WaitForStoreEntryAsync(entered.Task, first).ConfigureAwait(false);
+            ApplicationDescription candidate = Registrar();
+            string[] discoveryUrls = ["opc.tcp://registrar:4840"];
+            candidate.DiscoveryUrls = discoveryUrls;
+            ApplicationDescription[] inputs = [candidate];
+            Task second;
+            bool secondWaited;
+            try
+            {
+                second = security.ReplaceRegistrarEndpointsAsync(
+                    Context(m_otherRegistrar), receivingStore.Object, inputs).AsTask();
+                secondWaited = !second.IsCompleted;
+                candidate.ApplicationUri = "urn:mutated:registrar";
+                candidate.ApplicationName = new LocalizedText("Changed registrar");
+                candidate.ProductUri = "urn:mutated:product";
+                candidate.GatewayServerUri = "urn:mutated:gateway";
+                candidate.DiscoveryProfileUri = "urn:mutated:profile";
+                candidate.ApplicationType = ApplicationType.Client;
+                discoveryUrls[0] = "opc.tcp://mutated:4840";
+                inputs[0] = Registrar("urn:replacement:registrar");
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+            await first.ConfigureAwait(false);
+            await second.ConfigureAwait(false);
+
+            Assert.That(secondWaited, Is.True);
+            Assert.That(published.Count, Is.EqualTo(1));
+            Assert.That(published[0], Is.Not.SameAs(candidate));
+            Assert.That(published[0], Is.Not.SameAs(inputs[0]));
+            Assert.That(published[0].ApplicationUri, Is.EqualTo("urn:first:registrar"));
+            Assert.That(published[0].ApplicationName, Is.EqualTo(new LocalizedText("Registrar One")));
+            Assert.That(published[0].ProductUri, Is.EqualTo("urn:product:registrar"));
+            Assert.That(published[0].GatewayServerUri, Is.EqualTo("urn:gateway:registrar"));
+            Assert.That(published[0].DiscoveryProfileUri, Is.EqualTo("urn:profile:discovery"));
+            Assert.That(published[0].ApplicationType, Is.EqualTo(ApplicationType.Server));
+            Assert.That(published[0].DiscoveryUrls.ToArray(),
+                Is.EqualTo(new[] { "opc.tcp://registrar:4840" }));
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Unconfigured));
+            holdingStore.Verify(value => value.ReplaceAsync(
+                It.IsAny<ArrayOf<ApplicationDescription>>(), It.IsAny<CancellationToken>()), Times.Once);
+            receivingStore.Verify(value => value.ReplaceAsync(
+                It.IsAny<ArrayOf<ApplicationDescription>>(), It.IsAny<CancellationToken>()), Times.Once);
         }
 
         /// <summary>
@@ -1408,11 +2148,16 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 await restarted.RecoverAsync().ConfigureAwait(false));
             await Assert.ThrowsAsync<InvalidDataException>(async () =>
                 await restarted.RequireRegistrarAsync(Context(m_otherRegistrar)).ConfigureAwait(false));
+            var registrars = new Mock<IProvisionableDeviceRegistrarStore>(MockBehavior.Strict);
+            await Assert.ThrowsAsync<InvalidDataException>(async () =>
+                await restarted.ReplaceRegistrarEndpointsAsync(
+                    Context(m_otherRegistrar), registrars.Object, [Registrar()]).ConfigureAwait(false));
             await Assert.ThrowsAsync<InvalidDataException>(async () =>
                 await restarted.ResetToServerDefaultsAsync().ConfigureAwait(false));
 
             using ISecret? retained = await m_secrets.GetAsync(identifier).ConfigureAwait(false);
             Assert.That(retained!.Bytes.ToArray(), Is.EqualTo(damaged));
+            registrars.VerifyNoOtherCalls();
             m_installer.VerifyNoOtherCalls();
         }
 
@@ -1464,8 +2209,30 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Is.SameAs(provider.GetRequiredService<ProvisionableDeviceSecurity>()));
             Assert.That(provider.GetRequiredService<IProvisionableDeviceSecurity>(),
                 Is.SameAs(provider.GetRequiredService<ProvisionableDeviceSecurity>()));
+            Assert.That(provider.GetRequiredService<IProvisionableDeviceRegistrarConfiguration>(),
+                Is.SameAs(provider.GetRequiredService<ProvisionableDeviceSecurity>()));
             Assert.That(provider.GetRequiredService<IPushConfigurationAuthorization>(),
                 Is.SameAs(provider.GetRequiredService<ProvisionableDeviceSecurity>()));
+        }
+
+        /// <summary>
+        /// A separately registered candidate publisher cannot be replaced by another device security owner.
+        /// </summary>
+        [Test]
+        public void FluentRegistrationRejectsConflictingRegistrarConfigurationWithoutAddingServices()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton<ISecretStore>(m_secrets);
+            services.AddSingleton(m_certificates.Object);
+            services.AddSingleton(m_installer.Object);
+            services.AddSingleton(NUnitTelemetryContext.Create());
+            services.AddSingleton(Mock.Of<IProvisionableDeviceRegistrarConfiguration>());
+            ServiceDescriptor[] before = services.ToArray();
+
+            Assert.That(() => services.AddProvisionableDeviceSecurity("device", kApplicationUri),
+                Throws.InvalidOperationException);
+
+            Assert.That(services.ToArray(), Is.EqualTo(before));
         }
 
         /// <summary>
@@ -1537,6 +2304,48 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
+        /// Creates the real runtime with unrelated ticket collaborators unused by registrar publication.
+        /// </summary>
+        private static ProvisionableDeviceRuntime CreateRuntime(
+            IProvisionableDeviceRegistrarStore store,
+            IProvisionableDeviceSecurity security)
+        {
+            return new(false, [], Mock.Of<ITicketStore>(), Mock.Of<IOnboardingTicketValidator>(), store, security);
+        }
+
+        /// <summary>
+        /// Creates discovery metadata without supplying or approving a registrar certificate.
+        /// </summary>
+        private static ApplicationDescription Registrar(string applicationUri = "urn:first:registrar")
+        {
+            return new ApplicationDescription
+            {
+                ApplicationUri = applicationUri,
+                ApplicationName = new LocalizedText("Registrar One"),
+                ProductUri = "urn:product:registrar",
+                GatewayServerUri = "urn:gateway:registrar",
+                DiscoveryProfileUri = "urn:profile:discovery",
+                ApplicationType = ApplicationType.Server,
+                DiscoveryUrls = ["opc.tcp://registrar:4840"]
+            };
+        }
+
+        /// <summary>
+        /// Surfaces an early publication failure instead of waiting forever for a store that was never entered.
+        /// </summary>
+        private static async Task WaitForStoreEntryAsync(Task entered, Task publication)
+        {
+            Task completed = await Task.WhenAny(entered, publication)
+                .WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            if (completed == publication && !entered.IsCompleted)
+            {
+                await publication.ConfigureAwait(false);
+                throw new AssertionException("Publication completed without reaching the registrar store.");
+            }
+            await entered.ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Returns complete independent public credentials and explicit registrar trust.
         /// </summary>
         private ProvisionableDeviceCredentials Credentials()
@@ -1575,11 +2384,12 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     new NodeId[] { Opc.Ua.ObjectIds.WellKnownRole_SecurityAdmin }.ToArrayOf());
             var session = new Mock<Opc.Ua.Server.ISession>();
             session.SetupGet(s => s.Id).Returns(failure == "session" ? NodeId.Null : new NodeId("device-session", 0));
-            session.SetupGet(s => s.EffectiveIdentity).Returns(identity.Object);
+            session.SetupGet(s => s.EffectiveIdentity)
+                .Returns(failure == "identity" ? null! : identity.Object);
             var channel = new SecureChannelContext("device-channel", new EndpointDescription
             {
                 SecurityMode = failure == "encryption" ? MessageSecurityMode.Sign : MessageSecurityMode.SignAndEncrypt,
-                SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+                SecurityPolicyUri = failure == "policy" ? SecurityPolicies.None : SecurityPolicies.Basic256Sha256
             }, RequestEncoding.Binary, failure == "peer" ? [] : Encoded(peer).ToArray());
             return new SessionSystemContext(new OperationContext(
                 new RequestHeader(), channel, RequestType.Call, RequestLifetime.None, session.Object),

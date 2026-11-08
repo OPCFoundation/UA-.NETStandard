@@ -186,6 +186,23 @@ namespace Opc.Ua.Gds.Server.Onboarding
     }
 
     /// <summary>
+    /// Publishes pull registrar candidates without assigning the administrative caller as a push registrar.
+    /// Implementations coordinate publication with device security transitions.
+    /// </summary>
+    public interface IProvisionableDeviceRegistrarConfiguration
+    {
+        /// <summary>
+        /// Authorizes the administrative channel and replaces the candidates using the supplied store.
+        /// Publication must not change pending or installed registrar ownership.
+        /// </summary>
+        ValueTask ReplaceRegistrarEndpointsAsync(
+            ISystemContext context,
+            IProvisionableDeviceRegistrarStore store,
+            ArrayOf<ApplicationDescription> registrars,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
     /// Serializes device installation, startup recovery, and security reset using an explicit secret-store scope.
     /// One instance exclusively owns the scope. The secret store must publish complete values before returning;
     /// restart durability is a property of the selected store, not of ISecretStore itself.
@@ -193,6 +210,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
     /// </summary>
     public sealed class ProvisionableDeviceSecurity :
         IProvisionableDeviceSecurity,
+        IProvisionableDeviceRegistrarConfiguration,
         IPushConfigurationAuthorization,
         IPushConfigurationCompletion,
         IDisposable
@@ -272,6 +290,42 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     await SaveAsync(new(ProvisionableDeviceSecurityStage.Configuring, peer, null), cancellationToken)
                         .ConfigureAwait(false);
                 }
+            }
+            finally
+            {
+                m_gate.Release();
+            }
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask ReplaceRegistrarEndpointsAsync(
+            ISystemContext context,
+            IProvisionableDeviceRegistrarStore store,
+            ArrayOf<ApplicationDescription> registrars,
+            CancellationToken cancellationToken = default)
+        {
+            ThrowIfDisposed();
+            if (store == null)
+            {
+                throw new ArgumentNullException(nameof(store));
+            }
+            ByteString peer = GetPeer(context);
+            AuthorizationHelper.HasAuthorization(context, [Role.SecurityAdmin]);
+            cancellationToken.ThrowIfCancellationRequested();
+            ArrayOf<ApplicationDescription> detached = ProvisionableDeviceRuntime.SnapshotRegistrars(registrars);
+            await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                Checkpoint checkpoint = await LoadAsync(cancellationToken).ConfigureAwait(false);
+                await RequireRegistrarAsync(checkpoint, peer, cancellationToken).ConfigureAwait(false);
+                if (checkpoint.Stage is ProvisionableDeviceSecurityStage.Configuring or
+                    ProvisionableDeviceSecurityStage.Installing)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidState,
+                        "Registrar candidates cannot change while device configuration is pending.");
+                }
+                await store.ReplaceAsync(detached, cancellationToken).ConfigureAwait(false);
             }
             finally
             {

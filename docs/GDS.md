@@ -1365,7 +1365,15 @@ registration. The fluent registration adds an `IServerPreStartupTask` that calls
 listeners. Recovery errors abort startup. A directly constructed host must call
 `RecoverAsync` before exposing operational endpoints.
 `ProvisionableDeviceRuntime` resolves the optional `IProvisionableDeviceSecurity`
-provider and gates `SetRegistrarEndpoints` through it.
+provider and gates `SetRegistrarEndpoints` through it. The built-in security
+provider lets an authenticated `SecurityAdmin` replace candidates while the
+device is unconfigured without recording the caller as the registrar. It
+serializes the replacement with security transitions, rejects it while
+configuration or installation is pending, and checks installed trust after
+installation. A custom provider can implement
+`IProvisionableDeviceRegistrarConfiguration` to coordinate replacements with
+its own security state. Otherwise, the runtime calls its existing
+`RequireRegistrarAsync` authorization method before storing candidates.
 `AddProvisionableDeviceSecurity` also registers that same state owner as
 `IPushConfigurationAuthorization`. Standard server hosting installs it on
 `ServerConfigurationOptions.PushAuthorization` before creating the configuration

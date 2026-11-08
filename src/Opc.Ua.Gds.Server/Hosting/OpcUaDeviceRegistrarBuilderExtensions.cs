@@ -281,6 +281,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 if (!descriptor.IsKeyedService &&
                     (descriptor.ServiceType == typeof(ProvisionableDeviceSecurity) ||
                     descriptor.ServiceType == typeof(IProvisionableDeviceSecurity) ||
+                    descriptor.ServiceType == typeof(IProvisionableDeviceRegistrarConfiguration) ||
                     descriptor.ServiceType == typeof(IPushConfigurationAuthorization) ||
                     descriptor.ServiceType == typeof(IServerConfigurationResetProvider)))
                 {
@@ -295,6 +296,8 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddSingleton<IServerConfigurationResetProvider>(provider =>
                 provider.GetRequiredService<ProvisionableDeviceSecurity>());
             services.AddSingleton<IProvisionableDeviceSecurity>(provider =>
+                provider.GetRequiredService<ProvisionableDeviceSecurity>());
+            services.AddSingleton<IProvisionableDeviceRegistrarConfiguration>(provider =>
                 provider.GetRequiredService<ProvisionableDeviceSecurity>());
             services.AddSingleton<IPushConfigurationAuthorization>(provider =>
                 provider.GetRequiredService<ProvisionableDeviceSecurity>());
