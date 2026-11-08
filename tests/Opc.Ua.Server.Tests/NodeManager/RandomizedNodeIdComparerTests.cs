@@ -64,6 +64,40 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(randomizedBuckets, Has.Count.GreaterThan(count / 2));
         }
 
+        /// <summary>
+        /// A request large enough for hash flooding to matter gets the randomized comparer;
+        /// a small one keeps the cheaper default comparer.
+        /// </summary>
+        [TestCase(NodeManagerServiceDispatcher.MaxValidationCacheDefaultComparerCount, false)]
+        [TestCase(NodeManagerServiceDispatcher.MaxValidationCacheDefaultComparerCount + 1, true)]
+        [TestCase(65535, true)]
+        public void TheValidationCacheOfALargeRequestIsRandomized(int count, bool randomized)
+        {
+            var nodes = new ReadValueId[count];
+            var calls = new CallMethodRequest[count];
+            for (int ii = 0; ii < count; ii++)
+            {
+                var nodeId = new NodeId((uint)(ii + 1) * 65537u, 0);
+                nodes[ii] = new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value };
+                calls[ii] = new CallMethodRequest { ObjectId = nodeId, MethodId = nodeId };
+            }
+
+            NodeManagerServiceDispatcher.PrepareValidationCache<ReadValueId>(
+                nodes, out Dictionary<NodeId, Variant[]> readCache);
+            NodeManagerServiceDispatcher.PrepareValidationCache<CallMethodRequest>(
+                calls, out Dictionary<NodeId, Variant[]> callCache);
+
+            foreach (Dictionary<NodeId, Variant[]> cache in new[] { readCache, callCache })
+            {
+                Assert.That(cache, Has.Count.EqualTo(count));
+                Assert.That(
+                    cache.Comparer,
+                    randomized
+                        ? Is.SameAs(RandomizedNodeIdComparer.Instance)
+                        : Is.Not.SameAs(RandomizedNodeIdComparer.Instance));
+            }
+        }
+
         [Test]
         public void EqualNodeIdsHashAlikeAndCompareEqual()
         {

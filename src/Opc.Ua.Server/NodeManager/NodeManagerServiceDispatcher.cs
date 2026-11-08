@@ -59,6 +59,14 @@ namespace Opc.Ua.Server
         private const int MaxRelativePathElements = 4096;
 
         /// <summary>
+        /// The largest request whose permission attribute cache uses the default NodeId
+        /// comparer. With every key in one bucket chain, filling it costs at most about
+        /// 32k hash comparisons, which is negligible; larger requests use
+        /// <see cref="RandomizedNodeIdComparer"/>.
+        /// </summary>
+        internal const int MaxValidationCacheDefaultComparerCount = 256;
+
+        /// <summary>
         /// The work one browse path may cost: node expansions plus the targets they yield.
         /// </summary>
         internal const int MaxTranslateBrowsePathWork = 100_000;
@@ -1018,7 +1026,7 @@ namespace Opc.Ua.Server
         /// <param name="nodesList">The collection of nodes on which the service operates upon</param>
         /// <param name="uniqueNodesServiceAttributes">The resulting cache that holds the attribute values needed by the validation process</param>
         /// <exception cref="ArgumentException"></exception>
-        private static void PrepareValidationCache<T>(
+        internal static void PrepareValidationCache<T>(
             ArrayOf<T> nodesList,
             out Dictionary<NodeId, Variant[]> uniqueNodesServiceAttributes)
         {
@@ -1035,11 +1043,13 @@ namespace Opc.Ua.Server
             }
 
             // uniqueNodesServiceAttributes is the place where the attributes for each unique nodeId are kept on the services
-            // the ids are chosen by the client, so the cache must not bucket them on a
-            // hash the client can target (hash flooding makes filling it quadratic).
-            uniqueNodesServiceAttributes = new Dictionary<NodeId, Variant[]>(
-                nodesList.Count,
-                RandomizedNodeIdComparer.Instance);
+            // the ids are chosen by the client, so a large cache must not bucket them on a
+            // hash the client can target (hash flooding makes filling it quadratic). The
+            // randomized comparer costs an interface call per lookup, so a small request,
+            // whose worst case stays cheap, keeps the default comparer.
+            uniqueNodesServiceAttributes = nodesList.Count > MaxValidationCacheDefaultComparerCount
+                ? new Dictionary<NodeId, Variant[]>(nodesList.Count, RandomizedNodeIdComparer.Instance)
+                : new Dictionary<NodeId, Variant[]>(nodesList.Count);
             for (int i = 0; i < nodesList.Count; i++)
             {
                 NodeId nodeId = default;
