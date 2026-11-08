@@ -34,8 +34,11 @@ using System.Linq;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Describes one NodeManager generation without retaining the NodeManager.
+    /// Describes one NodeManager generation by its slot and generation number.
     /// </summary>
+    /// <remarks>
+    /// The snapshot holds its slot, which retains its current generation and unresolved subscription items.
+    /// </remarks>
     public readonly record struct NodeManagerGenerationSnapshot
     {
         /// <summary>
@@ -61,12 +64,16 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// Describes a committed registration without retaining the NodeManager.
+    /// Describes a prepared or committed registration by its slot and generation metadata.
     /// </summary>
+    /// <remarks>
+    /// References to the registration and NodeManager are weak. The snapshot holds its slot strongly,
+    /// and the slot retains its current generation and unresolved subscription items.
+    /// </remarks>
     public readonly record struct NodeManagerRegistrationSnapshot
     {
         /// <summary>
-        /// Creates a snapshot of a committed registration.
+        /// Creates a snapshot of a registration.
         /// </summary>
         /// <param name="registration">The registration to describe.</param>
         internal NodeManagerRegistrationSnapshot(NodeManagerRegistration registration)
@@ -105,10 +112,10 @@ namespace Opc.Ua.Server
         public ArrayOf<string> NamespaceUris { get; }
 
         /// <summary>
-        /// Gets the NodeManager while another owner still retains it.
+        /// Attempts to obtain the NodeManager through its weak reference.
         /// </summary>
-        /// <param name="nodeManager">The NodeManager when it is still available.</param>
-        /// <returns>Whether the NodeManager is still available.</returns>
+        /// <param name="nodeManager">The NodeManager if the reference resolves; otherwise, null.</param>
+        /// <returns>True if the reference resolves; otherwise, false.</returns>
         public bool TryGetNodeManager(out IAsyncNodeManager? nodeManager)
         {
             if (m_nodeManager is not null && m_nodeManager.TryGetTarget(out nodeManager))
@@ -120,10 +127,18 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Creates a strong registration handle while another owner still retains the NodeManager.
+        /// Attempts to obtain a strong registration handle.
         /// </summary>
-        /// <param name="registration">The strong registration handle when the NodeManager is still available.</param>
-        /// <returns>Whether a strong registration handle was created.</returns>
+        /// <remarks>
+        /// Returns the original registration if its weak reference resolves. Otherwise, if the NodeManager is
+        /// available, the current implementation reconstructs a handle from its generation association without
+        /// checking the slot or manager against the snapshot. Keep the original handle if its exact identity matters.
+        /// </remarks>
+        /// <param name="registration">The strong registration handle if available; otherwise, null.</param>
+        /// <returns>True if a registration is returned; otherwise, false.</returns>
+        /// <exception cref="InvalidOperationException">
+        /// The current generation number differs from the snapshot.
+        /// </exception>
         public bool TryGetRegistration(out NodeManagerRegistration? registration)
         {
             if (m_registration is not null &&

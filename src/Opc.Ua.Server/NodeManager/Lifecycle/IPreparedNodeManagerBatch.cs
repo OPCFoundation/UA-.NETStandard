@@ -402,7 +402,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Gets metadata for the exact committed additions and replacements without retaining their NodeManagers.
+        /// Gets snapshots of the committed additions and replacements.
         /// </summary>
         public ArrayOf<NodeManagerRegistrationSnapshot> Registrations { get; }
 
@@ -428,9 +428,8 @@ namespace Opc.Ua.Server
         public ArrayOf<NodeManagerSlot> Slots { get; }
 
         /// <summary>
-        /// Gets the application slot generations at this result's revision without retaining their NodeManagers.
-        /// Unlike a slot's current value, these snapshots do not advance when a reconciliation callback publishes a
-        /// nested change.
+        /// Gets the application slot generations at this result's revision. Unlike a slot's current value, these
+        /// snapshots do not advance when a reconciliation callback publishes a nested change.
         /// </summary>
         public ArrayOf<NodeManagerGenerationSnapshot> PublishedSlots { get; }
 

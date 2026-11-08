@@ -1085,8 +1085,9 @@ A **generation** identifies one published NodeManager instance within a logical 
 `NodeManagerRegistration.Id` stays the same across reloads; `Generation` counts the instances:
 initial and runtime additions create generation 1 and each committed [replacement](#reload-modes)
 creates the next. Generation is independent of the information model's version and namespace
-index. After a replacement, use the committed result's handle; the previous one is stale even while
-an admitted request finishes on its old view. A new registration starts at generation 1 with a new `Id`.
+index. After a replacement, the previous strong registration handle is stale even while an admitted
+request finishes on its old view. The committed result records the replacement in
+`LifecycleResult.Registrations`. A new registration starts at generation 1 with a new `Id`.
 
 ### Runtime registration
 
@@ -1128,10 +1129,12 @@ Use [lifecycle change sets](#lifecycle-change-sets) to combine changes, or
 [explicit preparation](#preparation-decision-and-abort) when publication must
 follow a durable application decision.
 
-Each committed addition returns an immutable `NodeManagerRegistration`; replacement returns the next generation and
-invalidates the previous handle. `Registrations` also lists application NodeManagers composed
-before startup (not the protected diagnostics, configuration and core managers), so a control plane
-can remove them or, if they implement `INodeManagerReloadParticipant`, reload them.
+Each committed addition or replacement appears in `LifecycleResult.Registrations` as a
+`NodeManagerRegistrationSnapshot`. Replacement advances the generation and makes the previous legacy
+registration handle stale. The provider's `Registrations` property exposes strong handles for live
+application NodeManagers, including those composed before startup. It excludes the protected diagnostics,
+configuration and core managers. A control plane can remove those application managers or, if they implement
+`INodeManagerReloadParticipant`, reload them.
 
 Use the server's `NodeManagerLifecycle` provider. Additional `NodeManagerLifecycle(server)`
 handles forward to that same owner; they do not create independent registration collections.
@@ -1140,8 +1143,8 @@ writer or its generations. The server remains responsible for completing retirem
 
 `registration.Slot` is the stable handle shared by every generation of that logical registration.
 Use `TryGetCurrent` to capture the current manager and generation together; it returns `false` after
-the registration is removed. A captured snapshot continues to identify that exact manager even if a
-later reload publishes another generation:
+the registration is removed. A captured `NodeManagerSlotSnapshot` holds a strong reference to that
+exact manager, even if a later reload publishes another generation:
 
 ```csharp
 NodeManagerSlot slot = registration.Slot;
@@ -1276,11 +1279,19 @@ its cleanup attempt. Callers already waiting for that attempt receive the same
 aggregated failure; a later disposal call does not invoke those callbacks again.
 This does not retry failed private-candidate destruction.
 
-`LifecycleResult.Registrations` and `PublishedSlots` contain non-owning
-snapshots. They retain slot identity and generation metadata, not historical
-NodeManagers. `NodeManagerRegistrationSnapshot.TryGetNodeManager` can obtain a
-manager only while another owner retains it; callers that need a durable
-registration handle must retain one explicitly. The legacy
+`LifecycleResult.Registrations` and `PublishedSlots` hold slots and record
+generation metadata. A slot retains its currently published generation, which
+may differ from the recorded generation, and any unresolved subscription items.
+The registration snapshot's references to its registration and NodeManager are
+weak; `TryGetNodeManager` resolves the recorded manager while that reference is
+still available.
+
+`TryGetRegistration` returns the original registration if its weak reference
+resolves. Otherwise, if the manager is available, the current implementation
+reconstructs a handle from its generation association without checking the slot
+or manager against the snapshot. It throws `InvalidOperationException` if the
+current generation number differs from the snapshot's number. Retain the
+original handle when its exact identity matters. The legacy
 `NodeManagerBatchResult` continues to expose strong registration and slot
 snapshots during the compatibility period.
 
@@ -1333,9 +1344,9 @@ inspection or validation fails. Validation does not publish namespaces, run
 readiness or advance the writer's evidence. Preparing and disposing an ordinary
 unit does not perform this validation.
 The inspection view borrows the provider; the publication owns candidate
-cleanup. When inspection ends, the view releases that reference even if the
-callback throws. Retaining the view preserves non-owning registration metadata,
-not the candidate or its provider.
+cleanup. When inspection ends, the view releases its direct provider reference
+even if the callback throws. Retaining the view preserves registration snapshots
+and slots; a slot can retain its current generation and unresolved items.
 
 If inspection or validation fails and candidate cleanup also fails,
 `ValidateAsync` throws an `AggregateException` containing the original failure
@@ -1843,7 +1854,8 @@ and providers remains open.
 This inventory does not make the legacy handles non-owning. A
 `NodeManagerRegistration`, `NodeManagerSlotSnapshot` or legacy batch result can
 retain a retired manager after cleanup. Modern result metadata uses
-`NodeManagerRegistrationSnapshot` and `NodeManagerGenerationSnapshot` instead.
+`NodeManagerRegistrationSnapshot` and `NodeManagerGenerationSnapshot` instead;
+their slots can retain current generations and unresolved subscription items.
 Callers must also account for references carried by their own exception types,
 exception data and callbacks; exposing an exception does not detach its object
 graph.

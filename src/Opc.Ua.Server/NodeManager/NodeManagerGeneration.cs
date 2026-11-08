@@ -163,6 +163,9 @@ namespace Opc.Ua.Server
     /// <summary>
     /// A consistent snapshot of one stable NodeManager slot and its current generation.
     /// </summary>
+    /// <remarks>
+    /// A non-default snapshot retains its NodeManager even after the slot changes or is unpublished.
+    /// </remarks>
     public readonly record struct NodeManagerSlotSnapshot
     {
         /// <summary>

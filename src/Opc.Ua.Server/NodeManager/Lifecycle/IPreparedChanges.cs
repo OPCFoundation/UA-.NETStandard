@@ -103,10 +103,13 @@ namespace Opc.Ua.Server
         ArrayOf<NodeManagerSlot> Slots { get; }
 
         /// <summary>
-        /// Gets candidate generation metadata in addition/replacement order, without retaining the NodeManagers.
-        /// <see cref="NodeManagerRegistrationSnapshot.TryGetNodeManager(out IAsyncNodeManager)"/> can acquire a
-        /// NodeManager only while another owner retains it.
+        /// Gets snapshots of candidate registrations in addition/replacement order.
+        /// The snapshots hold weak references to their registrations and NodeManagers, but retain their slots.
         /// </summary>
+        /// <remarks>
+        /// The built-in prepared unit holds its provider until successful commit or disposal. A validation view
+        /// releases its borrowed provider when inspection ends.
+        /// </remarks>
         ArrayOf<NodeManagerRegistrationSnapshot> Registrations { get; }
 
         /// <summary>
@@ -524,7 +527,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Releases the provider while retaining its non-owning candidate metadata.
+        /// Releases the provider while retaining candidate registration snapshots.
         /// </summary>
         /// <param name="prepared">The provider to release.</param>
         private async ValueTask ReleasePreparedAsync(IPreparedNodeManagerBatch prepared)
