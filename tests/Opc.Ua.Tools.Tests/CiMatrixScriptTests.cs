@@ -518,35 +518,50 @@ namespace Opc.Ua.Tools.Tests
                 string[] expectedShards = profile.First().Framework == "net48"
                     ? serverShards
                     : profile.First().Os == "macos"
-                        ? ["server-node-lifecycle-prepared", "server-node-lifecycle", "server-other"]
+                        ? [
+                            "server-node-lifecycle-prepared",
+                            "server-node-lifecycle",
+                            "server-node-management",
+                            "server-history-subscriptions",
+                            "server-sessions-configuration-runtime",
+                            "server-other"
+                        ]
                         : ["all"];
                 Assert.That(profile.Select(entry => entry.Shard), Is.EquivalentTo(expectedShards));
                 Assert.That(profile.All(entry => entry.PerProjectTimeout == 45), Is.True);
             }
 
-            (string TestName, string ExpectedShard)[] testCases =
+            (string TestName, string ExpectedShard, string MacShard)[] testCases =
             [
                 ("Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.PreparedBatchDecisionAsync",
-                    "server-node-lifecycle-prepared"),
-                ("Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.TestAsync", "server-node-lifecycle"),
+                    "server-node-lifecycle-prepared", "server-node-lifecycle-prepared"),
+                ("Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.TestAsync",
+                    "server-node-lifecycle", "server-node-lifecycle"),
                 ("Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.RejectsPreparedBatchAsync",
-                    "server-node-lifecycle"),
+                    "server-node-lifecycle", "server-node-lifecycle"),
                 ("Opc.Ua.Server.Tests.NodeManager.nodemanagerlifecycletests.PreparedBatchAsync",
-                    "server-node-management"),
+                    "server-node-management", "server-node-management"),
                 ("Opc.Ua.Server.Tests.Hosting.HostedNodeManagerLifecycleTests.PreparedBatchAsync",
-                    "server-node-management"),
+                    "server-node-management", "server-node-management"),
                 ("Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTestsExtra.PreparedBatchAsync",
-                    "server-node-management"),
-                ("Opc.Ua.Server.Tests.Fluent.FluentNodeManagerBasePipelineTests.TestAsync", "server-node-management"),
+                    "server-node-management", "server-node-management"),
+                ("Opc.Ua.Server.Tests.Fluent.FluentNodeManagerBasePipelineTests.TestAsync",
+                    "server-node-management", "server-node-management"),
                 ("Opc.Ua.Server.Tests.Historian.HistorianDispatcherTests.TestAsync",
-                    "server-history-subscriptions"),
+                    "server-history-subscriptions", "server-history-subscriptions"),
                 ("Opc.Ua.Server.Tests.SubscriptionTests.TransferSubscriptionAsync",
-                    "server-history-subscriptions"),
-                ("Opc.Ua.Server.Tests.Session.SessionTests.TestAsync", "server-sessions"),
-                ("Opc.Ua.Server.Tests.Configuration.TrustListTests.TestAsync", "server-configuration"),
-                ("Opc.Ua.Server.Tests.RuntimeNodeSet.RuntimeNodeSetTests.TestAsync", "server-runtime"),
-                ("Opc.Ua.Server.Tests.ReverseConnectServerTests.TestAsync", "server-transport"),
-                ("Opc.Ua.Server.Tests.RequestTableTests.TestAsync", "server-other")
+                    "server-history-subscriptions", "server-history-subscriptions"),
+                ("Opc.Ua.Server.Tests.Network.NetworkModelIntegrationTests." +
+                    "LldpOptionalCapabilitiesArePublishedAndRemovedAsync",
+                    "server-history-subscriptions", "server-history-subscriptions"),
+                ("Opc.Ua.Server.Tests.Session.SessionTests.TestAsync",
+                    "server-sessions", "server-sessions-configuration-runtime"),
+                ("Opc.Ua.Server.Tests.Configuration.TrustListTests.TestAsync",
+                    "server-configuration", "server-sessions-configuration-runtime"),
+                ("Opc.Ua.Server.Tests.RuntimeNodeSet.RuntimeNodeSetTests.TestAsync",
+                    "server-runtime", "server-sessions-configuration-runtime"),
+                ("Opc.Ua.Server.Tests.ReverseConnectServerTests.TestAsync", "server-transport", "server-other"),
+                ("Opc.Ua.Server.Tests.RequestTableTests.TestAsync", "server-other", "server-other")
             ];
             string[][] categorySets =
             [
@@ -563,21 +578,13 @@ namespace Opc.Ua.Tools.Tests
             ];
             foreach (IGrouping<string, MatrixEntry> profile in server.GroupBy(entry => entry.Profile))
             {
-                foreach ((string testName, string expectedShard) in testCases)
+                foreach ((string testName, string expectedShard, string macShard) in testCases)
                 {
                     string shard = profile.First().Framework == "net48"
                         ? expectedShard
                         : profile.First().Os != "macos"
                             ? "all"
-                            : testName.StartsWith(
-                                "Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.",
-                                StringComparison.Ordinal)
-                                ? testName.StartsWith(
-                                    "Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.Prepared",
-                                    StringComparison.Ordinal)
-                                    ? "server-node-lifecycle-prepared"
-                                    : "server-node-lifecycle"
-                                : "server-other";
+                            : macShard;
                     foreach (string[] categories in categorySets)
                     {
                         bool allowed = profile.First().Tier != "mainline" ||
@@ -639,8 +646,10 @@ namespace Opc.Ua.Tools.Tests
                         "wot-materialization-integration",
                         "wot-materialization-live-events",
                         "wot-other-core",
+                        "wot-other-integration",
                         "wot-other-identity-integration",
-                        "wot-other-integration"
+                        "wot-other-identity-di-integration",
+                        "wot-other-legacy-integration"
                     ] : ["wot-materialization", "wot-other"];
                 Assert.That(
                     profile.Select(entry => entry.Shard),
@@ -682,9 +691,15 @@ namespace Opc.Ua.Tools.Tests
                     "Opc.Ua.WotCon.Tests.materialization.ExampleTests.ExampleAsync",
                     "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests.ExampleAsync",
                     "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests(False).ExampleAsync",
+                    "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests(True).ExampleAsync",
                     "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTestsExtra.ExampleAsync",
                     "Opc.Ua.WotCon.Tests.Registry.WotRegistryIdentityLiveTests.ExampleAsync",
-                    "Opc.Ua.WotCon.Tests.wotregistryidentitylivetests.ExampleAsync"
+                    "Opc.Ua.WotCon.Tests.wotregistryidentitylivetests.ExampleAsync",
+                    "Opc.Ua.WotCon.Tests.WotLegacyNativeAdmissionLiveTests.ExampleAsync",
+                    "Opc.Ua.WotCon.Tests.WotLegacyTypeBindingLiveTests.ExampleAsync",
+                    "Opc.Ua.WotCon.Tests.WotLegacyMaterializationLiveTests.ExampleAsync",
+                    "Opc.Ua.WotCon.Tests.Registry.WotLegacyTypeBindingLiveTests.ExampleAsync",
+                    "Opc.Ua.WotCon.Tests.wotlegacytypebindinglivetests.ExampleAsync"
                 ];
             string[][] exclusionCategories =
             [
@@ -728,13 +743,23 @@ namespace Opc.Ua.Tools.Tests
                                 "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
                                 StringComparison.Ordinal))
                         {
-                            expectedShard = "wot-other-identity-integration";
+                            expectedShard = testName.Contains(
+                                "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests(True)", StringComparison.Ordinal)
+                                ? "wot-other-identity-di-integration"
+                                : "wot-other-identity-integration";
+                        }
+                        if (!materialization && integration && profile.First().Framework != "net48" &&
+                            profile.First().Os == "macos" &&
+                            testName.Contains("Opc.Ua.WotCon.Tests.WotLegacy", StringComparison.Ordinal))
+                        {
+                            expectedShard = "wot-other-legacy-integration";
                         }
 
                         Assert.That(
                             matches,
                             Is.EqualTo(allowed ? new[] { expectedShard } : Array.Empty<string>()),
-                            $"Profile '{profile.Key}', test '{testName}', categories '{string.Join(",", categories)}'.");
+                            $"Profile '{profile.Key}', test '{testName}', " +
+                            $"categories '{string.Join(",", categories)}'.");
                     }
                 }
             }
@@ -787,7 +812,9 @@ namespace Opc.Ua.Tools.Tests
         private static bool MatchesWotFilter(string filter, string testName, string[] categories)
         {
             // The default NUnit adapter uses case-sensitive engine filters.
-            return filter.Split('&').All(term => term switch
+            // VSTest filter values escape parentheses; the test names do not.
+            return filter.Split('&').Select(term => term.Replace("\\(", "(", StringComparison.Ordinal)
+                .Replace("\\)", ")", StringComparison.Ordinal)).All(term => term switch
             {
                 "" => true,
                 _ when term.StartsWith("FullyQualifiedName!~", StringComparison.Ordinal) =>
@@ -808,6 +835,10 @@ namespace Opc.Ua.Tools.Tests
         /// </summary>
         private static bool MatchesServerFilter(string filter, string testName, string[] categories)
         {
+            if (string.IsNullOrEmpty(filter))
+            {
+                return true;
+            }
             return filter.Split('&').All(term =>
             {
                 string expression = term.Trim('(', ')');
