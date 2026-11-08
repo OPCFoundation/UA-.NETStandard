@@ -54,6 +54,18 @@ an implicit refresh. Event observation still falls back to known maintenance
 classes if subtype browsing fails or reaches a traversal limit, without caching
 an incomplete class set. `AcknowledgeAsync` acknowledges a condition.
 
+## History
+
+`ReadHealthHistoryAsync` reads raw `DeviceHealth` with original quality and
+timestamps. `ReadHealthEventsAsync` and `ReadPastMaintenanceAsync` read
+immutable condition events filtered by asset and maintenance class, including
+subtypes. They use `HistoryClient` for paging, continuation release and
+cancellation; pass `HistoryClientOptions` for read-duration and page limits.
+Event records preserve original field values in `HistoryFields`, whose
+select-clause identities are returned by `GetHistoryEventFields()`.
+`GetHistoryCapabilitiesAsync` reports history-read attributes. Unsupported
+or denied history is an error, not an empty successful result.
+
 ## Hosting
 
 ```csharp

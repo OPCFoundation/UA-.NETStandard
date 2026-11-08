@@ -28,6 +28,9 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
+using Opc.Ua.Client;
 
 namespace Opc.Ua.AMB.Client
 {
@@ -46,6 +49,16 @@ namespace Opc.Ua.AMB.Client
     /// </remarks>
     public sealed record AmbClientOptions
     {
+        /// <summary>
+        /// Gets the caller-supplied resolver for a remote server application URI.
+        /// The returned managed session is borrowed and remains owned by the caller.
+        /// </summary>
+        /// <remarks>
+        /// The resolver is used only by <see cref="AmbClient.EnumerateSubAssetsAcrossServersAsync"/>.
+        /// It is not called by <see cref="AmbClient.EnumerateSubAssetsAsync(NodeId, CancellationToken)"/>.
+        /// </remarks>
+        public Func<string, CancellationToken, Task<ManagedSession>>? RemoteSessionResolver { get; init; }
+
         /// <summary>
         /// Gets the maximum total references consumed by a traversal, including
         /// duplicates and references to remote nodes. Also bounds FindAlias

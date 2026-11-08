@@ -105,14 +105,58 @@ namespace Microsoft.Extensions.DependencyInjection
             configure?.Invoke(options);
             options.Validate();
 
+            builder.Services.AddSingleton(options);
+            return RegisterAssetManagement(builder);
+        }
+
+        /// <summary>
+        /// Registers asset management with options resolved from dependency injection,
+        /// including existing historian providers. The options are validated before startup.
+        /// </summary>
+        /// <exception cref="ArgumentNullException">An argument is null.</exception>
+        /// <exception cref="InvalidOperationException">Asset management is already registered.</exception>
+        public static IOpcUaServerBuilder AddAssetManagement(
+            this IOpcUaServerBuilder builder,
+            Action<IServiceProvider, AmbServerOptions> configure)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+            foreach (ServiceDescriptor descriptor in builder.Services)
+            {
+                if (descriptor.ServiceType == typeof(AssetManagement))
+                {
+                    throw new InvalidOperationException("AddAssetManagement has already been called.");
+                }
+            }
+            builder.Services.AddSingleton(services =>
+            {
+                var options = new AmbServerOptions();
+                configure(services, options);
+                options.Validate();
+                return options;
+            });
+            return RegisterAssetManagement(builder);
+        }
+
+        /// <summary>
+        /// Shares registry and store ownership between the direct and DI-configured hosting overloads.
+        /// </summary>
+        private static IOpcUaServerBuilder RegisterAssetManagement(IOpcUaServerBuilder builder)
+        {
             builder.Services.TryAddSingleton<IAssetConfigurationStore>(services =>
-                options.StateDirectory == null
+                services.GetRequiredService<AmbServerOptions>().StateDirectory is not { } directory
                     ? new MemoryAssetConfigurationStore()
                     : new FileSystemAssetConfigurationStore(
-                        options.StateDirectory,
+                        directory,
                         services.GetService<ILoggerFactory>()?.CreateLogger<FileSystemAssetConfigurationStore>()));
             builder.Services.AddSingleton(services => new AssetManagement(
-                options,
+                services.GetRequiredService<AmbServerOptions>(),
                 services.GetRequiredService<IAssetConfigurationStore>()));
             builder.Services.AddSingleton<IAssetManagement>(
                 services => services.GetRequiredService<AssetManagement>());

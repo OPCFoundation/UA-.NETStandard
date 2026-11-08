@@ -58,6 +58,16 @@ activities are created while the node manager that owns the asset builds its
 address space, so register such assets from its setup (`ConfigureDevicesFor`,
 an `IMachineryConfigurator`, `ConfigurePumps`, `ConfigureScales`).
 
+`AmbServerOptions.UseHistory(provider)` opts into raw `DeviceHealth`, health
+events and maintenance event history through the shared Part 11 historian.
+`AssetHistoryKinds` selects the capture kinds; `WithHistory` overrides them
+per asset. The owner retains the nodes, the historian provider supplies
+retention and persistence, and history stays disabled by default.
+The bundled memory provider is provisioned automatically; custom providers
+must provision the asset and health NodeIds and advertise read/capture support.
+See the [history guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/AMB.md#history)
+for fluent, DI-resolved and direct configuration.
+
 `WithDocumentationLinks` adds the `DocumentationLinks` AddIn with links of the
 manufacturer, links users can change, and - with `AllowUserLinks` - the
 `AddLink` and `RemoveLink` methods, which need a persistent store (§10.5.3).

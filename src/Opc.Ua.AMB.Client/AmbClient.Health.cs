@@ -270,9 +270,12 @@ namespace Opc.Ua.AMB.Client
         private async ValueTask<HashSet<NodeId>> MaintenanceClassesWithBudgetAsync(
             BrowseBudget budget,
             bool tolerateBrowseFailure,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool requireComplete = false)
         {
-            HashSet<NodeId>? known = Volatile.Read(ref m_maintenanceClasses);
+            HashSet<NodeId>? known = requireComplete
+                ? null
+                : Volatile.Read(ref m_maintenanceClasses);
             if (known != null)
             {
                 return known;
@@ -287,7 +290,7 @@ namespace Opc.Ua.AMB.Client
                 while (pending.Count > 0)
                 {
                     (NodeId type, int depth) = pending.Dequeue();
-                    if (depth >= MaxDepth && m_options is null)
+                    if (depth >= MaxDepth && m_options is null && !requireComplete)
                     {
                         continue;
                     }
@@ -297,11 +300,12 @@ namespace Opc.Ua.AMB.Client
                         BrowseDirection.Forward,
                         NodeClass.ObjectType,
                         budget,
-                        cancellationToken).ConfigureAwait(false))
+                        cancellationToken,
+                        requireComplete: requireComplete).ConfigureAwait(false))
                     {
-                        NodeId subtypeId = ToNodeId(subtype.NodeId);
+                        NodeId subtypeId = ToNodeId(subtype.NodeId, requireLocal: requireComplete);
                         if (!subtypeId.IsNull &&
-                            (m_options is null ? classes.Add(subtypeId) : seen.Add(subtypeId)))
+                            (m_options is null && !requireComplete ? classes.Add(subtypeId) : seen.Add(subtypeId)))
                         {
                             if (depth >= MaxDepth)
                             {
@@ -313,12 +317,15 @@ namespace Opc.Ua.AMB.Client
                     }
                 }
             }
-            catch (ServiceResultException) when (m_options is null || tolerateBrowseFailure)
+            catch (ServiceResultException) when (!requireComplete && (m_options is null || tolerateBrowseFailure))
             {
                 // Observation can use the classes found so far, but a later strict read must retry discovery.
                 return classes;
             }
-            Volatile.Write(ref m_maintenanceClasses, classes);
+            if (!requireComplete)
+            {
+                Volatile.Write(ref m_maintenanceClasses, classes);
+            }
             return classes;
         }
 
