@@ -32,6 +32,7 @@ using Microsoft.Extensions.Configuration;
 using Moq;
 using NUnit.Framework;
 using OnboardingDevice;
+using Opc.Ua.Client.Tests.SessionContexts;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
 using Opc.Ua.Gds.Server.Onboarding;
@@ -98,6 +99,47 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
+        /// An admitted connection that fails channel verification is retired before startup returns.
+        /// </summary>
+        [Test]
+        public async Task StartupRetiresSessionWhenChannelAdmissionFails()
+        {
+            await using var context = new SessionRequestContextTestContext();
+            var security = new Mock<IProvisionableDeviceSecurity>(MockBehavior.Strict);
+            security.Setup(value => value.GetStageAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ProvisionableDeviceSecurityStage>(
+                    ProvisionableDeviceSecurityStage.Unconfigured));
+            var registrars = new Mock<IProvisionableDeviceRegistrarStore>(MockBehavior.Strict);
+            var candidate = new ApplicationDescription
+            {
+                ApplicationUri = "urn:registrar",
+                ApplicationType = ApplicationType.Server,
+                DiscoveryUrls = ["opc.tcp://localhost:62560/Registrar"]
+            };
+            registrars.Setup(value => value.ReadAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ArrayOf<ApplicationDescription>>([candidate]));
+            int created = 0;
+            var sessions = new DevicePullSession(_ =>
+            {
+                created++;
+                return Task.FromResult(context.ManagedSession);
+            });
+            DevicePullTask task = CreateTask(security.Object, registrars.Object, sessions);
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await task.OnServerStartedAsync(Mock.Of<IServerContext>()).ConfigureAwait(false)).ConfigureAwait(false);
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityModeInsufficient));
+            Assert.That(created, Is.EqualTo(1));
+            Assert.That(context.ManagedSession.Disposed, Is.True);
+            Assert.That(context.Requests.FindAll(static request => request is CloseSessionRequest),
+                Has.Count.EqualTo(1));
+            ServiceResultException? unavailable = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await sessions.GetCurrentAsync(CancellationToken.None).ConfigureAwait(false)).ConfigureAwait(false);
+            Assert.That(unavailable!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+        }
+
+        /// <summary>
         /// Both endpoint and expected identity are mandatory, encrypted UA-TCP selection excludes URL credentials,
         /// and reset cannot be combined with immediate reprovisioning.
         /// </summary>
@@ -146,7 +188,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         /// </summary>
         private static DevicePullTask CreateTask(
             IProvisionableDeviceSecurity security,
-            IProvisionableDeviceRegistrarStore registrars)
+            IProvisionableDeviceRegistrarStore registrars,
+            DevicePullSession? sessions = null)
         {
             var identity = new Mock<IPullDcaIdentityProvider>(MockBehavior.Strict);
             var credentials = new Mock<IPullDcaCredentialProvider>(MockBehavior.Strict);
@@ -160,7 +203,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 new DeviceSampleOptions(new ConfigurationBuilder().AddInMemoryCollection(values).Build()),
                 security, registrars, Mock.Of<IProvisionableDeviceRuntime>(),
                 Mock.Of<IOpcUaApplicationConfigurationProvider>(), workflow,
-                _ => throw new AssertionException("Session connection was not admitted."));
+                sessions ?? new DevicePullSession(
+                    _ => throw new AssertionException("Session connection was not admitted.")));
         }
 
         /// <summary>

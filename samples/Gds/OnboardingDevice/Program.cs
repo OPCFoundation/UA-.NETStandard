@@ -45,6 +45,7 @@ using Opc.Ua.Identity;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
+using Opc.Ua.Server.Network;
 using Opc.Ua.Server.UserDatabase;
 using Opc.Ua.Server.UserManagement;
 
@@ -223,6 +224,8 @@ namespace OnboardingDevice
                         options,
                         services.GetRequiredService<ITelemetryContext>()));
             }
+            server.AddNetworkModel(
+                new NetworkModelBuilder().Build(DateTime.UnixEpoch, StatusCodes.Good));
             server.AddProvisionableDeviceRuntime(
                 isSingleton, tickets.ToList().Select(static ticket => ticket.Id).ToArrayOf());
             if (options.PhysicalReset)
@@ -245,6 +248,14 @@ namespace OnboardingDevice
         private static void ConfigurePull(IServiceCollection services, DeviceSampleOptions options)
         {
             string user = RequiredEnvironment("ONBOARDING_PULL_USER");
+            services.AddSingleton<DevicePullSession>(static provider =>
+                new DevicePullSession(provider.GetRequiredService<Func<CancellationToken, Task<ManagedSession>>>()));
+            services.AddSingleton<Func<PullDcaRegistrar, CancellationToken, ValueTask<ManagedSession>>>(
+                static provider =>
+                {
+                    DevicePullSession session = provider.GetRequiredService<DevicePullSession>();
+                    return (_, ct) => new ValueTask<ManagedSession>(session.GetCurrentAsync(ct));
+                });
             services.AddSingleton<IClientIdentityProvider>(provider =>
             {
                 ISecretStore secrets = provider.GetRequiredService<ISecretStore>();
@@ -279,7 +290,7 @@ namespace OnboardingDevice
                 provider.GetRequiredService<OnboardingDeviceCredentials>(),
                 provider.GetRequiredService<OnboardingDeviceCredentials>(),
                 provider.GetRequiredService<IProvisionableDeviceSecurity>(),
-                provider.GetRequiredService<Func<CancellationToken, Task<ManagedSession>>>(),
+                provider.GetRequiredService<DevicePullSession>().GetCurrentAsync,
                 options.PullRegistrarApplicationUri!));
             services.AddSingleton<IPullDcaIdentityProvider>(static provider =>
                 provider.GetRequiredService<DevicePullCredentials>());
@@ -292,7 +303,7 @@ namespace OnboardingDevice
                 provider.GetRequiredService<IProvisionableDeviceRuntime>(),
                 provider.GetRequiredService<IOpcUaApplicationConfigurationProvider>(),
                 provider.GetRequiredService<PullDcaWorkflow>(),
-                provider.GetRequiredService<Func<CancellationToken, Task<ManagedSession>>>()));
+                provider.GetRequiredService<DevicePullSession>()));
         }
 
         /// <summary>

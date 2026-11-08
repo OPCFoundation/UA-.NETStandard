@@ -9,9 +9,11 @@ by this repository:
   `RegisterTickets` / `UnregisterTickets` to an injected
   `MemoryTicketStore` and ticket validator. Its authority trust-list file
   services share the managed ticket and device-identity stores.
-- `OnboardingClient` connects with a managed session, resolves the
-  well-known registrar NodeId, and uses the DI-provided
-  `Opc.Ua.Gds.Client.OnboardingClient`.
+- `OnboardingClient` owns one managed session and resolves the well-known
+  registrar NodeId. Ticket administration, software-status reporting, and the
+  pull workflow use that same session, which the sample disposes when the
+  operation completes or fails. Software-status reporting uses the generated
+  registrar client.
 - `run-onboarding-demo.ps1` builds both applications and prepares signed
   tickets with fresh certificate-store keys. It exchanges the applications'
   public channel certificates and imports the public ticket signer into
@@ -286,11 +288,12 @@ modes cannot run together in one sample process. `--autoApprove true` has the
 same demonstration-only meaning as in pull mode.
 
 Startup queues one attempt and prints `ONBOARDING_PUSH_QUEUED`; this marker does
-not indicate successful provisioning. Re-registration or restart can enqueue
-another attempt. The processor retains pending issuance and installation
-evidence, but does not blindly repeat an uncertain CSR or request creation.
-Those cases require the enrollment provider's explicit original-evidence
-recovery APIs; this sample has no recovery UI.
+not indicate successful provisioning. Startup does not determine whether an
+earlier attempt was interrupted. Do not restart the sample to retry an
+interrupted attempt until that attempt has been reconciled. The processor retains
+pending issuance and installation evidence. An uncertain CSR or request
+creation requires the enrollment provider's explicit original-evidence
+recovery APIs; this sample has no reconciliation or retry UI.
 
 The `applications.json`, `device-lifecycle.json` and `tickets.bin` files retain
 their roles described above. Push mode also keeps public enrollment journals
@@ -304,12 +307,35 @@ journal identifiers and must not be used as a general secret store.
 Without a software manager, this mode assumes operator approval of the installed
 software. To require an externally operated manager, supply all of
 `--softwareManagerEndpoint`, `--softwareManagerPurposeUri` and
-`--softwareManagerProtocolUri`. The registrar advertises that manager and leaves
-provisioning blocked until an authorized caller reports completion. In that mode
-the configured sample administrator also receives `SecurityAdmin` to report the
-result. The registrar does not execute firmware updates. Use the separate
-device host below to expose standard push and reset operations; the
-administration script does not exercise that host.
+`--softwareManagerProtocolUri`. The registrar advertises that manager and stops
+the push attempt while the recorded status requires an update. In that mode the
+configured sample administrator also receives `SecurityAdmin` to report the
+result. The registrar does not execute firmware updates.
+
+After the device is registered, an operator can report its software status
+with the existing `ONBOARDING_DEMO_USER` and `ONBOARDING_DEMO_PASSWORD`
+credentials. Configure mutual channel trust for the administrative client and
+registrar as described above, then use the exact approved product instance URI:
+
+```powershell
+dotnet run --project samples/Gds/OnboardingClient -f net10.0 -- `
+  --endpoint "opc.tcp://localhost:62560/OnboardingRegistrar" `
+  --pkiRoot "D:\temp\configured-admin-client-pki" `
+  --reportSoftwareStatus true `
+  --productInstanceUri "<approved product instance URI>" `
+  --softwareRevision "<installed software revision>"
+```
+
+`true` reports that the installed software is up to date. Use `false` and the
+required revision when an update is still needed. The command calls
+`UpdateSoftwareStatus` over the authenticated session and prints
+`ONBOARDING_SOFTWARE_STATUS_REPORTED` only after the registrar accepts it.
+It does not perform an update or queue another push attempt. If the first
+attempt has stopped at the software gate, reporting approval does not resume
+it; the sample has no reconciliation or retry UI.
+
+Use the separate device host below to expose standard push and reset
+operations; the administration script does not exercise that host.
 
 ## Host the connected device
 
@@ -410,6 +436,9 @@ checks the actual encrypted channel certificate and application URI before
 offering device tickets. Discovery metadata does not grant certificate trust.
 
 The host runs one bounded two-minute pull operation before printing readiness.
+Each attempt owns one session; the workflow and installer borrow that same
+session. Overlapping attempts are rejected, and the host disposes the session
+when the attempt completes or fails. A disposal failure prevents another attempt.
 It reuses the factory private key for the CSR and routes the issued certificate
 and complete TrustList through the device installer. Successful installation
 prints `ONBOARDING_DEVICE_PULL_INSTALLED`; startup with an already installed

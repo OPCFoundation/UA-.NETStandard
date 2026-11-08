@@ -44,6 +44,7 @@ using Opc.Ua.Gds.Client;
 using Opc.Ua.Identity;
 using Opc.Ua.Security.Certificates;
 using OnboardingClientSample;
+using DeviceRegistrarTypeClient = Opc.Ua.Onboarding.DeviceRegistrarTypeClient;
 
 try
 {
@@ -73,6 +74,8 @@ try
         builder.Configuration["anonymous"],
         out bool anonymous) && anonymous;
     bool runPull = bool.TryParse(builder.Configuration["pull"], out bool pull) && pull;
+    OnboardingSoftwareStatus? softwareStatus =
+        OnboardingSoftwareStatus.FromConfiguration(builder.Configuration);
     string? externalAuthentication = builder.Configuration["externalAuthentication"];
     if (externalAuthentication != null && !bool.TryParse(externalAuthentication, out _))
     {
@@ -170,6 +173,7 @@ try
         clientBuilder.AddIdentityProvider(identity => identity.Add(identityProvider));
     }
     IGdsClientBuilder gds = clientBuilder.AddGdsClient().AddOnboardingClient();
+    ManagedSession? selectedSession = null;
     if (runPull)
     {
         builder.Services.AddSingleton(services => new OnboardingDeviceCredentials(
@@ -185,6 +189,18 @@ try
             builder.Services.AddSingleton<IPullDcaSigningRecoveryProvider>(services =>
                 services.GetRequiredService<OnboardingDeviceCredentials>());
         }
+        builder.Services.AddSingleton<Func<PullDcaRegistrar, CancellationToken, ValueTask<ManagedSession>>>(
+            (_, cancellationToken) =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                ManagedSession session = selectedSession ??
+                    throw new InvalidOperationException("The sample has not connected to its selected registrar.");
+                if (session.Disposed)
+                {
+                    throw new ObjectDisposedException(nameof(ManagedSession));
+                }
+                return new ValueTask<ManagedSession>(session);
+            });
         gds.AddPullDcaWorkflow();
     }
 
@@ -214,8 +230,25 @@ try
         Func<CancellationToken, Task<ManagedSession>> connect =
             host.Services.GetRequiredService<
                 Func<CancellationToken, Task<ManagedSession>>>();
-        ManagedSession session = await connect(ct)
+        await using ManagedSession session = await connect(ct)
             .ConfigureAwait(false);
+        selectedSession = session;
+        if (softwareStatus != null)
+        {
+            NodeId deviceRegistrarId = ExpandedNodeId.ToNodeId(
+                Opc.Ua.Onboarding.ObjectIds.DeviceRegistrar, session.NamespaceUris);
+            if (deviceRegistrarId.IsNull)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNodeIdUnknown,
+                    "The server did not publish the OPC 10000-21 namespace.");
+            }
+            var registrar = new DeviceRegistrarTypeClient(
+                session, deviceRegistrarId, host.Services.GetRequiredService<ITelemetryContext>());
+            await softwareStatus.ReportAsync(registrar, ct).ConfigureAwait(false);
+            Console.WriteLine("ONBOARDING_SOFTWARE_STATUS_REPORTED");
+            return 0;
+        }
         if (runPull)
         {
             ApplicationConfiguration configuration = await host.Services
@@ -364,13 +397,8 @@ try
                 "The server did not publish the OPC 10000-21 namespace.");
         }
 
-        Func<NodeId, CancellationToken, ValueTask<OnboardingClient>>
-            createOnboardingClient = host.Services.GetRequiredService<
-                Func<NodeId, CancellationToken, ValueTask<OnboardingClient>>>();
-        OnboardingClient onboarding = await createOnboardingClient(
-                registrarId,
-                ct)
-            .ConfigureAwait(false);
+        var onboarding = new OnboardingClient(
+            session, registrarId, host.Services.GetRequiredService<ITelemetryContext>());
         ArrayOf<string> tickets =
         [
             await File.ReadAllTextAsync(Path.Combine(pkiRoot, "ticket-1.json"), ct).ConfigureAwait(false),

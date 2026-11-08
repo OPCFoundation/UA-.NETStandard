@@ -70,7 +70,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
     [Category("GdsHosting")]
     [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
     [NonParallelizable]
-    public sealed class PullRegistrarIntegrationTests : IAsyncDisposable
+    public sealed partial class PullRegistrarIntegrationTests : IAsyncDisposable
     {
         /// <summary>
         /// Starts the existing GDS host and client fixtures on an allocated port with isolated directory stores.

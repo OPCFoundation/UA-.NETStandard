@@ -34,7 +34,7 @@ namespace OnboardingDevice
 {
     /// <summary>
     /// Reuses the sample's local identity and CSR provider but installs only through the device security owner.
-    /// The client host retains its borrowed session; reset and recovery use the same device checkpoint.
+    /// The active pull attempt owns its session; reset and recovery use the same device checkpoint.
     /// </summary>
     internal sealed class DevicePullCredentials : IPullDcaIdentityProvider, IPullDcaCredentialProvider
     {
@@ -109,7 +109,7 @@ namespace OnboardingDevice
         /// <summary>The device's serialized installation, recovery and reset owner.</summary>
         private readonly IProvisionableDeviceSecurity m_security;
 
-        /// <summary>The container-owned cached registrar session accessor.</summary>
+        /// <summary>The accessor for the active attempt's borrowed session.</summary>
         private readonly Func<CancellationToken, Task<ManagedSession>> m_connect;
 
         /// <summary>The operator-selected registrar identity, independent of discovery responses.</summary>

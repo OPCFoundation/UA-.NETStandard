@@ -53,7 +53,7 @@ namespace OnboardingDevice
             IProvisionableDeviceRuntime runtime,
             IOpcUaApplicationConfigurationProvider configuration,
             PullDcaWorkflow workflow,
-            Func<CancellationToken, Task<ManagedSession>> connect)
+            DevicePullSession sessions)
         {
             m_options = options ?? throw new ArgumentNullException(nameof(options));
             m_security = security ?? throw new ArgumentNullException(nameof(security));
@@ -61,7 +61,7 @@ namespace OnboardingDevice
             m_runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
             m_configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
             m_workflow = workflow ?? throw new ArgumentNullException(nameof(workflow));
-            m_connect = connect ?? throw new ArgumentNullException(nameof(connect));
+            m_sessions = sessions ?? throw new ArgumentNullException(nameof(sessions));
         }
 
         /// <inheritdoc/>
@@ -90,7 +90,8 @@ namespace OnboardingDevice
                 throw new InvalidOperationException("The pull registrar application URI is not configured.");
             ArrayOf<ApplicationDescription> candidates = await m_registrars.ReadAsync(ct).ConfigureAwait(false);
             PullDcaRegistrarSelection.RequireConfiguredEndpoint(candidates, expectedApplicationUri, endpoint);
-            ManagedSession session = await m_connect(ct).ConfigureAwait(false);
+            await using DevicePullSession.Attempt attempt = await m_sessions.BeginAsync(ct).ConfigureAwait(false);
+            ManagedSession session = attempt.Session;
             await RequireRegistrarIdentityAsync(session, expectedApplicationUri, ct).ConfigureAwait(false);
 
             var registrar = PullDcaRegistrarSelection.SelectConfigured(
@@ -166,7 +167,7 @@ namespace OnboardingDevice
         /// <summary>The typed workflow over generated method clients.</summary>
         private readonly PullDcaWorkflow m_workflow;
 
-        /// <summary>The container-owned cached registrar session accessor.</summary>
-        private readonly Func<CancellationToken, Task<ManagedSession>> m_connect;
+        /// <summary>The active attempt's session owner.</summary>
+        private readonly DevicePullSession m_sessions;
     }
 }
