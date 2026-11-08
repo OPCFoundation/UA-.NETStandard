@@ -219,7 +219,8 @@ namespace Opc.Ua
                             releasedDuringCreation = m_certificateManagerLeaseReleased ||
                                 generation != m_certificateManagerGeneration;
                             // The factory runs outside the lock, so another caller may have published a manager.
-                            ICertificateManager? current = Volatile.Read(ref m_certificateManager);
+                            ICertificateManager? current =
+                                Volatile.Read<ICertificateManager?>(ref m_certificateManager);
                             if (!releasedDuringCreation && current == null)
                             {
                                 lock (s_certificateManagerLifetimeLock)
@@ -257,7 +258,7 @@ namespace Opc.Ua
                     {
                         retiredBeforePublication = releasedDuringCreation || m_certificateManagerLeaseReleased ||
                             generation != m_certificateManagerGeneration;
-                        selected = Volatile.Read(ref m_certificateManager) ?? selected;
+                        selected = Volatile.Read<ICertificateManager?>(ref m_certificateManager) ?? selected;
                         lock (s_certificateManagerLifetimeLock)
                         {
                             // A release between publication and this check owns disposal of the created manager.
