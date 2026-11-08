@@ -609,10 +609,14 @@ conformance limitation under the Partial rating.
 
 Recorder reset includes zone counters previously recorded through that same
 recorder, even though those counters are outside the statistic's child nodes.
-The catchweigher acquisition controller does not yet expose its retained
-product recorder for reset. Constructing another recorder over the same nodes
-does not reset the acquisition controller's private moments; product-period
-reset on that path remains unsupported under the Partial rating.
+`CatchweigherController.ResetProductStatisticsAsync` resets the selected
+product through its retained acquisition recorder, including those zone
+counters. The reset retains the product reservation and write admission
+through asynchronous notification delivery. Other products and scale-wide
+totals retain their periods, and the acquisition sequence high-water mark
+does not change: a period reset does not permit replaying a previously accepted
+report. `StartTime` and `ResetCondition` describe the new period; this
+application-facing operation does not add a UA Reset method.
 
 On a checkweigher, `GiveAway` is `(acceptedMean - currentNominalWeight) *
 acceptedCount` (§7.19.3), including negative results. The accepted-weight

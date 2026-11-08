@@ -200,6 +200,34 @@ namespace Opc.Ua.Scales.Server.Runtime
         public bool HasPriceCalculator => m_calculator != null;
 
         /// <summary>
+        /// Starts a new statistic period for the selected product without resetting acquisition sequence admission.
+        /// Scale-wide production totals and other products retain their periods.
+        /// </summary>
+        /// <param name="resetCondition">The application's reason for starting a new period.</param>
+        /// <param name="cancellationToken">Cancels before the reset is admitted.</param>
+        public ValueTask<ServiceResult> ResetProductStatisticsAsync(
+            string? resetCondition = null,
+            CancellationToken cancellationToken = default)
+        {
+            return m_owner.ExecuteWriteOperationAsync(async ct =>
+            {
+                ct.ThrowIfCancellationRequested();
+                using ScaleProductionPreset.ActiveProductReservation? reservation =
+                    m_owner.ProductionPreset?.ReserveActiveProduct();
+                if (reservation?.Product is not CatchweigherProductState product ||
+                    product.Statistic is not { } statistic)
+                {
+                    return ServiceResult.Create(
+                        StatusCodes.BadInvalidState,
+                        "A product statistic period requires a selected catchweigher product.");
+                }
+                ScaleStatistics recorder = await RecorderAsync(statistic).ConfigureAwait(false);
+                await recorder.ResetAsync(resetCondition).ConfigureAwait(false);
+                return ServiceResult.Good;
+            }, cancellationToken);
+        }
+
+        /// <summary>
         /// Publishes a single equipment acquisition against its selected product.
         /// Duplicate sequences, invalid zones and incompatible units are rejected without changing counters.
         /// A missing price publishes BadNoData rather than zero.
@@ -218,7 +246,8 @@ namespace Opc.Ua.Scales.Server.Runtime
                 cancellationToken, m_owner.Services.StoppingToken);
             cancellationToken = pending.Token;
             cancellationToken.ThrowIfCancellationRequested();
-            ServiceResult validation = ScaleItemPublisher.Normalize(report, m_owner.Unit, out ScaleItemReport normalized);
+            ServiceResult validation = ScaleItemPublisher.Normalize(
+                report, m_owner.Unit, out ScaleItemReport normalized);
             if (ServiceResult.IsBad(validation))
             {
                 return validation;
@@ -327,17 +356,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                         await m_owner.RecordAcquisitionAsync(normalized, zoneName, price).ConfigureAwait(false);
                         if (product.Statistic != null)
                         {
-                            if (!m_statistics.TryGetValue(product.Statistic, out ScaleStatistics? statistics))
-                            {
-                                statistics = new ScaleStatistics(
-                                    m_owner.Services.Context,
-                                    product.Statistic,
-                                    m_owner.WriteOperations,
-                                    initialize: false,
-                                    observationMode: m_owner.StatisticsObservationMode);
-                                m_statistics.Add(product.Statistic, statistics);
-                                await statistics.InitializeAsync().ConfigureAwait(false);
-                            }
+                            ScaleStatistics statistics = await RecorderAsync(product.Statistic).ConfigureAwait(false);
                             await statistics.RecordItemAsync(normalized, zoneName, price).ConfigureAwait(false);
                             if (zone?.ZoneStatistic is { } counter)
                             {
@@ -356,6 +375,22 @@ namespace Opc.Ua.Scales.Server.Runtime
                 m_owner.NotifyAcquisition(normalized.Weight);
             }
             return result;
+        }
+
+        /// <summary>
+        /// Reuses the product's acquisition recorder for reporting and period reset under scale admission.
+        /// </summary>
+        private async ValueTask<ScaleStatistics> RecorderAsync(StatisticState statistic)
+        {
+            if (!m_statistics.TryGetValue(statistic, out ScaleStatistics? recorder))
+            {
+                recorder = new ScaleStatistics(
+                    m_owner.Services.Context, statistic, m_owner.WriteOperations,
+                    initialize: false, observationMode: m_owner.StatisticsObservationMode);
+                m_statistics.Add(statistic, recorder);
+                await recorder.InitializeAsync().ConfigureAwait(false);
+            }
+            return recorder;
         }
 
         /// <summary>

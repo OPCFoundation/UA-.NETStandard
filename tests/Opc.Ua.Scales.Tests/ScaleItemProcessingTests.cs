@@ -679,6 +679,92 @@ namespace Opc.Ua.Scales.Tests
         }
 
         /// <summary>
+        /// A product-period reset reaches the acquisition recorder and its zones without resetting the high-water mark.
+        /// </summary>
+        [Test]
+        public async Task CatchweigherProductPeriodResetPreservesAcquisitionAdmissionAsync()
+        {
+            ScaleHandle scale = await CreateAsync(ScaleKind.Catchweigher).ConfigureAwait(false);
+            ScaleProductionPreset preset = scale.ProductionPreset!;
+            var first = (CatchweigherProductState)preset.ActiveProduct!;
+            ZoneState zone = preset.AddZone(first, new LocalizedText("Observed"), 0, 10, ScaleUnits.Kilogram);
+            zone.AddZoneStatistic(m_fixture.Context);
+            StatisticCounterState counter = zone.ZoneStatistic!;
+            counter.AddPercentageOfTotal(m_fixture.Context);
+            counter.AddStandardDeviation(m_fixture.Context);
+            scale.Services.Register(counter);
+            Assert.That(counter, Is.Not.Null);
+            Assert.That(m_fixture.Manager.FindPredefinedNode(counter.Weighed!.NodeId), Is.SameAs(counter.Weighed));
+            CatchweigherController controller = scale.Catchweigher!;
+            AssertGood(await controller.ReportAsync(Item(1)).ConfigureAwait(false));
+            Assert.That(counter.ItemCount!.WrappedValue.GetUInt64(), Is.EqualTo(1UL));
+            Assert.That(counter.Weighed.WrappedValue.GetBoolean(), Is.True);
+            AssertGood(preset.Switch("B"));
+            var second = (CatchweigherProductState)preset.ActiveProduct!;
+            AssertGood(await controller.ReportAsync(Item(2) with { ProductId = "B" }).ConfigureAwait(false));
+            AssertGood(preset.Switch("A"));
+            DateTimeUtc previousStart = first.Statistic!.StartTime!.Value;
+            AssertGood(await controller.ResetProductStatisticsAsync("new period").ConfigureAwait(false));
+            Assert.That(Count(first.Statistic), Is.Zero);
+            Assert.That(counter.ItemCount.WrappedValue.GetUInt64(), Is.Zero);
+            Assert.That(counter.PercentageOfTotal!.WrappedValue.GetDouble(), Is.Zero);
+            Assert.That(counter.StandardDeviation!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNoData));
+            Assert.That(counter.Weighed.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(first.Statistic.ResetCondition!.Value, Is.EqualTo("new period"));
+            Assert.That(first.Statistic.StartTime.Value, Is.GreaterThanOrEqualTo(previousStart));
+            Assert.That(Count(second.Statistic!), Is.EqualTo(1UL));
+            Assert.That(Count(scale.ProductionOutput!.Statistic), Is.EqualTo(2UL));
+            Assert.That((await controller.ReportAsync(Item(1)).ConfigureAwait(false)).StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadEntryExists));
+            Assert.That(counter.ItemCount.WrappedValue.GetUInt64(), Is.Zero);
+            AssertGood(await controller.ReportAsync(Item(3)).ConfigureAwait(false));
+            Assert.That(Count(first.Statistic), Is.EqualTo(1UL));
+            Assert.That(counter.ItemCount.WrappedValue.GetUInt64(), Is.EqualTo(1UL));
+            Assert.That(counter.PercentageOfTotal.WrappedValue.GetDouble(), Is.EqualTo(100));
+
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            counter.ItemCount.OnStateChangedAsync = async (_, _, _, _) =>
+            {
+                entered.TrySetResult(true);
+                await release.Task.ConfigureAwait(false);
+            };
+            Task<ServiceResult>? reset = null;
+            Task<ServiceResult>? acquisition = null;
+            try
+            {
+                reset = controller.ResetProductStatisticsAsync("overlap").AsTask();
+                Assert.That(await entered.Task.WaitAsync(TimeSpan.FromSeconds(15)), Is.True);
+                Assert.That(reset.IsCompleted, Is.False);
+                Assert.That(preset.Switch("B").StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                acquisition = controller.ReportAsync(Item(4)).AsTask();
+                Assert.That(acquisition.IsCompleted, Is.False);
+                release.TrySetResult(true);
+                AssertGood(await reset.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false));
+                AssertGood(await acquisition.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false));
+                Assert.That(Count(first.Statistic), Is.EqualTo(1UL));
+                Assert.That(counter.ItemCount.WrappedValue.GetUInt64(), Is.EqualTo(1UL));
+                Assert.That(Count(second.Statistic!), Is.EqualTo(1UL));
+                Assert.That(Count(scale.ProductionOutput.Statistic), Is.EqualTo(4UL));
+                Assert.That((await controller.ReportAsync(Item(3)).ConfigureAwait(false)).StatusCode,
+                    Is.EqualTo((StatusCode)StatusCodes.BadEntryExists));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                if (reset != null)
+                {
+                    _ = await reset.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+                }
+                if (acquisition != null)
+                {
+                    _ = await acquisition.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+                }
+                counter.ItemCount.OnStateChangedAsync = null;
+            }
+        }
+
+        /// <summary>
         /// Holds an asynchronous live-node notification and verifies that synchronous writers reject without mutation.
         /// </summary>
         [Test]
