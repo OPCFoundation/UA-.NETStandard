@@ -976,7 +976,7 @@ namespace Opc.Ua.PADIM.Tests
         /// </summary>
         private static EventFilter SemanticChangeEventFilter()
         {
-            return new EventFilter
+            var filter = new EventFilter
             {
                 SelectClauses =
                 [
@@ -984,6 +984,10 @@ namespace Opc.Ua.PADIM.Tests
                     Field(Opc.Ua.BrowseNames.Changes)
                 ]
             };
+            filter.WhereClause.Push(
+                FilterOperator.OfType,
+                new LiteralOperand(Variant.From(Opc.Ua.ObjectTypeIds.SemanticChangeEventType)));
+            return filter;
 
             static SimpleAttributeOperand Field(string name)
             {
