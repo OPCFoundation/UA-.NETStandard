@@ -489,8 +489,8 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
-        /// Server shards cover every test exactly once, including names that
-        /// resemble the lifecycle fixture but belong to another fixture.
+        /// Server shards select representative names once or exclude them
+        /// according to each profile's category filters.
         /// </summary>
         [TestCase("pr")]
         [TestCase("full")]
@@ -548,14 +548,23 @@ namespace Opc.Ua.Tools.Tests
                 ("Opc.Ua.Server.Tests.ReverseConnectServerTests.TestAsync", "server-transport"),
                 ("Opc.Ua.Server.Tests.RequestTableTests.TestAsync", "server-other")
             ];
+            string[][] categorySets =
+            [
+                [],
+                ["Server", "NodeManagerLifecycle"],
+                ["Integration", "Server", "NodeManagerLifecycle"],
+                ["LongRunning"],
+                ["Stress"],
+                ["longrunning"],
+                ["stress"],
+                ["Server", "NodeManagerLifecycle", "LongRunning"],
+                ["Server", "NodeManagerLifecycle", "Stress"],
+                ["LongRunning", "Stress"]
+            ];
             foreach (IGrouping<string, MatrixEntry> profile in server.GroupBy(entry => entry.Profile))
             {
                 foreach ((string testName, string expectedShard) in testCases)
                 {
-                    string[] matches = profile
-                        .Where(entry => MatchesServerFilter(entry.Filter, testName))
-                        .Select(entry => entry.Shard)
-                        .ToArray();
                     string shard = profile.First().Framework == "net48"
                         ? expectedShard
                         : profile.First().Os != "macos"
@@ -569,10 +578,21 @@ namespace Opc.Ua.Tools.Tests
                                     ? "server-node-lifecycle-prepared"
                                     : "server-node-lifecycle"
                                 : "server-other";
-                    Assert.That(
-                        matches,
-                        Is.EqualTo(new[] { shard }),
-                        $"Profile '{profile.Key}', test '{testName}'.");
+                    foreach (string[] categories in categorySets)
+                    {
+                        bool allowed = profile.First().Tier != "mainline" ||
+                            (!categories.Contains("LongRunning", StringComparer.Ordinal) &&
+                             !categories.Contains("Stress", StringComparer.Ordinal));
+                        string[] matches = profile
+                            .Where(entry => MatchesServerFilter(entry.Filter, testName, categories))
+                            .Select(entry => entry.Shard)
+                            .ToArray();
+                        Assert.That(
+                            matches,
+                            Is.EqualTo(allowed ? new[] { shard } : Array.Empty<string>()),
+                            $"Profile '{profile.Key}', test '{testName}', " +
+                            $"categories '{string.Join(",", categories)}'.");
+                    }
                 }
             }
         }
@@ -786,9 +806,8 @@ namespace Opc.Ua.Tools.Tests
         /// Evaluates the disjoint name-filter expressions emitted for the
         /// oversized server suite.
         /// </summary>
-        private static bool MatchesServerFilter(string filter, string testName)
+        private static bool MatchesServerFilter(string filter, string testName, string[] categories)
         {
-            string[] categories = [];
             return filter.Split('&').All(term =>
             {
                 string expression = term.Trim('(', ')');
