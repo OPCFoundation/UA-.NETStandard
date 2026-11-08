@@ -560,24 +560,30 @@ Analyzer `UA0027` reports every remaining `NodeBrowser.DataLock` reference.
 
 ### Browse continuation lifetime
 
-`IBrowseContinuationDependencies` and `TryGetContinuationDependencies` are no
-longer part of the continuation contract. A Browse continuation stores a weak
-identity for its recorded generation. The identity alone does not retain the
-generation, its NodeManager, or a routing view. `ContinuationPoint.Data` and
-`NodeToBrowse` can still retain cursor data, a node handle, or objects reachable
-from them. The base `ContinuationPoint.Dispose` implementation disposes `Data`
-when it implements `IDisposable` but does not clear the property. A caller or
-custom store that retains the point can therefore retain those objects after
-disposal.
+A Browse continuation stores a weak identity for its recorded generation. The
+identity alone does not retain the generation, its NodeManager, or a routing
+view. `ContinuationPoint.Data` and `NodeToBrowse` can still retain cursor data,
+a node handle, or objects reachable from them. The base
+`ContinuationPoint.Dispose` implementation disposes `Data` at most once when it
+implements `IDisposable` but does not clear the property. Unlike 1.5.x, it does
+not catch exceptions from that call. Code that retains the point can therefore
+retain those objects after disposal.
+
+In 1.5.x, `ContinuationPoint.Manager` stored the assigned manager directly. The
+setter now records a weak generation identity. The getter returns that
+generation's manager when available and `null` when the identity cannot be
+resolved, even though the property is declared non-nullable. A stack adapter can
+resolve to the existing generation of its wrapped manager, so the getter can
+return a different object from the one assigned. Base disposal clears the
+identity, and assigning `null` throws `ArgumentNullException`.
 
 A `BrowseNext` request that resumes a point must enter the recorded generation's
 gate. If entry fails, the server returns `BadContinuationPointInvalid`. A
 release request can dispose the point even if the gate is closed. Targets on
 later pages are resolved through the current request view.
 
-Do not implement dependency enumeration to support pagination. A lazy browser
-can keep its cursor in `ContinuationPoint.Data` and return references through
-`Next()` or `NextAsync()` as before. The standard file-system
+A lazy browser can keep its cursor in `ContinuationPoint.Data` and return
+references through `Next()` or `NextAsync()` as before. The standard file-system
 `DirectoryBrowser` works without pre-enumerating entries or capturing target
 owners. A point that retains this browser can also retain its
 `FileSystemNodeManager` host, even after the point is disposed.
