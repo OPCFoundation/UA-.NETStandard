@@ -46,6 +46,11 @@ namespace Opc.Ua.Di.Server.Locking
     /// and the time-tick refresher runs from a background timer.
     /// </para>
     /// <para>
+    /// Providers can also implement <see cref="ILockOwnershipService"/> to support
+    /// session-ownership authorization without renewing a lock. Existing providers
+    /// need not implement this optional capability.
+    /// </para>
+    /// <para>
     /// The default <see cref="DefaultLockService"/> implementation
     /// keeps a per-element record (client tag, owning session, expiry
     /// timestamp) and uses the session-close events emitted by the
@@ -90,6 +95,9 @@ namespace Opc.Ua.Di.Server.Locking
         /// Forcibly releases a lock regardless of ownership. Intended
         /// for administrative use after a client has crashed and
         /// abandoned a lock.
+        /// The standard method binding requires an authenticated SecurityAdmin
+        /// identity over an encrypted channel through the server role infrastructure.
+        /// The default provider also enforces this policy for direct calls.
         /// </summary>
         int BreakLock(ISystemContext context, NodeId elementId);
     }

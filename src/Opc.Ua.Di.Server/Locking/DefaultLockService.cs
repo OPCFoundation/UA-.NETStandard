@@ -28,8 +28,8 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Redaction;
 using Opc.Ua.Server;
@@ -41,7 +41,7 @@ namespace Opc.Ua.Di.Server.Locking
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Lock records are kept in a <see cref="ConcurrentDictionary{TKey, TValue}"/>
+    /// Lock records are kept in a <see cref="Dictionary{TKey, TValue}"/>
     /// keyed by topology-element <see cref="NodeId"/>. Each record
     /// stores the owning <c>SessionId</c>, the client-supplied
     /// context string, the owning user identity (from
@@ -49,22 +49,13 @@ namespace Opc.Ua.Di.Server.Locking
     /// timestamp.
     /// </para>
     /// <para>
-    /// When wired through <c>DiNodeManager.AttachLockService</c>, the
-    /// service hooks the hosting <see cref="ISessionManager.SessionClosing"/>
+    /// <see cref="AttachToSessionManager"/> hooks the hosting <see cref="ISessionManager.SessionClosing"/>
     /// event so that locks held by a disconnecting session are released
     /// automatically.
     /// </para>
     /// </remarks>
-    public sealed class DefaultLockService : ILockService, IDisposable
+    public sealed class DefaultLockService : ILockService, ILockOwnershipService, IDisposable
     {
-        private static readonly TimeSpan s_defaultLockDuration = TimeSpan.FromMinutes(5);
-
-        private readonly ConcurrentDictionary<NodeId, Record> m_records = new();
-        private readonly ILogger<DefaultLockService>? m_logger;
-        private readonly TimeProvider m_timeProvider;
-        private ISessionManager? m_sessionManager;
-        private SessionEventHandler? m_sessionClosingHandler;
-
         /// <summary>
         /// Creates a new lock service. <paramref name="lockDuration"/>
         /// defaults to 5 minutes if omitted.
@@ -94,15 +85,18 @@ namespace Opc.Ua.Di.Server.Locking
         /// <exception cref="ArgumentNullException"></exception>
         public void AttachToSessionManager(ISessionManager sessionManager)
         {
-            if (m_sessionManager != null)
+            lock (m_lock)
             {
-                throw new InvalidOperationException(
-                    "DefaultLockService is already attached to a session manager.");
-            }
+                if (m_sessionManager != null)
+                {
+                    throw new InvalidOperationException(
+                        "DefaultLockService is already attached to a session manager.");
+                }
 
-            m_sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
-            m_sessionClosingHandler = OnSessionClosing;
-            sessionManager.SessionClosing += m_sessionClosingHandler;
+                m_sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
+                m_sessionClosingHandler = OnSessionClosing;
+                sessionManager.SessionClosing += m_sessionClosingHandler;
+            }
         }
 
         /// <inheritdoc/>
@@ -112,23 +106,51 @@ namespace Opc.Ua.Di.Server.Locking
             {
                 throw new ArgumentNullException(nameof(elementId));
             }
-            if (m_records.TryGetValue(elementId, out Record? record))
+            lock (m_lock)
             {
-                DateTimeOffset now = m_timeProvider.GetUtcNow();
-                if (record.ExpiresAt > now)
+                if (m_records.TryGetValue(elementId, out Record? record))
                 {
-                    return new LockState(
-                        Locked: true,
-                        LockingClient: record.ClientContext,
-                        LockingUser: record.User,
-                        RemainingLockTimeSeconds: (record.ExpiresAt - now).TotalSeconds);
-                }
+                    DateTimeOffset now = m_timeProvider.GetUtcNow();
+                    if (record.ExpiresAt > now)
+                    {
+                        return new LockState(
+                            Locked: true,
+                            LockingClient: record.ClientContext,
+                            LockingUser: record.User,
+                            RemainingLockTimeSeconds: (record.ExpiresAt - now).TotalSeconds);
+                    }
 
-                // Expired — clean up.
-                m_records.TryRemove(elementId, out _);
+                    m_records.Remove(elementId);
+                }
             }
 
             return new LockState(false, string.Empty, string.Empty, 0.0);
+        }
+
+        /// <inheritdoc/>
+        public bool IsLockOwner(ISystemContext context, NodeId elementId)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (elementId.IsNull)
+            {
+                throw new ArgumentNullException(nameof(elementId));
+            }
+
+            NodeId sessionId = ResolveSessionId(context);
+            if (sessionId.IsNull)
+            {
+                return false;
+            }
+
+            lock (m_lock)
+            {
+                return m_records.TryGetValue(elementId, out Record? record) &&
+                    record.SessionId == sessionId &&
+                    record.ExpiresAt > m_timeProvider.GetUtcNow();
+            }
         }
 
         /// <inheritdoc/>
@@ -147,28 +169,24 @@ namespace Opc.Ua.Di.Server.Locking
             }
             clientContext ??= string.Empty;
 
-            (NodeId sessionId, string user) = ResolveCallerIdentity(context);
-            DateTimeOffset now = m_timeProvider.GetUtcNow();
-
-            int outcome = LockStatus.Ok;
-            m_records.AddOrUpdate(
-                elementId,
-                _ => new Record(sessionId, clientContext, user, now + LockDuration),
-                (_, existing) =>
-                {
-                    if (existing.ExpiresAt > now)
-                    {
-                        outcome = LockStatus.AlreadyLocked;
-                        return existing;
-                    }
-                    return new Record(sessionId, clientContext, user, now + LockDuration);
-                });
-
-            if (outcome == LockStatus.Ok)
+            NodeId sessionId = ResolveSessionId(context);
+            if (sessionId.IsNull)
             {
-                m_logger?.LockAcquired(elementId, sessionId, user, clientContext);
+                return LockStatus.CouldNotLock;
             }
-            return outcome;
+            string user = context.UserId ?? string.Empty;
+            lock (m_lock)
+            {
+                DateTimeOffset now = m_timeProvider.GetUtcNow();
+                if (m_records.TryGetValue(elementId, out Record? existing) && existing.ExpiresAt > now)
+                {
+                    return LockStatus.AlreadyLocked;
+                }
+                m_records[elementId] = new Record(sessionId, clientContext, user, now + LockDuration);
+            }
+
+            m_logger?.LockAcquired(elementId, sessionId, user, clientContext);
+            return LockStatus.Ok;
         }
 
         /// <inheritdoc/>
@@ -182,23 +200,25 @@ namespace Opc.Ua.Di.Server.Locking
             {
                 throw new ArgumentNullException(nameof(elementId));
             }
-            (NodeId sessionId, _) = ResolveCallerIdentity(context);
-            DateTimeOffset now = m_timeProvider.GetUtcNow();
-
-            if (!m_records.TryGetValue(elementId, out Record? existing) ||
-                existing.ExpiresAt <= now)
+            NodeId sessionId = ResolveSessionId(context);
+            lock (m_lock)
             {
-                m_records.TryRemove(elementId, out _);
-                return LockStatus.NotLocked;
-            }
+                DateTimeOffset now = m_timeProvider.GetUtcNow();
+                if (!m_records.TryGetValue(elementId, out Record? existing) ||
+                    existing.ExpiresAt <= now)
+                {
+                    m_records.Remove(elementId);
+                    return LockStatus.NotLocked;
+                }
 
-            if (!Equals(existing.SessionId, sessionId))
-            {
-                return LockStatus.WrongClient;
-            }
+                if (sessionId.IsNull || existing.SessionId != sessionId)
+                {
+                    return LockStatus.WrongClient;
+                }
 
-            existing.ExpiresAt = now + LockDuration;
-            return LockStatus.Ok;
+                existing.ExpiresAt = now + LockDuration;
+                return LockStatus.Ok;
+            }
         }
 
         /// <inheritdoc/>
@@ -212,23 +232,25 @@ namespace Opc.Ua.Di.Server.Locking
             {
                 throw new ArgumentNullException(nameof(elementId));
             }
-            (NodeId sessionId, _) = ResolveCallerIdentity(context);
-            DateTimeOffset now = m_timeProvider.GetUtcNow();
-
-            if (!m_records.TryGetValue(elementId, out Record? existing) ||
-                existing.ExpiresAt <= now)
+            NodeId sessionId = ResolveSessionId(context);
+            lock (m_lock)
             {
-                m_records.TryRemove(elementId, out _);
-                return LockStatus.NotLocked;
-            }
+                DateTimeOffset now = m_timeProvider.GetUtcNow();
+                if (!m_records.TryGetValue(elementId, out Record? existing) ||
+                    existing.ExpiresAt <= now)
+                {
+                    m_records.Remove(elementId);
+                    return LockStatus.NotLocked;
+                }
 
-            if (!Equals(existing.SessionId, sessionId))
-            {
-                return LockStatus.WrongClient;
-            }
+                if (sessionId.IsNull || existing.SessionId != sessionId)
+                {
+                    return LockStatus.WrongClient;
+                }
 
-            m_records.TryRemove(elementId, out _);
-            return LockStatus.Ok;
+                m_records.Remove(elementId);
+                return LockStatus.Ok;
+            }
         }
 
         /// <inheritdoc/>
@@ -242,15 +264,26 @@ namespace Opc.Ua.Di.Server.Locking
             {
                 throw new ArgumentNullException(nameof(elementId));
             }
-            DateTimeOffset now = m_timeProvider.GetUtcNow();
-            if (!m_records.TryGetValue(elementId, out Record? existing) ||
-                existing.ExpiresAt <= now)
+            ServiceResult authorization = RoleAuthorizationGate.CheckAdmin(context);
+            if (ServiceResult.IsBad(authorization))
             {
-                m_records.TryRemove(elementId, out _);
-                return LockStatus.NotLocked;
+                throw new ServiceResultException(authorization);
             }
 
-            m_records.TryRemove(elementId, out _);
+            Record existing;
+            lock (m_lock)
+            {
+                DateTimeOffset now = m_timeProvider.GetUtcNow();
+                if (!m_records.TryGetValue(elementId, out Record? record) ||
+                    record.ExpiresAt <= now)
+                {
+                    m_records.Remove(elementId);
+                    return LockStatus.NotLocked;
+                }
+
+                existing = record;
+                m_records.Remove(elementId);
+            }
             m_logger?.LockForciblyBroken(elementId, existing.SessionId);
             return LockStatus.Ok;
         }
@@ -258,60 +291,84 @@ namespace Opc.Ua.Di.Server.Locking
         /// <inheritdoc/>
         public void Dispose()
         {
-            if (m_sessionManager != null && m_sessionClosingHandler != null)
+            lock (m_lock)
             {
-                m_sessionManager.SessionClosing -= m_sessionClosingHandler;
-                m_sessionManager = null;
-                m_sessionClosingHandler = null;
-            }
-            m_records.Clear();
-        }
-
-        private void OnSessionClosing(ISession session, SessionEventReason reason)
-        {
-            NodeId sessionId = session.Id;
-            var toRelease = new List<NodeId>();
-            foreach (KeyValuePair<NodeId, Record> kv in m_records)
-            {
-                if (Equals(kv.Value.SessionId, sessionId))
+                if (m_sessionManager != null && m_sessionClosingHandler != null)
                 {
-                    toRelease.Add(kv.Key);
+                    m_sessionManager.SessionClosing -= m_sessionClosingHandler;
+                    m_sessionManager = null;
+                    m_sessionClosingHandler = null;
                 }
+                m_records.Clear();
             }
-            foreach (NodeId elementId in toRelease)
-            {
-                if (m_records.TryRemove(elementId, out Record? released))
-                {
-                    m_logger?.LockReleasedAfterSessionClosed(elementId, released.SessionId);
-                }
-            }
-        }
-
-        private static (NodeId SessionId, string User) ResolveCallerIdentity(ISystemContext context)
-        {
-            // The standard server context carries the session id;
-            // fall back to a deterministic synthetic id derived from
-            // the user when the context is a non-server SystemContext
-            // (e.g. when invoked from tests).
-            if (context is ServerSystemContext server &&
-                server.SessionId is { } sid &&
-                !sid.IsNull)
-            {
-                return (sid, context.UserId ?? string.Empty);
-            }
-            // No session id available — synthesise one from the user
-            // identity so tests can still distinguish callers.
-            string userKey = context.UserId ?? "anonymous";
-            return (new NodeId(userKey, 0), userKey);
         }
 
         /// <summary>
+        /// Releases the closing session's locks using the same session identifier
+        /// exposed by server request contexts.
+        /// </summary>
+        private void OnSessionClosing(ISession session, SessionEventReason reason)
+        {
+            NodeId sessionId = session.Id;
+            var released = new List<NodeId>();
+            lock (m_lock)
+            {
+                foreach (KeyValuePair<NodeId, Record> kv in m_records)
+                {
+                    if (kv.Value.SessionId == sessionId)
+                    {
+                        released.Add(kv.Key);
+                    }
+                }
+                foreach (NodeId elementId in released)
+                {
+                    m_records.Remove(elementId);
+                }
+            }
+            foreach (NodeId elementId in released)
+            {
+                m_logger?.LockReleasedAfterSessionClosed(elementId, sessionId);
+            }
+        }
+
+        /// <summary>
+        /// Resolves the session identifier without deriving identity from a user name.
+        /// </summary>
+        private static NodeId ResolveSessionId(ISystemContext context)
+        {
+            return context is ISessionSystemContext { SessionId: NodeId sessionId } ? sessionId : NodeId.Null;
+        }
+
+        /// <summary>Default duration for a newly acquired or renewed lock.</summary>
+        private static readonly TimeSpan s_defaultLockDuration = TimeSpan.FromMinutes(5);
+
+        /// <summary>Serializes lock transitions with ownership checks and session cleanup.</summary>
+        private readonly Lock m_lock = new();
+
+        /// <summary>Lock records keyed by topology element.</summary>
+        private readonly Dictionary<NodeId, Record> m_records = [];
+
+        /// <summary>Optional lock lifecycle logger.</summary>
+        private readonly ILogger<DefaultLockService>? m_logger;
+
+        /// <summary>Clock used for expiry decisions.</summary>
+        private readonly TimeProvider m_timeProvider;
+
+        /// <summary>Session manager supplying close notifications.</summary>
+        private ISessionManager? m_sessionManager;
+
+        /// <summary>Registered close notification handler.</summary>
+        private SessionEventHandler? m_sessionClosingHandler;
+
+        /// <summary>
         /// Internal lock-record. <see cref="ExpiresAt"/> is mutable so
-        /// <see cref="RenewLock"/> can update it in place under the
-        /// concurrent dictionary's reader lock.
+        /// <see cref="RenewLock"/> can update it while lock transitions are serialized.
         /// </summary>
         private sealed class Record
         {
+            /// <summary>
+            /// Creates an owned lock with an absolute expiry.
+            /// </summary>
             public Record(NodeId sessionId, string clientContext, string user, DateTimeOffset expiresAt)
             {
                 SessionId = sessionId;
@@ -320,9 +377,24 @@ namespace Opc.Ua.Di.Server.Locking
                 ExpiresAt = expiresAt;
             }
 
+            /// <summary>
+            /// Owning server session identifier.
+            /// </summary>
             public NodeId SessionId { get; }
+
+            /// <summary>
+            /// Client-supplied descriptive context.
+            /// </summary>
             public string ClientContext { get; }
+
+            /// <summary>
+            /// User display name, used only for diagnostics.
+            /// </summary>
             public string User { get; }
+
+            /// <summary>
+            /// Absolute expiry of the lock.
+            /// </summary>
             public DateTimeOffset ExpiresAt { get; set; }
         }
     }
