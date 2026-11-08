@@ -190,12 +190,12 @@ namespace Opc.Ua.PADIM.Tests
                     TaskCreationOptions.RunContinuationsAsynchronously);
                 await using (IAsyncEnumerator<EventNotification> rangeEvents = managed.DefaultStreaming
                     .SubscribeEventsWhenReadyAsync(
-                        ObjectIds.Server,
+                        new NodeId(2253u),
                         SemanticChangeEventFilter(),
                         _ =>
                         {
                             rangeEventReady.TrySetResult(true);
-                            return ValueTask.CompletedTask;
+                            return default;
                         },
                         ct: timeout.Token)
                     .GetAsyncEnumerator(timeout.Token))
@@ -209,12 +209,12 @@ namespace Opc.Ua.PADIM.Tests
                     TaskCreationOptions.RunContinuationsAsynchronously);
                 await using (IAsyncEnumerator<EventNotification> unitsEvents = managed.DefaultStreaming
                     .SubscribeEventsWhenReadyAsync(
-                        ObjectIds.Server,
+                        new NodeId(2253u),
                         SemanticChangeEventFilter(),
                         _ =>
                         {
                             unitsEventReady.TrySetResult(true);
-                            return ValueTask.CompletedTask;
+                            return default;
                         },
                         ct: timeout.Token)
                     .GetAsyncEnumerator(timeout.Token))
@@ -1003,7 +1003,7 @@ namespace Opc.Ua.PADIM.Tests
             };
             filter.WhereClause.Push(
                 FilterOperator.OfType,
-                new LiteralOperand(Variant.From(Opc.Ua.ObjectTypeIds.SemanticChangeEventType)));
+                Variant.From(Opc.Ua.ObjectTypeIds.SemanticChangeEventType));
             return filter;
 
             static SimpleAttributeOperand Field(string name)
