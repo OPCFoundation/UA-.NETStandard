@@ -1795,6 +1795,21 @@ markers and `ISyncNodeManagerReadinessNotification` were not declared or
 forwarded by the 2.0.1 Server assembly on net48 or net10.0. Compatibility with
 consumers of later previews has not been assessed.
 
+`RuntimeNodeSetOptions.AllowLifecycleFromRequestCallback` and
+`RuntimeNodeSetNodeManagerFactory.AllowLifecycleFromRequestCallback` were
+public in 2.0.1 and are absent from the current types. The option allowed
+lifecycle work for a Runtime NodeSet to start from a request callback under
+the documented drain constraints. The current transaction path does not
+expose the same option.
+
+The 2.0.1 `ISessionContinuationPoints.RemoveForManager` member is also absent
+from the current interface. During retirement, the reclaimer invalidates the
+exact generation in the built-in session continuation-point store. It does
+not invoke an equivalent invalidation method on custom
+`ISessionContinuationPoints` implementations, which received
+`RemoveForManager` in 2.0.1. The compatibility disposition for these members
+and providers remains open.
+
 This inventory does not make the legacy handles non-owning. A
 `NodeManagerRegistration`, `NodeManagerSlotSnapshot` or legacy batch result can
 retain a retired manager after cleanup. Modern result metadata uses
