@@ -50,6 +50,55 @@ namespace Opc.Ua.Core.Tests
             m_telemetry = NUnitTelemetryContext.Create();
         }
 
+        /// <summary>
+        /// A delayed initialization admitted before the last lease retires cannot select a manager in a new period.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task RetiredAdmissionCannotInitializeReattachedOwnershipPeriodAsync(
+            bool staleFallback,
+            bool replacementPublished)
+        {
+            var configuration = new ApplicationConfiguration(m_telemetry);
+            await using var oldFallback = new CertificateManager(m_telemetry);
+            await using var current = new CertificateManager(m_telemetry);
+            configuration.AcquireCertificateManagers();
+            int retiredGeneration = configuration.CaptureCertificateManagerGeneration();
+            await configuration.ReleaseCertificateManagersAsync().ConfigureAwait(false);
+            configuration.AcquireCertificateManagers();
+            try
+            {
+                if (replacementPublished)
+                {
+                    configuration.CertificateManager = current;
+                }
+                await Assert.ThrowsAsync<ObjectDisposedException>(() => configuration.GetOrCreateCertificateManagerAsync(
+                    m_telemetry, staleFallback ? oldFallback : null,
+                    expectedGeneration: retiredGeneration).AsTask());
+
+                if (replacementPublished)
+                {
+                    Assert.That(configuration.CertificateManager, Is.SameAs(current));
+                }
+                else
+                {
+                    Assert.That(configuration.CertificateManager, Is.Null);
+                }
+                int admittedGeneration = configuration.CaptureCertificateManagerGeneration();
+                Assert.That(admittedGeneration, Is.Not.EqualTo(retiredGeneration));
+                ICertificateManager manager = await configuration.GetOrCreateCertificateManagerAsync(
+                    m_telemetry, current, expectedGeneration: admittedGeneration).ConfigureAwait(false);
+                Assert.That(manager, Is.SameAs(current));
+                Assert.That(configuration.CertificateManager, Is.SameAs(current));
+            }
+            finally
+            {
+                await configuration.ReleaseCertificateManagersAsync().ConfigureAwait(false);
+            }
+        }
+
         [Test]
         /// <summary>
         /// Parameterless constructor creates a valid instance.

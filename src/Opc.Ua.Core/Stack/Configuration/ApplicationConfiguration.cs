@@ -157,6 +157,21 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Captures admission to the current ownership period without invoking manager factories or callbacks.
+        /// </summary>
+        internal int CaptureCertificateManagerGeneration()
+        {
+            lock (m_certificateManagerLock)
+            {
+                if (m_certificateManagerLeaseReleased)
+                {
+                    throw new ObjectDisposedException(nameof(ApplicationConfiguration));
+                }
+                return m_certificateManagerGeneration;
+            }
+        }
+
+        /// <summary>
         /// Initializes a missing manager once per ownership period without overwriting replacements.
         /// </summary>
         /// <remarks>
@@ -166,7 +181,8 @@ namespace Opc.Ua
         internal async ValueTask<ICertificateManager> GetOrCreateCertificateManagerAsync(
             ITelemetryContext telemetry,
             CertificateManager? fallback = null,
-            bool validationCreated = false)
+            bool validationCreated = false,
+            int? expectedGeneration = null)
         {
             TaskCompletionSource<ICertificateManager>? completion = null;
             Task<ICertificateManager> initialization;
@@ -174,6 +190,10 @@ namespace Opc.Ua
             lock (m_certificateManagerLock)
             {
                 generation = m_certificateManagerGeneration;
+                if (expectedGeneration.HasValue && expectedGeneration.Value != generation)
+                {
+                    throw new ObjectDisposedException(nameof(ApplicationConfiguration));
+                }
                 if (m_certificateManager != null)
                 {
                     if (m_certificateManager is CertificateManager manager)

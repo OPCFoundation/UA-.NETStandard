@@ -425,15 +425,18 @@ namespace Opc.Ua.Configuration
             }
 
             CertificateManager? fallback;
+            int generation;
             lock (m_disposalLock)
             {
                 ThrowIfDisposing();
                 fallback = ReferenceEquals(m_applicationConfiguration, configuration)
                     ? CertificateManager
                     : null;
+                generation = configuration.CaptureCertificateManagerGeneration();
             }
             ICertificateManager certificateManager = await configuration
-                .GetOrCreateCertificateManagerAsync(m_telemetry!, fallback).ConfigureAwait(false);
+                .GetOrCreateCertificateManagerAsync(m_telemetry!, fallback, expectedGeneration: generation)
+                .ConfigureAwait(false);
             lock (m_disposalLock)
             {
                 ThrowIfDisposing();
