@@ -424,25 +424,18 @@ namespace Opc.Ua.Configuration
                 throw ServiceResultException.ConfigurationError("Need at least one Application Certificate.");
             }
 
-            ICertificateManager? certificateManager = configuration.CertificateManager;
-            if (certificateManager == null)
+            ValueTask<ICertificateManager> initialization;
+            lock (m_disposalLock)
             {
-                certificateManager = CertificateManager;
+                ThrowIfDisposing();
+                initialization = configuration.GetOrCreateCertificateManagerAsync(m_telemetry!, CertificateManager);
             }
-            if (certificateManager == null)
+            ICertificateManager certificateManager = await initialization.ConfigureAwait(false);
+            lock (m_disposalLock)
             {
-                lock (m_disposalLock)
-                {
-                    ThrowIfDisposing();
-                    // Publish the fallback before disposal can release the configuration's lease.
-                    certificateManager = configuration.CertificateManager ?? CertificateManagerFactory.Create(
-                        securityConfiguration,
-                        m_telemetry!);
-                    configuration.CertificateManager = certificateManager;
-                }
+                ThrowIfDisposing();
+                CertificateManager = certificateManager as CertificateManager;
             }
-            CertificateManager = certificateManager as CertificateManager;
-            configuration.CertificateManager = certificateManager;
             if (certificateManager is CertificateManager concreteManager)
             {
                 concreteManager.MapFromSecurityConfiguration(securityConfiguration);

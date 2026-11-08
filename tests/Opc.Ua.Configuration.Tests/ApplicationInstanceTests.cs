@@ -37,6 +37,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
@@ -445,6 +446,110 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         /// <summary>
+        /// Overlapping checks share one pending factory operation and preserve replacements published during creation.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task ConcurrentCertificateChecksInitializeOneSharedManagerAsync(
+            bool replaceManager,
+            bool borrowReplacement)
+        {
+            ITelemetryContext actualTelemetry = NUnitTelemetryContext.Create();
+            var telemetry = new Mock<ITelemetryContext>();
+            var loggerFactory = new Mock<ILoggerFactory>();
+            loggerFactory.Setup(value => value.CreateLogger(It.IsAny<string>()))
+                .Returns(actualTelemetry.LoggerFactory.CreateLogger);
+            telemetry.SetupGet(value => value.LoggerFactory).Returns(loggerFactory.Object);
+            telemetry.SetupGet(value => value.ActivitySource).Returns(actualTelemetry.ActivitySource);
+            telemetry.Setup(value => value.GetActivitySource(It.IsAny<System.Reflection.Assembly>()))
+                .Returns((System.Reflection.Assembly assembly) => actualTelemetry.GetActivitySource(assembly));
+            telemetry.Setup(value => value.CreateMeter()).Returns(actualTelemetry.CreateMeter);
+            telemetry.Setup(value => value.CreateMeter(It.IsAny<System.Reflection.Assembly>()))
+                .Returns((System.Reflection.Assembly assembly) => actualTelemetry.CreateMeter(assembly));
+            await using var external = new CertificateManager(actualTelemetry);
+            await using var first = new ApplicationInstance(telemetry.Object)
+            {
+                ApplicationName = ApplicationName,
+                DisableCertificateAutoCreation = true
+            };
+            first.Build(ApplicationUri, ProductUri).AsClient().AddSecurityConfiguration(
+                [
+                    new CertificateIdentifier
+                    {
+                        SubjectName = SubjectName,
+                        StoreType = CertificateStoreType.Directory,
+                        StorePath = m_pkiRoot,
+                        CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
+                    }
+                ],
+                m_pkiRoot);
+            ApplicationConfiguration configuration = first.ApplicationConfiguration!;
+            await using var second = new ApplicationInstance(configuration, telemetry.Object)
+            {
+                DisableCertificateAutoCreation = true
+            };
+            Task<bool>? overlappingCheck = null;
+            int factoryCalls = 0;
+            loggerFactory.Setup(value => value.CreateLogger(It.IsAny<string>()))
+                .Returns((string category) =>
+                {
+                    if (category == typeof(CertificateManager).FullName &&
+                        Interlocked.Increment(ref factoryCalls) == 1)
+                    {
+                        // The constructor callback overlaps two checks without threads, sleeps, or timing assertions.
+                        overlappingCheck = second.CheckApplicationInstanceCertificatesAsync(true);
+                        Assert.That(overlappingCheck.IsCompleted, Is.False);
+                        if (replaceManager)
+                        {
+                            configuration.CertificateManager = external;
+                            if (borrowReplacement)
+                            {
+                                second.MarkCertificateManagerBorrowed();
+                            }
+                        }
+                    }
+                    return actualTelemetry.LoggerFactory.CreateLogger(category);
+                });
+
+            Assert.That(configuration.CertificateManager, Is.Null);
+            ServiceResultException? firstFailure = await Assert.ThrowsAsync<ServiceResultException>(
+                () => first.CheckApplicationInstanceCertificatesAsync(true));
+            Assert.That(overlappingCheck, Is.Not.Null);
+            ServiceResultException? secondFailure = await Assert.ThrowsAsync<ServiceResultException>(
+                () => overlappingCheck!);
+            Assert.That(firstFailure!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+            Assert.That(secondFailure!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+            Assert.That(factoryCalls, Is.EqualTo(1));
+            CertificateManager manager = configuration.CertificateManager as CertificateManager ??
+                throw new InvalidOperationException("Concurrent checking did not configure a concrete manager.");
+            Assert.That(first.CertificateManager, Is.SameAs(manager));
+            Assert.That(second.CertificateManager, Is.SameAs(manager));
+            if (replaceManager)
+            {
+                Assert.That(manager, Is.SameAs(external));
+            }
+            await first.DisposeAsync();
+            using (ICertificateStore store = manager.OpenCertificateStore(
+                m_pkiRoot, CertificateStoreType.Directory, false))
+            {
+                Assert.That(store, Is.Not.Null);
+            }
+            await second.DisposeAsync();
+            if (borrowReplacement)
+            {
+                using ICertificateStore store = manager.OpenCertificateStore(
+                    m_pkiRoot, CertificateStoreType.Directory, false);
+                Assert.That(store, Is.Not.Null);
+            }
+            else
+            {
+                await Assert.ThrowsAsync<ObjectDisposedException>(
+                    () => manager.LoadApplicationCertificatesAsync(configuration.SecurityConfiguration));
+            }
+        }
+
+        /// <summary>
         /// Base validation creates a manager owned by both applications when they attach before validation.
         /// </summary>
         [Test]
@@ -716,6 +821,38 @@ namespace Opc.Ua.Configuration.Tests
             Assert.Throws<ObjectDisposedException>(() => new ApplicationInstance(configuration, telemetry));
             Assert.Throws<ObjectDisposedException>(
                 () => new ApplicationConfiguration(telemetry).CertificateManager = manager);
+        }
+
+        /// <summary>
+        /// A released configuration rejects fresh ownership before accepting the manager, leaving it usable elsewhere.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task FreshManagerAssignmentAfterFinalReleaseRejectsBeforeOwnershipTransferAsync(
+            bool initiallyEmpty)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var configuration = new ApplicationConfiguration(telemetry);
+            if (!initiallyEmpty)
+            {
+                configuration.CertificateManager = new CertificateManager(telemetry);
+            }
+            ICertificateManager? original = configuration.CertificateManager;
+            await using var application = new ApplicationInstance(configuration, telemetry);
+            await application.DisposeAsync();
+            await using var fresh = new CertificateManager(telemetry);
+            Assert.Throws<ObjectDisposedException>(() => configuration.CertificateManager = fresh);
+            Assert.That(configuration.CertificateManager, Is.SameAs(original));
+            using (ICertificateStore store = fresh.OpenCertificateStore(
+                m_pkiRoot, CertificateStoreType.Directory, false))
+            {
+                Assert.That(store, Is.Not.Null);
+            }
+            var replacement = new ApplicationConfiguration(telemetry) { CertificateManager = fresh };
+            await using var owner = new ApplicationInstance(replacement, telemetry);
+            await owner.DisposeAsync();
+            await Assert.ThrowsAsync<ObjectDisposedException>(
+                () => fresh.LoadApplicationCertificatesAsync(replacement.SecurityConfiguration));
         }
 
         /// <summary>
