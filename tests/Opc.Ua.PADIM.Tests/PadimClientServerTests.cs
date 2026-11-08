@@ -186,45 +186,37 @@ namespace Opc.Ua.PADIM.Tests
                 PadimValueBinding binding = measurementBinding ??
                     throw new InvalidOperationException("The hosted measurement binding was not configured.");
                 Range changedRange = new(high: 150, low: -40);
-                var rangeEventReady = new TaskCompletionSource<bool>(
-                    TaskCreationOptions.RunContinuationsAsynchronously);
                 await using (IAsyncEnumerator<EventNotification> rangeEvents = managed.DefaultStreaming
                     .SubscribeEventsWhenReadyAsync(
                         new NodeId(2253u),
                         SemanticChangeEventFilter(),
                         _ =>
                         {
-                            rangeEventReady.TrySetResult(true);
+                            binding.WithEngineeringUnits(engineeringUnits, changedRange);
                             return default;
                         },
                         ct: timeout.Token)
                     .GetAsyncEnumerator(timeout.Token))
                 {
-                    await rangeEventReady.Task.WaitAsync(timeout.Token);
-                    binding.WithEngineeringUnits(engineeringUnits, changedRange);
                     AssertSemanticChange(await NextSemanticChangeAsync(rangeEvents), measurement.NodeId);
                 }
 
-                var unitsEventReady = new TaskCompletionSource<bool>(
-                    TaskCreationOptions.RunContinuationsAsynchronously);
                 await using (IAsyncEnumerator<EventNotification> unitsEvents = managed.DefaultStreaming
                     .SubscribeEventsWhenReadyAsync(
                         new NodeId(2253u),
                         SemanticChangeEventFilter(),
                         _ =>
                         {
-                            unitsEventReady.TrySetResult(true);
+                            var changedUnits = new EUInformation(
+                                "K",
+                                "kelvin",
+                                "http://www.opcfoundation.org/UA/units/un/cefact");
+                            binding.WithEngineeringUnits(changedUnits, changedRange);
                             return default;
                         },
                         ct: timeout.Token)
                     .GetAsyncEnumerator(timeout.Token))
                 {
-                    await unitsEventReady.Task.WaitAsync(timeout.Token);
-                    var changedUnits = new EUInformation(
-                        "K",
-                        "kelvin",
-                        "http://www.opcfoundation.org/UA/units/un/cefact");
-                    binding.WithEngineeringUnits(changedUnits, changedRange);
                     AssertSemanticChange(await NextSemanticChangeAsync(unitsEvents), measurement.NodeId);
                 }
 
