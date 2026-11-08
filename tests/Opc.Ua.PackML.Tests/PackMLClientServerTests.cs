@@ -88,10 +88,15 @@ namespace Opc.Ua.PackML.Tests
                     ready.TrySetResult(true);
                 };
             }).AddNodeManager(new ComposedNodeManagerFactory(manager => m_composed = manager));
+            // The configurator runs while the address space is built, but the TCP listener is
+            // already accepting then and answers every request with BadServerHalted until the
+            // server is Running. Startup tasks run only after the server has fully started.
+            var started = new ServerStartedSignal();
+            services.AddSingleton<IServerStartupTask>(started);
             m_services = services.BuildServiceProvider();
             m_host = m_services.GetServices<IHostedService>().Single();
             await m_host.StartAsync(CancellationToken.None);
-            await ready.Task.WaitAsync(TimeSpan.FromSeconds(60));
+            await WaitForServerStartAsync(m_host, started, ready);
 
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             m_clientFixture = new ClientFixture(telemetry);
@@ -140,6 +145,80 @@ namespace Opc.Ua.PackML.Tests
                             await m_services.DisposeAsync();
                         }
                     }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Verifies the hosted server runs startup tasks only after PackML configuration has completed and
+        /// rejects requests until then, so a configurator signal alone does not prove the server is serving.
+        /// </summary>
+        [Test]
+        public async Task PackMLConfigurationCompletesBeforeServerServesRequestsAsync()
+        {
+            var configured = PackMLTestSupport.Signal();
+            var release = PackMLTestSupport.Signal();
+            var started = new ServerStartedSignal();
+            string fixtureEndpoint = m_endpoint;
+            var services = new ServiceCollection();
+            services.AddLogging();
+            services.AddOpcUa().AddServer<StandardServer>(ConfigureServer).AddPackML(options =>
+            {
+                options.NamespaceUri = "urn:packml:session:startup";
+                options.ConfigureAsync = async (manager, token) =>
+                {
+                    configured.TrySetResult(true);
+                    await release.Task.WaitAsync(token);
+                };
+            });
+            services.AddSingleton<IServerStartupTask>(started);
+            ServiceProvider provider = services.BuildServiceProvider();
+            IHostedService host = provider.GetServices<IHostedService>().Single();
+            try
+            {
+                await host.StartAsync(CancellationToken.None);
+                Task startup = WaitForServerStartAsync(host, started, configured);
+                Task first = await Task.WhenAny(configured.Task, startup);
+                if (ReferenceEquals(first, startup))
+                {
+                    await startup;
+                }
+                Assert.That(
+                    first,
+                    Is.SameAs(configured.Task),
+                    "The hosted server stopped before PackML configuration ran.");
+                string endpointUrl = m_endpoint;
+                Task gated = WaitForServerStartAsync(host, started, configured);
+                Assert.That(started.Task.IsCompleted, Is.False);
+
+                ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+                using var clientFixture = new ClientFixture(telemetry);
+                await clientFixture.LoadClientConfigurationAsync(Path.Combine(
+                    TestContext.CurrentContext.WorkDirectory, "packml-client", Guid.NewGuid().ToString("N")));
+                ServiceResultException? halted = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await CoreClientUtils.SelectEndpointAsync(
+                        clientFixture.Config, endpointUrl, false, 15000, telemetry, CancellationToken.None));
+                Assert.That(halted!.StatusCode, Is.EqualTo(StatusCodes.BadServerHalted));
+                Assert.That(started.Task.IsCompleted, Is.False);
+                Assert.That(gated.IsCompleted, Is.False, "The fixture must wait for server startup.");
+
+                release.TrySetResult(true);
+                await Task.WhenAll(startup, gated);
+                EndpointDescription? endpoint = await CoreClientUtils.SelectEndpointAsync(
+                    clientFixture.Config, endpointUrl, false, 15000, telemetry, CancellationToken.None);
+                Assert.That(endpoint, Is.Not.Null);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                m_endpoint = fixtureEndpoint;
+                try
+                {
+                    await host.StopAsync(CancellationToken.None);
+                }
+                finally
+                {
+                    await provider.DisposeAsync();
                 }
             }
         }
@@ -3126,6 +3205,48 @@ namespace Opc.Ua.PackML.Tests
 
         private static readonly bool[] s_materialReadiness = [true, false];
         private static readonly int[] s_stateDimensions = [2, 20];
+
+        /// <summary>
+        /// Waits until the hosted server has run its startup tasks and PackML configuration has completed,
+        /// surfacing a faulted host instead of waiting for the full timeout.
+        /// </summary>
+        private static async Task WaitForServerStartAsync(
+            IHostedService host,
+            ServerStartedSignal started,
+            TaskCompletionSource<bool> configured)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            Task startup = host is BackgroundService { ExecuteTask: { } execute }
+                ? await Task.WhenAny(started.Task, execute).WaitAsync(timeout.Token)
+                : started.Task;
+            await startup.WaitAsync(timeout.Token);
+            await started.Task.WaitAsync(timeout.Token);
+            await configured.Task.WaitAsync(timeout.Token);
+        }
+
+        /// <summary>
+        /// Completes once the hosted server has started and serves requests.
+        /// </summary>
+        private sealed class ServerStartedSignal : IServerStartupTask
+        {
+            /// <summary>
+            /// Gets the task that completes when the server has started.
+            /// </summary>
+            internal Task Task => m_started.Task;
+
+            /// <inheritdoc/>
+            public ValueTask OnServerStartedAsync(IServerContext server, CancellationToken cancellationToken = default)
+            {
+                m_started.TrySetResult(true);
+                return default;
+            }
+
+            /// <summary>
+            /// The started signal.
+            /// </summary>
+            private readonly TaskCompletionSource<bool> m_started =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
 
         /// <summary>
         /// Creates the ordinary node manager that composes PackML units without owning PackML types.
