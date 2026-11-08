@@ -132,8 +132,10 @@ namespace Opc.Ua
 
         /// <summary>
         /// Admits a decoded request without waiting. Every request is charged one maximum
-        /// encoded-message footprint, retained through execution/parking until completion.
-        /// This is a conservative admission cost, not an estimate of managed heap bytes.
+        /// encoded-message footprint, retained through execution and parking until completion,
+        /// except by a request that parks without its decoded payload (a held Publish, see
+        /// <see cref="RequestParkSink.ReleasesPayload"/>). This is a conservative admission
+        /// cost, not an estimate of managed heap bytes.
         /// </summary>
         public bool TryEnqueue(
             IEndpointIncomingRequest request,
@@ -1230,6 +1232,15 @@ namespace Opc.Ua
             }
 
             /// <summary>
+            /// Returns the decoded-request cost of a request that parked without its decoded
+            /// payload (<see cref="RequestParkSink.ReleasesPayload"/>); its parked slot stays held.
+            /// </summary>
+            public void ReleaseRequestCost()
+            {
+                CostHold.Release(m_queue, ResourceIsolationStage.RequestQueueBytes, Owner, m_queue.m_requestCost);
+            }
+
+            /// <summary>
             /// Unregisters cancellation and returns all remaining admission leases.
             /// </summary>
             public void Dispose()
@@ -1579,6 +1590,13 @@ namespace Opc.Ua
                     }
                     if (ReferenceEquals(Interlocked.CompareExchange(ref m_head, next, head), head))
                     {
+                        // The old sentinel left the FIFO: unlink it, so a long-lived former
+                        // entry (a held Publish) does not keep every later entry of the owner
+                        // reachable through its Next chain. It is self-linked, not cleared:
+                        // an enqueuer that read it as the tail before it left must still fail
+                        // its CAS against null. The tail is past it (checked above), and
+                        // readers that read it re-validate the head before using its link.
+                        Volatile.Write(ref head.Next, head);
                         entry = (Entry)next;
                         return true;
                     }

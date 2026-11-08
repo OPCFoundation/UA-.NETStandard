@@ -1678,6 +1678,20 @@ namespace Opc.Ua.Bindings
                 {
                     channels.Add(chEntry.Value);
                     cleanup = true;
+                    continue;
+                }
+
+                // A peer that stops reading keeps a send waiting and every queued response
+                // with it. A Session keeps the channel active, so the send time decides.
+                TimeSpan stalled = chEntry.Value.GetWriteStallTime();
+                if (stalled.TotalMilliseconds > m_quotas.ChannelLifetime)
+                {
+                    m_logger.TcpTransportWriteStalled(
+                        chEntry.Value.Id,
+                        (long)stalled.TotalMilliseconds,
+                        chEntry.Value.QueuedWriteBytes);
+                    channels.Add(chEntry.Value);
+                    cleanup = true;
                 }
             }
 
@@ -2414,5 +2428,17 @@ namespace Opc.Ua.Bindings
         [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 34, Level = LogLevel.Debug,
             Message = "Refused TCP connection closed before Bad_TcpNotEnoughResources could be sent.")]
         public static partial void TcpResourceRejectionFailed(this ILogger logger, Exception exception);
+
+        /// <summary>
+        /// Logs that a channel is closed because its peer stopped reading.
+        /// </summary>
+        [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 35, Level = LogLevel.Warning,
+            Message = "TCPLISTENER: Closing channel {ChannelId}: a send waited {ElapsedMs} ms for the peer " +
+                "to read, with {QueuedBytes} bytes of responses queued.")]
+        public static partial void TcpTransportWriteStalled(
+            this ILogger logger,
+            uint channelId,
+            long elapsedMs,
+            long queuedBytes);
     }
 }

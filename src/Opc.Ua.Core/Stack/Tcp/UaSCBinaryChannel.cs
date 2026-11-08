@@ -1007,7 +1007,59 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
-        public virtual bool ChannelFull => Volatile.Read(ref m_activeWriteRequests) > 100;
+        /// <remarks>
+        /// Full at more than 100 queued writes, or once the queued writes and the batch
+        /// the writer is sending retain more than <see cref="WriteQueueByteLimit"/>
+        /// bytes of buffers: counting messages alone let a peer that stops reading pin
+        /// 100 maximum-size responses per channel.
+        /// </remarks>
+        public virtual bool ChannelFull =>
+            Volatile.Read(ref m_activeWriteRequests) > 100 ||
+            Volatile.Read(ref m_queuedWriteBytes) > WriteQueueByteLimit;
+
+        /// <summary>
+        /// The buffer bytes the queued writes may retain before the channel is full:
+        /// four of the largest messages the channel exchanges, and at least four send
+        /// buffers.
+        /// </summary>
+        internal long WriteQueueByteLimit
+        {
+            get
+            {
+                long largest = Math.Max(MaxRequestMessageSize, MaxResponseMessageSize);
+                if (largest <= 0)
+                {
+                    largest = TcpMessageLimits.DefaultMaxMessageSize;
+                }
+                return 4L * Math.Max(largest, SendBufferSize);
+            }
+        }
+
+        /// <summary>
+        /// The buffer bytes retained by queued writes and by the batch the writer is
+        /// sending, as a snapshot.
+        /// </summary>
+        internal long QueuedWriteBytes => Volatile.Read(ref m_queuedWriteBytes);
+
+        /// <summary>
+        /// How long the writer has been waiting for the transport to accept a send,
+        /// or zero when it is not waiting.
+        /// </summary>
+        /// <remarks>
+        /// A peer that stops reading (a TCP window of zero) keeps a send waiting
+        /// indefinitely, and with it every queued response. The listener closes a
+        /// channel whose send waited longer than the channel lifetime, also when a
+        /// Session keeps the channel active otherwise.
+        /// </remarks>
+        internal TimeSpan GetWriteStallTime()
+        {
+            if (Volatile.Read(ref m_sendWaiting) == 0)
+            {
+                return TimeSpan.Zero;
+            }
+            TimeSpan elapsed = TimeProvider.GetElapsedTime(Volatile.Read(ref m_sendWaitStarted));
+            return elapsed > TimeSpan.Zero ? elapsed : TimeSpan.Zero;
+        }
 
         /// <summary>
         /// Whether the receive loop stops reading while the write queue is full.
@@ -1061,7 +1113,8 @@ namespace Opc.Ua.Bindings
         /// Whether a receive loop paused by a full write queue may read again.
         /// </summary>
         private bool HasWriteCapacityToResume =>
-            !ChannelFull && Volatile.Read(ref m_activeWriteRequests) <= kResumeWriteCount;
+            !ChannelFull && Volatile.Read(ref m_activeWriteRequests) <= kResumeWriteCount &&
+            Volatile.Read(ref m_queuedWriteBytes) <= WriteQueueByteLimit / 2;
 
         /// <summary>
         /// The queued-write count a paused receive loop resumes at (half the full mark).
@@ -1500,9 +1553,11 @@ namespace Opc.Ua.Bindings
         /// </remarks>
         private void QueueWrite(PendingWrite write)
         {
+            long retained = write.RetainedBytes;
             lock (m_writeQueueLock)
             {
                 m_writeQueue.Enqueue(write);
+                Volatile.Write(ref m_queuedWriteBytes, m_queuedWriteBytes + retained);
                 if (m_writerRunning)
                 {
                     return;
@@ -1545,10 +1600,12 @@ namespace Opc.Ua.Bindings
 
             Interlocked.Increment(ref m_activeWriteRequests);
             var write = new PendingWrite(transport, in message, state);
+            long retained = write.RetainedBytes;
 
             lock (m_writeQueueLock)
             {
                 m_unsealedWriteQueue.Enqueue(write);
+                Volatile.Write(ref m_queuedWriteBytes, m_queuedWriteBytes + retained);
                 if (m_writerRunning)
                 {
                     return true;
@@ -1593,18 +1650,41 @@ namespace Opc.Ua.Bindings
             while (true)
             {
                 bool numbered;
+                bool idle;
+                long sentBytes;
                 lock (m_writeQueueLock)
                 {
-                    if (m_writeQueue.Count == 0 && m_unsealedWriteQueue.Count == 0)
+                    // the batch sent last no longer retains its buffers
+                    sentBytes = m_writerBatchBytes;
+                    if (sentBytes != 0)
                     {
-                        m_writerRunning = false;
-                        return;
+                        m_writerBatchBytes = 0;
+                        Volatile.Write(ref m_queuedWriteBytes, m_queuedWriteBytes - sentBytes);
                     }
 
-                    // Writes numbered by their producers go out without the send
-                    // order lock: each was queued under it, after the writes numbered
-                    // before it. A client channel only queues such writes.
-                    numbered = m_writeQueue.Count > 0 && TakeWriteBatch(batch, includeUnsealed: false);
+                    idle = m_writeQueue.Count == 0 && m_unsealedWriteQueue.Count == 0;
+                    if (idle)
+                    {
+                        m_writerRunning = false;
+                        numbered = false;
+                    }
+                    else
+                    {
+                        // Writes numbered by their producers go out without the send
+                        // order lock: each was queued under it, after the writes numbered
+                        // before it. A client channel only queues such writes.
+                        numbered = m_writeQueue.Count > 0 && TakeWriteBatch(batch, includeUnsealed: false);
+                    }
+                }
+
+                if (sentBytes != 0)
+                {
+                    // a receive loop paused on the bytes may resume
+                    SignalWriteCapacity();
+                }
+                if (idle)
+                {
+                    return;
                 }
 
                 if (numbered)
@@ -1660,6 +1740,10 @@ namespace Opc.Ua.Bindings
                     _ = pending.Exception;
                     continue;
                 }
+                // the transport did not take the batch right away: the peer may have
+                // stopped reading, which the listener detects from how long this waits
+                Volatile.Write(ref m_sendWaitStarted, TimeProvider.GetTimestamp());
+                Volatile.Write(ref m_sendWaiting, 1);
                 try
                 {
                     await pending.ConfigureAwait(false);
@@ -1668,6 +1752,7 @@ namespace Opc.Ua.Bindings
                 {
                     // Observed only, as above; the write reported its own result.
                 }
+                Volatile.Write(ref m_sendWaiting, 0);
 
                 // The await resumed on whichever thread completed the write. The
                 // next write must start on the pool, not on that thread, which may
@@ -1730,6 +1815,13 @@ namespace Opc.Ua.Bindings
                 }
             }
 
+            // the batch keeps its bytes counted until it is sent (RunWritesAsync)
+            long retained = 0;
+            for (int ii = 0; ii < batch.Count; ii++)
+            {
+                retained += batch[ii].RetainedBytes;
+            }
+            m_writerBatchBytes = retained;
             return true;
         }
 
@@ -1963,6 +2055,33 @@ namespace Opc.Ua.Bindings
             /// Whether the message still has to be sealed.
             /// </summary>
             public bool IsUnsealed => (m_kind & kUnsealed) != 0;
+
+            /// <summary>
+            /// The bytes of the buffers the write retains until it is sent: the length of
+            /// each array, which is what stays allocated, not the bytes in use.
+            /// </summary>
+            public long RetainedBytes
+            {
+                get
+                {
+                    if (m_kind == kChunk)
+                    {
+                        return ((byte[]?)m_payload)?.Length ?? 0;
+                    }
+                    var buffers = (BufferCollection?)m_payload;
+                    if (buffers == null)
+                    {
+                        return 0;
+                    }
+                    long retained = 0;
+                    for (int ii = 0; ii < buffers.Count; ii++)
+                    {
+                        ArraySegment<byte> buffer = buffers[ii];
+                        retained += buffer.Array?.Length ?? buffer.Count;
+                    }
+                    return retained;
+                }
+            }
 
             /// <summary>
             /// The message still to seal, if any.
@@ -2787,6 +2906,26 @@ namespace Opc.Ua.Bindings
         private readonly Queue<PendingWrite> m_writeQueue = new();
         private readonly Queue<PendingWrite> m_unsealedWriteQueue = new();
         private bool m_writerRunning;
+
+        /// <summary>
+        /// The buffer bytes retained by the queued writes and the batch being sent;
+        /// written under <see cref="m_writeQueueLock"/>, read without it.
+        /// </summary>
+        private long m_queuedWriteBytes;
+
+        /// <summary>
+        /// The share of <see cref="m_queuedWriteBytes"/> of the batch the writer took
+        /// last; returned when the writer comes back for the next batch. Used under
+        /// <see cref="m_writeQueueLock"/>.
+        /// </summary>
+        private long m_writerBatchBytes;
+
+        /// <summary>
+        /// When the writer started waiting for a send, while <see cref="m_sendWaiting"/>
+        /// is 1 (see <see cref="GetWriteStallTime"/>).
+        /// </summary>
+        private long m_sendWaitStarted;
+        private int m_sendWaiting;
 
         /// <summary>
         /// The transport on which a message failed after taking sequence numbers;

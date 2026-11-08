@@ -1490,6 +1490,9 @@ namespace Opc.Ua.Server
                 out ArrayOf<StatusCode> acknowledgeResults,
                 out ArrayOf<DiagnosticInfo> acknowledgeDiagnosticInfos);
 
+            // not kept by the state machine while the request waits below
+            subscriptionAcknowledgements = default;
+
             // update diagnostics.
             context.Session?.UpdateDiagnostics(
                     diagnostics => diagnostics.CurrentPublishRequestsInQueue++);

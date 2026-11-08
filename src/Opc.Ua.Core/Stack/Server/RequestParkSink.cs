@@ -62,17 +62,60 @@ namespace Opc.Ua
     public sealed class RequestParkSink : IRequestParkSink
     {
         /// <summary>
+        /// Creates a sink that only signals.
+        /// </summary>
+        public RequestParkSink()
+        {
+        }
+
+        /// <summary>
+        /// Creates a sink for a decoded request. When the request is a
+        /// <see cref="PublishRequest"/>, parking also drops the parts of it that its
+        /// handler has consumed by then (see <see cref="ReleasesPayload"/>).
+        /// </summary>
+        internal RequestParkSink(IServiceRequest request)
+        {
+            m_publish = request as PublishRequest;
+        }
+
+        /// <summary>
         /// A task that completes the first time the request parks.
         /// </summary>
         public Task ParkedTask => m_tcs.Task;
 
+        /// <summary>
+        /// Whether parking drops the decoded payload of the request, so that a parked
+        /// request retains its request header but neither the
+        /// <see cref="RequestHeader.AdditionalHeader"/> nor the acknowledgements.
+        /// </summary>
+        /// <remarks>
+        /// A held Publish waits up to a keep-alive period, or with no timeout hint
+        /// until the next notification. Decoded, its additional header can be many times
+        /// its wire size (arrays of variants), and nothing reads it or the acknowledgements
+        /// after the handler parks: the acknowledgements are applied and the header was
+        /// validated before. Without the payload a parked Publish does not need the
+        /// decoded-request cost it was admitted with.
+        /// </remarks>
+        internal bool ReleasesPayload => m_publish != null;
+
         /// <inheritdoc/>
         public void NotifyParked()
         {
+            PublishRequest? publish = m_publish;
+            if (publish != null)
+            {
+                // runs on the handler, at its waiting point, before the worker sees the park
+                publish.SubscriptionAcknowledgements = default;
+                if (publish.RequestHeader != null)
+                {
+                    publish.RequestHeader.AdditionalHeader = ExtensionObject.Null;
+                }
+            }
             m_tcs.TrySetResult(true);
         }
 
         private readonly TaskCompletionSource<bool> m_tcs = new(
             TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly PublishRequest? m_publish;
     }
 }

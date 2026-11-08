@@ -2551,11 +2551,18 @@ namespace Opc.Ua.Server
                     requestHeader.RequestHandle,
                     requestHeader.Timestamp);
 
-                PublishResponse response = await ServerInternal.SubscriptionManager.PublishAsync(
+#pragma warning disable CA2025 // awaited below, before the context is disposed
+                Task<PublishResponse> publish = ServerInternal.SubscriptionManager.PublishAsync(
                     context,
                     subscriptionAcknowledgements,
                     requestLifetime.ParkSink,
-                    requestLifetime.CancellationToken).ConfigureAwait(false);
+                    requestLifetime.CancellationToken);
+#pragma warning restore CA2025
+
+                // The acknowledgements are applied before the request waits: the state
+                // machine does not keep them for the whole wait of a held Publish.
+                subscriptionAcknowledgements = default;
+                PublishResponse response = await publish.ConfigureAwait(false);
 
                 response.ResponseHeader = CreateResponse(requestHeader, context);
 
