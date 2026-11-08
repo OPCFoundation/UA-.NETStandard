@@ -797,8 +797,9 @@ namespace Opc.Ua.Scales.Tests
                 return initializations == 1
                     ? new ValueTask(Task.FromException(failure)) : default;
             };
-            Assert.That(Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                await scale.Checkweigher!.RecordAcceptedAsync(10).ConfigureAwait(false)), Is.SameAs(failure));
+            InvalidOperationException? caught = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await scale.Checkweigher!.RecordAcceptedAsync(10).ConfigureAwait(false)).ConfigureAwait(false);
+            Assert.That(caught, Is.SameAs(failure));
             Assert.That(statistic.TotalPackages!.ItemCount!.WrappedValue.GetUInt64(), Is.Zero);
             Assert.That(scale.Scale.ProductionOutput!.TotalPackages!.ItemCount!.WrappedValue.GetUInt64(), Is.Zero);
             Assert.That(ServiceResult.IsGood(await scale.Checkweigher!.RecordAcceptedAsync(10)
@@ -823,8 +824,9 @@ namespace Opc.Ua.Scales.Tests
             var failure = new InvalidOperationException("count callback");
             statistic.TotalPackages!.ItemCount!.OnStateChangedAsync = (_, _, _, _) =>
                 new ValueTask(Task.FromException(failure));
-            Assert.That(Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                await scale.Checkweigher!.RecordAcceptedAsync(10).ConfigureAwait(false)), Is.SameAs(failure));
+            InvalidOperationException? caught = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await scale.Checkweigher!.RecordAcceptedAsync(10).ConfigureAwait(false)).ConfigureAwait(false);
+            Assert.That(caught, Is.SameAs(failure));
             Assert.That(statistic.TotalPackages.ItemCount.WrappedValue.GetUInt64(), Is.EqualTo(1UL));
             Assert.That(statistic.TotalPackagesAccepted!.ItemCount!.WrappedValue.GetUInt64(), Is.EqualTo(1UL));
             Assert.That(scale.Scale.ProductionOutput!.TotalPackages!.ItemCount!.WrappedValue.GetUInt64(),
@@ -882,12 +884,16 @@ namespace Opc.Ua.Scales.Tests
             var first = (CheckweigherProductState)preset.ActiveProduct!;
             Assert.That(ServiceResult.IsGood(await scale.Checkweigher!.RecordAcceptedAsync(10)
                 .ConfigureAwait(false)), Is.True);
+            var firstStatistic = (CheckweigherStatisticState)first.Statistic!;
+            Assert.That(scale.CheckweigherStatistics.TryGetValue(firstStatistic, out _), Is.True);
             Assert.That((await preset.RemoveAsync("A").ConfigureAwait(false)).StatusCode,
                 Is.EqualTo(StatusCodes.BadInvalidState));
             Assert.That(preset.Find("A"), Is.SameAs(first));
+            Assert.That(scale.CheckweigherStatistics.TryGetValue(firstStatistic, out _), Is.True);
             Assert.That(ServiceResult.IsGood(preset.Switch("B")), Is.True);
             Assert.That(ServiceResult.IsGood(await preset.RemoveAsync("A").ConfigureAwait(false)), Is.True);
             Assert.That(preset.Find("A"), Is.Null);
+            Assert.That(scale.CheckweigherStatistics.TryGetValue(firstStatistic, out _), Is.False);
             var replacement = (CheckweigherProductState)preset.AddProduct("A", new LocalizedText("A"));
             Assert.That(replacement, Is.Not.SameAs(first));
             Assert.That(replacement.Statistic, Is.Not.SameAs(first.Statistic));

@@ -403,7 +403,7 @@ namespace Opc.Ua.Scales.Tests
                     {
                         NodeId = product.NominalWeight!.NodeId,
                         AttributeId = Attributes.Value,
-                        Value = new DataValue(Variant.From(nominal)) { StatusCode = quality }
+                        Value = new DataValue(Variant.From(nominal), quality)
                     }
                 }.ToArrayOf(), CancellationToken.None);
                 Assert.That(written.Results[0], Is.EqualTo(StatusCodes.Good));

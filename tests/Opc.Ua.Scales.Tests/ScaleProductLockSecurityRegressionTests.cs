@@ -1905,7 +1905,7 @@ namespace Opc.Ua.Scales.Tests
         [TestCase(true, 0)]
         [TestCase(true, 1)]
         [TestCase(true, 2)]
-        public void StatisticInfiniteWeightsRejectBeforeMutation(bool asynchronous, int disposition)
+        public async Task StatisticInfiniteWeightsRejectBeforeMutationAsync(bool asynchronous, int disposition)
         {
             using var harness = new Harness();
             var statistic = new CheckweigherStatisticState(null);
@@ -1915,7 +1915,7 @@ namespace Opc.Ua.Scales.Tests
             {
                 if (asynchronous)
                 {
-                    Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+                    await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                     {
                         switch (disposition)
                         {
@@ -1930,7 +1930,7 @@ namespace Opc.Ua.Scales.Tests
                                     .ConfigureAwait(false);
                                 break;
                         }
-                    });
+                    }).ConfigureAwait(false);
                 }
                 else
                 {
