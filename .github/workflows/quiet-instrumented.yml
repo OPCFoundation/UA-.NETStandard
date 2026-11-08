@@ -1,0 +1,136 @@
+name: Quiet subscription instrumented diagnostic
+run-name: Quiet subscription fa65ac80 diagnostic-only instrumentation
+
+on:
+  push:
+    branches: [diagnostic/quiet-subscription-fa65ac80-instrumented-20261108]
+    paths: [.github/workflows/quiet-instrumented.yml]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: quiet-instrumented-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  instrumented:
+    if: github.run_attempt == 1
+    runs-on: macos-latest
+    timeout-minutes: 35
+    env:
+      NBGV_SetCloudBuildVersionVars: 'false'
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        ref: ${{ github.sha }}
+        path: definition
+        persist-credentials: false
+    - uses: actions/checkout@v7
+      with:
+        ref: fa65ac80dcb8bff2a1789569f482a64ba928a4f9
+        path: source
+        fetch-depth: 0
+        persist-credentials: false
+    - name: Verify completed predecessors and instrument exact source
+      working-directory: source
+      shell: pwsh
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        $ErrorActionPreference = 'Stop'
+        foreach ($id in @(42499377576, 42513134265)) {
+          $run = gh api "repos/OPCFoundation/UA-.NETStandard/actions/runs/$id" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $run.status -ne 'completed') { throw "Predecessor $id has not finished." }
+        }
+        $head = git rev-parse HEAD
+        if ($LASTEXITCODE -ne 0 -or $head -ne 'fa65ac80dcb8bff2a1789569f482a64ba928a4f9') {
+          throw 'Unexpected source.'
+        }
+        New-Item -ItemType Directory -Force evidence | Out-Null
+        python ../definition/diagnostics/instrument.py 2>&1 | Tee-Object evidence/instrumentation-hashes.txt
+        if ($LASTEXITCODE -ne 0) { throw 'Guarded instrumentation failed.' }
+        git diff --binary --output=evidence/instrumentation.patch
+        if ($LASTEXITCODE -ne 0) { throw 'Could not record instrumentation.' }
+        $expected = @(
+          'src/Opc.Ua.Client/Subscription/SubscriptionManager.cs',
+          'src/Opc.Ua.Core/Stack/Server/EndpointBase.cs',
+          'src/Opc.Ua.Server/Subscription/SubscriptionManager.cs',
+          'tests/Opc.Ua.Subscriptions.Tests/AcknowledgementProviderIntegrationTests.cs',
+          'tests/Opc.Ua.Test.Common/Logging.cs')
+        $actual = @(git diff --name-only)
+        if ($LASTEXITCODE -ne 0 -or (Compare-Object ($expected | Sort-Object) ($actual | Sort-Object))) {
+          throw 'Unexpected instrumentation scope.'
+        }
+        [ordered]@{
+          kind = 'diagnostic-only instrumented source; not unchanged reproduction or a fix'
+          source = $head
+          definition = $env:GITHUB_SHA
+          unchangedRun = 42513134265
+          run = $env:GITHUB_RUN_ID
+          attempt = $env:GITHUB_RUN_ATTEMPT
+          patchSha256 = (Get-FileHash evidence/instrumentation.patch -Algorithm SHA256).Hash
+          platform = [System.Runtime.InteropServices.RuntimeInformation]::OSDescription
+          repeats = 3
+          scope = 'Full acknowledgement fixture context, including both quiet controls'
+          stopwatchFrequency = [System.Diagnostics.Stopwatch]::Frequency
+        } | ConvertTo-Json | Set-Content evidence/provenance.json
+    - uses: actions/setup-dotnet@v6
+      with:
+        global-json-file: source/global.json
+    - name: Build diagnostic-only subscription tests
+      working-directory: source
+      shell: pwsh
+      run: |
+        dotnet --info 2>&1 | Tee-Object evidence/dotnet-info.txt
+        dotnet build tests/Opc.Ua.Subscriptions.Tests/Opc.Ua.Subscriptions.Tests.csproj --configuration Release --framework net10.0 /p:CustomTestTarget=net10.0 /p:CollectCoverage=true 2>&1 | Tee-Object evidence/build.txt
+        if ($LASTEXITCODE -ne 0) { throw "Build failed: $LASTEXITCODE" }
+    - name: Run three instrumented acknowledgement fixtures
+      timeout-minutes: 12
+      working-directory: source
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $project = 'tests/Opc.Ua.Subscriptions.Tests/Opc.Ua.Subscriptions.Tests.csproj'
+        $filter = 'FullyQualifiedName~Opc.Ua.Subscriptions.Tests.AcknowledgementProviderIntegrationTests'
+        $failed = $false
+        $results = @()
+        for ($i = 1; $i -le 3; $i++) {
+          $dir = "evidence/instrumented-$i"
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          $arguments = @('test', $project, '--no-build', '--configuration', 'Release',
+            '--framework', 'net10.0', '/p:CustomTestTarget=net10.0', '--filter', $filter,
+            '--logger', 'trx;LogFileName=control.trx', '--logger', 'console;verbosity=detailed',
+            '--results-directory', $dir, '--blame-hang-timeout', '2m',
+            '--blame-hang-dump-type', 'mini', '--blame-crash',
+            '/p:CollectCoverage=true', '--collect:XPlat Code Coverage',
+            '--settings', './tests/coverlet.runsettings.xml')
+          "dotnet $($arguments -join ' ')" | Set-Content "$dir/command.txt"
+          & dotnet @arguments 2>&1 | Tee-Object "$dir/console.txt"
+          $exit = $LASTEXITCODE
+          $trxPath = "$dir/control.trx"
+          if (!(Test-Path $trxPath)) { throw "Missing results for repetition $i, exit $exit." }
+          [xml]$trx = Get-Content -Raw $trxPath
+          $cases = @($trx.TestRun.Results.UnitTestResult)
+          $quiet = @($cases | Where-Object { $_.testName -like 'QuietSubscriptionAcknowledgementSurvivesConcurrentPublishesAsync(*)' })
+          if ($cases.Count -ne 10 -or $quiet.Count -ne 2) {
+            throw "Unexpected selected cases in repetition $i."
+          }
+          $results += [ordered]@{ repetition = $i; exit = $exit; cases = @($cases | ForEach-Object {
+            [ordered]@{ name = $_.testName; outcome = $_.outcome; duration = $_.duration }
+          }) }
+          $results | ConvertTo-Json -Depth 6 | Set-Content evidence/results.json
+          if (@($cases | Where-Object { $_.outcome -ne 'Passed' }).Count -ne 0 -or $exit -ne 0) {
+            $failed = $true
+            break
+          }
+        }
+        if ($failed) { throw 'An instrumented control failed; see retained evidence.' }
+    - uses: actions/upload-artifact@v7
+      if: always()
+      with:
+        name: quiet-control-instrumented-${{ github.run_id }}
+        path: source/evidence
+        if-no-files-found: error
+        retention-days: 7
