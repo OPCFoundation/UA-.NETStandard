@@ -373,6 +373,7 @@ namespace Opc.Ua.Scales.Tests
                 ScaleKind.Checkweigher,
                 builder => builder
                     .WithIdentification(ScalesNodeManagerTests.Identity("NominalWrite"))
+                    .WithWeighingRange(new WeighingRangeDefinition(0, 100, 1, 1))
                     .WithProductionOutput()
                     .WithProductionPreset(preset => preset.AllowSelection()
                         .AddProduct("A", new LocalizedText("A"), (_, state) =>
@@ -407,12 +408,23 @@ namespace Opc.Ua.Scales.Tests
                     }
                 }.ToArrayOf(), CancellationToken.None);
                 Assert.That(written.Results[0], Is.EqualTo(StatusCodes.Good));
+                Assert.That(product.NominalWeight!.WrappedValue.GetDouble(), Is.EqualTo(nominal));
+                Assert.That(product.NominalWeight.StatusCode, Is.EqualTo(quality));
+                Assert.That(statistic.GiveAway!.WrappedValue.GetDouble(), Is.EqualTo(expected),
+                    $"After nominal {nominal} ({quality}).");
                 ReadResponse read = await m_session.ReadAsync(null, 0, TimestampsToReturn.Both, new[]
                 {
                     new ReadValueId { NodeId = statistic.GiveAway!.NodeId, AttributeId = Attributes.Value }
                 }.ToArrayOf(), CancellationToken.None);
-                Assert.That(read.Results[0].WrappedValue.GetDouble(), Is.EqualTo(expected));
                 Assert.That(read.Results[0].StatusCode, Is.EqualTo(quality));
+                if (StatusCode.IsBad(quality))
+                {
+                    Assert.That(read.Results[0].WrappedValue.IsNull, Is.True);
+                }
+                else
+                {
+                    Assert.That(read.Results[0].WrappedValue.GetDouble(), Is.EqualTo(expected));
+                }
                 Assert.That(statistic.TotalPackagesAccepted!.ItemCount!.WrappedValue.GetUInt64(), Is.EqualTo(2UL));
             }
         }
