@@ -78,6 +78,28 @@ namespace Opc.Ua.Scales.Server.Runtime
         }
 
         /// <summary>
+        /// Tracks a correlated publication without retaining rejection in completed captured contexts.
+        /// </summary>
+        private sealed class CorrelatedPublicationScope
+        {
+            /// <summary>
+            /// Gets whether the publication is still active.
+            /// </summary>
+            internal bool IsActive => Volatile.Read(ref m_active) != 0;
+
+            /// <summary>
+            /// Releases the restriction in every context that captured the publication.
+            /// </summary>
+            internal void Deactivate()
+            {
+                Volatile.Write(ref m_active, 0);
+            }
+
+            /// <summary>The shared publication activity marker.</summary>
+            private int m_active = 1;
+        }
+
+        /// <summary>
         /// Creates the admission coordinator and its node-bound write executor.
         /// </summary>
         internal ScaleWriteGate()
@@ -98,6 +120,54 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// Gets the executor that runs a node's complete Value-write operation.
         /// </summary>
         internal NodeWriteOperationExecutor NodeWriteExecutor { get; }
+
+        /// <summary>
+        /// Gets whether the current flow is publishing a correlated statistic reset.
+        /// </summary>
+        internal bool IsCorrelatedPublicationActive => m_correlatedPublication.Value?.IsActive == true;
+
+        /// <summary>
+        /// Publishes a correlated update while rejecting writes nested in its notification flow.
+        /// </summary>
+        /// <param name="operation">The publication already running under asynchronous admission.</param>
+        internal async ValueTask ExecuteCorrelatedPublicationAsync(Func<ValueTask> operation)
+        {
+            if (operation == null)
+            {
+                throw new ArgumentNullException(nameof(operation));
+            }
+            CorrelatedPublicationScope? previous = m_correlatedPublication.Value;
+            var scope = new CorrelatedPublicationScope();
+            m_correlatedPublication.Value = scope;
+            try
+            {
+                await operation().ConfigureAwait(false);
+            }
+            finally
+            {
+                scope.Deactivate();
+                m_correlatedPublication.Value = previous;
+            }
+        }
+
+        /// <summary>
+        /// Rejects a nested service write during correlated publication without waiting for its own caller.
+        /// </summary>
+        /// <param name="operation">The complete service write.</param>
+        /// <param name="cancellationToken">Cancels before admission.</param>
+        internal ValueTask<ServiceResult> ExecuteAsynchronouslyAsync(
+            Func<CancellationToken, ValueTask<ServiceResult>> operation,
+            CancellationToken cancellationToken)
+        {
+            if (operation == null)
+            {
+                throw new ArgumentNullException(nameof(operation));
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            return IsCorrelatedPublicationActive
+                ? new ValueTask<ServiceResult>(CorrelatedPublicationRejected())
+                : ExecuteAsynchronouslyAsync<ServiceResult>(operation, cancellationToken);
+        }
 
         /// <summary>
         /// Runs synchronous work unless an asynchronous operation owns the writer.
@@ -249,6 +319,11 @@ namespace Opc.Ua.Scales.Server.Runtime
             {
                 throw new ArgumentNullException(nameof(operation));
             }
+            cancellationToken.ThrowIfCancellationRequested();
+            if (IsCorrelatedPublicationActive)
+            {
+                throw new ServiceResultException(CorrelatedPublicationRejected());
+            }
             await EnterAsynchronousAsync(cancellationToken).ConfigureAwait(false);
             try
             {
@@ -276,6 +351,11 @@ namespace Opc.Ua.Scales.Server.Runtime
             if (operation == null)
             {
                 throw new ArgumentNullException(nameof(operation));
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            if (IsCorrelatedPublicationActive)
+            {
+                throw new ServiceResultException(CorrelatedPublicationRejected());
             }
 
             await EnterNotificationsAsync(cancellationToken).ConfigureAwait(false);
@@ -529,6 +609,15 @@ namespace Opc.Ua.Scales.Server.Runtime
             m_notificationScope.Value is { IsActive: true } scope && ReferenceEquals(scope.Gate, this);
 
         /// <summary>
+        /// Rejects a write that cannot run until the correlated notification invoking it returns.
+        /// </summary>
+        private static ServiceResult CorrelatedPublicationRejected()
+        {
+            return ServiceResult.Create(
+                StatusCodes.BadInvalidState, "A product statistic reset is delivering notifications in this flow.");
+        }
+
+        /// <summary>
         /// Creates the explicit status used when synchronous work overlaps an asynchronous operation.
         /// </summary>
         private static ServiceResultException WriteInProgress()
@@ -547,6 +636,11 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// Carries notification reentrancy through awaited callbacks.
         /// </summary>
         private readonly AsyncLocal<NotificationScope?> m_notificationScope = new();
+
+        /// <summary>
+        /// Limits correlated-publication rejection to its own active asynchronous flow.
+        /// </summary>
+        private readonly AsyncLocal<CorrelatedPublicationScope?> m_correlatedPublication = new();
 
         /// <summary>
         /// The asynchronous waiter signal, when the writer is occupied.

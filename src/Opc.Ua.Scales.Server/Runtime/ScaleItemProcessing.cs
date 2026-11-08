@@ -202,6 +202,7 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <summary>
         /// Starts a new statistic period for the selected product without resetting acquisition sequence admission.
         /// Scale-wide production totals and other products retain their periods.
+        /// Nested reports or resets from this reset's notification flow return BadInvalidState.
         /// </summary>
         /// <param name="resetCondition">The application's reason for starting a new period.</param>
         /// <param name="cancellationToken">Cancels before the reset is admitted.</param>
@@ -209,6 +210,11 @@ namespace Opc.Ua.Scales.Server.Runtime
             string? resetCondition = null,
             CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (m_owner.WriteOperations.IsCorrelatedPublicationActive)
+            {
+                return new ValueTask<ServiceResult>(ResetInProgress());
+            }
             return m_owner.ExecuteWriteOperationAsync(async ct =>
             {
                 ct.ThrowIfCancellationRequested();
@@ -221,8 +227,11 @@ namespace Opc.Ua.Scales.Server.Runtime
                         StatusCodes.BadInvalidState,
                         "A product statistic period requires a selected catchweigher product.");
                 }
-                ScaleStatistics recorder = await RecorderAsync(statistic).ConfigureAwait(false);
-                await recorder.ResetAsync(resetCondition).ConfigureAwait(false);
+                await m_owner.WriteOperations.ExecuteCorrelatedPublicationAsync(async () =>
+                {
+                    ScaleStatistics recorder = await RecorderAsync(statistic).ConfigureAwait(false);
+                    await recorder.ResetAsync(resetCondition).ConfigureAwait(false);
+                }).ConfigureAwait(false);
                 return ServiceResult.Good;
             }, cancellationToken);
         }
@@ -246,6 +255,10 @@ namespace Opc.Ua.Scales.Server.Runtime
                 cancellationToken, m_owner.Services.StoppingToken);
             cancellationToken = pending.Token;
             cancellationToken.ThrowIfCancellationRequested();
+            if (m_owner.WriteOperations.IsCorrelatedPublicationActive)
+            {
+                return ResetInProgress();
+            }
             ServiceResult validation = ScaleItemPublisher.Normalize(
                 report, m_owner.Unit, out ScaleItemReport normalized);
             if (ServiceResult.IsBad(validation))
@@ -391,6 +404,15 @@ namespace Opc.Ua.Scales.Server.Runtime
                 await recorder.InitializeAsync().ConfigureAwait(false);
             }
             return recorder;
+        }
+
+        /// <summary>
+        /// Rejects a nested operation that would wait for the reset notification invoking it.
+        /// </summary>
+        private static ServiceResult ResetInProgress()
+        {
+            return ServiceResult.Create(
+                StatusCodes.BadInvalidState, "A product statistic reset is delivering notifications in this flow.");
         }
 
         /// <summary>

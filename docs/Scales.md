@@ -618,6 +618,16 @@ does not change: a period reset does not permit replaying a previously accepted
 report. `StartTime` and `ResetCondition` describe the new period; this
 application-facing operation does not add a UA Reset method.
 
+A reset callback cannot start another same-scale write before the remaining
+counters have been reset. Reports, period resets, scalar registration, and
+native Value writes invoked from that active reset flow return
+`BadInvalidState` instead of waiting for the reset that invoked them.
+Other asynchronous operations through the same admission path raise
+`ServiceResultException` with that status. Unrelated asynchronous writers
+remain queued and run after reset delivery completes. This restriction
+belongs to the new correlated reset operation; it does not change the
+separate enum-notification nested-write contract.
+
 On a checkweigher, `GiveAway` is `(acceptedMean - currentNominalWeight) *
 acceptedCount` (§7.19.3), including negative results. The accepted-weight
 accumulator does not depend on the optional `TotalPackagesAccepted` node.

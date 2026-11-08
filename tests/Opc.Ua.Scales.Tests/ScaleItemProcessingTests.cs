@@ -731,6 +731,7 @@ namespace Opc.Ua.Scales.Tests
             };
             Task<ServiceResult>? reset = null;
             Task<ServiceResult>? acquisition = null;
+            Task<ServiceResult>? externalWrite = null;
             try
             {
                 reset = controller.ResetProductStatisticsAsync("overlap").AsTask();
@@ -739,9 +740,14 @@ namespace Opc.Ua.Scales.Tests
                 Assert.That(preset.Switch("B").StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
                 acquisition = controller.ReportAsync(Item(4)).AsTask();
                 Assert.That(acquisition.IsCompleted, Is.False);
+                externalWrite = zone.UpperLimit!.WriteAttributeAsync(
+                    m_fixture.Context, Attributes.Value, default, new DataValue(Variant.From(9.5))).AsTask();
+                Assert.That(externalWrite.IsCompleted, Is.False);
                 release.TrySetResult(true);
                 AssertGood(await reset.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false));
                 AssertGood(await acquisition.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false));
+                AssertGood(await externalWrite.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false));
+                Assert.That(zone.UpperLimit.WrappedValue.GetDouble(), Is.EqualTo(9.5));
                 Assert.That(Count(first.Statistic), Is.EqualTo(1UL));
                 Assert.That(counter.ItemCount.WrappedValue.GetUInt64(), Is.EqualTo(1UL));
                 Assert.That(Count(second.Statistic!), Is.EqualTo(1UL));
@@ -760,8 +766,59 @@ namespace Opc.Ua.Scales.Tests
                 {
                     _ = await acquisition.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
                 }
+                if (externalWrite != null)
+                {
+                    _ = await externalWrite.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+                }
                 counter.ItemCount.OnStateChangedAsync = null;
             }
+        }
+
+        /// <summary>
+        /// Reset callbacks receive an explicit rejection instead of waiting for their own retained acquisition owner.
+        /// </summary>
+        [Test]
+        public async Task CatchweigherProductResetRejectsNestedReportsWithoutDeadlockAsync()
+        {
+            ScaleHandle scale = await CreateAsync(ScaleKind.Catchweigher).ConfigureAwait(false);
+            CatchweigherController controller = scale.Catchweigher!;
+            StatisticState statistic = scale.ProductionPreset!.ActiveProduct!.Statistic!;
+            ZoneState zone = scale.ProductionPreset.AddZone(
+                (CatchweigherProductState)scale.ProductionPreset.ActiveProduct!,
+                new LocalizedText("Bounded"), 0, 10, ScaleUnits.Kilogram);
+            AssertGood(await controller.ReportAsync(Item(1)).ConfigureAwait(false));
+            BaseVariableState count = statistic.TotalPackages!.ItemCount!;
+            bool called = false;
+            count.OnStateChangedAsync = async (_, _, _, _) =>
+            {
+                called = true;
+                using var bounded = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+                ServiceResult report = await controller.ReportAsync(Item(2), bounded.Token).ConfigureAwait(false);
+                Assert.That(report.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                ServiceResult reset = await controller.ResetProductStatisticsAsync(
+                    "nested", bounded.Token).ConfigureAwait(false);
+                Assert.That(reset.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                ServiceResult registered = await scale.RegisterWeightAsync(bounded.Token).ConfigureAwait(false);
+                Assert.That(registered.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                ServiceResult write = await zone.UpperLimit!.WriteAttributeAsync(
+                    m_fixture.Context, Attributes.Value, default, new DataValue(Variant.From(20.0)), bounded.Token)
+                    .ConfigureAwait(false);
+                Assert.That(write.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                Assert.That(zone.UpperLimit.WrappedValue.GetDouble(), Is.EqualTo(10));
+            };
+            try
+            {
+                AssertGood(await controller.ResetProductStatisticsAsync("period").AsTask()
+                    .WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false));
+                Assert.That(called, Is.True);
+                Assert.That(Count(statistic), Is.Zero);
+            }
+            finally
+            {
+                count.OnStateChangedAsync = null;
+            }
+            AssertGood(await controller.ReportAsync(Item(2)).ConfigureAwait(false));
+            Assert.That(Count(statistic), Is.EqualTo(1UL));
         }
 
         /// <summary>

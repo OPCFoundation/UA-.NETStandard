@@ -697,6 +697,18 @@ namespace Opc.Ua.Scales.Server.Runtime
             return m_writeGate.ExecuteAsynchronouslyAsync(operation, cancellationToken);
         }
 
+        /// <summary>
+        /// Runs a service operation with explicit rejection for a nested correlated-reset notification.
+        /// </summary>
+        /// <param name="operation">The complete asynchronous service operation.</param>
+        /// <param name="cancellationToken">Cancels before admission.</param>
+        internal ValueTask<ServiceResult> ExecuteWriteOperationAsync(
+            Func<CancellationToken, ValueTask<ServiceResult>> operation,
+            CancellationToken cancellationToken)
+        {
+            return m_writeGate.ExecuteAsynchronouslyAsync(operation, cancellationToken);
+        }
+
         internal ScaleWeighingEngine Engine => m_engine;
 
         /// <summary>
