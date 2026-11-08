@@ -174,22 +174,47 @@ namespace Opc.Ua
         /// <summary>
         /// Checks manager lifetime before validation opens stores and captures this ownership period.
         /// </summary>
-        private int CaptureValidationCertificateManagerGeneration()
+        /// <param name="manager">The manager owned by the captured generation.</param>
+        private int CaptureValidationCertificateManagerGeneration(out ICertificateManager? manager)
         {
             lock (m_certificateManagerLock)
             {
-                if (m_certificateManager is CertificateManager manager)
+                if (m_certificateManager is CertificateManager concreteManager)
                 {
                     lock (s_certificateManagerLifetimeLock)
                     {
-                        GetCertificateManagerLifetime(manager).ThrowIfDisposing();
+                        GetCertificateManagerLifetime(concreteManager).ThrowIfDisposing();
                     }
                 }
                 if (m_certificateManagerLeaseReleased)
                 {
                     throw new ObjectDisposedException(nameof(ApplicationConfiguration));
                 }
+                manager = m_certificateManager;
                 return m_certificateManagerGeneration;
+            }
+        }
+
+        /// <summary>
+        /// Rejects a retired validation without substituting the current manager for its captured identity.
+        /// </summary>
+        /// <param name="generation">The ownership generation captured before validation.</param>
+        /// <param name="manager">The manager captured or initialized for that generation.</param>
+        private void RequireValidationCertificateManagerGeneration(int generation, ICertificateManager? manager)
+        {
+            lock (m_certificateManagerLock)
+            {
+                if (manager is CertificateManager concreteManager)
+                {
+                    lock (s_certificateManagerLifetimeLock)
+                    {
+                        GetCertificateManagerLifetime(concreteManager).ThrowIfDisposing();
+                    }
+                }
+                if (m_certificateManagerLeaseReleased || generation != m_certificateManagerGeneration)
+                {
+                    throw new ObjectDisposedException(nameof(ApplicationConfiguration));
+                }
             }
         }
 
@@ -1099,7 +1124,8 @@ namespace Opc.Ua
             ApplicationType applicationType,
             CancellationToken ct = default)
         {
-            int certificateManagerGeneration = CaptureValidationCertificateManagerGeneration();
+            int certificateManagerGeneration =
+                CaptureValidationCertificateManagerGeneration(out ICertificateManager? validationManager);
             if (string.IsNullOrEmpty(ApplicationName))
             {
                 throw ServiceResultException.ConfigurationError(
@@ -1112,7 +1138,16 @@ namespace Opc.Ua
                     "SecurityConfiguration must be specified.");
             }
 
-            SecurityConfiguration.Validate(m_telemetry, CertificateManager as ICertificateStoreResolver);
+            try
+            {
+                SecurityConfiguration.Validate(m_telemetry, validationManager as ICertificateStoreResolver);
+            }
+            catch (ServiceResultException)
+            {
+                RequireValidationCertificateManagerGeneration(certificateManagerGeneration, validationManager);
+                throw;
+            }
+            RequireValidationCertificateManagerGeneration(certificateManagerGeneration, validationManager);
 
             string GenerateDefaultUri()
             {
@@ -1185,20 +1220,22 @@ namespace Opc.Ua
             // server bring-up) can rely on it being non-null even when
             // the configuration was not built through ApplicationInstance.
             // Attached applications share ownership, including assignments made after attachment.
-            await GetOrCreateCertificateManagerAsync(
+            ICertificateManager initializedManager = await GetOrCreateCertificateManagerAsync(
                 m_telemetry, validationCreated: true, expectedGeneration: certificateManagerGeneration)
                 .ConfigureAwait(false);
+            RequireValidationCertificateManagerGeneration(certificateManagerGeneration, initializedManager);
 
             // Eagerly load configured application certificates into the
             // manager registry so consumers (Session, validator, etc) can
             // resolve them via ICertificateRegistry without depending on
             // the legacy CertificateIdentifier cache.
-            if (CertificateManager is CertificateManager certManager)
+            if (initializedManager is CertificateManager certManager)
             {
                 await certManager
                     .LoadApplicationCertificatesAsync(SecurityConfiguration, ApplicationUri, ct)
                     .ConfigureAwait(false);
             }
+            RequireValidationCertificateManagerGeneration(certificateManagerGeneration, initializedManager);
         }
 
         /// <summary>
