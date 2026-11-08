@@ -37,6 +37,7 @@ using NUnit.Framework;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.RuntimeNodeSet;
+using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Bindings;
 using Opc.Ua.WotCon.Server.Materialization;
 
@@ -161,6 +162,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             var host = new LifecycleWotProjectionHost(lifecycle.Object);
             IOperationContext? context = hasContext ? Mock.Of<IOperationContext>() : null;
 
+            Assert.That(lifecycle.Object, Is.Not.InstanceOf<INodeManagerPublicationLifecycle>());
+            Assert.That(host.SupportedAtomicities.Span.ToArray(), Is.EqualTo(new[]
+            {
+                WoTAtomicityEnum.PerResource,
+                WoTAtomicityEnum.PerGroup,
+                WoTAtomicityEnum.PerClosure,
+                WoTAtomicityEnum.PerRegistry
+            }));
             await using (IWotProjectionPublication publication = await host.CapturePublication()
                 .BeginAsync(context, cancellation.Token).ConfigureAwait(false))
             {
@@ -168,9 +177,30 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
 
             lifecycle.VerifyAll();
+            lifecycle.VerifyGet(owner => owner.SupportsPublicationIsolation, Times.Exactly(2));
+            lifecycle.Verify(owner => owner.CapturePublication(), Times.Once);
+            lifecycle.VerifyNoOtherCalls();
             capture.Verify(owner => owner.BeginAsync(cancellation.Token), Times.Once);
             invocation.Verify(owner => owner.DisposeAsync(), Times.Once);
             invocation.VerifyAll();
+        }
+
+        /// <summary>
+        /// Does not advertise or capture publication isolation when the lifecycle does not support it.
+        /// </summary>
+        [Test]
+        public void PublicationCaptureRequiresLifecycleIsolation()
+        {
+            var lifecycle = new Mock<INodeManagerLifecycle>(MockBehavior.Strict);
+            lifecycle.SetupGet(owner => owner.SupportsPublicationIsolation).Returns(false);
+            var host = new LifecycleWotProjectionHost(lifecycle.Object);
+
+            Assert.That(lifecycle.Object, Is.Not.InstanceOf<INodeManagerPublicationLifecycle>());
+            Assert.That(host.SupportedAtomicities.IsEmpty, Is.True);
+            Assert.That(() => host.CapturePublication(), Throws.TypeOf<NotSupportedException>());
+            lifecycle.VerifyGet(owner => owner.SupportsPublicationIsolation, Times.Exactly(2));
+            lifecycle.Verify(owner => owner.CapturePublication(), Times.Never);
+            lifecycle.VerifyNoOtherCalls();
         }
 
         /// <summary>
