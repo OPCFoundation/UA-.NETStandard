@@ -317,7 +317,11 @@ namespace Opc.Ua.Gds.Server.Onboarding
             try
             {
                 Checkpoint checkpoint = await LoadAsync(cancellationToken).ConfigureAwait(false);
-                await RequireRegistrarAsync(checkpoint, peer, cancellationToken).ConfigureAwait(false);
+                // The accepted SecurityAdmin session may belong to an engineering client, not an outbound registrar.
+                if (checkpoint.Stage != ProvisionableDeviceSecurityStage.Installed || m_stateRequiresRecovery)
+                {
+                    await RequireRegistrarAsync(checkpoint, peer, cancellationToken).ConfigureAwait(false);
+                }
                 if (checkpoint.Stage is ProvisionableDeviceSecurityStage.Configuring or
                     ProvisionableDeviceSecurityStage.Installing)
                 {

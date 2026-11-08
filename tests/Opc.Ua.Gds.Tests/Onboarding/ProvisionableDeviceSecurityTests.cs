@@ -589,11 +589,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
-        /// Installed devices authorize the authenticated caller against installed trust, not candidate metadata.
+        /// An accepted SecurityAdmin session can publish candidates independently of outbound registrar trust.
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
-        public async Task InstalledRegistrarPublicationRequiresCurrentPeerTrust(bool trusted)
+        public async Task InstalledAdminCandidatePublicationDoesNotRequireRegistrarTrust(bool trusted)
         {
             using var security = Create();
             await security.InstallAsync(Context(m_firstRegistrar), Credentials()).ConfigureAwait(false);
@@ -619,16 +619,22 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 .Returns(default(ValueTask));
             Certificate caller = trusted ? m_firstRegistrar : m_otherRegistrar;
 
+            await security.ReplaceRegistrarEndpointsAsync(
+                Context(caller), store.Object, [Registrar("urn:other:registrar")]).ConfigureAwait(false);
+
+            Assert.That(published.Count, Is.EqualTo(1));
+            Assert.That(published[0].ApplicationUri, Is.EqualTo("urn:other:registrar"));
+            m_certificates.Verify(value => value.ValidateAsync(
+                It.IsAny<CertificateCollection>(), TrustListIdentifier.Peers,
+                It.IsAny<ValidationOptions>(), It.IsAny<CancellationToken>()), Times.Never);
             if (trusted)
             {
-                await security.ReplaceRegistrarEndpointsAsync(
-                    Context(caller), store.Object, [Registrar("urn:other:registrar")]).ConfigureAwait(false);
+                await security.RequireInstalledRegistrarAsync(Context(caller)).ConfigureAwait(false);
             }
             else
             {
                 ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await security.ReplaceRegistrarEndpointsAsync(
-                        Context(caller), store.Object, [Registrar("urn:other:registrar")]).ConfigureAwait(false));
+                    await security.RequireInstalledRegistrarAsync(Context(caller)).ConfigureAwait(false));
                 Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUntrusted));
             }
 
@@ -645,19 +651,44 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 m_otherRegistrar, new ServiceResult(StatusCodes.BadCertificateUntrusted)), Is.False);
             Assert.That(await security.GetStageAsync().ConfigureAwait(false),
                 Is.EqualTo(ProvisionableDeviceSecurityStage.Installed));
-            if (trusted)
-            {
-                Assert.That(published.Count, Is.EqualTo(1));
-                Assert.That(published[0].ApplicationUri, Is.EqualTo("urn:other:registrar"));
-            }
             m_certificates.Verify(value => value.ValidateAsync(
                 It.IsAny<CertificateCollection>(), TrustListIdentifier.Peers,
                 It.IsAny<ValidationOptions>(), It.IsAny<CancellationToken>()), Times.Once);
             store.Verify(value => value.ReplaceAsync(
                 It.IsAny<ArrayOf<ApplicationDescription>>(), It.IsAny<CancellationToken>()),
-                Times.Exactly(trusted ? 1 : 0));
+                Times.Once);
             m_installer.Verify(value => value.InstallAsync(
                 It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
+        /// Administrative publication cannot bypass an unresolved recovery failure merely because state is Installed.
+        /// </summary>
+        [Test]
+        public async Task InstalledAdminCandidatePublicationRequiresCompletedRecovery()
+        {
+            using var security = Create();
+            await security.InstallAsync(Context(m_firstRegistrar), Credentials()).ConfigureAwait(false);
+            m_certificates.Setup(value => value.ValidateAsync(
+                    It.IsAny<CertificateCollection>(), TrustListIdentifier.Peers,
+                    It.IsAny<ValidationOptions>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new IOException("Installed security recovery could not verify credentials."));
+            await Assert.ThrowsAsync<IOException>(
+                () => security.RecoverAsync().AsTask()).ConfigureAwait(false);
+            m_certificates.Invocations.Clear();
+            var store = new Mock<IProvisionableDeviceRegistrarStore>(MockBehavior.Strict);
+
+            ServiceResultException? rejected = await Assert.ThrowsAsync<ServiceResultException>(() =>
+                security.ReplaceRegistrarEndpointsAsync(
+                    Context(m_otherRegistrar), store.Object, [Registrar()]).AsTask()).ConfigureAwait(false);
+
+            Assert.That(rejected!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Installed));
+            store.VerifyNoOtherCalls();
+            m_certificates.Verify(value => value.ValidateAsync(
+                It.IsAny<CertificateCollection>(), TrustListIdentifier.Peers,
+                It.IsAny<ValidationOptions>(), It.IsAny<CancellationToken>()), Times.Never);
         }
 
         /// <summary>

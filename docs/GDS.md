@@ -1369,8 +1369,12 @@ provider and gates `SetRegistrarEndpoints` through it. The built-in security
 provider lets an authenticated `SecurityAdmin` replace candidates while the
 device is unconfigured without recording the caller as the registrar. It
 serializes the replacement with security transitions, rejects it while
-configuration or installation is pending, and checks installed trust after
-installation. A custom provider can implement
+configuration, installation, or reset is pending, and rejects it when security
+recovery has not completed. After installation, the engineering client's
+accepted encrypted session and `SecurityAdmin` role authorize candidate
+publication; its certificate need not belong to the DCA's registrar TrustList.
+The DCA's outbound registrar connections still require that TrustList, and
+candidate metadata does not grant trust. A custom provider can implement
 `IProvisionableDeviceRegistrarConfiguration` to coordinate replacements with
 its own security state. Otherwise, the runtime calls its existing
 `RequireRegistrarAsync` authorization method before storing candidates.
