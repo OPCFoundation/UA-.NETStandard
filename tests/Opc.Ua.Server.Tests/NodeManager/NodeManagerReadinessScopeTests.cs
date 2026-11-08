@@ -89,6 +89,107 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Disposing the middle scope severs a grandchild from its active grandparent.
+        /// </summary>
+        [Test]
+        public void DisposedMiddleScopeSeversGrandchildAuthorityFromGrandparent()
+        {
+            ExecutionContext caller = ExecutionContext.Capture() ??
+                throw new InvalidOperationException("The caller execution context was not captured.");
+            ExecutionContext.Run(caller.CreateCopy(), _ =>
+            {
+                IServerInternal grandparentServer = Mock.Of<IServerInternal>();
+                NodeManagerGeneration grandparentGeneration = CreateGeneration();
+                IServerInternal middleServer = Mock.Of<IServerInternal>();
+                NodeManagerGeneration middleGeneration = CreateGeneration();
+                IServerInternal grandchildServer = Mock.Of<IServerInternal>();
+                NodeManagerGeneration grandchildGeneration = CreateGeneration();
+                using var grandparent = new NodeManagerReadinessScope(grandparentServer, grandparentGeneration);
+                using var middle = new NodeManagerReadinessScope(middleServer, middleGeneration);
+                using var grandchild = new NodeManagerReadinessScope(grandchildServer, grandchildGeneration);
+
+                AssertNestedAuthority(
+                    grandparentServer,
+                    grandparentGeneration,
+                    middleServer,
+                    middleGeneration,
+                    grandchildServer,
+                    grandchildGeneration,
+                    grandparent: true,
+                    middle: true,
+                    grandchild: true);
+
+                middle.Dispose();
+                AssertNestedAuthority(
+                    grandparentServer,
+                    grandparentGeneration,
+                    middleServer,
+                    middleGeneration,
+                    grandchildServer,
+                    grandchildGeneration,
+                    grandparent: false,
+                    middle: false,
+                    grandchild: true);
+
+                grandchild.Dispose();
+                AssertNestedAuthority(
+                    grandparentServer,
+                    grandparentGeneration,
+                    middleServer,
+                    middleGeneration,
+                    grandchildServer,
+                    grandchildGeneration,
+                    grandparent: false,
+                    middle: false,
+                    grandchild: false);
+            }, null);
+        }
+
+        /// <summary>
+        /// A captured grandchild context does not retain a disposed middle scope's parent.
+        /// </summary>
+        [Test]
+        public void CapturedGrandchildDoesNotRetainGrandparentAcrossDisposedMiddleScope()
+        {
+            (
+                ExecutionContext Context,
+                WeakReference[] Owners,
+                WeakReference ParentScope,
+                NodeManagerReadinessScope[] Scopes) capture = CaptureGrandchildAcrossDisposedMiddleScope();
+            CollectReadinessOwners();
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(capture.ParentScope.IsAlive, Is.False, "Grandparent scope");
+                Assert.That(capture.Owners[0].IsAlive, Is.False, "Grandparent server");
+                Assert.That(capture.Owners[1].IsAlive, Is.False, "Grandparent generation");
+                Assert.That(capture.Owners[2].IsAlive, Is.False, "Grandparent manager");
+                Assert.That(capture.Owners[3].IsAlive, Is.False, "Disposed middle server");
+                Assert.That(capture.Owners[4].IsAlive, Is.False, "Disposed middle generation");
+                Assert.That(capture.Owners[5].IsAlive, Is.False, "Disposed middle manager");
+                Assert.That(capture.Owners[6].IsAlive, Is.True, "Active grandchild server");
+                Assert.That(capture.Owners[7].IsAlive, Is.True, "Active grandchild generation");
+                Assert.That(capture.Owners[8].IsAlive, Is.True, "Active grandchild manager");
+            }
+
+            if (capture.Owners[6].Target is IServerInternal server &&
+                capture.Owners[7].Target is NodeManagerGeneration generation)
+            {
+                ExecutionContext.Run(capture.Context.CreateCopy(), _ =>
+                {
+                    Assert.That(NodeManagerReadinessScope.Allows(server), Is.True);
+                    Assert.That(NodeManagerReadinessScope.Allows(generation), Is.True);
+                }, null);
+            }
+            else
+            {
+                Assert.Fail("The active grandchild no longer owns its server or generation.");
+            }
+            GC.KeepAlive(capture.Context);
+            GC.KeepAlive(capture.Scopes);
+        }
+
+        /// <summary>
         /// Disposing an outer initializer leaves the nested initializer's authority active.
         /// </summary>
         [TestCase(false)]
@@ -422,6 +523,60 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Captures a grandchild context after disposing its middle scope and parent.
+        /// </summary>
+        /// <returns>The retained context, weak owner references and active scope handles.</returns>
+        /// <exception cref="InvalidOperationException">An execution context was not captured.</exception>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static (
+            ExecutionContext Context,
+            WeakReference[] Owners,
+            WeakReference ParentScope,
+            NodeManagerReadinessScope[] Scopes) CaptureGrandchildAcrossDisposedMiddleScope()
+        {
+            ExecutionContext caller = ExecutionContext.Capture() ??
+                throw new InvalidOperationException("The caller execution context was not captured.");
+            (
+                ExecutionContext Context,
+                WeakReference[] Owners,
+                WeakReference ParentScope,
+                NodeManagerReadinessScope[] Scopes)? capture = null;
+            ExecutionContext.Run(caller.CreateCopy(), _ =>
+            {
+                IServerInternal grandparentServer = Mock.Of<IServerInternal>();
+                NodeManagerGeneration grandparentGeneration = CreateGeneration();
+                IServerInternal middleServer = Mock.Of<IServerInternal>();
+                NodeManagerGeneration middleGeneration = CreateGeneration();
+                IServerInternal grandchildServer = Mock.Of<IServerInternal>();
+                NodeManagerGeneration grandchildGeneration = CreateGeneration();
+                var grandparent = new NodeManagerReadinessScope(grandparentServer, grandparentGeneration);
+                var middle = new NodeManagerReadinessScope(middleServer, middleGeneration);
+                var grandchild = new NodeManagerReadinessScope(grandchildServer, grandchildGeneration);
+                ExecutionContext context = ExecutionContext.Capture() ??
+                    throw new InvalidOperationException("The grandchild execution context was not captured.");
+                WeakReference[] owners =
+                [
+                    new WeakReference(grandparentServer),
+                    new WeakReference(grandparentGeneration),
+                    new WeakReference(grandparentGeneration.NodeManager),
+                    new WeakReference(middleServer),
+                    new WeakReference(middleGeneration),
+                    new WeakReference(middleGeneration.NodeManager),
+                    new WeakReference(grandchildServer),
+                    new WeakReference(grandchildGeneration),
+                    new WeakReference(grandchildGeneration.NodeManager)
+                ];
+                var parentScope = new WeakReference(grandparent);
+                NodeManagerReadinessScope[] scopes = [middle, grandchild];
+                middle.Dispose();
+                grandparent.Dispose();
+                capture = (context, owners, parentScope, scopes);
+            }, null);
+            return capture ??
+                throw new InvalidOperationException("The grandchild execution context was not captured.");
+        }
+
+        /// <summary>
         /// Creates weak references to the owners of both initializers.
         /// </summary>
         /// <param name="parentServer">The parent initializer's server.</param>
@@ -444,6 +599,54 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 new WeakReference(childGeneration),
                 new WeakReference(childGeneration.NodeManager)
             ];
+        }
+
+        /// <summary>
+        /// Collects owners after the scope-capture helper has returned.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void CollectReadinessOwners()
+        {
+            for (int attempt = 0; attempt < 3; attempt++)
+            {
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+            }
+        }
+
+        /// <summary>
+        /// Checks the authority of each exact server and generation in a nested scope chain.
+        /// </summary>
+        /// <param name="grandparentServer">The grandparent initializer's server.</param>
+        /// <param name="grandparentGeneration">The grandparent initializer's generation.</param>
+        /// <param name="middleServer">The middle initializer's server.</param>
+        /// <param name="middleGeneration">The middle initializer's generation.</param>
+        /// <param name="grandchildServer">The grandchild initializer's server.</param>
+        /// <param name="grandchildGeneration">The grandchild initializer's generation.</param>
+        /// <param name="grandparent">Whether grandparent authority is available.</param>
+        /// <param name="middle">Whether middle-scope authority is available.</param>
+        /// <param name="grandchild">Whether grandchild authority is available.</param>
+        private static void AssertNestedAuthority(
+            IServerInternal grandparentServer,
+            NodeManagerGeneration grandparentGeneration,
+            IServerInternal middleServer,
+            NodeManagerGeneration middleGeneration,
+            IServerInternal grandchildServer,
+            NodeManagerGeneration grandchildGeneration,
+            bool grandparent,
+            bool middle,
+            bool grandchild)
+        {
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(NodeManagerReadinessScope.Allows(grandparentServer), Is.EqualTo(grandparent));
+                Assert.That(NodeManagerReadinessScope.Allows(grandparentGeneration), Is.EqualTo(grandparent));
+                Assert.That(NodeManagerReadinessScope.Allows(middleServer), Is.EqualTo(middle));
+                Assert.That(NodeManagerReadinessScope.Allows(middleGeneration), Is.EqualTo(middle));
+                Assert.That(NodeManagerReadinessScope.Allows(grandchildServer), Is.EqualTo(grandchild));
+                Assert.That(NodeManagerReadinessScope.Allows(grandchildGeneration), Is.EqualTo(grandchild));
+            }
         }
 
         /// <summary>
