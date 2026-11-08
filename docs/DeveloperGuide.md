@@ -278,8 +278,10 @@ dotnet test tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj -f net48 -p:Cus
 ```
 
 Use fully qualified fixture or method names to select a narrower regression.
-The `Server` and `NodeManagerLifecycle` categories include both component and
-hosted lifecycle tests.
+The `Server` and `NodeManagerLifecycle` categories select some component and
+hosted tests, but not every component fixture has those categories. Use the
+fixture selection above when all listed components are needed. Check the
+selected and executed case names before accepting a filtered run.
 
 `NodeManagerLifecycleTests` creates a unique fixture PKI below the process
 temporary directory and deletes it during fixture teardown. For `net48` on
