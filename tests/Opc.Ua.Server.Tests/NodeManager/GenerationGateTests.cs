@@ -200,6 +200,295 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// A raw monitored binding created on either side of publication uses the published facade's gate.
+        /// </summary>
+        /// <param name="bindBeforePublication">
+        /// Whether the raw resource is bound before the facade is published.
+        /// </param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ForwardedResourceBindingUsesPublishedGate(bool bindBeforePublication)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var resource = new Mock<IAsyncNodeManager>();
+                resource.SetupGet(value => value.NamespaceUris).Returns(Array.Empty<string>());
+                resource.SetupGet(value => value.SyncNodeManager).Returns(new SyncNodeManagerAdapter(resource.Object));
+                var facade = new Mock<IAsyncNodeManager>();
+                facade.SetupGet(value => value.NamespaceUris).Returns(Array.Empty<string>());
+                facade.SetupGet(value => value.SyncNodeManager).Returns(new SyncNodeManagerAdapter(resource.Object));
+                var unpublished = new Mock<IAsyncNodeManager>();
+                unpublished.SetupGet(value => value.SyncNodeManager)
+                    .Returns(new SyncNodeManagerAdapter(resource.Object));
+                NodeManagerRoutingTable routing = CreateRoutedMaster(server, out MasterNodeManager master);
+                using (master)
+                {
+                    var root = new BaseObjectState(null) { NodeId = new NodeId(42, 1) };
+                    MonitoredNode2? monitored = bindBeforePublication
+                        ? new MonitoredNode2(resource.Object, server.Object, root)
+                        : null;
+                    try
+                    {
+                        if (monitored is not null)
+                        {
+                            bool admitted = MasterNodeManager.TryCaptureItemEmission(
+                                server.Object, resource.Object, monitored.Generation, out var standalone);
+                            standalone?.Dispose();
+                            Assert.That(admitted, Is.True);
+                        }
+
+                        routing.Add(facade.Object, [1]);
+                        NodeManagerGeneration published = routing.Revision.GetGeneration(facade.Object);
+                        monitored ??= new MonitoredNode2(resource.Object, server.Object, root);
+                        Assert.That(monitored.Generation.TryGetGeneration(out NodeManagerGeneration? bound), Is.True);
+
+                        bool eventAccepted = MasterNodeManager.TryCaptureSourceEmission(
+                            server.Object, resource.Object, out var notification, monitored.Generation);
+                        bool itemAccepted = MasterNodeManager.TryCaptureItemEmission(
+                            server.Object, resource.Object, monitored.Generation, out var item);
+                        bool unboundAccepted = MasterNodeManager.TryCaptureSourceEmission(
+                            server.Object, resource.Object, out var unbound);
+                        bool otherAccepted = MasterNodeManager.TryCaptureSourceEmission(
+                            server.Object, unpublished.Object, out var other, published.Reference);
+                        MasterNodeManager.NotificationDispatchLease[] dispatches =
+                            master.GetAllEventNotificationDispatches([facade.Object]);
+                        try
+                        {
+                            Assert.Multiple(() =>
+                            {
+                                Assert.That(bound!.Gate, Is.SameAs(published.Gate));
+                                Assert.That(eventAccepted, Is.True);
+                                Assert.That(notification?.Generation.Gate, Is.SameAs(published.Gate));
+                                Assert.That(itemAccepted, Is.True);
+                                Assert.That(item?.Generation.Gate, Is.SameAs(published.Gate));
+                                Assert.That(unboundAccepted, Is.True);
+                                Assert.That(unbound?.Generation.Gate, Is.SameAs(published.Gate));
+                                Assert.That(otherAccepted, Is.False);
+                                Assert.That(other.HasValue, Is.False);
+                                Assert.That(dispatches.Select(dispatch => dispatch.NodeManager),
+                                    Is.EqualTo(new[] { facade.Object }));
+                            });
+                        }
+                        finally
+                        {
+                            notification?.Dispose();
+                            item?.Dispose();
+                            unbound?.Dispose();
+                            other?.Dispose();
+                            MasterNodeManager.DisposeNotificationDispatches(dispatches);
+                        }
+                    }
+                    finally
+                    {
+                        monitored?.Dispose();
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// A raw resource requires exactly one visible forwarding facade for a new emission.
+        /// </summary>
+        /// <param name="hidden">Whether the first facade is hidden.</param>
+        /// <param name="ambiguous">Whether a second visible facade has the same resource.</param>
+        /// <param name="expected">Whether the raw source is admitted.</param>
+        [TestCase(false, false, true)]
+        [TestCase(true, false, false)]
+        [TestCase(false, true, false)]
+        public void ForwardedResourceRequiresOneVisibleFacade(bool hidden, bool ambiguous, bool expected)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var resource = new Mock<IAsyncNodeManager>();
+                resource.SetupGet(value => value.NamespaceUris).Returns(Array.Empty<string>());
+                resource.SetupGet(value => value.SyncNodeManager).Returns(new SyncNodeManagerAdapter(resource.Object));
+                var first = new Mock<IAsyncNodeManager>();
+                first.SetupGet(value => value.NamespaceUris).Returns(Array.Empty<string>());
+                first.SetupGet(value => value.SyncNodeManager).Returns(new SyncNodeManagerAdapter(resource.Object));
+                var second = new Mock<IAsyncNodeManager>();
+                second.SetupGet(value => value.NamespaceUris).Returns(Array.Empty<string>());
+                second.SetupGet(value => value.SyncNodeManager).Returns(new SyncNodeManagerAdapter(resource.Object));
+                NodeManagerGeneration bound = NodeManagerGenerationRegistry.GetOrCreate(resource.Object);
+                NodeManagerRoutingTable routing = CreateRoutedMaster(server, out MasterNodeManager master);
+                using (master)
+                {
+                    routing.Add(first.Object, [1], visible: !hidden);
+                    if (ambiguous)
+                    {
+                        routing.Add(second.Object, [1]);
+                    }
+                    bool eventAccepted = MasterNodeManager.TryCaptureSourceEmission(
+                        server.Object, resource.Object, out var notification, bound.Reference);
+                    bool unboundAccepted = MasterNodeManager.TryCaptureSourceEmission(
+                        server.Object, resource.Object, out var unbound);
+                    try
+                    {
+                        Assert.Multiple(() =>
+                        {
+                            Assert.That(eventAccepted, Is.EqualTo(expected));
+                            Assert.That(unboundAccepted, Is.EqualTo(expected));
+                            if (expected)
+                            {
+                                NodeManagerGeneration published = routing.Revision.GetGeneration(first.Object);
+                                Assert.That(notification?.Generation.Gate, Is.SameAs(published.Gate));
+                                Assert.That(unbound?.Generation.Gate, Is.SameAs(published.Gate));
+                            }
+                            else
+                            {
+                                Assert.That(notification.HasValue, Is.False);
+                                Assert.That(unbound.HasValue, Is.False);
+                            }
+                        });
+                    }
+                    finally
+                    {
+                        notification?.Dispose();
+                        unbound?.Dispose();
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Concurrent raw binding and facade reservation converge on one resource lifetime.
+        /// </summary>
+        [Test]
+        public async Task RawBindingRacingForwardedPublicationSharesOneGateAsync()
+        {
+            for (int iteration = 0; iteration < 24; iteration++)
+            {
+                var resource = new Mock<IAsyncNodeManager>();
+                resource.SetupGet(value => value.NamespaceUris).Returns(Array.Empty<string>());
+                resource.SetupGet(value => value.SyncNodeManager).Returns(new SyncNodeManagerAdapter(resource.Object));
+                var facade = new Mock<IAsyncNodeManager>();
+                facade.SetupGet(value => value.NamespaceUris).Returns(Array.Empty<string>());
+                facade.SetupGet(value => value.SyncNodeManager).Returns(new SyncNodeManagerAdapter(resource.Object));
+                var routing = new NodeManagerRoutingTable();
+                var start = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                Task<NodeManagerGeneration> binding = Task.Run(async () =>
+                {
+                    await start.Task.ConfigureAwait(false);
+                    return NodeManagerGenerationRegistry.GetOrCreate(resource.Object);
+                });
+                Task<NodeManagerGeneration> publication = Task.Run(async () =>
+                {
+                    await start.Task.ConfigureAwait(false);
+                    routing.Add(facade.Object, [1]);
+                    return routing.Revision.GetGeneration(facade.Object);
+                });
+                start.SetResult(true);
+                await Task.WhenAll(binding, publication).WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+
+                NodeManagerGeneration bound = await binding.ConfigureAwait(false);
+                NodeManagerGeneration published = await publication.ConfigureAwait(false);
+                Assert.That(bound.Gate, Is.SameAs(published.Gate), $"Iteration {iteration}.");
+            }
+        }
+
+        /// <summary>
+        /// A notification queued before publication retains the published gate through removal or replacement.
+        /// </summary>
+        /// <param name="replace">Whether a new owner replaces the facade instead of removing it.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task QueuedForwardedEventDelaysRetirementAsync(bool replace)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var resource = new Mock<IAsyncNodeManager>();
+                resource.SetupGet(value => value.NamespaceUris).Returns(Array.Empty<string>());
+                resource.SetupGet(value => value.SyncNodeManager).Returns(new SyncNodeManagerAdapter(resource.Object));
+                resource.Setup(value => value.ValidateEventRolePermissionsAsync(
+                        It.IsAny<IEventMonitoredItem>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
+                    .Returns(async (IEventMonitoredItem _, IFilterTarget _, CancellationToken ct) =>
+                    {
+                        entered.TrySetResult(true);
+                        await release.Task.WaitAsync(ct).ConfigureAwait(false);
+                        return ServiceResult.Good;
+                    });
+                var facade = new Mock<IAsyncNodeManager>();
+                facade.SetupGet(value => value.NamespaceUris).Returns(Array.Empty<string>());
+                facade.SetupGet(value => value.SyncNodeManager).Returns(new SyncNodeManagerAdapter(resource.Object));
+                NodeManagerRoutingTable routing = CreateRoutedMaster(server, out MasterNodeManager master);
+                using (master)
+                {
+                    var root = new BaseObjectState(null) { NodeId = new NodeId(43, 1) };
+                    using var monitored = new MonitoredNode2(resource.Object, server.Object, root);
+                    var item = new Mock<IEventMonitoredItem>();
+                    item.SetupGet(value => value.Id).Returns(1);
+                    monitored.Add(item.Object);
+                    IFilterTarget before = Mock.Of<IFilterTarget>();
+                    IFilterTarget after = Mock.Of<IFilterTarget>();
+                    Task? drain = null;
+                    try
+                    {
+                        await monitored.OnReportEventAsync(server.Object.DefaultSystemContext, root, before)
+                            .ConfigureAwait(false);
+                        await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                        routing.Add(facade.Object, [1]);
+                        NodeManagerGeneration published = routing.Revision.GetGeneration(facade.Object);
+                        Assert.That(monitored.Generation.TryGetGeneration(out NodeManagerGeneration? bound), Is.True);
+                        Assert.That(bound!.Gate, Is.SameAs(published.Gate));
+
+                        if (replace)
+                        {
+                            var replacementResource = new Mock<IAsyncNodeManager>();
+                            replacementResource.SetupGet(value => value.NamespaceUris).Returns(Array.Empty<string>());
+                            replacementResource.SetupGet(value => value.SyncNodeManager)
+                                .Returns(new SyncNodeManagerAdapter(replacementResource.Object));
+                            var replacement = new Mock<IAsyncNodeManager>();
+                            replacement.SetupGet(value => value.NamespaceUris).Returns(Array.Empty<string>());
+                            replacement.SetupGet(value => value.SyncNodeManager)
+                                .Returns(new SyncNodeManagerAdapter(replacementResource.Object));
+                            routing.Replace(facade.Object, replacement.Object, [1]);
+                            NodeManagerGeneration current = routing.Revision.GetGeneration(replacement.Object);
+                            Assert.That(current.Gate, Is.Not.SameAs(published.Gate));
+                            bool currentAccepted = MasterNodeManager.TryCaptureSourceEmission(
+                                server.Object, replacementResource.Object, out var currentAdmission);
+                            try
+                            {
+                                Assert.That(currentAccepted, Is.True);
+                                Assert.That(currentAdmission?.Generation.Gate, Is.SameAs(current.Gate));
+                            }
+                            finally
+                            {
+                                currentAdmission?.Dispose();
+                            }
+                        }
+                        else
+                        {
+                            routing.Remove(facade.Object);
+                        }
+
+                        drain = published.Gate.WaitForDrainAsync();
+                        Assert.That(drain.IsCompleted, Is.False);
+                        bool accepted = MasterNodeManager.TryCaptureSourceEmission(
+                            server.Object, resource.Object, out var rejected, monitored.Generation);
+                        rejected?.Dispose();
+                        Assert.That(accepted, Is.False);
+                        await monitored.OnReportEventAsync(server.Object.DefaultSystemContext, root, after)
+                            .ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        release.TrySetResult(true);
+                    }
+                    await monitored.WaitForPendingNotificationsAsync(CancellationToken.None)
+                        .AsTask().WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    Assert.That(drain, Is.Not.Null);
+                    await drain!.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    item.Verify(value => value.QueueEvent(before), Times.Once);
+                    item.Verify(value => value.QueueEvent(after), Times.Never);
+                }
+            }
+        }
+
+        /// <summary>
         /// A hidden adapter authorizes neither itself nor its raw source, even while its generation is live.
         /// </summary>
         [Test]

@@ -1979,13 +1979,6 @@ namespace Opc.Ua.PackML.Tests
                 }, ct).ConfigureAwait(false);
                 Assert.That(committed.CleanupFailure, Is.Null);
                 Assert.That(committed.Issues.Count, Is.Zero);
-                if (facade == ManagerFacadeKind.Forwarded)
-                {
-                    // Forwarded published-event delivery depends on the source routing in #5011.
-                    await RetirePackMLManagerAsync(lifecycle, committed, ct).ConfigureAwait(false);
-                    return;
-                }
-
                 Assert.That(lateRoot.AreEventsMonitored, Is.True);
                 Assert.That(candidate.Server.ServerObject.ReferenceExists(
                     Ua.ReferenceTypeIds.HasNotifier, false, lateRoot.NodeId), Is.True);
