@@ -180,14 +180,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Assert.That(parent.IsActive, Is.False);
                 }
                 await child.DisposeAsync().ConfigureAwait(false);
-                Assert.That(current.Value is { IsActive: true }, Is.False);
+                Assert.That(current.Value?.IsActive, Is.Not.True);
             }
             finally
             {
                 await child.DisposeAsync().ConfigureAwait(false);
                 await parent.DisposeAsync().ConfigureAwait(false);
             }
-            Assert.That(current.Value is { IsActive: true }, Is.False);
+            Assert.That(current.Value?.IsActive, Is.Not.True);
         }
     }
 }

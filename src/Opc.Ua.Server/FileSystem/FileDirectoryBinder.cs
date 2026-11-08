@@ -219,6 +219,14 @@ namespace Opc.Ua.Server.FileSystem
             public bool UsesVirtualDirectoryBrowsing => false;
 
             /// <inheritdoc/>
+            /// <remarks>
+            /// Materialized bindings never create virtual directory cursors, so there is nothing to join.
+            /// </remarks>
+            public void TrackCursorCleanup(Task cleanup)
+            {
+            }
+
+            /// <inheritdoc/>
             public async ValueTask RefreshAsync(CancellationToken cancellationToken = default)
             {
                 if (!TryTrackOperation())

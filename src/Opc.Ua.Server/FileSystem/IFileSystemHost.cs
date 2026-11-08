@@ -65,6 +65,13 @@ namespace Opc.Ua.Server.FileSystem
         bool UsesVirtualDirectoryBrowsing { get; }
 
         /// <summary>
+        /// Retains an asynchronous directory cursor cleanup started by synchronous browser disposal,
+        /// so the host can join it before tearing down the resources the cursor uses.
+        /// </summary>
+        /// <param name="cleanup">The cleanup task; it records its own failures and never faults.</param>
+        void TrackCursorCleanup(Task cleanup);
+
+        /// <summary>
         /// Returns the NodeId that represents a directory at the given
         /// provider path.
         /// </summary>

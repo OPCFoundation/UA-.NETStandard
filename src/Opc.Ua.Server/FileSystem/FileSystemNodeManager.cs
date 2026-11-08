@@ -114,6 +114,15 @@ namespace Opc.Ua.Server.FileSystem
 
         bool IFileSystemHost.UsesVirtualDirectoryBrowsing => true;
 
+        void IFileSystemHost.TrackCursorCleanup(Task cleanup)
+        {
+            lock (m_lock)
+            {
+                m_cursorCleanups.RemoveAll(static pending => pending.IsCompleted);
+                m_cursorCleanups.Add(cleanup);
+            }
+        }
+
         string IFileSystemHost.CombineProviderPath(string parent, string name)
         {
             return CombineProviderPath(parent, name);
@@ -246,8 +255,14 @@ namespace Opc.Ua.Server.FileSystem
         }
 
         /// <inheritdoc/>
-        public override ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
+        /// <remarks>
+        /// Directory cursors released by synchronous browser disposal finish their provider cleanup
+        /// asynchronously; deletion joins them first so the provider is not torn down underneath them.
+        /// </remarks>
+        public override async ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
         {
+            await WaitForCursorCleanupsAsync().ConfigureAwait(false);
+
             FileHandle[] handles;
             lock (m_lock)
             {
@@ -260,7 +275,7 @@ namespace Opc.Ua.Server.FileSystem
                 handle.Dispose();
             }
 
-            return base.DeleteAddressSpaceAsync(cancellationToken);
+            await base.DeleteAddressSpaceAsync(cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -308,6 +323,36 @@ namespace Opc.Ua.Server.FileSystem
                 }
             }
             base.Dispose(disposing);
+        }
+
+        /// <inheritdoc/>
+        protected override async ValueTask DisposeAsyncCore()
+        {
+            await WaitForCursorCleanupsAsync().ConfigureAwait(false);
+            await base.DisposeAsyncCore().ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Waits until every tracked asynchronous directory cursor cleanup has completed,
+        /// including cleanups started while an earlier batch was being awaited.
+        /// </summary>
+        private async ValueTask WaitForCursorCleanupsAsync()
+        {
+            while (true)
+            {
+                Task[] pending;
+                lock (m_lock)
+                {
+                    m_cursorCleanups.RemoveAll(static cleanup => cleanup.IsCompleted);
+                    if (m_cursorCleanups.Count == 0)
+                    {
+                        return;
+                    }
+                    pending = [.. m_cursorCleanups];
+                }
+
+                await Task.WhenAll(pending).ConfigureAwait(false);
+            }
         }
 
         /// <inheritdoc/>
@@ -632,6 +677,7 @@ namespace Opc.Ua.Server.FileSystem
         /// Path identities of the Delete and Move mutations currently running; guarded by m_lock.
         /// </summary>
         private readonly List<string> m_mutations = [];
+        private readonly List<Task> m_cursorCleanups = [];
         private readonly Lock m_lock = new();
         private bool m_fileSystemDisposed;
 

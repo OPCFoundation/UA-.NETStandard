@@ -174,7 +174,11 @@ namespace Opc.Ua.Server.FileSystem
                     }
                     m_disposed = true;
                 }
-                _ = DisposeCursorAsync();
+                Task cleanup = DisposeCursorAsync();
+                if (!cleanup.IsCompleted)
+                {
+                    m_host.TrackCursorCleanup(cleanup);
+                }
             }
             base.Dispose(disposing);
         }
