@@ -156,37 +156,44 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 WeakReference[] Owners,
                 WeakReference ParentScope,
                 NodeManagerReadinessScope[] Scopes) capture = CaptureGrandchildAcrossDisposedMiddleScope();
-            CollectReadinessOwners();
-
-            using (Assert.EnterMultipleScope())
+            try
             {
-                Assert.That(capture.ParentScope.IsAlive, Is.False, "Grandparent scope");
-                Assert.That(capture.Owners[0].IsAlive, Is.False, "Grandparent server");
-                Assert.That(capture.Owners[1].IsAlive, Is.False, "Grandparent generation");
-                Assert.That(capture.Owners[2].IsAlive, Is.False, "Grandparent manager");
-                Assert.That(capture.Owners[3].IsAlive, Is.False, "Disposed middle server");
-                Assert.That(capture.Owners[4].IsAlive, Is.False, "Disposed middle generation");
-                Assert.That(capture.Owners[5].IsAlive, Is.False, "Disposed middle manager");
-                Assert.That(capture.Owners[6].IsAlive, Is.True, "Active grandchild server");
-                Assert.That(capture.Owners[7].IsAlive, Is.True, "Active grandchild generation");
-                Assert.That(capture.Owners[8].IsAlive, Is.True, "Active grandchild manager");
-            }
+                CollectReadinessOwners();
 
-            if (capture.Owners[6].Target is IServerInternal server &&
-                capture.Owners[7].Target is NodeManagerGeneration generation)
-            {
-                ExecutionContext.Run(capture.Context.CreateCopy(), _ =>
+                using (Assert.EnterMultipleScope())
                 {
-                    Assert.That(NodeManagerReadinessScope.Allows(server), Is.True);
-                    Assert.That(NodeManagerReadinessScope.Allows(generation), Is.True);
-                }, null);
+                    Assert.That(capture.ParentScope.IsAlive, Is.False, "Grandparent scope");
+                    Assert.That(capture.Owners[0].IsAlive, Is.False, "Grandparent server");
+                    Assert.That(capture.Owners[1].IsAlive, Is.False, "Grandparent generation");
+                    Assert.That(capture.Owners[2].IsAlive, Is.False, "Grandparent manager");
+                    Assert.That(capture.Owners[3].IsAlive, Is.False, "Disposed middle server");
+                    Assert.That(capture.Owners[4].IsAlive, Is.False, "Disposed middle generation");
+                    Assert.That(capture.Owners[5].IsAlive, Is.False, "Disposed middle manager");
+                    Assert.That(capture.Owners[6].IsAlive, Is.True, "Active grandchild server");
+                    Assert.That(capture.Owners[7].IsAlive, Is.True, "Active grandchild generation");
+                    Assert.That(capture.Owners[8].IsAlive, Is.True, "Active grandchild manager");
+                }
+
+                if (capture.Owners[6].Target is IServerInternal server &&
+                    capture.Owners[7].Target is NodeManagerGeneration generation)
+                {
+                    ExecutionContext.Run(capture.Context.CreateCopy(), _ =>
+                    {
+                        Assert.That(NodeManagerReadinessScope.Allows(server), Is.True);
+                        Assert.That(NodeManagerReadinessScope.Allows(generation), Is.True);
+                    }, null);
+                }
+                else
+                {
+                    Assert.Fail("The active grandchild no longer owns its server or generation.");
+                }
             }
-            else
+            finally
             {
-                Assert.Fail("The active grandchild no longer owns its server or generation.");
+                capture.Scopes[1].Dispose();
+                GC.KeepAlive(capture.Context);
+                GC.KeepAlive(capture.Scopes);
             }
-            GC.KeepAlive(capture.Context);
-            GC.KeepAlive(capture.Scopes);
         }
 
         /// <summary>
