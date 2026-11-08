@@ -85,6 +85,12 @@ namespace Opc.Ua.AMB.Client
     /// </summary>
     public sealed record AssetAlarmRecord
     {
+        /// <summary>
+        /// Gets original historical select-clause values, including nulls and per-field StatusCodes.
+        /// Empty for a live or current-value record.
+        /// </summary>
+        public ArrayOf<Variant> HistoryFields { get; init; }
+
         /// <summary>Gets the condition, which is also the NodeId of the alarm.</summary>
         public NodeId ConditionId { get; init; }
 
@@ -156,6 +162,12 @@ namespace Opc.Ua.AMB.Client
     /// </summary>
     public sealed record MaintenanceActivityRecord
     {
+        /// <summary>
+        /// Gets original historical select-clause values, including nulls and per-field StatusCodes.
+        /// Empty for a live or current-value record.
+        /// </summary>
+        public ArrayOf<Variant> HistoryFields { get; init; }
+
         /// <summary>Gets the condition.</summary>
         public NodeId ConditionId { get; init; }
 
@@ -274,6 +286,13 @@ namespace Opc.Ua.AMB.Client
     /// <param name="Path">The browse names from the entry point, separated by a slash.</param>
     /// <param name="Assets">The objects the location contains.</param>
     public sealed record AssetLocationNode(NodeId NodeId, string Path, ArrayOf<ExpandedNodeId> Assets);
+
+    /// <summary>
+    /// An asset identified in the server that owns it.
+    /// </summary>
+    /// <param name="ServerUri">The owning server's application URI.</param>
+    /// <param name="NodeId">The asset's identifier, expressed with its namespace URI.</param>
+    public sealed record AssetSubAssetReference(string ServerUri, ExpandedNodeId NodeId);
 
     /// <summary>
     /// A location that contains an asset.

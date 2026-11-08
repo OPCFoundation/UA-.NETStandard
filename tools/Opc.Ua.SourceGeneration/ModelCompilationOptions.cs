@@ -71,6 +71,12 @@ namespace Opc.Ua.SourceGeneration
         public bool OmitObjectTypeProxies { get; set; }
 
         /// <summary>
+        /// Emits typed WithStatusAsync proxy variants when the
+        /// ModelSourceGeneratorObjectTypeProxyMethodsWithStatus MSBuild property is true.
+        /// </summary>
+        public bool ObjectTypeProxyMethodsWithStatus { get; set; }
+
+        /// <summary>
         /// Optional override for the C# namespace used by classes emitted
         /// by the <see cref="ObjectTypeProxyGenerator"/>. By default
         /// proxies are emitted into the model's own namespace (i.e. the
@@ -221,6 +227,8 @@ namespace Opc.Ua.SourceGeneration
                 UseAllowSubtypes = provider.GlobalOptions.GetBool(nameof(UseAllowSubtypes)),
                 OmitObjectTypeProxies = provider.GlobalOptions.GetBool(
                     nameof(OmitObjectTypeProxies)),
+                ObjectTypeProxyMethodsWithStatus = provider.GlobalOptions.GetBool(
+                    nameof(ObjectTypeProxyMethodsWithStatus)),
                 ObjectTypeProxyNamespace = provider.GlobalOptions.GetString(
                     nameof(ObjectTypeProxyNamespace)),
                 UseTypeDefinitionModellingRules = provider.GlobalOptions.GetBool(

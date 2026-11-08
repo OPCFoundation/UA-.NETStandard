@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server.Historian
 {
@@ -119,6 +120,82 @@ namespace Opc.Ua.Server.Historian
         /// <c>HistoryServerCapabilities</c> flags.
         /// </summary>
         ArrayOf<IHistorianProvider> Providers { get; }
+    }
+
+    /// <summary>
+    /// Optional atomic node-binding ownership for components that attach and detach capture.
+    /// </summary>
+    public interface IHistorianNodeBindingRegistry
+    {
+        /// <summary>
+        /// Adds an exact-node binding only when none exists. Namespace and default
+        /// fallbacks do not prevent registration. Disposing the returned binding removes
+        /// only that registration, never a later replacement, even for the same provider.
+        /// Provider lifetime remains owned by the registry until server shutdown.
+        /// </summary>
+        /// <param name="nodeId">The node to bind.</param>
+        /// <param name="provider">The provider to register.</param>
+        /// <param name="binding">The owned registration, or null when an exact binding already exists.</param>
+        /// <returns>Whether a new binding was installed.</returns>
+        bool TryRegisterForNode(NodeId nodeId, IHistorianProvider provider, out IDisposable? binding);
+
+        /// <summary>
+        /// Adds an exact-node binding and snapshots its historian access attributes.
+        /// Disposal restores those attributes only while this registration is still current,
+        /// before a competing replacement can become current. A replacement keeps its own
+        /// attributes. Register a replacement before setting its access attributes.
+        /// </summary>
+        /// <param name="node">The variable or notifier whose historian attributes belong to this binding.</param>
+        /// <param name="provider">The provider to register.</param>
+        /// <param name="binding">The owned registration, or null when an exact binding already exists.</param>
+        /// <returns>Whether a new binding was installed.</returns>
+        bool TryRegisterForNode(NodeState node, IHistorianProvider provider, out IDisposable? binding);
+    }
+
+    /// <summary>
+    /// A scoped registration that can release its owned metadata before allowing another owner to bind the node.
+    /// </summary>
+    public interface IHistorianNodeBinding : IDisposable
+    {
+        /// <summary>
+        /// Runs cleanup only while this registration still owns the node, then restores attributes and removes
+        /// the binding even if cleanup fails. A pending replacement completes before ownership is evaluated;
+        /// a committed successor is preserved. Conflicting mutations are rejected while cleanup runs.
+        /// Repeated calls share the first cleanup operation and its completed outcome.
+        /// A subsequent synchronous Dispose does not cancel or bypass a started asynchronous release.
+        /// </summary>
+        /// <param name="cleanup">Releases metadata and owner-index entries created by this registration.</param>
+        /// <returns>The completed release, including any cleanup failure.</returns>
+        ValueTask ReleaseAsync(Func<ValueTask> cleanup);
+    }
+
+    /// <summary>
+    /// Optional typed replacement transactions for registries that support detachable node bindings.
+    /// </summary>
+    public interface IHistorianNodeReplacementRegistry
+    {
+        /// <summary>
+        /// Reserves a replacement before the caller changes historian attributes.
+        /// Resolution and provider advertisement retain the committed provider until Commit succeeds.
+        /// Conflicting replacement or registration changes must be rejected before mutation while reserved.
+        /// Disposing without committing restores the prior mapping, registration identity and attributes,
+        /// unless that prior owner disposed during setup, in which case it must not be restored.
+        /// </summary>
+        /// <param name="node">The variable whose historian binding is being replaced.</param>
+        /// <param name="provider">The replacement provider.</param>
+        /// <returns>The reservation to commit after setup succeeds or dispose to undo failed setup.</returns>
+        IHistorianNodeReplacement BeginNodeReplacement(BaseVariableState node, IHistorianProvider provider);
+    }
+
+    /// <summary>
+    /// One prepared historian replacement with explicit success and rollback.
+    /// </summary>
+    public interface IHistorianNodeReplacement : IDisposable
+    {
+        /// <summary>
+        /// Retains the prepared replacement after setup succeeds. Subsequent disposal does not undo it.
+        /// </summary>
+        void Commit();
     }
 
     /// <summary>

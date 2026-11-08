@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using Opc.Ua.Server.Historian;
 
 namespace Opc.Ua.AMB.Server
 {
@@ -201,10 +202,27 @@ namespace Opc.Ua.AMB.Server
         public string? StateDirectory { get; set; }
 
         /// <summary>
+        /// Gets or sets opt-in history for registered assets. Null preserves live-only behavior.
+        /// Per-asset configuration takes precedence.
+        /// </summary>
+        public AssetHistoryOptions? History { get; set; }
+
+        /// <summary>
         /// Gets or sets the namespace URIs the manager registers in addition
         /// to the AMB model and the instance namespace.
         /// </summary>
         public ArrayOf<string> AdditionalNamespaceUris { get; set; }
+
+        /// <summary>
+        /// Captures asset history through an existing historian provider.
+        /// </summary>
+        public AmbServerOptions UseHistory(
+            IHistorianProvider provider,
+            AssetHistoryKinds kinds = AssetHistoryKinds.All)
+        {
+            History = new AssetHistoryOptions(provider, kinds);
+            return this;
+        }
 
         /// <summary>
         /// Persists the configuration clients write to assets below a
