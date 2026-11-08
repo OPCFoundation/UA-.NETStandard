@@ -344,9 +344,12 @@ The default server does not create file-system, alias-name, or runtime-NodeSet m
 
 Without it, a node manager can only be added at startup. Changing the address space of a running
 server would then require a restart, which drops every session and subscription. The provider
-lets an application add, reload or remove a manager while the server runs, and it coordinates the
-hand-over so that in-flight requests, MonitoredItems and Browse continuation points are neither
-lost nor served by a half-disposed manager. If you do not need runtime changes, register the
+lets an application add, reload or remove a manager while the server runs. An admitted request
+can finish against its captured generation before that generation is disposed. The selected
+reload transition and item compatibility determine whether MonitoredItems migrate or are
+invalidated. A saved Browse continuation cannot resume after its recorded generation's gate
+closes; the client must start a new Browse to continue. See [Reload modes](#reload-modes) and
+[Continuation points](#continuation-points). If you do not need runtime changes, register the
 manager as a normal startup factory and ignore the provider.
 
 ## Core vs custom node managers
