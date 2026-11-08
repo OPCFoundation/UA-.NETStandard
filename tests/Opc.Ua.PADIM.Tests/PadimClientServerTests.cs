@@ -183,32 +183,49 @@ namespace Opc.Ua.PADIM.Tests
                 }
 
                 var managed = (ManagedSession)session;
-                var semanticReady = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-                await using (IAsyncEnumerator<EventNotification> semanticEvents = managed.DefaultStreaming
+                PadimValueBinding binding = measurementBinding ??
+                    throw new InvalidOperationException("The hosted measurement binding was not configured.");
+                Range changedRange = new(high: 150, low: -40);
+                var rangeEventReady = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                await using (IAsyncEnumerator<EventNotification> rangeEvents = managed.DefaultStreaming
                     .SubscribeEventsWhenReadyAsync(
                         ObjectIds.Server,
                         SemanticChangeEventFilter(),
                         _ =>
                         {
-                            semanticReady.TrySetResult(true);
+                            rangeEventReady.TrySetResult(true);
                             return ValueTask.CompletedTask;
                         },
                         ct: timeout.Token)
                     .GetAsyncEnumerator(timeout.Token))
                 {
-                    await semanticReady.Task.WaitAsync(timeout.Token);
-                    PadimValueBinding binding = measurementBinding ??
-                        throw new InvalidOperationException("The hosted measurement binding was not configured.");
-                    Range changedRange = new(high: 150, low: -40);
+                    await rangeEventReady.Task.WaitAsync(timeout.Token);
                     binding.WithEngineeringUnits(engineeringUnits, changedRange);
-                    AssertSemanticChange(await NextSemanticChangeAsync(semanticEvents), measurement.NodeId);
+                    AssertSemanticChange(await NextSemanticChangeAsync(rangeEvents), measurement.NodeId);
+                }
 
+                var unitsEventReady = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                await using (IAsyncEnumerator<EventNotification> unitsEvents = managed.DefaultStreaming
+                    .SubscribeEventsWhenReadyAsync(
+                        ObjectIds.Server,
+                        SemanticChangeEventFilter(),
+                        _ =>
+                        {
+                            unitsEventReady.TrySetResult(true);
+                            return ValueTask.CompletedTask;
+                        },
+                        ct: timeout.Token)
+                    .GetAsyncEnumerator(timeout.Token))
+                {
+                    await unitsEventReady.Task.WaitAsync(timeout.Token);
                     var changedUnits = new EUInformation(
                         "K",
                         "kelvin",
                         "http://www.opcfoundation.org/UA/units/un/cefact");
                     binding.WithEngineeringUnits(changedUnits, changedRange);
-                    AssertSemanticChange(await NextSemanticChangeAsync(semanticEvents), measurement.NodeId);
+                    AssertSemanticChange(await NextSemanticChangeAsync(unitsEvents), measurement.NodeId);
                 }
 
                 await analog.SimulationValue.WriteAsync(Variant.From(99f), timeout.Token);
