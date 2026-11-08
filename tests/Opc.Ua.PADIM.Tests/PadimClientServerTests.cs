@@ -94,6 +94,12 @@ namespace Opc.Ua.PADIM.Tests
             operations.Setup(p => p.ZeroPointAdjustmentAsync("temperature", It.IsAny<CancellationToken>()))
                 .ReturnsAsync(StatusCodes.Good);
             var configured = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            PadimValueBinding? measurementBinding = null;
+            var engineeringUnits = new EUInformation(
+                "°C",
+                "degree Celsius",
+                "http://www.opcfoundation.org/UA/units/un/cefact");
+            var engineeringRange = new Range(high: 100, low: -40);
             var services = new ServiceCollection();
             services.AddLogging();
             services.AddOpcUa().AddServer<StandardServer>(options =>
@@ -115,7 +121,9 @@ namespace Opc.Ua.PADIM.Tests
                 AnalogSignalObjectState signal = await device.AddMeasurementAsync(
                     new QualifiedName("Temperature", context.Manager.InstanceNamespaceIndex),
                     PadimMeasurementKind.Temperature, "TT-001");
-                device.BindValue(signal.AnalogSignal!, "temperature", provider.Object)
+                measurementBinding = device.BindValue(signal.AnalogSignal!, "temperature", provider.Object)
+                    .WithEngineeringUnits(engineeringUnits, engineeringRange);
+                measurementBinding
                     .WithSimulation(Variant.From(99f), writer.Object, authorizer.Object);
                 device.WithZeroPointAdjustment(signal, "temperature", operations.Object, authorizer.Object);
                 await device.RegisterAsync(context.CancellationToken);
@@ -173,6 +181,36 @@ namespace Opc.Ua.PADIM.Tests
                         Assert.That(observation.Current.Value.SourceTimestamp, Is.EqualTo(timestamp));
                     });
                 }
+
+                var managed = (ManagedSession)session;
+                var semanticReady = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                await using (IAsyncEnumerator<EventNotification> semanticEvents = managed.DefaultStreaming
+                    .SubscribeEventsWhenReadyAsync(
+                        ObjectIds.Server,
+                        SemanticChangeEventFilter(),
+                        _ =>
+                        {
+                            semanticReady.TrySetResult(true);
+                            return ValueTask.CompletedTask;
+                        },
+                        ct: timeout.Token)
+                    .GetAsyncEnumerator(timeout.Token))
+                {
+                    await semanticReady.Task.WaitAsync(timeout.Token);
+                    PadimValueBinding binding = measurementBinding ??
+                        throw new InvalidOperationException("The hosted measurement binding was not configured.");
+                    Range changedRange = new(high: 150, low: -40);
+                    binding.WithEngineeringUnits(engineeringUnits, changedRange);
+                    AssertSemanticChange(await NextSemanticChangeAsync(semanticEvents), measurement.NodeId);
+
+                    var changedUnits = new EUInformation(
+                        "K",
+                        "kelvin",
+                        "http://www.opcfoundation.org/UA/units/un/cefact");
+                    binding.WithEngineeringUnits(changedUnits, changedRange);
+                    AssertSemanticChange(await NextSemanticChangeAsync(semanticEvents), measurement.NodeId);
+                }
+
                 await analog.SimulationValue.WriteAsync(Variant.From(99f), timeout.Token);
                 await analog.SimulationState.WriteAsync(true, timeout.Token);
                 values = await client.ReadValuesAsync(signals[0].NodeId, timeout.Token);
@@ -184,7 +222,6 @@ namespace Opc.Ua.PADIM.Tests
                     Is.EqualTo(Variant.From(21.5f)));
                 await client.ZeroPointAdjustmentAsync(signals[0].NodeId, timeout.Token);
                 operations.VerifyAll();
-                var managed = (ManagedSession)session;
                 EventFilter filter = HealthEventFilter();
                 await using (IAsyncEnumerator<EventNotification> events = managed.DefaultStreaming
                     .SubscribeEventsWhenReadyAsync(devices[0].NodeId, filter, async ct =>
@@ -932,6 +969,58 @@ namespace Opc.Ua.PADIM.Tests
                     AttributeId = Attributes.Value
                 };
             }
+        }
+
+        /// <summary>
+        /// Selects the event identifier and affected nodes from semantic-change events.
+        /// </summary>
+        private static EventFilter SemanticChangeEventFilter()
+        {
+            return new EventFilter
+            {
+                SelectClauses =
+                [
+                    Field(Opc.Ua.BrowseNames.EventId),
+                    Field(Opc.Ua.BrowseNames.Changes)
+                ]
+            };
+
+            static SimpleAttributeOperand Field(string name)
+            {
+                return new SimpleAttributeOperand
+                {
+                    TypeDefinitionId = Opc.Ua.ObjectTypeIds.SemanticChangeEventType,
+                    BrowsePath = [new QualifiedName(name)],
+                    AttributeId = Attributes.Value
+                };
+            }
+        }
+
+        /// <summary>
+        /// Reads the next semantic-change notification from the stream.
+        /// </summary>
+        private static async Task<ArrayOf<Variant>> NextSemanticChangeAsync(
+            IAsyncEnumerator<EventNotification> events)
+        {
+            Assert.That(await events.MoveNextAsync(), Is.True, "The semantic-change stream ended unexpectedly.");
+            return events.Current.Fields;
+        }
+
+        /// <summary>
+        /// Verifies that a semantic-change event identifies the changed variable as affected.
+        /// </summary>
+        private static void AssertSemanticChange(ArrayOf<Variant> fields, NodeId expectedOwner)
+        {
+            Assert.That(fields.Count, Is.EqualTo(2));
+            Assert.That(
+                fields[1].TryGetStructure(out ArrayOf<SemanticChangeStructureDataType> changes),
+                Is.True);
+            bool ownerAffected = false;
+            for (int ii = 0; ii < changes.Count; ii++)
+            {
+                ownerAffected |= changes[ii].Affected == expectedOwner;
+            }
+            Assert.That(ownerAffected, Is.True);
         }
 
         /// <summary>
