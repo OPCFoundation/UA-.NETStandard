@@ -465,23 +465,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// Revision mismatch and cancellation reject writer admission without changing routing.
-        /// </summary>
-        [Test]
-        public async Task SlotChangeSetWriterRejectsUnexpectedRevisionAndCancellationAsync()
-        {
-            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
-            long revision = lifecycle.Revision;
-            await Assert.ThatAsync(async () => await lifecycle.BeginAsync(revision - 1).ConfigureAwait(false),
-                Throws.InvalidOperationException).ConfigureAwait(false);
-            using var cancellation = new CancellationTokenSource();
-            await cancellation.CancelAsync().ConfigureAwait(false);
-            await Assert.ThatAsync(async () => await lifecycle.BeginAsync(cancellationToken: cancellation.Token)
-                .ConfigureAwait(false), Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
-            Assert.That(lifecycle.Revision, Is.EqualTo(revision));
-        }
-
-        /// <summary>
         /// Metadata binds an exact private owner once and publishes through the same revision.
         /// </summary>
         [Test]
@@ -1836,7 +1819,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Creates the actual lifecycle, writer and master manager without listeners or background workers.
         /// </summary>
-        private sealed class ChangeSetCleanupHarness : IAsyncDisposable
+        internal sealed class ChangeSetCleanupHarness : IAsyncDisposable
         {
             /// <summary>
             /// Creates the serving metadata and captures the lifecycle's actual writer.

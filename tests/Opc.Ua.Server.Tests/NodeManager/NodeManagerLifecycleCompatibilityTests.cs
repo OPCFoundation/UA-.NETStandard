@@ -76,7 +76,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [SetUICulture("en-us")]
         public async Task SlotChangeSetRejectsEmptyAndNullEntriesAsync()
         {
-            await using var harness = new NodeManagerLifecycleBatchConflictTests.BatchConflictHarness();
+            await using var harness = new NodeManagerLifecycleChangeSetCleanupTests.ChangeSetCleanupHarness();
             INodeManagerLifecycle lifecycle = harness.Lifecycle;
             long revision = lifecycle.Revision;
             NodeManagerRoutingTable.RoutingSnapshot routing =
@@ -93,6 +93,32 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Throws.ArgumentException).ConfigureAwait(false);
             Assert.That(lifecycle.Revision, Is.EqualTo(revision));
             Assert.That(((IDynamicNodeManagerBatchHost)harness.Master).RoutingRevision, Is.SameAs(routing));
+            Assert.That(harness.Writer.ActiveOperationCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// Revision mismatch and cancellation reject writer admission without changing routing.
+        /// </summary>
+        [Test]
+        [SetCulture("en-us")]
+        [SetUICulture("en-us")]
+        public async Task SlotChangeSetWriterRejectsUnexpectedRevisionAndCancellationAsync()
+        {
+            await using var harness = new NodeManagerLifecycleChangeSetCleanupTests.ChangeSetCleanupHarness();
+            INodeManagerLifecycle lifecycle = harness.Lifecycle;
+            long revision = lifecycle.Revision;
+            NodeManagerRoutingTable.RoutingSnapshot routing =
+                ((IDynamicNodeManagerBatchHost)harness.Master).RoutingRevision;
+            await Assert.ThatAsync(async () => await lifecycle.BeginAsync(revision - 1).ConfigureAwait(false),
+                Throws.InvalidOperationException).ConfigureAwait(false);
+            Assert.That(harness.Writer.ActiveOperationCount, Is.Zero);
+            using var cancellation = new CancellationTokenSource();
+            await cancellation.CancelAsync().ConfigureAwait(false);
+            await Assert.ThatAsync(async () => await lifecycle.BeginAsync(cancellationToken: cancellation.Token)
+                .ConfigureAwait(false), Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+            Assert.That(lifecycle.Revision, Is.EqualTo(revision));
+            Assert.That(((IDynamicNodeManagerBatchHost)harness.Master).RoutingRevision, Is.SameAs(routing));
+            Assert.That(harness.Writer.ActiveOperationCount, Is.Zero);
         }
 
         /// <summary>

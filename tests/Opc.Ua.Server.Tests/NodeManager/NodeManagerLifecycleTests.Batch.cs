@@ -1588,7 +1588,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Constructs the lifecycle and routing publisher without starting server workers.
         /// </summary>
-        internal sealed class BatchConflictHarness : IAsyncDisposable
+        private sealed class BatchConflictHarness : IAsyncDisposable
         {
             /// <summary>
             /// Creates independent serving metadata and construction-bound lifecycle services.
