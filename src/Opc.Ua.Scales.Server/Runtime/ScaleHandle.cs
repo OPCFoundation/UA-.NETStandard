@@ -254,7 +254,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                         }
                         : null,
                     m_writeGate,
-                    RetireProductStatistics)
+                    PrepareProductStatisticsRetirement)
                 {
                     Lockable = configuration.LockableProducts
                 };
@@ -781,24 +781,28 @@ namespace Opc.Ua.Scales.Server.Runtime
         }
 
         /// <summary>
-        /// Releases every product-period association when its subtree leaves the preset.
+        /// Captures product-period associations for retirement after the subtree leaves the preset.
         /// </summary>
-        private void RetireProductStatistics(ProductState product)
+        private Action PrepareProductStatisticsRetirement(ProductState product)
         {
-            if (product.Statistic is { } statistic)
+            StatisticState? statistic = product.Statistic;
+            BaseVariableState? nominal = (product as CheckweigherProductState)?.NominalWeight;
+            return () =>
             {
-                if (statistic is CheckweigherStatisticState checkweigher)
+                if (statistic != null)
                 {
-                    CheckweigherStatistics.Remove(checkweigher);
+                    if (statistic is CheckweigherStatisticState checkweigher)
+                    {
+                        CheckweigherStatistics.Remove(checkweigher);
+                    }
+                    Catchweigher?.RetireStatistics(statistic);
+                    TotalizingHopper?.RetireStatistics(statistic);
                 }
-                Catchweigher?.RetireStatistics(statistic);
-                TotalizingHopper?.RetireStatistics(statistic);
-            }
-            if (product is CheckweigherProductState checkweigherProduct &&
-                checkweigherProduct.NominalWeight is { } nominal)
-            {
-                m_services.RetireNominalRecorder(nominal);
-            }
+                if (nominal != null)
+                {
+                    m_services.RetireNominalRecorder(nominal);
+                }
+            };
         }
 
         /// <summary>

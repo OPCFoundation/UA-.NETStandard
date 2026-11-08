@@ -133,20 +133,29 @@ namespace Opc.Ua.Scales.Server.Runtime
             {
                 ScaleWriteGate gate = writeGate;
                 var executor = new NodeWriteOperationExecutor(
-                    operation => gate.NodeWriteExecutor.ExecuteSynchronously(() =>
-                    {
-                        ServiceResult result = operation();
-                        if (ServiceResult.IsGood(result))
-                        {
-                            services.RefreshNominalDerivedValue(node)?
-                                .ClearChangeMasks(services.Context, includeChildren: false);
-                        }
-                        return result;
-                    }),
-                    async (operation, cancellationToken) =>
+                    operation =>
                     {
                         BaseVariableState? derived = null;
-                        ServiceResult result = await gate.NodeWriteExecutor.ExecuteAsynchronouslyAsync(async ct =>
+                        return gate.TryExecuteWithNotifications(() =>
+                            {
+                                ServiceResult writeResult = operation();
+                                if (ServiceResult.IsGood(writeResult))
+                                {
+                                    derived = services.RefreshNominalDerivedValue(node);
+                                }
+                                return writeResult;
+                            },
+                            () => derived?.ClearChangeMasks(services.Context, includeChildren: false),
+                            out ServiceResult result)
+                            ? result
+                            : ServiceResult.Create(
+                                StatusCodes.BadInvalidState,
+                                "A scale write is awaiting an asynchronous state notification.");
+                    },
+                    (operation, cancellationToken) =>
+                    {
+                        BaseVariableState? derived = null;
+                        return gate.ExecuteWithNotificationsAsync(async ct =>
                         {
                             ServiceResult writeResult = await operation(ct).ConfigureAwait(false);
                             if (ServiceResult.IsGood(writeResult))
@@ -154,16 +163,21 @@ namespace Opc.Ua.Scales.Server.Runtime
                                 derived = services.RefreshNominalDerivedValue(node);
                             }
                             return writeResult;
-                        }, cancellationToken).ConfigureAwait(false);
-                        if (derived != null)
+                        }, async () =>
                         {
-                            await derived.ClearChangeMasksAsync(services.Context, includeChildren: false)
-                                .ConfigureAwait(false);
-                        }
-                        return result;
+                            if (derived != null)
+                            {
+                                await derived.ClearChangeMasksAsync(services.Context, includeChildren: false)
+                                    .ConfigureAwait(false);
+                            }
+                        }, cancellationToken);
                     },
                     gate.NodeWriteExecutor.ExecuteNotificationsAsync);
-                node.BindWriteOperationExecutor(executor, asynchronousChangeMaskNotifications);
+                node.BindWriteOperationExecutor(
+                    product is CheckweigherProductState checkweigher &&
+                        ReferenceEquals(checkweigher.NominalWeight, node)
+                        ? executor : gate.NodeWriteExecutor,
+                    asynchronousChangeMaskNotifications);
                 if (node is BaseVariableState variable &&
                     (variable.AccessLevel & AccessLevels.CurrentWrite) != 0 &&
                     variable.OnWriteValueAsync == null &&

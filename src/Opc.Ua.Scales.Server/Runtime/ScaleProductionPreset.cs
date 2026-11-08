@@ -118,7 +118,7 @@ namespace Opc.Ua.Scales.Server.Runtime
             Func<ArrayOf<EUInformation>> allowedUnits,
             Action<ProductState>? initializeProduct = null,
             ScaleWriteGate? writeGate = null,
-            Action<ProductState>? retireProduct = null)
+            Func<ProductState, Action>? prepareProductRetirement = null)
         {
             m_services = services;
             Preset = preset;
@@ -126,7 +126,7 @@ namespace Opc.Ua.Scales.Server.Runtime
             m_allowedUnits = allowedUnits;
             m_initializeProduct = initializeProduct;
             m_writeGate = writeGate;
-            m_retireProduct = retireProduct;
+            m_prepareProductRetirement = prepareProductRetirement;
 
             var products = new List<ProductState>();
             if (preset.Products != null)
@@ -575,12 +575,13 @@ namespace Opc.Ua.Scales.Server.Runtime
             }
             try
             {
+                Action? retireProduct = m_prepareProductRetirement?.Invoke(product);
                 await m_services.Delete(product.NodeId, cancellationToken).ConfigureAwait(false);
                 lock (m_lock)
                 {
                     Preset.Products?.RemoveChild(product);
                 }
-                m_retireProduct?.Invoke(product);
+                retireProduct?.Invoke();
             }
             finally
             {
@@ -1322,9 +1323,9 @@ namespace Opc.Ua.Scales.Server.Runtime
         private readonly Action<ProductState>? m_initializeProduct;
 
         /// <summary>
-        /// Retires runtime state after a product subtree has been removed.
+        /// Captures runtime associations before deletion for retirement after successful removal.
         /// </summary>
-        private readonly Action<ProductState>? m_retireProduct;
+        private readonly Func<ProductState, Action>? m_prepareProductRetirement;
 
         /// <summary>
         /// The owning scale's writer gate.
