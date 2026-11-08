@@ -32,9 +32,6 @@ using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
-#if NET
-using System.Runtime.InteropServices;
-#endif
 using System.Security.Cryptography;
 using System.Text;
 
@@ -212,7 +209,7 @@ namespace Opc.Ua.Server
             m_allocationStates = allocationStates;
             m_allocation = allocationStates.GetOrAdd(
                 defaultNamespaceIndex,
-                static _ => new AllocationState());
+                static namespaceIndex => new AllocationState(namespaceIndex));
         }
 
         /// <summary>
@@ -1312,12 +1309,10 @@ namespace Opc.Ua.Server
         /// path behind it.
         /// </summary>
         /// <remarks>
-        /// A path derived witness is the tail of a SHA256 hash, so it can in
-        /// principle be this value too. That costs nothing: the only effect
-        /// would be treating one collision as a re-mint, at a probability of
-        /// 2^-64 on top of the collision itself.
+        /// A path witness always has its lowest bit set, so it is never this
+        /// value.
         /// </remarks>
-        private const ulong kCounterWitness = 0;
+        private const uint kCounterWitness = 0;
 
         /// <summary>
         /// How many counter values are tried before giving up on finding one
@@ -1399,6 +1394,11 @@ namespace Opc.Ua.Server
         /// </remarks>
         private sealed class AllocationState
         {
+            public AllocationState(ushort namespaceIndex)
+            {
+                m_namespaceIndex = namespaceIndex;
+            }
+
             /// <summary>
             /// Counter behind <see cref="NodeIdAssignmentMode.Counter"/> and
             /// the fallback for nodes with no derivable browse path. The clock
@@ -1426,26 +1426,11 @@ namespace Opc.Ua.Server
             /// </returns>
             public bool ClaimNumeric(uint identifier, ushort namespaceIndex, ulong witness)
             {
-                ulong key = ToNumericKey(identifier, namespaceIndex);
-                lock (m_numericIdentifiers)
+                // a path witness is never the counter witness, which is 0.
+                uint pathWitness = (uint)witness | 1u;
+                lock (m_ownTable)
                 {
-#if NET
-                    ref ulong held = ref CollectionsMarshal.GetValueRefOrAddDefault(
-                        m_numericIdentifiers, key, out bool exists);
-                    if (!exists)
-                    {
-                        held = witness;
-                        return true;
-                    }
-                    return held == witness;
-#else
-                    if (m_numericIdentifiers.TryGetValue(key, out ulong held))
-                    {
-                        return held == witness;
-                    }
-                    m_numericIdentifiers.Add(key, witness);
-                    return true;
-#endif
+                    return GetTable(namespaceIndex).GetOrAdd(identifier, pathWitness, out _) == pathWitness;
                 }
             }
 
@@ -1454,28 +1439,149 @@ namespace Opc.Ua.Server
             /// </summary>
             public bool TryReserveNumeric(uint identifier, ushort namespaceIndex)
             {
-                lock (m_numericIdentifiers)
+                lock (m_ownTable)
                 {
-                    return m_numericIdentifiers.TryAdd(
-                        ToNumericKey(identifier, namespaceIndex),
-                        kCounterWitness);
+                    GetTable(namespaceIndex).GetOrAdd(identifier, kCounterWitness, out bool added);
+                    return added;
                 }
             }
 
-            private static ulong ToNumericKey(uint identifier, ushort namespaceIndex)
+            private NumericIdentifierTable GetTable(ushort namespaceIndex)
             {
-                return ((ulong)namespaceIndex << 32) | identifier;
+                if (namespaceIndex == m_namespaceIndex)
+                {
+                    return m_ownTable;
+                }
+                m_otherTables ??= [];
+                if (!m_otherTables.TryGetValue(namespaceIndex, out NumericIdentifierTable? table))
+                {
+                    table = new NumericIdentifierTable();
+                    m_otherTables.Add(namespaceIndex, table);
+                }
+                return table;
             }
 
+            private readonly ushort m_namespaceIndex;
+
             /// <summary>
-            /// The numeric identifiers minted or reserved so far, keyed by
-            /// namespace and identifier, each with a witness of the browse
-            /// path it came from (<see cref="kCounterWitness"/> for counter
-            /// values). A plain dictionary under a lock costs about 24 bytes
-            /// per identifier and no allocation per entry, so it is kept for
-            /// every numeric factory, not only while collisions are detected.
+            /// The numeric identifiers minted or reserved in the namespace of
+            /// this state. It also serves as the lock of all numeric records.
             /// </summary>
-            private readonly Dictionary<ulong, ulong> m_numericIdentifiers = [];
+            private readonly NumericIdentifierTable m_ownTable = new();
+
+            /// <summary>
+            /// The numeric records of other namespaces a view minted into,
+            /// which is rare.
+            /// </summary>
+            private Dictionary<ushort, NumericIdentifierTable>? m_otherTables;
+        }
+
+        /// <summary>
+        /// The numeric identifiers of one namespace that were minted or
+        /// reserved, each with a 32 bit witness of the browse path it came
+        /// from (0 for a counter value).
+        /// </summary>
+        /// <remarks>
+        /// The record is kept for every numeric factory, not only while
+        /// collisions are detected, so it is built for the cost of a mint: one
+        /// array of 8 byte slots holding identifier and witness, open
+        /// addressing with linear probing and a load of at most one half. A
+        /// lookup touches one cache line, and an identifier costs 16 bytes or
+        /// less with no allocation per entry. The slot index is mixed with a
+        /// per-process random seed, so identifiers chosen to share a probe
+        /// run cannot be computed in advance. Callers synchronize.
+        /// </remarks>
+        private sealed class NumericIdentifierTable
+        {
+            /// <summary>
+            /// Returns the witness that holds the identifier, adding the
+            /// specified one when the identifier is free.
+            /// </summary>
+            public uint GetOrAdd(uint identifier, uint witness, out bool added)
+            {
+                if (identifier == 0)
+                {
+                    // slot value 0 marks an empty slot, so identifier 0 is kept apart.
+                    added = !m_hasZero;
+                    if (added)
+                    {
+                        m_hasZero = true;
+                        m_zeroWitness = witness;
+                    }
+                    return m_zeroWitness;
+                }
+
+                while (true)
+                {
+                    ulong[] slots = m_slots;
+                    int mask = slots.Length - 1;
+                    int index = (int)(((identifier ^ s_seed) * 2654435769u) >> m_shift);
+                    while (true)
+                    {
+                        ulong slot = slots[index];
+                        if (slot == 0)
+                        {
+                            break;
+                        }
+                        if ((uint)(slot >> 32) == identifier)
+                        {
+                            added = false;
+                            return (uint)slot;
+                        }
+                        index = (index + 1) & mask;
+                    }
+
+                    if ((m_count + 1) * 2 > slots.Length)
+                    {
+                        Grow();
+                        continue;
+                    }
+
+                    slots[index] = ((ulong)identifier << 32) | witness;
+                    m_count++;
+                    added = true;
+                    return witness;
+                }
+            }
+
+            private void Grow()
+            {
+                ulong[] old = m_slots;
+                m_slots = new ulong[old.Length * 2];
+                m_shift--;
+                int mask = m_slots.Length - 1;
+                foreach (ulong slot in old)
+                {
+                    if (slot == 0)
+                    {
+                        continue;
+                    }
+                    int index = (int)((((uint)(slot >> 32) ^ s_seed) * 2654435769u) >> m_shift);
+                    while (m_slots[index] != 0)
+                    {
+                        index = (index + 1) & mask;
+                    }
+                    m_slots[index] = slot;
+                }
+            }
+
+            private const int kInitialBits = 8;
+            private static readonly uint s_seed = CreateSeed();
+            private ulong[] m_slots = new ulong[1 << kInitialBits];
+            private int m_shift = 32 - kInitialBits;
+            private int m_count;
+            private bool m_hasZero;
+            private uint m_zeroWitness;
+
+            private static uint CreateSeed()
+            {
+                byte[] seed = new byte[sizeof(uint)];
+                using (var random = RandomNumberGenerator.Create())
+                {
+                    random.GetBytes(seed);
+                }
+                return BitConverter.ToUInt32(seed, 0);
+            }
         }
 
         /// <summary>

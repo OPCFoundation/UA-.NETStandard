@@ -806,6 +806,43 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void ManyNumericPathsKeepTheirIdentifiersAcrossRemints()
+        {
+            const ushort ns = 2;
+            var factory = new DefaultNodeIdFactory(NodeIdAssignmentMode.Numeric, ns, detectCollisions: false);
+            var reference = new DefaultNodeIdFactory(NodeIdAssignmentMode.Numeric, ns, detectCollisions: false);
+            var name = new QualifiedName("Value", ns);
+            var minted = new NodeId[20000];
+            for (int ii = 0; ii < minted.Length; ii++)
+            {
+                minted[ii] = factory.CreateChildNodeId(new NodeId((uint)ii + 1u, ns), name, ns, m_namespaceUris);
+            }
+
+            var distinct = new HashSet<NodeId>(minted);
+            Assert.That(distinct, Has.Count.EqualTo(minted.Length), "no two paths share an identifier");
+            for (int ii = 0; ii < minted.Length; ii++)
+            {
+                var parent = new NodeId((uint)ii + 1u, ns);
+                Assert.That(factory.CreateChildNodeId(parent, name, ns, m_namespaceUris), Is.EqualTo(minted[ii]));
+
+                // without a collision the identifier is the plain hash, as before the record.
+                NodeId plain = reference.CreateChildNodeId(parent, name, ns, m_namespaceUris);
+                if (distinct.Contains(plain) && !plain.Equals(minted[ii]))
+                {
+                    continue; // a moved path of this set; checked by the collision test
+                }
+                Assert.That(minted[ii], Is.EqualTo(plain));
+            }
+
+            // a counter value never lands on a minted identifier while detection is on.
+            DefaultNodeIdFactory watching = factory.WithCollisionDetection(true);
+            for (int ii = 0; ii < 1000; ii++)
+            {
+                Assert.That(distinct.Contains(watching.NextCounterNodeId()), Is.False);
+            }
+        }
+
+        [Test]
         public void ACollisionIsStillReportedWhenDetectionIsOn()
         {
             const ushort ns = 2;
