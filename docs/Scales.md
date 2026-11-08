@@ -534,6 +534,15 @@ and synchronous: no I/O, no waiting and no calls into other locks.
 - `SetAlarm(id, active, message)` drives one `ScaleAlarmType` condition per
   notification id. The condition is created on first use and carries a
   `HasCondition` reference from its source.
+- The overloads that accept `ArrayOf<string>` publish `AuxParameters`,
+  `HelpSource`, and `VendorNotificationId` as optional notification metadata
+  (OPC 40200 v2.00 §8.1.3 and §8.2.3). `RaiseVendorEvent` uses its `name`
+  argument as the vendor identifier. The publisher copies auxiliary parameters;
+  changing the caller's array after publication does not change the event or alarm.
+- Alarm metadata changes with the active-state transition. Repeating the same
+  active state returns `false` without changing metadata. A transition that
+  omits metadata clears the previous optional values; an explicitly empty
+  auxiliary array remains distinguishable from an absent array.
 - The runtime raises some notifications by itself:
   - `OVERLOAD_FAULT` and `UNDERLOAD_FAULT` alarms follow the weight.
   - A failed zero or tare raises `ZERO_SETTING_FAULT` or
@@ -566,6 +575,17 @@ The methods and the local API share the same rules.
 - `Reset` clears them.
 - On a checkweigher, each `CheckweigherRejectReason` counts into its own
   `PackagesRejectedBy…` counter.
+- `PercentageLowerToleranceLimit` divides the accepted item count in the
+  TU1-TU2 band by the total accepted item count (§7.19.3). Rejected items do not
+  enter the denominator. These counts are maintained even when the optional
+  accepted-total or band-counter nodes are absent. `Reset` clears both counts;
+  with no accepted items the percentage is zero.
+
+Statistics support remains **Partial** for OPC 40200 v2.00. The runtime computes
+sample standard deviation, but it has no observation-mode setting to distinguish
+samples from a 100% check. The v2.00 equations for `StandardDeviation` and
+`GiveAway` have not been verified from an authoritative rendering, so the
+sample calculation is not evidence of support for both observation modes.
 
 ### Type controllers
 
@@ -1219,6 +1239,8 @@ are left out (`ScaleFacetsBringTheMachineIdentificationTheyIncludeAsync`,
 | `WeightItemType` semantics: rounding, ranges, overload, underload, zero band | 🧪 | `WeightIsRoundedToTheIntervalOfItsRange`; `LegalForTradeRoundsToTheVerificationInterval`; `OverloadAndUnderloadFollowCapacityAndZeroBand`; `PublishedLoadReachesEveryWeightPropertyAsync` |
 | *Scales DataChange* | ✅ | `ClientStreamsWeightsEventsAndAlarmsAsync` |
 | `ScaleEventType` / `ScaleAlarmType` with Annex C ids, vendor ids > 5000 | ✅ | `EventsAndVendorEventsCanBeRaisedAsync`; `FailedZeroOrTareRaisesAFaultAndOverloadAnAlarmAsync`; `ClientStreamsWeightsEventsAndAlarmsAsync` |
+| Optional notification parameters, help source, and vendor identifier | 🧪 | `NotificationMetadataEventsRetainParametersAndHelp`; `NotificationMetadataAlarmTransitionsCopyAndClearFields`; client filters and decoding include all three optional fields. |
+| Checkweigher accepted-item percentage and statistical equations | Partial | `CheckweigherTolerancePercentageUsesAcceptedMeasurements` covers absent optional counters, rejections, reset, and zero accepted items. Sample/full-check `StandardDeviation` and `GiveAway` equations remain unverified for v2.00. |
 | Notifier hierarchy with `HasNotifier`, nested sources subscribable | ✅ | `ClientSubscribesToANestedScaleThroughTheNotifierHierarchyAsync` |
 | PackML state information with transition events | ✅ | `PackMLMethodsWalkTheStateMachineAsync`; `PackMLActingStatesCanBeCompletedByTheEquipmentAsync`; `ClientDrivesThePackMLStateMachineAsync`; advertised as *PackML State Information*: `PackMLStateInformationIsClaimedWithAPackMLStateMachineAsync` |
 | Machinery Machine Identification, Find Machines | ✅ | `IdentificationWithoutMandatoryFieldsIsRejectedAsync`; `ClientDiscoversEveryScaleOnceWithItsKindAsync` |

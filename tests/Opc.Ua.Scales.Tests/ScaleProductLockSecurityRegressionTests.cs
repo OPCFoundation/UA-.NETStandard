@@ -1636,6 +1636,121 @@ namespace Opc.Ua.Scales.Tests
         }
 
         /// <summary>
+        /// The tolerance percentage counts accepted items independently of optional counter nodes and rejections.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public void CheckweigherTolerancePercentageUsesAcceptedMeasurements(bool acceptedCounter, bool bandCounter)
+        {
+            using var harness = new Harness();
+            var statistic = new CheckweigherStatisticState(null);
+            statistic.AddTotalPackages(harness.Context);
+            statistic.AddPercentageLowerToleranceLimit(harness.Context);
+            if (acceptedCounter)
+            {
+                statistic.AddTotalPackagesAccepted(harness.Context);
+            }
+            if (bandCounter)
+            {
+                statistic.AddPackagesAcceptedWithLowerToleranceLimit1(harness.Context);
+            }
+            var recorder = new ScaleStatistics(harness.Context, statistic);
+            recorder.RecordRejected(1.2, CheckweigherRejectReason.Metal);
+            Assert.That(statistic.PercentageLowerToleranceLimit!.WrappedValue.GetDouble(), Is.Zero);
+            recorder.RecordAccepted(0.98, belowLowerToleranceLimit1: true);
+            recorder.RecordAccepted(1.0);
+            recorder.RecordRejected(double.NaN, CheckweigherRejectReason.Vision);
+            Assert.That(statistic.PercentageLowerToleranceLimit.WrappedValue.GetDouble(), Is.EqualTo(50.0));
+            Assert.That(statistic.TotalPackages!.ItemCount!.WrappedValue.GetUInt64(), Is.EqualTo(4UL));
+            if (acceptedCounter)
+            {
+                Assert.That(statistic.TotalPackagesAccepted!.ItemCount!.WrappedValue.GetUInt64(), Is.EqualTo(2UL));
+            }
+            recorder.Reset();
+            Assert.That(statistic.PercentageLowerToleranceLimit.WrappedValue.GetDouble(), Is.Zero);
+            recorder.RecordRejected(1.2, CheckweigherRejectReason.Metal);
+            Assert.That(statistic.PercentageLowerToleranceLimit.WrappedValue.GetDouble(), Is.Zero);
+            recorder.RecordAccepted(1.0);
+            Assert.That(statistic.PercentageLowerToleranceLimit.WrappedValue.GetDouble(), Is.Zero);
+            recorder.RecordAccepted(0.98, belowLowerToleranceLimit1: true);
+            Assert.That(statistic.PercentageLowerToleranceLimit.WrappedValue.GetDouble(), Is.EqualTo(50.0));
+        }
+
+        /// <summary>
+        /// Event metadata is published independently of standard or vendor numeric notification ids.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void NotificationMetadataEventsRetainParametersAndHelp(bool vendor)
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            ScaleEventState? reported = null;
+            scale.Scale.OnReportEvent = (_, _, e) => reported = e as ScaleEventState;
+            string[] parameters = ["Printer 1", "Label 2"];
+            if (vendor)
+            {
+                scale.Notifications.RaiseVendorEvent(
+                    5001, ScaleNotificationCategory.Process, "VENDOR_JAM", new LocalizedText("Jam"),
+                    parameters.ToArrayOf(), "https://example.org/help", EventSeverity.High);
+            }
+            else
+            {
+                scale.Notifications.RaiseEvent(
+                    ScaleNotificationId.LabelFault, new LocalizedText("Jam"),
+                    parameters.ToArrayOf(), "https://example.org/help", "VENDOR_JAM", EventSeverity.High);
+            }
+            Assert.That(reported, Is.Not.Null);
+            Assert.That(reported!.AuxParameters!.Value.ToArray(), Is.EqualTo(parameters));
+            Assert.That(reported.HelpSource!.Value, Is.EqualTo("https://example.org/help"));
+            Assert.That(reported.VendorNotificationId!.Value, Is.EqualTo("VENDOR_JAM"));
+            Assert.That(reported.Severity!.Value, Is.EqualTo((ushort)EventSeverity.High));
+            Assert.That(reported.NotificationId!.WrappedValue.GetUInt32(),
+                Is.EqualTo(vendor ? 5001u : (uint)ScaleNotificationId.LabelFault));
+            parameters[0] = "Changed";
+            Assert.That(reported.AuxParameters.Value[0], Is.EqualTo("Printer 1"));
+
+            scale.Notifications.RaiseEvent(ScaleNotificationId.LabelFault, new LocalizedText("No metadata"));
+            Assert.That(reported!.AuxParameters, Is.Null);
+            Assert.That(reported.HelpSource, Is.Null);
+            Assert.That(reported.VendorNotificationId, Is.Null);
+        }
+
+        /// <summary>
+        /// Alarm transitions copy optional metadata and clear omitted fields rather than retaining stale values.
+        /// </summary>
+        [Test]
+        public void NotificationMetadataAlarmTransitionsCopyAndClearFields()
+        {
+            using var harness = new Harness();
+            ScaleHandle scale = harness.CreateScale(ScaleKind.AutomaticFilling, ConfigureFillingProduct);
+            string[] parameters = ["Power supply 1"];
+            Assert.That(scale.Notifications.SetAlarm(
+                ScaleNotificationId.PowerSupplyFault, true, new LocalizedText("Down"),
+                parameters.ToArrayOf(), "https://example.org/power", "VENDOR_POWER"), Is.True);
+            ScaleAlarmState alarm = scale.Notifications.Alarm(ScaleNotificationId.PowerSupplyFault)!;
+            Assert.That(alarm.AuxParameters!.Value.ToArray(), Is.EqualTo(parameters));
+            Assert.That(alarm.HelpSource!.Value, Is.EqualTo("https://example.org/power"));
+            Assert.That(alarm.VendorNotificationId!.Value, Is.EqualTo("VENDOR_POWER"));
+            parameters[0] = "Changed";
+            Assert.That(alarm.AuxParameters.Value[0], Is.EqualTo("Power supply 1"));
+            Assert.That(scale.Notifications.SetAlarm(
+                ScaleNotificationId.PowerSupplyFault, true, new LocalizedText("Unchanged")), Is.False);
+            Assert.That(alarm.HelpSource.Value, Is.EqualTo("https://example.org/power"));
+            Assert.That(scale.Notifications.SetAlarm(
+                ScaleNotificationId.PowerSupplyFault, false, new LocalizedText("Recovered")), Is.True);
+            Assert.That(alarm.AuxParameters.Value.IsNull, Is.True);
+            Assert.That(alarm.HelpSource.WrappedValue.IsNull, Is.True);
+            Assert.That(alarm.VendorNotificationId.WrappedValue.IsNull, Is.True);
+            Assert.That(scale.Notifications.SetAlarm(
+                ScaleNotificationId.PowerSupplyFault, true, new LocalizedText("Down"), []), Is.True);
+            Assert.That(alarm.AuxParameters.Value.IsNull, Is.False);
+            Assert.That(alarm.AuxParameters.Value.Count, Is.Zero);
+        }
+
+        /// <summary>
         /// A queued writer runs after notification dispatch and retains its own deferred notification.
         /// </summary>
         [Test]

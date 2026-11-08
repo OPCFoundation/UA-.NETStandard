@@ -627,6 +627,17 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(scale.Notifications.SetAlarm(ScaleNotificationId.PowerSupplyFault, false, new LocalizedText("ok")), Is.False);
             Assert.That(scale.Notifications.SetAlarm(ScaleNotificationId.PowerSupplyFault, true, new LocalizedText("down")), Is.True);
             Assert.That(scale.Notifications.SetAlarm(ScaleNotificationId.PowerSupplyFault, true, new LocalizedText("down")), Is.False);
+            ScaleAlarmState alarm = scale.Notifications.Alarm(ScaleNotificationId.PowerSupplyFault)!;
+            Assert.That(m_fixture.Manager.FindPredefinedNode(alarm.AuxParameters!.NodeId),
+                Is.SameAs(alarm.AuxParameters));
+            Assert.That(m_fixture.Manager.FindPredefinedNode(alarm.HelpSource!.NodeId), Is.SameAs(alarm.HelpSource));
+            Assert.That(m_fixture.Manager.FindPredefinedNode(alarm.VendorNotificationId!.NodeId),
+                Is.SameAs(alarm.VendorNotificationId));
+            Assert.That(scale.Notifications.SetAlarm(
+                ScaleNotificationId.PowerSupplyFault, false, new LocalizedText("Recovered"),
+                [], "https://example.org/help", "VENDOR_POWER"), Is.True);
+            Assert.That(alarm.HelpSource.Value, Is.EqualTo("https://example.org/help"));
+            Assert.That(alarm.VendorNotificationId.Value, Is.EqualTo("VENDOR_POWER"));
         }
 
         [Test]

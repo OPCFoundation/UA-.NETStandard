@@ -158,6 +158,11 @@ namespace Opc.Ua.Scales.Server.Runtime
                     Count(Statistic.TotalPackagesWeighed, weight);
                     if (Statistic is CheckweigherStatisticState checkweigher)
                     {
+                        m_acceptedCount++;
+                        if (belowLowerToleranceLimit1)
+                        {
+                            m_acceptedBelowToleranceCount++;
+                        }
                         Count(checkweigher.TotalPackagesAccepted, weight);
                         if (belowLowerToleranceLimit1)
                         {
@@ -228,6 +233,8 @@ namespace Opc.Ua.Scales.Server.Runtime
                 lock (m_lock)
                 {
                     m_accumulators.Clear();
+                    m_acceptedCount = 0;
+                    m_acceptedBelowToleranceCount = 0;
                     var counters = new List<BaseInstanceState>();
                     Statistic.GetChildren(m_context, counters);
                     foreach (BaseInstanceState child in counters)
@@ -408,23 +415,14 @@ namespace Opc.Ua.Scales.Server.Runtime
 
         private void UpdatePercentage(CheckweigherStatisticState checkweigher)
         {
-            if (checkweigher.PercentageLowerToleranceLimit == null ||
-                checkweigher.TotalPackages == null ||
-                !m_accumulators.TryGetValue(checkweigher.TotalPackages, out Accumulator? total) ||
-                total.Count == 0)
+            if (checkweigher.PercentageLowerToleranceLimit == null)
             {
                 return;
-            }
-            ulong belowT1 = 0;
-            if (checkweigher.PackagesAcceptedWithLowerToleranceLimit1 is { } accepted &&
-                m_accumulators.TryGetValue(accepted, out Accumulator? acceptedBelow))
-            {
-                belowT1 = acceptedBelow.Count;
             }
             ScaleValues.Set(
                 m_context,
                 checkweigher.PercentageLowerToleranceLimit,
-                Variant.From(100.0 * belowT1 / total.Count));
+                Variant.From(m_acceptedCount == 0 ? 0.0 : 100.0 * m_acceptedBelowToleranceCount / m_acceptedCount));
         }
 
         private void PublishLastItem(double weight, string? itemId)
@@ -503,6 +501,16 @@ namespace Opc.Ua.Scales.Server.Runtime
 
         private readonly ISystemContext m_context;
         private readonly Dictionary<StatisticCounterState, Accumulator> m_accumulators = [];
+
+        /// <summary>
+        /// The accepted item count, independent of optional published counters.
+        /// </summary>
+        private ulong m_acceptedCount;
+
+        /// <summary>
+        /// The accepted TU1-TU2 item count, independent of optional published counters.
+        /// </summary>
+        private ulong m_acceptedBelowToleranceCount;
 
         /// <summary>
         /// The owning scale's writer gate, when this statistic belongs to a scale.
