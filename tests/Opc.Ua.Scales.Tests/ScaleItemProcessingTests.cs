@@ -373,6 +373,68 @@ namespace Opc.Ua.Scales.Tests
         }
 
         /// <summary>
+        /// Unsupported nested metadata reports its copy error before publication or sequence consumption.
+        /// </summary>
+        [TestCase("unit", false)]
+        [TestCase("unit", true)]
+        [TestCase("equipmentCurrency", false)]
+        [TestCase("equipmentCurrency", true)]
+        [TestCase("providerCurrency", false)]
+        [TestCase("providerCurrency", true)]
+        public async Task UnsupportedMetadataCopyDoesNotConsumeAcquisitionAsync(string source, bool comparer)
+        {
+            var calculator = new DeferredPriceCalculator();
+            ScaleHandle scale = await CreateAsync(ScaleKind.AutomaticWeightPriceLabeler, calculator);
+            var product = (AutomaticWeightPriceLabelerProductState)scale.ProductionPreset!.ActiveProduct!;
+            ConfigurePrice(m_fixture.Context, product, m_fixture.Manager.NamespaceIndices.Scales);
+            LocalizedText unsupported = comparer
+                ? new LocalizedText(new Dictionary<string, string>(StringComparer.InvariantCulture)
+                {
+                    ["en-US"] = "unsupported comparer"
+                })
+                : new LocalizedText("ScalesMetadata", "en-US", "{0}", new System.Text.StringBuilder("mutable"));
+            EUInformation unit = Millimetre;
+            CurrencyUnitType currency = Euro();
+            ScaleItemReport report = Item(1);
+            if (source == "unit")
+            {
+                unit.Description = unsupported;
+                report = report with
+                {
+                    Length = new ScaleItemMeasurement(12, unit, DateTime.UtcNow, StatusCodes.Good),
+                    Price = new ScaleItemPrice(1, Euro())
+                };
+            }
+            else
+            {
+                currency.Currency = unsupported;
+                if (source == "equipmentCurrency")
+                {
+                    report = report with { Price = new ScaleItemPrice(1, currency) };
+                }
+            }
+            using var bounded = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+            {
+                Task<ServiceResult> pending = scale.Catchweigher!.ReportAsync(report, bounded.Token).AsTask();
+                if (source == "providerCurrency")
+                {
+                    Assert.That(calculator.Started, Is.True);
+                    calculator.Result.SetResult(new ScaleItemPrice(1, currency));
+                }
+                await pending.ConfigureAwait(false);
+            }).ConfigureAwait(false);
+            Assert.That(error!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotSupported));
+            Assert.That(scale.RegisteredReading, Is.Null);
+            Assert.That(Count(scale.ProductionOutput!.Statistic), Is.Zero);
+            Assert.That(Count(product.Statistic!), Is.Zero);
+            AssertGood(await scale.Catchweigher!.ReportAsync(
+                Item(1) with { Price = new ScaleItemPrice(1, Euro()) }, bounded.Token).ConfigureAwait(false));
+            Assert.That(Count(scale.ProductionOutput.Statistic), Is.EqualTo(1UL));
+            Assert.That(Count(product.Statistic!), Is.EqualTo(1UL));
+        }
+
+        /// <summary>
         /// A public registered reading cannot alter an acquisition while its weight setters are running.
         /// </summary>
         [TestCase(ScaleKind.Catchweigher)]
