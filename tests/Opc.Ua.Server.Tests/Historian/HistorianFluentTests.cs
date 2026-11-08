@@ -709,13 +709,14 @@ namespace Opc.Ua.Server.Tests.Historian
 
         private static IServerInternal CreateServerWithRegistry(
             List<HistorianBuilder>? builders = null,
+            IHistorianProviderRegistry? registryOverride = null,
             TimeProvider? timeProvider = null)
         {
             var nsTable = new NamespaceTable();
             nsTable.Append("urn:test:fluent-historian");
 
             var mockTelemetry = new Mock<ITelemetryContext>();
-            var registry = new HistorianProviderRegistry(nsTable);
+            IHistorianProviderRegistry registry = registryOverride ?? new HistorianProviderRegistry(nsTable);
 
             var mockServer = new Mock<IServerInternal>();
             mockServer.Setup(s => s.NamespaceUris).Returns(nsTable);
