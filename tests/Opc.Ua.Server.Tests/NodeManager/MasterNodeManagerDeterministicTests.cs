@@ -117,6 +117,91 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Builds the audit finding #9 path: AuditConditionEnableEventType (i=2803) has 26
+        /// inverse AlwaysGeneratesEvent references from Methods named Enable, each of which
+        /// points back to i=2803, so every inverse/forward pair multiplies the leaves by 26
+        /// unless the walk deduplicates its states.
+        /// </summary>
+        private static BrowsePath CreateEnableFanOutPath(int elements)
+        {
+            var path = new RelativePathElement[elements];
+            for (int ii = 0; ii < elements; ii++)
+            {
+                bool inverse = ii % 2 == 0;
+                path[ii] = new RelativePathElement
+                {
+                    ReferenceTypeId = ReferenceTypeIds.AlwaysGeneratesEvent,
+                    IsInverse = inverse,
+                    IncludeSubtypes = false,
+                    TargetName = new QualifiedName(
+                        inverse ? BrowseNames.Enable : BrowseNames.AuditConditionEnableEventType)
+                };
+            }
+            return new BrowsePath
+            {
+                StartingNode = ObjectTypeIds.AuditConditionEnableEventType,
+                RelativePath = new RelativePath { Elements = path }
+            };
+        }
+
+        /// <summary>
+        /// Audit finding #9: the walk expanded every branch again, so 5 elements returned
+        /// 26^3 = 17576 targets and 21 elements ran for hours. Each (node, depth) state is
+        /// now expanded once and each target returned once.
+        /// </summary>
+        [TestCase(1)]
+        [TestCase(5)]
+        [TestCase(21)]
+        public async Task TranslateBrowsePathFanOutIsDeduplicatedAsync(int elements)
+        {
+            using var context = new OperationContext(
+                new RequestHeader(), null, RequestType.TranslateBrowsePathsToNodeIds,
+                RequestLifetime.None, new UserIdentity());
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+
+            (ArrayOf<BrowsePathResult> results, _) = await Task.Run(async () =>
+                await m_server.CurrentInstance.NodeManager.TranslateBrowsePathsToNodeIdsAsync(
+                    context, [CreateEnableFanOutPath(elements)], timeout.Token).ConfigureAwait(false))
+                .ConfigureAwait(false);
+
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            var targets = new HashSet<ExpandedNodeId>();
+            foreach (BrowsePathTarget target in results[0].Targets)
+            {
+                Assert.That(targets.Add(target.TargetId), Is.True, $"{target.TargetId} is returned twice");
+                Assert.That(target.RemainingPathIndex, Is.EqualTo(uint.MaxValue));
+            }
+            Assert.That(targets, Has.Count.EqualTo(26), "the 26 Enable Methods, each once");
+        }
+
+        /// <summary>
+        /// Audit finding #9: a path whose deduplicated walk still exceeds the work cap of a
+        /// browse path ends with BadQueryTooComplex instead of running on.
+        /// </summary>
+        [Test]
+        public async Task TranslateBrowsePathOverItsWorkCapReturnsBadQueryTooComplexAsync()
+        {
+            using var context = new OperationContext(
+                new RequestHeader(), null, RequestType.TranslateBrowsePathsToNodeIds,
+                RequestLifetime.None, new UserIdentity());
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+
+            // each pair costs 79 units of work (1 + 26 for the inverse step, 26 x 2 for
+            // the forward step), so 4095 elements need about 160k.
+            (ArrayOf<BrowsePathResult> results, _) = await Task.Run(async () =>
+                await m_server.CurrentInstance.NodeManager.TranslateBrowsePathsToNodeIdsAsync(
+                    context,
+                    [CreateEnableFanOutPath(4095), CreateEnableFanOutPath(3)],
+                    timeout.Token).ConfigureAwait(false))
+                .ConfigureAwait(false);
+
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadQueryTooComplex));
+            Assert.That(results[0].Targets, Is.Empty);
+            Assert.That(results[1].StatusCode, Is.EqualTo(StatusCodes.Good), "the next path is translated");
+            Assert.That(results[1].Targets, Has.Count.EqualTo(26));
+        }
+
         [Test]
         public void Constructor_NullServer_ThrowsArgumentNullException()
         {
