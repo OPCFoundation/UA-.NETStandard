@@ -1469,6 +1469,30 @@ with `MonitoredItemOptions.Affinity` so per-subscription features like
 `SetTriggering` keep working across the group. Full
 developer guide: [Subscriptions § Unbounded monitored items](Subscriptions.md#unbounded-monitored-items).
 
+### V2 deferred notification decoding
+
+The V2 subscription engine decodes the `DataChangeNotification` and
+`EventNotificationList` of a Publish response right before they are
+dispatched, not when the response arrives. Under load, responses
+wait for their subscription, and a garbage collection that finds them
+waiting as objects has to walk and promote them. As raw bytes in a
+pooled buffer they cost it nothing.
+
+This is enabled by default and does not change what a handler sees,
+with one exception: a notification body that cannot be decoded is
+logged and not delivered, instead of failing the whole Publish
+response. To decode on arrival, use
+`ManagedSessionBuilder.WithoutDeferredNotificationDecoding()` or the
+`ManagedSessionOptions.DeferNotificationDecoding` init property. The
+classic subscription engine decodes on arrival.
+
+The decoding happens on the transport, so sessions that share one
+through an `IClientChannelManager` also share this: the bodies are kept
+as bytes as soon as one session on the transport wants that, including
+for a classic session or one that opted out. Those still see every
+notification; to decode on arrival for certain, do not share the
+transport with a session that defers.
+
 ### V2 notification pooling (opt-in)
 
 The V2 subscription engine supports activator-level pooling of

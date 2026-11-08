@@ -203,6 +203,7 @@ namespace Opc.Ua.Client
             DeleteSubscriptionsOnClose = template.DeleteSubscriptionsOnClose;
             TransferSubscriptionsOnReconnect = template.TransferSubscriptionsOnReconnect;
             EnableTokenReuseFailover = template.EnableTokenReuseFailover;
+            DeferNotificationBodies = template.DeferNotificationBodies;
             PublishRequestCancelDelayOnCloseSession = template.PublishRequestCancelDelayOnCloseSession;
             m_sessionTimeout = template.m_sessionTimeout;
             m_maxRequestMessageSize = template.m_maxRequestMessageSize;
@@ -904,6 +905,38 @@ namespace Opc.Ua.Client
         /// existing session independently of this setting.
         /// </remarks>
         public bool EnableTokenReuseFailover { get; set; }
+
+        /// <summary>
+        /// Whether this session wants notification bodies decoded on first use.
+        /// </summary>
+        /// <remarks>
+        /// The decoder reads this from the message context of the transport, which
+        /// sessions on one channel manager can share and which a replaced transport
+        /// starts anew. So a session only ever turns it on, and does again before each
+        /// Publish. A session that does not want it cannot turn it off for others: it
+        /// reads deferred bodies like any other, because they decode on first read.
+        /// </remarks>
+        internal bool DeferNotificationBodies
+        {
+            get => m_deferNotificationBodies;
+            set
+            {
+                m_deferNotificationBodies = value;
+                ApplyDeferNotificationBodies();
+            }
+        }
+
+        /// <summary>
+        /// Applies <see cref="DeferNotificationBodies"/> to the current transport.
+        /// </summary>
+        internal void ApplyDeferNotificationBodies()
+        {
+            if (m_deferNotificationBodies &&
+                NullableTransportChannel?.MessageContext is ServiceMessageContext { DeferNotificationBodies: false } context)
+            {
+                context.DeferNotificationBodies = true;
+            }
+        }
 
         /// <summary>
         /// Whether the endpoint Url domain is checked in the certificate.
@@ -7457,6 +7490,7 @@ namespace Opc.Ua.Client
 
         /// <summary>Namespace provenance of subscriptions loaded before the session reconnects.</summary>
         private ServiceMessageContext? m_restoredSubscriptionContext;
+        private bool m_deferNotificationBodies;
         private readonly SessionSystemContext m_systemContext;
 #pragma warning disable CA2213 // Disposed in DisposeAsyncCore/Dispose
         private readonly NodeCache m_nodeCache;
