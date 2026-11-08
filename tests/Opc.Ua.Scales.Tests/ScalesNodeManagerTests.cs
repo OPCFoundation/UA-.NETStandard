@@ -688,7 +688,7 @@ namespace Opc.Ua.Scales.Tests
             var firstProduct = (CheckweigherProductState)scale.ProductionPreset!.ActiveProduct!;
             Assert.That(firstProduct.Statistic, Is.TypeOf<CheckweigherStatisticState>());
             var first = (CheckweigherStatisticState)firstProduct.Statistic!;
-            void CheckWeighed(StatisticCounterState counter, bool expected, uint status = StatusCodes.Good)
+            void CheckWeighed(StatisticCounterState counter, bool expected, StatusCode status = default)
             {
                 BaseVariableState variable = counter.Weighed!;
                 Assert.That(m_fixture.Manager.FindPredefinedNode(variable.NodeId), Is.SameAs(variable));

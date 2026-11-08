@@ -1783,7 +1783,7 @@ namespace Opc.Ua.Scales.Tests
                     recorder.Record(weight);
                 }
             }
-            void CheckDeviation(double expected, uint status = StatusCodes.Good)
+            void CheckDeviation(double expected, StatusCode status = default)
             {
                 if (includeDeviation)
                 {
