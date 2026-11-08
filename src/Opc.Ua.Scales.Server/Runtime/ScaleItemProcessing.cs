@@ -1008,7 +1008,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                 NumericCode = currency.NumericCode,
                 AlphabeticCode = currency.AlphabeticCode,
                 Exponent = currency.Exponent,
-                Currency = currency.Currency
+                Currency = currency.Currency.Copy()
             };
         }
 
@@ -1108,14 +1108,14 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <summary>
         /// Separates application-owned units from published configuration.
         /// </summary>
-        private static EUInformation CopyUnit(EUInformation unit)
+        internal static EUInformation CopyUnit(EUInformation unit)
         {
             return new EUInformation
             {
                 NamespaceUri = unit.NamespaceUri,
                 UnitId = unit.UnitId,
-                DisplayName = unit.DisplayName,
-                Description = unit.Description
+                DisplayName = unit.DisplayName.Copy(),
+                Description = unit.Description.Copy()
             };
         }
 

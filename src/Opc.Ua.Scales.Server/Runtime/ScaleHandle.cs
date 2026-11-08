@@ -747,7 +747,11 @@ namespace Opc.Ua.Scales.Server.Runtime
             {
                 lock (m_lock)
                 {
-                    m_registered = report.Weight;
+                    m_registered = report.Weight with
+                    {
+                        EngineeringUnits = report.Weight.EngineeringUnits == null
+                            ? null : ScaleItemPublisher.CopyUnit(report.Weight.EngineeringUnits)
+                    };
                 }
                 ScaleItemPublisher.PublishWeight(m_services.Context, Scale.RegisteredWeight, report.Weight);
                 ProductionOutput?.RecordItem(report, zoneName, price);
@@ -769,7 +773,11 @@ namespace Opc.Ua.Scales.Server.Runtime
         {
             lock (m_lock)
             {
-                m_registered = report.Weight;
+                m_registered = report.Weight with
+                {
+                    EngineeringUnits = report.Weight.EngineeringUnits == null
+                        ? null : ScaleItemPublisher.CopyUnit(report.Weight.EngineeringUnits)
+                };
             }
             await ScaleItemPublisher.PublishWeightAsync(
                 m_services.Context, Scale.RegisteredWeight, report.Weight).ConfigureAwait(false);

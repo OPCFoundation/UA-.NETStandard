@@ -1865,7 +1865,7 @@ namespace Opc.Ua.Scales.Tests
         {
             var info = new TranslationInfo("ScalesMetadata", "en-US", "{0} unit", arguments);
             return multilingual
-                ? new LocalizedText(translations, info)
+                ? new LocalizedText(translations, info).AsMultiLanguage()
                 : new LocalizedText("en-US", "{0} unit", info).WithTranslations(translations);
         }
 

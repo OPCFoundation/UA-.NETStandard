@@ -852,6 +852,21 @@ At a shared boundary the zone whose lower limit equals the weight takes
 precedence (§7.12.4). Classification reports the configured zone; it does not
 command a physical sorter.
 
+Acquisition unit and currency copies also detach nested `LocalizedText`
+formatting arguments and translation dictionaries, preserving the selected
+locale, multilingual representation, and translation fallback. Unsupported
+formatting argument types, dictionary implementations, or comparers throw
+`ServiceResultException` with `BadNotSupported` before publication starts;
+the sequence remains retryable and counters remain unchanged. `LocalizedText.Copy`
+accepts scalar formatting arguments: null, strings, primitive numeric types,
+Boolean, character, decimal, date/time types, time spans, and GUIDs.
+Caller-owned translations must use an exact `Dictionary<string, string>`
+with the default, ordinal, or ordinal-ignore-case comparer. Providers must
+prevent concurrent mutation while metadata is copied. The public registered
+reading has a separate unit copy, so changing its metadata during a setter
+callback does not change the pending acquisition's registered-node or
+statistic publication. Scalar registration retains its existing behavior.
+
 Publication awaits each live-node notification before the next setter.
 A catchweigher publishes the product item, registered weight, output statistics,
 product statistics and zone counter in that order. A completed hopper fill
