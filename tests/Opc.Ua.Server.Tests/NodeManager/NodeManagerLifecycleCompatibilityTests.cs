@@ -69,6 +69,133 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Rejects null lifecycle arguments before consulting server services.
+        /// </summary>
+        [Test]
+        [SetCulture("en-us")]
+        [SetUICulture("en-us")]
+        public async Task LifecycleArgumentGuardsRejectNullInputsAsync()
+        {
+            var host = new Mock<INodeManagerLifecycleHost>(MockBehavior.Strict);
+            using var lifecycle = new NodeManagerLifecycle(host.Object, TimeProvider.System, null);
+            IAsyncNodeManagerFactory asyncFactory =
+                Mock.Of<IAsyncNodeManagerFactory>();
+            INodeManagerFactory syncFactory = Mock.Of<INodeManagerFactory>();
+
+            ArgumentNullException exception =
+                await Assert.ThrowsAsync<ArgumentNullException>(
+                    async () => await lifecycle
+                        .AddAsync((IAsyncNodeManagerFactory)null!, null)
+                        .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("factory"));
+
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await lifecycle
+                    .AddAsync((INodeManagerFactory)null!, null)
+                    .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("factory"));
+
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await lifecycle
+                    .ReloadAsync(
+                        null!,
+                        (IAsyncNodeManagerFactory)null!, null)
+                    .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("replacement"));
+
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await lifecycle
+                    .ReloadAsync(
+                        null!,
+                        (INodeManagerFactory)null!, null)
+                    .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("replacement"));
+
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await lifecycle
+                    .ReloadAsync(null!, asyncFactory, null)
+                    .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("registration"));
+
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await lifecycle
+                    .ReloadAsync(null!, syncFactory, null)
+                    .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("registration"));
+
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await lifecycle
+                    .ShadowReloadAsync(
+                        null!,
+                        (IAsyncNodeManagerFactory)null!)
+                    .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("replacement"));
+
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await lifecycle
+                    .ShadowReloadAsync(
+                        null!,
+                        (INodeManagerFactory)null!)
+                    .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("replacement"));
+
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await lifecycle
+                    .ShadowReloadAsync(null!, asyncFactory)
+                    .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("registration"));
+
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await lifecycle
+                    .ShadowReloadAsync(null!, syncFactory)
+                    .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("registration"));
+
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await lifecycle
+                    .ImmediateReloadAsync(null!, (IAsyncNodeManagerFactory)null!)
+                    .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("replacement"));
+
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await lifecycle
+                    .ImmediateReloadAsync(null!, (INodeManagerFactory)null!)
+                    .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("replacement"));
+
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await lifecycle
+                    .ImmediateReloadAsync(null!, asyncFactory)
+                    .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("registration"));
+
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await lifecycle
+                    .ImmediateReloadAsync(null!, syncFactory)
+                    .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("registration"));
+
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await lifecycle
+                    .RemoveAsync(null!, null)
+                    .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("registration"));
+
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await lifecycle
+                    .BeginShutdownAsync(null!)
+                    .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("server"));
+
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await lifecycle
+                    .CompleteShutdownAsync(null!)
+                    .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("server"));
+            host.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
         /// Factory/preparation exceptions are never mistaken for a commit-time routing conflict.
         /// </summary>
         [TestCase(false)]

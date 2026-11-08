@@ -233,7 +233,7 @@ you need to exercise:
 | `StripedCounterTests` | Entries across all stripes and cross-thread exits |
 | `GenerationGateTests` | Generation admission, retirement drain and view-epoch lifetimes |
 | `NodeManagerRegistrationTests` | Registration metadata and namespace copying |
-| `NodeManagerLifecycleCompatibilityTests` | Convenience-adapter retry, prepared-owner cleanup and retirement status |
+| `NodeManagerLifecycleCompatibilityTests` | Argument guards, retries, prepared-owner cleanup, and retirement status |
 | `GenerationReclaimerTests` | Physical retirement, cleanup retries and generation ownership |
 | `GenerationReconcilerTests` | Session binding, reconciliation retries and result ownership |
 | `NodeManagerCallbackPermitTests` | Callback capabilities and execution-context revocation |
