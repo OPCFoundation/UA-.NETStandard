@@ -922,7 +922,11 @@ namespace Opc.Ua.Server
             }
 
             // uniqueNodesServiceAttributes is the place where the attributes for each unique nodeId are kept on the services
-            uniqueNodesServiceAttributes = new Dictionary<NodeId, Variant[]>(nodesList.Count);
+            // the ids are chosen by the client, so the cache must not bucket them on a
+            // hash the client can target (hash flooding makes filling it quadratic).
+            uniqueNodesServiceAttributes = new Dictionary<NodeId, Variant[]>(
+                nodesList.Count,
+                RandomizedNodeIdComparer.Instance);
             for (int i = 0; i < nodesList.Count; i++)
             {
                 NodeId nodeId = default;
