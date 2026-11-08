@@ -450,12 +450,16 @@ continuation's lookahead reference. It does not snapshot the directory or
 apply the materialized binder's `MaxEntries` limit. Named-child lookup scans
 without retaining unrelated entries and stops when it finds a match.
 
-The cursor is disposed exactly once on exhaustion, cancellation, or
-continuation release. Cancellation affects only the active page; cancelling
-an already completed page does not cancel later pages. Synchronous
-continuation release starts and observes asynchronous cursor cleanup without
-blocking its caller. The system surfaces provider failures instead of
-returning an empty directory.
+Each opened cursor receives one disposal attempt on exhaustion, cancellation,
+or continuation release. Cancellation affects only the active page; cancelling
+an already completed page does not cancel later pages. Synchronous continuation
+release starts asynchronous cursor cleanup and does not wait for incomplete
+cleanup to finish. Provider failures during enumeration are reported rather
+than returned as an empty directory.
+
+If cursor disposal fails during cleanup started by synchronous release, the
+failure is logged and the cursor is not retried. The continuation release and
+the host's tracked cleanup task do not report that failure.
 
 Before Delete or MoveOrCopy reaches an arbitrary provider, the lazy host
 validates the decoded provider path. Separator-only root aliases resolve to
