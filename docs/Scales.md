@@ -873,9 +873,13 @@ Bound enum nodes and their descendants require admission for every asynchronous
 notification traversal throughout their lifetime. `ClearChangeMasksAsync`
 retains notification admission throughout the traversal, including overlapping clears that initially
 find no pending masks. A state-change sink may await a native asynchronous Value
-write to the same node or another node on the same scale. Only the active
-notification flow has this permission; unrelated asynchronous writers wait, and
-synchronous writes return `BadInvalidState` until every notification scope ends.
+write to the same node or another node on the same scale. When callbacks overlap,
+an asynchronous write originating in any active notification flow may enter even
+while another callback remains active. The runtime does not exclude that write
+from the other callback's observation of scale state. External asynchronous writers
+still wait, and synchronous writes return `BadInvalidState` until every
+notification scope ends. This overlapping-callback limitation remains part of the
+Partial support rating.
 Completed clears do not remove this dispatch policy.
 
 Synchronous `ClearChangeMasks` retains its existing inline callback and exception
@@ -884,8 +888,8 @@ behavior. It does not establish the asynchronous notification scope.
 admission, then transfer that admission to a notification scope and run their
 collected notifications inline after releasing the preset lock. The transfer
 has no interval in which unrelated writers can enter. Synchronous writes reject
-throughout delivery; only nested asynchronous writers in the active callback
-flow can enter. The collection retains the product traversal
+throughout delivery; nested asynchronous writers in any active callback flow
+can enter, including while another callback is active. The collection retains the product traversal
 order, with `CurrentProducts` notified before the product subtrees and
 `CurrentProductsChanged` raised last. Callbacks can await same-scale writes or
 read the preset from another thread without waiting for a lock retained by the
