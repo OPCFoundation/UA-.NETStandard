@@ -872,8 +872,12 @@ namespace Opc.Ua.Server.Tests.FileSystem
                     "Retirement completed while cursor cleanup was blocked.");
                 Assert.That(destroyedWhileCursorCleanupWasHeld, Is.False,
                     "Address space deletion completed before cursor cleanup.");
+                Assert.That(destroyCompleted.Task.IsCompleted, Is.True,
+                    "Address space deletion did not complete.");
                 Assert.That(entries.DisposeCount, Is.EqualTo(1));
             }
+            host.Verify(value => value.DestroyAddressSpaceAsync(
+                m_manager, It.IsAny<CancellationToken>()), Times.Once);
             store.Verify(value => value.RemoveContinuationPoint(
                 sessionId, ContinuationPointKind.Browse, point.Id), Times.Once);
         }
