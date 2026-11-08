@@ -181,6 +181,7 @@ namespace Opc.Ua.Configuration
         /// <inheritdoc/>
         public ValueTask DisposeAsync()
         {
+            GC.SuppressFinalize(this);
             lock (m_lock)
             {
                 Volatile.Write(ref m_disposed, 1);
@@ -218,10 +219,6 @@ namespace Opc.Ua.Configuration
                     throw new AggregateException(failure, cleanupFailure);
                 }
                 throw;
-            }
-            finally
-            {
-                GC.SuppressFinalize(this);
             }
             await Application.DisposeAsync().ConfigureAwait(false);
         }
