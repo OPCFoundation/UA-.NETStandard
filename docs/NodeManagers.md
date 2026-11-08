@@ -221,7 +221,7 @@ An admitted request owns its routing view on `OperationContext`, before applicat
 Dispatch and permission lookups use that explicit view; completing the request releases it. Independent
 background work does not inherit the request's routes through `ExecutionContext`: contextless master lookups
 read live routes, and internal subscriber contexts are not permanently pinned. Browse continuations validate
-their issuing generation; history continuations do the same with the built-in Session store. Later-page targets
+their recorded generation; history continuations do the same with the built-in Session store. Later-page targets
 resolve through the request's current view. Metadata lookups use shared additive type and encodeable registrations,
 not request-selected metadata images.
 
@@ -1555,14 +1555,19 @@ An implementation the server cannot migrate safely fails with
 
 #### Continuation points
 
-A continuation point carries a weak identity for the generation that issued it. That identity
-alone does not keep the generation, its NodeManager, or its routing view alive. The point's
-`Data` can retain a cursor that holds other objects. For example, a `DirectoryBrowser` created
-by a `FileSystemNodeManager` can retain that manager as its host. `ContinuationPoint.Dispose`
-disposes `Data` when it implements `IDisposable` but does not clear the property. A caller or
-custom store that keeps the point can therefore retain its host after disposal.
+A Browse continuation point can carry a weak identity for its recorded generation. That identity
+alone does not keep the generation, its NodeManager, or its routing view alive. Assigning a
+stack adapter to `ContinuationPoint.Manager` can resolve a generation owned by its wrapped manager.
+The getter can return that owner instead of the assigned adapter, or `null` if the identity no
+longer resolves.
 
-For `BrowseNext`, the server checks the issuing generation before the NodeManager resumes the
+The point's `Data` and `NodeToBrowse` can retain cursor data, node handles, or objects reachable
+from them. For example, a `DirectoryBrowser` created by a `FileSystemNodeManager` can retain
+that manager as its host. The base `ContinuationPoint.Dispose` implementation disposes `Data`
+at most once when it implements `IDisposable` but does not clear the property. Code that keeps
+the point can therefore retain its host after disposal.
+
+For `BrowseNext`, the server checks the recorded generation before the NodeManager resumes the
 cursor. For `HistoryRead`, the server performs this check when the Session uses its built-in
 continuation-point store. A resume after the checked generation's gate closes returns
 `BadContinuationPointInvalid`. An already-admitted request may finish on its pinned immutable view,
