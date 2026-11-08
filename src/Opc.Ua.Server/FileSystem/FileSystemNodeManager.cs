@@ -256,8 +256,8 @@ namespace Opc.Ua.Server.FileSystem
 
         /// <inheritdoc/>
         /// <remarks>
-        /// Directory cursors released by synchronous browser disposal finish their provider cleanup
-        /// asynchronously; deletion joins them first so the provider is not torn down underneath them.
+        /// Deletion waits for cursor cleanups recorded before the host finds its tracking list empty.
+        /// Browser disposal can record a cleanup after that check. The deletion wait does not include it.
         /// </remarks>
         public override async ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
         {
