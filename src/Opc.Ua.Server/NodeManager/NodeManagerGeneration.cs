@@ -1222,7 +1222,7 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// Associates manager instances with their exact generation identity.
+    /// Tracks generation lookup keys and physical-resource associations.
     /// </summary>
     internal static class NodeManagerGenerationRegistry
     {
@@ -1250,10 +1250,13 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Gets the live generation associated with a manager, creating its initial slot if needed.
+        /// Resolves a generation by its normalized lookup key, creating a live generation if the key has no entry.
         /// </summary>
+        /// <remarks>
+        /// An existing entry is returned without checking its gate state or whether the supplied manager is its owner.
+        /// </remarks>
         /// <param name="nodeManager">The manager to resolve.</param>
-        /// <returns>The manager's generation.</returns>
+        /// <returns>The entry for the normalized lookup key.</returns>
         internal static NodeManagerGeneration GetOrCreate(IAsyncNodeManager nodeManager)
         {
             if (nodeManager is null)
@@ -1269,7 +1272,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Resolves an unpublished resource reservation or creates its legacy generation atomically.
+        /// Resolves a recorded non-live resource generation for the resource itself, or uses the normalized lookup.
         /// </summary>
         internal static NodeManagerGeneration GetOrCreateSource(IAsyncNodeManager nodeManager)
         {
@@ -1413,10 +1416,10 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Resolves ownership aliases supplied by the stack without equating unrelated custom facades.
+        /// Creates a generation-lookup key, normalizing stack adapters but not other custom facades.
         /// </summary>
-        /// <param name="nodeManager">The manager whose generation owns an operation or continuation.</param>
-        /// <returns>The exact owner, normalized only through explicit stack adapters.</returns>
+        /// <param name="nodeManager">The manager to normalize for generation lookup.</param>
+        /// <returns>The normalized lookup key.</returns>
         private static IAsyncNodeManager GetGenerationIdentity(IAsyncNodeManager nodeManager)
         {
             if (nodeManager is not AsyncNodeManagerAdapter adapter)
@@ -1433,7 +1436,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Associates an accepted registration facade with the generation reserved for its physical resource.
         /// </summary>
-        /// <param name="identity">The exact facade identity.</param>
+        /// <param name="identity">The normalized generation-lookup key.</param>
         /// <param name="resource">The physical resource identity.</param>
         /// <param name="generation">The accepted generation.</param>
         private static void AssociateGeneration(
@@ -1459,7 +1462,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Compares the exact generation identities, normalizing only stack-provided adapters.
+        /// Compares normalized generation-lookup keys rather than physical-resource identities.
         /// </summary>
         internal static bool HasSameGenerationIdentity(IAsyncNodeManager left, IAsyncNodeManager right)
         {
@@ -1490,7 +1493,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Creates a legacy generation while the registry serializes identity changes.
+        /// Returns the lookup-key entry or creates and publishes a live legacy generation under that key.
         /// </summary>
         private static NodeManagerGeneration GetOrCreateCore(
             IAsyncNodeManager nodeManager,
@@ -1520,7 +1523,7 @@ namespace Opc.Ua.Server
         private static readonly ConditionalWeakTable<IAsyncNodeManager, IAsyncNodeManager> s_resourceIdentities = new();
 #endif
 
-        /// <summary>Associates each manager instance with its current generation identity.</summary>
+        /// <summary>Maps a normalized lookup key to the associated generation.</summary>
         private static readonly ConditionalWeakTable<IAsyncNodeManager, NodeManagerGeneration> s_generations = new();
 
         /// <summary>Prevents a facade from registering a physical resource in incompatible generations.</summary>
