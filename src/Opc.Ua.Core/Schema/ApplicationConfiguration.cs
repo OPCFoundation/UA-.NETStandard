@@ -87,7 +87,16 @@ namespace Opc.Ua
             // Share the same CertificateManager instance with the template so that
             // both configurations see the same trust list, rejected store, and
             // cached validators.
-            CertificateManager = template.CertificateManager;
+            ICertificateManager certificateManager = template.CertificateManager;
+            if (certificateManager is CertificateManager manager &&
+                template.IsCertificateManagerBorrowed(manager))
+            {
+                SetBorrowedCertificateManager(manager);
+            }
+            else
+            {
+                CertificateManager = certificateManager;
+            }
             TransportQuotas = template.TransportQuotas;
             TraceConfiguration = template.TraceConfiguration;
             m_extensions = template.m_extensions;

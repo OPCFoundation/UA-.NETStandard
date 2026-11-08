@@ -670,8 +670,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            ArrayOf<EndpointDescription> endpoints =
-                (Server as IServerEndpointRegistryProvider)?.ServerEndpoints ?? default;
+            ArrayOf<EndpointDescription> endpoints = PushEndpoints;
 
             // Resolve the certificate each endpoint currently presents from the
             // active certificate registry rather than the EndpointDescription's
@@ -685,7 +684,7 @@ namespace Opc.Ua.Server
 
             if (IsCertificateReferencedByEndpoint(
                 deletedThumbprint!, endpoints, registry, Server.Telemetry,
-                (Server as ISecurityPolicyRegistryProvider)?.SecurityPolicyRegistry))
+                PushSecurityPolicies))
             {
                 throw new ServiceResultException(
                     StatusCodes.BadInvalidState,

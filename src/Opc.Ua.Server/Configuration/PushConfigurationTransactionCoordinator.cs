@@ -46,7 +46,9 @@ namespace Opc.Ua.Server
     /// customize transaction behavior can supply their own via
     /// dependency injection or direct construction.
     /// </remarks>
-    public sealed class PushConfigurationTransactionCoordinator : IPushConfigurationTransactionCoordinator
+    public sealed class PushConfigurationTransactionCoordinator :
+        IPushConfigurationTransactionCoordinator,
+        IPushConfigurationTransactionCompletion
     {
         /// <summary>
         /// Initializes a new coordinator.
@@ -229,7 +231,7 @@ namespace Opc.Ua.Server
             NodeId sessionId,
             CancellationToken cancellationToken = default)
         {
-            return ApplyChangesCoreAsync(sessionId, committedEffects: null, cancellationToken);
+            return ApplyChangesCoreAsync(sessionId, committedEffects: null, completion: null, cancellationToken);
         }
 
         /// <inheritdoc/>
@@ -243,15 +245,34 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(committedEffects));
             }
 
-            return ApplyChangesCoreAsync(sessionId, committedEffects, cancellationToken);
+            return ApplyChangesCoreAsync(sessionId, committedEffects, completion: null, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<ServiceResult> ApplyChangesAsync(
+            NodeId sessionId,
+            PushConfigurationApplyEffects committedEffects,
+            PushConfigurationOperation completion,
+            CancellationToken cancellationToken = default)
+        {
+            if (committedEffects == null)
+            {
+                throw new ArgumentNullException(nameof(committedEffects));
+            }
+            if (completion == null)
+            {
+                throw new ArgumentNullException(nameof(completion));
+            }
+            return ApplyChangesCoreAsync(sessionId, committedEffects, completion, cancellationToken);
         }
 
         /// <summary>
-        /// Commits the owning session's staged operations, compensates failures and records post-commit effects.
+        /// Commits the owning session's staged operations and an optional final host checkpoint.
         /// </summary>
         private async ValueTask<ServiceResult> ApplyChangesCoreAsync(
             NodeId sessionId,
             PushConfigurationApplyEffects? committedEffects,
+            PushConfigurationOperation? completion,
             CancellationToken cancellationToken)
         {
             List<PushConfigurationOperation> operations;
@@ -291,6 +312,10 @@ namespace Opc.Ua.Server
 
                 operations = m_operations;
                 m_operations = [];
+                if (completion != null)
+                {
+                    operations.Add(completion);
+                }
                 startTime = m_startTime;
 
                 // Ownership (m_isActive/m_ownerSessionId) is intentionally

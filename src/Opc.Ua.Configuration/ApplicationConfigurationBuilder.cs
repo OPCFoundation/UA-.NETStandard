@@ -58,6 +58,7 @@ namespace Opc.Ua.Configuration
         /// </summary>
         public ApplicationConfigurationBuilder(ApplicationInstance applicationInstance)
         {
+            m_applicationInstance = applicationInstance;
             ApplicationInstance = applicationInstance;
         }
 
@@ -363,8 +364,15 @@ namespace Opc.Ua.Configuration
                 AddSecurityPolicies();
             }
 
-            await ApplicationConfiguration.ValidateAsync(ApplicationInstance.ApplicationType, ct)
-                .ConfigureAwait(false);
+            try
+            {
+                await ApplicationConfiguration.ValidateAsync(ApplicationInstance.ApplicationType, ct)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                m_applicationInstance.SetCertificateManagerOwnership();
+            }
 
             return ApplicationConfiguration;
         }
@@ -1479,6 +1487,10 @@ namespace Opc.Ua.Configuration
             return false;
         }
 
+        /// <summary>
+        /// The application instance that owns the configuration being built.
+        /// </summary>
+        private readonly ApplicationInstance m_applicationInstance;
         private bool m_typeSelected;
     }
 }

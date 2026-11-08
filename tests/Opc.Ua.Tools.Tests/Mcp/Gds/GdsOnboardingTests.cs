@@ -51,7 +51,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
     {
         [TestCase(false)]
         [TestCase(true)]
-        public async Task TicketOperationsBindProtectedByteStringsAndPreserveMixedPerTicketOutcomesAsync(bool remove)
+        public async Task TicketOperationsBindProtectedStringsAndPreserveMixedPerTicketOutcomesAsync(bool remove)
         {
             await using GdsTestContext fixture = await GdsTestContext.CreateAsync().ConfigureAwait(false);
             using IDisposable caller = fixture.Enter();
@@ -60,8 +60,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             string[] observed = [];
             fixture.Remote.OnCall = call =>
             {
-                Assert.That(call.InputArguments[0].TryGetValue(out ArrayOf<ByteString> tickets), Is.True);
-                observed = [.. tickets.ToArray()!.Select(ticket => Encoding.UTF8.GetString(ticket.Span))];
+                Assert.That(call.InputArguments[0].TryGetValue(out ArrayOf<string> tickets), Is.True);
+                observed = tickets.ToArray()!;
                 return new CallMethodResult
                 {
                     StatusCode = StatusCodes.GoodResultsMayBeIncomplete,

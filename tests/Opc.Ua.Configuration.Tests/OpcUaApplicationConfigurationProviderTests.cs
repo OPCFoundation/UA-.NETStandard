@@ -31,7 +31,9 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Moq;
 using NUnit.Framework;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Configuration.Tests
@@ -141,6 +143,65 @@ namespace Opc.Ua.Configuration.Tests
             finally
             {
                 await provider.DisposeAsync().ConfigureAwait(false);
+                DeletePkiRoot(pkiRoot);
+            }
+        }
+
+        /// <summary>
+        /// Verifies that forwarding factories preserve container ownership before and after validation.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ProviderKeepsInjectedManagerWhenFactoryDecoratesApplicationAsync(bool initialize)
+        {
+            string pkiRoot = CreatePkiRoot();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            try
+            {
+                await using var certificateManager = new CertificateManager(telemetry);
+                await using var inner = new ApplicationInstance(telemetry);
+                var application = new Mock<IApplicationInstance>(MockBehavior.Strict);
+                application.SetupSet(instance => instance.ApplicationName = It.IsAny<string?>())
+                    .Callback<string?>(name => inner.ApplicationName = name);
+                application.SetupGet(instance => instance.ApplicationType)
+                    .Returns(() => inner.ApplicationType);
+                application.SetupGet(instance => instance.ApplicationConfiguration)
+                    .Returns(() => inner.ApplicationConfiguration);
+                application.Setup(instance => instance.Build(It.IsAny<string>(), It.IsAny<string>()))
+                    .Returns((string uri, string productUri) => inner.Build(uri, productUri));
+                application.Setup(instance => instance.DisposeAsync())
+                    .Returns(() => inner.DisposeAsync());
+                var factory = new Mock<IApplicationInstanceFactory>(MockBehavior.Strict);
+                factory.Setup(instanceFactory => instanceFactory.Create(telemetry)).Returns(application.Object);
+
+                await using var provider = new OpcUaApplicationConfigurationProvider(
+                    new OpcUaApplicationOptions
+                    {
+                        ApplicationName = "DecoratedServer",
+                        ApplicationUri = "urn:localhost:DecoratedServer",
+                        ProductUri = "uri:opcfoundation.org:DecoratedServer",
+                        PkiRoot = pkiRoot
+                    },
+                    factory.Object,
+                    telemetry,
+                    [new ServerFeature()],
+                    certificateManager);
+
+                Assert.That(provider.Application, Is.SameAs(application.Object));
+                Assert.That(provider.Configuration.CertificateManager, Is.SameAs(certificateManager));
+                if (initialize)
+                {
+                    Assert.That(await provider.GetAsync().ConfigureAwait(false), Is.SameAs(provider.Configuration));
+                }
+
+                await provider.DisposeAsync().ConfigureAwait(false);
+                application.Verify(instance => instance.DisposeAsync(), Times.Once);
+                using ICertificateStore store = certificateManager.OpenCertificateStore(
+                    pkiRoot, CertificateStoreType.Directory, false);
+                Assert.That(store, Is.Not.Null);
+            }
+            finally
+            {
                 DeletePkiRoot(pkiRoot);
             }
         }

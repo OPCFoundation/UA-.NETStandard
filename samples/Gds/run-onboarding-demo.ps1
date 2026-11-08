@@ -9,22 +9,33 @@
 .PARAMETER Keep
     Keeps the isolated PKI and captured server logs after the run.
 
+.PARAMETER NoBuild
+    Uses existing net10.0 Debug assemblies without invoking either build.
+
+.PARAMETER ClientTimeoutSeconds
+    Maximum duration of each client process, including certificate preparation.
+
 .EXAMPLE
     pwsh samples/Gds/run-onboarding-demo.ps1
 #>
 [CmdletBinding()]
 param(
+    [ValidateRange(1, 65535)]
     [int]$Port = 62560,
-    [switch]$Keep
+    [switch]$Keep,
+    [switch]$NoBuild,
+    [ValidateRange(1, 3600)]
+    [int]$ClientTimeoutSeconds = 120
 )
 
 $ErrorActionPreference = 'Stop'
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $serverProject = Join-Path $here 'OnboardingRegistrar\OnboardingRegistrar.csproj'
 $clientProject = Join-Path $here 'OnboardingClient\OnboardingClient.csproj'
-$runRoot = Join-Path ([IO.Path]::GetTempPath()) "opcua-onboarding-demo-$PID"
+$runRoot = Join-Path ([IO.Path]::GetTempPath()) "opcua-onboarding-demo-$([Guid]::NewGuid().ToString('N'))"
 $serverPki = Join-Path $runRoot 'registrar-pki'
 $clientPki = Join-Path $runRoot 'client-pki'
+$untrustedClientPki = Join-Path $runRoot 'untrusted-client-pki'
 $serverOut = Join-Path $runRoot 'registrar.out.log'
 $serverErr = Join-Path $runRoot 'registrar.err.log'
 $endpoint = "opc.tcp://localhost:$Port/OnboardingRegistrar"
@@ -39,20 +50,85 @@ function Step([string]$message) {
     Write-Host "==> $message" -ForegroundColor Cyan
 }
 
+function Invoke-DemoClient([string]$name, [string[]]$clientArguments) {
+    $stdout = Join-Path $runRoot "$name.out.log"
+    $stderr = Join-Path $runRoot "$name.err.log"
+    $processArguments = @("`"$clientDll`"") + @(
+        $clientArguments | ForEach-Object { "`"$_`"" }
+    )
+    $client = Start-Process dotnet `
+        -ArgumentList $processArguments `
+        -RedirectStandardOutput $stdout `
+        -RedirectStandardError $stderr `
+        -PassThru
+    try {
+        if (-not $client.WaitForExit($ClientTimeoutSeconds * 1000)) {
+            Stop-Process -Id $client.Id -Force
+            $client.WaitForExit()
+            $output = @(
+                Get-Content -LiteralPath $stdout
+                Get-Content -LiteralPath $stderr
+            ) -join [Environment]::NewLine
+            throw "Client '$name' exceeded $ClientTimeoutSeconds seconds.`n$output"
+        }
+        $client.WaitForExit()
+        $output = @(
+            Get-Content -LiteralPath $stdout
+            Get-Content -LiteralPath $stderr
+        ) -join [Environment]::NewLine
+        Write-Host $output
+        return [pscustomobject]@{
+            ExitCode = $client.ExitCode
+            Output = $output
+        }
+    }
+    finally {
+        try {
+            if (-not $client.HasExited) {
+                Stop-Process -Id $client.Id -Force
+                $client.WaitForExit()
+            }
+        }
+        finally {
+            $client.Dispose()
+        }
+    }
+}
+
 try {
     New-Item -ItemType Directory -Force -Path $runRoot | Out-Null
     $env:ONBOARDING_DEMO_USER = "onboarding-admin-$PID"
     $env:ONBOARDING_DEMO_PASSWORD = [Convert]::ToBase64String(
         [Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
 
-    Step 'Building the onboarding registrar and client'
-    dotnet build $serverProject -f net10.0 --verbosity quiet
-    if ($LASTEXITCODE -ne 0) {
-        throw 'The onboarding registrar build failed.'
+    if (-not $NoBuild) {
+        Step 'Building the onboarding registrar and client'
+        dotnet build $serverProject -f net10.0 -p:CustomTestTarget=net10.0 `
+            -m:1 -nr:false -p:UseSharedCompilation=false --verbosity quiet
+        if ($LASTEXITCODE -ne 0) {
+            throw 'The onboarding registrar build failed.'
+        }
+        dotnet build $clientProject -f net10.0 -p:CustomTestTarget=net10.0 `
+            -m:1 -nr:false -p:UseSharedCompilation=false --verbosity quiet
+        if ($LASTEXITCODE -ne 0) {
+            throw 'The onboarding client build failed.'
+        }
     }
-    dotnet build $clientProject -f net10.0 --verbosity quiet
-    if ($LASTEXITCODE -ne 0) {
-        throw 'The onboarding client build failed.'
+    if (-not (Test-Path -LiteralPath $serverDll -PathType Leaf) -or
+        -not (Test-Path -LiteralPath $clientDll -PathType Leaf)) {
+        throw 'Both net10.0 Debug sample assemblies must exist before running the demo.'
+    }
+
+    Step 'Preparing application certificates, signed tickets and explicit local trust'
+    $preparation = Invoke-DemoClient 'preparation' @(
+        '--prepareTickets', 'true',
+        '--pkiRoot', $clientPki,
+        '--registrarPkiRoot', $serverPki,
+        '--untrustedClientPkiRoot', $untrustedClientPki,
+        '--ticketAuthorityTrustPath', (Join-Path $serverPki 'ticket-authorities\trusted')
+    )
+    if ($preparation.ExitCode -ne 0) {
+        throw 'Signed onboarding ticket preparation failed.'
     }
 
     Step "Starting the registrar at $endpoint"
@@ -60,7 +136,7 @@ try {
         -ArgumentList @(
             "`"$serverDll`"",
             '--port', $Port,
-            '--pkiRoot', $serverPki
+            '--pkiRoot', "`"$serverPki`""
         ) `
         -RedirectStandardOutput $serverOut `
         -RedirectStandardError $serverErr `
@@ -83,27 +159,36 @@ try {
         throw 'The onboarding registrar did not become ready within 60 seconds.'
     }
 
+    Step 'Verifying a client without configured registrar trust rejects the connection'
+    $untrusted = Invoke-DemoClient 'untrusted' @(
+        '--endpoint', $endpoint,
+        '--pkiRoot', $untrustedClientPki
+    )
+    if ($untrusted.ExitCode -eq 0 -or
+        $untrusted.Output -notmatch 'BadCertificateUntrusted') {
+        throw 'A client without registrar trust did not reject the registrar certificate.'
+    }
+
     Step 'Verifying anonymous ticket administration is denied'
-    $anonymousOutput = & dotnet $clientDll `
-        --endpoint $endpoint `
-        --pkiRoot $clientPki `
-        --anonymous true 2>&1
-    $anonymousExitCode = $LASTEXITCODE
-    Write-Host ($anonymousOutput | Out-String)
-    if ($anonymousExitCode -eq 0 -or
-        ($anonymousOutput | Out-String) -notmatch 'BadUserAccessDenied') {
+    $anonymous = Invoke-DemoClient 'anonymous' @(
+        '--endpoint', $endpoint,
+        '--pkiRoot', $clientPki,
+        '--anonymous', 'true'
+    )
+    if ($anonymous.ExitCode -eq 0 -or
+        $anonymous.Output -notmatch 'BadUserAccessDenied') {
         throw 'Anonymous ticket administration was not rejected.'
     }
 
     Step 'Running the onboarding client'
-    & dotnet $clientDll `
-        --endpoint $endpoint `
-        --pkiRoot $clientPki 2>&1 |
-        Tee-Object -Variable capturedClientOutput
-    if ($LASTEXITCODE -ne 0) {
+    $roundTrip = Invoke-DemoClient 'roundtrip' @(
+        '--endpoint', $endpoint,
+        '--pkiRoot', $clientPki
+    )
+    if ($roundTrip.ExitCode -ne 0) {
         throw 'The onboarding client failed.'
     }
-    if (($capturedClientOutput | Out-String) -notmatch 'ONBOARDING_DEMO_OK') {
+    if ($roundTrip.Output -notmatch 'ONBOARDING_DEMO_OK') {
         throw 'The onboarding client did not report a successful round trip.'
     }
 
@@ -127,6 +212,9 @@ finally {
     if ($server -ne $null -and -not $server.HasExited) {
         Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue
         $server.WaitForExit()
+    }
+    if ($server -ne $null) {
+        $server.Dispose()
     }
     if ($previousUser -eq $null) {
         Remove-Item Env:\ONBOARDING_DEMO_USER -ErrorAction SilentlyContinue

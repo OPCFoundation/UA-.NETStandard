@@ -52,7 +52,10 @@ namespace Opc.Ua.Gds.Server.Database
             return ValidateApplication(application);
         }
 
-        private static NodeId ValidateApplication(ApplicationRecordDataType application)
+        /// <summary>
+        /// Validates shared application metadata before a caller commits an authorization relation.
+        /// </summary>
+        internal static NodeId ValidateApplication(ApplicationRecordDataType application)
         {
             if (application == null)
             {
@@ -148,7 +151,8 @@ namespace Opc.Ua.Gds.Server.Database
                     {
                         throw new ArgumentException(
                             discoveryUrl +
-                            $" uses the '{s_reverseConnectPrefix}' prefix which is only valid for Clients or ClientAndServer applications.",
+                            $" uses the '{s_reverseConnectPrefix}' prefix which is only valid for " +
+                            "Clients or ClientAndServer applications.",
                             nameof(application));
                     }
                 }
@@ -201,7 +205,8 @@ namespace Opc.Ua.Gds.Server.Database
                     !application.ServerCapabilities.Contains(s_reverseConnectCapability))
                 {
                     throw new ArgumentException(
-                        $"A ClientAndServer with reverse-connect DiscoveryUrls shall include the '{s_reverseConnectCapability}' ServerCapability.",
+                        "A ClientAndServer with reverse-connect DiscoveryUrls shall include the " +
+                        $"'{s_reverseConnectCapability}' ServerCapability.",
                         nameof(application));
                 }
             }
@@ -232,7 +237,8 @@ namespace Opc.Ua.Gds.Server.Database
                     if (!application.ServerCapabilities.Contains(s_reverseConnectCapability))
                     {
                         throw new ArgumentException(
-                            $"Clients with reverse-connect DiscoveryUrls shall include the '{s_reverseConnectCapability}' ServerCapability.",
+                            "Clients with reverse-connect DiscoveryUrls shall include the " +
+                            $"'{s_reverseConnectCapability}' ServerCapability.",
                             nameof(application));
                     }
                 }
