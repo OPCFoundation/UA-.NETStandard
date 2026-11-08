@@ -97,6 +97,13 @@ This release ships the following Part 11 capabilities:
 
 ## Server developer guide
 
+Asset Management Basics composes health and maintenance history onto assets
+owned by DI, Machinery, Pumps or Scales. Configure
+`AddAssetManagement(options => options.UseHistory(provider))` to use the same
+provider model and capture pipeline. The [AMB history guide](AMB.md#history)
+describes per-asset selection, event fields, source timestamps and typed client
+queries. History remains disabled when it is not configured.
+
 ### Quick start: in-memory provider
 
 ```csharp
@@ -390,6 +397,59 @@ if (server is IHistorianRegistryProvider registryProvider)
 ```
 
 The interface lives next to the historian types in `Opc.Ua.Server.Historian` so that mocks of `IServerInternal` don't need to implement it; production servers built on `ServerInternalData` always satisfy the check.
+
+Components that detach their own capture can use the optional
+`IHistorianNodeBindingRegistry.TryRegisterForNode` contract. The default registry
+adds the exact-node mapping atomically only if none exists; namespace and
+default fallbacks do not block it. Dispose the returned registration to remove
+that mapping without removing a later replacement, even if the replacement uses
+the same provider instance. Disposing a registration does not dispose its
+provider; the registry retains provider lifetime ownership until shutdown.
+
+The default registry's scoped tokens implement `IHistorianNodeBinding`.
+`ReleaseAsync(cleanup)` retains the node registration while the caller removes
+its metadata and owner-index entries, then restores attributes and removes the
+mapping even when cleanup fails. Competing mutations on that node are rejected
+until release finishes. If replacement setup is already in progress, release
+waits for its outcome: a committed successor is preserved without running the
+earlier owner's cleanup; a rolled-back replacement leaves the earlier owner
+responsible for cleanup. Repeated release calls share the original operation and
+its completed outcome.
+
+The overload taking `NodeState` also snapshots a variable's `Historizing`,
+`AccessLevel` and `UserAccessLevel`, or an object's `EventNotifier`. Releasing
+that registration restores the snapshot only while its exact-node mapping is
+still current. Restoration and removal complete before another registration can
+replace that mapping. A replacement owner must register before setting its
+attributes; disposing an earlier registration then cannot restore an older
+snapshot over those attributes. The overload taking only `NodeId` manages the
+mapping without changing node attributes.
+
+The standard fluent `.Historize(provider: ...)` path reserves the new mapping
+before changing variable attributes. If setup fails, it restores the prior exact
+mapping, registration identity and attributes. An owner that disposed during setup
+is not restored. Resolution and advertised providers retain the committed provider
+until setup commits. While a replacement is reserved, a competing registration,
+unregistration or replacement for that node is rejected before mutation; other
+nodes remain available.
+Registry shutdown invalidates pending reservations. A later commit throws
+`ObjectDisposedException`, restores the pre-setup attributes and leaves the
+registry empty; it cannot report a successful unpublished binding. The fluent
+path detaches and cancels raw capture created by the failed setup.
+If capture cleanup or replacement rollback also throws, the fluent operation
+reports an `AggregateException` containing the initiating error and each cleanup
+error. If cleanup succeeds, the initiating error is rethrown unchanged.
+Successful setup retains the new binding even if an older scoped owner disposes
+between the attribute changes and completion.
+Injected registries can implement `IHistorianNodeReplacementRegistry` and return
+an `IHistorianNodeReplacement` reservation with the same commit/rollback contract.
+A scoped registry without that capability can still historize unrelated nodes:
+the fluent operation acquires a new exact-node binding with `TryRegisterForNode`
+and releases it if setup fails. When an exact binding already exists, that registry
+cannot preserve its ownership identity through replacement; the operation rejects
+only that node with `NotSupportedException` before changing attributes or capture.
+Configure that binding directly or provide the replacement capability.
+Registries without scoped bindings retain the existing explicit-provider behavior.
 
 Ordinary registration transfers provider disposal responsibility to the registry,
 even if the route is later removed. To retain application or DI ownership, use
@@ -1002,6 +1062,13 @@ HistorianNodeCapabilities.ReadWrite;            // combined adapter/test preset
 ```
 
 Always set the `HistoricalDataConfigurationType` advisory fields (`Stepped`, `Definition`, `MaxTimeInterval`, `MinTimeInterval`, `ExceptionDeviation`, `StartOfArchive`, `StartOfOnlineArchive`) on the capability set you return for nodes whose companion object you want the framework to install.
+
+`InMemoryHistorianProvider.TryRegister` provisions a node only if neither its
+archive nor its per-node capabilities exist. With
+`HistorianBuilder.UseProvider(provider, provisionNodes: false)`, capture setup
+does not register or reconfigure in-memory nodes; the caller must provision them
+before attaching capture. The default builder behavior still calls `Register`
+and applies the supplied capabilities, including to previously registered nodes.
 
 For the server-wide `HistoryServerCapabilities` rollup the dispatcher calls `GetCapabilitiesAsync(NodeId.Null, ...)`. Treat `NodeId.Null` as "default — what does this provider support generally?" — the rollup unions the result across every registered provider.
 

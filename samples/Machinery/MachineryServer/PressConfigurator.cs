@@ -252,7 +252,7 @@ namespace MachinerySample
             return new EUInformation
             {
                 NamespaceUri = "http://www.opcfoundation.org/UA/units/un/cefact",
-                UnitId = 5720150,
+                UnitId = 5_723_220,
                 DisplayName = new LocalizedText("W"),
                 Description = new LocalizedText("watt")
             };

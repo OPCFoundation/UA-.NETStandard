@@ -2397,26 +2397,24 @@ namespace Opc.Ua.Server.Historian
             granted = false;
             try
             {
-                (object? handle, IAsyncNodeManager? nodeManager) = await systemContext.Server.NodeManager
-                    .ResolveManagerHandleAsync(operationContext, nodeId, cancellationToken)
-                    .ConfigureAwait(false);
-                if (handle != null && nodeManager != null)
+                bool? verdict = await TryGetReceiveEventsVerdictAsync(
+                    systemContext,
+                    operationContext,
+                    nodeId,
+                    cancellationToken).ConfigureAwait(false);
+                if (verdict == null)
                 {
-                    NodeMetadata? metadata = await nodeManager.GetNodeMetadataAsync(
+                    // A resumed page routes only to the owners its continuation retained. The EventType
+                    // and SourceNode of a stored event can belong to other owners, so a node the
+                    // retained routing cannot resolve is checked against the live routing instead.
+                    verdict = await TryGetReceiveEventsVerdictAsync(
+                        systemContext,
                         operationContext,
-                        handle,
-                        BrowseResultMask.All,
-                        cancellationToken).ConfigureAwait(false);
-                    granted = metadata != null &&
-                        !ServiceResult.IsBad(MasterNodeManager.ValidateRolePermissions(
-                            operationContext,
-                            metadata,
-                            PermissionType.ReceiveEvents)) &&
-                        !ServiceResult.IsBad(MasterNodeManager.ValidateAccessRestrictions(
-                            operationContext,
-                            metadata,
-                            PermissionType.ReceiveEvents));
+                        nodeId,
+                        cancellationToken,
+                        useLiveRouting: true).ConfigureAwait(false);
                 }
+                granted = verdict == true;
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -2429,6 +2427,43 @@ namespace Opc.Ua.Server.Historian
 
             verdicts[nodeId] = granted;
             return granted;
+        }
+
+        /// <summary>
+        /// Validates ReceiveEvents on a node through request routing or, when requested, current routing.
+        /// </summary>
+        /// <returns>The verdict, or null if the selected routing has no owner for the node.</returns>
+        private static async ValueTask<bool?> TryGetReceiveEventsVerdictAsync(
+            ServerSystemContext systemContext,
+            OperationContext operationContext,
+            NodeId nodeId,
+            CancellationToken cancellationToken,
+            bool useLiveRouting = false)
+        {
+            IMasterNodeManager master = systemContext.Server.NodeManager;
+            (object? handle, IAsyncNodeManager? nodeManager) = useLiveRouting
+                ? await master.GetManagerHandleAsync(nodeId, cancellationToken).ConfigureAwait(false)
+                : await master.ResolveManagerHandleAsync(operationContext, nodeId, cancellationToken)
+                    .ConfigureAwait(false);
+            if (handle == null || nodeManager == null)
+            {
+                return null;
+            }
+
+            NodeMetadata? metadata = await nodeManager.GetNodeMetadataAsync(
+                operationContext,
+                handle,
+                BrowseResultMask.All,
+                cancellationToken).ConfigureAwait(false);
+            return metadata != null &&
+                !ServiceResult.IsBad(MasterNodeManager.ValidateRolePermissions(
+                    operationContext,
+                    metadata,
+                    PermissionType.ReceiveEvents)) &&
+                !ServiceResult.IsBad(MasterNodeManager.ValidateAccessRestrictions(
+                    operationContext,
+                    metadata,
+                    PermissionType.ReceiveEvents));
         }
 
         /// <summary>

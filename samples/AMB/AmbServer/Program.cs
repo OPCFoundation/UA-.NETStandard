@@ -38,6 +38,7 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.AMB;
 using Opc.Ua.Machinery.Server;
+using Opc.Ua.Server.Historian.InMemory;
 
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 builder.Logging.ClearProviders();
@@ -70,6 +71,13 @@ if (builder.Configuration["autoaccept"] is { } acceptOption && !bool.TryParse(ac
     return 2;
 }
 int runSeconds = 0;
+bool historyEnabled = false;
+if (builder.Configuration["history"] is { } historyOption &&
+    !bool.TryParse(historyOption, out historyEnabled))
+{
+    await Console.Error.WriteLineAsync("--history must be true or false.").ConfigureAwait(false);
+    return 2;
+}
 if (builder.Configuration["run-seconds"] is { } runOption &&
     (!int.TryParse(runOption, NumberStyles.None, CultureInfo.InvariantCulture, out runSeconds) ||
         runSeconds is < 1 or > 3600))
@@ -115,6 +123,14 @@ builder.Services
     .AddAssetManagement(options =>
     {
         options.UseFileSystemStores(state);
+        if (historyEnabled)
+        {
+            options.UseHistory(new InMemoryHistorianProvider(new InMemoryHistorianOptions
+            {
+                RawDataRetentionPeriod = TimeSpan.FromHours(1),
+                MaxSamplesPerNode = 3600
+            }));
+        }
 
         // Sample convenience only: lets the anonymous sample client change
         // documentation links. By default only authenticated users may.

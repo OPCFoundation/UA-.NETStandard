@@ -217,6 +217,19 @@ canonical URI string before claiming a facet):
   model can decode them. Physical procedures and storage remain
   application-owned. See
   [Industrial Automation](IndustrialAutomation.md).
+- **PA-DIM** (OPC 30081), **Full** — `Opc.Ua.PADIM.Server` publishes
+  provider-backed devices under the Device Integration `DeviceSet`, and
+  `Opc.Ua.PADIM.Client` discovers them and accesses their methods through
+  generated proxies. The runtime supports configured signal and analyser
+  families; applications select optional capabilities per device and supply
+  acquisition or operation providers. See [PA-DIM](PADIM.md).
+- **Energy Consumption Management** (OPC 34100), **Full** — `Opc.Ua.ECM`,
+  `Opc.Ua.ECM.Server` and `Opc.Ua.ECM.Client` provide provider-backed
+  measurement, standby and WOL bindings with typed client access.
+  `EcmConformanceContributor` reports configured capabilities and their
+  required profiles. Physical equipment and wake transport remain
+  application-owned. See
+  [Energy Consumption Management](ECM.md).
 - **Robotics** (OPC 40010-1) over **Industrial Automation** (OPC 10000-200) —
   `Opc.Ua.Robotics` / `Opc.Ua.Robotics.Server` / `Opc.Ua.Robotics.Client`
   library trio implementing the released Robotics 1.02 model over IA and
@@ -276,7 +289,7 @@ support gap.
 | --- | --- | --- |
 | [Base Network Model](BaseNetworkModel.md), OPC 10000-22 | Full | Provider-backed Resources model, typed clients and simulator, with defined optional interface, mapping, TSN and LLDP capabilities when supplied; applications supply production network providers |
 | [Device Integration](DeviceIntegration.md), OPC 10000-100 | Partial | Device composition, locking and software updates; offline/online representations, some loading modes and `UpdateStatus` remain incomplete |
-| [Asset Management Basics](AMB.md), OPC 10000-110 | Partial | Identity, health, maintenance, documentation, locations and dictionary classification; asset-health and past-maintenance event history remain unimplemented |
+| [Asset Management Basics](AMB.md), OPC 10000-110 | Full | Identity, health, maintenance, documentation, locations, dictionary classification, opt-in Part 11 history and explicit cross-server sub-asset traversal; applications provide history providers and remote-session resolution policy |
 | [Industrial Automation](IndustrialAutomation.md), OPC 10000-200 | Full | Stacklights, statistics and calibration targets with provider bindings, typed clients and a sample; physical drivers and calibration remain application-owned |
 | [Machinery](Machinery.md), OPC 40001-1/-2/-3/-4/-101 | Full | Building blocks, process values, jobs, energy and result transfer; select capabilities and supply equipment/storage providers |
 | [MachineTool and WMTP](MachineTool.md), OPC 40501-1 and OPC 40505 | Full | Monitoring, tools, production, jobs, files, peripheral measurements/configuration/records and typed clients; physical CNC/Bluetooth behavior belongs to providers |
@@ -293,7 +306,7 @@ support gap.
 | [WoT Binding](WotBindings.md), OPC 10101 | Partial | Published 1.00 consumer mode and conversions; general UA Binary payload codec and complete TD/TM/Binding-result schema validation are missing |
 | [PackML](PackML.md), OPC 30050 | Full | Standalone runtime, administration, typed clients and fluent hosting, including defined optional capabilities enabled by unit configuration. Implementers must configure application time synchronization for certification; see [capability boundaries](PackML.md#capability-boundaries). |
 | [PA-DIM](PADIM.md), OPC 30081 | Full | Provider-backed DI devices, signal/analyser families, operations, typed clients and sample; applications select optional capabilities per device and supply acquisition or operation providers |
-| [ECM](Machinery.md), OPC 34100 | Partial | Generated dependency model and Machinery energy bindings; no standalone ECM server/client runtime |
+| [Energy Consumption Management](ECM.md), OPC 34100 | Full | All defined measurement, standby and WOL capabilities with provider-backed server bindings, typed clients and fluent DI composition; equipment behavior remains application-owned |
 | [LADS](LADS.md), OPC 30500-1 | Partial | Devices, functional units, functions, programs, results and maintenance; optional Hold/Unhold/Suspend/Unsuspend/Reset/ToComplete server methods and persistence are missing |
 | [Plastics and rubber common types](PlasticsRubber.md), OPC 40083 | Full | Common controls, monitoring, maintenance, materials, diagnostics and production datasets; independently authored 1.03 interface implementation on the licensed 1.02 basis |
 | [Granulate drying](PlasticsRubber.md#granulate-drying-devices-opc-40082-6), OPC 40082-6 | Full | Device construction, selectable conformance units, provider-backed commands, observations, events and typed clients |
@@ -785,6 +798,7 @@ for the variant selected by `--ctt`.
 - [Node Management](NodeManagement.md) (Part 4)
 - [Asset Management Basics](AMB.md) (OPC 10000-110)
 - [Machinery](Machinery.md) (OPC 40001 series, PA-DIM and ECM)
+- [Energy Consumption Management](ECM.md) (OPC 34100)
 - [PA-DIM](PADIM.md) (OPC 30081)
 - [Pumps](Pumps.md) (OPC 40223)
 - [AutoID Devices](AutoID.md) (OPC 30010)
@@ -880,7 +894,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 10000-83: UAFX Offline Engineering](https://reference.opcfoundation.org/specs/OPC-10000-83) | 1.00.03 | No | - |
 | [OPC 10000-84: UAFX Profiles](https://reference.opcfoundation.org/specs/OPC-10000-84) | 1.00.04 | No | - |
 | [OPC 10000-100: Devices](https://reference.opcfoundation.org/specs/OPC-10000-100) | 1.05.0 | Partial | DI Offline, some software-loading modes and UpdateStatus missing |
-| [OPC 10000-110: Asset Management Basics](https://reference.opcfoundation.org/specs/OPC-10000-110) | 1.01.1 | Partial | Asset-health tracking and past-maintenance event history missing |
+| [OPC 10000-110: Asset Management Basics](https://reference.opcfoundation.org/specs/OPC-10000-110) | 1.01.1 | Full | - |
 | [OPC 10000-120: OPC UA and XML Data Type Mapping](https://reference.opcfoundation.org/specs/OPC-10000-120) | 1.00 | No | - |
 | [OPC 10000-200: Industrial Automation](https://reference.opcfoundation.org/specs/OPC-10000-200) | 1.01.4 | Full | - |
 | [OPC 10000-210: Relative Spatial Location](https://reference.opcfoundation.org/specs/OPC-10000-210) | 1.00.1 | Full | - |
@@ -920,7 +934,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 30400-2: Cloud Library - API Definition](https://reference.opcfoundation.org/specs/OPC-30400-2) | 1.00.0 | No | - |
 | [OPC 30450-1: Digital Product Passport - Information Model](https://reference.opcfoundation.org/specs/OPC-30450-1) | 1.0.0 | No | - |
 | [OPC 30500-1: Laboratory and Analytical Device Standard (LADS) - Basics](https://reference.opcfoundation.org/specs/OPC-30500-1) | 1.0.0 | Partial | Optional Hold/Unhold/Suspend/Unsuspend/Reset/ToComplete server methods and persistence missing |
-| [OPC 34100: Energy Consumption Management](https://reference.opcfoundation.org/specs/OPC-34100) | 1.0.1 | Partial | Generated model and Machinery energy bindings; no complete standalone ECM runtime |
+| [OPC 34100: Energy Consumption Management](https://reference.opcfoundation.org/specs/OPC-34100) | 1.0.1 | Full | - |
 | [OPC 40001-1: Machinery - Basic Building Blocks](https://reference.opcfoundation.org/specs/OPC-40001-1) | 1.04.2 | Full | - |
 | [OPC 40001-2: Machinery - Process Values](https://reference.opcfoundation.org/specs/OPC-40001-2) | 1.00 | Full | - |
 | [OPC 40001-3: Machinery - Job Management](https://reference.opcfoundation.org/specs/OPC-40001-3) | 1.0.1 | Full | - |

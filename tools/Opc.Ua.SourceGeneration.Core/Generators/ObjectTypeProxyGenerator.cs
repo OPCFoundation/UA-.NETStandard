@@ -630,9 +630,22 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private TemplateString? LoadTemplate_Method(ILoadContext context)
         {
+            EmitMethod(context, false);
+            if (m_context.Options?.ObjectTypeProxyMethodsWithStatus == true)
+            {
+                EmitMethod(context, true);
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Emits either the original wrapper or the opt-in status-preserving variant.
+        /// </summary>
+        private void EmitMethod(ILoadContext context, bool withStatus)
+        {
             if (context.Target is not MethodDesign method)
             {
-                return null;
+                return;
             }
             string targetNamespace = m_context.ModelDesign.TargetNamespace.Value;
             Namespace[] namespaces = m_context.ModelDesign.Namespaces;
@@ -647,6 +660,7 @@ namespace Opc.Ua.SourceGeneration
                 inputs,
                 outputs,
                 s_methodArgumentCodeNameScope);
+            (string statusLocal, string statusLabel) = GetStatusIdentifiers(inputs, outputs);
 
             string methodIdConstant = CoreUtils.Format(
                 "global::{0}.MethodIds.{1}",
@@ -670,7 +684,7 @@ namespace Opc.Ua.SourceGeneration
 
             // Compute the strongly typed return signature.
             string returnTypeAnnotation = GetReturnTypeAnnotation(
-                outputs, targetNamespace, namespaces);
+                outputs, targetNamespace, namespaces, withStatus, statusLabel);
 
             bool isShadow = m_inheritedMethodSignatures != null &&
                 m_inheritedMethodSignatures.Contains(GetMethodSignature(method));
@@ -682,6 +696,13 @@ namespace Opc.Ua.SourceGeneration
                 "/// Invokes the <c>{0}</c> method on the wrapped object.",
                 methodName);
             context.Out.WriteLine("/// </summary>");
+            if (withStatus)
+            {
+                context.Out.WriteLine("/// <remarks>");
+                context.Out.WriteLine("/// Preserves Good or Uncertain Call status separately from declared outputs.");
+                context.Out.WriteLine("/// Bad status throws ServiceResultException before output decoding.");
+                context.Out.WriteLine("/// </remarks>");
+            }
             for (int ii = 0; ii < inputs.Length; ii++)
             {
                 context.Out.WriteLine(
@@ -696,7 +717,7 @@ namespace Opc.Ua.SourceGeneration
                 "public {0}async global::System.Threading.Tasks.ValueTask{1} {2}Async(",
                 isShadow ? "new " : string.Empty,
                 returnTypeAnnotation,
-                methodName);
+                methodName + (withStatus ? "WithStatus" : string.Empty));
 
             for (int ii = 0; ii < inputs.Length; ii++)
             {
@@ -731,7 +752,12 @@ namespace Opc.Ua.SourceGeneration
             }
 
             // Invoke the inherited CallMethodAsync helper with boxed inputs.
-            if (outputs.Length > 0)
+            if (withStatus)
+            {
+                context.Out.WriteLine(
+                    "    var ({0}, _outputArguments) = await CallMethodWithStatusAsync(", statusLocal);
+            }
+            else if (outputs.Length > 0)
             {
                 context.Out.WriteLine(
                     "    global::Opc.Ua.ArrayOf<global::Opc.Ua.Variant> _outputArguments = await CallMethodAsync(");
@@ -763,10 +789,11 @@ namespace Opc.Ua.SourceGeneration
                 methodName,
                 methodIdConstant,
                 targetNamespace,
-                namespaces);
+                namespaces,
+                withStatus,
+                statusLocal);
 
             context.Out.WriteLine("}");
-            return null;
         }
 
         /// <summary>
@@ -777,13 +804,15 @@ namespace Opc.Ua.SourceGeneration
         private static string GetReturnTypeAnnotation(
             Parameter[] outputs,
             string targetNamespace,
-            Namespace[] namespaces)
+            Namespace[] namespaces,
+            bool withStatus = false,
+            string statusLabel = "CallStatus")
         {
             if (outputs.Length == 0)
             {
-                return string.Empty;
+                return withStatus ? "<global::Opc.Ua.StatusCode>" : string.Empty;
             }
-            if (outputs.Length == 1)
+            if (outputs.Length == 1 && !withStatus)
             {
                 return CoreUtils.Format(
                     "<{0}>",
@@ -796,6 +825,10 @@ namespace Opc.Ua.SourceGeneration
 
             var builder = new System.Text.StringBuilder();
             builder.Append("<(");
+            if (withStatus)
+            {
+                builder.Append("global::Opc.Ua.StatusCode ").Append(statusLabel).Append(", ");
+            }
             for (int ii = 0; ii < outputs.Length; ii++)
             {
                 if (ii > 0)
@@ -824,10 +857,16 @@ namespace Opc.Ua.SourceGeneration
             string methodName,
             string methodIdConstant,
             string targetNamespace,
-            Namespace[] namespaces)
+            Namespace[] namespaces,
+            bool withStatus = false,
+            string statusLocal = "_callStatus")
         {
             if (outputs.Length == 0)
             {
+                if (withStatus)
+                {
+                    context.Out.WriteLine("    return {0};", statusLocal);
+                }
                 return;
             }
             context.Out.WriteLine(
@@ -845,6 +884,15 @@ namespace Opc.Ua.SourceGeneration
 
             for (int ii = 0; ii < outputs.Length; ii++)
             {
+                if (withStatus && outputs[ii].ValueRank == ValueRank.Scalar && !outputs[ii].IsOptional &&
+                    outputs[ii].DataTypeNode!.BasicDataType is
+                        BasicDataType.Boolean or BasicDataType.SByte or BasicDataType.Byte or
+                        BasicDataType.Int16 or BasicDataType.UInt16 or BasicDataType.Int32 or BasicDataType.UInt32 or
+                        BasicDataType.Int64 or BasicDataType.UInt64 or BasicDataType.Float or BasicDataType.Double)
+                {
+                    context.Out.WriteLine("    if (_outputArguments[{0}].IsNull)", ii);
+                    EmitConversionFailure(context, methodName, outputs[ii].Name);
+                }
                 EmitOutputDeclaration(
                     context,
                     outputs[ii],
@@ -855,7 +903,7 @@ namespace Opc.Ua.SourceGeneration
             }
 
             // Build the return expression.
-            if (outputs.Length == 1)
+            if (outputs.Length == 1 && !withStatus)
             {
                 context.Out.WriteLine(
                     "    return {0};",
@@ -864,6 +912,10 @@ namespace Opc.Ua.SourceGeneration
             }
 
             context.Out.Write("    return (");
+            if (withStatus)
+            {
+                context.Out.Write("{0}, ", statusLocal);
+            }
             for (int ii = 0; ii < outputs.Length; ii++)
             {
                 if (ii > 0)
@@ -1038,6 +1090,35 @@ namespace Opc.Ua.SourceGeneration
         private static string GetLocalVariableName(Parameter parameter)
         {
             return GetOutputLocalVariableName(GetMethodArgumentIdentifier(parameter));
+        }
+
+        /// <summary>
+        /// Allocates additive status names without changing the existing method argument identifiers.
+        /// </summary>
+        private static (string Local, string Label) GetStatusIdentifiers(Parameter[] inputs, Parameter[] outputs)
+        {
+            var locals = new HashSet<string>(StringComparer.Ordinal);
+            var labels = new HashSet<string>(StringComparer.Ordinal);
+            foreach (Parameter input in inputs)
+            {
+                locals.Add(GetMethodArgumentIdentifier(input).TrimStart('@'));
+            }
+            foreach (Parameter output in outputs)
+            {
+                locals.Add(GetLocalVariableName(output));
+                labels.Add(GetMethodArgumentIdentifier(output).TrimStart('@'));
+            }
+            string local = "_callStatus";
+            while (locals.Contains(local))
+            {
+                local += "_";
+            }
+            string label = "CallStatus";
+            while (labels.Contains(label))
+            {
+                label += "_";
+            }
+            return (local, label);
         }
 
         private static string GetOutputLocalVariableName(string identifier)

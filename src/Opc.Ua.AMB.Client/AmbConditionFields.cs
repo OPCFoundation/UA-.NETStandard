@@ -92,61 +92,13 @@ namespace Opc.Ua.AMB.Client
         /// </exception>
         public static Field[] Build(NamespaceTable namespaceUris)
         {
-            ushort amb = IndexOf(namespaceUris, Namespaces.AMB);
             IndexOf(namespaceUris, Opc.Ua.Di.Namespaces.OpcUaDi);
-            NodeId baseEvent = Ua.ObjectTypeIds.BaseEventType;
-            NodeId condition = Ua.ObjectTypeIds.ConditionType;
-
-            // The interface fields hang below every event that has them.
-            NodeId health = baseEvent;
-            NodeId maintenance = baseEvent;
-
-            var fields = new Field[Count];
-            fields[ConditionId] = new Field(condition, []);
-            fields[EventId] = Standard(baseEvent, Ua.BrowseNames.EventId);
-            fields[EventType] = Standard(baseEvent, Ua.BrowseNames.EventType);
-            fields[SourceNode] = Standard(baseEvent, Ua.BrowseNames.SourceNode);
-            fields[SourceName] = Standard(baseEvent, Ua.BrowseNames.SourceName);
-            fields[Time] = Standard(baseEvent, Ua.BrowseNames.Time);
-            fields[Message] = Standard(baseEvent, Ua.BrowseNames.Message);
-            fields[Severity] = Standard(baseEvent, Ua.BrowseNames.Severity);
-            fields[ConditionClassId] = Standard(baseEvent, Ua.BrowseNames.ConditionClassId);
-            fields[ConditionClassName] = Standard(baseEvent, Ua.BrowseNames.ConditionClassName);
-            fields[ConditionName] = Standard(condition, Ua.BrowseNames.ConditionName);
-            fields[Retain] = Standard(condition, Ua.BrowseNames.Retain);
-            fields[Acked] = new Field(
-                Ua.ObjectTypeIds.AcknowledgeableConditionType,
-                [new QualifiedName(Ua.BrowseNames.AckedState), new QualifiedName(Ua.BrowseNames.Id)]);
-            fields[Active] = new Field(
-                Ua.ObjectTypeIds.AlarmConditionType,
-                [new QualifiedName(Ua.BrowseNames.ActiveState), new QualifiedName(Ua.BrowseNames.Id)]);
-            fields[PotentialRootCauses] = new Field(health, [new QualifiedName(BrowseNames.PotentialRootCauses, amb)]);
-            fields[MaintenanceState] = new Field(
-                maintenance,
-                [
-                    new QualifiedName(BrowseNames.MaintenanceState, amb),
-                    new QualifiedName(Ua.BrowseNames.CurrentState),
-                    new QualifiedName(Ua.BrowseNames.Id)
-                ]);
-            fields[PlannedDate] = new Field(maintenance, [new QualifiedName(BrowseNames.PlannedDate, amb)]);
-            fields[EstimatedDowntime] = new Field(maintenance, [new QualifiedName(BrowseNames.EstimatedDowntime, amb)]);
-            fields[MaintenanceSupplier] = new Field(
-                maintenance,
-                [new QualifiedName(BrowseNames.MaintenanceSupplier, amb)]);
-            fields[QualificationOfPersonnel] = new Field(
-                maintenance,
-                [new QualifiedName(BrowseNames.QualificationOfPersonnel, amb)]);
-            fields[PartsOfAssetReplaced] = new Field(
-                maintenance,
-                [new QualifiedName(BrowseNames.PartsOfAssetReplaced, amb)]);
-            fields[PartsOfAssetServiced] = new Field(
-                maintenance,
-                [new QualifiedName(BrowseNames.PartsOfAssetServiced, amb)]);
-            fields[MaintenanceMethod] = new Field(maintenance, [new QualifiedName(BrowseNames.MaintenanceMethod, amb)]);
-            fields[ConfigurationChanged] = new Field(
-                maintenance,
-                [new QualifiedName(BrowseNames.ConfigurationChanged, amb)]);
-            fields[Comment] = Standard(condition, Ua.BrowseNames.Comment);
+            ArrayOf<SimpleAttributeOperand> clauses = AmbEventFields.Select(namespaceUris);
+            var fields = new Field[clauses.Count];
+            for (int i = 0; i < fields.Length; i++)
+            {
+                fields[i] = new Field(clauses[i].TypeDefinitionId, clauses[i].BrowsePath.ToArray()!);
+            }
             return fields;
         }
 
@@ -180,10 +132,12 @@ namespace Opc.Ua.AMB.Client
         /// <param name="namespaceUris">The namespace table of the session.</param>
         /// <param name="maintenanceClasses">The maintenance condition classes.</param>
         /// <param name="maintenance">Whether to select the maintenance activities.</param>
+        /// <param name="asset">An optional source asset predicate.</param>
         public static EventFilter Filter(
             NamespaceTable namespaceUris,
             IReadOnlyCollection<NodeId> maintenanceClasses,
-            bool maintenance)
+            bool maintenance,
+            NodeId asset = default)
         {
             EventFilter filter = Selecting(namespaceUris);
             ContentFilter where = filter.WhereClause;
@@ -202,7 +156,16 @@ namespace Opc.Ua.AMB.Client
             ContentFilterElement selection = maintenance
                 ? classes
                 : where.Push(FilterOperator.Not, Variant.FromStructure(classes));
-            where.Push(FilterOperator.And, Variant.FromStructure(condition), Variant.FromStructure(selection));
+            ContentFilterElement selected = where.Push(
+                FilterOperator.And, Variant.FromStructure(condition), Variant.FromStructure(selection));
+            if (!asset.IsNull)
+            {
+                ContentFilterElement source = where.Push(
+                    FilterOperator.Equals,
+                    Variant.FromStructure(Operand(Ua.BrowseNames.SourceNode)),
+                    Variant.From(asset));
+                where.Push(FilterOperator.And, Variant.FromStructure(selected), Variant.FromStructure(source));
+            }
             return filter;
         }
 
@@ -419,11 +382,6 @@ namespace Opc.Ua.AMB.Client
         private static bool BooleanOf(IReadOnlyList<Variant> values, int index)
         {
             return values[index].TryGetValue(out bool value) && value;
-        }
-
-        private static Field Standard(NodeId typeDefinitionId, string name)
-        {
-            return new Field(typeDefinitionId, [new QualifiedName(name)]);
         }
 
         private static ushort IndexOf(NamespaceTable namespaceUris, string uri)
