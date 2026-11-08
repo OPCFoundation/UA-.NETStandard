@@ -550,6 +550,219 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         /// <summary>
+        /// An application attached after final release does not join initialization from the retired ownership period.
+        /// </summary>
+        [Test]
+        public async Task ReattachDuringValidationInitializationStartsNewOwnershipPeriodAsync()
+        {
+            ITelemetryContext actualTelemetry = NUnitTelemetryContext.Create();
+            var telemetry = new Mock<ITelemetryContext>();
+            var loggerFactory = new Mock<ILoggerFactory>();
+            loggerFactory.Setup(value => value.CreateLogger(It.IsAny<string>()))
+                .Returns(actualTelemetry.LoggerFactory.CreateLogger);
+            telemetry.SetupGet(value => value.LoggerFactory).Returns(loggerFactory.Object);
+            telemetry.SetupGet(value => value.ActivitySource).Returns(actualTelemetry.ActivitySource);
+            telemetry.Setup(value => value.GetActivitySource(It.IsAny<System.Reflection.Assembly>()))
+                .Returns((System.Reflection.Assembly assembly) => actualTelemetry.GetActivitySource(assembly));
+            telemetry.Setup(value => value.CreateMeter()).Returns(actualTelemetry.CreateMeter);
+            telemetry.Setup(value => value.CreateMeter(It.IsAny<System.Reflection.Assembly>()))
+                .Returns((System.Reflection.Assembly assembly) => actualTelemetry.CreateMeter(assembly));
+            await using var first = new ApplicationInstance(telemetry.Object)
+            {
+                ApplicationName = ApplicationName,
+                DisableCertificateAutoCreation = true
+            };
+            first.Build(ApplicationUri, ProductUri).AsClient().AddSecurityConfiguration(
+                [
+                    new CertificateIdentifier
+                    {
+                        SubjectName = SubjectName,
+                        StoreType = CertificateStoreType.Directory,
+                        StorePath = m_pkiRoot,
+                        CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
+                    }
+                ],
+                m_pkiRoot);
+            ApplicationConfiguration configuration = first.ApplicationConfiguration!;
+            ApplicationInstance? second = null;
+            Task<bool>? reattachedCheck = null;
+            int factoryCalls = 0;
+            loggerFactory.Setup(value => value.CreateLogger(It.IsAny<string>()))
+                .Returns((string category) =>
+                {
+                    if (category == typeof(CertificateManager).FullName &&
+                        Interlocked.Increment(ref factoryCalls) == 1)
+                    {
+                        // Validation's factory call is paused here while ownership moves to a new period.
+                        Task release = first.DisposeAsync().AsTask();
+                        Assert.That(release.Status, Is.EqualTo(TaskStatus.RanToCompletion));
+                        second = new ApplicationInstance(configuration, telemetry.Object)
+                        {
+                            DisableCertificateAutoCreation = true
+                        };
+                        reattachedCheck = second.CheckApplicationInstanceCertificatesAsync(true);
+                    }
+                    return actualTelemetry.LoggerFactory.CreateLogger(category);
+                });
+            try
+            {
+                Assert.That(configuration.CertificateManager, Is.Null);
+                await Assert.ThrowsAsync<ObjectDisposedException>(
+                    () => configuration.ValidateAsync(ApplicationType.Client));
+                Assert.That(reattachedCheck, Is.Not.Null);
+                ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(
+                    () => reattachedCheck!);
+                Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+                Assert.That(factoryCalls, Is.EqualTo(2));
+                CertificateManager manager = configuration.CertificateManager as CertificateManager ??
+                    throw new InvalidOperationException("Reattachment did not configure a concrete manager.");
+                Assert.That(second!.CertificateManager, Is.SameAs(manager));
+                using (ICertificateStore store = manager.OpenCertificateStore(
+                    m_pkiRoot, CertificateStoreType.Directory, false))
+                {
+                    Assert.That(store, Is.Not.Null);
+                }
+                await second.DisposeAsync();
+                await Assert.ThrowsAsync<ObjectDisposedException>(
+                    () => manager.LoadApplicationCertificatesAsync(configuration.SecurityConfiguration));
+            }
+            finally
+            {
+                if (second != null)
+                {
+                    await second.DisposeAsync();
+                }
+            }
+        }
+        /// <summary>
+        /// The retired period's cleanup keeps a newer in-flight initialization joinable by later callers.
+        /// </summary>
+        [Test]
+        public async Task RetiredInitializationCleanupKeepsNewerInitializationJoinableAsync()
+        {
+            ITelemetryContext actualTelemetry = NUnitTelemetryContext.Create();
+            var telemetry = new Mock<ITelemetryContext>();
+            var loggerFactory = new Mock<ILoggerFactory>();
+            loggerFactory.Setup(value => value.CreateLogger(It.IsAny<string>()))
+                .Returns(actualTelemetry.LoggerFactory.CreateLogger);
+            telemetry.SetupGet(value => value.LoggerFactory).Returns(loggerFactory.Object);
+            telemetry.SetupGet(value => value.ActivitySource).Returns(actualTelemetry.ActivitySource);
+            telemetry.Setup(value => value.GetActivitySource(It.IsAny<System.Reflection.Assembly>()))
+                .Returns((System.Reflection.Assembly assembly) => actualTelemetry.GetActivitySource(assembly));
+            telemetry.Setup(value => value.CreateMeter()).Returns(actualTelemetry.CreateMeter);
+            telemetry.Setup(value => value.CreateMeter(It.IsAny<System.Reflection.Assembly>()))
+                .Returns((System.Reflection.Assembly assembly) => actualTelemetry.CreateMeter(assembly));
+            await using var first = new ApplicationInstance(telemetry.Object)
+            {
+                ApplicationName = ApplicationName,
+                DisableCertificateAutoCreation = true
+            };
+            first.Build(ApplicationUri, ProductUri).AsClient().AddSecurityConfiguration(
+                [
+                    new CertificateIdentifier
+                    {
+                        SubjectName = SubjectName,
+                        StoreType = CertificateStoreType.Directory,
+                        StorePath = m_pkiRoot,
+                        CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
+                    }
+                ],
+                m_pkiRoot);
+            ApplicationConfiguration configuration = first.ApplicationConfiguration!;
+            using var newerCreationEntered = new ManualResetEventSlim();
+            using var newerCreationReleased = new ManualResetEventSlim();
+            ApplicationInstance? second = null;
+            ApplicationInstance? third = null;
+            Task<bool>? secondCheck = null;
+            int factoryCalls = 0;
+            loggerFactory.Setup(value => value.CreateLogger(It.IsAny<string>()))
+                .Returns((string category) =>
+                {
+                    if (category == typeof(CertificateManager).FullName)
+                    {
+                        int call = Interlocked.Increment(ref factoryCalls);
+                        if (call == 1)
+                        {
+                            // The retired period's creation stays paused until the newer creation is in flight.
+                            Task release = first.DisposeAsync().AsTask();
+                            Assert.That(release.Status, Is.EqualTo(TaskStatus.RanToCompletion));
+                            second = new ApplicationInstance(configuration, telemetry.Object)
+                            {
+                                DisableCertificateAutoCreation = true
+                            };
+                            ApplicationInstance reattached = second;
+                            secondCheck = Task.Run(() => reattached.CheckApplicationInstanceCertificatesAsync(true));
+                            Assert.That(newerCreationEntered.Wait(TimeSpan.FromSeconds(30)), Is.True);
+                        }
+                        else if (call == 2)
+                        {
+                            newerCreationEntered.Set();
+                            Assert.That(newerCreationReleased.Wait(TimeSpan.FromSeconds(30)), Is.True);
+                        }
+                    }
+                    return actualTelemetry.LoggerFactory.CreateLogger(category);
+                });
+            try
+            {
+                Assert.That(configuration.CertificateManager, Is.Null);
+                await Assert.ThrowsAsync<ObjectDisposedException>(
+                    () => Task.Run(() => configuration.ValidateAsync(ApplicationType.Client)));
+                Assert.That(secondCheck, Is.Not.Null);
+                Assert.That(secondCheck!.IsCompleted, Is.False);
+                third = new ApplicationInstance(configuration, telemetry.Object)
+                {
+                    DisableCertificateAutoCreation = true
+                };
+                Task<bool> thirdCheck = third.CheckApplicationInstanceCertificatesAsync(true);
+                Assert.That(thirdCheck.IsCompleted, Is.False);
+                Assert.That(factoryCalls, Is.EqualTo(2));
+                newerCreationReleased.Set();
+                ServiceResultException? secondFailure = await Assert.ThrowsAsync<ServiceResultException>(
+                    () => secondCheck!);
+                ServiceResultException? thirdFailure = await Assert.ThrowsAsync<ServiceResultException>(
+                    () => thirdCheck);
+                Assert.That(secondFailure!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+                Assert.That(thirdFailure!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+                Assert.That(factoryCalls, Is.EqualTo(2));
+                CertificateManager manager = configuration.CertificateManager as CertificateManager ??
+                    throw new InvalidOperationException("Reattachment did not configure a concrete manager.");
+                Assert.That(second!.CertificateManager, Is.SameAs(manager));
+                Assert.That(third.CertificateManager, Is.SameAs(manager));
+                await second.DisposeAsync();
+                using (ICertificateStore store = manager.OpenCertificateStore(
+                    m_pkiRoot, CertificateStoreType.Directory, false))
+                {
+                    Assert.That(store, Is.Not.Null);
+                }
+                await third.DisposeAsync();
+                await Assert.ThrowsAsync<ObjectDisposedException>(
+                    () => manager.LoadApplicationCertificatesAsync(configuration.SecurityConfiguration));
+            }
+            finally
+            {
+                newerCreationReleased.Set();
+                if (secondCheck != null)
+                {
+                    try
+                    {
+                        await secondCheck;
+                    }
+                    catch (ServiceResultException)
+                    {
+                        // Expected configuration failure was asserted above when the test reached that point.
+                    }
+                }
+                if (second != null)
+                {
+                    await second.DisposeAsync();
+                }
+                if (third != null)
+                {
+                    await third.DisposeAsync();
+                }
+            }
+        }
+        /// <summary>
         /// Base validation creates a manager owned by both applications when they attach before validation.
         /// </summary>
         [Test]

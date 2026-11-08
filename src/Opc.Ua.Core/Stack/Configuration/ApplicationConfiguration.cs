@@ -156,8 +156,12 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Initializes a missing manager once for application and validation callers without overwriting replacements.
+        /// Initializes a missing manager once per ownership period without overwriting replacements.
         /// </summary>
+        /// <remarks>
+        /// Callers from an ownership period that ends during creation receive <see cref="ObjectDisposedException"/>.
+        /// Applications attached after that release start or join initialization for the new period.
+        /// </remarks>
         internal async ValueTask<ICertificateManager> GetOrCreateCertificateManagerAsync(
             ITelemetryContext telemetry,
             CertificateManager? fallback = null,
@@ -184,7 +188,8 @@ namespace Opc.Ua
                 {
                     throw new ObjectDisposedException(nameof(ApplicationConfiguration));
                 }
-                if (m_certificateManagerInitialization == null)
+                if (m_certificateManagerInitialization == null ||
+                    m_certificateManagerInitializationGeneration != generation)
                 {
                     if (fallback != null)
                     {
@@ -194,6 +199,7 @@ namespace Opc.Ua
                     completion = new TaskCompletionSource<ICertificateManager>(
                         TaskCreationOptions.RunContinuationsAsynchronously);
                     m_certificateManagerInitialization = completion.Task;
+                    m_certificateManagerInitializationGeneration = generation;
                 }
                 initialization = m_certificateManagerInitialization;
             }
@@ -234,12 +240,45 @@ namespace Opc.Ua
                     {
                         await retired.DisposeAsync().ConfigureAwait(false);
                     }
+                    CertificateManagerLifetime? releasedCreation = null;
+                    bool retiredBeforePublication;
                     lock (m_certificateManagerLock)
                     {
-                        if (releasedDuringCreation || m_certificateManagerLeaseReleased)
+                        retiredBeforePublication = releasedDuringCreation || m_certificateManagerLeaseReleased ||
+                            generation != m_certificateManagerGeneration;
+                        selected = m_certificateManager ?? selected;
+                        lock (s_certificateManagerLifetimeLock)
                         {
-                            throw new ObjectDisposedException(nameof(ApplicationConfiguration));
+                            // A release between publication and this check owns disposal of the created manager.
+                            CertificateManagerLifetime createdLifetime = GetCertificateManagerLifetime(created);
+                            if (retired == null && createdLifetime.Disposing)
+                            {
+                                releasedCreation = createdLifetime;
+                                retiredBeforePublication = true;
+                            }
+                            if (selected is CertificateManager current &&
+                                GetCertificateManagerLifetime(current).Disposing)
+                            {
+                                retiredBeforePublication = true;
+                            }
                         }
+                    }
+                    if (releasedCreation != null)
+                    {
+                        try
+                        {
+                            await releasedCreation.DisposeAsync().ConfigureAwait(false);
+                        }
+                        catch (Exception e)
+                        {
+                            // The releasing application reports the disposal failure; callers only observe retirement.
+                            throw new ObjectDisposedException(
+                                "The certificate manager ownership period ended during initialization.", e);
+                        }
+                    }
+                    if (retiredBeforePublication)
+                    {
+                        throw new ObjectDisposedException(nameof(ApplicationConfiguration));
                     }
                     completion.SetResult(selected);
                 }
@@ -251,7 +290,10 @@ namespace Opc.Ua
                 {
                     lock (m_certificateManagerLock)
                     {
-                        m_certificateManagerInitialization = null;
+                        if (ReferenceEquals(m_certificateManagerInitialization, completion.Task))
+                        {
+                            m_certificateManagerInitialization = null;
+                        }
                     }
                 }
             }
@@ -1316,6 +1358,11 @@ namespace Opc.Ua
         /// Shares pending initialization across application instances without holding ownership locks across callbacks.
         /// </summary>
         private Task<ICertificateManager>? m_certificateManagerInitialization;
+
+        /// <summary>
+        /// Prevents callers from a later ownership period joining initialization started before final release.
+        /// </summary>
+        private int m_certificateManagerInitializationGeneration;
 
         /// <summary>
         /// Retains one disposal result for a manager shared by multiple application configurations.
