@@ -262,6 +262,8 @@ namespace Opc.Ua.Subscriptions.Tests
                     }
                     else
                     {
+                        // External initial samples can span several publishing cycles. Without a wire
+                        // observer, the delivered order does not determine the server's response marker.
                         Assert.That(ordered.Any(message => message.MoreNotifications.HasValue), Is.True);
                     }
                     for (int i = 0; i < ordered.Length; i++)
@@ -286,7 +288,7 @@ namespace Opc.Ua.Subscriptions.Tests
                                 $"{message.Acknowledgement.SequenceNumber}. Observed responses: " +
                                 responseObserver.GetDiagnostics());
                         }
-                        if (message.MoreNotifications is bool moreNotifications)
+                        if (responseObserver is not null && message.MoreNotifications is bool moreNotifications)
                         {
                             Assert.That(moreNotifications, Is.EqualTo(expectedMoreNotifications));
                         }
@@ -426,13 +428,28 @@ namespace Opc.Ua.Subscriptions.Tests
             }
             Assert.That(session.AddSubscription(subscription), Is.True);
             await subscription.CreateAsync(ct).ConfigureAwait(false);
+            BurstReferenceServer? server = ReferenceServer as BurstReferenceServer;
+            if (server is not null)
+            {
+                await WaitForAsync(() => server.InitialSamplesReady(session.SessionId, 3), ct)
+                    .ConfigureAwait(false);
+            }
             await subscription.SetPublishingModeAsync(true, ct).ConfigureAwait(false);
             await WaitForAsync(() => handler.Messages.Count >= 3, ct).ConfigureAwait(false);
 
             SubscriptionNotificationMessage[] messages =
                 [.. handler.Messages.Take(3).OrderBy(message => message.Acknowledgement.SequenceNumber)];
-            Assert.That(messages.Select(message => message.MoreNotifications),
-                Is.EqualTo(new bool?[] { true, true, false }));
+            if (server is not null)
+            {
+                Assert.That(messages.Select(message => message.MoreNotifications),
+                    Is.EqualTo(new bool?[] { true, true, false }));
+            }
+            else
+            {
+                // Only the delivered markers are observable for an external server; initial samples
+                // need not form the single burst established by the local readiness barrier.
+                Assert.That(messages.Any(message => message.MoreNotifications.HasValue), Is.True);
+            }
             foreach (SubscriptionNotificationMessage message in messages)
             {
                 Assert.That(message.Acknowledgement.SubscriptionId, Is.EqualTo(subscription.Id));
