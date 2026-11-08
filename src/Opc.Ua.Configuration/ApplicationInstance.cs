@@ -251,7 +251,7 @@ namespace Opc.Ua.Configuration
                         ct)
                     .ConfigureAwait(false);
             }
-            catch (Exception) when (silent)
+            catch (Exception e) when (silent && e is not OperationCanceledException)
             {
             }
 
@@ -286,7 +286,7 @@ namespace Opc.Ua.Configuration
                         ct)
                     .ConfigureAwait(false);
             }
-            catch (Exception) when (silent)
+            catch (Exception e) when (silent && e is not OperationCanceledException)
             {
             }
 
