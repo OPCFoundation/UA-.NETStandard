@@ -761,159 +761,26 @@ namespace Opc.Ua.Server.Tests.FileSystem
         /// <summary>
         /// Verifies retirement waits while continuation removal and cursor cleanup are pending.
         /// </summary>
+        /// <param name="sessionVisibleDuringRetirement">
+        /// Whether the reclaimer can find the closing session.
+        /// </param>
         [TestCase(false)]
         [TestCase(true)]
-        public async Task GenerationRetirementWaitsForCursorCleanupRegistrationAsync(
+        public Task GenerationRetirementWaitsForCursorCleanupRegistrationAsync(
             bool sessionVisibleDuringRetirement)
-        {
-            var entries = new CountingEntries(4);
-            SetEntries(entries);
-            m_provider.Setup(value => value.GetEntryAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<FileSystemEntry?>((FileSystemEntry?)null));
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-            var removalEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            using var releaseRemoval = new ManualResetEventSlim();
-            var sessionId = new NodeId(99, 1);
-            var store = new Mock<IContinuationPointStore>();
-            store.Setup(value => value.RemoveContinuationPoint(
-                    sessionId, ContinuationPointKind.Browse, It.IsAny<Guid>()))
-                .Callback<NodeId, ContinuationPointKind, Guid>((_, _, _) =>
-                {
-                    removalEntered.TrySetResult(true);
-                    if (!releaseRemoval.Wait(TimeSpan.FromSeconds(15)))
-                    {
-                        throw new TimeoutException("Continuation point removal was not released.");
-                    }
-                });
-            var points = new SessionContinuationPoints(() => sessionId, 10, 10, store.Object);
-            var session = new Mock<ISession>();
-            session.SetupGet(value => value.ContinuationPoints).Returns(points);
-            session.SetupGet(value => value.EffectiveIdentity).Returns(new UserIdentity());
-            var sessions = new Mock<ISessionManager>();
-            sessions.Setup(value => value.GetSessions()).Returns(
-                sessionVisibleDuringRetirement ? new List<ISession> { session.Object } : new List<ISession>());
-            m_server.SetupGet(value => value.SessionManager).Returns(sessions.Object);
+            => VerifyRetirementDuringCursorReleaseAsync(sessionVisibleDuringRetirement, pauseBeforeTracking: false);
 
-            var point = new ContinuationPoint
-            {
-                Id = Guid.NewGuid(),
-                Manager = m_manager,
-                NodeToBrowse = new NodeHandle
-                {
-                    NodeId = m_directory.NodeId,
-                    Node = m_directory,
-                    Validated = true
-                },
-                MaxResultsToReturn = 1,
-                BrowseDirection = BrowseDirection.Forward,
-                ReferenceTypeId = ReferenceTypeIds.HasComponent
-            };
-            using var context = new OperationContext(
-                new RequestHeader(), null, RequestType.Browse, RequestLifetime.None);
-            var references = new List<ReferenceDescription>();
-            ContinuationPoint? continuation = await m_manager.BrowseAsync(context, point, references)
-                .ConfigureAwait(false);
-            Assert.That(continuation, Is.SameAs(point));
-            points.SaveBrowse(continuation!);
-
-            var cleanupEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var releaseCleanup = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            entries.OnDisposeAsync = async () =>
-            {
-                cleanupEntered.TrySetResult(true);
-                await releaseCleanup.Task.ConfigureAwait(false);
-            };
-
-            var destroyCompleted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            bool destroyedWhileCursorCleanupWasHeld = false;
-            var host = new Mock<IDynamicNodeManagerHost>();
-            host.Setup(value => value.DestroyAddressSpaceAsync(
-                    m_manager, It.IsAny<CancellationToken>()))
-                .Returns(async () =>
-                {
-                    await m_manager.DeleteAddressSpaceAsync(CancellationToken.None).ConfigureAwait(false);
-                    destroyedWhileCursorCleanupWasHeld = !entries.Disposed.Task.IsCompleted;
-                    destroyCompleted.TrySetResult(true);
-                });
-            host.Setup(value => value.RemoveDestroyedExternalReferencesAsync(
-                    m_manager, It.IsAny<CancellationToken>()))
-                .Returns(ValueTask.CompletedTask);
-
-            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(m_manager);
-            var retired = new GenerationReclaimer.RetiredGeneration(
-                m_server.Object,
-                host.Object,
-                generation,
-                [],
-                needsDetachment: false);
-            using var reclaimer = new GenerationReclaimer();
-            Task releasePoint = Task.Run(points.Clear);
-            Task reclamation = Task.CompletedTask;
-            bool retirementStarted = false;
-            bool retiredBeforeRegistration = false;
-            bool retiredBeforeCleanup = false;
-            try
-            {
-                await removalEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                Assert.That(releasePoint.IsCompleted, Is.False);
-                Assert.That(entries.DisposeCount, Is.Zero);
-
-                generation.Gate.Retire();
-                reclaimer.Enqueue([retired]);
-                retirementStarted = true;
-                reclaimer.Activate([retired]);
-                reclamation = reclaimer.ReclaimReadyAsync([retired]).AsTask();
-
-                _ = await Task.WhenAny(destroyCompleted.Task, Task.Delay(TimeSpan.FromSeconds(1), timeout.Token))
-                    .ConfigureAwait(false);
-                retiredBeforeRegistration = retired.Retirement.IsCompleted;
-
-                releaseRemoval.Set();
-                await releasePoint.WaitAsync(timeout.Token).ConfigureAwait(false);
-                await cleanupEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                Assert.That(entries.Disposed.Task.IsCompleted, Is.False);
-
-                _ = await Task.WhenAny(destroyCompleted.Task, Task.Delay(TimeSpan.FromSeconds(1), timeout.Token))
-                    .ConfigureAwait(false);
-                retiredBeforeCleanup = retired.Retirement.IsCompleted;
-            }
-            finally
-            {
-                releaseRemoval.Set();
-                releaseCleanup.TrySetResult(true);
-                try
-                {
-                    await releasePoint.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
-                    await entries.Disposed.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
-                    if (retirementStarted)
-                    {
-                        await reclamation.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
-                        await retired.Retirement.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
-                    }
-                }
-                finally
-                {
-                    points.Clear();
-                }
-            }
-
-            using (Assert.EnterMultipleScope())
-            {
-                Assert.That(retiredBeforeRegistration, Is.False,
-                    "Retirement completed while continuation removal was blocked.");
-                Assert.That(retiredBeforeCleanup, Is.False,
-                    "Retirement completed while cursor cleanup was blocked.");
-                Assert.That(destroyedWhileCursorCleanupWasHeld, Is.False,
-                    "Address space deletion completed before cursor cleanup.");
-                Assert.That(destroyCompleted.Task.IsCompleted, Is.True,
-                    "Address space deletion did not complete.");
-                Assert.That(entries.DisposeCount, Is.EqualTo(1));
-            }
-            host.Verify(value => value.DestroyAddressSpaceAsync(
-                m_manager, It.IsAny<CancellationToken>()), Times.Once);
-            store.Verify(value => value.RemoveContinuationPoint(
-                sessionId, ContinuationPointKind.Browse, point.Id), Times.Once);
-        }
+        /// <summary>
+        /// Verifies retirement waits when cursor cleanup starts before the host records it.
+        /// </summary>
+        /// <param name="sessionVisibleDuringRetirement">
+        /// Whether the reclaimer can find the closing session.
+        /// </param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public Task GenerationRetirementWaitsForStartedCursorCleanupRegistrationAsync(
+            bool sessionVisibleDuringRetirement)
+            => VerifyRetirementDuringCursorReleaseAsync(sessionVisibleDuringRetirement, pauseBeforeTracking: true);
 
         [Test]
         public async Task LegacyNextContinuesAnAsyncDirectoryCursorWithoutReenumerationAsync()
@@ -1024,6 +891,219 @@ namespace Opc.Ua.Server.Tests.FileSystem
             finally
             {
                 points.Clear();
+            }
+        }
+
+        /// <summary>
+        /// Holds one continuation-release boundary while its generation retires.
+        /// </summary>
+        /// <param name="sessionVisibleDuringRetirement">
+        /// Whether the reclaimer can find the closing session.
+        /// </param>
+        /// <param name="pauseBeforeTracking">
+        /// Whether to pause after cursor cleanup starts instead of before browser disposal.
+        /// </param>
+        private async Task VerifyRetirementDuringCursorReleaseAsync(
+            bool sessionVisibleDuringRetirement,
+            bool pauseBeforeTracking)
+        {
+            var entries = new CountingEntries(4);
+            SetEntries(entries);
+            m_provider.Setup(value => value.GetEntryAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<FileSystemEntry?>((FileSystemEntry?)null));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+            var releaseEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var trackingEntered = new TaskCompletionSource<Task>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var resumeRelease = new ManualResetEventSlim();
+
+            void PauseRelease()
+            {
+                releaseEntered.TrySetResult(true);
+                if (!resumeRelease.Wait(TimeSpan.FromSeconds(15)))
+                {
+                    throw new TimeoutException("Continuation release was not resumed.");
+                }
+            }
+
+            var sessionId = new NodeId(99, 1);
+            var store = new Mock<IContinuationPointStore>();
+            store.Setup(value => value.RemoveContinuationPoint(
+                    sessionId, ContinuationPointKind.Browse, It.IsAny<Guid>()))
+                .Callback<NodeId, ContinuationPointKind, Guid>((_, _, _) =>
+                {
+                    if (!pauseBeforeTracking)
+                    {
+                        PauseRelease();
+                    }
+                });
+            IFileSystemHost realHost = m_manager;
+            var trackingHost = new Mock<IFileSystemHost>();
+            DirectoryObjectState directory = m_directory;
+            if (pauseBeforeTracking)
+            {
+                trackingHost.SetupGet(value => value.Provider).Returns(realHost.Provider);
+                trackingHost.SetupGet(value => value.UsesVirtualDirectoryBrowsing).Returns(true);
+                trackingHost.Setup(value => value.BuildDirectoryNodeId(It.IsAny<string>()))
+                    .Returns((string path) => realHost.BuildDirectoryNodeId(path));
+                trackingHost.Setup(value => value.BuildFileNodeId(It.IsAny<string>()))
+                    .Returns((string path) => realHost.BuildFileNodeId(path));
+                trackingHost.Setup(value => value.TrackCursorCleanup(It.IsAny<Task>()))
+                    .Callback<Task>(cleanup =>
+                    {
+                        trackingEntered.TrySetResult(cleanup);
+                        PauseRelease();
+                        realHost.TrackCursorCleanup(cleanup);
+                    });
+                directory = new DirectoryObjectState(
+                    m_manager.SystemContext,
+                    m_directory.NodeId,
+                    string.Empty,
+                    "BoundedDirectory",
+                    isRoot: true,
+                    host: trackingHost.Object);
+            }
+
+            var points = new SessionContinuationPoints(() => sessionId, 10, 10, store.Object);
+            var session = new Mock<ISession>();
+            session.SetupGet(value => value.ContinuationPoints).Returns(points);
+            session.SetupGet(value => value.EffectiveIdentity).Returns(new UserIdentity());
+            var sessions = new Mock<ISessionManager>();
+            sessions.Setup(value => value.GetSessions()).Returns(
+                sessionVisibleDuringRetirement ? new List<ISession> { session.Object } : new List<ISession>());
+            m_server.SetupGet(value => value.SessionManager).Returns(sessions.Object);
+
+            using var point = new ContinuationPoint
+            {
+                Id = Guid.NewGuid(),
+                Manager = m_manager,
+                NodeToBrowse = new NodeHandle
+                {
+                    NodeId = directory.NodeId,
+                    Node = directory,
+                    Validated = true
+                },
+                MaxResultsToReturn = 1,
+                BrowseDirection = BrowseDirection.Forward,
+                ReferenceTypeId = ReferenceTypeIds.HasComponent
+            };
+            using var context = new OperationContext(
+                new RequestHeader(), null, RequestType.Browse, RequestLifetime.None);
+            var references = new List<ReferenceDescription>();
+            ContinuationPoint? continuation = await m_manager.BrowseAsync(context, point, references)
+                .ConfigureAwait(false);
+            Assert.That(continuation, Is.SameAs(point));
+            points.SaveBrowse(continuation!);
+
+            var cleanupEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseCleanup = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            entries.OnDisposeAsync = async () =>
+            {
+                cleanupEntered.TrySetResult(true);
+                await releaseCleanup.Task.ConfigureAwait(false);
+            };
+            var destroyCompleted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            bool destroyedWhileCursorCleanupWasHeld = false;
+            var host = new Mock<IDynamicNodeManagerHost>();
+            host.Setup(value => value.DestroyAddressSpaceAsync(
+                    m_manager, It.IsAny<CancellationToken>()))
+                .Returns(async () =>
+                {
+                    await m_manager.DeleteAddressSpaceAsync(CancellationToken.None).ConfigureAwait(false);
+                    destroyedWhileCursorCleanupWasHeld = !entries.Disposed.Task.IsCompleted;
+                    destroyCompleted.TrySetResult(true);
+                });
+            host.Setup(value => value.RemoveDestroyedExternalReferencesAsync(
+                    m_manager, It.IsAny<CancellationToken>()))
+                .Returns(ValueTask.CompletedTask);
+
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(m_manager);
+            var retired = new GenerationReclaimer.RetiredGeneration(
+                m_server.Object,
+                host.Object,
+                generation,
+                [],
+                needsDetachment: false);
+            using var reclaimer = new GenerationReclaimer();
+            Task releasePoint = Task.Run(points.Clear);
+            Task reclamation = Task.CompletedTask;
+            bool retirementStarted = false;
+            bool retiredBeforeRegistration = false;
+            bool retiredBeforeCleanup = false;
+            try
+            {
+                await releaseEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(releasePoint.IsCompleted, Is.False);
+                if (pauseBeforeTracking)
+                {
+                    Task pendingCleanup = await trackingEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    Assert.That(pendingCleanup.IsCompleted, Is.False);
+                }
+                else
+                {
+                    Assert.That(entries.DisposeCount, Is.Zero);
+                }
+
+                generation.Gate.Retire();
+                reclaimer.Enqueue([retired]);
+                retirementStarted = true;
+                reclaimer.Activate([retired]);
+                reclaimer.Schedule();
+                reclamation = reclaimer.ReclaimReadyAsync([retired]).AsTask();
+
+                _ = await Task.WhenAny(destroyCompleted.Task, Task.Delay(TimeSpan.FromSeconds(1), timeout.Token))
+                    .ConfigureAwait(false);
+                timeout.Token.ThrowIfCancellationRequested();
+                retiredBeforeRegistration = retired.Retirement.IsCompleted;
+
+                resumeRelease.Set();
+                await releasePoint.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await cleanupEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(entries.Disposed.Task.IsCompleted, Is.False);
+
+                _ = await Task.WhenAny(destroyCompleted.Task, Task.Delay(TimeSpan.FromSeconds(1), timeout.Token))
+                    .ConfigureAwait(false);
+                timeout.Token.ThrowIfCancellationRequested();
+                retiredBeforeCleanup = retired.Retirement.IsCompleted;
+            }
+            finally
+            {
+                resumeRelease.Set();
+                releaseCleanup.TrySetResult(true);
+                try
+                {
+                    await releasePoint.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    await entries.Disposed.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    if (retirementStarted)
+                    {
+                        await reclamation.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                        await retired.Retirement.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    points.Clear();
+                }
+            }
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(retiredBeforeRegistration, Is.False,
+                    "Retirement completed while continuation release was blocked.");
+                Assert.That(retiredBeforeCleanup, Is.False,
+                    "Retirement completed while cursor cleanup was blocked.");
+                Assert.That(destroyedWhileCursorCleanupWasHeld, Is.False,
+                    "Address space deletion completed before cursor cleanup.");
+                Assert.That(destroyCompleted.Task.IsCompleted, Is.True,
+                    "Address space deletion did not complete.");
+                Assert.That(entries.DisposeCount, Is.EqualTo(1));
+            }
+            host.Verify(value => value.DestroyAddressSpaceAsync(
+                m_manager, It.IsAny<CancellationToken>()), Times.Once);
+            store.Verify(value => value.RemoveContinuationPoint(
+                sessionId, ContinuationPointKind.Browse, point.Id), Times.Once);
+            if (pauseBeforeTracking)
+            {
+                trackingHost.Verify(value => value.TrackCursorCleanup(It.IsAny<Task>()), Times.Once);
             }
         }
 
