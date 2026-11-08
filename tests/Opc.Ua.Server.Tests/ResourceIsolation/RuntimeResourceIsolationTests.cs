@@ -1192,16 +1192,16 @@ namespace Opc.Ua.Server.Tests
             ServerConfiguration server = configuration.ServerConfiguration!;
             server.MaxQueuedRequestCount = 150;
             server.MaxRequestThreadCount = 120;
-            server.MaxSessionCount = 8;
             server.MaxPublishRequestCount = 0;
             server.MaxSubscriptionCount = 8;
             ServerResourceIsolationPlan plan = options.CreateRuntimePlan(
                 configuration, new ServerRateLimitOptions(), new ChunkReassemblyBudget(100));
 
-            // eight Sessions with one subscription each may keep two Publish requests each
+            // two Sessions with four subscriptions each may keep five Publish requests each
             ResourceIsolationStagePlan parked = plan.GetStage(ResourceIsolationStage.ParkedRequest);
-            Assert.That(parked.SharedCapacity, Is.EqualTo(150 + 8 + 8));
-            Assert.That(parked.SharedCapacity - 150, Is.GreaterThanOrEqualTo(8 * 2));
+            Assert.That(server.MaxSessionCount, Is.EqualTo(2));
+            Assert.That(parked.SharedCapacity, Is.EqualTo(150 + 2 + 8));
+            Assert.That(parked.SharedCapacity - 150, Is.GreaterThanOrEqualTo(2 * (4 + 1)));
         }
 
         [Test]
