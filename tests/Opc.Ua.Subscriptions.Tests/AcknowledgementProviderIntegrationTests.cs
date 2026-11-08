@@ -41,8 +41,14 @@ using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Server;
+using Quickstarts.ReferenceServer;
 using ClassicSubscription = Opc.Ua.Client.Subscription;
+using ISubscription = Opc.Ua.Client.Subscriptions.ISubscription;
+using ISubscriptionManager = Opc.Ua.Client.Subscriptions.ISubscriptionManager;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
+using MonitoredItem = Opc.Ua.Client.MonitoredItem;
+using ServerMonitoredItem = Opc.Ua.Server.IMonitoredItem;
 
 namespace Opc.Ua.Subscriptions.Tests
 {
@@ -184,6 +190,10 @@ namespace Opc.Ua.Subscriptions.Tests
                 items.Add(item!);
             }
             await WaitForAsync(() => items.All(item => item.Created), ct).ConfigureAwait(false);
+            await WaitForAsync(() => manager.PublishWorkerCount == 1, ct).ConfigureAwait(false);
+            Assert.That(ReferenceServer, Is.InstanceOf<BurstReferenceServer>());
+            var server = (BurstReferenceServer)ReferenceServer;
+            await WaitForAsync(() => server.InitialSamplesReady(session.SessionId, expected), ct).ConfigureAwait(false);
             uint initialRepublishCount = GetServerRepublishCount(session);
             options.CurrentValue = options.CurrentValue with { PublishingEnabled = true };
             int expectedGroups = partitioned ? 2 : 1;
@@ -209,6 +219,8 @@ namespace Opc.Ua.Subscriptions.Tests
             IGrouping<uint, SubscriptionNotificationMessage>[] groups =
                 [.. messages.GroupBy(message => message.Acknowledgement.SubscriptionId)];
             Assert.That(groups, Has.Length.EqualTo(expectedGroups));
+            Assert.That(server.RepublishRequests.Any(id => groups.Any(group => group.Key == id)), Is.False);
+            Assert.That(manager.RepublishMessageCount, Is.Zero);
             foreach (IGrouping<uint, SubscriptionNotificationMessage> group in groups)
             {
                 SubscriptionNotificationMessage[] ordered =
@@ -231,6 +243,61 @@ namespace Opc.Ua.Subscriptions.Tests
             await WaitForAsync(
                 () => acknowledgements.All(observer.WasAcknowledged),
                 ct).ConfigureAwait(false);
+            Assert.That(handler.Messages, Has.Count.EqualTo(expected));
+            Assert.That(server.RepublishRequests.Any(id => groups.Any(group => group.Key == id)), Is.False);
+        }
+
+        /// <inheritdoc/>
+        protected override ReferenceServer CreateReferenceServer(ITelemetryContext telemetry)
+        {
+            return new BurstReferenceServer(telemetry);
+        }
+
+        /// <summary>
+        /// Observes committed initial samples and recovery requests without replacing live service behavior.
+        /// </summary>
+        private sealed class BurstReferenceServer(ITelemetryContext telemetry) : ReferenceServer(telemetry)
+        {
+            /// <summary>
+            /// Records the subscriptions for which recovery was requested.
+            /// </summary>
+            public ConcurrentQueue<uint> RepublishRequests { get; } = new();
+
+            /// <summary>
+            /// Requires every intended initial sample and exactly three items per native subscription.
+            /// </summary>
+            public bool InitialSamplesReady(NodeId sessionId, int expected)
+            {
+                // The configuration/diagnostics manager owns ServerStatus.State, not the core
+                // manager. Its generation registry contains the committed subscription-bound items.
+                if (CurrentInstance?.DiagnosticsNodeManager is not { } nodeManager ||
+                    !NodeManagerGenerationRegistry.TryGet(nodeManager, out NodeManagerGeneration? generation) ||
+                    generation is null)
+                {
+                    return false;
+                }
+                ServerMonitoredItem[] items =
+                    [.. generation.MonitoredItems
+                        .Where(entry => entry.Value.SessionId == sessionId &&
+                            entry.Key.NodeId == VariableIds.Server_ServerStatus_State)
+                        .Select(entry => entry.Key)];
+                return items.Length == expected &&
+                    items.All(item => item.IsReadyToPublish) &&
+                    items.GroupBy(item => item.SubscriptionId).All(group => group.Count() == 3);
+            }
+
+            /// <inheritdoc/>
+            public override ValueTask<RepublishResponse> RepublishAsync(
+                SecureChannelContext secureChannelContext,
+                RequestHeader? requestHeader,
+                uint subscriptionId,
+                uint retransmitSequenceNumber,
+                RequestLifetime requestLifetime)
+            {
+                RepublishRequests.Enqueue(subscriptionId);
+                return base.RepublishAsync(secureChannelContext, requestHeader, subscriptionId,
+                    retransmitSequenceNumber, requestLifetime);
+            }
         }
 
         /// <summary>
