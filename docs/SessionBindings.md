@@ -124,11 +124,17 @@ engine, registry persistence mechanism or server-restoration phase.
 ## Compatibility and deployment
 
 The client capability adds no mandatory members to existing session or transport
-interfaces. The server lookup previously named `Opc.Ua.ISessionBindingProvider`
-is renamed to `Opc.Ua.IServerSessionBindingProvider` to distinguish the two
-capabilities. This is a source and binary breaking change for consumers of that
-preview server lookup: update implementations, casts and DI registrations, and
-rebuild against the renamed interface. Its committed-session semantics are unchanged.
+interfaces. In 2.0.1, the server lookup was named
+`Opc.Ua.ISessionBindingProvider`. The current type with that name is the client
+capability; the server lookup is `Opc.Ua.IServerSessionBindingProvider`.
+
+This changes the source and binary contract for consumers of the 2.0.1 server
+lookup. The 2.0.1 `DefaultServerResourceIsolationProvider` constructor also
+accepted the former server interface; the current constructor accepts the
+renamed interface instead. The old server methods under the original type name
+and the original constructor signature are absent. Update implementations,
+casts, DI registrations, and constructor calls, and rebuild against the renamed
+interface. The server lookup's committed-session semantics are unchanged.
 
 Capture uses existing session factories and client DI configuration; it requires
 no separate registration. The implementation introduces no dynamic code generation
