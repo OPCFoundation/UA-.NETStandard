@@ -610,13 +610,25 @@ An overflowing aggregate retains its last finite value with `BadOutOfRange`.
 Direct `Record`, `RecordAccepted` and `RecordRejected` calls reject positive and
 negative infinity with `ArgumentOutOfRangeException` before changing counters.
 
-Counter `Weighed` is true when all items recorded in that category contribute
-to `TotalPackagesWeighed`. An entirely unweighed category publishes false.
-A category containing both weighed and unweighed items publishes false with
-`UncertainSubNormal`: a Boolean cannot describe its partial contribution.
-The overall `TotalPackages` counter remains false because it counts packages
-without requiring a measurement. Mixed-category representation remains a
-conformance limitation under the Partial rating.
+OPC 40200 [§7.20.1](https://reference.opcfoundation.org/specs/OPC-40200/7.20.1)
+and [§7.20.3](https://reference.opcfoundation.org/specs/OPC-40200/7.20.3)
+define `Weighed` as a category's participation in `TotalPackagesWeighed`.
+[§7.19.3](https://reference.opcfoundation.org/specs/OPC-40200/7.19.3) also
+allows rejected packages from processes before or after weighing. The recorder
+accepts both measured and unmeasured reports in the same rejection category.
+Its current `Weighed` value is true when all items in that category were weighed;
+an entirely unweighed category publishes false, and a mixed category publishes
+false with `UncertainSubNormal`. `TotalPackages` remains false because it counts
+packages without requiring a measurement.
+
+This dynamic value describes measurement completeness, not fixed category
+participation. A Boolean cannot identify the measured subset of a mixed
+category. Existing reporting and measured-only `TotalPackagesWeighed` totals
+remain unchanged, and support remains Partial until that representation is
+clarified. Making category membership fixed would require rejecting reports
+that differ from a category's measurement policy or introducing separate
+measured and unmeasured categories; neither behavior is imposed on existing
+applications.
 
 Recorder reset includes zone counters previously recorded through that same
 recorder, even though those counters are outside the statistic's child nodes.
@@ -713,7 +725,8 @@ which identifies itself as identical to OPC 40200 Release 2.00: §7.19.3 on
 page 72 and §7.20.3 on page 74. The runtime implements both observation modes,
 current-nominal GiveAway refresh, optional counters, and quality propagation.
 OPC 40200 support remains **Partial** because mixed-category `Weighed`
-representation and overlapping notification-flow isolation remain unresolved.
+does not represent fixed category participation, and ordinary notification
+reentry does not isolate writes originating in overlapping callbacks.
 
 ### Type controllers
 
@@ -1353,8 +1366,8 @@ path · ❌ not shipped.
 The tables identify implementation paths and their tests, not certification.
 Test names identify the cases associated with each behavior; names alone do not
 establish that the cases have passed. OPC 40200 support remains Partial because
-mixed-category `Weighed` representation and isolation between overlapping
-notification flows remain unresolved. A scale
+mixed-category `Weighed` does not represent fixed category participation,
+and ordinary notification reentry permits writes from overlapping callbacks. A scale
 without PackML requires explicit application release or an allowing release
 callback before starting a recipe.
 
