@@ -34,9 +34,10 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// One-release source compatibility for the former single-operation lifecycle API.
-    /// Every operation prepares and commits through <see cref="INodeManagerLifecycle"/>.
-    /// Legacy request contexts are ignored.
+    /// Provides source-compatible extensions for single-operation lifecycle calls.
+    /// Each operation prepares and commits through <see cref="INodeManagerLifecycle"/>.
+    /// Legacy request contexts are ignored. Existing binaries that reference the former instance methods cannot bind
+    /// to these extensions.
     /// </summary>
     public static class NodeManagerLifecycleExtensions
     {

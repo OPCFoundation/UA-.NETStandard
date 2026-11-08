@@ -42,7 +42,7 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// Source-compatible entry points for the one-release context migration window.
+    /// Provides source-compatible extensions for batch preparation and publication admission.
     /// Legacy contexts are ignored; request callbacks use the canonical transaction path.
     /// </summary>
     public static class NodeManagerBatchLifecycleExtensions
