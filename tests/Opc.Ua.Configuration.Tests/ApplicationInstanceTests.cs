@@ -763,6 +763,65 @@ namespace Opc.Ua.Configuration.Tests
             }
         }
         /// <summary>
+        /// Unattached validation keeps a manager assigned during factory work and discards its unpublished manager.
+        /// </summary>
+        [Test]
+        public async Task UnattachedValidationKeepsManagerAssignedDuringCreationAsync()
+        {
+            ITelemetryContext actualTelemetry = NUnitTelemetryContext.Create();
+            var telemetry = new Mock<ITelemetryContext>();
+            var loggerFactory = new Mock<ILoggerFactory>();
+            loggerFactory.Setup(value => value.CreateLogger(It.IsAny<string>()))
+                .Returns(actualTelemetry.LoggerFactory.CreateLogger);
+            telemetry.SetupGet(value => value.LoggerFactory).Returns(loggerFactory.Object);
+            telemetry.SetupGet(value => value.ActivitySource).Returns(actualTelemetry.ActivitySource);
+            telemetry.Setup(value => value.GetActivitySource(It.IsAny<System.Reflection.Assembly>()))
+                .Returns((System.Reflection.Assembly assembly) => actualTelemetry.GetActivitySource(assembly));
+            telemetry.Setup(value => value.CreateMeter()).Returns(actualTelemetry.CreateMeter);
+            telemetry.Setup(value => value.CreateMeter(It.IsAny<System.Reflection.Assembly>()))
+                .Returns((System.Reflection.Assembly assembly) => actualTelemetry.CreateMeter(assembly));
+            await using var application = new ApplicationInstance(telemetry.Object)
+            {
+                ApplicationName = ApplicationName,
+                DisableCertificateAutoCreation = true
+            };
+            application.Build(ApplicationUri, ProductUri).AsClient().AddSecurityConfiguration(
+                [
+                    new CertificateIdentifier
+                    {
+                        SubjectName = SubjectName,
+                        StoreType = CertificateStoreType.Directory,
+                        StorePath = m_pkiRoot,
+                        CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
+                    }
+                ],
+                m_pkiRoot);
+            var unattached = new ApplicationConfiguration(application.ApplicationConfiguration!);
+            var custom = new Mock<ICertificateManager>(MockBehavior.Strict);
+            int factoryCalls = 0;
+            loggerFactory.Setup(value => value.CreateLogger(It.IsAny<string>()))
+                .Returns((string category) =>
+                {
+                    if (category == typeof(CertificateManager).FullName &&
+                        Interlocked.Increment(ref factoryCalls) == 1)
+                    {
+                        // The factory is paused after the initialization slot is claimed and before publication.
+                        unattached.CertificateManager = custom.Object;
+                    }
+                    return actualTelemetry.LoggerFactory.CreateLogger(category);
+                });
+
+            Assert.That(unattached.CertificateManager, Is.Null);
+            await unattached.ValidateAsync(ApplicationType.Client);
+            Assert.That(factoryCalls, Is.EqualTo(1));
+            Assert.That(unattached.CertificateManager, Is.SameAs(custom.Object));
+            Assert.That(application.ApplicationConfiguration!.CertificateManager, Is.Null);
+            await unattached.ValidateAsync(ApplicationType.Client);
+            Assert.That(factoryCalls, Is.EqualTo(1));
+            Assert.That(unattached.CertificateManager, Is.SameAs(custom.Object));
+        }
+
+        /// <summary>
         /// Base validation creates a manager owned by both applications when they attach before validation.
         /// </summary>
         [Test]

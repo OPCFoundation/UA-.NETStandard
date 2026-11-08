@@ -136,17 +136,17 @@ namespace Opc.Ua
                 {
                     lock (s_certificateManagerLifetimeLock)
                     {
-                        var manager = value as CertificateManager;
-                        CertificateManagerLifetime? lifetime = null;
-                        if (manager != null)
+                        if (value is CertificateManager manager)
                         {
-                            lifetime = GetCertificateManagerLifetime(manager);
+                            CertificateManagerLifetime lifetime = GetCertificateManagerLifetime(manager);
                             lifetime.ThrowIfDisposing();
-                        }
-                        PruneRetiredCertificateManagers();
-                        if (manager != null && lifetime != null)
-                        {
+                            PruneRetiredCertificateManagers();
                             TrackCertificateManager(manager, lifetime);
+                        }
+                        else
+                        {
+                            // Custom managers are never owned, but reuse still clears retired concrete history.
+                            PruneRetiredCertificateManagers();
                         }
                         m_certificateManagerLeaseReleased = false;
                     }
@@ -207,38 +207,48 @@ namespace Opc.Ua
             {
                 try
                 {
-                    CertificateManager created = CertificateManagerFactory.Create(SecurityConfiguration, telemetry);
-                    CertificateManagerLifetime? retired = null;
                     bool releasedDuringCreation;
-                    ICertificateManager selected;
-                    lock (m_certificateManagerLock)
+                    ICertificateManager? selected = null;
+                    CertificateManagerLifetime? createdLifetime = null;
+                    CertificateManager? created = null;
+                    try
                     {
-                        releasedDuringCreation = m_certificateManagerLeaseReleased ||
-                            generation != m_certificateManagerGeneration;
-                        lock (s_certificateManagerLifetimeLock)
+                        created = CertificateManagerFactory.Create(SecurityConfiguration, telemetry);
+                        lock (m_certificateManagerLock)
                         {
-                            CertificateManagerLifetime lifetime = GetCertificateManagerLifetime(created);
-                            if (releasedDuringCreation ||
-                                (m_certificateManager != null && m_certificateManagerUsers == 0))
+                            releasedDuringCreation = m_certificateManagerLeaseReleased ||
+                                generation != m_certificateManagerGeneration;
+                            // The factory runs outside the lock, so another caller may have published a manager.
+                            ICertificateManager? current = Volatile.Read(ref m_certificateManager);
+                            if (!releasedDuringCreation && (current == null || m_certificateManagerUsers > 0))
                             {
-                                lifetime.Disposing = true;
-                                retired = lifetime;
-                            }
-                            else
-                            {
-                                TrackCertificateManager(created, lifetime);
-                                if (validationCreated)
+                                lock (s_certificateManagerLifetimeLock)
                                 {
-                                    m_validationCreatedCertificateManagers.Add(created);
+                                    createdLifetime = GetCertificateManagerLifetime(created);
+                                    TrackCertificateManager(created, createdLifetime);
+                                    if (validationCreated)
+                                    {
+                                        m_validationCreatedCertificateManagers.Add(created);
+                                    }
                                 }
-                                m_certificateManager ??= created;
+                                selected = current ?? created;
+                                m_certificateManager = selected;
+                                created = null; // ownership transferred to the configuration leases
+                            }
+                            else if (!releasedDuringCreation)
+                            {
+                                // An unattached configuration keeps a manager assigned during creation.
+                                selected = current;
                             }
                         }
-                        selected = m_certificateManager;
                     }
-                    if (retired != null)
+                    finally
                     {
-                        await retired.DisposeAsync().ConfigureAwait(false);
+                        // Disposes a manager that was never published, including when publication throws.
+                        if (created != null)
+                        {
+                            await created.DisposeAsync().ConfigureAwait(false);
+                        }
                     }
                     CertificateManagerLifetime? releasedCreation = null;
                     bool retiredBeforePublication;
@@ -246,12 +256,11 @@ namespace Opc.Ua
                     {
                         retiredBeforePublication = releasedDuringCreation || m_certificateManagerLeaseReleased ||
                             generation != m_certificateManagerGeneration;
-                        selected = m_certificateManager ?? selected;
+                        selected = Volatile.Read(ref m_certificateManager) ?? selected;
                         lock (s_certificateManagerLifetimeLock)
                         {
                             // A release between publication and this check owns disposal of the created manager.
-                            CertificateManagerLifetime createdLifetime = GetCertificateManagerLifetime(created);
-                            if (retired == null && createdLifetime.Disposing)
+                            if (createdLifetime != null && createdLifetime.Disposing)
                             {
                                 releasedCreation = createdLifetime;
                                 retiredBeforePublication = true;
@@ -276,7 +285,7 @@ namespace Opc.Ua
                                 "The certificate manager ownership period ended during initialization.", e);
                         }
                     }
-                    if (retiredBeforePublication)
+                    if (retiredBeforePublication || selected == null)
                     {
                         throw new ObjectDisposedException(nameof(ApplicationConfiguration));
                     }
