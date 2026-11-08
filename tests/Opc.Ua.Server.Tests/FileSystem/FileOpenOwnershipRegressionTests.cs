@@ -220,6 +220,139 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         /// <summary>
+        /// Protocol methods serialize the cursor and explicit Close drains a previously admitted position request.
+        /// </summary>
+        [Test]
+        public async Task ProtocolCloseDrainsReadAndQueuedPositionBeforeDisposingAsync()
+        {
+            using var harness = new FileHarness();
+            using var stream = new SuspendedProtocolReadStream();
+            harness.Provider.Setup(value => value.OpenReadAsync("file", It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<Stream>(stream));
+            uint id = await FileReadRegressionTests.OpenAsync(harness.File, harness.Manager.SystemContext)
+                .ConfigureAwait(false);
+            Task<ReadMethodStateResult> read = harness.File.Read!.OnCallAsync!(
+                harness.Manager.SystemContext, harness.File.Read, harness.File.NodeId, id, 1, CancellationToken.None)
+                .AsTask();
+            Task<GetPositionMethodStateResult> position = harness.File.GetPosition!.OnCallAsync!(
+                harness.Manager.SystemContext, harness.File.GetPosition, harness.File.NodeId, id,
+                CancellationToken.None)
+                .AsTask();
+            Task<CloseMethodStateResult> close = harness.File.Close!.OnCallAsync!(
+                harness.Manager.SystemContext, harness.File.Close, harness.File.NodeId, id, CancellationToken.None)
+                .AsTask();
+            try
+            {
+                Assert.That(position.IsCompleted, Is.False);
+                Assert.That(close.IsCompleted, Is.False);
+                Assert.That(stream.CanRead, Is.True);
+                SetPositionMethodStateResult rejected = await harness.File.SetPosition!.OnCallAsync!(
+                    harness.Manager.SystemContext, harness.File.SetPosition, harness.File.NodeId, id, 0,
+                    CancellationToken.None).ConfigureAwait(false);
+                Assert.That(rejected.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(harness.GetHandle().TryBlockOpens(), Is.False);
+            }
+            finally
+            {
+                stream.Release.TrySetResult(true);
+            }
+            ReadMethodStateResult readResult = await read.ConfigureAwait(false);
+            GetPositionMethodStateResult positionResult = await position.ConfigureAwait(false);
+            CloseMethodStateResult closeResult = await close.ConfigureAwait(false);
+            Assert.That(readResult.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(positionResult.Position, Is.EqualTo(1));
+            Assert.That(closeResult.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(stream.CanRead, Is.False);
+        }
+
+        /// <summary>
+        /// The node manager's session and shutdown callbacks cancel I/O without disposing an actively used stream.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ManagerLifecycleRetainsCancellationIgnoringProtocolReadAsync(bool shutdown)
+        {
+            using var harness = new FileHarness();
+            using var stream = new SuspendedProtocolReadStream();
+            harness.Manager.CloseTimeout = TimeSpan.Zero;
+            harness.Provider.Setup(value => value.OpenReadAsync("file", It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<Stream>(stream));
+            uint id = await FileReadRegressionTests.OpenAsync(harness.File, harness.Manager.SystemContext)
+                .ConfigureAwait(false);
+            FileHandle handles = harness.GetHandle();
+            Task<ReadMethodStateResult> read = harness.File.Read!.OnCallAsync!(
+                harness.Manager.SystemContext, harness.File.Read, harness.File.NodeId, id, 1, CancellationToken.None)
+                .AsTask();
+            try
+            {
+                if (shutdown)
+                {
+                    await harness.Manager.DisposeAsync().ConfigureAwait(false);
+                }
+                else
+                {
+                    await harness.Manager.SessionClosingAsync(null!, harness.SessionId, false).ConfigureAwait(false);
+                }
+                await stream.Cancelled.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.That(read.IsCompleted, Is.False);
+                Assert.That(stream.CanRead, Is.True);
+                Assert.That(handles.TryBlockOpens(), Is.False);
+                Assert.That(handles.CleanupCompletion.IsCompleted, Is.False);
+            }
+            finally
+            {
+                stream.Release.TrySetResult(true);
+                await read.ConfigureAwait(false);
+                await handles.CleanupCompletion.ConfigureAwait(false);
+            }
+            Assert.That(stream.CanRead, Is.False);
+        }
+
+        /// <summary>
+        /// Keeps a provider read active until the test releases it, even after lifetime cancellation.
+        /// </summary>
+        private sealed class SuspendedProtocolReadStream : MemoryStream
+        {
+            /// <summary>
+            /// Creates a four-byte readable stream.
+            /// </summary>
+            public SuspendedProtocolReadStream()
+                : base(new byte[4], writable: true)
+            {
+            }
+
+            /// <summary>
+            /// Gets the externally controlled read completion.
+            /// </summary>
+            public TaskCompletionSource<bool> Release { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>
+            /// Gets the cancellation notification from the active provider request.
+            /// </summary>
+            public TaskCompletionSource<bool> Cancelled { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <inheritdoc/>
+            public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken ct)
+            {
+                using CancellationTokenRegistration registration = ct.Register(() => Cancelled.TrySetResult(true));
+                await Release.Task.ConfigureAwait(false);
+                return base.Read(buffer, offset, count);
+            }
+
+#if NET5_0_OR_GREATER
+            /// <inheritdoc/>
+            public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken ct = default)
+            {
+                using CancellationTokenRegistration registration = ct.Register(() => Cancelled.TrySetResult(true));
+                await Release.Task.ConfigureAwait(false);
+                return base.Read(buffer.Span);
+            }
+#endif
+        }
+
+        /// <summary>
         /// Owns a file-system manager with a controllable provider and a shared test session.
         /// </summary>
         private sealed class FileHarness : IDisposable

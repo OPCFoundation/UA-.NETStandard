@@ -219,7 +219,9 @@ models that each model depends on.
   optical-verifier/RTLS contract discrepancies keep specification support Partial.
 - [Laboratory and Analytical Devices](LADS.md) (OPC 30500-1, LADS): model,
   server hosting on Machinery with functions, programs, results and maintenance
-  tasks, typed client and a shaking incubator sample.
+  tasks, optional cooperative running operations, stored-data restoration,
+  typed client and a shaking incubator sample. Restart never resumes interrupted
+  physical execution.
 - [Machine Vision](Vision.md) (OPC 40100-1 and OPC 40100-2) —
   released control, recipes, configurations, results, assets, and condition monitoring,
   with Vision/Perception composition and Machinery hosting.

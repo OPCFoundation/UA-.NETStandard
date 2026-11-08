@@ -4979,6 +4979,8 @@ namespace Opc.Ua.Server
                 await ValidateNodeAsync(systemContext, handle, null!, cancellationToken).ConfigureAwait(false)
                 ?? throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
 
+            using IDisposable? activity = BeginBrowseActivity(systemContext, source);
+
             // check if node is in the view.
             if (!IsNodeInView(systemContext, continuationPoint, source))
             {
@@ -5272,6 +5274,8 @@ namespace Opc.Ua.Server
                 return;
             }
 
+            using IDisposable? activity = BeginBrowseActivity(systemContext, source);
+
             // get list of references that relative path. The node guards the browser build itself.
             INodeBrowser browser = source.CreateBrowser(
                 systemContext,
@@ -5363,6 +5367,18 @@ namespace Opc.Ua.Server
                     browser.Dispose();
                 }
             }
+        }
+
+        /// <summary>
+        /// Begins optional activity accounting for a resolved browse source.
+        /// The returned scope is disposed after browsing or translating the relative path finishes.
+        /// </summary>
+        /// <param name="context">The requesting session context.</param>
+        /// <param name="source">The resolved source node.</param>
+        /// <returns>The activity scope, or null when no accounting is needed.</returns>
+        protected virtual IDisposable? BeginBrowseActivity(ISystemContext context, NodeState source)
+        {
+            return null;
         }
 
         /// <summary>

@@ -117,8 +117,37 @@ namespace Opc.Ua.LADS.Server
     /// The default program executor: runs the template steps in order, applies their setpoints, waits for
     /// their durations on the run's time provider and writes a CSV protocol as result file.
     /// </summary>
-    public sealed class InMemoryLadsProgramExecutor : ILadsProgramExecutor
+    public sealed class InMemoryLadsProgramExecutor : ILadsControlledProgramExecutor
     {
+        /// <inheritdoc/>
+        public async ValueTask<ServiceResult> ChangeExecutionAsync(
+            LadsProgramRun run,
+            LadsRunningStateValue target,
+            CancellationToken cancellationToken)
+        {
+            if (run == null)
+            {
+                throw new ArgumentNullException(nameof(run));
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            switch (target)
+            {
+                case LadsRunningStateValue.Held:
+                case LadsRunningStateValue.Suspended:
+                    await run.SetPausedAsync(true, cancellationToken).ConfigureAwait(false);
+                    break;
+                case LadsRunningStateValue.Execute:
+                    await run.SetPausedAsync(false, cancellationToken).ConfigureAwait(false);
+                    break;
+                case LadsRunningStateValue.Completing:
+                    run.RequestCompletion();
+                    break;
+                default:
+                    return StatusCodes.BadNotSupported;
+            }
+            return ServiceResult.Good;
+        }
+
         /// <inheritdoc/>
         public async ValueTask ExecuteAsync(LadsProgramRun run, CancellationToken cancellationToken)
         {
@@ -133,15 +162,19 @@ namespace Opc.Ua.LADS.Server
             {
                 LadsProgramStep step = steps[ii];
                 cancellationToken.ThrowIfCancellationRequested();
+                if (!await run.WaitForExecutionAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    break;
+                }
                 number++;
-                run.ReportStep(number, step.Name);
+                await run.ReportStepAsync(number, step.Name, cancellationToken).ConfigureAwait(false);
                 ArrayOf<LadsSetpoint> setpoints = step.Setpoints;
                 for (int jj = 0; jj < setpoints.Count; jj++)
                 {
                     await run.ApplySetpointAsync(setpoints[jj], cancellationToken).ConfigureAwait(false);
                 }
                 protocol.Append(number.ToString(CultureInfo.InvariantCulture)).Append(';');
-                AppendCsvField(protocol, step.Name);
+                LadsProgramTemplate.AppendCsvField(protocol, step.Name);
                 protocol.Append(';')
                     .Append(run.TimeProvider.GetUtcNow().UtcDateTime.ToString("O", CultureInfo.InvariantCulture))
                     .Append(';')
@@ -149,39 +182,33 @@ namespace Opc.Ua.LADS.Server
                     .Append('\n');
                 await run.DelayAsync(step.Duration, cancellationToken).ConfigureAwait(false);
             }
+            if (run.IsCompletionRequested)
+            {
+                await StopControlsAsync(run.FunctionalUnit.Functions, cancellationToken).ConfigureAwait(false);
+            }
             run.SetResultVariable("Steps", number.ToString(CultureInfo.InvariantCulture));
             run.AddResultFile("Protocol.csv", "text/csv", ByteString.From(Encoding.UTF8.GetBytes(protocol.ToString())));
         }
 
-        private static void AppendCsvField(StringBuilder builder, string value)
+        /// <summary>
+        /// Stops running controls throughout the function tree before publishing orderly completion.
+        /// </summary>
+        private static async ValueTask StopControlsAsync(
+            ArrayOf<ILadsFunction> functions,
+            CancellationToken cancellationToken)
         {
-            bool needsQuotes = false;
-            foreach (char character in value)
+            for (int index = 0; index < functions.Count; index++)
             {
-                if (character is ';' or '"' or '\r' or '\n')
+                ILadsFunction function = functions[index];
+                if (function is IMultiSensorFunction group)
                 {
-                    needsQuotes = true;
-                    break;
+                    await StopControlsAsync(group.Functions, cancellationToken).ConfigureAwait(false);
+                }
+                if (function is ILadsControlFunction control && control.State == LadsFunctionalStateValue.Running)
+                {
+                    await control.StopAsync(cancellationToken).ConfigureAwait(false);
                 }
             }
-            if (!needsQuotes)
-            {
-                builder.Append(value);
-                return;
-            }
-            builder.Append('"');
-            foreach (char character in value)
-            {
-                if (character == '"')
-                {
-                    builder.Append("\"\"");
-                }
-                else
-                {
-                    builder.Append(character);
-                }
-            }
-            builder.Append('"');
         }
     }
 }

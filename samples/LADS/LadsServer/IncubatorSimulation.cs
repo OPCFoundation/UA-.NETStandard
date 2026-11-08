@@ -69,7 +69,8 @@ namespace LadsSample.Server
                 {
                     await Task.Delay(s_tick, stoppingToken).ConfigureAwait(false);
                     runId = Advance(
-                        temperature, shaker, co2, timer, chamber.Programs?.ActiveRun?.RunId, runId);
+                        temperature, shaker, co2, timer, chamber.Programs?.ActiveRun?.RunId, runId,
+                        chamber.RunningState == LadsRunningStateValue.Execute);
                 }
             }
             catch (OperationCanceledException)
@@ -87,12 +88,15 @@ namespace LadsSample.Server
             IAnalogScalarSensorFunction co2,
             ITimerFunction timer,
             string? activeRunId,
-            string? previousRunId)
+            string? previousRunId,
+            bool processing = true)
         {
             double temperatureTarget = temperature.State == LadsFunctionalStateValue.Running
                 ? temperature.TargetValue
                 : ShakingIncubator.AmbientTemperature;
-            double shakerTarget = shaker.State == LadsFunctionalStateValue.Running ? shaker.TargetValue : 0;
+            double shakerTarget = processing && shaker.State == LadsFunctionalStateValue.Running
+                ? shaker.TargetValue
+                : 0;
             temperature.UpdateCurrentValue(Approach(temperature.CurrentValue, temperatureTarget, 2));
             shaker.UpdateCurrentValue(Approach(shaker.CurrentValue, shakerTarget, 50));
             double co2Target = temperature.CurrentValue > 30 ? 5 : 0.04;
@@ -102,7 +106,7 @@ namespace LadsSample.Server
             {
                 timer.UpdateCurrentValue(0);
             }
-            else if (activeRunId is not null)
+            else if (activeRunId is not null && processing)
             {
                 timer.UpdateCurrentValue(timer.CurrentValue + s_tick.TotalMilliseconds);
             }

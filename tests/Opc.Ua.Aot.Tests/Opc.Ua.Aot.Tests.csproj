@@ -64,11 +64,13 @@
     <ProjectReference Include="..\..\src\Opc.Ua.PackML\Opc.Ua.PackML.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.PackML.Client\Opc.Ua.PackML.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.PackML.Server\Opc.Ua.PackML.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.ECM\Opc.Ua.ECM.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.ECM.Client\Opc.Ua.ECM.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.ECM.Server\Opc.Ua.ECM.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.IA.Client\Opc.Ua.IA.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.IA.Server\Opc.Ua.IA.Server.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.ECM\Opc.Ua.ECM.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.LADS.Client\Opc.Ua.LADS.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.LADS.Server\Opc.Ua.LADS.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Positioning\Opc.Ua.Positioning.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Positioning.Client\Opc.Ua.Positioning.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Positioning.Server\Opc.Ua.Positioning.Server.csproj" />
