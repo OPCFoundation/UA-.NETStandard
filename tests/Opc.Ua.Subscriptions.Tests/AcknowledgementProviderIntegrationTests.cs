@@ -155,13 +155,14 @@ namespace Opc.Ua.Subscriptions.Tests
             await using ManagedSessionType session = await ConnectAsync(
                 nameof(NativeSplitPublishMetadataSurvivesPartitionForwardingAsync), observer, classic: false, ct)
                 .ConfigureAwait(false);
-            if (ReferenceServer is null)
+            PublishResponseObserver? responseObserver = null;
+            IServiceResponseMutator? originalResponseMutator = null;
+            if (ReferenceServer is not null)
             {
-                Assert.Ignore("Publish marker correlation requires the local reference server.");
+                originalResponseMutator = ReferenceServer.ResponseMutator;
+                responseObserver = new PublishResponseObserver();
+                ReferenceServer.ResponseMutator = responseObserver;
             }
-            IServiceResponseMutator? originalResponseMutator = ReferenceServer.ResponseMutator;
-            var responseObserver = new PublishResponseObserver();
-            ReferenceServer.ResponseMutator = responseObserver;
             try
             {
                 var handler = new MessageCollectingHandler();
@@ -199,50 +200,63 @@ namespace Opc.Ua.Subscriptions.Tests
                 Assert.That(manager.PublishWorkerCount, Is.EqualTo(1));
                 SubscriptionNotificationMessage[] messages = [.. handler.Messages];
                 Assert.That(messages, Has.Length.EqualTo(expected),
-                    $"Unexpected observed notification count. Server responses: " +
-                    responseObserver.GetDiagnostics());
+                    responseObserver is null
+                        ? "Unexpected observed notification count."
+                        : $"Unexpected observed notification count. Server responses: " +
+                            responseObserver.GetDiagnostics());
                 IGrouping<uint, SubscriptionNotificationMessage>[] groups =
                     [.. messages.GroupBy(message => message.Acknowledgement.SubscriptionId)];
                 Assert.That(groups, Has.Length.EqualTo(partitioned ? 2 : 1));
-                PublishObservation[] responses = responseObserver.Snapshot();
+                PublishObservation[] responses = responseObserver?.Snapshot() ?? [];
                 foreach (IGrouping<uint, SubscriptionNotificationMessage> group in groups)
                 {
                     SubscriptionNotificationMessage[] ordered =
                         [.. group.OrderBy(message => message.Acknowledgement.SequenceNumber)];
                     Assert.That(ordered, Has.Length.EqualTo(3));
+                    if (responseObserver is null)
+                    {
+                        Assert.That(ordered.Any(message => message.MoreNotifications.HasValue), Is.True);
+                    }
                     for (int i = 0; i < ordered.Length; i++)
                     {
                         SubscriptionNotificationMessage message = ordered[i];
                         bool expectedMoreNotifications = i < ordered.Length - 1;
-                        PublishObservation[] publishResponses =
-                        [
-                            .. responses.Where(response =>
-                                !response.Republished &&
-                                response.SubscriptionId == group.Key &&
-                                response.SequenceNumber == message.Acknowledgement.SequenceNumber)
-                        ];
-                        Assert.That(publishResponses, Has.Length.EqualTo(1),
-                            $"Missing or duplicate Publish response marker for {group.Key}-" +
-                            $"{message.Acknowledgement.SequenceNumber}. Observed responses: " +
-                            responseObserver.GetDiagnostics());
-                        Assert.That(publishResponses[0].MoreNotifications, Is.EqualTo(expectedMoreNotifications),
-                            $"Unexpected server Publish response marker for {group.Key}-" +
-                            $"{message.Acknowledgement.SequenceNumber}. Observed responses: " +
-                            responseObserver.GetDiagnostics());
+                        if (responseObserver is not null)
+                        {
+                            PublishObservation[] publishResponses =
+                            [
+                                .. responses.Where(response =>
+                                    !response.Republished &&
+                                    response.SubscriptionId == group.Key &&
+                                    response.SequenceNumber == message.Acknowledgement.SequenceNumber)
+                            ];
+                            Assert.That(publishResponses, Has.Length.EqualTo(1),
+                                $"Missing or duplicate Publish response marker for {group.Key}-" +
+                                $"{message.Acknowledgement.SequenceNumber}. Observed responses: " +
+                                responseObserver.GetDiagnostics());
+                            Assert.That(publishResponses[0].MoreNotifications, Is.EqualTo(expectedMoreNotifications),
+                                $"Unexpected server Publish response marker for {group.Key}-" +
+                                $"{message.Acknowledgement.SequenceNumber}. Observed responses: " +
+                                responseObserver.GetDiagnostics());
 
-                        if (message.MoreNotifications is bool moreNotifications)
+                            if (message.MoreNotifications is bool moreNotifications)
+                            {
+                                Assert.That(moreNotifications, Is.EqualTo(expectedMoreNotifications));
+                            }
+                            else
+                            {
+                                Assert.That(responses.Any(response =>
+                                    response.Republished &&
+                                    response.SubscriptionId == group.Key &&
+                                    response.SequenceNumber == message.Acknowledgement.SequenceNumber),
+                                    Is.True,
+                                    $"A null marker is valid only for a delivered Republish response. " +
+                                    $"Observed responses: {responseObserver.GetDiagnostics()}");
+                            }
+                        }
+                        else if (message.MoreNotifications is bool moreNotifications)
                         {
                             Assert.That(moreNotifications, Is.EqualTo(expectedMoreNotifications));
-                        }
-                        else
-                        {
-                            Assert.That(responses.Any(response =>
-                                response.Republished &&
-                                response.SubscriptionId == group.Key &&
-                                response.SequenceNumber == message.Acknowledgement.SequenceNumber),
-                                Is.True,
-                                $"A null marker is valid only for a delivered Republish response. " +
-                                $"Observed responses: {responseObserver.GetDiagnostics()}");
                         }
                     }
                     Assert.That(ordered.All(message => message.Notifications[0].DataChanges.Count == 1), Is.True);
@@ -258,12 +272,18 @@ namespace Opc.Ua.Subscriptions.Tests
             }
             catch
             {
-                TestContext.Progress.WriteLine(responseObserver.GetDiagnostics());
+                if (responseObserver is not null)
+                {
+                    TestContext.Progress.WriteLine(responseObserver.GetDiagnostics());
+                }
                 throw;
             }
             finally
             {
-                ReferenceServer.ResponseMutator = originalResponseMutator;
+                if (ReferenceServer is not null)
+                {
+                    ReferenceServer.ResponseMutator = originalResponseMutator;
+                }
             }
         }
 
@@ -541,12 +561,12 @@ namespace Opc.Ua.Subscriptions.Tests
                 return new ValueTask<IServiceResponse>(response);
             }
 
-            private PublishObservation[] Snapshot()
+            public PublishObservation[] Snapshot()
             {
                 return [.. m_observations];
             }
 
-            private string GetDiagnostics()
+            public string GetDiagnostics()
             {
                 return string.Join(Environment.NewLine, Snapshot());
             }
