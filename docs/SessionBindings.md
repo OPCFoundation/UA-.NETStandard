@@ -131,10 +131,13 @@ capability; the server lookup is `Opc.Ua.IServerSessionBindingProvider`.
 This changes the source and binary contract for consumers of the 2.0.1 server
 lookup. The 2.0.1 `DefaultServerResourceIsolationProvider` constructor also
 accepted the former server interface; the current constructor accepts the
-renamed interface instead. The old server methods under the original type name
-and the original constructor signature are absent. Update implementations,
-casts, DI registrations, and constructor calls, and rebuild against the renamed
-interface. The server lookup's committed-session semantics are unchanged.
+renamed interface instead. The `ServerBase.SessionBindingProvider` property also
+uses the renamed interface; its original getter and setter signatures are no
+longer available. The old server methods under the original type name and the
+original constructor signature are absent. Update implementations, casts, DI
+registrations, constructor calls, and property assignments, and rebuild against
+the renamed interface. The server lookup's committed-session semantics are
+unchanged.
 
 Capture uses existing session factories and client DI configuration; it requires
 no separate registration. The implementation introduces no dynamic code generation
