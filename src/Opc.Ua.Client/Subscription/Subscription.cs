@@ -271,9 +271,7 @@ namespace Opc.Ua.Client.Subscriptions
                     items.Add(concrete.Snapshot());
                 }
             }
-            uint[] available = AvailableInRetransmissionQueue == null
-                ? []
-                : [.. AvailableInRetransmissionQueue];
+            uint[] available = [.. AvailableInRetransmissionQueue];
             return SubscriptionStateSnapshot.AsOptions(
                 Options,
                 Id,
