@@ -229,6 +229,42 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// An independently retained registration remains the snapshot's owner after candidate reuse.
+        /// </summary>
+        [Test]
+        public void SnapshotReturnsRetainedOriginalRegistrationAfterCandidateReuse()
+        {
+            IAsyncNodeManager manager = Mock.Of<IAsyncNodeManager>();
+            NodeManagerGeneration original = NodeManagerGenerationRegistry.CreateAddition(manager);
+            var originalRegistration = new NodeManagerRegistration(
+                Guid.Parse("df5469f5-314b-47bd-91ae-7dd0171d49a0"), original.Number, manager);
+            var snapshot = new NodeManagerRegistrationSnapshot(originalRegistration);
+
+            original.Gate.Abort();
+            NodeManagerGeneration replacement = NodeManagerGenerationRegistry.CreateAddition(manager);
+            var replacementRegistration = new NodeManagerRegistration(
+                Guid.Parse("089b9070-e582-4b13-bb86-133048dc365c"), replacement.Number, manager);
+            Guid replacementId = replacement.Slot.Id;
+
+            Assert.That(snapshot.TryGetRegistration(out NodeManagerRegistration? recovered), Is.True);
+            Assert.That(recovered, Is.Not.Null);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(replacement.Slot, Is.Not.SameAs(original.Slot));
+                Assert.That(replacement.Number, Is.EqualTo(original.Number));
+                Assert.That(replacementId, Is.Not.EqualTo(snapshot.Id));
+                Assert.That(recovered, Is.SameAs(originalRegistration));
+                Assert.That(recovered!.Slot, Is.SameAs(snapshot.Slot));
+                Assert.That(recovered.Id, Is.EqualTo(snapshot.Id));
+                Assert.That(recovered.NodeManager, Is.SameAs(manager));
+                Assert.That(replacement.Slot.Id, Is.EqualTo(replacementId));
+                Assert.That(replacementRegistration.Id, Is.EqualTo(replacementId));
+            }
+            GC.KeepAlive(originalRegistration);
+            GC.KeepAlive(replacementRegistration);
+        }
+
+        /// <summary>
         /// Failed provider cleanup remains observable and retryable instead of dropping the outstanding owner.
         /// </summary>
         [Test]
