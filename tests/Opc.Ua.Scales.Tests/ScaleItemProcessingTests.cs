@@ -372,6 +372,156 @@ namespace Opc.Ua.Scales.Tests
                 Is.EqualTo("EUR"));
         }
 
+        /// <summary>
+        /// A public registered reading cannot alter an acquisition while its weight setters are running.
+        /// </summary>
+        [TestCase(ScaleKind.Catchweigher)]
+        [TestCase(ScaleKind.TotalizingHopper)]
+        public async Task RegisteredReadingMutationCannotAlterPendingAcquisitionAsync(ScaleKind kind)
+        {
+            ScaleHandle scale = await CreateAsync(kind).ConfigureAwait(false);
+            ProductState product = scale.ProductionPreset!.ActiveProduct!;
+            BaseVariableState observed = scale.Scale.RegisteredWeight!.Overload!;
+            int callbacks = 0;
+            observed.OnStateChangedAsync = (_, _, _, _) =>
+            {
+                callbacks++;
+                Assert.That(scale.RegisteredReading, Is.Not.Null);
+                EUInformation borrowed = scale.RegisteredReading!.EngineeringUnits!;
+                borrowed.UnitId = ScaleUnits.Gram.UnitId;
+                borrowed.DisplayName = new LocalizedText("changed");
+                borrowed.Description = new LocalizedText("changed");
+                Assert.That(Count(scale.ProductionOutput!.Statistic), Is.Zero);
+                return default;
+            };
+            try
+            {
+                using var bounded = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                ServiceResult result = kind == ScaleKind.Catchweigher
+                    ? await scale.Catchweigher!.ReportAsync(Item(1), bounded.Token).ConfigureAwait(false)
+                    : await scale.TotalizingHopper!.ReportCompletedFillAsync(Item(1), bounded.Token)
+                        .ConfigureAwait(false);
+                AssertGood(result);
+            }
+            finally
+            {
+                observed.OnStateChangedAsync = null;
+            }
+            Assert.That(callbacks, Is.EqualTo(1));
+            Assert.That(scale.Scale.RegisteredWeight.EngineeringUnits!.Value.UnitId,
+                Is.EqualTo(ScaleUnits.Kilogram.UnitId));
+            Assert.That(scale.Scale.RegisteredWeight.EngineeringUnits.Value.DisplayName.Text,
+                Is.EqualTo(ScaleUnits.Kilogram.DisplayName.Text));
+            Assert.That(product.Statistic!.LastItem!.MeasuredWeight!.EngineeringUnits!.Value.UnitId,
+                Is.EqualTo(ScaleUnits.Kilogram.UnitId));
+            Assert.That(scale.ProductionOutput!.Statistic.LastItem!.MeasuredWeight!.EngineeringUnits!.Value.UnitId,
+                Is.EqualTo(ScaleUnits.Kilogram.UnitId));
+            Assert.That(Count(scale.ProductionOutput.Statistic), Is.EqualTo(1UL));
+        }
+
+        /// <summary>
+        /// Measurement publication owns nested text before pricing and after publication.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task MeasurementUnitTextDoesNotBorrowFormattingStateAsync(bool paused, bool multilingual)
+        {
+            var calculator = new DeferredPriceCalculator();
+            ScaleHandle scale = await CreateAsync(ScaleKind.AutomaticWeightPriceLabeler, calculator);
+            var product = (AutomaticWeightPriceLabelerProductState)scale.ProductionPreset!.ActiveProduct!;
+            ConfigurePrice(m_fixture.Context, product, m_fixture.Manager.NamespaceIndices.Scales);
+            object[] arguments = ["original"];
+            var translations = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["en-US"] = "{0} unit",
+                ["de-DE"] = "{0} Einheit"
+            };
+            LocalizedText text = MetadataText(arguments, translations, multilingual);
+            EUInformation unit = Millimetre;
+            unit.DisplayName = text;
+            unit.Description = text;
+            using var bounded = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            Task<ServiceResult> pending = scale.Catchweigher!.ReportAsync(Item(1) with
+            {
+                Length = new ScaleItemMeasurement(12, unit, DateTime.UtcNow, StatusCodes.Good)
+            }, bounded.Token).AsTask();
+            Assert.That(calculator.Started, Is.True);
+            if (paused)
+            {
+                arguments[0] = "changed";
+                translations["de-DE"] = "changed translation";
+            }
+            calculator.Result.SetResult(new ScaleItemPrice(1, Euro()));
+            AssertGood(await pending.ConfigureAwait(false));
+            if (!paused)
+            {
+                arguments[0] = "changed";
+                translations["de-DE"] = "changed translation";
+            }
+            EUInformation published = product.LastItem!.MeasuredLength!.EngineeringUnits!.Value;
+            Assert.That(published.UnitId, Is.EqualTo(unit.UnitId));
+            Assert.That(published.NamespaceUri, Is.EqualTo(unit.NamespaceUri));
+            AssertMetadataText(published.DisplayName, multilingual);
+            AssertMetadataText(published.Description, multilingual);
+            AssertMetadataText(calculator.Request!.Item.Length!.Unit.DisplayName, multilingual);
+        }
+
+        /// <summary>
+        /// Currency publication and price-provider requests own their nested translation state.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task CurrencyTextDoesNotBorrowFormattingStateAsync(bool paused, bool multilingual)
+        {
+            var calculator = new DeferredPriceCalculator();
+            ScaleHandle scale = await CreateAsync(ScaleKind.AutomaticWeightPriceLabeler, calculator);
+            var product = (AutomaticWeightPriceLabelerProductState)scale.ProductionPreset!.ActiveProduct!;
+            ConfigurePrice(m_fixture.Context, product, m_fixture.Manager.NamespaceIndices.Scales);
+            object[] arguments = ["original"];
+            var translations = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["en-US"] = "{0} unit",
+                ["de-DE"] = "{0} Einheit"
+            };
+            CurrencyUnitType currency = paused
+                ? ScaleItemPublisher.CurrencyOf(m_fixture.Context, product.UnitPrice)!
+                : Euro();
+            currency.Currency = MetadataText(arguments, translations, multilingual);
+            using var bounded = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            Task<ServiceResult> pending = scale.Catchweigher!.ReportAsync(Item(1) with
+            {
+                Price = paused ? null : new ScaleItemPrice(1, currency)
+            }, bounded.Token).AsTask();
+            if (paused)
+            {
+                Assert.That(calculator.Started, Is.True);
+                arguments[0] = "changed";
+                translations["de-DE"] = "changed translation";
+                Assert.That(calculator.Request, Is.Not.Null);
+                calculator.Result.SetResult(new ScaleItemPrice(1, calculator.Request!.Currency));
+            }
+            AssertGood(await pending.ConfigureAwait(false));
+            if (!paused)
+            {
+                arguments[0] = "changed";
+                translations["de-DE"] = "changed translation";
+            }
+            var last = (PriceItemState)product.LastItem!;
+            CurrencyUnitType published = ScaleItemPublisher.CurrencyOf(m_fixture.Context, last.ItemPrice)!;
+            Assert.That(published.NumericCode, Is.EqualTo(978));
+            Assert.That(published.AlphabeticCode, Is.EqualTo("EUR"));
+            Assert.That(published.Exponent, Is.EqualTo(2));
+            AssertMetadataText(published.Currency, multilingual);
+            if (paused)
+            {
+                AssertMetadataText(calculator.Request!.Currency.Currency, multilingual);
+            }
+        }
+
         [Test]
         public async Task CancellationPreventsPendingPriceCommitAsync()
         {
@@ -1641,6 +1791,33 @@ namespace Opc.Ua.Scales.Tests
             {
                 AlphabeticCode = "EUR", NumericCode = 978, Exponent = 2, Currency = new LocalizedText("Euro")
             };
+        }
+
+        /// <summary>
+        /// Creates selected or multilingual text with caller-owned templates and formatting arguments.
+        /// </summary>
+        private static LocalizedText MetadataText(
+            object[] arguments,
+            Dictionary<string, string> translations,
+            bool multilingual)
+        {
+            var info = new TranslationInfo("ScalesMetadata", "en-US", "{0} unit", arguments);
+            return multilingual
+                ? new LocalizedText(translations, info)
+                : new LocalizedText("en-US", "{0} unit", info).WithTranslations(translations);
+        }
+
+        /// <summary>
+        /// Checks selected and alternate locales without evaluating away the retained fallback.
+        /// </summary>
+        private static void AssertMetadataText(LocalizedText text, bool multilingual)
+        {
+            Assert.That(text.IsMultiLanguage, Is.EqualTo(multilingual));
+            Assert.That(text.Locale, Is.EqualTo(multilingual ? "mul" : "en-US"));
+            Assert.That(text.TranslationInfo.Key, Is.EqualTo("ScalesMetadata"));
+            Assert.That(text.TranslationInfo.Text, Is.EqualTo("{0} unit"));
+            Assert.That(text.FilterByPreferredLocales(["en-US"]).Text, Is.EqualTo("original unit"));
+            Assert.That(text.FilterByPreferredLocales(["de-DE"]).Text, Is.EqualTo("original Einheit"));
         }
 
         private ValueTask<ScaleHandle> CreateAsync(ScaleKind kind, IScalePriceCalculator? calculator = null)
