@@ -424,16 +424,16 @@ namespace Opc.Ua.Configuration
                 throw ServiceResultException.ConfigurationError("Need at least one Application Certificate.");
             }
 
-            ValueTask<ICertificateManager> initialization;
+            CertificateManager? fallback;
             lock (m_disposalLock)
             {
                 ThrowIfDisposing();
-                CertificateManager? fallback = ReferenceEquals(m_applicationConfiguration, configuration)
+                fallback = ReferenceEquals(m_applicationConfiguration, configuration)
                     ? CertificateManager
                     : null;
-                initialization = configuration.GetOrCreateCertificateManagerAsync(m_telemetry!, fallback);
             }
-            ICertificateManager certificateManager = await initialization.ConfigureAwait(false);
+            ICertificateManager certificateManager = await configuration
+                .GetOrCreateCertificateManagerAsync(m_telemetry!, fallback).ConfigureAwait(false);
             lock (m_disposalLock)
             {
                 ThrowIfDisposing();

@@ -448,16 +448,18 @@ namespace Opc.Ua.Configuration.Tests
         /// <summary>
         /// Overlapping checks share initialization without overwriting a replacement configuration's manager.
         /// </summary>
-        [TestCase(false, false, false)]
-        [TestCase(true, false, false)]
-        [TestCase(true, true, false)]
-        [TestCase(false, false, true)]
-        [TestCase(true, false, true)]
-        [TestCase(true, true, true)]
+        [TestCase(false, false, false, false)]
+        [TestCase(true, false, false, false)]
+        [TestCase(true, true, false, false)]
+        [TestCase(false, false, true, false)]
+        [TestCase(true, false, true, false)]
+        [TestCase(true, true, true, false)]
+        [TestCase(false, false, false, true)]
         public async Task ConcurrentCertificateChecksInitializeOneSharedManagerAsync(
             bool replaceManager,
             bool borrowReplacement,
-            bool replaceConfiguration)
+            bool replaceConfiguration,
+            bool crossThreadCallback)
         {
             ITelemetryContext actualTelemetry = NUnitTelemetryContext.Create();
             var telemetry = new Mock<ITelemetryContext>();
@@ -501,6 +503,8 @@ namespace Opc.Ua.Configuration.Tests
                 DisableCertificateAutoCreation = true
             };
             Task<bool>? overlappingCheck = null;
+            Task<ApplicationConfiguration?>? callbackRead = null;
+            bool callbackReadCompleted = false;
             int factoryCalls = 0;
             loggerFactory.Setup(value => value.CreateLogger(It.IsAny<string>()))
                 .Returns((string category) =>
@@ -508,7 +512,12 @@ namespace Opc.Ua.Configuration.Tests
                     if (category == typeof(CertificateManager).FullName &&
                         Interlocked.Increment(ref factoryCalls) == 1)
                     {
-                        // The constructor callback overlaps two checks without threads, sleeps, or timing assertions.
+                        if (crossThreadCallback)
+                        {
+                            callbackRead = Task.Run(() => first.ApplicationConfiguration);
+                            callbackReadCompleted = callbackRead.Wait(TimeSpan.FromSeconds(10));
+                        }
+                        // The constructor callback starts a second check before shared initialization completes.
                         overlappingCheck = second.CheckApplicationInstanceCertificatesAsync(true).AsTask();
                         Assert.That(overlappingCheck.IsCompleted, Is.False);
                         if (replaceConfiguration)
@@ -542,6 +551,13 @@ namespace Opc.Ua.Configuration.Tests
                 () => overlappingCheck!);
             Assert.That(firstFailure!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
             Assert.That(secondFailure!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+            if (crossThreadCallback)
+            {
+                Assert.That(callbackRead, Is.Not.Null);
+                Assert.That(await callbackRead!.ConfigureAwait(false), Is.SameAs(configuration));
+                Assert.That(callbackReadCompleted, Is.True,
+                    "The manager factory callback must not hold the application's configuration lock.");
+            }
             Assert.That(factoryCalls, Is.EqualTo(1));
             CertificateManager manager = configuration.CertificateManager as CertificateManager ??
                 throw new InvalidOperationException("Concurrent checking did not configure a concrete manager.");
