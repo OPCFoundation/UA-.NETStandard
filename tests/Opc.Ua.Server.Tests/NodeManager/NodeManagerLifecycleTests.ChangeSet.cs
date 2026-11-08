@@ -1234,6 +1234,57 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// A disposed prepared unit does not retain its candidate through an independently held resource.
+        /// </summary>
+        /// <param name="retainResource">Whether the caller retains the candidate's synchronous resource.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DisposedPreparedUnitReleasesCandidateWithIndependentResourceAsync(bool retainResource)
+        {
+            (IPreparedChanges prepared,
+                WeakReference candidate,
+                WeakReference server,
+                WeakReference resource,
+                INodeManager? retainedResource) =
+                await DisposeBorrowedCandidateAndServerAsync(retainResource).ConfigureAwait(false);
+            await Task.Yield();
+            try
+            {
+                for (int attempt = 0;
+                    attempt < 3 && (candidate.IsAlive || server.IsAlive || (!retainResource && resource.IsAlive));
+                    attempt++)
+                {
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                    GC.Collect();
+                }
+
+                NodeManagerRegistrationSnapshot snapshot = prepared.Registrations[0];
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(candidate.IsAlive, Is.False);
+                    Assert.That(server.IsAlive, Is.False);
+                    Assert.That(resource.IsAlive, Is.EqualTo(retainResource));
+                    Assert.That(retainedResource is not null, Is.EqualTo(retainResource));
+                    Assert.That(prepared.IsCommitted, Is.False);
+                    Assert.That(snapshot.Slot.TryGetCurrent(out _), Is.False);
+                    Assert.That(snapshot.TryGetNodeManager(out _), Is.False);
+                    Assert.That(snapshot.TryGetRegistration(out _), Is.False);
+                    if (retainedResource is not null)
+                    {
+                        Assert.That(retainedResource.NamespaceUris, Does.Contain(kNamespaceUri));
+                        Mock.Get(retainedResource).As<IDisposable>().Verify(value => value.Dispose(), Times.Never);
+                    }
+                }
+            }
+            finally
+            {
+                GC.KeepAlive(retainedResource);
+                GC.KeepAlive(prepared);
+            }
+        }
+
+        /// <summary>
         /// Retained cleanup and validation tasks do not own candidates after their owners finish cleanup.
         /// </summary>
         [TestCase(false)]
@@ -1559,6 +1610,38 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             candidate.As<IDisposable>().Verify(manager => manager.Dispose(), Times.Once);
             Assert.That(writer.ActiveOperationCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// Disposes the candidate and server outside the collection test's stack.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static async Task<(
+            IPreparedChanges Prepared,
+            WeakReference Candidate,
+            WeakReference Server,
+            WeakReference Resource,
+            INodeManager? RetainedResource)> DisposeBorrowedCandidateAndServerAsync(bool retainResource)
+        {
+            await using var harness = new ChangeSetCleanupHarness();
+            var resource = new Mock<INodeManager>();
+            resource.As<IDisposable>();
+            resource.SetupGet(value => value.NamespaceUris).Returns([kNamespaceUri]);
+            Mock<IAsyncNodeManager> candidate = CreateManager(kNamespaceUri);
+            candidate.SetupGet(value => value.SyncNodeManager).Returns(resource.Object);
+            var candidateReference = new WeakReference(candidate.Object);
+            var serverReference = new WeakReference(harness.Data);
+            var resourceReference = new WeakReference(resource.Object);
+            IPreparedChanges prepared = await harness.Lifecycle.PrepareAsync(
+                [LifecycleChange.Add(CreateFactory(candidate))]).ConfigureAwait(false);
+            await prepared.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(harness.Writer.ActiveOperationCount, Is.Zero);
+            candidate.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
+            candidate.As<IDisposable>().Verify(value => value.Dispose(), Times.Once);
+            resource.As<IDisposable>().Verify(value => value.Dispose(), Times.Never);
+            return (prepared, candidateReference, serverReference, resourceReference,
+                retainResource ? resource.Object : null);
         }
 
         /// <summary>
