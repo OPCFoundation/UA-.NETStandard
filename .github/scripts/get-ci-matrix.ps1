@@ -489,6 +489,8 @@ function Get-TestProjectShards([string] $project, [string] $framework, [string] 
             }
             if ($framework -ne 'net48') {
                 $liveEvents = "${materialization}WotEventModesLiveTests."
+                # Parameterized NUnit fixtures can append arguments to the class name.
+                $registryIdentity = 'Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests'
                 return @(
                     @{
                         id = 'wot-materialization-core'
@@ -515,9 +517,15 @@ function Get-TestProjectShards([string] $project, [string] $framework, [string] 
                         hangTimeout = ''
                     }
                     @{
+                        id = 'wot-other-identity-integration'
+                        name = 'wot-other-identity-integration'
+                        filter = "FullyQualifiedName!~${materialization}&TestCategory=Integration&FullyQualifiedName~${registryIdentity}"
+                        hangTimeout = ''
+                    }
+                    @{
                         id = 'wot-other-integration'
                         name = 'wot-other-integration'
-                        filter = "FullyQualifiedName!~${materialization}&TestCategory=Integration"
+                        filter = "FullyQualifiedName!~${materialization}&TestCategory=Integration&FullyQualifiedName!~${registryIdentity}"
                         hangTimeout = ''
                     }
                 )

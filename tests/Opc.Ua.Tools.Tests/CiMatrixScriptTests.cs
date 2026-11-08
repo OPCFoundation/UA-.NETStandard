@@ -576,9 +576,8 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
-        /// Each integration project stays within the standard workload budget,
-        /// and the WoT suite is partitioned by namespace and integration
-        /// category where the framework run is the longest.
+        /// Each integration project has a standard workload budget. The WoT
+        /// suite uses additional partitions for net48 and macOS.
         /// </summary>
         [TestCase("pr")]
         [TestCase("full")]
@@ -618,6 +617,7 @@ namespace Opc.Ua.Tools.Tests
                         "wot-materialization-integration",
                         "wot-materialization-live-events",
                         "wot-other-core",
+                        "wot-other-identity-integration",
                         "wot-other-integration"
                     ] : ["wot-materialization", "wot-other"];
                 Assert.That(
@@ -627,8 +627,8 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
-        /// WoT shard filters must select every eligible test exactly once on
-        /// both framework branches, preserving each profile's category exclusions.
+        /// Representative WoT cases are selected exactly once or excluded
+        /// according to each profile's category filters.
         /// </summary>
         [TestCase("pr", false, false)]
         [TestCase("pr", false, true)]
@@ -652,17 +652,31 @@ namespace Opc.Ua.Tools.Tests
             string[] testNames = materialization
                 ? [
                     "Opc.Ua.WotCon.Tests.Materialization.ExampleTests.ExampleAsync",
-                    "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests.ExampleAsync"
+                    "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests.ExampleAsync",
+                    "Opc.Ua.WotCon.Tests.Materialization.WotRegistryIdentityLiveTests.ExampleAsync"
                 ]
-                : ["Opc.Ua.WotCon.Tests.Registry.ExampleTests.ExampleAsync"];
+                : [
+                    "Opc.Ua.WotCon.Tests.Registry.ExampleTests.ExampleAsync",
+                    "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests.ExampleAsync",
+                    "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests(False).ExampleAsync",
+                    "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTestsExtra.ExampleAsync",
+                    "Opc.Ua.WotCon.Tests.wotregistryidentitylivetests.ExampleAsync"
+                ];
+            string[][] exclusionCategories =
+            [
+                [],
+                ["LongRunning"],
+                ["Stress"],
+                ["LongRunning", "Stress"]
+            ];
             foreach (IGrouping<string, MatrixEntry> profile in wot.GroupBy(entry => entry.Profile))
             {
                 foreach (string testName in testNames)
                 {
-                    foreach (string category in new[] { string.Empty, "LongRunning", "Stress" })
+                    foreach (string[] exclusions in exclusionCategories)
                     {
-                        string[] categories = integration ? [category, "Integration"] : [category];
-                        bool allowed = profile.First().Tier != "mainline" || category.Length == 0;
+                        string[] categories = integration ? [.. exclusions, "Integration"] : exclusions;
+                        bool allowed = profile.First().Tier != "mainline" || exclusions.Length == 0;
                         string[] matches = profile
                             .Where(entry => MatchesWotFilter(entry.Filter, testName, categories))
                             .Select(entry => entry.Shard)
@@ -679,6 +693,12 @@ namespace Opc.Ua.Tools.Tests
                             testName.Contains(".WotEventModesLiveTests.", StringComparison.Ordinal))
                         {
                             expectedShard = "wot-materialization-live-events";
+                        }
+                        if (!materialization && integration && profile.First().Framework != "net48" &&
+                            profile.First().Os == "macos" &&
+                            testName.Contains(".WotRegistryIdentityLiveTests", StringComparison.OrdinalIgnoreCase))
+                        {
+                            expectedShard = "wot-other-identity-integration";
                         }
 
                         Assert.That(
