@@ -446,14 +446,18 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         /// <summary>
-        /// Overlapping checks share one pending factory operation and preserve replacements published during creation.
+        /// Overlapping checks share initialization without overwriting a replacement configuration's manager.
         /// </summary>
-        [TestCase(false, false)]
-        [TestCase(true, false)]
-        [TestCase(true, true)]
+        [TestCase(false, false, false)]
+        [TestCase(true, false, false)]
+        [TestCase(true, true, false)]
+        [TestCase(false, false, true)]
+        [TestCase(true, false, true)]
+        [TestCase(true, true, true)]
         public async Task ConcurrentCertificateChecksInitializeOneSharedManagerAsync(
             bool replaceManager,
-            bool borrowReplacement)
+            bool borrowReplacement,
+            bool replaceConfiguration)
         {
             ITelemetryContext actualTelemetry = NUnitTelemetryContext.Create();
             var telemetry = new Mock<ITelemetryContext>();
@@ -485,6 +489,13 @@ namespace Opc.Ua.Configuration.Tests
                 ],
                 m_pkiRoot);
             ApplicationConfiguration configuration = first.ApplicationConfiguration!;
+            var replacementConfiguration = new ApplicationConfiguration(actualTelemetry)
+            {
+                ApplicationName = configuration.ApplicationName,
+                ApplicationUri = configuration.ApplicationUri,
+                ApplicationType = configuration.ApplicationType,
+                SecurityConfiguration = configuration.SecurityConfiguration
+            };
             await using var second = new ApplicationInstance(configuration, telemetry.Object)
             {
                 DisableCertificateAutoCreation = true
@@ -498,11 +509,22 @@ namespace Opc.Ua.Configuration.Tests
                         Interlocked.Increment(ref factoryCalls) == 1)
                     {
                         // The constructor callback overlaps two checks without threads, sleeps, or timing assertions.
-                        overlappingCheck = second.CheckApplicationInstanceCertificatesAsync(true);
+                        overlappingCheck = second.CheckApplicationInstanceCertificatesAsync(true).AsTask();
                         Assert.That(overlappingCheck.IsCompleted, Is.False);
+                        if (replaceConfiguration)
+                        {
+                            if (replaceManager)
+                            {
+                                replacementConfiguration.CertificateManager = external;
+                            }
+                            second.ApplicationConfiguration = replacementConfiguration;
+                        }
                         if (replaceManager)
                         {
-                            configuration.CertificateManager = external;
+                            if (!replaceConfiguration)
+                            {
+                                configuration.CertificateManager = external;
+                            }
                             if (borrowReplacement)
                             {
                                 second.MarkCertificateManagerBorrowed();
@@ -514,7 +536,7 @@ namespace Opc.Ua.Configuration.Tests
 
             Assert.That(configuration.CertificateManager, Is.Null);
             ServiceResultException? firstFailure = await Assert.ThrowsAsync<ServiceResultException>(
-                () => first.CheckApplicationInstanceCertificatesAsync(true));
+                () => first.CheckApplicationInstanceCertificatesAsync(true).AsTask());
             Assert.That(overlappingCheck, Is.Not.Null);
             ServiceResultException? secondFailure = await Assert.ThrowsAsync<ServiceResultException>(
                 () => overlappingCheck!);
@@ -524,8 +546,28 @@ namespace Opc.Ua.Configuration.Tests
             CertificateManager manager = configuration.CertificateManager as CertificateManager ??
                 throw new InvalidOperationException("Concurrent checking did not configure a concrete manager.");
             Assert.That(first.CertificateManager, Is.SameAs(manager));
-            Assert.That(second.CertificateManager, Is.SameAs(manager));
-            if (replaceManager)
+            CertificateManager? replacementConfigurationManager = null;
+            if (replaceConfiguration)
+            {
+                Assert.That(second.ApplicationConfiguration, Is.SameAs(replacementConfiguration));
+                Assert.That(second.CertificateManager, Is.SameAs(replaceManager ? external : null));
+                Assert.That(replacementConfiguration.CertificateManager, Is.SameAs(replaceManager ? external : null));
+                ServiceResultException? replacementFailure = await Assert.ThrowsAsync<ServiceResultException>(
+                    () => second.CheckApplicationInstanceCertificatesAsync(true).AsTask());
+                Assert.That(replacementFailure!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+                replacementConfigurationManager = replacementConfiguration.CertificateManager as CertificateManager ??
+                    throw new InvalidOperationException("The replacement configuration did not initialize its manager.");
+                Assert.That(replacementConfigurationManager, Is.Not.SameAs(manager));
+                Assert.That(second.CertificateManager, Is.SameAs(replacementConfigurationManager));
+                Assert.That(factoryCalls, Is.EqualTo(replaceManager ? 1 : 2));
+                Assert.That(GetTrackedCertificateManagers(replacementConfiguration),
+                    Is.EquivalentTo(new[] { replacementConfigurationManager }));
+            }
+            else
+            {
+                Assert.That(second.CertificateManager, Is.SameAs(manager));
+            }
+            if (replaceManager && !replaceConfiguration)
             {
                 Assert.That(manager, Is.SameAs(external));
             }
@@ -538,7 +580,7 @@ namespace Opc.Ua.Configuration.Tests
                 Assert.That(store, Is.Not.Null);
             }
             await second.DisposeAsync();
-            if (borrowReplacement)
+            if (borrowReplacement && !replaceConfiguration)
             {
                 using ICertificateStore store = manager.OpenCertificateStore(
                     m_pkiRoot, CertificateStoreType.Directory, false);
@@ -548,6 +590,21 @@ namespace Opc.Ua.Configuration.Tests
             {
                 await Assert.ThrowsAsync<ObjectDisposedException>(
                     () => manager.LoadApplicationCertificatesAsync(configuration.SecurityConfiguration));
+            }
+            if (replacementConfigurationManager != null)
+            {
+                if (borrowReplacement)
+                {
+                    using ICertificateStore store = replacementConfigurationManager.OpenCertificateStore(
+                        m_pkiRoot, CertificateStoreType.Directory, false);
+                    Assert.That(store, Is.Not.Null);
+                }
+                else
+                {
+                    await Assert.ThrowsAsync<ObjectDisposedException>(() =>
+                        replacementConfigurationManager.LoadApplicationCertificatesAsync(
+                            replacementConfiguration.SecurityConfiguration));
+                }
             }
         }
 
@@ -614,7 +671,7 @@ namespace Opc.Ua.Configuration.Tests
                         {
                             DisableCertificateAutoCreation = true
                         };
-                        reattachedCheck = second.CheckApplicationInstanceCertificatesAsync(true);
+                        reattachedCheck = second.CheckApplicationInstanceCertificatesAsync(true).AsTask();
                     }
                     return actualTelemetry.LoggerFactory.CreateLogger(category);
                 });
@@ -705,7 +762,8 @@ namespace Opc.Ua.Configuration.Tests
                                 DisableCertificateAutoCreation = true
                             };
                             ApplicationInstance reattached = second;
-                            secondCheck = Task.Run(() => reattached.CheckApplicationInstanceCertificatesAsync(true));
+                            secondCheck = Task.Run(() =>
+                                reattached.CheckApplicationInstanceCertificatesAsync(true).AsTask());
                             Assert.That(newerCreationEntered.Wait(TimeSpan.FromSeconds(30)), Is.True);
                         }
                         else if (call == 2)
@@ -727,7 +785,7 @@ namespace Opc.Ua.Configuration.Tests
                 {
                     DisableCertificateAutoCreation = true
                 };
-                Task<bool> thirdCheck = third.CheckApplicationInstanceCertificatesAsync(true);
+                Task<bool> thirdCheck = third.CheckApplicationInstanceCertificatesAsync(true).AsTask();
                 Assert.That(thirdCheck.IsCompleted, Is.False);
                 Assert.That(factoryCalls, Is.EqualTo(2));
                 newerCreationReleased.Set();

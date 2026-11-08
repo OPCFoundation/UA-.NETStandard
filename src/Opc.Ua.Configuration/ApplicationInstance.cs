@@ -428,13 +428,19 @@ namespace Opc.Ua.Configuration
             lock (m_disposalLock)
             {
                 ThrowIfDisposing();
-                initialization = configuration.GetOrCreateCertificateManagerAsync(m_telemetry!, CertificateManager);
+                CertificateManager? fallback = ReferenceEquals(m_applicationConfiguration, configuration)
+                    ? CertificateManager
+                    : null;
+                initialization = configuration.GetOrCreateCertificateManagerAsync(m_telemetry!, fallback);
             }
             ICertificateManager certificateManager = await initialization.ConfigureAwait(false);
             lock (m_disposalLock)
             {
                 ThrowIfDisposing();
-                CertificateManager = certificateManager as CertificateManager;
+                if (ReferenceEquals(m_applicationConfiguration, configuration))
+                {
+                    CertificateManager = certificateManager as CertificateManager;
+                }
             }
             if (certificateManager is CertificateManager concreteManager)
             {
