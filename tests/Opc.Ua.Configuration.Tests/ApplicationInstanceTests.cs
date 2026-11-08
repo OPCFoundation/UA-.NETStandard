@@ -824,11 +824,11 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         /// <summary>
-        /// A released configuration rejects fresh ownership before accepting the manager, leaving it usable elsewhere.
+        /// A released configuration accepts a fresh manager without allowing resurrection of its retired manager.
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
-        public async Task FreshManagerAssignmentAfterFinalReleaseRejectsBeforeOwnershipTransferAsync(
+        public async Task FreshManagerAssignmentAfterFinalReleaseSupportsConfigurationReuseAsync(
             bool initiallyEmpty)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -841,18 +841,178 @@ namespace Opc.Ua.Configuration.Tests
             await using var application = new ApplicationInstance(configuration, telemetry);
             await application.DisposeAsync();
             await using var fresh = new CertificateManager(telemetry);
-            Assert.Throws<ObjectDisposedException>(() => configuration.CertificateManager = fresh);
-            Assert.That(configuration.CertificateManager, Is.SameAs(original));
+            configuration.CertificateManager = fresh;
+            Assert.That(configuration.CertificateManager, Is.SameAs(fresh));
+            if (original is CertificateManager retired)
+            {
+                Assert.Throws<ObjectDisposedException>(() => configuration.CertificateManager = retired);
+                Assert.That(configuration.CertificateManager, Is.SameAs(fresh));
+            }
             using (ICertificateStore store = fresh.OpenCertificateStore(
                 m_pkiRoot, CertificateStoreType.Directory, false))
             {
                 Assert.That(store, Is.Not.Null);
             }
-            var replacement = new ApplicationConfiguration(telemetry) { CertificateManager = fresh };
-            await using var owner = new ApplicationInstance(replacement, telemetry);
+            await using var owner = new ApplicationInstance(configuration, telemetry);
+            await application.DisposeAsync();
+            using (ICertificateStore store = fresh.OpenCertificateStore(
+                m_pkiRoot, CertificateStoreType.Directory, false))
+            {
+                Assert.That(store, Is.Not.Null);
+            }
             await owner.DisposeAsync();
             await Assert.ThrowsAsync<ObjectDisposedException>(
-                () => fresh.LoadApplicationCertificatesAsync(replacement.SecurityConfiguration));
+                () => fresh.LoadApplicationCertificatesAsync(configuration.SecurityConfiguration));
+        }
+
+        /// <summary>
+        /// Reattachment before or after final release preserves the new manager and retires old ownership safely.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ConfigurationReplacementVersusFinalReleaseSupportsReattachmentAsync(
+            bool reattachBeforeRelease)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var original = new CertificateManager(telemetry);
+            await using var fresh = new CertificateManager(telemetry);
+            var configuration = new ApplicationConfiguration(telemetry) { CertificateManager = original };
+            await using var first = new ApplicationInstance(configuration, telemetry);
+            var stop = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var server = new Mock<IServerBase>();
+            server.Setup(value => value.StopAsync(It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask(stop.Task));
+            await first.StartAsync(server.Object);
+            Task release = first.DisposeAsync().AsTask();
+            ApplicationInstance? second = null;
+            try
+            {
+                Assert.That(release.IsCompleted, Is.False);
+                if (reattachBeforeRelease)
+                {
+                    configuration.CertificateManager = fresh;
+                    second = new ApplicationInstance(configuration, telemetry);
+                }
+                stop.SetResult(true);
+                await release;
+                if (!reattachBeforeRelease)
+                {
+                    configuration.CertificateManager = fresh;
+                    second = new ApplicationInstance(configuration, telemetry);
+                    await Assert.ThrowsAsync<ObjectDisposedException>(
+                        () => original.LoadApplicationCertificatesAsync(configuration.SecurityConfiguration));
+                }
+                else
+                {
+                    using ICertificateStore store = original.OpenCertificateStore(
+                        m_pkiRoot, CertificateStoreType.Directory, false);
+                    Assert.That(store, Is.Not.Null);
+                }
+                Assert.That(second!.CertificateManager, Is.SameAs(fresh));
+                using (ICertificateStore store = fresh.OpenCertificateStore(
+                    m_pkiRoot, CertificateStoreType.Directory, false))
+                {
+                    Assert.That(store, Is.Not.Null);
+                }
+                await second.DisposeAsync();
+                await Assert.ThrowsAsync<ObjectDisposedException>(
+                    () => original.LoadApplicationCertificatesAsync(configuration.SecurityConfiguration));
+                await Assert.ThrowsAsync<ObjectDisposedException>(
+                    () => fresh.LoadApplicationCertificatesAsync(configuration.SecurityConfiguration));
+            }
+            finally
+            {
+                stop.TrySetResult(true);
+                await release;
+                if (second != null)
+                {
+                    await second.DisposeAsync();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Container-owned managers remain reusable through the same configuration after each application releases it.
+        /// </summary>
+        [Test]
+        public async Task BorrowedManagerSupportsSequentialConfigurationReuseAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            await using var manager = new CertificateManager(telemetry);
+            var configuration = new ApplicationConfiguration(telemetry) { CertificateManager = manager };
+            await using var first = new ApplicationInstance(configuration, telemetry);
+            first.MarkCertificateManagerBorrowed();
+            await first.DisposeAsync();
+            await using var second = new ApplicationInstance(configuration, telemetry);
+            Assert.That(second.CertificateManager, Is.SameAs(manager));
+            await second.DisposeAsync();
+            using ICertificateStore store = manager.OpenCertificateStore(
+                m_pkiRoot, CertificateStoreType.Directory, false);
+            Assert.That(store, Is.Not.Null);
+        }
+
+        /// <summary>
+        /// A released configuration accepts a custom or container-borrowed non-concrete manager for reattachment.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CustomManagerAfterFinalReleaseSupportsConfigurationReuseAsync(bool borrowed)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var retired = new CertificateManager(telemetry);
+            var configuration = new ApplicationConfiguration(telemetry) { CertificateManager = retired };
+            await using var first = new ApplicationInstance(configuration, telemetry);
+            await first.DisposeAsync();
+            var custom = new Mock<ICertificateManager>(MockBehavior.Strict);
+            Mock<IAsyncDisposable> disposable = custom.As<IAsyncDisposable>();
+            configuration.CertificateManager = custom.Object;
+            await using var second = new ApplicationInstance(configuration, telemetry);
+            if (borrowed)
+            {
+                second.MarkCertificateManagerBorrowed();
+            }
+            Assert.That(second.CertificateManager, Is.Null);
+            Assert.That(configuration.CertificateManager, Is.SameAs(custom.Object));
+            Assert.Throws<ObjectDisposedException>(() => configuration.CertificateManager = retired);
+            Assert.That(configuration.CertificateManager, Is.SameAs(custom.Object));
+            await second.DisposeAsync();
+            await using var third = new ApplicationInstance(configuration, telemetry);
+            Assert.That(configuration.CertificateManager, Is.SameAs(custom.Object));
+            await third.DisposeAsync();
+            Assert.That(configuration.CertificateManager, Is.SameAs(custom.Object));
+            disposable.Verify(value => value.DisposeAsync(), Times.Never);
+            await Assert.ThrowsAsync<ObjectDisposedException>(
+                () => retired.LoadApplicationCertificatesAsync(configuration.SecurityConfiguration));
+        }
+        /// <summary>
+        /// Validation rejects the retired current manager instead of returning it through initialization's fast path.
+        /// </summary>
+        [Test]
+        public async Task ValidationAfterFinalReleaseRejectsRetiredCurrentManagerAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            await using var application = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            ApplicationConfiguration configuration = await application.Build(ApplicationUri, ProductUri).AsClient()
+                .AddSecurityConfiguration(
+                    ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                        SubjectName, CertificateStoreType.Directory, m_pkiRoot),
+                    m_pkiRoot)
+                .CreateAsync();
+            CertificateManager retired = application.CertificateManager ??
+                throw new InvalidOperationException("Validation did not create a manager.");
+            await application.DisposeAsync();
+            ObjectDisposedException? failure = await Assert.ThrowsAsync<ObjectDisposedException>(
+                () => configuration.ValidateAsync(ApplicationType.Client));
+            Assert.That(failure!.ObjectName, Is.EqualTo(nameof(CertificateManager)));
+            Assert.That(configuration.CertificateManager, Is.SameAs(retired));
+            await using var fresh = new CertificateManager(telemetry);
+            configuration.CertificateManager = fresh;
+            await using var owner = new ApplicationInstance(configuration, telemetry);
+            await configuration.ValidateAsync(ApplicationType.Client);
+            Assert.That(configuration.CertificateManager, Is.SameAs(fresh));
+            await owner.DisposeAsync();
+            await Assert.ThrowsAsync<ObjectDisposedException>(
+                () => fresh.LoadApplicationCertificatesAsync(configuration.SecurityConfiguration));
         }
 
         /// <summary>
@@ -871,7 +1031,6 @@ namespace Opc.Ua.Configuration.Tests
                 CertificateManager = prospectiveManager
             };
             prospective.CertificateManager = retired;
-            prospective.CertificateManager = prospectiveManager;
             await using var retiringApplication = new ApplicationInstance(retiringConfiguration, telemetry);
             await retiringApplication.DisposeAsync();
             var current = new ApplicationConfiguration(telemetry) { CertificateManager = currentManager };

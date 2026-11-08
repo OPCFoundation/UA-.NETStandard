@@ -118,8 +118,8 @@ namespace Opc.Ua
         /// injected managers from their container, which remains their only disposer.
         /// A configuration alone does not extend a manager's lifetime. Attach template copies
         /// before the last owning application releases the manager; retired managers cannot be adopted again.
-        /// After the final application release, assignments of concrete managers are rejected before
-        /// ownership transfers. Use a new configuration for a fresh manager.
+        /// A released configuration can be reused by assigning a fresh manager and attaching an application.
+        /// Assignment history belonging to retired managers is pruned before the new ownership period begins.
         /// </remarks>
         public ICertificateManager CertificateManager
         {
@@ -134,18 +134,21 @@ namespace Opc.Ua
             {
                 lock (m_certificateManagerLock)
                 {
-                    if (value is CertificateManager manager)
+                    lock (s_certificateManagerLifetimeLock)
                     {
-                        if (m_certificateManagerLeaseReleased)
+                        var manager = value as CertificateManager;
+                        CertificateManagerLifetime? lifetime = null;
+                        if (manager != null)
                         {
-                            throw new ObjectDisposedException(nameof(ApplicationConfiguration));
-                        }
-                        lock (s_certificateManagerLifetimeLock)
-                        {
-                            CertificateManagerLifetime lifetime = GetCertificateManagerLifetime(manager);
+                            lifetime = GetCertificateManagerLifetime(manager);
                             lifetime.ThrowIfDisposing();
+                        }
+                        PruneRetiredCertificateManagers();
+                        if (manager != null && lifetime != null)
+                        {
                             TrackCertificateManager(manager, lifetime);
                         }
+                        m_certificateManagerLeaseReleased = false;
                     }
                     m_certificateManager = value;
                 }
@@ -162,10 +165,19 @@ namespace Opc.Ua
         {
             TaskCompletionSource<ICertificateManager>? completion = null;
             Task<ICertificateManager> initialization;
+            int generation;
             lock (m_certificateManagerLock)
             {
+                generation = m_certificateManagerGeneration;
                 if (m_certificateManager != null)
                 {
+                    if (m_certificateManager is CertificateManager manager)
+                    {
+                        lock (s_certificateManagerLifetimeLock)
+                        {
+                            GetCertificateManagerLifetime(manager).ThrowIfDisposing();
+                        }
+                    }
                     return m_certificateManager;
                 }
                 if (m_certificateManagerLeaseReleased)
@@ -195,7 +207,8 @@ namespace Opc.Ua
                     ICertificateManager selected;
                     lock (m_certificateManagerLock)
                     {
-                        releasedDuringCreation = m_certificateManagerLeaseReleased;
+                        releasedDuringCreation = m_certificateManagerLeaseReleased ||
+                            generation != m_certificateManagerGeneration;
                         lock (s_certificateManagerLifetimeLock)
                         {
                             CertificateManagerLifetime lifetime = GetCertificateManagerLifetime(created);
@@ -257,6 +270,20 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Removes retired ownership history only when no application still holds this configuration.
+        /// </summary>
+        private void PruneRetiredCertificateManagers()
+        {
+            if (m_certificateManagerUsers == 0)
+            {
+                m_certificateManagers.RemoveWhere(
+                    static manager => GetCertificateManagerLifetime(manager).Disposing);
+                m_validationCreatedCertificateManagers.RemoveWhere(
+                    static manager => GetCertificateManagerLifetime(manager).Disposing);
+            }
+        }
+
+        /// <summary>
         /// Records container ownership before publishing an injected manager to application consumers.
         /// </summary>
         internal void SetBorrowedCertificateManager(ICertificateManager certificateManager)
@@ -267,10 +294,6 @@ namespace Opc.Ua
             }
             lock (m_certificateManagerLock)
             {
-                if (m_certificateManagerLeaseReleased)
-                {
-                    throw new ObjectDisposedException(nameof(ApplicationConfiguration));
-                }
                 if (certificateManager is CertificateManager manager)
                 {
                     lock (s_certificateManagerLifetimeLock)
@@ -293,6 +316,11 @@ namespace Opc.Ua
             {
                 lock (s_certificateManagerLifetimeLock)
                 {
+                    if (m_certificateManager is CertificateManager current)
+                    {
+                        GetCertificateManagerLifetime(current).ThrowIfDisposing();
+                    }
+                    PruneRetiredCertificateManagers();
                     foreach (CertificateManager manager in m_certificateManagers)
                     {
                         GetCertificateManagerLifetime(manager).ThrowIfDisposing();
@@ -323,6 +351,10 @@ namespace Opc.Ua
                     }
                     m_certificateManagerUsers--;
                     m_certificateManagerLeaseReleased = m_certificateManagerUsers == 0;
+                    if (m_certificateManagerLeaseReleased)
+                    {
+                        m_certificateManagerGeneration++;
+                    }
                     foreach (CertificateManager manager in m_certificateManagers)
                     {
                         CertificateManagerLifetime lifetime = GetCertificateManagerLifetime(manager);
@@ -1258,6 +1290,11 @@ namespace Opc.Ua
         /// an empty configuration.
         /// </summary>
         private bool m_certificateManagerLeaseReleased;
+
+        /// <summary>
+        /// Distinguishes pending initialization from later ownership periods after configuration reuse.
+        /// </summary>
+        private int m_certificateManagerGeneration;
 
         /// <summary>
         /// Serializes reference acquisition, release, and borrowed provenance across configuration copies.
