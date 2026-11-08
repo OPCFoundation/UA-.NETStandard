@@ -40,10 +40,10 @@ namespace Opc.Ua.Server
     /// The envelope records the continuation and session identifiers; Browse envelopes also include request
     /// parameters. It does not carry the node manager's <see cref="ContinuationPoint.Data"/>. The built-in Session
     /// store records mirrored identifiers on a backup but cannot reconstruct a Browse or history cursor from this
-    /// envelope. A client attempting to resume such a cursor receives
-    /// <see cref="StatusCodes.BadContinuationPointInvalid"/> and must issue a new Browse or HistoryRead to continue,
-    /// as permitted by OPC UA Part 4 §6.6.2.2. Portable historian continuations use a separate
-    /// <see cref="IHistoryContinuationPointStore"/>.
+    /// envelope. If lookup completes with only this envelope, a resume returns
+    /// <see cref="StatusCodes.BadContinuationPointInvalid"/>. The client must issue a new Browse or HistoryRead to
+    /// continue, as permitted by OPC UA Part 4 §6.6.2.2. A store failure can prevent lookup. Portable historian
+    /// continuations use a separate <see cref="IHistoryContinuationPointStore"/>.
     /// </remarks>
     public interface IContinuationPointStore
     {

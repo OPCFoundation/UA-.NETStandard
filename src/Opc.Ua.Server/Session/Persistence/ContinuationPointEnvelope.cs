@@ -37,10 +37,10 @@ namespace Opc.Ua.Server
     /// <remarks>
     /// The built-in Session creates history envelopes with only the continuation identifier, session identifier and
     /// kind; Browse envelopes also include the original request parameters and index. The envelope does not carry
-    /// <see cref="ContinuationPoint.Data"/> or reconstruct a cursor on a backup. A client resuming through the built-in
-    /// Session store with only this envelope receives <see cref="StatusCodes.BadContinuationPointInvalid"/> and must
-    /// issue a new Browse or HistoryRead to continue. Portable historian continuations use a separate
-    /// <see cref="IHistoryContinuationPointStore"/>.
+    /// <see cref="ContinuationPoint.Data"/> or reconstruct a cursor on a backup. If lookup completes with only this
+    /// envelope, a resume through the built-in Session store returns
+    /// <see cref="StatusCodes.BadContinuationPointInvalid"/>. The client must issue a new Browse or HistoryRead to
+    /// continue. Portable historian continuations use a separate <see cref="IHistoryContinuationPointStore"/>.
     /// </remarks>
     public sealed class ContinuationPointEnvelope
     {
