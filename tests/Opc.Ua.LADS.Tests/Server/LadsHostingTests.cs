@@ -35,6 +35,7 @@ using NUnit.Framework;
 using Opc.Ua.LADS.Server;
 using Opc.Ua.Machinery.Server;
 using Opc.Ua.Machinery.Server.StateMachines;
+using Opc.Ua.Redundancy;
 using Opc.Ua.Server.Hosting;
 
 namespace Opc.Ua.LADS.Tests.Server
@@ -208,6 +209,112 @@ namespace Opc.Ua.LADS.Tests.Server
             Assert.That(
                 () => builder.AddLads(options => options.MaxRetainedResults = 0),
                 Throws.InstanceOf<ArgumentOutOfRangeException>());
+        }
+
+        /// <summary>
+        /// Verifies strict lease selection resolves the explicitly registered shared authority.
+        /// </summary>
+        [Test]
+        public async Task LeasePublicationStoreUsesRegisteredAuthorityAsync()
+        {
+            var authority = new InMemoryLeasePublicationAuthority();
+            LeaseAcquisitionResult acquisition = await authority.TryAcquireLeaseAsync(
+                "lads",
+                "owner",
+                TimeSpan.FromMinutes(1)).ConfigureAwait(false);
+            LeasePublicationToken token = acquisition.Token ??
+                throw new AssertionException("Successful acquisition did not return a token.");
+            var services = new ServiceCollection();
+            services.AddInMemoryLeasePublicationAuthority(authority);
+            services.AddOpcUa()
+                .AddServer<Opc.Ua.Server.StandardServer>(_ => { })
+                .AddLads(options => options.UseLeasePublicationStore("lads", () => token));
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+
+            Assert.That(provider.GetRequiredService<ILadsStore>(), Is.TypeOf<LeasePublicationLadsStore>());
+            Assert.That(
+                provider.GetRequiredService<ILeasePublicationAuthority>(),
+                Is.SameAs(authority));
+        }
+
+        /// <summary>
+        /// Verifies strict selection rejects a missing authority instead of selecting the memory store.
+        /// </summary>
+        [Test]
+        public async Task LeasePublicationStoreRequiresAuthorityAsync()
+        {
+            var authority = new InMemoryLeasePublicationAuthority();
+            LeaseAcquisitionResult acquisition = await authority.TryAcquireLeaseAsync(
+                "lads",
+                "owner",
+                TimeSpan.FromMinutes(1)).ConfigureAwait(false);
+            LeasePublicationToken token = acquisition.Token ??
+                throw new AssertionException("Successful acquisition did not return a token.");
+            var services = new ServiceCollection();
+            services.AddSingleton<ISharedKeyValueStore, InMemorySharedKeyValueStore>();
+            services.AddOpcUa()
+                .AddServer<Opc.Ua.Server.StandardServer>(_ => { })
+                .AddLads(options => options.UseLeasePublicationStore("lads", () => token));
+            using ServiceProvider provider = services.BuildServiceProvider();
+
+            Assert.That(
+                () => provider.GetRequiredService<ILadsStore>(),
+                Throws.TypeOf<NotSupportedException>());
+        }
+
+        /// <summary>
+        /// Verifies legacy registration continues to select the existing in-memory store.
+        /// </summary>
+        [Test]
+        public void LegacyLadsRegistrationKeepsInMemoryStoreDefault()
+        {
+            var services = new ServiceCollection();
+            services.AddOpcUa()
+                .AddServer<Opc.Ua.Server.StandardServer>(_ => { })
+                .AddLads();
+            using ServiceProvider provider = services.BuildServiceProvider();
+
+            Assert.That(provider.GetRequiredService<ILadsStore>(), Is.TypeOf<InMemoryLadsStore>());
+        }
+
+        /// <summary>
+        /// Verifies strict selection rejects custom stores rather than allowing an unfenced backend.
+        /// </summary>
+        [Test]
+        public async Task LeasePublicationStoreRejectsCustomStoreBackendsAsync()
+        {
+            var authority = new InMemoryLeasePublicationAuthority();
+            LeaseAcquisitionResult acquisition = await authority.TryAcquireLeaseAsync(
+                "lads",
+                "owner",
+                TimeSpan.FromMinutes(1)).ConfigureAwait(false);
+            LeasePublicationToken token = acquisition.Token ??
+                throw new AssertionException("Successful acquisition did not return a token.");
+            var configuredStoreServices = new ServiceCollection();
+            IOpcUaServerBuilder configuredStoreBuilder = configuredStoreServices
+                .AddOpcUa()
+                .AddServer<Opc.Ua.Server.StandardServer>(_ => { });
+            Assert.That(
+                () => configuredStoreBuilder.AddLads(options =>
+                {
+                    options.Store = new InMemoryLadsStore();
+                    options.UseLeasePublicationStore("lads", () => token);
+                }),
+                Throws.InvalidOperationException);
+
+            var registeredStoreServices = new ServiceCollection();
+            registeredStoreServices.AddSingleton<ILadsStore, InMemoryLadsStore>();
+            IOpcUaServerBuilder registeredStoreBuilder = registeredStoreServices
+                .AddOpcUa()
+                .AddServer<Opc.Ua.Server.StandardServer>(_ => { });
+            Assert.That(
+                () => registeredStoreBuilder.AddLads(options =>
+                    options.UseLeasePublicationStore("lads", () => token)),
+                Throws.InvalidOperationException);
+            Assert.That(
+                registeredStoreServices.Count(service => service.ServiceType == typeof(IMachineryModelProvider)),
+                Is.Zero);
         }
 
         [Test]

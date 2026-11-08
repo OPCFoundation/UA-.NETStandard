@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -40,7 +41,7 @@ namespace Opc.Ua.LADS.Server
     /// <summary>
     /// The handle of a functional unit.
     /// </summary>
-    internal sealed class LadsFunctionalUnit : ILadsFunctionalUnit, IAsyncDisposable
+    internal sealed class LadsFunctionalUnit : ILadsFunctionalUnit, ILadsRunningOperations, IAsyncDisposable
     {
         /// <summary>
         /// Creates the handle and binds the methods of the functional unit state machine.
@@ -60,13 +61,15 @@ namespace Opc.Ua.LADS.Server
                 stateMachine,
                 context,
                 LadsStateMaps.Functional,
-                LadsFunctionalStateValue.Stopped);
+                LadsFunctionalStateValue.Stopped,
+                Device);
             Running = new LadsStateMachine<LadsRunningStateValue>(
                 stateMachine.RunningStateMachine!,
                 context,
                 LadsStateMaps.Running,
-                LadsRunningStateValue.Idle);
-            Functional.StateChanged += state =>
+                LadsRunningStateValue.Idle,
+                Device);
+            Functional.StateChangedInternal += state =>
             {
                 if (Runtime.Logger.IsEnabled(LogLevel.Debug))
                 {
@@ -74,6 +77,15 @@ namespace Opc.Ua.LADS.Server
                 }
                 StateChanged?.Invoke(state);
                 Device.OnFunctionalUnitStateChanged();
+            };
+            Functional.StateChangedInternalAsync += async (state, cancellationToken) =>
+            {
+                if (Runtime.Logger.IsEnabled(LogLevel.Debug))
+                {
+                    Runtime.Logger.StateChanged(Name, state);
+                }
+                StateChanged?.Invoke(state);
+                await Device.OnFunctionalUnitStateChangedAsync(cancellationToken).ConfigureAwait(false);
             };
             Runtime.Bind(stateMachine.Start, (_, ct) => StartAsync(ct));
             Runtime.Bind(stateMachine.Stop, (_, ct) => StopAsync(ct));
@@ -130,6 +142,20 @@ namespace Opc.Ua.LADS.Server
 
         /// <inheritdoc/>
         public LadsRunningStateValue RunningState => Running.Current;
+
+        /// <summary>
+        /// Gets whether an admitted running-operation command still needs cleanup.
+        /// </summary>
+        internal bool HasPendingExecutionCommands =>
+            m_executionCancellation != null || m_pendingExecutionCommands != 0;
+
+        /// <inheritdoc/>
+        public ILadsRunningOperations? RunningOperations => CompleteLifecycle ? this : null;
+
+        /// <summary>
+        /// Gets whether Complete waits for Reset, Stop or Abort.
+        /// </summary>
+        internal bool CompleteLifecycle { get; private set; }
 
         /// <inheritdoc/>
         public ArrayOf<ILadsFunction> Functions
@@ -201,15 +227,13 @@ namespace Opc.Ua.LADS.Server
             await Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                Device.RequireOperate();
-                Functional.Require(LadsFunctionalStateValue.Stopped);
-                await TransitionAsync(Functional, cancellationToken, LadsFunctionalStateValue.Running)
-                    .ConfigureAwait(false);
-                Running.SetState(LadsRunningStateValue.Idle);
-                await Running.TransitionThroughAsync(
-                    cancellationToken,
-                    LadsRunningStateValue.Starting,
-                    LadsRunningStateValue.Execute).ConfigureAwait(false);
+                await Device.EnterFunctionalUnitAsync(this, cancellationToken, async () =>
+                {
+                    await Running.TransitionThroughAsync(
+                        cancellationToken,
+                        LadsRunningStateValue.Starting,
+                        LadsRunningStateValue.Execute).ConfigureAwait(false);
+                }).ConfigureAwait(false);
             }
             finally
             {
@@ -240,21 +264,477 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public async ValueTask ClearAsync(CancellationToken cancellationToken = default)
         {
+            Device.RequireStorageHealthy();
             await Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                Device.RequireStorageHealthy();
                 Functional.Require(LadsFunctionalStateValue.Aborted);
                 await TransitionAsync(
                     Functional,
                     cancellationToken,
                     LadsFunctionalStateValue.Clearing,
                     LadsFunctionalStateValue.Stopped).ConfigureAwait(false);
-                Running.SetState(LadsRunningStateValue.Idle);
+                await Running.SetStateAsync(LadsRunningStateValue.Idle, CancellationToken.None)
+                    .ConfigureAwait(false);
             }
             finally
             {
                 Gate.Release();
             }
+        }
+
+        /// <inheritdoc/>
+        public ValueTask HoldAsync(CancellationToken cancellationToken = default)
+        {
+            return ChangeRunningAsync(LadsRunningStateValue.Holding, LadsRunningStateValue.Held, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask UnholdAsync(CancellationToken cancellationToken = default)
+        {
+            return ChangeRunningAsync(
+                LadsRunningStateValue.Unholding, LadsRunningStateValue.Execute, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask SuspendAsync(CancellationToken cancellationToken = default)
+        {
+            return ChangeRunningAsync(
+                LadsRunningStateValue.Suspending, LadsRunningStateValue.Suspended, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask UnsuspendAsync(CancellationToken cancellationToken = default)
+        {
+            return ChangeRunningAsync(
+                LadsRunningStateValue.Unsuspending, LadsRunningStateValue.Execute, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask ToCompleteAsync(CancellationToken cancellationToken = default)
+        {
+            return ChangeRunningAsync(
+                LadsRunningStateValue.Completing, LadsRunningStateValue.Completing, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask ResetAsync(CancellationToken cancellationToken = default)
+        {
+            await Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                if (m_disposed)
+                {
+                    throw new ObjectDisposedException(nameof(LadsFunctionalUnit));
+                }
+                Device.RequireOperate();
+                Functional.Require(LadsFunctionalStateValue.Running);
+                Running.Require(LadsRunningStateValue.Complete);
+                if (!CompleteLifecycle || m_programs?.HasActiveRun == true || m_pendingExecutionCommands != 0)
+                {
+                    throw ServiceResultException.Create(StatusCodes.BadInvalidState, "The run is not finalized.");
+                }
+                await TransitionAsync(
+                    Running, cancellationToken, LadsRunningStateValue.Resetting, LadsRunningStateValue.Idle)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                Gate.Release();
+            }
+        }
+
+        /// <summary>
+        /// Reconciles a running functional unit to Aborted and Idle after storage quarantine.
+        /// </summary>
+        internal async ValueTask ReconcileQuarantinedUnitAsync()
+        {
+            (bool runningChanged, bool functionalChanged, List<Exception> failures) =
+                Device.AssignQuarantinedStartState(this);
+            if (runningChanged)
+            {
+                try
+                {
+                    await Running.NotifyStateChangedAsync().ConfigureAwait(false);
+                }
+                catch (Exception failure)
+                {
+                    failures.Add(failure);
+                }
+            }
+            if (functionalChanged)
+            {
+                try
+                {
+                    await Functional.NotifyStateChangedAsync().ConfigureAwait(false);
+                }
+                catch (Exception failure)
+                {
+                    failures.Add(failure);
+                }
+            }
+            if (failures.Count > 0)
+            {
+                throw new AggregateException("The quarantined start could not be fully reconciled.", failures);
+            }
+        }
+
+        /// <summary>
+        /// Enables the optional running methods during composition.
+        /// </summary>
+        internal void EnableRunningOperations()
+        {
+            CompleteLifecycle = true;
+            RunningStateMachineState node = Node.FunctionalUnitState!.RunningStateMachine!;
+            node.AddHold(Runtime.Context).AddUnhold(Runtime.Context)
+                .AddSuspend(Runtime.Context).AddUnsuspend(Runtime.Context)
+                .AddReset(Runtime.Context).AddToComplete(Runtime.Context);
+            Runtime.Bind(node.Hold, (_, ct) => HoldAsync(ct));
+            Runtime.Bind(node.Unhold, (_, ct) => UnholdAsync(ct));
+            Runtime.Bind(node.Suspend, (_, ct) => SuspendAsync(ct));
+            Runtime.Bind(node.Unsuspend, (_, ct) => UnsuspendAsync(ct));
+            Runtime.Bind(node.Reset, (_, ct) => ResetAsync(ct));
+            Runtime.Bind(node.ToComplete, (_, ct) => ToCompleteAsync(ct));
+            Running.StateAssigned += state =>
+                m_programs?.ActiveRun?.SetPauseTiming(
+                    state is LadsRunningStateValue.Held or LadsRunningStateValue.Suspended);
+            Running.StateChangedInternal += _ => UpdateRunningExecutability();
+            Functional.StateChangedInternal += _ => UpdateRunningExecutability();
+            Running.StateChangedInternalAsync += (_, cancellationToken) =>
+                UpdateRunningExecutabilityAsync(cancellationToken);
+            Functional.StateChangedInternalAsync += (_, cancellationToken) =>
+                UpdateRunningExecutabilityAsync(cancellationToken);
+            UpdateRunningExecutability();
+        }
+
+        /// <summary>
+        /// Enters Running from Stopped, or starts the next process from a reset Idle substate.
+        /// </summary>
+        internal async ValueTask EnterRunningAsync(CancellationToken cancellationToken)
+        {
+            if (m_disposed)
+            {
+                throw new ObjectDisposedException(nameof(LadsFunctionalUnit));
+            }
+            if (m_pendingExecutionCommands != 0)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidState, "The previous execution-control operation is still finishing.");
+            }
+            if (CompleteLifecycle && State == LadsFunctionalStateValue.Running)
+            {
+                Running.Require(LadsRunningStateValue.Idle);
+                return;
+            }
+            Functional.Require(LadsFunctionalStateValue.Stopped);
+            await TransitionAsync(Functional, cancellationToken, LadsFunctionalStateValue.Running)
+                .ConfigureAwait(false);
+            await Running.SetStateAsync(LadsRunningStateValue.Idle, CancellationToken.None)
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Waits for the provider's orderly-completion acknowledgment before publishing a successful result.
+        /// </summary>
+        internal async ValueTask<bool> WaitForCompletionAcknowledgmentAsync(CancellationToken cancellationToken)
+        {
+            Task<bool>? acknowledgment;
+            await Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                acknowledgment = Running.Current == LadsRunningStateValue.Completing
+                    ? m_completionAcknowledgment?.Task : null;
+            }
+            finally
+            {
+                Gate.Release();
+            }
+            return acknowledgment == null ||
+                await acknowledgment.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Changes processing only through an executor that acknowledges the requested operation.
+        /// </summary>
+        private async ValueTask ChangeRunningAsync(
+            LadsRunningStateValue acting,
+            LadsRunningStateValue stable,
+            CancellationToken cancellationToken)
+        {
+            LadsProgramRun? run = null;
+            CancellationTokenSource? command = null;
+            bool acknowledgmentCancelled = false;
+            bool commandAdmitted = false;
+            TaskCompletionSource<bool>? completionAcknowledgment = null;
+            Exception? operationFailure = null;
+            Exception? cleanupFailure = null;
+            try
+            {
+                await Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    if (m_disposed)
+                    {
+                        throw new ObjectDisposedException(nameof(LadsFunctionalUnit));
+                    }
+                    Device.RequireOperate();
+                    Functional.Require(LadsFunctionalStateValue.Running);
+                    if (!CompleteLifecycle || m_programs?.ActiveRun is not LadsProgramRun activeRun ||
+                        m_programs.Executor is not ILadsControlledProgramExecutor)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadNotSupported, "Execution control is unavailable.");
+                    }
+                    await TransitionAsync(Running, cancellationToken, acting).ConfigureAwait(false);
+                    run = activeRun;
+                    if (acting == LadsRunningStateValue.Completing)
+                    {
+                        completionAcknowledgment = new TaskCompletionSource<bool>(
+                            TaskCreationOptions.RunContinuationsAsynchronously);
+                        m_completionAcknowledgment = completionAcknowledgment;
+                    }
+                    m_executionCancellation?.Cancel();
+                    command = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, Runtime.Stopping);
+                    m_executionCancellation = command;
+                    if (m_pendingExecutionCommands++ == 0)
+                    {
+                        m_executionIdle = new TaskCompletionSource<bool>(
+                            TaskCreationOptions.RunContinuationsAsynchronously);
+                    }
+                    commandAdmitted = true;
+                }
+                finally
+                {
+                    try
+                    {
+                        await UpdateRunningExecutabilityAsync(CancellationToken.None).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        Gate.Release();
+                    }
+                }
+
+                await m_executionGate.WaitAsync(command!.Token).ConfigureAwait(false);
+                ServiceResult acknowledgment;
+                try
+                {
+                    acknowledgment = await m_programs!.ChangeExecutionAsync(run!, stable, command.Token)
+                        .ConfigureAwait(false);
+                }
+                finally
+                {
+                    m_executionGate.Release();
+                }
+                if (ServiceResult.IsBad(acknowledgment))
+                {
+                    throw new ServiceResultException(acknowledgment);
+                }
+
+                await Gate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                try
+                {
+                    command.Token.ThrowIfCancellationRequested();
+                    if (!ReferenceEquals(m_executionCancellation, command))
+                    {
+                        throw new ServiceResultException(StatusCodes.BadInvalidState);
+                    }
+                    if (acting != stable)
+                    {
+                        Running.Require(acting);
+                        await TransitionAsync(Running, CancellationToken.None, stable).ConfigureAwait(false);
+                    }
+                    await m_programs!.UpdateRuntimeAsync(run!).ConfigureAwait(false);
+                    completionAcknowledgment?.TrySetResult(true);
+                }
+                finally
+                {
+                    try
+                    {
+                        await UpdateRunningExecutabilityAsync(CancellationToken.None).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        Gate.Release();
+                    }
+                }
+            }
+            catch (OperationCanceledException failure) when (failure.CancellationToken.IsCancellationRequested)
+            {
+                acknowledgmentCancelled = true;
+                operationFailure = failure;
+            }
+            catch (Exception failure)
+            {
+                operationFailure = failure;
+            }
+            finally
+            {
+                if (commandAdmitted && command != null)
+                {
+                    try
+                    {
+                        await Gate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                        try
+                        {
+                            if (ReferenceEquals(m_executionCancellation, command))
+                            {
+                                m_executionCancellation = null;
+                            }
+                            if (acknowledgmentCancelled)
+                            {
+                                completionAcknowledgment?.TrySetCanceled(CancellationToken.None);
+                            }
+                            else
+                            {
+                                completionAcknowledgment?.TrySetResult(false);
+                            }
+                            command.Dispose();
+                            if (--m_pendingExecutionCommands == 0)
+                            {
+                                m_executionIdle!.TrySetResult(true);
+                            }
+                            await UpdateRunningExecutabilityAsync(CancellationToken.None).ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            Gate.Release();
+                        }
+                    }
+                    catch (Exception failure)
+                    {
+                        cleanupFailure = failure;
+                    }
+                }
+            }
+
+            if (cleanupFailure != null)
+            {
+                if (operationFailure != null)
+                {
+                    throw new AggregateException(operationFailure, cleanupFailure);
+                }
+                ExceptionDispatchInfo.Capture(cleanupFailure).Throw();
+            }
+            if (operationFailure != null)
+            {
+                ExceptionDispatchInfo.Capture(operationFailure).Throw();
+            }
+        }
+
+        /// <summary>
+        /// Publishes availability from nesting, transition graph and configured executor capability.
+        /// </summary>
+        internal void UpdateRunningExecutability()
+        {
+            if (!CompleteLifecycle)
+            {
+                return;
+            }
+            RunningStateMachineState node = Node.FunctionalUnitState!.RunningStateMachine!;
+            bool running = State == LadsFunctionalStateValue.Running;
+            bool controlled = running && m_programs?.HasActiveRun == true &&
+                m_programs.Executor is ILadsControlledProgramExecutor;
+            if (node.CurrentState != null)
+            {
+                node.CurrentState.StatusCode = running ? StatusCodes.Good : StatusCodes.BadStateNotActive;
+                if (node.CurrentState.Id != null)
+                {
+                    node.CurrentState.Id.StatusCode = node.CurrentState.StatusCode;
+                }
+                node.CurrentState.ClearChangeMasks(Runtime.Context, true);
+            }
+            Set(node.Hold, controlled && Running.CanTransitionTo(LadsRunningStateValue.Holding));
+            Set(node.Unhold, controlled && Running.CanTransitionTo(LadsRunningStateValue.Unholding));
+            Set(node.Suspend, controlled && Running.CanTransitionTo(LadsRunningStateValue.Suspending));
+            Set(node.Unsuspend, controlled && Running.CanTransitionTo(LadsRunningStateValue.Unsuspending));
+            Set(node.ToComplete, controlled && Running.CanTransitionTo(LadsRunningStateValue.Completing));
+            Set(node.Reset, running && m_pendingExecutionCommands == 0 && m_programs?.HasActiveRun != true &&
+                RunningState == LadsRunningStateValue.Complete);
+            FunctionalUnitStateMachineState functional = Node.FunctionalUnitState!;
+            bool canStart = m_pendingExecutionCommands == 0 && (State == LadsFunctionalStateValue.Stopped ||
+                (running && RunningState == LadsRunningStateValue.Idle && m_programs?.HasActiveRun != true));
+            Set(functional.Start, canStart);
+            Set(functional.StartProgram, canStart);
+            Set(functional.Stop, running);
+            Set(functional.Abort, running);
+            Set(functional.Clear, State == LadsFunctionalStateValue.Aborted);
+
+            void Set(MethodState? method, bool executable)
+            {
+                if (method != null)
+                {
+                    method.Executable = executable;
+                    method.UserExecutable = executable;
+                    method.ClearChangeMasks(Runtime.Context, false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Publishes running-operation availability and awaits its state notifications.
+        /// </summary>
+        internal async ValueTask UpdateRunningExecutabilityAsync(CancellationToken cancellationToken)
+        {
+            if (!CompleteLifecycle)
+            {
+                return;
+            }
+            RunningStateMachineState node = Node.FunctionalUnitState!.RunningStateMachine!;
+            bool running = State == LadsFunctionalStateValue.Running;
+            bool controlled = running && m_programs?.HasActiveRun == true &&
+                m_programs.Executor is ILadsControlledProgramExecutor;
+            if (node.CurrentState != null)
+            {
+                node.CurrentState.StatusCode = running ? StatusCodes.Good : StatusCodes.BadStateNotActive;
+                if (node.CurrentState.Id != null)
+                {
+                    node.CurrentState.Id.StatusCode = node.CurrentState.StatusCode;
+                }
+                await node.CurrentState.ClearChangeMasksAsync(Runtime.Context, true, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            await SetAsync(node.Hold, controlled && Running.CanTransitionTo(LadsRunningStateValue.Holding))
+                .ConfigureAwait(false);
+            await SetAsync(node.Unhold, controlled && Running.CanTransitionTo(LadsRunningStateValue.Unholding))
+                .ConfigureAwait(false);
+            await SetAsync(node.Suspend, controlled && Running.CanTransitionTo(LadsRunningStateValue.Suspending))
+                .ConfigureAwait(false);
+            await SetAsync(node.Unsuspend, controlled && Running.CanTransitionTo(LadsRunningStateValue.Unsuspending))
+                .ConfigureAwait(false);
+            await SetAsync(node.ToComplete, controlled && Running.CanTransitionTo(LadsRunningStateValue.Completing))
+                .ConfigureAwait(false);
+            await SetAsync(node.Reset, running && m_pendingExecutionCommands == 0 &&
+                m_programs?.HasActiveRun != true && RunningState == LadsRunningStateValue.Complete)
+                .ConfigureAwait(false);
+            FunctionalUnitStateMachineState functional = Node.FunctionalUnitState!;
+            bool canStart = m_pendingExecutionCommands == 0 && (State == LadsFunctionalStateValue.Stopped ||
+                (running && RunningState == LadsRunningStateValue.Idle && m_programs?.HasActiveRun != true));
+            await SetAsync(functional.Start, canStart).ConfigureAwait(false);
+            await SetAsync(functional.StartProgram, canStart).ConfigureAwait(false);
+            await SetAsync(functional.Stop, running).ConfigureAwait(false);
+            await SetAsync(functional.Abort, running).ConfigureAwait(false);
+            await SetAsync(functional.Clear, State == LadsFunctionalStateValue.Aborted).ConfigureAwait(false);
+
+            async ValueTask SetAsync(MethodState? method, bool executable)
+            {
+                if (method != null)
+                {
+                    method.Executable = executable;
+                    method.UserExecutable = executable;
+                    await method.ClearChangeMasksAsync(Runtime.Context, false, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Cancels pending hardware acknowledgments when execution stops or fails.
+        /// </summary>
+        internal void CancelExecutionControl()
+        {
+            m_executionCancellation?.Cancel();
         }
 
         /// <summary>
@@ -266,6 +746,7 @@ namespace Opc.Ua.LADS.Server
             LadsFunctionalStateValue final,
             CancellationToken cancellationToken)
         {
+            Device.RequireStorageHealthy();
             while (true)
             {
                 if (m_programs != null &&
@@ -282,7 +763,8 @@ namespace Opc.Ua.LADS.Server
                     }
                     Functional.Require(LadsFunctionalStateValue.Running);
                     await TransitionAsync(Functional, cancellationToken, transient, final).ConfigureAwait(false);
-                    Running.SetState(LadsRunningStateValue.Idle);
+                    await Running.SetStateAsync(LadsRunningStateValue.Idle, CancellationToken.None)
+                        .ConfigureAwait(false);
                     return;
                 }
                 finally
@@ -364,16 +846,27 @@ namespace Opc.Ua.LADS.Server
         /// <summary>
         /// Creates the program manager on first use.
         /// </summary>
-        internal LadsProgramManager EnsureProgramManager()
+        internal LadsProgramManager EnsureProgramManager(LadsTemplateOperations? operations = null)
         {
+            if (operations.HasValue && (operations.Value & ~LadsTemplateOperations.All) != 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(operations));
+            }
+            if (m_programs != null && operations.HasValue && m_programs.TemplateOperations != operations.Value)
+            {
+                throw new InvalidOperationException(
+                    "The program manager's template operations are already configured.");
+            }
             if (m_programs == null)
             {
                 ISystemContext context = Runtime.Context;
                 Node.AddProgramManager(context);
                 FunctionalUnitStateMachineState stateMachine = Node.FunctionalUnitState!;
                 stateMachine.AddStartProgram(context);
-                m_programs = new LadsProgramManager(this, Node.ProgramManager!);
+                m_programs = new LadsProgramManager(
+                    this, Node.ProgramManager!, operations ?? LadsTemplateOperations.All);
                 Runtime.Bind(stateMachine.StartProgram, m_programs.OnStartProgramAsync);
+                UpdateRunningExecutability();
             }
             return m_programs;
         }
@@ -416,18 +909,73 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
-            if (m_programs != null)
+            var failures = new List<Exception>();
+            Task drained;
+            await Gate.WaitAsync().ConfigureAwait(false);
+            try
             {
-                await m_programs.DisposeAsync().ConfigureAwait(false);
+                m_disposed = true;
+                try
+                {
+                    m_executionCancellation?.Cancel();
+                }
+                catch (Exception failure)
+                {
+                    failures.Add(failure);
+                }
+                drained = m_executionIdle?.Task ?? Task.CompletedTask;
             }
-            LadsFunction[] functions;
-            lock (m_lock)
+            finally
             {
-                functions = [.. m_functions.Values];
+                Gate.Release();
             }
-            foreach (LadsFunction function in functions)
+            try
             {
-                function.Dispose();
+                try
+                {
+                    await drained.ConfigureAwait(false);
+                }
+                catch (Exception failure)
+                {
+                    failures.Add(failure);
+                }
+                if (m_programs != null)
+                {
+                    try
+                    {
+                        await m_programs.DisposeAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception failure)
+                    {
+                        failures.Add(failure);
+                    }
+                }
+                LadsFunction[] functions;
+                lock (m_lock)
+                {
+                    functions = [.. m_functions.Values];
+                }
+                foreach (LadsFunction function in functions)
+                {
+                    try
+                    {
+                        await function.DisposeAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception failure)
+                    {
+                        failures.Add(failure);
+                    }
+                }
+            }
+            finally
+            {
+                m_executionCancellation?.Dispose();
+                m_executionGate.Dispose();
+                Gate.Dispose();
+            }
+            if (failures.Count > 0)
+            {
+                throw new AggregateException("The LADS functional unit cleanup failed.", failures);
             }
         }
 
@@ -435,5 +983,11 @@ namespace Opc.Ua.LADS.Server
         private readonly Dictionary<string, LadsFunction> m_functions = new(StringComparer.Ordinal);
         private ILadsFunctionProvider? m_functionProvider;
         private LadsProgramManager? m_programs;
+        private readonly SemaphoreSlim m_executionGate = new(1, 1);
+        private CancellationTokenSource? m_executionCancellation;
+        private TaskCompletionSource<bool>? m_executionIdle;
+        private TaskCompletionSource<bool>? m_completionAcknowledgment;
+        private int m_pendingExecutionCommands;
+        private bool m_disposed;
     }
 }

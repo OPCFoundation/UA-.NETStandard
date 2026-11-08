@@ -53,6 +53,16 @@ recipe condition settings and notification category/ID enums with
 Source-generation tooling also implements selected modelling checks relevant
 to OPC 11030.
 
+LADS supports optional cooperative Hold/Unhold, Suspend/Unsuspend, Reset and
+ToComplete operations when an acknowledging executor or hardware provider is
+configured. Its optional store restores templates, results, file bytes,
+maintenance records and counters without resuming interrupted physical
+execution; the default lifecycle still stops automatically. Opted-in AMB
+configuration adds configurable asset identification and selected asset
+building blocks without changing legacy device identities. Optional DI Locking
+enforces session ownership across UA writes and method calls throughout the
+device subtree, including generated AMB and FileType handlers.
+
 Support describes SDK functionality, not certification of every current
 feature, companion model or application. Historical reference-server
 certification applies only to its tested product version and profile scope.
@@ -314,7 +324,7 @@ support gap.
 | [PackML](Scales.md), OPC 30050 | Partial | Generated model and Scales recipe/state integration; not a standalone implementation of every PackML unit mode |
 | [PA-DIM](PADIM.md), OPC 30081 | Full | Provider-backed DI devices, signal/analyser families, operations, typed clients and sample; applications select optional capabilities per device and supply acquisition or operation providers |
 | [Energy Consumption Management](ECM.md), OPC 34100 | Full | All defined measurement, standby and WOL capabilities with provider-backed server bindings, typed clients and fluent DI composition; equipment behavior remains application-owned |
-| [LADS](LADS.md), OPC 30500-1 | Partial | Devices, functional units, functions, programs, results and maintenance; optional Hold/Unhold/Suspend/Unsuspend/Reset/ToComplete server methods and persistence are missing |
+| [LADS](LADS.md), OPC 30500-1 | Full | Devices, functions, programs, results, maintenance, cooperative running operations, stored-data restoration, opt-in AMB building blocks and optional DI subtree locking. BaseServer configurable identification requires a stable URI and persistent AMB store; physical execution requires application providers |
 | [Plastics and rubber common types](PlasticsRubber.md), OPC 40083 | Full | Common controls, monitoring, maintenance, materials, diagnostics and production datasets; independently authored 1.03 interface implementation on the licensed 1.02 basis |
 | [Granulate drying](PlasticsRubber.md#granulate-drying-devices-opc-40082-6), OPC 40082-6 | Full | Device construction, selectable conformance units, provider-backed commands, observations, events and typed clients |
 | [Extrusion](Extrusion.md), OPC 40084-1/-2/-3/-4/-5/-7/-8/-9/-10/-11/-12 | Full | General types and concrete device/line runtimes, jobs, datasets, events and clients; equipment authority remains with explicit providers |
@@ -939,7 +949,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 30400-1: Cloud Library - Architecture and Use Cases](https://reference.opcfoundation.org/specs/OPC-30400-1) | 1.00.1 | No | - |
 | [OPC 30400-2: Cloud Library - API Definition](https://reference.opcfoundation.org/specs/OPC-30400-2) | 1.00.0 | No | - |
 | [OPC 30450-1: Digital Product Passport - Information Model](https://reference.opcfoundation.org/specs/OPC-30450-1) | 1.0.0 | No | - |
-| [OPC 30500-1: Laboratory and Analytical Device Standard (LADS) - Basics](https://reference.opcfoundation.org/specs/OPC-30500-1) | 1.0.0 | Partial | Optional Hold/Unhold/Suspend/Unsuspend/Reset/ToComplete server methods and persistence missing |
+| [OPC 30500-1: Laboratory and Analytical Device Standard (LADS) - Basics](https://reference.opcfoundation.org/specs/OPC-30500-1) | 1.0.0 | Full | - |
 | [OPC 34100: Energy Consumption Management](https://reference.opcfoundation.org/specs/OPC-34100) | 1.0.1 | Full | - |
 | [OPC 40001-1: Machinery - Basic Building Blocks](https://reference.opcfoundation.org/specs/OPC-40001-1) | 1.04.2 | Full | - |
 | [OPC 40001-2: Machinery - Process Values](https://reference.opcfoundation.org/specs/OPC-40001-2) | 1.00 | Full | - |

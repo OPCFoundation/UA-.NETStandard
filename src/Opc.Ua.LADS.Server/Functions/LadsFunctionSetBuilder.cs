@@ -452,6 +452,22 @@ namespace Opc.Ua.LADS.Server
         }
 
         /// <inheritdoc/>
+        public ILadsFunctionalUnitBuilder Programs(
+            LadsTemplateOperations operations, Action<ILadsProgramManagerBuilder>? configure = null)
+        {
+            LadsProgramManager manager = Unit.EnsureProgramManager(operations);
+            configure?.Invoke(new LadsProgramManagerBuilder(manager));
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public ILadsFunctionalUnitBuilder RunningOperations()
+        {
+            Unit.EnableRunningOperations();
+            return this;
+        }
+
+        /// <inheritdoc/>
         public ILadsFunctionalUnitBuilder SupportedProperty(string name)
         {
             Unit.AddSupportedProperty(name);

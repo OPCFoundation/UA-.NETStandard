@@ -338,14 +338,16 @@ namespace Opc.Ua.LADS.Client
                         mode.BrowseName,
                         Lads(BrowseNames.CurrentValue)
                     ]);
-                    modeNames.Add($"{BrowseNames.ControllerModeSet}/{modeName}/{BrowseNames.CurrentValue}");
+                    modeNames.Add(
+                        $"{BrowseNames.ControllerModeSet}/{Uri.EscapeDataString(modeName)}/{BrowseNames.CurrentValue}");
                     modePaths.Add(
                     [
                         Lads(BrowseNames.ControllerModeSet),
                         mode.BrowseName,
                         Lads(BrowseNames.TargetValue)
                     ]);
-                    modeNames.Add($"{BrowseNames.ControllerModeSet}/{modeName}/{BrowseNames.TargetValue}");
+                    modeNames.Add(
+                        $"{BrowseNames.ControllerModeSet}/{Uri.EscapeDataString(modeName)}/{BrowseNames.TargetValue}");
                 }
                 NodeId[] modeNodes = await ResolveAsync(functionId, modePaths, cancellationToken).ConfigureAwait(false);
                 for (int ii = 0; ii < modeNodes.Length; ii++)
@@ -353,6 +355,28 @@ namespace Opc.Ua.LADS.Client
                     if (!modeNodes[ii].IsNull)
                     {
                         resolved.Add((modeNames[ii], modeNodes[ii]));
+                    }
+                }
+            }
+            NodeId targetSet = await ResolveAsync(
+                functionId, cancellationToken, Lads(BrowseNames.TargetValueSet)).ConfigureAwait(false);
+            if (!targetSet.IsNull)
+            {
+                List<ReferenceDescription> targets = await BrowseAsync(
+                    targetSet, Ua.ReferenceTypeIds.HasComponent, NodeClass.Variable, cancellationToken)
+                    .ConfigureAwait(false);
+                foreach (ReferenceDescription target in targets)
+                {
+                    if (target.BrowseName.Name is { Length: > 0 } name)
+                    {
+                        NodeId targetId = ToNodeId(target.NodeId);
+                        if (targetId.IsNull)
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadNodeIdUnknown, "The composed target has no local NodeId.");
+                        }
+                        resolved.Add(($"{BrowseNames.TargetValueSet}/{Uri.EscapeDataString(name)}",
+                            targetId));
                     }
                 }
             }

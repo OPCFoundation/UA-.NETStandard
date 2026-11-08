@@ -423,7 +423,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         [Test]
-        public void OpenForWriteThenWritePersistsData()
+        public async Task OpenForWriteThenWritePersistsData()
         {
             FileObjectState state = CreateFileState("out.txt");
 
@@ -437,9 +437,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 m_context, state.Write, state.NodeId, fileHandle, payload);
             Assert.That(ServiceResult.IsGood(writeResult), Is.True);
 
-            ServiceResult closeResult = state.Close!.OnCall!(
-                m_context, state.Close, state.NodeId, fileHandle);
-            Assert.That(ServiceResult.IsGood(closeResult), Is.True);
+            CloseMethodStateResult closeResult = await state.Close!.OnCallAsync!(
+                m_context, state.Close, state.NodeId, fileHandle, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(closeResult.ServiceResult), Is.True);
 
             Assert.That(File.ReadAllText(Path.Combine(m_root, "out.txt")), Is.EqualTo("written"));
         }

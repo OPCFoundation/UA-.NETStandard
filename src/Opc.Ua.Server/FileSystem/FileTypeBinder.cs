@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -40,8 +41,8 @@ namespace Opc.Ua.Server.FileSystem
     /// implementation as the file-system node manager.
     /// </summary>
     /// <remarks>
-    /// Disposal cancels pending commit callbacks before awaiting their completion, then releases all streams.
-    /// A callback may be waiting for its owner's operation to finish, so cancellation must precede the wait.
+    /// Disposal requests cancellation before waiting up to the configured lifecycle deadline.
+    /// Unfinished callbacks retain their streams and writer reservations until cleanup actually completes.
     /// </remarks>
     public interface IFileTypeBinding : IAsyncDisposable
     {
@@ -53,6 +54,11 @@ namespace Opc.Ua.Server.FileSystem
         /// <summary>
         /// Opens a session-owned stream, including the pre-opened handle required by temporary transfers.
         /// </summary>
+        /// <remarks>
+        /// With a server session manager, the owner must be a registered session that is neither closing nor expired.
+        /// An absent owner is rejected with BadSessionClosed, including direct calls made after session removal.
+        /// Without a session manager, the caller supplies the logical owner identity and owns its lifetime.
+        /// </remarks>
         ValueTask<uint> OpenAsync(NodeId session, byte mode, CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -95,6 +101,16 @@ namespace Opc.Ua.Server.FileSystem
     /// </summary>
     public sealed class FileTypeBinder : IFileTypeBinder
     {
+        /// <summary>
+        /// Gets or sets the lifecycle wait limit. Unfinished operations retain their streams and reservations.
+        /// Repeated disposal can observe completion and cleanup failures after this limit expires.
+        /// </summary>
+        public TimeSpan CloseTimeout
+        {
+            get => m_closeTimeout;
+            set => m_closeTimeout = FileHandle.ValidateCloseTimeout(value);
+        }
+
         /// <inheritdoc/>
         public IFileTypeBinding Bind(
             FileState file,
@@ -117,8 +133,11 @@ namespace Opc.Ua.Server.FileSystem
             {
                 throw new ArgumentOutOfRangeException(nameof(maximumBytes));
             }
-            return new Binding(file, context, content, commit, commitOnClose, ownerSession, maximumBytes);
+            return new Binding(file, context, content, commit, commitOnClose, ownerSession, maximumBytes, CloseTimeout);
         }
+
+        /// <summary>Bounds lifecycle waiting without shortening provider operation ownership.</summary>
+        private TimeSpan m_closeTimeout = TimeSpan.FromSeconds(10);
 
         private sealed class Binding : IFileTypeBinding
         {
@@ -129,12 +148,17 @@ namespace Opc.Ua.Server.FileSystem
                 Func<ByteString, CancellationToken, ValueTask>? commit,
                 bool commitOnClose,
                 NodeId owner,
-                int maximumBytes)
+                int maximumBytes,
+                TimeSpan closeTimeout)
             {
                 File = file;
                 m_context = context;
                 m_provider = new ContentProvider(content, commit != null);
-                m_handles = new FileHandle(m_provider, "content");
+                m_handles = new FileHandle(m_provider, "content", IsSessionTerminated, UpdateOpenCount)
+                {
+                    CloseTimeout = closeTimeout
+                };
+                m_closeTimeout = closeTimeout;
                 m_commit = commit;
                 m_commitOnClose = commitOnClose;
                 m_owner = owner;
@@ -164,7 +188,9 @@ namespace Opc.Ua.Server.FileSystem
                     await EnterAsync(ct).ConfigureAwait(false);
                     try
                     {
-                        Stream stream = RequireStream(session, Handle(args), 1);
+                        using FileHandle.Operation operation =
+                            await RequireOperationAsync(session, Handle(args), 1, ct).ConfigureAwait(false);
+                        Stream stream = operation.Stream;
                         int limit = FileObjectState.GetServerReadLimit(m_context);
                         if (limit <= 0)
                         {
@@ -175,9 +201,11 @@ namespace Opc.Ua.Server.FileSystem
                         count = (int)Math.Min(count, Math.Max(0, stream.Length - stream.Position));
                         byte[] buffer = new byte[count];
 #if NET5_0_OR_GREATER
-                        int read = await stream.ReadAsync(buffer.AsMemory(), ct).ConfigureAwait(false);
+                        int read = await stream.ReadAsync(buffer.AsMemory(), operation.CancellationToken)
+                            .ConfigureAwait(false);
 #else
-                        int read = await stream.ReadAsync(buffer, 0, count, ct).ConfigureAwait(false);
+                        int read = await stream.ReadAsync(buffer, 0, count, operation.CancellationToken)
+                            .ConfigureAwait(false);
 #endif
                         output[0] = Variant.From(ByteString.From(buffer.AsSpan(0, read).ToArray()));
                     }
@@ -195,16 +223,19 @@ namespace Opc.Ua.Server.FileSystem
                     await EnterAsync(ct).ConfigureAwait(false);
                     try
                     {
-                        Stream stream = RequireStream(session, Handle(args), 2);
+                        using FileHandle.Operation operation =
+                            await RequireOperationAsync(session, Handle(args), 2, ct).ConfigureAwait(false);
+                        Stream stream = operation.Stream;
                         if (bytes.Span.Length > m_maximumBytes - stream.Position)
                         {
                             throw Error(StatusCodes.BadEncodingLimitsExceeded, "The file size limit was exceeded.");
                         }
                         byte[] buffer = bytes.Span.ToArray();
 #if NET5_0_OR_GREATER
-                        await stream.WriteAsync(buffer.AsMemory(), ct).ConfigureAwait(false);
+                        await stream.WriteAsync(buffer.AsMemory(), operation.CancellationToken).ConfigureAwait(false);
 #else
-                        await stream.WriteAsync(buffer, 0, buffer.Length, ct).ConfigureAwait(false);
+                        await stream.WriteAsync(buffer, 0, buffer.Length, operation.CancellationToken)
+                            .ConfigureAwait(false);
 #endif
                     }
                     finally
@@ -217,7 +248,9 @@ namespace Opc.Ua.Server.FileSystem
                     await EnterAsync(ct).ConfigureAwait(false);
                     try
                     {
-                        output[0] = Variant.From((ulong)RequireStream(session, Handle(args), 0).Position);
+                        using FileHandle.Operation operation =
+                            await RequireOperationAsync(session, Handle(args), 0, ct).ConfigureAwait(false);
+                        output[0] = Variant.From((ulong)operation.Stream.Position);
                     }
                     finally
                     {
@@ -233,7 +266,9 @@ namespace Opc.Ua.Server.FileSystem
                     await EnterAsync(ct).ConfigureAwait(false);
                     try
                     {
-                        Stream stream = RequireStream(session, Handle(args), 0);
+                        using FileHandle.Operation operation =
+                            await RequireOperationAsync(session, Handle(args), 0, ct).ConfigureAwait(false);
+                        Stream stream = operation.Stream;
                         stream.Position = (long)Math.Min(position, (ulong)stream.Length);
                     }
                     finally
@@ -278,23 +313,45 @@ namespace Opc.Ua.Server.FileSystem
                 }
             }
 
-            public async ValueTask CommitAsync(
-                NodeId session, uint handle, CancellationToken cancellationToken = default)
+            public ValueTask CommitAsync(
+                NodeId session, uint handle, CancellationToken cancellationToken = default) =>
+                CommitCoreAsync(session, handle, gateHeld: false, cancellationToken);
+
+            private async ValueTask CommitCoreAsync(
+                NodeId session, uint handle, bool gateHeld, CancellationToken cancellationToken)
             {
                 ByteString content;
                 TaskCompletionSource<bool> completion;
                 CancellationTokenSource lifetime;
-                await EnterAsync(cancellationToken).ConfigureAwait(false);
+                FileHandle.Operation operation;
+                if (!gateHeld)
+                {
+                    await EnterAsync(cancellationToken).ConfigureAwait(false);
+                }
                 try
                 {
-                    Stream stream = RequireStream(session, handle, 2);
+                    operation = await RequireOperationAsync(session, handle, 2, cancellationToken)
+                        .ConfigureAwait(false);
+                    Stream stream = operation.Stream;
                     if (m_commit == null || stream is not MemoryStream buffer)
                     {
+                        operation.Dispose();
                         throw Error(StatusCodes.BadNotWritable, "The file has no write transaction.");
                     }
-                    content = ByteString.From(buffer.ToArray());
-                    lifetime = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, m_lifetime.Token);
+                    try
+                    {
+                        content = ByteString.From(buffer.ToArray());
+                        lifetime = CancellationTokenSource.CreateLinkedTokenSource(
+                            operation.CancellationToken, m_lifetime.Token);
+                    }
+                    catch
+                    {
+                        operation.Dispose();
+                        throw;
+                    }
                     completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    m_commitSession = session;
+                    m_commitHandle = handle;
                     m_commitCompletion = completion;
                 }
                 finally
@@ -304,46 +361,105 @@ namespace Opc.Ua.Server.FileSystem
                 using (lifetime)
                 {
                     bool committed = false;
+                    Exception? commitError = null;
+                    Exception? shutdownCancellation = null;
                     try
                     {
                         // Application publication may refresh other bindings; do not hold a file gate across it.
+                        lifetime.Token.ThrowIfCancellationRequested();
                         await m_commit(content, lifetime.Token).ConfigureAwait(false);
                         committed = true;
                     }
                     catch (OperationCanceledException) when (
-                        m_lifetime.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+                        Volatile.Read(ref m_disposeStarted) != 0 && !cancellationToken.IsCancellationRequested)
                     {
-                        throw Error(StatusCodes.BadInvalidState, "The file binding is being disposed.");
+                        shutdownCancellation = Error(
+                            StatusCodes.BadInvalidState, "The file binding is being disposed.");
+                        commitError = shutdownCancellation;
+                    }
+                    catch (Exception exception)
+                    {
+                        commitError = exception;
+                    }
+                    try
+                    {
+                        await FinishCommitAsync(session, handle, content, committed, operation).ConfigureAwait(false);
+                    }
+                    catch (Exception exception)
+                    {
+                        commitError = commitError == null ? exception : new AggregateException(commitError, exception);
+                    }
+                    if (commitError != null)
+                    {
+                        if (ReferenceEquals(commitError, shutdownCancellation))
+                        {
+                            m_shutdownCommitCancellation = shutdownCancellation;
+                        }
+                        completion.TrySetException(commitError);
+                        _ = completion.Task.Exception;
+                        ExceptionDispatchInfo.Capture(commitError).Throw();
+                    }
+                    completion.TrySetResult(true);
+                }
+            }
+
+            /// <summary>
+            /// Publishes a completed callback outcome and releases its operation before draining stream cleanup.
+            /// </summary>
+            private async ValueTask FinishCommitAsync(
+                NodeId session, uint handle, ByteString content, bool committed, FileHandle.Operation operation)
+            {
+                try
+                {
+                    await m_gate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                    try
+                    {
+                        if (committed)
+                        {
+                            m_provider.Content = content;
+                            File.Size!.Value = (ulong)content.Span.Length;
+                        }
+                    }
+                    finally
+                    {
+                        m_gate.Release();
+                    }
+                    if (committed)
+                    {
+                        await File.ClearChangeMasksAsync(m_context, true, CancellationToken.None).ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    operation.Dispose();
+                    try
+                    {
+                        if (committed)
+                        {
+                            await m_handles.CloseAsync(session, handle).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            await m_handles.WaitForCloseAsync(session, handle).ConfigureAwait(false);
+                        }
                     }
                     finally
                     {
                         await m_gate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
                         try
                         {
-                            if (committed)
+                            lock (m_openCountLock)
                             {
-                                m_provider.Content = content;
-                                m_handles.Close(session, handle);
-                                File.Size!.Value = (ulong)content.Span.Length;
-                                UpdateOpenCount();
+                                if (m_disposeStarted == 0)
+                                {
+                                    m_commitCompletion = null;
+                                }
                             }
+                            UpdateOpenCount();
                         }
                         finally
                         {
-                            m_commitCompletion = null;
                             m_gate.Release();
-                            try
-                            {
-                                if (committed)
-                                {
-                                    await File.ClearChangeMasksAsync(m_context, true, CancellationToken.None)
-                                        .ConfigureAwait(false);
-                                }
-                            }
-                            finally
-                            {
-                                completion.TrySetResult(true);
-                            }
                         }
                     }
                 }
@@ -353,37 +469,97 @@ namespace Opc.Ua.Server.FileSystem
                 NodeId session, uint handle, CancellationToken cancellationToken = default)
             {
                 await EnterAsync(cancellationToken).ConfigureAwait(false);
+                bool releaseGate = true;
                 try
                 {
                     ValidateOwner(session);
                     if (m_commitCompletion != null)
                     {
-                        throw Error(StatusCodes.BadInvalidState, "The file is being committed.");
+                        if (m_commitSession != session || m_commitHandle != handle)
+                        {
+                            throw Error(StatusCodes.BadInvalidArgument, "Unknown or foreign file handle.");
+                        }
+                        Task commit = m_commitCompletion.Task;
+                        m_gate.Release();
+                        releaseGate = false;
+                        await commit.ConfigureAwait(false);
+                        return;
                     }
                     if (!m_commitOnClose || m_handles.GetStream(session, handle, 2) == null)
                     {
-                        if (!m_handles.Close(session, handle))
+                        if (!await m_handles.CloseAsync(session, handle).ConfigureAwait(false))
                         {
                             throw Error(StatusCodes.BadInvalidArgument, "Unknown file handle.");
                         }
                         UpdateOpenCount();
                         return;
                     }
+                    // Commit preparation takes ownership of this gate and installs its admission guard
+                    // before releasing it, so no Write can slip between an accepted Close and its snapshot.
+                    releaseGate = false;
+                    await CommitCoreAsync(session, handle, gateHeld: true, cancellationToken).ConfigureAwait(false);
                 }
                 finally
                 {
-                    m_gate.Release();
+                    if (releaseGate)
+                    {
+                        m_gate.Release();
+                    }
                 }
-                await CommitAsync(session, handle, cancellationToken).ConfigureAwait(false);
             }
 
             public async ValueTask DisposeAsync()
             {
-                if (Interlocked.Exchange(ref m_disposeStarted, 1) != 0)
+                Task cleanup;
+                TaskCompletionSource<bool>? completion = null;
+                lock (m_openCountLock)
                 {
-                    return;
+                    if (m_disposal == null)
+                    {
+                        Interlocked.Exchange(ref m_disposeStarted, 1);
+                        completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                        m_disposal = completion.Task;
+                    }
+                    cleanup = m_disposal;
                 }
-                await m_lifetime.CancelAsync().ConfigureAwait(false);
+                if (completion != null)
+                {
+                    Task lifetimeCancellation = m_lifetime.CancelAsync();
+                    Task handleDisposal = m_handles.DisposeAsync().AsTask();
+                    _ = CompleteDisposalAsync(completion, handleDisposal, lifetimeCancellation);
+                }
+                if (await Task.WhenAny(cleanup, Task.Delay(m_closeTimeout)).ConfigureAwait(false) == cleanup)
+                {
+                    await cleanup.ConfigureAwait(false);
+                }
+            }
+
+            private async Task CompleteDisposalAsync(
+                TaskCompletionSource<bool> completion, Task handleDisposal, Task lifetimeCancellation)
+            {
+                try
+                {
+                    await DisposeBindingAsync(handleDisposal, lifetimeCancellation).ConfigureAwait(false);
+                    completion.TrySetResult(true);
+                }
+                catch (Exception exception)
+                {
+                    completion.TrySetException(exception);
+                }
+            }
+
+            private async Task DisposeBindingAsync(Task handleDisposal, Task lifetimeCancellation)
+            {
+                List<Exception> errors = [];
+                // Session close and disposal may interrupt a callback outside the global binding gate.
+                try
+                {
+                    await lifetimeCancellation.ConfigureAwait(false);
+                }
+                catch (Exception exception)
+                {
+                    errors.Add(exception);
+                }
                 Task? commit;
                 await m_gate.WaitAsync().ConfigureAwait(false);
                 try
@@ -401,12 +577,32 @@ namespace Opc.Ua.Server.FileSystem
                 }
                 if (commit != null)
                 {
-                    await commit.ConfigureAwait(false);
+                    try
+                    {
+                        await commit.ConfigureAwait(false);
+                    }
+                    catch (ServiceResultException exception) when (
+                        ReferenceEquals(exception, m_shutdownCommitCancellation))
+                    {
+                        // The caller observes shutdown cancellation; it is not a cleanup failure.
+                    }
+                    catch (Exception exception)
+                    {
+                        errors.Add(exception);
+                    }
                 }
                 await m_gate.WaitAsync().ConfigureAwait(false);
                 try
                 {
-                    m_handles.Dispose();
+                    try
+                    {
+                        await handleDisposal.ConfigureAwait(false);
+                        await m_handles.CleanupCompletion.ConfigureAwait(false);
+                    }
+                    catch (Exception exception)
+                    {
+                        errors.Add(exception);
+                    }
                     m_provider.Content = default;
                     File.Size!.Value = 0;
                     lock (m_openCountLock)
@@ -420,6 +616,10 @@ namespace Opc.Ua.Server.FileSystem
                 }
                 m_gate.Dispose();
                 m_lifetime.Dispose();
+                if (errors.Count != 0)
+                {
+                    throw new AggregateException("File binding cleanup failed.", errors);
+                }
             }
 
             public async ValueTask UpdateContentAsync(
@@ -452,6 +652,11 @@ namespace Opc.Ua.Server.FileSystem
                 try
                 {
                     await m_gate.WaitAsync(linked.Token).ConfigureAwait(false);
+                    if (Volatile.Read(ref m_disposeStarted) != 0)
+                    {
+                        m_gate.Release();
+                        throw Error(StatusCodes.BadInvalidState, "The file binding is being disposed.");
+                    }
                 }
                 catch (OperationCanceledException) when (
                     m_lifetime.IsCancellationRequested && !ct.IsCancellationRequested)
@@ -472,6 +677,23 @@ namespace Opc.Ua.Server.FileSystem
                 }
             }
 
+            private bool IsSessionTerminated(NodeId sessionId)
+            {
+                ISessionManager? sessions = Volatile.Read(ref m_sessions);
+                if (sessions == null)
+                {
+                    return false;
+                }
+                foreach (ISession session in sessions.GetSessions())
+                {
+                    if (session.Id == sessionId)
+                    {
+                        return SessionTermination.IsClosingOrClaimed(session) || session.HasExpired;
+                    }
+                }
+                return true;
+            }
+
             private void UpdateOpenCount()
             {
                 lock (m_openCountLock)
@@ -480,20 +702,25 @@ namespace Opc.Ua.Server.FileSystem
                 }
             }
 
-            private Stream RequireStream(NodeId session, uint handle, byte mode)
+            private async ValueTask<FileHandle.Operation> RequireOperationAsync(
+                NodeId session, uint handle, byte mode, CancellationToken ct)
             {
                 ValidateOwner(session);
                 if (m_commitCompletion != null)
                 {
                     throw Error(StatusCodes.BadInvalidState, "The file is being committed.");
                 }
-                Stream stream = m_handles.GetStream(session, handle, 0)
-                    ?? throw Error(StatusCodes.BadInvalidArgument, "Unknown or foreign file handle.");
-                if (mode != 0 && m_handles.GetStream(session, handle, mode) == null)
+                if (m_handles.GetStream(session, handle, 0) == null)
+                {
+                    throw Error(StatusCodes.BadInvalidArgument, "Unknown or foreign file handle.");
+                }
+                FileHandle.Operation? operation =
+                    await m_handles.AcquireAsync(session, handle, mode, ct).ConfigureAwait(false);
+                if (operation == null)
                 {
                     throw Error(StatusCodes.BadInvalidState, "The file was not opened for this operation.");
                 }
-                return stream;
+                return operation;
             }
 
             private void ValidateOwner(NodeId session)
@@ -542,12 +769,23 @@ namespace Opc.Ua.Server.FileSystem
             private readonly bool m_commitOnClose;
             private readonly NodeId m_owner;
             private readonly int m_maximumBytes;
+            private readonly TimeSpan m_closeTimeout;
             private readonly SemaphoreSlim m_gate = new(1, 1);
             private readonly Lock m_openCountLock = new();
             private readonly CancellationTokenSource m_lifetime = new();
             private readonly SessionEventHandler m_sessionClosingHandler;
             private ISessionManager? m_sessions;
             private TaskCompletionSource<bool>? m_commitCompletion;
+
+            /// <summary>The exact commit cancellation requested by this binding's shutdown.</summary>
+            private Exception? m_shutdownCommitCancellation;
+
+            /// <summary>Identifies the handle whose publication Close must drain.</summary>
+            private uint m_commitHandle;
+
+            /// <summary>Identifies the session that owns the pending publication.</summary>
+            private NodeId m_commitSession;
+            private Task? m_disposal;
             private int m_disposeStarted;
         }
 
@@ -556,7 +794,7 @@ namespace Opc.Ua.Server.FileSystem
             return ServiceResultException.Create(status, "{0}", message);
         }
 
-        private sealed class ContentProvider : IFileSystemProvider
+        private sealed class ContentProvider : IFileSystemReadWriteProvider
         {
             public ContentProvider(ByteString content, bool writable)
             {
@@ -599,6 +837,10 @@ namespace Opc.Ua.Server.FileSystem
                 }
                 return new ValueTask<Stream>(stream);
             }
+
+            /// <inheritdoc/>
+            public ValueTask<Stream> OpenReadWriteAsync(string path, FileWriteMode mode, CancellationToken ct) =>
+                OpenWriteAsync(path, mode, ct);
 
             public IAsyncEnumerable<FileSystemEntry> EnumerateAsync(string path, CancellationToken ct) =>
                 throw new NotSupportedException("A FileType content provider has no directory operations.");
