@@ -756,12 +756,22 @@ namespace Opc.Ua
             CancellationToken ct = default)
         {
             trustList ??= TrustListIdentifier.Peers;
+            bool useCache = options == null ||
+                (options.AcceptError == null &&
+                options.AutoAcceptUntrustedCertificates == null &&
+                options.RejectSHA1SignedCertificates == null &&
+                options.RejectUnknownRevocationStatus == null &&
+                options.MinimumCertificateKeySize == null &&
+                options.TrustScope == null &&
+                !options.ValidateForSigning);
             using CertificateValidationCore.Borrow borrow = GetOrCreateCore(
-                trustList, useCache: options?.AcceptError == null);
+                trustList, useCache, options);
 
             // Per-call AcceptError takes precedence over the global hook.
             Func<Certificate, ServiceResult, bool>? acceptError =
-                options?.AcceptError ?? m_acceptError;
+                options?.TrustScope != null
+                    ? options.AcceptError ?? (static (_, _) => false)
+                    : options?.AcceptError ?? m_acceptError;
 
             CertificateValidationResult result = await borrow.Core
                 .ValidateAsync(chain, acceptError, options, ct)
@@ -1194,92 +1204,93 @@ namespace Opc.Ua
             bool trustChanged = false;
             bool crlChanged = false;
 
-            if (((int)masks &
-                ((int)TrustListMasks.TrustedCertificates | (int)TrustListMasks.TrustedCrls)) != 0)
+            try
             {
-                using ICertificateStore store = OpenTrustedStore(trustList);
-
-                if (((int)masks & (int)TrustListMasks.TrustedCertificates) != 0)
+                if (((int)masks &
+                    ((int)TrustListMasks.TrustedCertificates | (int)TrustListMasks.TrustedCrls)) != 0)
                 {
-                    await ClearCertificatesAsync(store, ct)
-                        .ConfigureAwait(false);
+                    using ICertificateStore store = OpenTrustedStore(trustList);
 
-                    foreach (Certificate cert in data.TrustedCertificates)
+                    if (((int)masks & (int)TrustListMasks.TrustedCertificates) != 0)
                     {
-                        await store.AddAsync(cert, ct: ct)
+                        trustChanged = true;
+                        await ClearCertificatesAsync(store, ct)
                             .ConfigureAwait(false);
-                    }
 
-                    trustChanged = true;
-                }
-
-                if (((int)masks & (int)TrustListMasks.TrustedCrls) != 0 &&
-                    store.SupportsCRLs)
-                {
-                    await ClearCrlsAsync(store, ct).ConfigureAwait(false);
-
-                    foreach (X509CRL crl in data.TrustedCrls)
-                    {
-                        await store.AddCRLAsync(crl, ct)
-                            .ConfigureAwait(false);
-                    }
-
-                    crlChanged = true;
-                }
-            }
-
-            if (((int)masks &
-                ((int)TrustListMasks.IssuerCertificates | (int)TrustListMasks.IssuerCrls)) != 0)
-            {
-                ICertificateStore? issuerStore = OpenIssuerStore(trustList);
-                if (issuerStore != null)
-                {
-                    using (issuerStore)
-                    {
-                        if (((int)masks & (int)TrustListMasks.IssuerCertificates) != 0)
+                        foreach (Certificate cert in data.TrustedCertificates)
                         {
-                            await ClearCertificatesAsync(issuerStore, ct)
+                            await store.AddAsync(cert, ct: ct)
                                 .ConfigureAwait(false);
-
-                            foreach (Certificate cert in data.IssuerCertificates)
-                            {
-                                await issuerStore.AddAsync(cert, ct: ct)
-                                    .ConfigureAwait(false);
-                            }
-
-                            trustChanged = true;
                         }
+                    }
 
-                        if (((int)masks & (int)TrustListMasks.IssuerCrls) != 0 &&
-                            issuerStore.SupportsCRLs)
+                    if (((int)masks & (int)TrustListMasks.TrustedCrls) != 0 &&
+                        store.SupportsCRLs)
+                    {
+                        crlChanged = true;
+                        await ClearCrlsAsync(store, ct).ConfigureAwait(false);
+
+                        foreach (X509CRL crl in data.TrustedCrls)
                         {
-                            await ClearCrlsAsync(issuerStore, ct)
+                            await store.AddCRLAsync(crl, ct)
                                 .ConfigureAwait(false);
-
-                            foreach (X509CRL crl in data.IssuerCrls)
-                            {
-                                await issuerStore.AddCRLAsync(crl, ct)
-                                    .ConfigureAwait(false);
-                            }
-
-                            crlChanged = true;
                         }
                     }
                 }
-            }
 
-            NotifyTrustListChanged(trustList, trustChanged, crlChanged);
+                if (((int)masks &
+                    ((int)TrustListMasks.IssuerCertificates | (int)TrustListMasks.IssuerCrls)) != 0)
+                {
+                    ICertificateStore? issuerStore = OpenIssuerStore(trustList);
+                    if (issuerStore != null)
+                    {
+                        using (issuerStore)
+                        {
+                            if (((int)masks & (int)TrustListMasks.IssuerCertificates) != 0)
+                            {
+                                trustChanged = true;
+                                await ClearCertificatesAsync(issuerStore, ct)
+                                    .ConfigureAwait(false);
+
+                                foreach (Certificate cert in data.IssuerCertificates)
+                                {
+                                    await issuerStore.AddAsync(cert, ct: ct)
+                                        .ConfigureAwait(false);
+                                }
+                            }
+
+                            if (((int)masks & (int)TrustListMasks.IssuerCrls) != 0 &&
+                                issuerStore.SupportsCRLs)
+                            {
+                                crlChanged = true;
+                                await ClearCrlsAsync(issuerStore, ct)
+                                    .ConfigureAwait(false);
+
+                                foreach (X509CRL crl in data.IssuerCrls)
+                                {
+                                    await issuerStore.AddCRLAsync(crl, ct)
+                                        .ConfigureAwait(false);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                NotifyTrustListChanged(trustList, trustChanged, crlChanged);
+            }
         }
 
         /// <summary>
         /// Invalidates cached validation cores for the affected trust
         /// list and dispatches <see cref="CertificateChangeKind.TrustListUpdated"/>
         /// and/or <see cref="CertificateChangeKind.CrlUpdated"/> events.
-        /// Called by <see cref="WriteTrustListAsync"/>, by
-        /// <see cref="TrustListTransaction.CommitAsync"/> after a
-        /// successful apply, and by writers that modify the backing stores
-        /// directly (e.g. the server's GDS push TrustList after
-        /// <c>ApplyChanges</c> commits). No-op when no change kind is set.
+        /// Called by <see cref="WriteTrustListAsync"/>,
+        /// <see cref="TrustListTransaction.CommitAsync"/>, and writers that
+        /// modify backing stores directly. A failed write can also trigger a
+        /// notification if it may have changed a store. No-op when no change
+        /// kind is set.
         /// </summary>
         public void NotifyTrustListChanged(
             TrustListIdentifier trustList,
@@ -1475,7 +1486,8 @@ namespace Opc.Ua
         /// <exception cref="ObjectDisposedException"></exception>
         private CertificateValidationCore.Borrow GetOrCreateCore(
             TrustListIdentifier trustList,
-            bool useCache = true)
+            bool useCache = true,
+            Security.Certificates.CertificateValidationOptions? options = null)
         {
             lock (m_certificatesLock)
             {
@@ -1497,11 +1509,15 @@ namespace Opc.Ua
                         m_timeProvider);
                     try
                     {
-                        if (m_trustLists.TryGetValue(trustList, out TrustListEntry? entry))
+                        if (options?.TrustScope is { } scope)
+                        {
+                            core.Update(scope);
+                        }
+                        else if (m_trustLists.TryGetValue(trustList, out TrustListEntry? entry))
                         {
                             core.Update(entry.IssuerStore, entry.TrustedStore, rejectedCertificateStore: null);
                         }
-                        ApplyValidationFlags(core);
+                        ApplyValidationFlags(core, options);
                         if (useCache)
                         {
                             ReplaceCachedCore(trustList, core);
@@ -1567,19 +1583,26 @@ namespace Opc.Ua
         /// SecurityConfiguration to a (possibly already-created) core.
         /// Safe to call with a null core.
         /// </summary>
-        private void ApplyValidationFlags(CertificateValidationCore? core)
+        private void ApplyValidationFlags(
+            CertificateValidationCore? core,
+            Security.Certificates.CertificateValidationOptions? options = null)
         {
             if (core == null)
             {
                 return;
             }
 
-            core.AutoAcceptUntrustedCertificates = m_autoAcceptUntrustedCertificates;
-            core.RejectSHA1SignedCertificates = m_rejectSHA1SignedCertificates;
-            core.RejectUnknownRevocationStatus = m_rejectUnknownRevocationStatus;
-            if (m_minimumCertificateKeySize > 0)
+            core.AutoAcceptUntrustedCertificates =
+                options?.AutoAcceptUntrustedCertificates ??
+                (options?.TrustScope == null && m_autoAcceptUntrustedCertificates);
+            core.RejectSHA1SignedCertificates =
+                options?.RejectSHA1SignedCertificates ?? m_rejectSHA1SignedCertificates;
+            core.RejectUnknownRevocationStatus =
+                options?.RejectUnknownRevocationStatus ?? m_rejectUnknownRevocationStatus;
+            ushort minimumKeySize = options?.MinimumCertificateKeySize ?? m_minimumCertificateKeySize;
+            if (minimumKeySize > 0)
             {
-                core.MinimumCertificateKeySize = m_minimumCertificateKeySize;
+                core.MinimumCertificateKeySize = minimumKeySize;
             }
             core.UseValidatedCertificates = m_useValidatedCertificates;
         }

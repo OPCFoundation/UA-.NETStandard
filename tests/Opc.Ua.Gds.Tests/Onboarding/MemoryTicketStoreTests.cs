@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Gds.Server.Onboarding;
@@ -171,6 +172,50 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             TicketRecord? r = await store.FindByProductInstanceUriAsync(
                 "urn:nobody").ConfigureAwait(false);
             Assert.That(r, Is.Null);
+        }
+
+        [Test]
+        public async Task RetrievedPayloadsCannotChangeAcceptedTicket()
+        {
+            var store = new MemoryTicketStore();
+            await store.AddAsync("t1", [1, 2, 3], Metadata()).ConfigureAwait(false);
+
+            TicketRecord? fetched = await store.GetAsync("t1").ConfigureAwait(false);
+            fetched!.EncodedTicket[0] = 9;
+            TicketRecord? found = await store.FindByProductInstanceUriAsync(
+                "urn:acme:device:SN-1").ConfigureAwait(false);
+            Assert.That(found!.EncodedTicket, Is.EqualTo(new byte[] { 1, 2, 3 }));
+            found.EncodedTicket[1] = 9;
+            await foreach (TicketRecord record in store.ListAsync().ConfigureAwait(false))
+            {
+                Assert.That(record.EncodedTicket, Is.EqualTo(new byte[] { 1, 2, 3 }));
+                record.EncodedTicket[2] = 9;
+            }
+            TicketRecord? unchanged = await store.GetAsync("t1").ConfigureAwait(false);
+            Assert.That(unchanged!.EncodedTicket, Is.EqualTo(new byte[] { 1, 2, 3 }));
+        }
+
+        [Test]
+        public async Task CancelledOperationsDoNotReadOrChangeTickets()
+        {
+            var store = new MemoryTicketStore();
+            await store.AddAsync("t1", [1], Metadata()).ConfigureAwait(false);
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+            CancellationToken ct = cancellation.Token;
+
+            await Assert.ThrowsAsync<OperationCanceledException>(
+                async () => await store.AddAsync("t1", [2], Metadata(), ct).ConfigureAwait(false));
+            await Assert.ThrowsAsync<OperationCanceledException>(
+                async () => await store.RemoveAsync("t1", ct).ConfigureAwait(false));
+            await Assert.ThrowsAsync<OperationCanceledException>(
+                async () => await store.GetAsync("t1", ct).ConfigureAwait(false));
+            await Assert.ThrowsAsync<OperationCanceledException>(
+                async () => await store.FindByProductInstanceUriAsync("unknown", ct).ConfigureAwait(false));
+            await Assert.ThrowsAsync<OperationCanceledException>(
+                async () => await store.ListAsync(ct).CountAsync().ConfigureAwait(false));
+            TicketRecord? unchanged = await store.GetAsync("t1").ConfigureAwait(false);
+            Assert.That(unchanged!.EncodedTicket, Is.EqualTo(new byte[] { 1 }));
         }
     }
 }

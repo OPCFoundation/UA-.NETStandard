@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -178,6 +179,15 @@ namespace Opc.Ua.LADS.Client
         }
 
         /// <summary>
+        /// Clears the aborted control function.
+        /// </summary>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        public ValueTask ClearAsync(CancellationToken cancellationToken = default)
+        {
+            return Client.ClearFunctionAsync(NodeId, cancellationToken);
+        }
+
+        /// <summary>
         /// Changes the target value of an analog control function with a relative
         /// target value by an offset.
         /// </summary>
@@ -186,6 +196,18 @@ namespace Opc.Ua.LADS.Client
         public ValueTask ModifyTargetValueByAsync(double value, CancellationToken cancellationToken = default)
         {
             return Client.ModifyTargetValueByAsync(NodeId, value, cancellationToken);
+        }
+
+        /// <summary>
+        /// Writes a configured composed target, mode target or PID tuning parameter.
+        /// </summary>
+        /// <param name="parameterPath">The function-relative path with URI-escaped dynamic browse names.</param>
+        /// <param name="value">The parameter value.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        public ValueTask SetParameterAsync(
+            string parameterPath, double value, CancellationToken cancellationToken = default)
+        {
+            return Client.SetParameterAsync(NodeId, parameterPath, value, cancellationToken);
         }
 
         /// <summary>
@@ -235,12 +257,100 @@ namespace Opc.Ua.LADS.Client
         }
 
         /// <summary>
-        /// Resets the cover from an error.
+        /// Resets a cover from an error or resets a completed control function to Idle.
         /// </summary>
         /// <param name="cancellationToken">The cancellation token.</param>
         public ValueTask ResetAsync(CancellationToken cancellationToken = default)
         {
-            return Client.ResetCoverAsync(NodeId, cancellationToken);
+            return IsControl
+                ? Client.ResetAsync(NodeId, cancellationToken)
+                : Client.ResetCoverAsync(NodeId, cancellationToken);
+        }
+
+        /// <summary>
+        /// Discovers the optional running methods and their current executability.
+        /// </summary>
+        public ValueTask<ArrayOf<LadsRunningMethod>> GetRunningMethodsAsync(
+            CancellationToken cancellationToken = default)
+        {
+            return Client.GetRunningMethodsAsync(NodeId, cancellationToken);
+        }
+
+        /// <summary>
+        /// Observes the optional running substate of this control function.
+        /// </summary>
+        public async IAsyncEnumerable<LadsStateSnapshot> ObserveRunningStateAsync(
+            IStreamingSubscription? streaming = null,
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            NodeId machine = await Client.ResolveRunningStateAsync(NodeId, cancellationToken).ConfigureAwait(false);
+            if (machine.IsNull)
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported);
+            }
+            await foreach (LadsStateSnapshot state in Client.ObserveStateAsync(
+                machine, streaming, cancellationToken).ConfigureAwait(false))
+            {
+                yield return state;
+            }
+        }
+
+        /// <summary>
+        /// Waits for the optional running substate after an equipment operation was accepted.
+        /// </summary>
+        public async ValueTask<LadsStateSnapshot> WaitForRunningStateAsync(
+            string stateName,
+            TimeSpan timeout,
+            IStreamingSubscription? streaming = null,
+            CancellationToken cancellationToken = default)
+        {
+            NodeId machine = await Client.ResolveRunningStateAsync(NodeId, cancellationToken).ConfigureAwait(false);
+            if (machine.IsNull)
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported);
+            }
+            return await Client.WaitForStateAsync(machine, stateName, timeout, streaming, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Holds the control function after its hardware provider acknowledges the request.
+        /// </summary>
+        public ValueTask HoldAsync(CancellationToken cancellationToken = default)
+        {
+            return Client.HoldAsync(NodeId, cancellationToken);
+        }
+
+        /// <summary>
+        /// Resumes the held control function.
+        /// </summary>
+        public ValueTask UnholdAsync(CancellationToken cancellationToken = default)
+        {
+            return Client.UnholdAsync(NodeId, cancellationToken);
+        }
+
+        /// <summary>
+        /// Suspends the control function after its hardware provider acknowledges the request.
+        /// </summary>
+        public ValueTask SuspendAsync(CancellationToken cancellationToken = default)
+        {
+            return Client.SuspendAsync(NodeId, cancellationToken);
+        }
+
+        /// <summary>
+        /// Resumes the suspended control function.
+        /// </summary>
+        public ValueTask UnsuspendAsync(CancellationToken cancellationToken = default)
+        {
+            return Client.UnsuspendAsync(NodeId, cancellationToken);
+        }
+
+        /// <summary>
+        /// Requests orderly completion of the control function.
+        /// </summary>
+        public ValueTask ToCompleteAsync(CancellationToken cancellationToken = default)
+        {
+            return Client.ToCompleteAsync(NodeId, cancellationToken);
         }
 
         /// <inheritdoc/>

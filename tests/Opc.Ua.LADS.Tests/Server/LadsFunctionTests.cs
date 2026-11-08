@@ -27,13 +27,16 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.LADS.Server;
+using Opc.Ua.Machinery.Server.StateMachines;
 using Opc.Ua.Server.Hosting;
 
 namespace Opc.Ua.LADS.Tests.Server
@@ -100,6 +103,500 @@ namespace Opc.Ua.LADS.Tests.Server
                     LadsFunctionalStateValue.Clearing,
                     LadsFunctionalStateValue.Stopped
                 }));
+        }
+
+        /// <summary>
+        /// Verifies async functional-state writes update the Machinery item state and raise one unit event.
+        /// </summary>
+        [Test]
+        public async Task AsyncStateWriteRaisesOnePublicEventAndRecomputesItemStateAsync()
+        {
+            await using LadsHostedServer server = await LadsHostedServer.StartIncubatorAsync(
+                nameof(AsyncStateWriteRaisesOnePublicEventAndRecomputesItemStateAsync)).ConfigureAwait(false);
+            var device = (LadsDevice)await server.DeviceAsync().ConfigureAwait(false);
+            var unit = (LadsFunctionalUnit)device.GetFunctionalUnit(LadsIncubator.UnitName);
+            var states = new List<LadsFunctionalStateValue>();
+            int synchronousItemStateChanges = 0;
+            int asynchronousItemStateChanges = 0;
+            unit.StateChanged += states.Add;
+            device.ItemStateMachine.StateChanged += _ => synchronousItemStateChanges++;
+            device.ItemStateMachine.StateChangedAsync += (_, _) =>
+            {
+                asynchronousItemStateChanges++;
+                return default;
+            };
+
+            await unit.Functional.SetStateAsync(LadsFunctionalStateValue.Running).ConfigureAwait(false);
+
+            Assert.That(states, Is.EqualTo(new[] { LadsFunctionalStateValue.Running }));
+            Assert.That(device.ItemState, Is.EqualTo(MachineryItemStateValue.Executing));
+            Assert.That(synchronousItemStateChanges, Is.EqualTo(1));
+            Assert.That(asynchronousItemStateChanges, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Serializes cross-unit item-state writes with each pending item-state notification.
+        /// </summary>
+        [Test]
+        public async Task CrossUnitItemStateNotificationsAreSerializedAsync()
+        {
+            const int timeoutMilliseconds = 5000;
+            await using LadsHostedServer server = await LadsHostedServer.StartAsync(
+                nameof(CrossUnitItemStateNotificationsAreSerializedAsync),
+                builder => builder.AddLads().ConfigureLads(context => LadsIncubator.Configure(
+                    context,
+                    LadsIncubator.DeviceName,
+                    device => device.FunctionalUnit("Second", unit => unit.Programs(_ => { })))))
+                .ConfigureAwait(false);
+            var device = (LadsDevice)await server.DeviceAsync().ConfigureAwait(false);
+            var first = (LadsFunctionalUnit)device.GetFunctionalUnit(LadsIncubator.UnitName);
+            var second = (LadsFunctionalUnit)device.GetFunctionalUnit("Second");
+            await first.StartAsync().ConfigureAwait(false);
+
+            var notificationEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseNotification = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var observedState = new TaskCompletionSource<MachineryItemStateValue>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            Func<MachineryItemStateValue, CancellationToken, ValueTask> handler = async (_, _) =>
+            {
+                if (device.ItemState == MachineryItemStateValue.NotExecuting)
+                {
+                    notificationEntered.TrySetResult(true);
+                    await releaseNotification.Task.ConfigureAwait(false);
+                    observedState.TrySetResult(device.ItemState);
+                }
+            };
+            device.ItemStateMachine.StateChangedAsync += handler;
+
+            Task? firstStop = null;
+            Task? secondStart = null;
+            ExceptionDispatchInfo? testFailure = null;
+            var cleanupFailures = new List<Exception>();
+            try
+            {
+                firstStop = Task.Run(async () => await first.StopAsync().ConfigureAwait(false));
+                Task notificationStarted = await Task.WhenAny(
+                    notificationEntered.Task,
+                    Task.Delay(timeoutMilliseconds)).ConfigureAwait(false);
+                Assert.That(notificationStarted, Is.SameAs(notificationEntered.Task));
+                Assert.That(device.ItemState, Is.EqualTo(MachineryItemStateValue.NotExecuting));
+
+                secondStart = Task.Run(async () => await second.StartAsync().ConfigureAwait(false));
+                Task secondCompleted = await Task.WhenAny(
+                    secondStart,
+                    Task.Delay(timeoutMilliseconds)).ConfigureAwait(false);
+                Assert.That(secondCompleted, Is.Not.SameAs(secondStart));
+                Assert.That(device.ItemState, Is.EqualTo(MachineryItemStateValue.NotExecuting));
+
+                releaseNotification.TrySetResult(true);
+                Task notificationCompleted = await Task.WhenAny(
+                    observedState.Task,
+                    Task.Delay(timeoutMilliseconds)).ConfigureAwait(false);
+                Assert.That(notificationCompleted, Is.SameAs(observedState.Task));
+                Assert.That(await observedState.Task.ConfigureAwait(false),
+                    Is.EqualTo(MachineryItemStateValue.NotExecuting));
+                await secondStart.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds)).ConfigureAwait(false);
+                Assert.That(device.ItemState, Is.EqualTo(MachineryItemStateValue.Executing));
+                await firstStop.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds)).ConfigureAwait(false);
+            }
+            catch (Exception failure)
+            {
+                testFailure = ExceptionDispatchInfo.Capture(failure);
+            }
+            finally
+            {
+                releaseNotification.TrySetResult(true);
+                device.ItemStateMachine.StateChangedAsync -= handler;
+                var pending = new List<Task>();
+                if (firstStop != null)
+                {
+                    pending.Add(firstStop);
+                }
+                if (secondStart != null)
+                {
+                    pending.Add(secondStart);
+                }
+                if (pending.Count > 0)
+                {
+                    Task allPending = Task.WhenAll(pending);
+                    try
+                    {
+                        Task drained = await Task.WhenAny(
+                            allPending,
+                            Task.Delay(timeoutMilliseconds)).ConfigureAwait(false);
+                        Assert.That(drained, Is.SameAs(allPending),
+                            "Functional-unit state operations did not drain after notification release.");
+                        await allPending.ConfigureAwait(false);
+                    }
+                    catch (Exception failure)
+                    {
+                        if (testFailure == null || !ReferenceEquals(testFailure.SourceException, failure))
+                        {
+                            cleanupFailures.Add(failure);
+                        }
+                    }
+                }
+            }
+
+            if (testFailure != null && cleanupFailures.Count > 0)
+            {
+                throw new AggregateException(
+                    "The cross-unit notification test and its cleanup both failed.",
+                    [testFailure.SourceException, .. cleanupFailures]);
+            }
+            if (testFailure != null)
+            {
+                testFailure.Throw();
+            }
+            if (cleanupFailures.Count == 1)
+            {
+                ExceptionDispatchInfo.Capture(cleanupFailures[0]).Throw();
+            }
+            if (cleanupFailures.Count > 1)
+            {
+                throw new AggregateException("Cross-unit notification cleanup failed.", cleanupFailures);
+            }
+        }
+
+        /// <summary>
+        /// Prevents a functional unit from starting while Sleep or Shutdown is awaiting its device provider.
+        /// </summary>
+        [TestCase(LadsDeviceStateValue.Sleep)]
+        [TestCase(LadsDeviceStateValue.Shutdown)]
+        public async Task DeviceSleepOrShutdownAdmissionSerializesUnitStartAsync(LadsDeviceStateValue target)
+        {
+            const int timeoutMilliseconds = 5000;
+            await using LadsHostedServer server = await LadsHostedServer.StartAsync(
+                nameof(DeviceSleepOrShutdownAdmissionSerializesUnitStartAsync) + target,
+                builder => builder.AddLads().ConfigureLads(context => LadsIncubator.Configure(
+                    context,
+                    LadsIncubator.DeviceName,
+                    device => device.FunctionalUnit("Second", unit => unit.Programs(_ => { })))))
+                .ConfigureAwait(false);
+            var device = (LadsDevice)await server.DeviceAsync().ConfigureAwait(false);
+            var unit = (LadsFunctionalUnit)device.GetFunctionalUnit("Second");
+            var provider = new Mock<ILadsDeviceProvider>();
+            device.SetProvider(provider.Object);
+
+            var providerEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseProvider = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var startInvoked = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var startStateChanged = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            unit.StateChanged += _ => startStateChanged.TrySetResult(true);
+            async ValueTask<ServiceResult> PauseAsync()
+            {
+                providerEntered.TrySetResult(true);
+                await releaseProvider.Task.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds))
+                    .ConfigureAwait(false);
+                return ServiceResult.Good;
+            }
+            provider.Setup(value => value.OnDeviceStateChangingAsync(
+                device, target, It.IsAny<CancellationToken>())).Returns(PauseAsync);
+
+            Task? stateChange = null;
+            Task? start = null;
+            ExceptionDispatchInfo? testFailure = null;
+            var cleanupFailures = new List<Exception>();
+            try
+            {
+                stateChange = target == LadsDeviceStateValue.Sleep
+                    ? device.GotoSleepAsync().AsTask()
+                    : device.GotoShutdownAsync().AsTask();
+                Task providerStarted = await Task.WhenAny(
+                    providerEntered.Task,
+                    Task.Delay(timeoutMilliseconds)).ConfigureAwait(false);
+                Assert.That(providerStarted, Is.SameAs(providerEntered.Task));
+
+                start = Task.Run(async () =>
+                {
+                    startInvoked.TrySetResult(true);
+                    await unit.StartAsync().ConfigureAwait(false);
+                });
+                await startInvoked.Task.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds))
+                    .ConfigureAwait(false);
+                Task unitGateHeld = WaitForUnitGateAsync();
+                Task admissionObserved = await Task.WhenAny(
+                    unitGateHeld,
+                    startStateChanged.Task,
+                    start,
+                    Task.Delay(timeoutMilliseconds)).ConfigureAwait(false);
+                Assert.That(admissionObserved, Is.SameAs(unitGateHeld));
+                Assert.That(unit.State, Is.EqualTo(LadsFunctionalStateValue.Stopped));
+                Assert.That(start.IsCompleted, Is.False);
+
+                releaseProvider.TrySetResult(true);
+                await stateChange.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds)).ConfigureAwait(false);
+                await LadsAssert.ThrowsStatusAsync(StatusCodes.BadInvalidState, async () =>
+                    await start.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds)).ConfigureAwait(false))
+                    .ConfigureAwait(false);
+                Assert.That(unit.State, Is.EqualTo(LadsFunctionalStateValue.Stopped));
+                Assert.That(device.State, Is.EqualTo(target));
+            }
+            catch (Exception failure)
+            {
+                testFailure = ExceptionDispatchInfo.Capture(failure);
+            }
+            finally
+            {
+                releaseProvider.TrySetResult(true);
+                if (stateChange != null)
+                {
+                    try
+                    {
+                        await stateChange.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds))
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception failure)
+                    {
+                        if (testFailure == null || !ReferenceEquals(testFailure.SourceException, failure))
+                        {
+                            cleanupFailures.Add(failure);
+                        }
+                    }
+                }
+                if (start != null)
+                {
+                    try
+                    {
+                        await start.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds)).ConfigureAwait(false);
+                        cleanupFailures.Add(new AssertionException(
+                            "The unit start completed although the device transition committed first."));
+                    }
+                    catch (ServiceResultException failure) when (failure.StatusCode == StatusCodes.BadInvalidState)
+                    {
+                    }
+                    catch (Exception failure)
+                    {
+                        if (testFailure == null || !ReferenceEquals(testFailure.SourceException, failure))
+                        {
+                            cleanupFailures.Add(failure);
+                        }
+                    }
+                }
+            }
+
+            if (testFailure != null && cleanupFailures.Count > 0)
+            {
+                throw new AggregateException(
+                    "The device-admission test and its cleanup both failed.",
+                    [testFailure.SourceException, .. cleanupFailures]);
+            }
+            if (testFailure != null)
+            {
+                testFailure.Throw();
+            }
+            if (cleanupFailures.Count > 0)
+            {
+                throw new AggregateException("Device-admission cleanup failed.", cleanupFailures);
+            }
+
+            async Task WaitForUnitGateAsync()
+            {
+                DateTime deadline = DateTime.UtcNow.AddMilliseconds(timeoutMilliseconds);
+                while (unit.Gate.CurrentCount != 0)
+                {
+                    if (DateTime.UtcNow >= deadline)
+                    {
+                        throw new TimeoutException("The unit start did not acquire its command gate.");
+                    }
+                    await Task.Delay(1).ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Rejects synchronous functional-state writes after publication before they mutate the state.
+        /// </summary>
+        [Test]
+        public async Task SynchronousFunctionalStateWritesAreRejectedAfterPublicationAsync()
+        {
+            await using LadsHostedServer server = await LadsHostedServer.StartAsync(
+                nameof(SynchronousFunctionalStateWritesAreRejectedAfterPublicationAsync),
+                builder => builder.AddLads().ConfigureLads(context => LadsIncubator.Configure(
+                    context,
+                    LadsIncubator.DeviceName,
+                    device => device.FunctionalUnit("Second", unit => unit.Programs(_ => { })))))
+                .ConfigureAwait(false);
+            var device = (LadsDevice)await server.DeviceAsync().ConfigureAwait(false);
+            var unit = (LadsFunctionalUnit)device.GetFunctionalUnit("Second");
+
+            InvalidOperationException? failure = Assert.Throws<InvalidOperationException>(
+                () => unit.Functional.SetState(LadsFunctionalStateValue.Running));
+            InvalidOperationException? itemStateFailure = Assert.Throws<InvalidOperationException>(
+                device.OnFunctionalUnitStateChanged);
+
+            Assert.That(failure!.Message, Is.EqualTo(
+                "Synchronous LADS state writes are only supported before device publication."));
+            Assert.That(itemStateFailure!.Message, Is.EqualTo(
+                "Synchronous LADS state writes are only supported before device publication."));
+            Assert.That(unit.State, Is.EqualTo(LadsFunctionalStateValue.Stopped));
+            Assert.That(device.ItemState, Is.EqualTo(MachineryItemStateValue.NotExecuting));
+        }
+
+        /// <summary>
+        /// Preserves the functional unit event before the device item-state update on asynchronous writes.
+        /// </summary>
+        [Test]
+        public async Task FunctionalUnitEventPrecedesItemStateUpdateAsync()
+        {
+            await using LadsHostedServer server = await LadsHostedServer.StartIncubatorAsync(
+                nameof(FunctionalUnitEventPrecedesItemStateUpdateAsync)).ConfigureAwait(false);
+            ILadsDevice device = await server.DeviceAsync().ConfigureAwait(false);
+            var unit = (LadsFunctionalUnit)device.GetFunctionalUnit(LadsIncubator.UnitName);
+            var observedItemStates = new List<MachineryItemStateValue>();
+            MachineryItemStateValue initialItemState = device.ItemState;
+            unit.StateChanged += state =>
+            {
+                observedItemStates.Add(device.ItemState);
+                if (state == LadsFunctionalStateValue.Stopped)
+                {
+                    throw new InvalidOperationException("unit event failed");
+                }
+            };
+
+            await unit.Functional.SetStateAsync(LadsFunctionalStateValue.Running).ConfigureAwait(false);
+
+            Assert.That(device.ItemState, Is.EqualTo(MachineryItemStateValue.Executing));
+            InvalidOperationException? failure = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await unit.Functional.SetStateAsync(LadsFunctionalStateValue.Stopped).ConfigureAwait(false))
+                .ConfigureAwait(false);
+
+            Assert.That(failure!.Message, Is.EqualTo("unit event failed"));
+            Assert.That(observedItemStates, Is.EqualTo(new[]
+            {
+                initialItemState,
+                MachineryItemStateValue.Executing
+            }));
+            Assert.That(unit.State, Is.EqualTo(LadsFunctionalStateValue.Stopped));
+            Assert.That(device.ItemState, Is.EqualTo(MachineryItemStateValue.Executing));
+        }
+
+        /// <summary>
+        /// Preserves the raw and typed state-machine events on asynchronous writes and transitions.
+        /// </summary>
+        [Test]
+        public async Task AsyncStateChangesRaiseRawAndTypedMachineEventsOnceAsync()
+        {
+            await using LadsHostedServer server = await LadsHostedServer.StartIncubatorAsync(
+                nameof(AsyncStateChangesRaiseRawAndTypedMachineEventsOnceAsync)).ConfigureAwait(false);
+            ILadsDevice device = await server.DeviceAsync().ConfigureAwait(false);
+            var unit = (LadsFunctionalUnit)device.GetFunctionalUnit(LadsIncubator.UnitName);
+            var rawStates = new List<string>();
+            var typedStates = new List<LadsFunctionalStateValue>();
+            var rawAsyncStates = new List<string>();
+            var typedAsyncStates = new List<LadsFunctionalStateValue>();
+            var rawItemStates = new List<MachineryItemStateValue>();
+            var typedItemStates = new List<MachineryItemStateValue>();
+            var rawAsyncItemStates = new List<MachineryItemStateValue>();
+            var typedAsyncItemStates = new List<MachineryItemStateValue>();
+            var order = new List<string>();
+            unit.Functional.Driver.StateChanged += id =>
+            {
+                string state = unit.Functional.Driver.Table.FindState(id).Name;
+                rawStates.Add(state);
+                rawItemStates.Add(device.ItemState);
+                order.Add($"raw-sync:{state}");
+            };
+            unit.Functional.StateChanged += state =>
+            {
+                typedStates.Add(state);
+                typedItemStates.Add(device.ItemState);
+                order.Add($"typed-sync:{state}");
+            };
+            unit.Functional.Driver.StateChangedAsync += (id, _) =>
+            {
+                string state = unit.Functional.Driver.Table.FindState(id).Name;
+                rawAsyncStates.Add(state);
+                rawAsyncItemStates.Add(device.ItemState);
+                order.Add($"raw-async:{state}");
+                return default;
+            };
+            unit.Functional.StateChangedAsync += (state, _) =>
+            {
+                typedAsyncStates.Add(state);
+                typedAsyncItemStates.Add(device.ItemState);
+                order.Add($"typed-async:{state}");
+                return default;
+            };
+
+            await unit.Functional.TransitionToAsync(LadsFunctionalStateValue.Running).ConfigureAwait(false);
+            await unit.Functional.SetStateAsync(LadsFunctionalStateValue.Stopped).ConfigureAwait(false);
+
+            var expectedStates = new[] { "Running", "Stopped" };
+            var expectedFunctionalStates = new[]
+            {
+                LadsFunctionalStateValue.Running,
+                LadsFunctionalStateValue.Stopped
+            };
+            Assert.That(rawStates, Is.EqualTo(expectedStates));
+            Assert.That(
+                typedStates,
+                Is.EqualTo(expectedFunctionalStates));
+            Assert.That(rawAsyncStates, Is.EqualTo(expectedStates));
+            Assert.That(
+                typedAsyncStates,
+                Is.EqualTo(expectedFunctionalStates));
+            var expectedItemStates = new[]
+            {
+                MachineryItemStateValue.Executing,
+                MachineryItemStateValue.NotExecuting
+            };
+            var expectedAsyncItemStates = new[]
+            {
+                MachineryItemStateValue.Executing,
+                MachineryItemStateValue.NotExecuting
+            };
+            Assert.That(rawItemStates, Is.EqualTo(expectedItemStates));
+            Assert.That(typedItemStates, Is.EqualTo(expectedItemStates));
+            Assert.That(rawAsyncItemStates, Is.EqualTo(expectedAsyncItemStates));
+            Assert.That(typedAsyncItemStates, Is.EqualTo(expectedAsyncItemStates));
+            var expectedOrder = new[]
+            {
+                "typed-sync:Running",
+                "raw-sync:Running",
+                "typed-async:Running",
+                "raw-async:Running",
+                "typed-sync:Stopped",
+                "raw-sync:Stopped",
+                "typed-async:Stopped",
+                "raw-async:Stopped"
+            };
+            Assert.That(order, Is.EqualTo(expectedOrder));
+        }
+
+        /// <summary>
+        /// Verifies synchronous machine events run before a public asynchronous observer can fail.
+        /// </summary>
+        [Test]
+        public async Task PublicAsyncObserverFailureFollowsSynchronousMachineEventsAsync()
+        {
+            await using LadsHostedServer server = await LadsHostedServer.StartIncubatorAsync(
+                nameof(PublicAsyncObserverFailureFollowsSynchronousMachineEventsAsync)).ConfigureAwait(false);
+            ILadsDevice device = await server.DeviceAsync().ConfigureAwait(false);
+            var unit = (LadsFunctionalUnit)device.GetFunctionalUnit(LadsIncubator.UnitName);
+            var states = new List<string>();
+            var itemStates = new List<MachineryItemStateValue>();
+            unit.Functional.Driver.StateChanged += id =>
+            {
+                states.Add($"raw:{unit.Functional.Driver.Table.FindState(id).Name}");
+                itemStates.Add(device.ItemState);
+            };
+            unit.Functional.StateChanged += state => states.Add($"typed:{state}");
+            unit.Functional.StateChangedAsync += (_, _) =>
+                new ValueTask(Task.FromException(new InvalidOperationException("public async observer failed")));
+
+            InvalidOperationException? failure = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await unit.Functional.SetStateAsync(LadsFunctionalStateValue.Running).ConfigureAwait(false))
+                .ConfigureAwait(false);
+
+            Assert.That(failure!.Message, Is.EqualTo("public async observer failed"));
+            var expectedStates = new[] { "typed:Running", "raw:Running" };
+            var expectedItemStates = new[] { MachineryItemStateValue.Executing };
+            Assert.That(states, Is.EqualTo(expectedStates));
+            Assert.That(itemStates, Is.EqualTo(expectedItemStates));
+            Assert.That(device.ItemState, Is.EqualTo(MachineryItemStateValue.Executing));
         }
 
         [Test]
@@ -479,6 +976,90 @@ namespace Opc.Ua.LADS.Tests.Server
             Assert.That(phase.SensorValue, Is.EqualTo(1));
             Assert.That(multi!.Functions.Count, Is.EqualTo(1));
             Assert.That(aux.TryGetFunction("Multi/Inner", out IAnalogScalarSensorFunction? _), Is.True);
+        }
+
+        /// <summary>
+        /// Totalizer reset arguments reach the provider and node, while vetoes preserve the accepted total.
+        /// </summary>
+        [TestCase(12.5)]
+        [TestCase(-12.5)]
+        public async Task TotalizerResetPreservesRequestedValueAndProviderVetoAsync(double value)
+        {
+            Variant requested = default;
+            ServiceResult outcome = ServiceResult.Good;
+            var provider = new Mock<ILadsFunctionProvider>();
+            provider.Setup(p => p.OnCommandAsync(It.IsAny<LadsFunctionCommand>(), It.IsAny<CancellationToken>()))
+                .Returns((LadsFunctionCommand command, CancellationToken _) =>
+                {
+                    Assert.That(command.Kind, Is.EqualTo(LadsFunctionCommandKind.ResetTotalizer));
+                    requested = command.Value;
+                    return new ValueTask<ServiceResult>(outcome);
+                });
+            IAnalogControlFunction? function = null;
+            await using LadsHostedServer server = await LadsHostedServer.StartAsync(
+                nameof(TotalizerResetPreservesRequestedValueAndProviderVetoAsync),
+                builder => builder.AddLads().ConfigureLads(context => LadsIncubator.Configure(
+                    context,
+                    LadsIncubator.DeviceName,
+                    device => device.FunctionalUnit("Aux", unit => unit
+                        .FunctionProvider(provider.Object)
+                        .AnalogControl("Flow", options =>
+                        {
+                            options.Kind = LadsAnalogControlKind.Totalizer;
+                            options.InitialCurrentValue = 3;
+                        }, out function))))).ConfigureAwait(false);
+            await server.DeviceAsync().ConfigureAwait(false);
+
+            await function!.ResetTotalizerAsync(value).ConfigureAwait(false);
+            Assert.That(requested.TryGetValue(out double argument), Is.True);
+            Assert.That(argument, Is.EqualTo(value));
+            Assert.That(function.TotalizedValue, Is.EqualTo(value));
+            Assert.That(function.CurrentValue, Is.EqualTo(3));
+            NodeId total = await server.ChildAsync(function.NodeId, "TotalizedValue").ConfigureAwait(false);
+            DataValue read = await server.ReadAsync(total).ConfigureAwait(false);
+            Assert.That(read.WrappedValue.TryGetValue(out double published), Is.True);
+            Assert.That(published, Is.EqualTo(value));
+
+            outcome = StatusCodes.BadDeviceFailure;
+            await LadsAssert.ThrowsStatusAsync(
+                StatusCodes.BadDeviceFailure, () => function.ResetTotalizerAsync(value + 1)).ConfigureAwait(false);
+            Assert.That(function.TotalizedValue, Is.EqualTo(value));
+            read = await server.ReadAsync(total).ConfigureAwait(false);
+            Assert.That(read.WrappedValue.TryGetValue(out published), Is.True);
+            Assert.That(published, Is.EqualTo(value));
+            outcome = ServiceResult.Good;
+            await function.ResetTotalizerAsync().ConfigureAwait(false);
+            Assert.That(function.TotalizedValue, Is.Zero);
+            Assert.That(requested.TryGetValue(out argument), Is.True);
+            Assert.That(argument, Is.Zero);
+        }
+
+        /// <summary>
+        /// Non-finite reset arguments are rejected without dispatching a hardware command.
+        /// </summary>
+        [TestCase(double.NaN)]
+        [TestCase(double.PositiveInfinity)]
+        [TestCase(double.NegativeInfinity)]
+        public async Task TotalizerRejectsNonFiniteResetBeforeProviderAsync(double value)
+        {
+            var provider = new Mock<ILadsFunctionProvider>(MockBehavior.Strict);
+            IAnalogControlFunction? function = null;
+            await using LadsHostedServer server = await LadsHostedServer.StartAsync(
+                nameof(TotalizerRejectsNonFiniteResetBeforeProviderAsync),
+                builder => builder.AddLads().ConfigureLads(context => LadsIncubator.Configure(
+                    context,
+                    LadsIncubator.DeviceName,
+                    device => device.FunctionalUnit("Aux", unit => unit
+                        .FunctionProvider(provider.Object)
+                        .AnalogControl("Flow", options => options.Kind = LadsAnalogControlKind.Totalizer,
+                            out function))))).ConfigureAwait(false);
+            await server.DeviceAsync().ConfigureAwait(false);
+
+            await LadsAssert.ThrowsStatusAsync(
+                StatusCodes.BadOutOfRange, () => function!.ResetTotalizerAsync(value)).ConfigureAwait(false);
+            Assert.That(function!.TotalizedValue, Is.Zero);
+            provider.Verify(p => p.OnCommandAsync(
+                It.IsAny<LadsFunctionCommand>(), It.IsAny<CancellationToken>()), Times.Never);
         }
 
         [Test]

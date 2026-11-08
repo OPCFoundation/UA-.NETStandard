@@ -32,7 +32,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Core.Tests
@@ -48,6 +50,156 @@ namespace Opc.Ua.Core.Tests
         public void SetUp()
         {
             m_telemetry = NUnitTelemetryContext.Create();
+        }
+
+        /// <summary>
+        /// A delayed initialization admitted before the last lease retires cannot select a manager in a new period.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task RetiredAdmissionCannotInitializeReattachedOwnershipPeriodAsync(
+            bool staleFallback,
+            bool replacementPublished)
+        {
+            var configuration = new ApplicationConfiguration(m_telemetry);
+            await using var oldFallback = new CertificateManager(m_telemetry);
+            await using var current = new CertificateManager(m_telemetry);
+            configuration.AcquireCertificateManagers();
+            int retiredGeneration = configuration.CaptureCertificateManagerGeneration();
+            await configuration.ReleaseCertificateManagersAsync().ConfigureAwait(false);
+            configuration.AcquireCertificateManagers();
+            try
+            {
+                if (replacementPublished)
+                {
+                    configuration.CertificateManager = current;
+                }
+                await Assert.ThrowsAsync<ObjectDisposedException>(() => configuration.GetOrCreateCertificateManagerAsync(
+                    m_telemetry, staleFallback ? oldFallback : null,
+                    expectedGeneration: retiredGeneration).AsTask());
+
+                if (replacementPublished)
+                {
+                    Assert.That(configuration.CertificateManager, Is.SameAs(current));
+                }
+                else
+                {
+                    Assert.That(configuration.CertificateManager, Is.Null);
+                }
+                int admittedGeneration = configuration.CaptureCertificateManagerGeneration();
+                Assert.That(admittedGeneration, Is.Not.EqualTo(retiredGeneration));
+                ICertificateManager manager = await configuration.GetOrCreateCertificateManagerAsync(
+                    m_telemetry, current, expectedGeneration: admittedGeneration).ConfigureAwait(false);
+                Assert.That(manager, Is.SameAs(current));
+                Assert.That(configuration.CertificateManager, Is.SameAs(current));
+            }
+            finally
+            {
+                await configuration.ReleaseCertificateManagersAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Validation rejects a retired ownership period during trust validation or application-certificate loading.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task ValidationStoreOverlapDoesNotUseReattachedManagerAsync(
+            bool borrowedManager,
+            bool loadingApplicationCertificate)
+        {
+            var oldProvider = new Mock<ICertificateStoreProvider>(MockBehavior.Strict);
+            var replacementProvider = new Mock<ICertificateStoreProvider>(MockBehavior.Strict);
+            oldProvider.SetupGet(value => value.StoreTypeName).Returns("ValidationOverlap");
+            replacementProvider.SetupGet(value => value.StoreTypeName).Returns("ValidationOverlap");
+            await using var oldManager = new CertificateManager(m_telemetry, [oldProvider.Object]);
+            await using var replacement = new CertificateManager(m_telemetry, [replacementProvider.Object]);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var release = new ManualResetEventSlim();
+            int opens = 0;
+            oldProvider.Setup(value => value.CreateStore(m_telemetry))
+                .Returns(() =>
+                {
+                    if (Interlocked.Increment(ref opens) == (loadingApplicationCertificate ? 3 : 1))
+                    {
+                        entered.TrySetResult(true);
+                        if (!release.Wait(TimeSpan.FromSeconds(10)))
+                        {
+                            throw new AssertionException("The validation overlap did not release the store callback.");
+                        }
+                    }
+                    var store = new Mock<ICertificateStore>(MockBehavior.Strict);
+                    store.Setup(value => value.Open(It.IsAny<string>(), It.IsAny<bool>()));
+                    store.SetupGet(value => value.SupportsLoadPrivateKey).Returns(false);
+                    store.Setup(value => value.Dispose());
+                    return store.Object;
+                });
+            var configuration = new ApplicationConfiguration(m_telemetry)
+            {
+                ApplicationName = "ValidationOverlap",
+                ApplicationUri = "urn:test:validation-overlap",
+                ClientConfiguration = new ClientConfiguration(),
+                CertificateManager = oldManager,
+                SecurityConfiguration = new SecurityConfiguration
+                {
+                    ApplicationCertificates =
+                    [
+                        new CertificateIdentifier
+                        {
+                            SubjectName = "CN=ValidationOverlap",
+                            StorePath = "not-opened-application",
+                            StoreType = "ValidationOverlap"
+                        }
+                    ],
+                    TrustedIssuerCertificates = new CertificateTrustList
+                    {
+                        StorePath = "not-opened-issuers",
+                        StoreType = "ValidationOverlap"
+                    },
+                    TrustedPeerCertificates = new CertificateTrustList
+                    {
+                        StorePath = "not-opened-peers",
+                        StoreType = "ValidationOverlap"
+                    }
+                }
+            };
+            if (borrowedManager)
+            {
+                configuration.SetBorrowedCertificateManager(oldManager);
+            }
+            configuration.AcquireCertificateManagers();
+            Task validation = Task.Run(() => configuration.ValidateAsync(ApplicationType.Client));
+            bool leaseHeld = true;
+            try
+            {
+                Assert.That(await Task.WhenAny(entered.Task, validation, Task.Delay(TimeSpan.FromSeconds(10)))
+                    .ConfigureAwait(false), Is.SameAs(entered.Task));
+                await configuration.ReleaseCertificateManagersAsync().ConfigureAwait(false);
+                leaseHeld = false;
+                configuration.CertificateManager = replacement;
+                configuration.AcquireCertificateManagers();
+                leaseHeld = true;
+                release.Set();
+                ObjectDisposedException? failure = await Assert.ThrowsAsync<ObjectDisposedException>(
+                    async () => await validation.ConfigureAwait(false)).ConfigureAwait(false);
+                Assert.That(failure!.ObjectName,
+                    Is.EqualTo(borrowedManager ? nameof(ApplicationConfiguration) : nameof(CertificateManager)));
+                Assert.That(configuration.CertificateManager, Is.SameAs(replacement));
+                Assert.That(opens, Is.EqualTo(loadingApplicationCertificate ? 3 : borrowedManager ? 2 : 1));
+                replacementProvider.Verify(value => value.CreateStore(It.IsAny<ITelemetryContext>()), Times.Never);
+            }
+            finally
+            {
+                release.Set();
+                if (leaseHeld)
+                {
+                    await configuration.ReleaseCertificateManagersAsync().ConfigureAwait(false);
+                }
+            }
         }
 
         [Test]
@@ -68,6 +220,56 @@ namespace Opc.Ua.Core.Tests
         {
             var config = new ApplicationConfiguration(m_telemetry);
             Assert.That(config, Is.Not.Null);
+        }
+
+        /// <summary>
+        /// A disposed provider remains a configuration error when the owning application is still active.
+        /// </summary>
+        [Test]
+        public async Task ValidationPreservesDisposedProviderConfigurationErrorAsync()
+        {
+            var provider = new Mock<ICertificateStoreProvider>(MockBehavior.Strict);
+            provider.SetupGet(value => value.StoreTypeName).Returns("DisposedValidationProvider");
+            provider.Setup(value => value.CreateStore(m_telemetry))
+                .Throws(new ObjectDisposedException("ValidationProvider"));
+            await using var manager = new CertificateManager(m_telemetry, [provider.Object]);
+            var configuration = new ApplicationConfiguration(m_telemetry)
+            {
+                ApplicationName = "Disposed provider",
+                ApplicationType = ApplicationType.Server,
+                ApplicationUri = "urn:opcfoundation:disposed-provider-test",
+                CertificateManager = manager,
+                ServerConfiguration = new ServerConfiguration(),
+                SecurityConfiguration = new SecurityConfiguration
+                {
+                    ApplicationCertificates = [new CertificateIdentifier { SubjectName = "CN=Disposed provider" }],
+                    TrustedIssuerCertificates = new CertificateTrustList
+                    {
+                        StorePath = "not-opened-issuers",
+                        StoreType = "DisposedValidationProvider"
+                    },
+                    TrustedPeerCertificates = new CertificateTrustList
+                    {
+                        StorePath = "not-opened-peers",
+                        StoreType = "DisposedValidationProvider"
+                    }
+                }
+            };
+            configuration.AcquireCertificateManagers();
+            try
+            {
+                ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await configuration.ValidateAsync(ApplicationType.Server).ConfigureAwait(false))
+                    .ConfigureAwait(false);
+                Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+                Assert.That(error.Message, Does.Contain("TrustedIssuerCertificates store is invalid."));
+                Assert.That(configuration.CertificateManager, Is.SameAs(manager));
+                provider.Verify(value => value.CreateStore(m_telemetry), Times.Once);
+            }
+            finally
+            {
+                await configuration.ReleaseCertificateManagersAsync().ConfigureAwait(false);
+            }
         }
 
         [Test]

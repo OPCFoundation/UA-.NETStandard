@@ -967,6 +967,215 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 evt => evt is not null && evt.Kind == CertificateChangeKind.CrlUpdated));
         }
 
+        /// <summary>
+        /// Checks that a failed store operation reports the type of data it may have changed.
+        /// </summary>
+        [TestCase(TrustListMasks.TrustedCertificates, false, false)]
+        [TestCase(TrustListMasks.TrustedCertificates, true, false)]
+        [TestCase(TrustListMasks.IssuerCertificates, false, false)]
+        [TestCase(TrustListMasks.IssuerCertificates, true, false)]
+        [TestCase(TrustListMasks.TrustedCrls, false, false)]
+        [TestCase(TrustListMasks.TrustedCrls, true, false)]
+        [TestCase(TrustListMasks.IssuerCrls, false, false)]
+        [TestCase(TrustListMasks.IssuerCrls, true, false)]
+        [TestCase(TrustListMasks.TrustedCertificates, true, true)]
+        [TestCase(TrustListMasks.IssuerCrls, false, true)]
+        public async Task WriteTrustListAsyncReportsMutationsAfterStoreFailureAsync(
+            TrustListMasks mask,
+            bool failsDuringRemoval,
+            bool cancellation)
+        {
+            using Certificate certificate = CertificateBuilder
+                .Create("CN=Partial Trust List")
+                .SetCAConstraint()
+                .CreateForRSA();
+            var crlBuilder = CrlBuilder.Create(certificate.SubjectName);
+            X509CRL crl = new(crlBuilder.CreateForRSA(certificate));
+            Exception failure = cancellation
+                ? new OperationCanceledException("Injected store cancellation.")
+                : new IOException("Injected store failure.");
+            bool removed = false;
+            var store = new Mock<ICertificateStore>();
+            store.SetupGet(value => value.SupportsCRLs).Returns(true);
+            store.Setup(value => value.EnumerateAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(() => [certificate]);
+            store.Setup(value => value.EnumerateCRLsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(() => [crl]);
+            store.Setup(value => value.DeleteAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    removed = true;
+                    return failsDuringRemoval ? Task.FromException<bool>(failure) : Task.FromResult(true);
+                });
+            store.Setup(value => value.DeleteCRLAsync(It.IsAny<X509CRL>(), It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    removed = true;
+                    return failsDuringRemoval ? Task.FromException<bool>(failure) : Task.FromResult(true);
+                });
+            store.Setup(value => value.AddAsync(It.IsAny<Certificate>(), null, It.IsAny<CancellationToken>()))
+                .ThrowsAsync(failure);
+            store.Setup(value => value.AddCRLAsync(It.IsAny<X509CRL>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(failure);
+            var provider = new Mock<ICertificateStoreProvider>();
+            provider.SetupGet(value => value.StoreTypeName).Returns("PartialWrite");
+            provider.Setup(value => value.SupportsStorePath(It.IsAny<string>())).Returns(true);
+            provider.Setup(value => value.CreateStore(m_telemetry)).Returns(store.Object);
+            await using var manager = new CertificateManager(m_telemetry, [provider.Object]);
+            manager.RegisterTrustList(TrustListIdentifier.Peers, "partial:trusted", "partial:issuers");
+            var received = new List<CertificateChangeEvent>();
+            using IDisposable subscription = manager.CertificateChanges.Subscribe(
+                new TestObserver<CertificateChangeEvent>(received.Add));
+            using var data = new TrustListData
+            {
+                TrustedCertificates = [certificate],
+                IssuerCertificates = [certificate],
+                TrustedCrls = [crl],
+                IssuerCrls = [crl]
+            };
+
+            if (cancellation)
+            {
+                await Assert.CatchAsync<OperationCanceledException>(
+                    async () => await manager.WriteTrustListAsync(
+                        TrustListIdentifier.Peers, data, mask).ConfigureAwait(false));
+            }
+            else
+            {
+                IOException thrown = await Assert.ThrowsAsync<IOException>(
+                    async () => await manager.WriteTrustListAsync(
+                        TrustListIdentifier.Peers, data, mask).ConfigureAwait(false));
+                Assert.That(thrown, Is.SameAs(failure));
+            }
+
+            bool isCrl = mask is TrustListMasks.TrustedCrls or TrustListMasks.IssuerCrls;
+            Assert.That(removed, Is.True);
+            Assert.That(received, Has.Count.EqualTo(1));
+            Assert.That(received[0].Kind, Is.EqualTo(
+                isCrl ? CertificateChangeKind.CrlUpdated : CertificateChangeKind.TrustListUpdated));
+            Assert.That(received[0].TrustList, Is.EqualTo(TrustListIdentifier.Peers));
+            Times expectedAdds = failsDuringRemoval ? Times.Never() : Times.Once();
+            if (isCrl)
+            {
+                store.Verify(
+                    value => value.AddCRLAsync(crl, It.IsAny<CancellationToken>()),
+                    expectedAdds);
+            }
+            else
+            {
+                store.Verify(
+                    value => value.AddAsync(It.IsAny<Certificate>(), null, It.IsAny<CancellationToken>()),
+                    expectedAdds);
+            }
+        }
+
+        /// <summary>
+        /// Checks that failed replacement removes cached trust for a certificate deleted from the store.
+        /// </summary>
+        [Test]
+        public async Task WriteTrustListAsyncInvalidatesCachedTrustAfterFailedReplacementAsync()
+        {
+            using Certificate certificate = CertificateBuilder.Create("CN=Partial Trust Replacement").CreateForRSA();
+            var failure = new IOException("Injected certificate write failure.");
+            bool trusted = true;
+            var store = new Mock<ICertificateStore>();
+            store.Setup(value => value.FindByThumbprintAsync(
+                    It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns((string thumbprint, CancellationToken _) => Task.FromResult<CertificateCollection>(
+                    trusted && thumbprint == certificate.Thumbprint ? [certificate] : []));
+            store.Setup(value => value.EnumerateAsync(It.IsAny<CancellationToken>()))
+                .Returns(() => Task.FromResult<CertificateCollection>(trusted ? [certificate] : []));
+            store.Setup(value => value.DeleteAsync(certificate.Thumbprint, It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    trusted = false;
+                    return Task.FromResult(true);
+                });
+            store.Setup(value => value.AddAsync(It.IsAny<Certificate>(), null, It.IsAny<CancellationToken>()))
+                .ThrowsAsync(failure);
+            var provider = new Mock<ICertificateStoreProvider>();
+            provider.SetupGet(value => value.StoreTypeName).Returns("PartialTrust");
+            provider.Setup(value => value.SupportsStorePath(It.IsAny<string>())).Returns(true);
+            provider.Setup(value => value.CreateStore(m_telemetry)).Returns(store.Object);
+            await using var manager = new CertificateManager(m_telemetry, [provider.Object]);
+            manager.MapFromSecurityConfiguration(new SecurityConfiguration { UseValidatedCertificates = true });
+            manager.RegisterTrustList(TrustListIdentifier.Peers, "partial:trusted");
+            Assert.That((await manager.ValidateAsync(certificate).ConfigureAwait(false)).IsValid, Is.True);
+            var received = new List<CertificateChangeEvent>();
+            using IDisposable subscription = manager.CertificateChanges.Subscribe(
+                new TestObserver<CertificateChangeEvent>(received.Add));
+            using var data = new TrustListData { TrustedCertificates = [certificate] };
+
+            IOException thrown = await Assert.ThrowsAsync<IOException>(
+                async () => await manager.WriteTrustListAsync(
+                    TrustListIdentifier.Peers, data, TrustListMasks.TrustedCertificates).ConfigureAwait(false));
+
+            Assert.That(thrown, Is.SameAs(failure));
+            Assert.That(trusted, Is.False);
+            Assert.That(received, Has.Count.EqualTo(1));
+            Assert.That(received[0].Kind, Is.EqualTo(CertificateChangeKind.TrustListUpdated));
+            CertificateValidationResult result = await manager.ValidateAsync(certificate).ConfigureAwait(false);
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUntrusted));
+        }
+
+        /// <summary>
+        /// Checks that a failed CRL write reports both earlier certificate changes and possible CRL changes.
+        /// </summary>
+        [Test]
+        public async Task WriteTrustListAsyncReportsCertificateAndCrlChangesWhenCrlWriteFailsAsync()
+        {
+            using Certificate certificate = CertificateBuilder
+                .Create("CN=Partial Trust And CRL")
+                .SetCAConstraint()
+                .CreateForRSA();
+            var crlBuilder = CrlBuilder.Create(certificate.SubjectName);
+            X509CRL crl = new(crlBuilder.CreateForRSA(certificate));
+            var failure = new IOException("Injected CRL write failure.");
+            var store = new Mock<ICertificateStore>();
+            store.SetupGet(value => value.SupportsCRLs).Returns(true);
+            store.Setup(value => value.EnumerateAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(() => [certificate]);
+            store.Setup(value => value.EnumerateCRLsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(() => [crl]);
+            store.Setup(value => value.DeleteAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
+            store.Setup(value => value.AddAsync(It.IsAny<Certificate>(), null, It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+            store.Setup(value => value.DeleteCRLAsync(It.IsAny<X509CRL>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
+            store.Setup(value => value.AddCRLAsync(It.IsAny<X509CRL>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(failure);
+            var provider = new Mock<ICertificateStoreProvider>();
+            provider.SetupGet(value => value.StoreTypeName).Returns("PartialMixed");
+            provider.Setup(value => value.SupportsStorePath(It.IsAny<string>())).Returns(true);
+            provider.Setup(value => value.CreateStore(m_telemetry)).Returns(store.Object);
+            await using var manager = new CertificateManager(m_telemetry, [provider.Object]);
+            manager.RegisterTrustList(TrustListIdentifier.Peers, "partial:trusted");
+            var received = new List<CertificateChangeEvent>();
+            using IDisposable subscription = manager.CertificateChanges.Subscribe(
+                new TestObserver<CertificateChangeEvent>(received.Add));
+            using var data = new TrustListData
+            {
+                TrustedCertificates = [certificate],
+                TrustedCrls = [crl]
+            };
+
+            IOException thrown = await Assert.ThrowsAsync<IOException>(
+                async () => await manager.WriteTrustListAsync(
+                    TrustListIdentifier.Peers,
+                    data,
+                    TrustListMasks.TrustedCertificates | TrustListMasks.TrustedCrls).ConfigureAwait(false));
+
+            Assert.That(thrown, Is.SameAs(failure));
+            store.Verify(value => value.DeleteAsync(
+                certificate.Thumbprint, It.IsAny<CancellationToken>()), Times.Once);
+            store.Verify(value => value.DeleteCRLAsync(crl, It.IsAny<CancellationToken>()), Times.Once);
+            Assert.That(received, Has.Count.EqualTo(2));
+            Assert.That(received[0].Kind, Is.EqualTo(CertificateChangeKind.TrustListUpdated));
+            Assert.That(received[1].Kind, Is.EqualTo(CertificateChangeKind.CrlUpdated));
+        }
+
         [Test]
         public async Task WriteTrustListAsyncDoesNotNotifyWhenMaskExcludesEverythingAsync()
         {

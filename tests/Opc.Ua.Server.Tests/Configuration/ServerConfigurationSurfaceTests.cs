@@ -33,6 +33,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.TestFramework;
@@ -106,6 +107,126 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Preserves namespace permissions while granting SecurityAdmin access only on restricted nodes.
+        /// </summary>
+        [TestCase(false, false, false)]
+        [TestCase(true, false, false)]
+        [TestCase(false, true, false)]
+        [TestCase(true, true, false)]
+        [TestCase(false, false, true)]
+        [TestCase(true, false, true)]
+        [TestCase(false, true, true)]
+        [TestCase(true, true, true)]
+        public async Task NamespacePermissionsPreservedAfterConfigurationAsync(
+            bool asyncConfiguration,
+            bool restricted,
+            bool explicitPermissions)
+        {
+            IServerInternal serverInternal = m_server.CurrentInstance;
+            NamespaceMetadataState? metadata = await serverInternal.ConfigurationNodeManager
+                .GetNamespaceMetadataStateAsync(0).ConfigureAwait(false);
+            Assert.That(metadata?.DefaultRolePermissions, Is.Not.Null);
+            ArrayOf<RolePermissionType> original = metadata!.DefaultRolePermissions!.Value;
+            try
+            {
+                metadata.DefaultRolePermissions.Value = restricted
+                    ? [new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_Anonymous,
+                        Permissions = (uint)PermissionType.Browse
+                    }]
+                    : ArrayOf<RolePermissionType>.Empty;
+                await metadata.ClearChangeMasksAsync(serverInternal.DefaultSystemContext, true)
+                    .ConfigureAwait(false);
+                Harness harness = await CreateHarnessAsync(
+                    new ServerConfigurationOptions(),
+                    asyncConfiguration: asyncConfiguration,
+                    beforeConfiguration: root =>
+                    {
+                        var pending = new Stack<NodeState>();
+                        pending.Push(root);
+                        while (pending.Count != 0)
+                        {
+                            NodeState node = pending.Pop();
+                            if (node is MethodState or BaseObjectState)
+                            {
+                                // The standard nodeset has explicit policies; isolate inheritance deliberately.
+                                node.RolePermissions = ArrayOf<RolePermissionType>.Empty;
+                            }
+
+                            var children = new List<BaseInstanceState>();
+                            node.GetChildren(serverInternal.DefaultSystemContext, children);
+                            foreach (BaseInstanceState child in children)
+                            {
+                                pending.Push(child);
+                            }
+                        }
+
+                        if (explicitPermissions)
+                        {
+                            root.RolePermissions = [new RolePermissionType
+                            {
+                                RoleId = ObjectIds.WellKnownRole_Observer,
+                                Permissions = (uint)(PermissionType.Browse | PermissionType.Read)
+                            }];
+                        }
+                    }).ConfigureAwait(false);
+                using (harness.Manager)
+                {
+                    var pending = new Stack<NodeState>();
+                    pending.Push(harness.Node);
+                    while (pending.Count != 0)
+                    {
+                        NodeState node = pending.Pop();
+                        if (node is MethodState or BaseObjectState)
+                        {
+                            bool explicitNode = explicitPermissions && ReferenceEquals(node, harness.Node);
+                            // Dynamic alarm nodes use their own namespace, not namespace zero's defaults.
+                            bool namespaceRestricted = restricted && node.NodeId.NamespaceIndex == 0;
+                            if (namespaceRestricted || explicitNode)
+                            {
+                                Assert.That(node.RolePermissions.Count, Is.EqualTo(2), node.BrowseName.ToString());
+                                Assert.Multiple(() =>
+                                {
+                                    Assert.That(node.RolePermissions[0].RoleId,
+                                        Is.EqualTo(explicitNode
+                                            ? ObjectIds.WellKnownRole_Observer
+                                            : ObjectIds.WellKnownRole_Anonymous));
+                                    Assert.That(node.RolePermissions[0].Permissions,
+                                        Is.EqualTo((uint)(explicitNode
+                                            ? PermissionType.Browse | PermissionType.Read
+                                            : PermissionType.Browse)));
+                                    Assert.That(node.RolePermissions[1].RoleId,
+                                        Is.EqualTo(ObjectIds.WellKnownRole_SecurityAdmin));
+                                    Assert.That(node.RolePermissions[1].Permissions,
+                                        Is.EqualTo((uint)(PermissionType.Browse | PermissionType.Call)));
+                                });
+                            }
+                            else
+                            {
+                                Assert.That(node.RolePermissions.IsEmpty, Is.True,
+                                    $"Unrestricted namespace permissions must remain inherited by {node.BrowseName}.");
+                            }
+                        }
+
+                        var children = new List<BaseInstanceState>();
+                        node.GetChildren(serverInternal.DefaultSystemContext, children);
+                        foreach (BaseInstanceState child in children)
+                        {
+                            pending.Push(child);
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                metadata.DefaultRolePermissions.Value = original;
+                await metadata.ClearChangeMasksAsync(serverInternal.DefaultSystemContext, true)
+                    .ConfigureAwait(false);
+            }
+        }
+
         [Test]
         public async Task OptionalMembersSuppressedWhenNotConfiguredAsync()
         {
@@ -144,6 +265,176 @@ namespace Opc.Ua.Server.Tests
             {
                 Assert.That(harness.Node.InApplicationSetup, Is.Not.Null);
                 Assert.That(harness.Node.InApplicationSetup!.Value, Is.False);
+            }
+        }
+
+        /// <summary>
+        /// Host ownership decisions complete before any standard push mutation or transaction state changes.
+        /// </summary>
+        [TestCase("csr")]
+        [TestCase("update")]
+        [TestCase("selfSigned")]
+        [TestCase("delete")]
+        [TestCase("apply")]
+        [TestCase("cancel")]
+        [TestCase("reset")]
+        public async Task PushMutationAwaitsHostAuthorizationBeforeConfigurationEffects(string operation)
+        {
+            var decision = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var policy = new Mock<IPushConfigurationAuthorization>(MockBehavior.Strict);
+            SessionSystemContext context = CreateAdminContextForSession(new NodeId(901, 1));
+            policy.Setup(value => value.AuthorizeAsync(context, It.IsAny<CancellationToken>()))
+                .Returns(async (ISystemContext _, CancellationToken ct) =>
+                {
+                    await decision.Task.ConfigureAwait(false);
+                    ct.ThrowIfCancellationRequested();
+                });
+            var reset = new Mock<IServerConfigurationResetProvider>(MockBehavior.Strict);
+            Harness harness = await CreateHarnessAsync(new ServerConfigurationOptions
+            {
+                PushAuthorization = policy.Object,
+                ResetProvider = reset.Object
+            }).ConfigureAwait(false);
+            using (harness.Manager)
+            {
+                ServerConfigurationState node = harness.Node;
+                Task pending = InvokeAsync();
+                Assert.That(pending.IsCompleted, Is.False);
+                Assert.That(harness.Coordinator.GetSnapshot().IsActive, Is.False);
+                var failure = new ServiceResultException(StatusCodes.BadUserAccessDenied);
+                decision.SetException(failure);
+
+                ServiceResultException? actual = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await pending.ConfigureAwait(false));
+
+                Assert.That(actual, Is.SameAs(failure));
+                Assert.That(harness.Coordinator.GetSnapshot().IsActive, Is.False);
+                policy.Verify(value => value.AuthorizeAsync(context, It.IsAny<CancellationToken>()), Times.Once);
+                reset.VerifyNoOtherCalls();
+
+                async Task InvokeAsync()
+                {
+                    switch (operation)
+                    {
+                        case "csr":
+                            await node.CreateSigningRequest!.OnCallAsync!(
+                                context, node.CreateSigningRequest, node.NodeId, NodeId.Null,
+                                ObjectTypeIds.RsaSha256ApplicationCertificateType, string.Empty, true,
+                                ByteString.Empty, CancellationToken.None).ConfigureAwait(false);
+                            break;
+                        case "update":
+                            await node.UpdateCertificate!.OnCallAsync!(
+                                context, node.UpdateCertificate, node.NodeId, NodeId.Null,
+                                ObjectTypeIds.RsaSha256ApplicationCertificateType, ByteString.Empty,
+                                [], string.Empty, ByteString.Empty, CancellationToken.None).ConfigureAwait(false);
+                            break;
+                        case "selfSigned":
+                            await node.CreateSelfSignedCertificate!.OnCallAsync!(
+                                context, node.CreateSelfSignedCertificate, node.NodeId, NodeId.Null,
+                                ObjectTypeIds.RsaSha256ApplicationCertificateType, "CN=NotCreated", [], [],
+                                1, 2048, CancellationToken.None).ConfigureAwait(false);
+                            break;
+                        case "delete":
+                            await node.DeleteCertificate!.OnCallAsync!(
+                                context, node.DeleteCertificate, node.NodeId, NodeId.Null,
+                                ObjectTypeIds.RsaSha256ApplicationCertificateType, CancellationToken.None)
+                                .ConfigureAwait(false);
+                            break;
+                        default:
+                            MethodState method = operation switch
+                            {
+                                "apply" => node.ApplyChanges!,
+                                "cancel" => node.CancelChanges!,
+                                _ => node.ResetToServerDefaults!
+                            };
+                            await method.OnCallMethod2Async!(
+                                context, method, node.NodeId, [], [], CancellationToken.None).ConfigureAwait(false);
+                            break;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Host policy cannot authorize an anonymous caller before the standard SecurityAdmin check.
+        /// </summary>
+        [Test]
+        public async Task PushMutationChecksStandardRoleBeforeHostPolicy()
+        {
+            var policy = new Mock<IPushConfigurationAuthorization>(MockBehavior.Strict);
+            Harness harness = await CreateHarnessAsync(new ServerConfigurationOptions
+            {
+                PushAuthorization = policy.Object
+            }).ConfigureAwait(false);
+            using (harness.Manager)
+            {
+                SessionSystemContext context = CreateContext(
+                    UserTokenType.Anonymous, MessageSecurityMode.SignAndEncrypt);
+
+                ServiceResultException? denied = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await harness.Node.CreateSigningRequest!.OnCallAsync!(
+                        context, harness.Node.CreateSigningRequest, harness.Node.NodeId, NodeId.Null,
+                        ObjectTypeIds.RsaSha256ApplicationCertificateType, string.Empty, true,
+                        ByteString.Empty, CancellationToken.None).ConfigureAwait(false));
+
+                Assert.That(denied!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                policy.VerifyNoOtherCalls();
+                Assert.That(harness.Coordinator.GetSnapshot().IsActive, Is.False);
+            }
+        }
+
+        /// <summary>
+        /// The standard ApplyChanges handler executes host completion inside the actual compensating transaction.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ApplyChangesRecordsHostCompletionWithinStoreTransaction(bool rejectCompletion)
+        {
+            var sessionId = new NodeId(902, 1);
+            SessionSystemContext context = CreateAdminContextForSession(sessionId);
+            var policy = new Mock<IPushConfigurationAuthorization>(MockBehavior.Strict);
+            policy.Setup(value => value.AuthorizeAsync(context, It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            Mock<IPushConfigurationCompletion> completion = policy.As<IPushConfigurationCompletion>();
+            int stored = 0;
+            completion.Setup(value => value.CompleteAsync(context, It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    Assert.That(stored, Is.EqualTo(1));
+                    if (rejectCompletion)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadResourceUnavailable);
+                    }
+                    return default;
+                });
+            Harness harness = await CreateHarnessAsync(new ServerConfigurationOptions
+            {
+                PushAuthorization = policy.Object
+            }).ConfigureAwait(false);
+            using (harness.Manager)
+            {
+                harness.Coordinator.Stage(sessionId, new PushConfigurationOperation
+                {
+                    CommitAsync = _ =>
+                    {
+                        stored++;
+                        return Task.CompletedTask;
+                    },
+                    RollbackAsync = _ =>
+                    {
+                        stored--;
+                        return Task.CompletedTask;
+                    }
+                });
+                ServiceResult result = await harness.Node.ApplyChanges!.OnCallMethod2Async!(
+                    context, harness.Node.ApplyChanges, harness.Node.NodeId, [], [], CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                Assert.That(result.StatusCode,
+                    Is.EqualTo(rejectCompletion ? StatusCodes.BadResourceUnavailable : StatusCodes.Good));
+                Assert.That(stored, Is.EqualTo(rejectCompletion ? 0 : 1));
+                Assert.That(harness.Coordinator.IsTransactionActive, Is.False);
+                completion.Verify(value => value.CompleteAsync(context, It.IsAny<CancellationToken>()), Times.Once);
             }
         }
 
@@ -561,6 +852,143 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Deferred recovery reacquires deployment admission after its delay and never mutates a revoked deployment.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task ConfigurationFileDeferredRecoveryChecksDeploymentAfterTimerAsync(bool revert, bool revoked)
+        {
+            var time = new ControllableTimeProvider();
+            var provider = new Mock<IRecoverableApplicationConfigurationFileProvider>();
+            provider.SetupGet(value => value.CurrentVersion).Returns(1u);
+            Uuid updateId = Uuid.NewUuid();
+            DateTime later = DateTime.UtcNow.AddMinutes(1);
+            provider.Setup(value => value.GetPendingUpdateAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new PendingApplicationConfigurationUpdate(
+                    updateId, later, revert ? later : null, revert));
+            var operations = new Mock<IApplicationConfigurationPushOperations>(MockBehavior.Strict);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            operations.Setup(value => value.ExecuteAsync(
+                It.IsAny<Func<ValueTask>>(), It.IsAny<CancellationToken>()))
+                .Returns((Func<ValueTask> effect, CancellationToken _) => ExecuteAsync(effect));
+            Harness harness = await CreateHarnessAsync(new ServerConfigurationOptions
+            {
+                ConfigurationFileProvider = new FakeConfigurationFileProvider(s_initialConfig)
+            }).ConfigureAwait(false);
+            using (harness.Manager)
+            using (var file = new ApplicationConfigurationFile(
+                harness.Node.ConfigurationFile!, provider.Object, _ => { }, _ => { }, s_telemetry,
+                harness.Coordinator, time, 0, operations.Object))
+            {
+                try
+                {
+                    await file.RecoverPendingUpdateAsync(harness.Manager.SystemContext).ConfigureAwait(false);
+                    DateTime deadline = DateTime.UtcNow.AddSeconds(10);
+                    while (time.Timers.Count == 0 && DateTime.UtcNow < deadline)
+                    {
+                        await Task.Delay(10).ConfigureAwait(false);
+                    }
+                    Assert.That(time.Timers, Has.Count.EqualTo(1));
+                    operations.Verify(value => value.ExecuteAsync(
+                        It.IsAny<Func<ValueTask>>(), It.IsAny<CancellationToken>()), Times.Never);
+                    time.Timers[0].Fire();
+                    await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
+                finally
+                {
+                    await file.StopAsync().ConfigureAwait(false);
+                }
+
+                operations.Verify(value => value.ExecuteAsync(
+                    It.IsAny<Func<ValueTask>>(), It.IsAny<CancellationToken>()), Times.Once);
+                provider.Verify(value => value.ApplyPendingUpdateAsync(updateId, It.IsAny<CancellationToken>()),
+                    !revert && !revoked ? Times.Once() : Times.Never());
+                provider.Verify(value => value.RevertPendingUpdateAsync(updateId, It.IsAny<CancellationToken>()),
+                    revert && !revoked ? Times.Once() : Times.Never());
+            }
+
+            async ValueTask ExecuteAsync(Func<ValueTask> effect)
+            {
+                try
+                {
+                    if (revoked)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadInvalidState);
+                    }
+                    await effect().ConfigureAwait(false);
+                }
+                finally
+                {
+                    entered.TrySetResult(true);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Shutdown waits for a provider effect already admitted before releasing its owner.
+        /// </summary>
+        [Test]
+        public async Task ConfigurationFileShutdownDrainsAdmittedRecoveryEffectAsync()
+        {
+            var time = new ControllableTimeProvider();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var operations = new Mock<IApplicationConfigurationPushOperations>(MockBehavior.Strict);
+            operations.Setup(value => value.ExecuteAsync(
+                It.IsAny<Func<ValueTask>>(), It.IsAny<CancellationToken>()))
+                .Returns((Func<ValueTask> effect, CancellationToken _) => effect());
+            var provider = new Mock<IRecoverableApplicationConfigurationFileProvider>();
+            provider.SetupGet(value => value.CurrentVersion).Returns(1u);
+            Uuid updateId = Uuid.NewUuid();
+            provider.Setup(value => value.GetPendingUpdateAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new PendingApplicationConfigurationUpdate(
+                    updateId, DateTime.UtcNow.AddMinutes(1), null, false));
+            provider.Setup(value => value.ApplyPendingUpdateAsync(updateId, It.IsAny<CancellationToken>()))
+                .Returns(() => ApplyAsync());
+            Harness harness = await CreateHarnessAsync(new ServerConfigurationOptions
+            {
+                ConfigurationFileProvider = new FakeConfigurationFileProvider(s_initialConfig)
+            }).ConfigureAwait(false);
+            using (harness.Manager)
+            using (var file = new ApplicationConfigurationFile(
+                harness.Node.ConfigurationFile!, provider.Object, _ => { }, _ => { }, s_telemetry,
+                harness.Coordinator, time, 0, operations.Object))
+            {
+                Task? stopping = null;
+                try
+                {
+                    await file.RecoverPendingUpdateAsync(harness.Manager.SystemContext).ConfigureAwait(false);
+                    DateTime deadline = DateTime.UtcNow.AddSeconds(10);
+                    while (time.Timers.Count == 0 && DateTime.UtcNow < deadline)
+                    {
+                        await Task.Delay(10).ConfigureAwait(false);
+                    }
+                    Assert.That(time.Timers, Has.Count.EqualTo(1));
+                    time.Timers[0].Fire();
+                    await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    stopping = file.StopAsync().AsTask();
+                    Assert.That(stopping.IsCompleted, Is.False);
+                }
+                finally
+                {
+                    release.TrySetResult(true);
+                    await (stopping ?? file.StopAsync().AsTask()).WaitAsync(TimeSpan.FromSeconds(10))
+                        .ConfigureAwait(false);
+                }
+                provider.Verify(value => value.ApplyPendingUpdateAsync(
+                    updateId, It.IsAny<CancellationToken>()), Times.Once);
+            }
+
+            async ValueTask ApplyAsync()
+            {
+                entered.TrySetResult(true);
+                await release.Task.ConfigureAwait(false);
+            }
+        }
+
         [Test]
         public async Task ConfigurationFileApplyFailureLeavesNoPartialUpdateAsync()
         {
@@ -586,6 +1014,41 @@ namespace Opc.Ua.Server.Tests
                     Assert.That(result.NewVersion, Is.Zero);
                     Assert.That(provider.CurrentVersion, Is.EqualTo(1u), "the active version must be unchanged");
                 });
+            }
+        }
+
+        [Test]
+        public async Task RecoverableConfigurationFileUnexpectedApplyFailureClearsPendingUpdateAsync()
+        {
+            var store = new FakeConfigurationFileStore(s_initialConfig);
+            var provider = new FakeConfigurationFileProvider(store)
+            {
+                RequiresConfirmation = true,
+                ApplyShouldThrowUnexpected = true
+            };
+            Harness harness = await CreateHarnessAsync(
+                new ServerConfigurationOptions { ConfigurationFileProvider = provider }).ConfigureAwait(false);
+            using (harness.Manager)
+            {
+                ApplicationConfigurationFileState file = harness.Node.ConfigurationFile!;
+                SessionSystemContext ctx = CreateAdminContextForSession(new NodeId(6, 1));
+                OpenMethodStateResult open = await OpenAsync(file, ctx, OpenFileMode.Read | OpenFileMode.Write)
+                    .ConfigureAwait(false);
+                await file.Write!.OnCallAsync!(ctx, file.Write, file.NodeId, open.FileHandle,
+                    ByteString.From([0x78]), CancellationToken.None).ConfigureAwait(false);
+
+                ConfigurationFileCloseAndUpdateMethodStateResult result = await CloseAndUpdateAsync(
+                    file, ctx, open.FileHandle, versionToUpdate: 1, revertAfterTime: 60_000)
+                    .ConfigureAwait(false);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadInternalError));
+                    Assert.That(provider.CurrentConfiguration, Is.EqualTo(s_initialConfig));
+                    Assert.That(provider.CurrentVersion, Is.EqualTo(1u));
+                    Assert.That(provider.RevertCount, Is.EqualTo(1));
+                });
+                Assert.That(await provider.GetPendingUpdateAsync().ConfigureAwait(false), Is.Null);
             }
         }
 
@@ -824,6 +1287,115 @@ namespace Opc.Ua.Server.Tests
                     ctx, file.ConfirmUpdate, file.NodeId, update.UpdateId, CancellationToken.None).ConfigureAwait(false);
                 Assert.That(ServiceResult.IsGood(confirm.ServiceResult), Is.True);
                 Assert.That(provider.ConfirmCount, Is.EqualTo(1));
+            }
+        }
+
+        [Test]
+        public async Task ConfigurationFileConfirmationWithoutRecoveryIsRejectedBeforeValidationAsync()
+        {
+            var provider = new FakeNonRecoverableConfigurationFileProvider(s_initialConfig);
+            Harness harness = await CreateHarnessAsync(
+                new ServerConfigurationOptions { ConfigurationFileProvider = provider }).ConfigureAwait(false);
+            using (harness.Manager)
+            {
+                ApplicationConfigurationFileState file = harness.Node.ConfigurationFile!;
+                SessionSystemContext ctx = CreateAdminContextForSession(new NodeId(901, 1));
+                OpenMethodStateResult open = await OpenAsync(file, ctx, OpenFileMode.Read | OpenFileMode.Write)
+                    .ConfigureAwait(false);
+                await file.Write!.OnCallAsync!(ctx, file.Write, file.NodeId, open.FileHandle,
+                    ByteString.From([0x42]), CancellationToken.None).ConfigureAwait(false);
+
+                ConfigurationFileCloseAndUpdateMethodStateResult result = await CloseAndUpdateAsync(
+                    file, ctx, open.FileHandle, versionToUpdate: 1, revertAfterTime: 1000, restartDelayTime: 0)
+                    .ConfigureAwait(false);
+
+                Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+                Assert.That(provider.ValidateCount, Is.Zero);
+                Assert.That(provider.ApplyCount, Is.Zero);
+                Assert.That(provider.CurrentConfiguration, Is.EqualTo(s_initialConfig));
+            }
+        }
+
+        [Test]
+        public async Task ConfigurationFilePendingUpdateIsRecoveredAndConfirmedAfterRestartAsync()
+        {
+            var store = new FakeConfigurationFileStore(s_initialConfig);
+            var provider = new FakeConfigurationFileProvider(store) { RequiresConfirmation = true };
+            ConfigurationFileCloseAndUpdateMethodStateResult update;
+            {
+                Harness first = await CreateHarnessAsync(
+                    new ServerConfigurationOptions { ConfigurationFileProvider = provider }).ConfigureAwait(false);
+                using (first.Manager)
+                {
+                    ApplicationConfigurationFileState file = first.Node.ConfigurationFile!;
+                    SessionSystemContext ctx = CreateAdminContextForSession(new NodeId(902, 1));
+                    OpenMethodStateResult open = await OpenAsync(
+                        file, ctx, OpenFileMode.Read | OpenFileMode.Write).ConfigureAwait(false);
+                    await file.Write!.OnCallAsync!(ctx, file.Write, file.NodeId, open.FileHandle,
+                        ByteString.From([0x42]), CancellationToken.None).ConfigureAwait(false);
+                    update = await CloseAndUpdateAsync(
+                        file, ctx, open.FileHandle, 1, 60_000, 0).ConfigureAwait(false);
+                }
+            }
+
+            Assert.That(ServiceResult.IsGood(update.ServiceResult), Is.True);
+            Assert.That(provider.ApplyCount, Is.EqualTo(1));
+
+            var restartedProvider = new FakeConfigurationFileProvider(store) { RequiresConfirmation = true };
+            Harness restarted = await CreateHarnessAsync(
+                new ServerConfigurationOptions { ConfigurationFileProvider = restartedProvider }).ConfigureAwait(false);
+            using (restarted.Manager)
+            {
+                ApplicationConfigurationFileState file = restarted.Node.ConfigurationFile!;
+                SessionSystemContext ctx = CreateAdminContextForSession(new NodeId(903, 1));
+                ConfigurationFileConfirmUpdateMethodStateResult confirm = await file.ConfirmUpdate!.OnCallAsync!(
+                    ctx,
+                    file.ConfirmUpdate,
+                    file.NodeId,
+                    update.UpdateId,
+                    CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(ServiceResult.IsGood(confirm.ServiceResult), Is.True);
+                Assert.That(restartedProvider.ApplyCount, Is.EqualTo(1));
+                Assert.That(restartedProvider.ConfirmCount, Is.EqualTo(1));
+                Assert.That(await restartedProvider.GetPendingUpdateAsync().ConfigureAwait(false), Is.Null);
+            }
+        }
+
+        [Test]
+        public async Task ExpiredConfigurationFileUpdateIsRevertedBeforeServingAfterRestartAsync()
+        {
+            var timeProvider = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            var store = new FakeConfigurationFileStore(s_initialConfig);
+            var provider = new FakeConfigurationFileProvider(store) { RequiresConfirmation = true };
+            {
+                Harness first = await CreateHarnessAsync(
+                    new ServerConfigurationOptions { ConfigurationFileProvider = provider },
+                    timeProvider).ConfigureAwait(false);
+                using (first.Manager)
+                {
+                    ApplicationConfigurationFileState file = first.Node.ConfigurationFile!;
+                    SessionSystemContext ctx = CreateAdminContextForSession(new NodeId(904, 1));
+                    OpenMethodStateResult open = await OpenAsync(
+                        file, ctx, OpenFileMode.Read | OpenFileMode.Write).ConfigureAwait(false);
+                    await file.Write!.OnCallAsync!(ctx, file.Write, file.NodeId, open.FileHandle,
+                        ByteString.From([0x42]), CancellationToken.None).ConfigureAwait(false);
+                    ConfigurationFileCloseAndUpdateMethodStateResult update = await CloseAndUpdateAsync(
+                        file, ctx, open.FileHandle, 1, 1000, 0).ConfigureAwait(false);
+                    Assert.That(ServiceResult.IsGood(update.ServiceResult), Is.True);
+                }
+            }
+
+            timeProvider.Advance(TimeSpan.FromMilliseconds(1001));
+            var restartedProvider = new FakeConfigurationFileProvider(store) { RequiresConfirmation = true };
+            Harness restarted = await CreateHarnessAsync(
+                new ServerConfigurationOptions { ConfigurationFileProvider = restartedProvider },
+                timeProvider).ConfigureAwait(false);
+            using (restarted.Manager)
+            {
+                Assert.That(restartedProvider.RevertCount, Is.EqualTo(1));
+                Assert.That(restartedProvider.CurrentConfiguration, Is.EqualTo(s_initialConfig));
+                Assert.That(await restartedProvider.GetPendingUpdateAsync().ConfigureAwait(false), Is.Null);
             }
         }
 
@@ -1248,7 +1820,9 @@ namespace Opc.Ua.Server.Tests
 
         private async Task<Harness> CreateHarnessAsync(
             ServerConfigurationOptions options,
-            TimeProvider? timeProvider = null)
+            TimeProvider? timeProvider = null,
+            bool asyncConfiguration = false,
+            Action<ServerConfigurationState>? beforeConfiguration = null)
         {
             IServerInternal serverInternal = m_server.CurrentInstance;
             var coordinator = new PushConfigurationTransactionCoordinator(serverInternal.Telemetry);
@@ -1266,10 +1840,20 @@ namespace Opc.Ua.Server.Tests
             IDictionary<NodeId, IList<IReference>> externalReferences =
                 new Dictionary<NodeId, IList<IReference>>();
             await manager.CreateAddressSpaceAsync(externalReferences, CancellationToken.None).ConfigureAwait(false);
-            manager.CreateServerConfiguration(serverInternal.DefaultSystemContext, m_fixture.Config);
-
             var node = manager.FindPredefinedNode<ServerConfigurationState>(ObjectIds.ServerConfiguration);
             Assert.That(node, Is.Not.Null, "ServerConfiguration node not materialised");
+            beforeConfiguration?.Invoke(node);
+            if (asyncConfiguration)
+            {
+                await manager.CreateServerConfigurationAsync(serverInternal.DefaultSystemContext, m_fixture.Config)
+                    .ConfigureAwait(false);
+            }
+            else
+            {
+                manager.CreateServerConfiguration(serverInternal.DefaultSystemContext, m_fixture.Config);
+            }
+            await manager.RecoverConfigurationFileUpdateAsync(CancellationToken.None).ConfigureAwait(false);
+
             return new Harness(manager, node, coordinator);
         }
 
@@ -1334,34 +1918,107 @@ namespace Opc.Ua.Server.Tests
             public PushConfigurationTransactionCoordinator Coordinator { get; } = coordinator;
         }
 
-        private sealed class FakeConfigurationFileProvider : IApplicationConfigurationFileProvider
+        /// <summary>
+        /// Implements the ConfigurationFile provider against retained test storage.
+        /// </summary>
+        private sealed class FakeConfigurationFileProvider : IRecoverableApplicationConfigurationFileProvider
         {
-            private ByteString m_content;
+            /// <summary>
+            /// The retained storage used by this provider instance.
+            /// </summary>
+            private readonly FakeConfigurationFileStore m_store;
 
+            /// <summary>
+            /// Initializes the provider with a new in-memory storage instance.
+            /// </summary>
+            /// <param name="initial">The initial configuration content.</param>
             public FakeConfigurationFileProvider(ByteString initial)
+                : this(new FakeConfigurationFileStore(initial))
             {
-                m_content = initial;
-                CurrentVersion = 1;
-                LastUpdateTime = DateTime.UtcNow;
             }
 
-            public uint CurrentVersion { get; set; }
-            public DateTime LastUpdateTime { get; private set; }
-            public bool RequiresConfirmation { get; set; }
-            public bool ValidateShouldThrow { get; set; }
-            public bool ApplyShouldThrow { get; set; }
-            public int ApplyCount { get; private set; }
-            public int ConfirmCount { get; private set; }
-            public int RevertCount { get; private set; }
-            public ByteString LastApplied { get; private set; }
+            /// <summary>
+            /// Initializes the provider with an existing storage instance.
+            /// </summary>
+            /// <param name="store">The storage retained across provider instances.</param>
+            public FakeConfigurationFileProvider(FakeConfigurationFileStore store)
+            {
+                m_store = store ?? throw new ArgumentNullException(nameof(store));
+            }
 
+            /// <summary>
+            /// Gets or sets the active configuration version.
+            /// </summary>
+            public uint CurrentVersion
+            {
+                get => m_store.CurrentVersion;
+                set => m_store.CurrentVersion = value;
+            }
+
+            /// <summary>
+            /// Gets the last active configuration update time.
+            /// </summary>
+            public DateTime LastUpdateTime => m_store.LastUpdateTime;
+
+            /// <summary>
+            /// Gets or sets whether updates require confirmation.
+            /// </summary>
+            public bool RequiresConfirmation { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether validation should fail in this test.
+            /// </summary>
+            public bool ValidateShouldThrow { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether application should fail in this test.
+            /// </summary>
+            public bool ApplyShouldThrow { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether application should throw an unexpected error in this test.
+            /// </summary>
+            public bool ApplyShouldThrowUnexpected { get; set; }
+
+            /// <summary>
+            /// Gets the number of updates applied by this fake provider.
+            /// </summary>
+            public int ApplyCount => m_store.ApplyCount;
+
+            /// <summary>
+            /// Gets the number of updates confirmed by this fake provider.
+            /// </summary>
+            public int ConfirmCount => m_store.ConfirmCount;
+
+            /// <summary>
+            /// Gets the number of updates reverted by this fake provider.
+            /// </summary>
+            public int RevertCount => m_store.RevertCount;
+
+            /// <summary>
+            /// Gets the most recently applied configuration.
+            /// </summary>
+            public ByteString LastApplied => m_store.LastApplied;
+
+            /// <summary>
+            /// Gets the current configuration content.
+            /// </summary>
+            public ByteString CurrentConfiguration => m_store.Content;
+
+            /// <summary>
+            /// Reads the current configuration content.
+            /// </summary>
             public ValueTask<ByteString> ReadConfigurationAsync(CancellationToken cancellationToken = default)
             {
-                return new ValueTask<ByteString>(m_content);
+                return new ValueTask<ByteString>(m_store.Content);
             }
 
+            /// <summary>
+            /// Validates configuration content and records the validation call.
+            /// </summary>
             public ValueTask ValidateConfigurationAsync(ByteString configuration, CancellationToken cancellationToken = default)
             {
+                ValidateCount++;
                 if (ValidateShouldThrow)
                 {
                     throw new ServiceResultException(StatusCodes.BadInvalidArgument, "invalid configuration");
@@ -1369,29 +2026,330 @@ namespace Opc.Ua.Server.Tests
                 return default;
             }
 
+            /// <summary>
+            /// Applies configuration content without confirmation.
+            /// </summary>
             public ValueTask ApplyConfigurationAsync(ByteString configuration, CancellationToken cancellationToken = default)
             {
                 if (ApplyShouldThrow)
                 {
                     throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "apply failed");
                 }
-                ApplyCount++;
-                LastApplied = configuration;
-                m_content = configuration;
+                m_store.ApplyCount++;
+                m_store.LastApplied = configuration;
+                m_store.Content = configuration;
                 CurrentVersion++;
-                LastUpdateTime = DateTime.UtcNow;
+                m_store.LastUpdateTime = DateTime.UtcNow;
                 return default;
             }
 
+            /// <summary>
+            /// Records confirmation of the latest update.
+            /// </summary>
             public ValueTask ConfirmUpdateAsync(CancellationToken cancellationToken = default)
             {
-                ConfirmCount++;
+                m_store.ConfirmCount++;
                 return default;
             }
 
+            /// <summary>
+            /// Records reversion of the latest update.
+            /// </summary>
             public ValueTask RevertUpdateAsync(CancellationToken cancellationToken = default)
             {
-                RevertCount++;
+                m_store.RevertCount++;
+                return default;
+            }
+
+            /// <summary>
+            /// Gets the number of validation calls.
+            /// </summary>
+            public int ValidateCount { get; private set; }
+
+            /// <summary>
+            /// Retains a pending update and its rollback state.
+            /// </summary>
+            public ValueTask BeginUpdateAsync(
+                Uuid updateId,
+                ByteString configuration,
+                ArrayOf<ConfigurationUpdateTargetType> targets,
+                DateTime applyAtUtc,
+                DateTime? revertAtUtc,
+                CancellationToken cancellationToken = default)
+            {
+                if (m_store.PendingUpdate is PendingApplicationConfigurationUpdate existing)
+                {
+                    if (existing.UpdateId.Guid == updateId.Guid)
+                    {
+                        return default;
+                    }
+                    throw new ServiceResultException(StatusCodes.BadInvalidState, "update already pending");
+                }
+
+                m_store.PreviousContent = m_store.Content;
+                m_store.PreviousVersion = CurrentVersion;
+                m_store.PreviousUpdateTime = LastUpdateTime;
+                m_store.PendingContent = configuration;
+                m_store.PendingUpdate = new PendingApplicationConfigurationUpdate(
+                    updateId, applyAtUtc, revertAtUtc, IsApplied: false);
+                return default;
+            }
+
+            /// <summary>
+            /// Returns the pending update retained by the shared test store.
+            /// </summary>
+            public ValueTask<PendingApplicationConfigurationUpdate?> GetPendingUpdateAsync(
+                CancellationToken cancellationToken = default)
+            {
+                return new ValueTask<PendingApplicationConfigurationUpdate?>(m_store.PendingUpdate);
+            }
+
+            /// <summary>
+            /// Applies the staged update once and records its active state.
+            /// </summary>
+            public ValueTask ApplyPendingUpdateAsync(
+                Uuid updateId,
+                CancellationToken cancellationToken = default)
+            {
+                PendingApplicationConfigurationUpdate pending = RequirePending(updateId);
+                if (pending.IsApplied)
+                {
+                    return default;
+                }
+                if (ApplyShouldThrow)
+                {
+                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "apply failed");
+                }
+                if (ApplyShouldThrowUnexpected)
+                {
+                    throw new InvalidOperationException("unexpected apply failure");
+                }
+
+                m_store.ApplyCount++;
+                m_store.LastApplied = m_store.PendingContent;
+                m_store.Content = m_store.PendingContent;
+                CurrentVersion++;
+                m_store.LastUpdateTime = DateTime.UtcNow;
+                m_store.PendingUpdate = pending with { IsApplied = true };
+                return default;
+            }
+
+            /// <summary>
+            /// Confirms and clears the staged update.
+            /// </summary>
+            public ValueTask ConfirmPendingUpdateAsync(
+                Uuid updateId,
+                CancellationToken cancellationToken = default)
+            {
+                PendingApplicationConfigurationUpdate pending = RequirePending(updateId);
+                if (!pending.IsApplied)
+                {
+                    throw new ServiceResultException(StatusCodes.BadInvalidState, "update not applied");
+                }
+                m_store.ConfirmCount++;
+                m_store.PendingUpdate = null;
+                return default;
+            }
+
+            /// <summary>
+            /// Restores the previous configuration and clears the staged update.
+            /// </summary>
+            public ValueTask RevertPendingUpdateAsync(
+                Uuid updateId,
+                CancellationToken cancellationToken = default)
+            {
+                PendingApplicationConfigurationUpdate pending = RequirePending(updateId);
+                if (pending.IsApplied)
+                {
+                    m_store.Content = m_store.PreviousContent;
+                    CurrentVersion = m_store.PreviousVersion;
+                    m_store.LastUpdateTime = m_store.PreviousUpdateTime;
+                }
+                m_store.RevertCount++;
+                m_store.PendingUpdate = null;
+                return default;
+            }
+
+            /// <summary>
+            /// Gets the pending update when its identifier matches the request.
+            /// </summary>
+            private PendingApplicationConfigurationUpdate RequirePending(Uuid updateId)
+            {
+                if (m_store.PendingUpdate is not PendingApplicationConfigurationUpdate pending ||
+                    pending.UpdateId.Guid != updateId.Guid)
+                {
+                    throw new ServiceResultException(StatusCodes.BadInvalidArgument, "update id mismatch");
+                }
+                return pending;
+            }
+        }
+
+        /// <summary>
+        /// Retains fake provider state so tests can create a new provider after a restart.
+        /// </summary>
+        private sealed class FakeConfigurationFileStore
+        {
+            /// <summary>
+            /// Initializes the store with its initial active configuration.
+            /// </summary>
+            /// <param name="initial">The initial configuration content.</param>
+            public FakeConfigurationFileStore(ByteString initial)
+            {
+                Content = initial;
+                PreviousContent = initial;
+                LastUpdateTime = DateTime.UtcNow;
+                PreviousUpdateTime = LastUpdateTime;
+            }
+
+            /// <summary>
+            /// Gets or sets the active configuration content.
+            /// </summary>
+            public ByteString Content { get; set; }
+
+            /// <summary>
+            /// Gets or sets the configuration content to restore on reversion.
+            /// </summary>
+            public ByteString PreviousContent { get; set; }
+
+            /// <summary>
+            /// Gets or sets the version to restore on reversion.
+            /// </summary>
+            public uint PreviousVersion { get; set; }
+
+            /// <summary>
+            /// Gets or sets the last active configuration update time.
+            /// </summary>
+            public DateTime LastUpdateTime { get; set; }
+
+            /// <summary>
+            /// Gets or sets the last update time to restore on reversion.
+            /// </summary>
+            public DateTime PreviousUpdateTime { get; set; }
+
+            /// <summary>
+            /// Gets or sets the configuration content awaiting application.
+            /// </summary>
+            public ByteString PendingContent { get; set; }
+
+            /// <summary>
+            /// Gets or sets the durable update awaiting confirmation or reversion.
+            /// </summary>
+            public PendingApplicationConfigurationUpdate? PendingUpdate { get; set; }
+
+            /// <summary>
+            /// Gets or sets the active configuration version.
+            /// </summary>
+            public uint CurrentVersion { get; set; } = 1;
+
+            /// <summary>
+            /// Gets or sets the number of applied updates.
+            /// </summary>
+            public int ApplyCount { get; set; }
+
+            /// <summary>
+            /// Gets or sets the number of confirmed updates.
+            /// </summary>
+            public int ConfirmCount { get; set; }
+
+            /// <summary>
+            /// Gets or sets the number of reverted updates.
+            /// </summary>
+            public int RevertCount { get; set; }
+
+            /// <summary>
+            /// Gets or sets the most recently applied configuration.
+            /// </summary>
+            public ByteString LastApplied { get; set; }
+        }
+
+        /// <summary>
+        /// Models a confirmation-enabled provider without restart recovery support.
+        /// </summary>
+        private sealed class FakeNonRecoverableConfigurationFileProvider : IApplicationConfigurationFileProvider
+        {
+            /// <summary>
+            /// Initializes the fake provider with the supplied configuration.
+            /// </summary>
+            /// <param name="initial">The initial configuration content.</param>
+            public FakeNonRecoverableConfigurationFileProvider(ByteString initial)
+            {
+                CurrentConfiguration = initial;
+            }
+
+            /// <summary>
+            /// Gets the active configuration version.
+            /// </summary>
+            public uint CurrentVersion => 1;
+
+            /// <summary>
+            /// Gets the last update time.
+            /// </summary>
+            public DateTime LastUpdateTime => DateTime.UtcNow;
+
+            /// <summary>
+            /// Gets whether updates require confirmation.
+            /// </summary>
+            public bool RequiresConfirmation => true;
+
+            /// <summary>
+            /// Gets the number of validation calls.
+            /// </summary>
+            public int ValidateCount { get; private set; }
+
+            /// <summary>
+            /// Gets the number of application calls.
+            /// </summary>
+            public int ApplyCount { get; private set; }
+
+            /// <summary>
+            /// Gets the current configuration content.
+            /// </summary>
+            public ByteString CurrentConfiguration { get; private set; }
+
+            /// <summary>
+            /// Reads the current configuration content.
+            /// </summary>
+            public ValueTask<ByteString> ReadConfigurationAsync(CancellationToken cancellationToken = default)
+            {
+                return new ValueTask<ByteString>(CurrentConfiguration);
+            }
+
+            /// <summary>
+            /// Records validation of configuration content.
+            /// </summary>
+            public ValueTask ValidateConfigurationAsync(
+                ByteString configuration,
+                CancellationToken cancellationToken = default)
+            {
+                ValidateCount++;
+                return default;
+            }
+
+            /// <summary>
+            /// Applies configuration content.
+            /// </summary>
+            public ValueTask ApplyConfigurationAsync(
+                ByteString configuration,
+                CancellationToken cancellationToken = default)
+            {
+                ApplyCount++;
+                CurrentConfiguration = configuration;
+                return default;
+            }
+
+            /// <summary>
+            /// Completes the provider's confirmation operation.
+            /// </summary>
+            public ValueTask ConfirmUpdateAsync(CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
+
+            /// <summary>
+            /// Completes the provider's reversion operation.
+            /// </summary>
+            public ValueTask RevertUpdateAsync(CancellationToken cancellationToken = default)
+            {
                 return default;
             }
         }

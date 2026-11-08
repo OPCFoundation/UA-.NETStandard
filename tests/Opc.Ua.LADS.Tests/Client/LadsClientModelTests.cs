@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -302,9 +302,15 @@ namespace Opc.Ua.LADS.Tests.Client
 
             Assert.Multiple(() =>
             {
-                Assert.That(members.Count, Is.EqualTo(11));
+                Assert.That(members.Count, Is.EqualTo(15));
                 Assert.That(members[0], Is.EqualTo(LadsFunctionMembers.IsEnabled));
                 Assert.That(LadsFunctionMembers.ControlFunctionState, Is.EqualTo("ControlFunctionState/CurrentState"));
+                Assert.That(members[9], Is.EqualTo(LadsFunctionMembers.CtrlP));
+                Assert.That(members[10], Is.EqualTo(LadsFunctionMembers.CtrlTi));
+                Assert.That(members[11], Is.EqualTo(LadsFunctionMembers.CtrlTd));
+                Assert.That(members[13], Is.EqualTo(LadsFunctionMembers.RunningState));
+                Assert.That(LadsFunctionMembers.RunningState,
+                    Is.EqualTo("ControlFunctionState/RunningStateMachine/CurrentState"));
                 Assert.That(LadsFunctionMembers.CoverState, Is.EqualTo("CoverState/CurrentState"));
             });
         }

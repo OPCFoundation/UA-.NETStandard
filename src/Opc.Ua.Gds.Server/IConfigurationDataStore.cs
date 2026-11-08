@@ -82,10 +82,10 @@ namespace Opc.Ua.Gds.Server
     /// provides a simple in-process implementation for testing.
     /// </para>
     /// <para>
-    /// The store is used by <see cref="DefaultManagedApplicationsNodeManager"/>
-    /// to enumerate managed applications at startup and to execute the
-    /// read/write/confirm transaction flow on each application's
-    /// configuration file.
+    /// The metadata-backed node manager uses the store to enumerate managed applications at startup.
+    /// Its nodes do not bind these read/write/confirm methods to a live configuration file.
+    /// Runtime-backed registrations instead supply an application-specific
+    /// <see cref="Opc.Ua.Server.IApplicationConfigurationFileProvider"/> with validation and rollback semantics.
     /// </para>
     /// </remarks>
     public interface IConfigurationDataStore

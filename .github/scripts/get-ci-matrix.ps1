@@ -489,6 +489,15 @@ function Get-TestProjectShards([string] $project, [string] $framework, [string] 
             }
             if ($framework -ne 'net48') {
                 $liveEvents = "${materialization}WotEventModesLiveTests."
+                # Live tests create RSA, P256 and P384 certificates per test, which is
+                # slow on macOS: the other integration tests took 41 minutes in one
+                # entry. The registry identity fixtures (direct and dependency
+                # injection, up to 15 minutes each) and the legacy classes (up to
+                # 19 minutes) get their own entries under the 45-minute ceiling.
+                # VSTest filters need the fixture argument parentheses escaped.
+                $registryIdentity = 'Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests'
+                $registryIdentityDi = "${registryIdentity}\(True\)"
+                $legacy = 'Opc.Ua.WotCon.Tests.WotLegacy'
                 return @(
                     @{
                         id = 'wot-materialization-core'
@@ -517,7 +526,43 @@ function Get-TestProjectShards([string] $project, [string] $framework, [string] 
                     @{
                         id = 'wot-other-integration'
                         name = 'wot-other-integration'
-                        filter = "FullyQualifiedName!~${materialization}&TestCategory=Integration"
+                        filter = @(
+                            "FullyQualifiedName!~${materialization}"
+                            'TestCategory=Integration'
+                            "FullyQualifiedName!~${registryIdentity}"
+                            "FullyQualifiedName!~${legacy}"
+                        ) -join '&'
+                        hangTimeout = ''
+                    }
+                    @{
+                        id = 'wot-other-identity-integration'
+                        name = 'wot-other-identity-integration'
+                        filter = @(
+                            "FullyQualifiedName!~${materialization}"
+                            'TestCategory=Integration'
+                            "FullyQualifiedName~${registryIdentity}"
+                            "FullyQualifiedName!~${registryIdentityDi}"
+                        ) -join '&'
+                        hangTimeout = ''
+                    }
+                    @{
+                        id = 'wot-other-identity-di-integration'
+                        name = 'wot-other-identity-di-integration'
+                        filter = @(
+                            "FullyQualifiedName!~${materialization}"
+                            'TestCategory=Integration'
+                            "FullyQualifiedName~${registryIdentityDi}"
+                        ) -join '&'
+                        hangTimeout = ''
+                    }
+                    @{
+                        id = 'wot-other-legacy-integration'
+                        name = 'wot-other-legacy-integration'
+                        filter = @(
+                            "FullyQualifiedName!~${materialization}"
+                            'TestCategory=Integration'
+                            "FullyQualifiedName~${legacy}"
+                        ) -join '&'
                         hangTimeout = ''
                     }
                 )

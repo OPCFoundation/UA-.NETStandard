@@ -112,7 +112,7 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Wraps the HttpsTransportChannel and provides an ITransportChannel implementation.
     /// </summary>
-    public class HttpsTransportChannel : ITransportChannel, ISecureChannel
+    public class HttpsTransportChannel : ITransportChannel, ISecureChannel, IHttpsServerCertificateValidation
     {
         /// <summary>
         /// limit the number of concurrent service requests on the server
@@ -178,6 +178,34 @@ namespace Opc.Ua.Bindings
 
         /// <inheritdoc/>
         public byte[] ServerChannelCertificate { get; private set; } = [];
+
+        /// <inheritdoc/>
+        public void RequireServerCertificateValidation(ByteString serverCertificate)
+        {
+            lock (m_certificatePolicyLock)
+            {
+                if (m_requestStarted || m_requireServerCertificateValidation)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidState,
+                        "The HTTPS certificate policy must be selected once, before the first request.");
+                }
+                if (m_disposed || m_client == null)
+                {
+                    throw BadNotConnected();
+                }
+
+                m_httpsServerCertificate = ByteString.From(serverCertificate.Span);
+                m_requireServerCertificateValidation = true;
+                if (m_disposeClient)
+                {
+                    m_client.Dispose();
+                }
+                m_client = null;
+                m_client = CreateDirectHttpClient();
+                m_disposeClient = true;
+            }
+        }
 
         /// <inheritdoc/>
         public event ChannelTokenActivatedEventHandler OnTokenActivated
@@ -250,6 +278,10 @@ namespace Opc.Ua.Bindings
             IServiceRequest request,
             CancellationToken ct)
         {
+            lock (m_certificatePolicyLock)
+            {
+                m_requestStarted = true;
+            }
             if (m_disposed)
             {
                 // right now this can happen if Dispose is called
@@ -545,8 +577,15 @@ namespace Opc.Ua.Bindings
             }
         }
 
+        /// <summary>
+        /// Determines whether the configured HTTP pipeline can enforce this channel's certificate policy.
+        /// </summary>
         private bool CanUseHttpClientFactory()
         {
+            if (m_requireServerCertificateValidation)
+            {
+                return false;
+            }
             // SECURITY: The factory path returns a named HttpClient configured
             // purely with standard HTTP middleware (e.g. Polly resilience). Its
             // underlying HttpClientHandler is NOT exposed for us to attach the
@@ -589,6 +628,8 @@ namespace Opc.Ua.Bindings
                 {
                     ClientCertificateOptions = ClientCertificateOption.Manual,
                     AllowAutoRedirect = false,
+                    CheckCertificateRevocationList =
+                        m_requireServerCertificateValidation && m_httpsServerCertificate.IsEmpty,
                     // limit the number of concurrent connections, if supported
                     MaxConnectionsPerServer = kMaxConnectionsPerServer,
                     MaxRequestContentBufferSize = m_quotas!.MaxMessageSize
@@ -656,6 +697,34 @@ namespace Opc.Ua.Bindings
                                 throw new ServiceResultException(
                                     StatusCodes.BadCertificateHostNameInvalid,
                                     "The HTTPS certificate host name does not match the endpoint.");
+                            }
+
+                            if (m_requireServerCertificateValidation)
+                            {
+                                if (cert == null ||
+                                    (sslPolicyErrors & SslPolicyErrors.RemoteCertificateNotAvailable) != 0)
+                                {
+                                    return false;
+                                }
+                                if (m_httpsServerCertificate.IsEmpty)
+                                {
+                                    if (sslPolicyErrors != SslPolicyErrors.None)
+                                    {
+                                        return false;
+                                    }
+                                }
+                                else
+                                {
+                                    DateTime utcNow = m_timeProvider.GetUtcNow().UtcDateTime;
+                                    if (!cert.RawData.AsSpan().SequenceEqual(m_httpsServerCertificate.Span) ||
+                                        utcNow < cert.NotBefore.ToUniversalTime() ||
+                                        utcNow > cert.NotAfter.ToUniversalTime())
+                                    {
+                                        return false;
+                                    }
+                                }
+                                ServerChannelCertificate = cert.RawData;
+                                return true;
                             }
 
                             if (chain != null && chain.ChainElements != null)
@@ -735,6 +804,12 @@ namespace Opc.Ua.Bindings
                 }
                 catch (PlatformNotSupportedException)
                 {
+                    if (m_requireServerCertificateValidation)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadNotSupported,
+                            "This platform cannot enforce the selected HTTPS certificate policy.");
+                    }
                     // client may throw if not supported (e.g. UWP)
                     serverCertificateCustomValidationCallback = null;
                 }
@@ -776,6 +851,18 @@ namespace Opc.Ua.Bindings
         private TransportChannelSettings? m_settings;
         private ChannelQuotas? m_quotas;
         private HttpClient? m_client;
+
+        /// <summary>Serializes selection of the immutable TLS policy with the first request.</summary>
+        private readonly System.Threading.Lock m_certificatePolicyLock = new();
+
+        /// <summary>Whether a request has started using the selected HTTP pipeline.</summary>
+        private bool m_requestStarted;
+
+        /// <summary>Whether independent per-handshake TLS authentication is required.</summary>
+        private bool m_requireServerCertificateValidation;
+
+        /// <summary>The independent TLS leaf pin, or empty for OS trust.</summary>
+        private ByteString m_httpsServerCertificate;
 
         /// <summary>
         /// Media type written to the HTTP <c>Content-Type</c> header on

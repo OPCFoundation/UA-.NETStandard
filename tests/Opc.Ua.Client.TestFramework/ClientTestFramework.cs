@@ -400,7 +400,7 @@ namespace Opc.Ua.Client.TestFramework
         {
             // start Ref server
             ServerFixture = new ServerFixture<ReferenceServer>(
-                t => new ReferenceServer(t),
+                CreateReferenceServer,
                 enableTracing,
                 disableActivityLogging)
             {
@@ -482,6 +482,14 @@ namespace Opc.Ua.Client.TestFramework
                 .ConfigureAwait(false);
             ReferenceServer.TokenValidator = TokenValidator;
             ServerFixturePort = ServerFixture.Port;
+        }
+
+        /// <summary>
+        /// Creates the reference server while retaining the shared fixture configuration and startup sequence.
+        /// </summary>
+        protected virtual ReferenceServer CreateReferenceServer(ITelemetryContext telemetry)
+        {
+            return new ReferenceServer(telemetry);
         }
 
         /// <summary>

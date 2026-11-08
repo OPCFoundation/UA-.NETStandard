@@ -1861,6 +1861,13 @@ namespace Opc.Ua.Server.Tests.Network
             m_provider.Publish(current with { Timestamp = recoveryTimestamp });
             await WaitForAsync(async () =>
             {
+                NetworkInterfaceValues restoredInterface = await m_client.ReadInterfaceAsync(
+                    physical, cancellationToken).ConfigureAwait(false);
+                if (restoredInterface.Speed.DataValue.StatusCode != StatusCodes.Good ||
+                    restoredInterface.Speed.DataValue.SourceTimestamp != (DateTimeUtc)recoveryTimestamp)
+                {
+                    return false;
+                }
                 ArrayOf<NetworkParameterValue> values = await ReadParameterSetAsync(
                     physical, ObjectTypeIds.ISrClassType, cancellationToken).ConfigureAwait(false);
                 DataValue dataValue = Parameter(values, BrowseNames.Vid).DataValue;

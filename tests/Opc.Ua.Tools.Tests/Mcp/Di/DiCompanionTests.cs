@@ -344,7 +344,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     Is.EqualTo(LockStatus.WrongClient));
                 ILockService locks = serverServices.GetRequiredService<ILockService>();
                 Assert.That(locks.GetState(deviceId).Locked, Is.True);
-                Assert.That(locks.GetState(deviceId).LockingClient, Is.EqualTo("owner-context"));
+                Assert.That(locks.GetState(deviceId).LockingClient,
+                    Is.EqualTo(sessions.Configuration!.ApplicationUri));
 
                 CallToolResult released = await commands.ReleaseLockAsync(
                     lockId.ToString(), owner, timeout.Token).ConfigureAwait(false);

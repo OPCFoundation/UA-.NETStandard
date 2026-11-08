@@ -45,19 +45,17 @@ namespace Opc.Ua.LADS.Server
         /// </summary>
         public LadsResult(
             ResultState node,
-            LadsProgramRun run,
-            LadsProgramOutcome outcome,
-            DateTimeUtc stopped,
-            ArrayOf<LadsResultFile> files,
+            LadsStoredResultData snapshot,
             List<IFileTypeBinding> bindings)
         {
             Node = node;
-            RunId = run.RunId;
-            TemplateId = run.Template.Id;
-            Outcome = outcome;
-            Started = run.Started;
-            Stopped = stopped;
-            Files = files;
+            Snapshot = snapshot;
+            RunId = snapshot.RunId;
+            TemplateId = snapshot.Template.Id;
+            Outcome = snapshot.Outcome;
+            Started = snapshot.Started;
+            Stopped = snapshot.Stopped;
+            Files = snapshot.Files;
             m_bindings = bindings;
         }
 
@@ -91,15 +89,32 @@ namespace Opc.Ua.LADS.Server
         public ResultState Node { get; }
 
         /// <summary>
+        /// Gets the completed payload detached from the executor's mutable run.
+        /// </summary>
+        internal LadsStoredResultData Snapshot { get; }
+
+        /// <summary>
         /// Releases the file bindings of the result.
         /// </summary>
         public async ValueTask DisposeAsync()
         {
+            var failures = new List<Exception>();
             foreach (IFileTypeBinding binding in m_bindings)
             {
-                await binding.DisposeAsync().ConfigureAwait(false);
+                try
+                {
+                    await binding.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception failure)
+                {
+                    failures.Add(failure);
+                }
             }
             m_bindings.Clear();
+            if (failures.Count > 0)
+            {
+                throw new AggregateException("The LADS result file cleanup failed.", failures);
+            }
         }
 
         private readonly List<IFileTypeBinding> m_bindings;
@@ -114,12 +129,28 @@ namespace Opc.Ua.LADS.Server
         /// <summary>
         /// Creates the program manager and binds its methods.
         /// </summary>
-        public LadsProgramManager(LadsFunctionalUnit unit, ProgramManagerState node)
+        public LadsProgramManager(
+            LadsFunctionalUnit unit, ProgramManagerState node, LadsTemplateOperations operations)
         {
             m_unit = unit;
             Node = node;
+            TemplateOperations = operations;
             ISystemContext context = Runtime.Context;
-            node.AddDownload(context).AddUpload(context).AddRemove(context);
+            if ((operations & LadsTemplateOperations.Download) != 0)
+            {
+                node.AddDownload(context);
+                Runtime.Bind(node.Download, OnDownloadAsync);
+            }
+            if ((operations & LadsTemplateOperations.Upload) != 0)
+            {
+                node.AddUpload(context);
+                Runtime.Bind(node.Upload, OnUploadAsync);
+            }
+            if ((operations & LadsTemplateOperations.Remove) != 0)
+            {
+                node.AddRemove(context);
+                Runtime.Bind(node.Remove, OnRemoveAsync);
+            }
             node.ProgramTemplateSet!.AddNodeVersion(context);
             node.ResultSet!.AddNodeVersion(context);
             ActiveProgramState active = node.ActiveProgram!;
@@ -133,10 +164,10 @@ namespace Opc.Ua.LADS.Server
                 .AddEstimatedStepRuntime(context)
                 .AddDeviceProgramRunId(context)
                 .AddCurrentProgramTemplate(context);
-            Runtime.Bind(node.Download, OnDownloadAsync);
-            Runtime.Bind(node.Upload, OnUploadAsync);
-            Runtime.Bind(node.Remove, OnRemoveAsync);
             ResetActiveProgram();
+            active.CurrentRuntime!.OnSimpleReadValue = ReadCurrentRuntime;
+            active.CurrentStepRuntime!.OnSimpleReadValue = ReadCurrentStepRuntime;
+            active.CurrentPauseTime!.OnSimpleReadValue = ReadCurrentPauseTime;
         }
 
         /// <inheritdoc/>
@@ -146,6 +177,11 @@ namespace Opc.Ua.LADS.Server
         /// Gets the node of the program manager.
         /// </summary>
         public ProgramManagerState Node { get; }
+
+        /// <summary>
+        /// Gets the optional client template-transfer operations selected during construction.
+        /// </summary>
+        internal LadsTemplateOperations TemplateOperations { get; }
 
         /// <summary>
         /// Gets or sets the executor of the program runs.
@@ -214,6 +250,9 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public event Action<ILadsResult>? ResultAdded;
 
+        /// <inheritdoc/>
+        public string? InterruptedRunId => m_lastInterruptedRunId;
+
         /// <summary>
         /// Gets the runtime.
         /// </summary>
@@ -231,20 +270,34 @@ namespace Opc.Ua.LADS.Server
             await m_unit.Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                m_unit.Device.RequireStorageHealthy();
                 ProgramTemplateState node = CreateTemplateNode(template);
-                if (m_unit.Device.IsPublished)
-                {
-                    await Runtime.AddNodeAsync(Node.ProgramTemplateSet!, node, cancellationToken)
-                        .ConfigureAwait(false);
-                }
-                else
-                {
-                    Node.ProgramTemplateSet!.AddChild(node);
-                }
                 lock (m_lock)
                 {
-                    m_templates.Add(template.Id, new TemplateEntry(template, node));
+                    if (m_templates.TryGetValue(template.Id, out _))
+                    {
+                        throw new ArgumentException("The program template identifier is already registered.",
+                            nameof(template));
+                    }
                 }
+                LadsStoredFunctionalUnitData stored = CaptureStoredData();
+                List<LadsStoredTemplateData> templates = stored.Templates.ToList();
+                templates.Add(CaptureTemplate(template, node));
+                stored.Templates = templates.ToArray();
+                List<string> removed = stored.RemovedTemplateIds.ToList();
+                removed.Remove(template.Id);
+                stored.RemovedTemplateIds = removed.ToArray();
+                await m_unit.Device.CommitProgramDataAsync(stored, false, TimeSpan.Zero, () =>
+                {
+                    lock (m_lock)
+                    {
+                        m_templates.Add(template.Id, new TemplateEntry(template, node));
+                        m_removedTemplates.Remove(template.Id);
+                    }
+                }, cancellationToken,
+                    () => AddProgramNodeAsync(Node.ProgramTemplateSet!, node),
+                    () => Runtime.RemoveNodeAsync(Node.ProgramTemplateSet!, node, CancellationToken.None))
+                    .ConfigureAwait(false);
                 Runtime.BumpVersion(Node.ProgramTemplateSet);
             }
             finally
@@ -261,6 +314,7 @@ namespace Opc.Ua.LADS.Server
             await m_unit.Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                m_unit.Device.RequireStorageHealthy();
                 TemplateEntry? entry;
                 lock (m_lock)
                 {
@@ -275,9 +329,24 @@ namespace Opc.Ua.LADS.Server
                             "The program template '{0}' is executing.",
                             templateId);
                     }
-                    m_templates.Remove(templateId);
                 }
-                await Runtime.RemoveNodeAsync(Node.ProgramTemplateSet!, entry.Node, cancellationToken)
+                LadsStoredFunctionalUnitData stored = CaptureStoredData();
+                List<LadsStoredTemplateData> templates = stored.Templates.ToList();
+                templates.RemoveAll(template => template.Id == templateId);
+                stored.Templates = templates.ToArray();
+                List<string> removed = stored.RemovedTemplateIds.ToList();
+                removed.Add(templateId);
+                stored.RemovedTemplateIds = removed.ToArray();
+                await m_unit.Device.CommitProgramDataAsync(stored, false, TimeSpan.Zero, () =>
+                {
+                    lock (m_lock)
+                    {
+                        m_templates.Remove(templateId);
+                        m_removedTemplates.Add(templateId);
+                    }
+                }, cancellationToken,
+                    () => Runtime.RemoveNodeAsync(Node.ProgramTemplateSet!, entry.Node, CancellationToken.None),
+                    () => AddProgramNodeAsync(Node.ProgramTemplateSet!, entry.Node))
                     .ConfigureAwait(false);
                 Runtime.BumpVersion(Node.ProgramTemplateSet);
                 return true;
@@ -298,6 +367,7 @@ namespace Opc.Ua.LADS.Server
             CancellationToken cancellationToken = default)
         {
             await m_unit.Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            bool stateAdmissionGateHeld = false;
             try
             {
                 ThrowIfDisposed();
@@ -319,9 +389,14 @@ namespace Opc.Ua.LADS.Server
                             "The program template '{0}' does not exist.",
                             templateId ?? string.Empty);
                     }
-                    template = entry.Template;
+                    template = CopyTemplate(entry.Template, entry.Node);
                 }
-                m_unit.Functional.Require(LadsFunctionalStateValue.Stopped);
+                await m_unit.Device.ConfirmReadinessAsync(cancellationToken).ConfigureAwait(false);
+                await m_unit.Device.AcquireStateAdmissionAsync(cancellationToken).ConfigureAwait(false);
+                stateAdmissionGateHeld = true;
+                m_unit.Device.RegisterAdmittedStart(m_unit);
+                await m_unit.Device.EnterFunctionalUnitWithAdmissionHeldAsync(m_unit, cancellationToken)
+                    .ConfigureAwait(false);
                 string runId = Guid.NewGuid().ToString("N");
                 LadsProgramRun? self = null;
                 var run = new LadsProgramRun(
@@ -334,32 +409,114 @@ namespace Opc.Ua.LADS.Server
                     samples,
                     Runtime.TimeProvider.GetUtcNow(),
                     Runtime.TimeProvider,
-                    (number, name) => OnStep(self, number, name));
+                    (number, name) => OnStep(self, number, name),
+                    (number, name, notificationToken) =>
+                        OnStepAsync(self, number, name, notificationToken));
                 self = run;
-                await m_unit.TransitionAsync(m_unit.Functional, cancellationToken, LadsFunctionalStateValue.Running)
-                    .ConfigureAwait(false);
-                m_unit.Running.SetState(LadsRunningStateValue.Idle);
-                await m_unit.Running.TransitionThroughAsync(
+                await m_unit.TransitionAsync(
+                    m_unit.Running,
                     CancellationToken.None,
                     LadsRunningStateValue.Starting,
                     LadsRunningStateValue.Execute).ConfigureAwait(false);
-                PublishActiveProgram(run);
-                var active = new ActiveRunEntry(run, CancellationTokenSource.CreateLinkedTokenSource(Runtime.Stopping));
-                lock (m_lock)
+                var active = new ActiveRunEntry(
+                    run, CancellationTokenSource.CreateLinkedTokenSource(Runtime.Stopping));
+                LadsStoredFunctionalUnitData stored = CaptureStoredData();
+                stored.InterruptedRunId = runId;
+                bool executionStarted = false;
+                try
                 {
-                    m_waiters[runId] = new TaskCompletionSource<ILadsResult>(
-                        TaskCreationOptions.RunContinuationsAsynchronously);
+                    await m_unit.Device.CommitProgramDataAsync(stored, false, TimeSpan.Zero, () =>
+                    {
+                        lock (m_lock)
+                        {
+                            m_storedInterruptedRunId = runId;
+                        }
+                    }, cancellationToken, quarantineOwner: m_unit, stateAdmissionGateHeld: true)
+                        .ConfigureAwait(false);
+                    m_unit.Device.StartProgram(this, active);
+                    await Node.ActiveProgram!.ClearChangeMasksAsync(
+                        Runtime.Context, true, CancellationToken.None).ConfigureAwait(false);
+                    m_unit.Device.RequireStorageHealthy();
+                    Runtime.Logger.ProgramStarted(m_unit.Name, runId, template.Id);
+                    _ = m_unit.Device.ScheduleProgramExecution(async () =>
+                    {
+                        try
+                        {
+                            await ExecuteAsync(active).ConfigureAwait(false);
+                            active.Complete();
+                        }
+                        catch (Exception failure)
+                        {
+                            active.Complete(failure);
+                        }
+                    });
+                    executionStarted = true;
+                    await m_unit.UpdateRunningExecutabilityAsync(CancellationToken.None).ConfigureAwait(false);
+                    m_unit.Device.RequireStorageHealthy();
                 }
-                Runtime.Logger.ProgramStarted(m_unit.Name, runId, template.Id);
-                active.Completion = Task.Run(() => ExecuteAsync(active), CancellationToken.None);
-                lock (m_lock)
+                catch (Exception startFailure)
                 {
-                    m_active = active;
+                    var failures = new List<Exception> { startFailure };
+                    try
+                    {
+                        if (!executionStarted)
+                        {
+                            TaskCompletionSource<ILadsResult>? waiter;
+                            bool activeProgramPublished;
+                            lock (m_lock)
+                            {
+                                activeProgramPublished = ReferenceEquals(m_active, active);
+                                if (activeProgramPublished)
+                                {
+                                    m_active = null;
+                                }
+                                m_waiters.TryGetValue(runId, out waiter);
+                                m_waiters.Remove(runId);
+                            }
+                            waiter?.TrySetException(startFailure);
+                            active.Cancellation.Dispose();
+                            if (activeProgramPublished)
+                            {
+                                await ResetActiveProgramAsync().ConfigureAwait(false);
+                            }
+                        }
+                        else
+                        {
+                            active.RequestEnd(LadsProgramOutcome.Aborted);
+                        }
+                    }
+                    catch (Exception cleanupFailure)
+                    {
+                        failures.Add(cleanupFailure);
+                    }
+                    try
+                    {
+                        await m_unit.Device.RecordExecutionFailureAsync(m_unit).ConfigureAwait(false);
+                    }
+                    catch (Exception stateFailure)
+                    {
+                        failures.Add(stateFailure);
+                    }
+                    if (!executionStarted)
+                    {
+                        active.Complete(failures.Count > 1
+                            ? new AggregateException("The LADS program start and cleanup failed.", failures)
+                            : startFailure);
+                    }
+                    if (failures.Count > 1)
+                    {
+                        throw new AggregateException("The LADS program start and cleanup failed.", failures);
+                    }
+                    throw;
                 }
                 return runId;
             }
             finally
             {
+                if (stateAdmissionGateHeld)
+                {
+                    m_unit.Device.ReleaseStateAdmission(m_unit);
+                }
                 m_unit.Gate.Release();
             }
         }
@@ -403,6 +560,7 @@ namespace Opc.Ua.LADS.Server
             await m_unit.Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                m_unit.Device.RequireStorageHealthy();
                 LadsResult? result;
                 lock (m_lock)
                 {
@@ -411,9 +569,21 @@ namespace Opc.Ua.LADS.Server
                     {
                         return false;
                     }
-                    m_results.Remove(result);
                 }
-                await ReleaseResultAsync(result, cancellationToken).ConfigureAwait(false);
+                LadsStoredFunctionalUnitData stored = CaptureStoredData();
+                List<LadsStoredResultData> results = stored.Results.ToList();
+                results.RemoveAll(candidate => candidate.RunId == runId);
+                stored.Results = results.ToArray();
+                await m_unit.Device.CommitProgramDataAsync(stored, false, TimeSpan.Zero, () =>
+                {
+                    lock (m_lock)
+                    {
+                        m_results.Remove(result);
+                    }
+                }, cancellationToken,
+                    () => Runtime.RemoveNodeAsync(Node.ResultSet!, result.Node, CancellationToken.None),
+                    () => AddProgramNodeAsync(Node.ResultSet!, result.Node)).ConfigureAwait(false);
+                await ReleaseResultsAsync([result]).ConfigureAwait(false);
                 Runtime.BumpVersion(Node.ResultSet);
                 return true;
             }
@@ -441,6 +611,196 @@ namespace Opc.Ua.LADS.Server
         }
 
         /// <summary>
+        /// Captures completed results and their file bytes as one device-store snapshot.
+        /// </summary>
+        internal LadsStoredFunctionalUnitData CaptureStoredData(LadsResult? pending = null)
+        {
+            lock (m_lock)
+            {
+                var templates = new List<LadsStoredTemplateData>(m_templates.Count);
+                foreach (TemplateEntry entry in m_templates.Values)
+                {
+                    templates.Add(CaptureTemplate(entry.Template, entry.Node));
+                }
+                var retained = new List<LadsResult>(m_results);
+                if (pending != null)
+                {
+                    retained.Add(pending);
+                    int excess = retained.Count - Runtime.Options.MaxRetainedResults;
+                    if (excess > 0)
+                    {
+                        retained.RemoveRange(0, excess);
+                    }
+                }
+                var results = new LadsStoredResultData[retained.Count];
+                for (int index = 0; index < results.Length; index++)
+                {
+                    LadsResult result = retained[index];
+                    results[index] = result.Snapshot;
+                }
+                return new LadsStoredFunctionalUnitData
+                {
+                    Name = m_unit.Name,
+                    Templates = templates.ToArray(),
+                    Results = results,
+                    RemovedTemplateIds = new List<string>(m_removedTemplates).ToArray(),
+                    InterruptedRunId = pending == null ? m_storedInterruptedRunId : null,
+                    LastInterruptedRunId = m_lastInterruptedRunId
+                };
+            }
+        }
+
+        /// <summary>
+        /// Restores dynamic nodes before registration without starting the executor.
+        /// Configured template content wins conflicts; persisted explicit removals remain removed.
+        /// </summary>
+        internal async ValueTask RestoreStoredDataAsync(
+            LadsStoredFunctionalUnitData data,
+            CancellationToken cancellationToken)
+        {
+            ArrayOf<string> removed = data.RemovedTemplateIds;
+            for (int index = 0; index < removed.Count; index++)
+            {
+                string id = removed[index];
+                if (m_templates.TryGetValue(id, out TemplateEntry? entry))
+                {
+                    Node.ProgramTemplateSet!.RemoveChild(entry.Node);
+                    m_templates.Remove(id);
+                }
+                m_removedTemplates.Add(id);
+            }
+            ArrayOf<LadsStoredTemplateData> templates = data.Templates;
+            for (int index = 0; index < templates.Count; index++)
+            {
+                LadsStoredTemplateData stored = templates[index];
+                if (m_templates.TryGetValue(stored.Id, out TemplateEntry? configured))
+                {
+                    if (configured.Template.Created == DateTimeUtc.MinValue)
+                    {
+                        configured.Template.Created = stored.Created;
+                        configured.Node.Created!.Value = stored.Created;
+                    }
+                    if (configured.Template.Modified == DateTimeUtc.MinValue &&
+                        configured.Template.ToContent().Equals(stored.Content))
+                    {
+                        configured.Template.Modified = stored.Modified;
+                        configured.Node.Modified!.Value = stored.Modified;
+                    }
+                }
+                else if (!m_removedTemplates.Contains(stored.Id))
+                {
+                    AddTemplateNode(RestoreTemplate(stored));
+                }
+            }
+            ArrayOf<LadsStoredResultData> results = data.Results;
+            int first = Math.Max(0, results.Count - Runtime.Options.MaxRetainedResults);
+            for (int index = first; index < results.Count; index++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                LadsStoredResultData stored = results[index];
+                var run = new LadsProgramRun(stored.RunId, m_unit, RestoreTemplate(stored.Template),
+                    stored.Properties, stored.SupervisoryJobId, stored.SupervisoryTaskId, stored.Samples,
+                    stored.Started, Runtime.TimeProvider, static (_, _) => { },
+                    static (_, _, _) => default);
+                ArrayOf<LadsResultFile> files = stored.Files;
+                for (int fileIndex = 0; fileIndex < files.Count; fileIndex++)
+                {
+                    LadsResultFile file = files[fileIndex];
+                    if (file.Content.Length > Runtime.Options.MaxResultFileBytes)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                    }
+                    run.AddResultFile(file.Name, file.MimeType, file.Content);
+                }
+                ArrayOf<KeyValueType> variables = stored.Variables;
+                for (int variableIndex = 0; variableIndex < variables.Count; variableIndex++)
+                {
+                    KeyValueType variable = variables[variableIndex];
+                    run.SetResultVariable(variable.Key ?? string.Empty, variable.Value ?? string.Empty);
+                }
+                run.ExecutionFinished();
+                LadsResult result = await CreateResultAsync(run, stored.Outcome, stored.Stopped, stored)
+                    .ConfigureAwait(false);
+                Node.ResultSet!.AddChild(result.Node);
+                m_results.Add(result);
+            }
+            m_storedInterruptedRunId = data.InterruptedRunId;
+            m_lastInterruptedRunId = data.InterruptedRunId ?? data.LastInterruptedRunId;
+        }
+
+        /// <summary>
+        /// Clears the recovered pending marker after the device's readiness acknowledgement has been saved.
+        /// </summary>
+        internal void AcknowledgeInterruptedExecution()
+        {
+            lock (m_lock)
+            {
+                m_storedInterruptedRunId = null;
+            }
+        }
+
+        /// <summary>
+        /// Copies the recipe and published metadata without a text-format round trip.
+        /// </summary>
+        private static LadsProgramTemplate CopyTemplate(LadsProgramTemplate template, ProgramTemplateState node)
+        {
+            var copy = new LadsProgramTemplate(template.Id)
+            {
+                Author = template.Author,
+                Version = template.Version,
+                Description = template.Description,
+                SupervisoryTemplateId = template.SupervisoryTemplateId,
+                Created = node.Created!.Value,
+                Modified = node.Modified!.Value
+            };
+            foreach (LadsProgramStep step in template.Steps)
+            {
+                var setpoints = new LadsSetpoint[step.Setpoints.Count];
+                for (int index = 0; index < setpoints.Length; index++)
+                {
+                    LadsSetpoint setpoint = step.Setpoints[index];
+                    setpoints[index] = new LadsSetpoint(setpoint.FunctionName, setpoint.Value);
+                }
+                copy.Step(new LadsProgramStep(step.Name, step.Duration, setpoints));
+            }
+            return copy;
+        }
+
+        /// <summary>
+        /// Captures template content and the metadata actually published on its node.
+        /// </summary>
+        private static LadsStoredTemplateData CaptureTemplate(
+            LadsProgramTemplate template, ProgramTemplateState node)
+        {
+            return new LadsStoredTemplateData
+            {
+                Id = template.Id,
+                Content = template.ToContent(),
+                Author = template.Author,
+                Version = template.Version,
+                Description = template.Description,
+                SupervisoryTemplateId = template.SupervisoryTemplateId,
+                Created = node.Created!.Value,
+                Modified = node.Modified!.Value
+            };
+        }
+
+        /// <summary>
+        /// Reconstructs a template without applying any setpoints.
+        /// </summary>
+        private static LadsProgramTemplate RestoreTemplate(LadsStoredTemplateData stored)
+        {
+            LadsProgramTemplate template = LadsProgramTemplate.Parse(stored.Id, stored.Content);
+            template.Author = stored.Author;
+            template.Version = stored.Version;
+            template.Description = stored.Description;
+            template.SupervisoryTemplateId = stored.SupervisoryTemplateId;
+            template.Created = stored.Created;
+            template.Modified = stored.Modified;
+            return template;
+        }
+
+        /// <summary>
         /// Ends the active run with an outcome and waits until its result is published. Returns false
         /// when no program runs.
         /// </summary>
@@ -457,21 +817,89 @@ namespace Opc.Ua.LADS.Server
             {
                 return false;
             }
-            active.RequestEnd(outcome);
-            Task? completion = active.Completion;
-            if (completion != null)
+            bool accepted = active.RequestEnd(outcome);
+            Task completion = active.Completion;
+            var cancelled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using (cancellationToken.Register(() => cancelled.TrySetResult(true)))
             {
-                var cancelled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-                using (cancellationToken.Register(() => cancelled.TrySetResult(true)))
+                Task completed = await Task.WhenAny(completion, cancelled.Task).ConfigureAwait(false);
+                if (!ReferenceEquals(completed, completion))
                 {
-                    Task completed = await Task.WhenAny(completion, cancelled.Task).ConfigureAwait(false);
-                    if (!ReferenceEquals(completed, completion))
-                    {
-                        throw new OperationCanceledException(cancellationToken);
-                    }
+                    throw new OperationCanceledException(cancellationToken);
                 }
             }
-            return true;
+            await completion.ConfigureAwait(false);
+            return accepted;
+        }
+
+        /// <summary>
+        /// Requests abort when device storage is quarantined and returns the run lifetime for
+        /// callers that must drain an admitted start before publishing device shutdown.
+        /// </summary>
+        internal (Task? Completion, Exception? Failure) RequestQuarantineAbort()
+        {
+            ActiveRunEntry? active;
+            lock (m_lock)
+            {
+                active = m_active;
+            }
+            if (active == null)
+            {
+                return (null, null);
+            }
+            try
+            {
+                active.RequestEnd(LadsProgramOutcome.Aborted);
+                return (active.Completion, null);
+            }
+            catch (Exception failure)
+            {
+                return (active.Completion, failure);
+            }
+        }
+
+        /// <summary>
+        /// Applies execution control with cancellation linked to Stop, Abort and server shutdown.
+        /// </summary>
+        internal async ValueTask<ServiceResult> ChangeExecutionAsync(
+            LadsProgramRun run,
+            LadsRunningStateValue target,
+            CancellationToken cancellationToken)
+        {
+            ActiveRunEntry active;
+            lock (m_lock)
+            {
+                active = m_active ?? throw new ServiceResultException(StatusCodes.BadInvalidState);
+            }
+            if (!ReferenceEquals(active.Run, run) || Executor is not ILadsControlledProgramExecutor executor)
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported);
+            }
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken, active.Cancellation.Token);
+            try
+            {
+                ServiceResult acknowledgment = await executor.ChangeExecutionAsync(run, target, linked.Token)
+                    .ConfigureAwait(false);
+                if (target == LadsRunningStateValue.Completing && ServiceResult.IsBad(acknowledgment))
+                {
+                    active.RecordExecutionFailure();
+                }
+                return acknowledgment;
+            }
+            catch (OperationCanceledException failure) when (linked.IsCancellationRequested)
+            {
+                throw new OperationCanceledException(
+                    "The LADS execution-control request was cancelled.", failure, linked.Token);
+            }
+            catch
+            {
+                if (target == LadsRunningStateValue.Completing)
+                {
+                    active.RecordExecutionFailure();
+                }
+                throw;
+            }
         }
 
         /// <summary>
@@ -506,6 +934,7 @@ namespace Opc.Ua.LADS.Server
         /// </summary>
         public async ValueTask DisposeAsync()
         {
+            var failures = new List<Exception>();
             ActiveRunEntry? active;
             lock (m_lock)
             {
@@ -518,10 +947,21 @@ namespace Opc.Ua.LADS.Server
             }
             if (active != null)
             {
-                active.RequestEnd(LadsProgramOutcome.Aborted);
-                if (active.Completion != null)
+                try
+                {
+                    active.RequestEnd(LadsProgramOutcome.Aborted);
+                }
+                catch (Exception failure)
+                {
+                    failures.Add(failure);
+                }
+                try
                 {
                     await active.Completion.ConfigureAwait(false);
+                }
+                catch (Exception failure)
+                {
+                    failures.Add(failure);
                 }
             }
             LadsResult[] results;
@@ -530,9 +970,17 @@ namespace Opc.Ua.LADS.Server
                 results = [.. m_results];
                 m_results.Clear();
             }
-            foreach (LadsResult result in results)
+            try
             {
-                await result.DisposeAsync().ConfigureAwait(false);
+                await ReleaseResultsAsync(results).ConfigureAwait(false);
+            }
+            catch (Exception failure)
+            {
+                failures.Add(failure);
+            }
+            if (failures.Count > 0)
+            {
+                throw new AggregateException("The LADS program manager cleanup failed.", failures);
             }
         }
 
@@ -542,10 +990,23 @@ namespace Opc.Ua.LADS.Server
         private async Task ExecuteAsync(ActiveRunEntry active)
         {
             LadsProgramOutcome outcome;
+            bool executionFailed = false;
             try
             {
+                m_unit.Device.RequireStorageHealthy();
                 await Executor.ExecuteAsync(active.Run, active.Cancellation.Token).ConfigureAwait(false);
-                outcome = LadsProgramOutcome.Completed;
+                if (active.Cancellation.IsCancellationRequested)
+                {
+                    outcome = active.RequestedOutcome;
+                }
+                else
+                {
+                    active.Run.ExecutionFinished();
+                    bool acknowledged = await m_unit.WaitForCompletionAcknowledgmentAsync(active.Cancellation.Token)
+                        .ConfigureAwait(false);
+                    executionFailed = !acknowledged;
+                    outcome = active.GetCompletionOutcome(acknowledged);
+                }
             }
             catch (OperationCanceledException) when (active.Cancellation.IsCancellationRequested)
             {
@@ -555,10 +1016,18 @@ namespace Opc.Ua.LADS.Server
             {
                 Runtime.Logger.ProgramFailed(active.Run.RunId, ex);
                 outcome = LadsProgramOutcome.Aborted;
+                executionFailed = true;
+            }
+            active.Run.ExecutionFinished();
+            if (outcome == LadsProgramOutcome.Completed &&
+                m_unit.Running.Current is not (LadsRunningStateValue.Execute or LadsRunningStateValue.Completing))
+            {
+                outcome = LadsProgramOutcome.Aborted;
+                executionFailed = true;
             }
             try
             {
-                await FinishAsync(active, outcome).ConfigureAwait(false);
+                await FinishAsync(active, outcome, executionFailed).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -566,11 +1035,14 @@ namespace Opc.Ua.LADS.Server
                 TaskCompletionSource<ILadsResult>? waiter;
                 lock (m_lock)
                 {
-                    m_active = null;
+                    if (ReferenceEquals(m_active, active))
+                    {
+                        m_active = null;
+                    }
                     m_waiters.TryGetValue(active.Run.RunId, out waiter);
-                    m_waiters.Remove(active.Run.RunId);
                 }
                 waiter?.TrySetException(ex);
+                throw;
             }
             finally
             {
@@ -581,74 +1053,146 @@ namespace Opc.Ua.LADS.Server
         /// <summary>
         /// Moves the state machines to the end state of the run and publishes the result.
         /// </summary>
-        private async Task FinishAsync(ActiveRunEntry active, LadsProgramOutcome outcome)
+        private async Task FinishAsync(ActiveRunEntry active, LadsProgramOutcome outcome, bool executionFailed)
         {
             LadsProgramRun run = active.Run;
             await m_unit.Gate.WaitAsync().ConfigureAwait(false);
             LadsResult? result = null;
             LadsResult[] pruned = [];
+            Exception? failure = null;
             try
             {
+                outcome = active.BeginFinalization(outcome, executionFailed);
+                if (outcome != LadsProgramOutcome.Completed)
+                {
+                    m_unit.CancelExecutionControl();
+                }
                 DateTimeUtc stopped = Runtime.TimeProvider.GetUtcNow();
                 switch (outcome)
                 {
                     case LadsProgramOutcome.Completed:
-                        await ForceAsync(
-                            m_unit.Running,
-                            LadsRunningStateValue.Completing,
-                            LadsRunningStateValue.Complete).ConfigureAwait(false);
-                        await ForceAsync(
-                            m_unit.Functional,
-                            LadsFunctionalStateValue.Stopping,
-                            LadsFunctionalStateValue.Stopped).ConfigureAwait(false);
-                        m_unit.Device.IncrementOperationCycles();
+                        if (!m_unit.CompleteLifecycle)
+                        {
+                            await ForceAsync(
+                                m_unit.Running,
+                                LadsRunningStateValue.Completing,
+                                LadsRunningStateValue.Complete).ConfigureAwait(false);
+                        }
+                        else if (m_unit.Running.Current != LadsRunningStateValue.Completing)
+                        {
+                            await m_unit.TransitionAsync(
+                                m_unit.Running, CancellationToken.None, LadsRunningStateValue.Completing)
+                                .ConfigureAwait(false);
+                        }
+                        if (m_unit.CompleteLifecycle)
+                        {
+                            await m_unit.TransitionAsync(
+                                m_unit.Running, CancellationToken.None, LadsRunningStateValue.Complete)
+                                .ConfigureAwait(false);
+                        }
+                        if (!m_unit.CompleteLifecycle)
+                        {
+                            await ForceAsync(
+                                m_unit.Functional,
+                                LadsFunctionalStateValue.Stopping,
+                                LadsFunctionalStateValue.Stopped).ConfigureAwait(false);
+                        }
                         break;
                     case LadsProgramOutcome.Stopped:
                         await ForceAsync(
                             m_unit.Functional,
                             LadsFunctionalStateValue.Stopping,
                             LadsFunctionalStateValue.Stopped).ConfigureAwait(false);
-                        m_unit.Running.SetState(LadsRunningStateValue.Idle);
+                        await m_unit.Running.SetStateAsync(
+                            LadsRunningStateValue.Idle, CancellationToken.None).ConfigureAwait(false);
                         break;
                     default:
                         await ForceAsync(
                             m_unit.Functional,
                             LadsFunctionalStateValue.Aborting,
                             LadsFunctionalStateValue.Aborted).ConfigureAwait(false);
-                        m_unit.Running.SetState(LadsRunningStateValue.Idle);
+                        await m_unit.Running.SetStateAsync(
+                            LadsRunningStateValue.Idle, CancellationToken.None).ConfigureAwait(false);
                         break;
                 }
-                m_unit.Device.AddOperationDuration(stopped - run.Started);
-                UpdateRuntime(run);
+                await UpdateRuntimeAsync(run).ConfigureAwait(false);
                 if (!Runtime.Stopping.IsCancellationRequested)
                 {
-                    result = CreateResult(run, outcome, stopped);
+                    result = await CreateResultAsync(run, outcome, stopped).ConfigureAwait(false);
+                    bool committed = false;
                     try
                     {
-                        await Runtime.AddNodeAsync(Node.ResultSet!, result.Node, CancellationToken.None)
-                            .ConfigureAwait(false);
+                        lock (m_lock)
+                        {
+                            int excess = m_results.Count + 1 - Runtime.Options.MaxRetainedResults;
+                            if (excess > 0)
+                            {
+                                pruned = [.. m_results.GetRange(0, excess)];
+                            }
+                        }
+                        await m_unit.Device.CommitProgramDataAsync(
+                            CaptureStoredData(result),
+                            outcome == LadsProgramOutcome.Completed,
+                            run.CurrentRuntime + run.TotalPauseTime,
+                            () =>
+                            {
+                                lock (m_lock)
+                                {
+                                    m_results.Add(result);
+                                    m_storedInterruptedRunId = null;
+                                    if (pruned.Length > 0)
+                                    {
+                                        m_results.RemoveRange(0, pruned.Length);
+                                    }
+                                }
+                            },
+                            CancellationToken.None,
+                            async () =>
+                            {
+                                await AddProgramNodeAsync(Node.ResultSet!, result.Node).ConfigureAwait(false);
+                                foreach (LadsResult old in pruned)
+                                {
+                                    await Runtime.RemoveNodeAsync(
+                                        Node.ResultSet!, old.Node, CancellationToken.None).ConfigureAwait(false);
+                                }
+                            },
+                            () => RestoreResultNodesAsync(result, pruned),
+                            quarantineOwner: m_unit).ConfigureAwait(false);
+                        committed = true;
                     }
-                    catch
+                    catch (Exception publicationFailure)
                     {
-                        await result.DisposeAsync().ConfigureAwait(false);
+                        if (!committed)
+                        {
+                            try
+                            {
+                                await result.DisposeAsync().ConfigureAwait(false);
+                            }
+                            catch (Exception cleanupFailure)
+                            {
+                                throw new AggregateException(publicationFailure, cleanupFailure);
+                            }
+                        }
                         throw;
                     }
-                    lock (m_lock)
-                    {
-                        m_results.Add(result);
-                        int excess = m_results.Count - Runtime.Options.MaxRetainedResults;
-                        if (excess > 0)
-                        {
-                            pruned = [.. m_results.GetRange(0, excess)];
-                            m_results.RemoveRange(0, excess);
-                        }
-                    }
-                    foreach (LadsResult old in pruned)
-                    {
-                        await ReleaseResultAsync(old, CancellationToken.None).ConfigureAwait(false);
-                    }
+                    await ReleaseResultsAsync(pruned).ConfigureAwait(false);
                     Runtime.BumpVersion(Node.ResultSet);
                 }
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+                try
+                {
+                    await m_unit.Device.RecordExecutionFailureAsync(m_unit).ConfigureAwait(false);
+                }
+                catch (Exception stateFailure)
+                {
+                    var combined = new AggregateException(ex, stateFailure);
+                    failure = combined;
+                    throw combined;
+                }
+                throw;
             }
             finally
             {
@@ -657,11 +1201,28 @@ namespace Opc.Ua.LADS.Server
                 {
                     m_active = null;
                     m_waiters.TryGetValue(run.RunId, out waiter);
-                    m_waiters.Remove(run.RunId);
+                    if (failure == null)
+                    {
+                        m_waiters.Remove(run.RunId);
+                    }
+                    else
+                    {
+                        if (m_lastFailedRunId != null)
+                        {
+                            m_waiters.Remove(m_lastFailedRunId);
+                        }
+                        m_lastFailedRunId = run.RunId;
+                    }
                 }
+                m_unit.UpdateRunningExecutability();
                 m_unit.Gate.Release();
-                Runtime.Logger.ProgramEnded(m_unit.Name, run.RunId, outcome);
-                if (result != null)
+                Runtime.Logger.ProgramEnded(
+                    m_unit.Name, run.RunId, failure == null ? outcome : LadsProgramOutcome.Aborted);
+                if (failure != null)
+                {
+                    waiter?.TrySetException(failure);
+                }
+                else if (result != null)
                 {
                     waiter?.TrySetResult(result);
                     ResultAdded?.Invoke(result);
@@ -694,14 +1255,19 @@ namespace Opc.Ua.LADS.Server
             }
             if (!applied)
             {
-                machine.SetState(states[states.Length - 1]);
+                await machine.SetStateAsync(states[states.Length - 1], CancellationToken.None)
+                    .ConfigureAwait(false);
             }
         }
 
         /// <summary>
         /// Creates the node of a result, including its files.
         /// </summary>
-        private LadsResult CreateResult(LadsProgramRun run, LadsProgramOutcome outcome, DateTimeUtc stopped)
+        private async ValueTask<LadsResult> CreateResultAsync(
+            LadsProgramRun run,
+            LadsProgramOutcome outcome,
+            DateTimeUtc stopped,
+            LadsStoredResultData? restored = null)
         {
             ISystemContext context = Runtime.Context;
             NodeState set = Node.ResultSet!;
@@ -715,18 +1281,38 @@ namespace Opc.Ua.LADS.Server
             node.Description!.Value = new LocalizedText(run.Template.Id + " (" + outcome + ")");
             node.SupervisoryJobId!.Value = run.SupervisoryJobId;
             node.SupervisoryTaskId!.Value = run.SupervisoryTaskId;
-            node.Samples!.Value = run.Samples;
+            var samples = new SampleInfoType[run.Samples.Count];
+            for (int index = 0; index < samples.Length; index++)
+            {
+                SampleInfoType sample = run.Samples[index];
+                samples[index] = new SampleInfoType
+                {
+                    ContainerId = sample.ContainerId,
+                    SampleId = sample.SampleId,
+                    Position = sample.Position,
+                    CustomData = sample.CustomData
+                };
+            }
+            node.Samples!.Value = samples;
             node.Started!.Value = run.Started;
             node.Stopped!.Value = stopped;
             node.User!.Value = string.Empty;
-            node.Properties!.Value = run.Properties;
+            var properties = new KeyValueType[run.Properties.Count];
+            for (int index = 0; index < properties.Length; index++)
+            {
+                KeyValueType property = run.Properties[index];
+                properties[index] = new KeyValueType { Key = property.Key, Value = property.Value };
+            }
+            node.Properties!.Value = properties;
             node.DeviceProgramRunId!.Value = run.RunId;
-            node.TotalRuntime!.Value = ((DateTime)stopped - (DateTime)run.Started).TotalMilliseconds;
-            node.TotalPauseTime!.Value = 0.0;
+            node.TotalRuntime!.Value = restored?.TotalRuntimeMilliseconds ??
+                (run.CurrentRuntime + run.TotalPauseTime).TotalMilliseconds;
+            node.TotalPauseTime!.Value = restored?.TotalPauseTimeMilliseconds ?? run.TotalPauseTime.TotalMilliseconds;
             node.EstimatedRuntime!.Value = run.Template.EstimatedRuntime.TotalMilliseconds;
             FillTemplate(node.ProgramTemplate!, run.Template);
             VariableSetState variables = node.VariableSet!;
-            foreach (KeyValueType variable in run.Variables)
+            ArrayOf<KeyValueType> resultVariables = run.Variables;
+            foreach (KeyValueType variable in resultVariables)
             {
                 if (string.IsNullOrEmpty(variable.Key))
                 {
@@ -748,44 +1334,129 @@ namespace Opc.Ua.LADS.Server
             var bindings = new List<IFileTypeBinding>();
             var files = new List<LadsResultFile>();
             ResultFileSetState fileSet = node.FileSet!;
-            foreach (LadsResultFile file in run.Files)
+            var snapshot = new LadsStoredResultData
             {
-                if (file.Content.Length > Runtime.Options.MaxResultFileBytes)
+                RunId = run.RunId,
+                Template = CaptureTemplate(run.Template, node.ProgramTemplate!),
+                Outcome = outcome,
+                Started = run.Started,
+                Stopped = stopped,
+                Properties = properties,
+                Samples = samples,
+                SupervisoryJobId = run.SupervisoryJobId,
+                SupervisoryTaskId = run.SupervisoryTaskId,
+                Variables = resultVariables,
+                TotalRuntimeMilliseconds = node.TotalRuntime.Value,
+                TotalPauseTimeMilliseconds = node.TotalPauseTime.Value
+            };
+            try
+            {
+                foreach (LadsResultFile file in run.Files)
                 {
-                    Runtime.Logger.ResultFileSkipped(m_unit.Name, file.Name);
-                    continue;
+                    if (file.Content.Length > Runtime.Options.MaxResultFileBytes)
+                    {
+                        Runtime.Logger.ResultFileSkipped(m_unit.Name, file.Name);
+                        continue;
+                    }
+                    ResultFileState fileNode = context.CreateInstanceOfResultFileType(
+                        fileSet,
+                        Runtime.InstanceName(file.Name));
+                    fileNode.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasComponent;
+                    fileNode.AddFile(context);
+                    fileNode.MimeType!.Value = file.MimeType;
+                    fileNode.Name!.Value = file.Name;
+                    fileSet.AddChild(fileNode);
+                    bindings.Add(Runtime.FileBinder.Bind(
+                        fileNode.File!,
+                        context,
+                        file.Content,
+                        maximumBytes: Runtime.Options.MaxResultFileBytes));
+                    files.Add(file);
                 }
-                ResultFileState fileNode = context.CreateInstanceOfResultFileType(
-                    fileSet,
-                    Runtime.InstanceName(file.Name));
-                fileNode.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasComponent;
-                fileNode.AddFile(context);
-                fileNode.MimeType!.Value = file.MimeType;
-                fileNode.Name!.Value = file.Name;
-                fileSet.AddChild(fileNode);
-                bindings.Add(Runtime.FileBinder.Bind(
-                    fileNode.File!,
-                    context,
-                    file.Content,
-                    maximumBytes: Runtime.Options.MaxResultFileBytes));
-                files.Add(file);
+                snapshot.Files = files.ToArray();
+                return new LadsResult(node, snapshot, bindings);
             }
-            return new LadsResult(node, run, outcome, stopped, files.ToArray(), bindings);
+            catch (Exception creationFailure)
+            {
+                try
+                {
+                    await new LadsResult(node, snapshot, bindings).DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception cleanupFailure)
+                {
+                    throw new AggregateException(creationFailure, cleanupFailure);
+                }
+                throw;
+            }
         }
 
         /// <summary>
-        /// Removes the node of a result and releases its files.
+        /// Publishes a dynamic node, or attaches it while the device is being composed.
         /// </summary>
-        private async ValueTask ReleaseResultAsync(LadsResult result, CancellationToken cancellationToken)
+        private ValueTask AddProgramNodeAsync(BaseInstanceState parent, BaseInstanceState node)
         {
+            if (m_unit.Device.IsPublished)
+            {
+                return Runtime.AddNodeAsync(parent, node, CancellationToken.None);
+            }
+            parent.RemoveChild(node);
+            parent.AddChild(node);
+            return default;
+        }
+
+        /// <summary>
+        /// Attempts every node compensation without abandoning later retained results.
+        /// </summary>
+        private async ValueTask RestoreResultNodesAsync(LadsResult result, LadsResult[] pruned)
+        {
+            var failures = new List<Exception>();
             try
             {
-                await result.DisposeAsync().ConfigureAwait(false);
+                await Runtime.RemoveNodeAsync(Node.ResultSet!, result.Node, CancellationToken.None)
+                    .ConfigureAwait(false);
             }
-            finally
+            catch (Exception failure)
             {
-                await Runtime.RemoveNodeAsync(Node.ResultSet!, result.Node, cancellationToken).ConfigureAwait(false);
+                failures.Add(failure);
+            }
+            foreach (LadsResult old in pruned)
+            {
+                try
+                {
+                    await AddProgramNodeAsync(Node.ResultSet!, old.Node).ConfigureAwait(false);
+                }
+                catch (Exception failure)
+                {
+                    failures.Add(failure);
+                }
+            }
+            if (failures.Count > 0)
+            {
+                throw new AggregateException(failures);
+            }
+        }
+
+        /// <summary>
+        /// Releases every removed result after its durable and address-space removal committed.
+        /// </summary>
+        private async ValueTask ReleaseResultsAsync(LadsResult[] results)
+        {
+            var failures = new List<Exception>();
+            foreach (LadsResult result in results)
+            {
+                try
+                {
+                    await result.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception failure)
+                {
+                    failures.Add(failure);
+                }
                 Runtime.Logger.ResultRemoved(m_unit.Name, result.Name);
+            }
+            if (failures.Count > 0)
+            {
+                throw new AggregateException(failures);
             }
         }
 
@@ -841,33 +1512,43 @@ namespace Opc.Ua.LADS.Server
         }
 
         /// <summary>
-        /// Publishes the active program of a starting run.
+        /// Assigns the active program and its waiter without dispatching observable notifications.
         /// </summary>
-        private void PublishActiveProgram(LadsProgramRun run)
+        internal void AssignActiveProgram(ActiveRunEntry entry)
         {
+            LadsProgramRun run = entry.Run;
             ActiveProgramState active = Node.ActiveProgram!;
             NodeId templateNode = default;
             lock (m_lock)
             {
-                if (m_templates.TryGetValue(run.Template.Id, out TemplateEntry? entry))
+                if (m_disposed)
                 {
-                    templateNode = entry.Node.NodeId;
+                    throw new ObjectDisposedException(nameof(LadsProgramManager));
                 }
+                if (m_templates.TryGetValue(run.Template.Id, out TemplateEntry? template))
+                {
+                    templateNode = template.Node.NodeId;
+                }
+                m_waiters[run.RunId] = new TaskCompletionSource<ILadsResult>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                m_active = entry;
             }
-            Runtime.Update(active.DeviceProgramRunId, Variant.From(run.RunId));
-            Runtime.Update(active.CurrentProgramTemplate, Variant.FromStructure(new Opc.Ua.AMB.NameNodeIdDataType
-            {
-                Name = new LocalizedText(run.Template.Id),
-                NodeId = templateNode
-            }));
-            Runtime.Update(active.EstimatedRuntime, Variant.From(run.Template.EstimatedRuntime.TotalMilliseconds));
-            Runtime.Update(active.EstimatedStepNumbers, Variant.From((uint)run.Template.Steps.Count));
-            Runtime.Update(active.CurrentStepNumber, Variant.From(0u));
-            Runtime.Update(active.CurrentStepName, Variant.From(LocalizedText.Null));
-            Runtime.Update(active.CurrentRuntime, Variant.From(0.0));
-            Runtime.Update(active.CurrentStepRuntime, Variant.From(0.0));
-            Runtime.Update(active.EstimatedStepRuntime, Variant.From(0.0));
-            Runtime.Update(active.CurrentPauseTime, Variant.From(0.0));
+            LadsRuntime.AssignValue(active.DeviceProgramRunId, Variant.From(run.RunId));
+            LadsRuntime.AssignValue(
+                active.CurrentProgramTemplate, Variant.FromStructure(new Opc.Ua.AMB.NameNodeIdDataType
+                {
+                    Name = new LocalizedText(run.Template.Id),
+                    NodeId = templateNode
+                }));
+            LadsRuntime.AssignValue(
+                active.EstimatedRuntime, Variant.From(run.Template.EstimatedRuntime.TotalMilliseconds));
+            LadsRuntime.AssignValue(active.EstimatedStepNumbers, Variant.From((uint)run.Template.Steps.Count));
+            LadsRuntime.AssignValue(active.CurrentStepNumber, Variant.From(0u));
+            LadsRuntime.AssignValue(active.CurrentStepName, Variant.From(LocalizedText.Null));
+            LadsRuntime.AssignValue(active.CurrentRuntime, Variant.From(0.0));
+            LadsRuntime.AssignValue(active.CurrentStepRuntime, Variant.From(0.0));
+            LadsRuntime.AssignValue(active.EstimatedStepRuntime, Variant.From(0.0));
+            LadsRuntime.AssignValue(active.CurrentPauseTime, Variant.From(0.0));
         }
 
         /// <summary>
@@ -875,17 +1556,34 @@ namespace Opc.Ua.LADS.Server
         /// </summary>
         private void ResetActiveProgram()
         {
+            m_unit.Device.ResetActiveProgram(this);
+            Node.ActiveProgram!.ClearChangeMasks(Runtime.Context, true);
+        }
+
+        private async ValueTask ResetActiveProgramAsync()
+        {
+            m_unit.Device.ResetActiveProgram(this);
+            await Node.ActiveProgram!.ClearChangeMasksAsync(Runtime.Context, true, CancellationToken.None)
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Clears active-program attributes without dispatching observable notifications.
+        /// </summary>
+        internal void AssignActiveProgramReset()
+        {
             ActiveProgramState active = Node.ActiveProgram!;
-            Runtime.Update(active.DeviceProgramRunId, Variant.From(string.Empty));
-            Runtime.Update(active.CurrentProgramTemplate, Variant.FromStructure(new Opc.Ua.AMB.NameNodeIdDataType()));
-            Runtime.Update(active.EstimatedRuntime, Variant.From(0.0));
-            Runtime.Update(active.EstimatedStepNumbers, Variant.From(0u));
-            Runtime.Update(active.CurrentStepNumber, Variant.From(0u));
-            Runtime.Update(active.CurrentStepName, Variant.From(LocalizedText.Null));
-            Runtime.Update(active.CurrentRuntime, Variant.From(0.0));
-            Runtime.Update(active.CurrentStepRuntime, Variant.From(0.0));
-            Runtime.Update(active.EstimatedStepRuntime, Variant.From(0.0));
-            Runtime.Update(active.CurrentPauseTime, Variant.From(0.0));
+            LadsRuntime.AssignValue(active.DeviceProgramRunId, Variant.From(string.Empty));
+            LadsRuntime.AssignValue(active.CurrentProgramTemplate,
+                Variant.FromStructure(new Opc.Ua.AMB.NameNodeIdDataType()));
+            LadsRuntime.AssignValue(active.EstimatedRuntime, Variant.From(0.0));
+            LadsRuntime.AssignValue(active.EstimatedStepNumbers, Variant.From(0u));
+            LadsRuntime.AssignValue(active.CurrentStepNumber, Variant.From(0u));
+            LadsRuntime.AssignValue(active.CurrentStepName, Variant.From(LocalizedText.Null));
+            LadsRuntime.AssignValue(active.CurrentRuntime, Variant.From(0.0));
+            LadsRuntime.AssignValue(active.CurrentStepRuntime, Variant.From(0.0));
+            LadsRuntime.AssignValue(active.EstimatedStepRuntime, Variant.From(0.0));
+            LadsRuntime.AssignValue(active.CurrentPauseTime, Variant.From(0.0));
         }
 
         /// <summary>
@@ -893,34 +1591,113 @@ namespace Opc.Ua.LADS.Server
         /// </summary>
         private void OnStep(LadsProgramRun? run, uint number, string name)
         {
+            double runtime = run?.CurrentRuntime.TotalMilliseconds ?? 0;
+            m_unit.Device.SetProgramStep(this, run, number, name, runtime);
+            Node.ActiveProgram!.ClearChangeMasks(Runtime.Context, true);
+        }
+
+        private async ValueTask OnStepAsync(
+            LadsProgramRun? run,
+            uint number,
+            string name,
+            CancellationToken cancellationToken)
+        {
+            double runtime = run?.CurrentRuntime.TotalMilliseconds ?? 0;
+            m_unit.Device.SetProgramStep(this, run, number, name, runtime);
+            await Node.ActiveProgram!.ClearChangeMasksAsync(Runtime.Context, true, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Assigns step attributes without dispatching observable notifications.
+        /// </summary>
+        internal void AssignStep(
+            LadsProgramRun? run, uint number, string name, double runtimeMilliseconds)
+        {
             ActiveProgramState active = Node.ActiveProgram!;
-            DateTimeUtc now = Runtime.TimeProvider.GetUtcNow();
-            Runtime.Update(active.CurrentStepNumber, Variant.From(number));
-            Runtime.Update(active.CurrentStepName, Variant.From(new LocalizedText(name)));
-            Runtime.Update(active.CurrentStepRuntime, Variant.From(0.0));
+            LadsRuntime.AssignValue(active.CurrentStepNumber, Variant.From(number));
+            LadsRuntime.AssignValue(active.CurrentStepName, Variant.From(new LocalizedText(name)));
+            LadsRuntime.AssignValue(active.CurrentStepRuntime, Variant.From(0.0));
             if (run != null)
             {
                 int index = (int)number - 1;
                 ArrayOf<LadsProgramStep> steps = run.Template.Steps;
                 if (index >= 0 && index < steps.Count)
                 {
-                    Runtime.Update(active.EstimatedStepRuntime, Variant.From(steps[index].Duration.TotalMilliseconds));
+                    LadsRuntime.AssignValue(
+                        active.EstimatedStepRuntime, Variant.From(steps[index].Duration.TotalMilliseconds));
                 }
-                Runtime.Update(
-                    active.CurrentRuntime,
-                    Variant.From(((DateTime)now - (DateTime)run.Started).TotalMilliseconds));
+                LadsRuntime.AssignValue(active.CurrentRuntime, Variant.From(runtimeMilliseconds));
             }
         }
 
         /// <summary>
         /// Publishes the final runtime of a run.
         /// </summary>
-        private void UpdateRuntime(LadsProgramRun run)
+        internal void UpdateRuntime(LadsProgramRun run)
         {
-            DateTimeUtc now = Runtime.TimeProvider.GetUtcNow();
-            Runtime.Update(
-                Node.ActiveProgram!.CurrentRuntime,
-                Variant.From(((DateTime)now - (DateTime)run.Started).TotalMilliseconds));
+            m_unit.Device.SetProgramRuntime(
+                this, run.CurrentRuntime.TotalMilliseconds, run.CurrentPauseTime.TotalMilliseconds,
+                run.CurrentStepRuntime.TotalMilliseconds);
+            Node.ActiveProgram!.ClearChangeMasks(Runtime.Context, true);
+        }
+
+        /// <summary>
+        /// Publishes the final runtime of a run and awaits its state notifications.
+        /// </summary>
+        internal async ValueTask UpdateRuntimeAsync(LadsProgramRun run)
+        {
+            m_unit.Device.SetProgramRuntime(
+                this, run.CurrentRuntime.TotalMilliseconds, run.CurrentPauseTime.TotalMilliseconds,
+                run.CurrentStepRuntime.TotalMilliseconds);
+            await Node.ActiveProgram!.ClearChangeMasksAsync(Runtime.Context, true, CancellationToken.None)
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Assigns measured program durations without dispatching observable notifications.
+        /// </summary>
+        internal void AssignRuntime(double runtime, double pause, double stepRuntime)
+        {
+            LadsRuntime.AssignValue(Node.ActiveProgram!.CurrentRuntime, Variant.From(runtime));
+            LadsRuntime.AssignValue(Node.ActiveProgram.CurrentPauseTime, Variant.From(pause));
+            LadsRuntime.AssignValue(Node.ActiveProgram.CurrentStepRuntime, Variant.From(stepRuntime));
+        }
+
+        /// <summary>
+        /// Computes processing time on read without a polling task.
+        /// </summary>
+        private ServiceResult ReadCurrentRuntime(ISystemContext context, NodeState node, ref Variant value)
+        {
+            if (ActiveRun is LadsProgramRun run)
+            {
+                value = Variant.From(run.CurrentRuntime.TotalMilliseconds);
+            }
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Computes step processing time on read.
+        /// </summary>
+        private ServiceResult ReadCurrentStepRuntime(ISystemContext context, NodeState node, ref Variant value)
+        {
+            if (ActiveRun is LadsProgramRun run)
+            {
+                value = Variant.From(run.CurrentStepRuntime.TotalMilliseconds);
+            }
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Computes accumulated pause time on read.
+        /// </summary>
+        private ServiceResult ReadCurrentPauseTime(ISystemContext context, NodeState node, ref Variant value)
+        {
+            if (ActiveRun is LadsProgramRun run)
+            {
+                value = Variant.From(run.CurrentPauseTime.TotalMilliseconds);
+            }
+            return ServiceResult.Good;
         }
 
         /// <summary>
@@ -1053,7 +1830,7 @@ namespace Opc.Ua.LADS.Server
         /// <summary>
         /// The state of the active run.
         /// </summary>
-        private sealed class ActiveRunEntry
+        internal sealed class ActiveRunEntry
         {
             /// <summary>
             /// Creates the entry.
@@ -1075,9 +1852,9 @@ namespace Opc.Ua.LADS.Server
             public CancellationTokenSource Cancellation { get; }
 
             /// <summary>
-            /// Gets or sets the task that completes after the result was published.
+            /// Gets the lifetime task, available before the active entry is published.
             /// </summary>
-            public Task? Completion { get; set; }
+            public Task Completion => m_completion.Task;
 
             /// <summary>
             /// Gets the outcome requested by a stop or abort.
@@ -1094,12 +1871,71 @@ namespace Opc.Ua.LADS.Server
             }
 
             /// <summary>
-            /// Requests the end of the run. The first request determines the outcome.
+            /// Resolves completion without losing an end request when its cancellation completes
+            /// the acknowledgment with false before the acknowledgment wait observes cancellation.
             /// </summary>
-            public void RequestEnd(LadsProgramOutcome outcome)
+            public LadsProgramOutcome GetCompletionOutcome(bool acknowledged)
             {
                 lock (m_lock)
                 {
+                    return m_requested ??
+                        (acknowledged ? LadsProgramOutcome.Completed : LadsProgramOutcome.Aborted);
+                }
+            }
+
+            /// <summary>
+            /// Freezes the result outcome before changing state or publishing stored data.
+            /// Later end requests must wait for publication and use the standalone unit transition.
+            /// Execution failures take precedence over accepted end requests.
+            /// </summary>
+            public LadsProgramOutcome BeginFinalization(LadsProgramOutcome outcome, bool executionFailed = false)
+            {
+                lock (m_lock)
+                {
+                    m_finalizing = true;
+                    return executionFailed || m_executionFailed
+                        ? LadsProgramOutcome.Aborted : m_requested ?? outcome;
+                }
+            }
+
+            /// <summary>
+            /// Retains a provider failure before cancellation can interrupt its acknowledgment publication.
+            /// </summary>
+            public void RecordExecutionFailure()
+            {
+                lock (m_lock)
+                {
+                    m_executionFailed = true;
+                }
+            }
+
+            /// <summary>
+            /// Completes the lifetime after execution or startup cleanup has finished.
+            /// </summary>
+            public void Complete(Exception? failure = null)
+            {
+                if (failure == null)
+                {
+                    m_completion.TrySetResult(true);
+                }
+                else
+                {
+                    m_completion.TrySetException(failure);
+                }
+            }
+
+            /// <summary>
+            /// Requests the end of the run. The first accepted request determines the outcome.
+            /// Returns false once result finalization has started, including for stale active entries.
+            /// </summary>
+            public bool RequestEnd(LadsProgramOutcome outcome)
+            {
+                lock (m_lock)
+                {
+                    if (m_finalizing)
+                    {
+                        return false;
+                    }
                     m_requested ??= outcome;
                 }
                 try
@@ -1110,10 +1946,15 @@ namespace Opc.Ua.LADS.Server
                 {
                     // The run already ended.
                 }
+                return true;
             }
 
             private readonly Lock m_lock = new();
+            private readonly TaskCompletionSource<bool> m_completion =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
             private LadsProgramOutcome? m_requested;
+            private bool m_finalizing;
+            private bool m_executionFailed;
         }
 
         private readonly Lock m_lock = new();
@@ -1125,5 +1966,9 @@ namespace Opc.Ua.LADS.Server
         private ILadsProgramExecutor? m_executor;
         private ActiveRunEntry? m_active;
         private bool m_disposed;
+        private readonly HashSet<string> m_removedTemplates = new(StringComparer.Ordinal);
+        private string? m_storedInterruptedRunId;
+        private string? m_lastInterruptedRunId;
+        private string? m_lastFailedRunId;
     }
 }

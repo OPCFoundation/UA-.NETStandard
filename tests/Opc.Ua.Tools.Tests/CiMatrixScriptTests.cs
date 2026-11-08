@@ -625,7 +625,10 @@ namespace Opc.Ua.Tools.Tests
                         "wot-materialization-integration",
                         "wot-materialization-live-events",
                         "wot-other-core",
-                        "wot-other-integration"
+                        "wot-other-integration",
+                        "wot-other-identity-integration",
+                        "wot-other-identity-di-integration",
+                        "wot-other-legacy-integration"
                     ] : ["wot-materialization", "wot-other"];
                 Assert.That(
                     profile.Select(entry => entry.Shard),
@@ -635,7 +638,7 @@ namespace Opc.Ua.Tools.Tests
 
         /// <summary>
         /// WoT shard filters must select every eligible test exactly once on
-        /// both framework branches, preserving each profile's category exclusions.
+        /// all profiles while preserving category exclusions.
         /// </summary>
         [TestCase("pr", false, false)]
         [TestCase("pr", false, true)]
@@ -661,7 +664,15 @@ namespace Opc.Ua.Tools.Tests
                     "Opc.Ua.WotCon.Tests.Materialization.ExampleTests.ExampleAsync",
                     "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests.ExampleAsync"
                 ]
-                : ["Opc.Ua.WotCon.Tests.Registry.ExampleTests.ExampleAsync"];
+                : [
+                    "Opc.Ua.WotCon.Tests.Registry.ExampleTests.ExampleAsync",
+                    "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests.ExampleAsync",
+                    "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests(False).ExampleAsync",
+                    "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests(True).ExampleAsync",
+                    "Opc.Ua.WotCon.Tests.WotLegacyNativeAdmissionLiveTests.ExampleAsync",
+                    "Opc.Ua.WotCon.Tests.WotLegacyTypeBindingLiveTests.ExampleAsync",
+                    "Opc.Ua.WotCon.Tests.WotLegacyMaterializationLiveTests.ExampleAsync"
+                ];
             foreach (IGrouping<string, MatrixEntry> profile in wot.GroupBy(entry => entry.Profile))
             {
                 foreach (string testName in testNames)
@@ -686,6 +697,21 @@ namespace Opc.Ua.Tools.Tests
                             testName.Contains(".WotEventModesLiveTests.", StringComparison.Ordinal))
                         {
                             expectedShard = "wot-materialization-live-events";
+                        }
+                        if (integration && profile.First().Framework != "net48" &&
+                            profile.First().Os == "macos" &&
+                            testName.Contains(".WotRegistryIdentityLiveTests", StringComparison.Ordinal))
+                        {
+                            expectedShard = testName.Contains(
+                                ".WotRegistryIdentityLiveTests(True).", StringComparison.Ordinal)
+                                ? "wot-other-identity-di-integration"
+                                : "wot-other-identity-integration";
+                        }
+                        if (integration && profile.First().Framework != "net48" &&
+                            profile.First().Os == "macos" &&
+                            testName.Contains(".WotLegacy", StringComparison.Ordinal))
+                        {
+                            expectedShard = "wot-other-legacy-integration";
                         }
 
                         Assert.That(
@@ -743,7 +769,9 @@ namespace Opc.Ua.Tools.Tests
         /// </summary>
         private static bool MatchesWotFilter(string filter, string testName, string[] categories)
         {
-            return filter.Split('&').All(term => term switch
+            // VSTest filter values escape parentheses; the test names do not.
+            return filter.Split('&').Select(term => term.Replace("\\(", "(", StringComparison.Ordinal)
+                .Replace("\\)", ")", StringComparison.Ordinal)).All(term => term switch
             {
                 "" => true,
                 _ when term.StartsWith("FullyQualifiedName!~", StringComparison.Ordinal) =>

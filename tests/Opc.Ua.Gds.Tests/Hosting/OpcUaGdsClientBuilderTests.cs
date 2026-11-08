@@ -74,6 +74,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
                 .AddAuthorizationServiceClient()
                 .AddLocalDiscoveryServerClient()
                 .AddOnboardingClient()
+                .AddDeviceRegistrarClient()
                 .AddCertificateManagement();
 
             Assert.That(builder.Services, Is.SameAs(services));
@@ -86,10 +87,21 @@ namespace Opc.Ua.Gds.Tests.Hosting
             Assert.That(services, Has.Some.Matches<ServiceDescriptor>(d =>
                 d is not null && d.ServiceType == typeof(Func<NodeId, CancellationToken, ValueTask<OnboardingClient>>)));
             Assert.That(services, Has.Some.Matches<ServiceDescriptor>(d =>
+                d is not null && d.ServiceType ==
+                    typeof(Func<NodeId, CancellationToken, ValueTask<Opc.Ua.Onboarding.DeviceRegistrarTypeClient>>)));
+            Assert.That(services, Has.Some.Matches<ServiceDescriptor>(d =>
                 d is not null && d.ServiceType == typeof(IAccessTokenProvider)));
 
             using ServiceProvider provider = services.BuildServiceProvider();
             Assert.That(provider.GetService<IAccessTokenProvider>(), Is.Not.Null);
+        }
+
+        [Test]
+        public void AddDeviceRegistrarClientRejectsNullBuilder()
+        {
+            Assert.That(
+                () => OpcUaGdsClientBuilderExtensions.AddDeviceRegistrarClient(null!),
+                Throws.ArgumentNullException);
         }
 
         private static ApplicationConfiguration CreateConfiguration()

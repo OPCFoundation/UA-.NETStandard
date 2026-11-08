@@ -111,6 +111,17 @@ namespace Opc.Ua.LADS.Tests.Integration
             return await device.GetFunctionalUnitAsync(LadsIncubator.UnitName).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Opens a separately owned session with the same client application and user identity.
+        /// </summary>
+        public async ValueTask<ManagedSession> ConnectPeerAsync()
+        {
+            return await new ManagedSessionBuilder(m_fixture.Config, Telemetry)
+                .UseEndpoint(Session.ConfiguredEndpoint)
+                .WithSessionName("LADS lock peer")
+                .ConnectAsync().ConfigureAwait(false);
+        }
+
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
