@@ -1153,6 +1153,87 @@ namespace Opc.Ua.Server.Tests.NodeManager
         private const string kNamespaceUri = "urn:test:change-set-cleanup";
 
         /// <summary>
+        /// A factory cannot prepare a retained candidate resource again after its private cleanup.
+        /// </summary>
+        /// <param name="useAdapter">Whether the second factory returns an adapter around the same resource.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AbortedCandidateRejectsSameResourceFactoryWithoutChangingSnapshotAsync(bool useAdapter)
+        {
+            await using var harness = new ChangeSetCleanupHarness();
+            var resource = new Mock<INodeManager>();
+            resource.As<IDisposable>();
+            Mock<IAsyncNodeManager> candidate = CreateManager(kNamespaceUri);
+            candidate.SetupGet(value => value.SyncNodeManager).Returns(resource.Object);
+            INodeManagerLifecycle lifecycle = harness.Lifecycle;
+            long revision = lifecycle.Revision;
+            NodeManagerRoutingTable.RoutingSnapshot routing =
+                ((IDynamicNodeManagerBatchHost)harness.Master).RoutingRevision;
+
+            await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(CreateFactory(candidate))]).ConfigureAwait(false);
+            NodeManagerRegistrationSnapshot snapshot = prepared.Registrations[0];
+            NodeManagerGeneration original = NodeManagerGenerationRegistry.GetOrCreate(candidate.Object);
+            ChangePreparer.StagingServer? stagingOwner = ChangePreparer.GetServer(candidate.Object);
+            Assert.That(stagingOwner, Is.Not.Null);
+            await prepared.DisposeAsync().ConfigureAwait(false);
+
+            IAsyncNodeManager reused = useAdapter
+                ? new AsyncNodeManagerAdapter(resource.Object)
+                : candidate.Object;
+            int calls = 0;
+            var reuseFactory = new Mock<IAsyncNodeManagerFactory>();
+            reuseFactory.Setup(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    calls++;
+                    return new ValueTask<IAsyncNodeManager>(reused);
+                });
+            IPreparedChanges? unexpected = null;
+            try
+            {
+                await Assert.ThatAsync(async () =>
+                {
+                    unexpected = await lifecycle.PrepareAsync(
+                        [LifecycleChange.Add(reuseFactory.Object)]).ConfigureAwait(false);
+                }, Throws.TypeOf<NodeManagerAlreadyRegisteredException>()).ConfigureAwait(false);
+
+                Assert.That(snapshot.TryGetRegistration(out NodeManagerRegistration? recovered), Is.True);
+                Assert.That(recovered, Is.Not.Null);
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(calls, Is.EqualTo(1));
+                    Assert.That(prepared.IsCommitted, Is.False);
+                    Assert.That(prepared.Registrations[0], Is.EqualTo(snapshot));
+                    Assert.That(original.Gate.State, Is.EqualTo(NodeManagerGenerationState.Aborted));
+                    Assert.That(NodeManagerGenerationRegistry.GetOrCreate(candidate.Object), Is.SameAs(original));
+                    Assert.That(ChangePreparer.GetServer(reused), Is.SameAs(stagingOwner));
+                    Assert.That(recovered!.Slot, Is.SameAs(snapshot.Slot));
+                    Assert.That(recovered.Id, Is.EqualTo(snapshot.Id));
+                    Assert.That(recovered.Generation, Is.EqualTo(snapshot.Generation));
+                    Assert.That(recovered.NodeManager, Is.SameAs(candidate.Object));
+                    Assert.That(snapshot.Slot.TryGetCurrent(out _), Is.False);
+                    Assert.That(lifecycle.Revision, Is.EqualTo(revision));
+                    Assert.That(((IDynamicNodeManagerBatchHost)harness.Master).RoutingRevision, Is.SameAs(routing));
+                    Assert.That(harness.Writer.ActiveOperationCount, Is.Zero);
+                    candidate.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
+                    candidate.As<IDisposable>().Verify(value => value.Dispose(), Times.Once);
+                    resource.As<IDisposable>().Verify(value => value.Dispose(), Times.Never);
+                }
+            }
+            finally
+            {
+                if (unexpected is not null)
+                {
+                    await unexpected.DisposeAsync().ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
         /// Retained cleanup and validation tasks do not own candidates after their owners finish cleanup.
         /// </summary>
         [TestCase(false)]
