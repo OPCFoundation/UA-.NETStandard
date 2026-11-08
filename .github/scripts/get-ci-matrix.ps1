@@ -489,7 +489,12 @@ function Get-TestProjectShards([string] $project, [string] $framework, [string] 
             }
             if ($framework -ne 'net48') {
                 $liveEvents = "${materialization}WotEventModesLiveTests."
+                # Live tests create RSA, P256 and P384 certificates per test, which is
+                # slow on macOS. In the 2026-11-07 run the remaining integration tests
+                # took 41 minutes, so the registry identity and legacy classes
+                # (17 and 11 minutes) get their own entries under the 45-minute ceiling.
                 $registryIdentity = 'Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests'
+                $legacy = 'Opc.Ua.WotCon.Tests.WotLegacy'
                 return @(
                     @{
                         id = 'wot-materialization-core'
@@ -522,6 +527,7 @@ function Get-TestProjectShards([string] $project, [string] $framework, [string] 
                             "FullyQualifiedName!~${materialization}"
                             'TestCategory=Integration'
                             "FullyQualifiedName!~${registryIdentity}"
+                            "FullyQualifiedName!~${legacy}"
                         ) -join '&'
                         hangTimeout = ''
                     }
@@ -532,6 +538,16 @@ function Get-TestProjectShards([string] $project, [string] $framework, [string] 
                             "FullyQualifiedName!~${materialization}"
                             'TestCategory=Integration'
                             "FullyQualifiedName~${registryIdentity}"
+                        ) -join '&'
+                        hangTimeout = ''
+                    }
+                    @{
+                        id = 'wot-other-legacy-integration'
+                        name = 'wot-other-legacy-integration'
+                        filter = @(
+                            "FullyQualifiedName!~${materialization}"
+                            'TestCategory=Integration'
+                            "FullyQualifiedName~${legacy}"
                         ) -join '&'
                         hangTimeout = ''
                     }
