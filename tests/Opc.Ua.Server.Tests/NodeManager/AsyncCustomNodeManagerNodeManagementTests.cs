@@ -1397,6 +1397,76 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(FindChild(h, variable, "Range"), Is.Null);
         }
 
+        /// <summary>
+        /// Audit finding #42: the NodeIds of the Mandatory children of an added node derive
+        /// from the RequestedNewNodeId the client chose, so a client could make a child land
+        /// on an existing node's NodeId, and registration replaced that node.
+        /// </summary>
+        [Test]
+        public async Task AddNodeRefusesAMandatoryChildNodeIdThatIsHeldByAnExistingNodeAsync()
+        {
+            using Harness h = CreateHarness(allowNodeManagement: true);
+            ushort ns = h.Manager.NamespaceIndexes[0];
+            NodeId typeId = await AddMandatoryTestTypesAsync(h).ConfigureAwait(false);
+            NodeId parentId = await h.AddObjectAsync("Parent").ConfigureAwait(false);
+            var requestedId = new NodeId("Attacker", ns);
+            AddNodesItem CreateItem(string name, NodeId requested)
+            {
+                return new AddNodesItem
+                {
+                    ParentNodeId = parentId,
+                    ReferenceTypeId = ReferenceTypeIds.Organizes,
+                    RequestedNewNodeId = requested,
+                    BrowseName = new QualifiedName(name, ns),
+                    NodeClass = NodeClass.Object,
+                    TypeDefinition = typeId
+                };
+            }
+
+            // learn the NodeId the factory mints for the MandatoryProp child of the
+            // requested root (the attacker computes it offline), then free it again.
+            (ServiceResult result, NodeId added) = await h.Manager.AddNodeAsync(
+                h.OperationContext, CreateItem("Probe", requestedId)).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(result), Is.True, result.ToString());
+            NodeId childId = FindChild(h, h.Manager.PredefinedNodes[added], "MandatoryProp").NodeId;
+            ServiceResult deleted = await h.Manager.DeleteNodeAsync(
+                h.OperationContext,
+                new DeleteNodesItem { NodeId = added, DeleteTargetReferences = true }).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(deleted), Is.True, deleted.ToString());
+            Assert.That(h.Manager.PredefinedNodes.ContainsKey(childId), Is.False);
+
+            // the victim: an existing node that holds that NodeId.
+            var victim = new BaseDataVariableState(null)
+            {
+                NodeId = childId,
+                BrowseName = new QualifiedName("Victim", ns),
+                DisplayName = new LocalizedText("Victim"),
+                TypeDefinitionId = VariableTypeIds.BaseDataVariableType,
+                DataType = DataTypeIds.Int32,
+                ValueRank = ValueRanks.Scalar,
+                Value = 42
+            };
+            await h.Manager.AddPredefinedNodeAsyncPublic(h.Context, victim).ConfigureAwait(false);
+
+            (result, added) = await h.Manager.AddNodeAsync(
+                h.OperationContext, CreateItem("Attack", requestedId)).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdExists));
+            Assert.That(added.IsNull, Is.True);
+            Assert.That(h.Manager.PredefinedNodes[childId], Is.SameAs(victim), "the victim must not be replaced");
+            Assert.That(h.Manager.PredefinedNodes.ContainsKey(requestedId), Is.False);
+            Assert.That(
+                FindChild(h, h.Manager.PredefinedNodes[parentId], "Attack"),
+                Is.Null,
+                "a refused add leaves nothing under the parent");
+
+            // every reservation was released: the BrowseName and a fresh root are free again.
+            (result, _) = await h.Manager.AddNodeAsync(
+                h.OperationContext, CreateItem("Attack", new NodeId("Other", ns))).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(result), Is.True, result.ToString());
+            Assert.That(h.Manager.PredefinedNodes[childId], Is.SameAs(victim));
+        }
+
         [Test]
         public async Task AddNodeRejectsAbstractObjectTypeAsync()
         {

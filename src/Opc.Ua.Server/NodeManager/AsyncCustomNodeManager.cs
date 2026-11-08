@@ -2369,6 +2369,7 @@ namespace Opc.Ua.Server
                 return (reservation, NodeId.Null);
             }
             bool committed = false;
+            List<NodeId>? reservedChildNodeIds = null;
             try
             {
                 instance.NodeId = newNodeId;
@@ -2377,6 +2378,20 @@ namespace Opc.Ua.Server
                 // carry the declaration NodeIds; mint per-instance ones now that
                 // the identifier of the new node is final.
                 systemContext.AssignInstanceChildNodeIds(instance, NodeId.Null);
+
+                // the child identifiers derive from the root identifier, which the
+                // client may choose. Registration would replace any node that already
+                // holds one of them, so every one must be free and stays reserved
+                // until the add completes, like the root.
+                ServiceResult childReservation = ReserveAddNodesChildNodeIds(
+                    systemContext,
+                    instance,
+                    ref reservedChildNodeIds);
+                if (ServiceResult.IsBad(childReservation))
+                {
+                    return (childReservation, NodeId.Null);
+                }
+
                 if (parentNode != null)
                 {
                     parentNode.AddChild(instance);
@@ -2474,9 +2489,60 @@ namespace Opc.Ua.Server
                 finally
                 {
                     m_addNodesReservations.TryRemove(newNodeId, out _);
+                    if (reservedChildNodeIds != null)
+                    {
+                        foreach (NodeId childNodeId in reservedChildNodeIds)
+                        {
+                            m_addNodesReservations.TryRemove(childNodeId, out _);
+                        }
+                    }
                     m_addNodesBrowseNameReservations.TryRemove(browseNameKey, out _);
                 }
             }
+        }
+
+        /// <summary>
+        /// Reserves the NodeIds of the descendants of a node that AddNodes is about to
+        /// register, refusing the add when one of them is held by an existing node, by
+        /// another add in progress or by another node of the same subtree.
+        /// </summary>
+        /// <param name="systemContext">The system context.</param>
+        /// <param name="root">The root of the new subtree; its own NodeId is already reserved.</param>
+        /// <param name="reserved">The reserved identifiers, which the caller releases.</param>
+        /// <returns><see cref="StatusCodes.Good"/> or <see cref="StatusCodes.BadNodeIdExists"/>.</returns>
+        private ServiceResult ReserveAddNodesChildNodeIds(
+            ServerSystemContext systemContext,
+            NodeState root,
+            ref List<NodeId>? reserved)
+        {
+            var pending = new Stack<NodeState>();
+            pending.Push(root);
+            var children = new List<BaseInstanceState>();
+            while (pending.Count != 0)
+            {
+                children.Clear();
+                pending.Pop().GetChildren(systemContext, children);
+                foreach (BaseInstanceState child in children)
+                {
+                    NodeId childNodeId = child.NodeId;
+                    if (!childNodeId.IsNull)
+                    {
+                        if (childNodeId == root.NodeId ||
+                            PredefinedNodes.ContainsKey(childNodeId) ||
+                            !m_addNodesReservations.TryAdd(childNodeId, 0))
+                        {
+                            return StatusCodes.BadNodeIdExists;
+                        }
+                        (reserved ??= []).Add(childNodeId);
+                        if (PredefinedNodes.ContainsKey(childNodeId))
+                        {
+                            return StatusCodes.BadNodeIdExists;
+                        }
+                    }
+                    pending.Push(child);
+                }
+            }
+            return ServiceResult.Good;
         }
 
         /// <summary>
@@ -3936,9 +4002,14 @@ namespace Opc.Ua.Server
                     Server.TypeTree);
             }
 
-            if (!m_addNodesNodeId.Value.IsNull && m_addNodesNodeId.Value == activeNode.NodeId)
+            if (!m_addNodesNodeId.Value.IsNull)
             {
-                if (!PredefinedNodes.TryAdd(activeNode.NodeId, activeNode))
+                // a subtree added by AddNodes never replaces a node: its identifiers
+                // derive from a NodeId the client may choose.
+                if (!PredefinedNodes.TryAdd(activeNode.NodeId, activeNode) &&
+                    (m_addNodesNodeId.Value == activeNode.NodeId ||
+                        !PredefinedNodes.TryGetValue(activeNode.NodeId, out NodeState? existing) ||
+                        !ReferenceEquals(existing, activeNode)))
                 {
                     throw new ServiceResultException(StatusCodes.BadNodeIdExists);
                 }
