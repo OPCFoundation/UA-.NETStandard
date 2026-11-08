@@ -294,10 +294,12 @@ namespace Opc.Ua.Server
             // MaxPublishRequestCount, one more than its subscriptions when it has more), so
             // the parked stage holds all of them on top of the queue. Sized at the queue
             // alone, a few Sessions holding their quota refused the Publish requests of every
-            // other Session. A parked Publish drops its decoded payload and returns its
-            // RequestQueueBytes charge (RequestParkSink.ReleasesPayload).
+            // other Session. Each Session counts at least one request, which with the
+            // subscriptions covers the subscriptions-plus-one rule. A parked Publish drops its
+            // decoded payload and is charged only what it still retains
+            // (RequestParkSink.RetainedBytes) at RequestQueueBytes.
             long parkedCapacity = checked(queuedCapacity +
-                ((long)server.MaxSessionCount * Math.Max(0, server.MaxPublishRequestCount)) +
+                ((long)server.MaxSessionCount * Math.Max(1, server.MaxPublishRequestCount)) +
                 Math.Max(0, server.MaxSubscriptionCount));
             long[] totals =
             [

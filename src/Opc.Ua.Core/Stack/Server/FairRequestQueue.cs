@@ -180,11 +180,15 @@ namespace Opc.Ua
                     return false;
                 }
                 if (m_decoupleHeldPublishRequests &&
-                    request is IParkableIncomingRequest { ParkSink: not null } &&
-                    !TryAcquire(ResourceIsolationStage.ParkedRequest, owner, 1, ref entry.ParkedHold))
+                    request is IParkableIncomingRequest { ParkSink: RequestParkSink parkSink })
                 {
-                    error = StatusCodes.BadServerTooBusy;
-                    return false;
+                    if (!TryAcquire(ResourceIsolationStage.ParkedRequest, owner, 1, ref entry.ParkedHold))
+                    {
+                        error = StatusCodes.BadServerTooBusy;
+                        return false;
+                    }
+                    // what the request keeps once it parks without its payload
+                    entry.RetainedCost = parkSink.EstimateRetainedBytes();
                 }
 
                 entry.AdmissionEvidence = evidence;
@@ -1154,6 +1158,19 @@ namespace Opc.Ua
             internal StageHold ParkedHold;
 
             /// <summary>
+            /// The decoded-request cost of a parked request that dropped its payload: what it
+            /// still retains (<see cref="RetainedCost"/>), held instead of <see cref="CostHold"/>.
+            /// </summary>
+            internal StageHold RetainedCostHold;
+
+            /// <summary>
+            /// The bytes the request still retains once it parked without its payload, or 0
+            /// when it keeps its full cost while parked. Set at admission, before the entry
+            /// is published, and not changed afterwards.
+            /// </summary>
+            internal long RetainedCost;
+
+            /// <summary>
             /// Gets the admitted request.
             /// </summary>
             public IEndpointIncomingRequest Request { get; }
@@ -1232,11 +1249,34 @@ namespace Opc.Ua
             }
 
             /// <summary>
-            /// Returns the decoded-request cost of a request that parked without its decoded
-            /// payload (<see cref="RequestParkSink.ReleasesPayload"/>); its parked slot stays held.
+            /// Replaces the decoded-request cost of a request that parked without its decoded
+            /// payload (<see cref="RequestParkSink.ReleasesPayload"/>) with a charge for what it
+            /// still retains (<see cref="RetainedCost"/>); its parked slot stays held. When that
+            /// charge cannot be admitted the request keeps its full cost.
             /// </summary>
+            /// <remarks>
+            /// Runs on the worker after the park, while the handler may complete and dispose
+            /// the entry on another thread: a charge admitted after the disposal is returned
+            /// here, and every release happens at most once.
+            /// </remarks>
             public void ReleaseRequestCost()
             {
+                long retained = RetainedCost;
+                if (retained <= 0 || retained >= m_queue.m_requestCost)
+                {
+                    return;
+                }
+                if (!m_queue.TryAcquire(ResourceIsolationStage.RequestQueueBytes, Owner, retained, ref RetainedCostHold))
+                {
+                    return;
+                }
+                Interlocked.MemoryBarrier();
+                if (Volatile.Read(ref m_registrationState) == (int)RegistrationState.Disposed)
+                {
+                    // the entry was disposed while the charge was admitted
+                    RetainedCostHold.Release(m_queue, ResourceIsolationStage.RequestQueueBytes, Owner, retained);
+                    return;
+                }
                 CostHold.Release(m_queue, ResourceIsolationStage.RequestQueueBytes, Owner, m_queue.m_requestCost);
             }
 
@@ -1259,6 +1299,7 @@ namespace Opc.Ua
                 ReleaseExecution();
                 ParkedHold.Release(m_queue, ResourceIsolationStage.ParkedRequest, Owner, 1);
                 CostHold.Release(m_queue, ResourceIsolationStage.RequestQueueBytes, Owner, m_queue.m_requestCost);
+                RetainedCostHold.Release(m_queue, ResourceIsolationStage.RequestQueueBytes, Owner, RetainedCost);
             }
 
             /// <summary>

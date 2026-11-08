@@ -168,6 +168,54 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             await listener.CloseAsync(ct).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Pausing the receive loop does not stop the handlers of requests read before the
+        /// pause from queuing their responses. A peer that pipelines requests whose handlers
+        /// complete only after it stopped reading must not grow the queue without bound: the
+        /// channel is faulted once the queued responses exceed four times the byte limit.
+        /// </summary>
+        [Test]
+        [CancelAfter(60000)]
+        public async Task ResponsesCompletedAfterThePeerStoppedReadingFaultTheChannelAtTheHardLimitAsync(
+            CancellationToken ct)
+        {
+            const int requests = 60;
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            Uri endpointUrl = new($"opc.tcp://127.0.0.1:{GetFreeTcpPort()}");
+            var callback = new LargeResponseCallback(kResponseBytes, holdResponses: true);
+
+            await using var listener = new TcpTransportListener(telemetry);
+            await listener.OpenAsync(
+                endpointUrl,
+                CreateListenerSettings(endpointUrl, CreateConfiguration(channelLifetime: 600000)),
+                callback,
+                ct).ConfigureAwait(false);
+
+            using var peer = new RawPeer(endpointUrl, kMaxMessageSize);
+            await peer.ConnectAndOpenAsync(ct).ConfigureAwait(false);
+            await peer.SendReadRequestsAsync(requests, ct).ConfigureAwait(false);
+
+            // nothing is queued while the handlers wait, so the server reads every request
+            TcpListenerChannel channel = await WaitForChannelAsync(listener, ct).ConfigureAwait(false);
+            Assert.That(await WaitForAsync(() => callback.RequestCount == requests, 10000, ct).ConfigureAwait(false),
+                Is.True, $"only {callback.RequestCount} requests were read");
+            long hardLimit = 4 * channel.WriteQueueByteLimit;
+            Assert.That(hardLimit, Is.LessThan((long)requests * kResponseBytes));
+
+            callback.ReleaseResponses();
+
+            bool closed = await WaitForAsync(() => !ChannelIsRegistered(listener, channel), 20000, ct)
+                .ConfigureAwait(false);
+            TestContext.Out.WriteLine(
+                $"closed={closed} queuedBytes={channel.QueuedWriteBytes} hardLimit={hardLimit}");
+            Assert.That(closed, Is.True, "the channel kept growing its queue for a peer that does not read");
+            bool drained = await WaitForAsync(() => channel.QueuedWriteBytes == 0, 10000, ct)
+                .ConfigureAwait(false);
+            Assert.That(drained, Is.True, $"{channel.QueuedWriteBytes} queued bytes were kept");
+
+            await listener.CloseAsync(ct).ConfigureAwait(false);
+        }
+
         private static async Task WaitForQueueToSettleAsync(TcpListenerChannel channel, CancellationToken ct)
         {
             long last = -1;
@@ -308,9 +356,14 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// </summary>
         private sealed class LargeResponseCallback : ITransportListenerCallback
         {
-            public LargeResponseCallback(int responseBytes)
+            /// <param name="responseBytes">The size of the ByteString in each response.</param>
+            /// <param name="holdResponses">Whether responses wait for <see cref="ReleaseResponses"/>,
+            /// as the handlers of held Publish requests or slow reads complete after their
+            /// requests were read.</param>
+            public LargeResponseCallback(int responseBytes, bool holdResponses = false)
             {
                 m_payload = ByteString.From(new byte[responseBytes]);
+                m_holdResponses = holdResponses;
             }
 
             public int RequestCount => Volatile.Read(ref m_requestCount);
@@ -327,7 +380,23 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     Results = [new DataValue(new Variant(m_payload))],
                     DiagnosticInfos = []
                 };
-                return new ValueTask<IServiceResponse>(response);
+                if (!m_holdResponses)
+                {
+                    return new ValueTask<IServiceResponse>(response);
+                }
+                return new ValueTask<IServiceResponse>(m_release.Task.ContinueWith(
+                    _ => response,
+                    CancellationToken.None,
+                    TaskContinuationOptions.RunContinuationsAsynchronously,
+                    TaskScheduler.Default));
+            }
+
+            /// <summary>
+            /// Completes every held response.
+            /// </summary>
+            public void ReleaseResponses()
+            {
+                m_release.TrySetResult(true);
             }
 
             public bool TryGetSecureChannelIdForAuthenticationToken(NodeId authenticationToken, out uint channelId)
@@ -354,6 +423,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
 
             private readonly ByteString m_payload;
+            private readonly bool m_holdResponses;
+            private readonly TaskCompletionSource<bool> m_release =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
             private int m_requestCount;
         }
 
@@ -506,12 +578,22 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             private async Task SendFrameAsync(byte[] frame, CancellationToken ct)
             {
+                // a pending socket operation ignores the token: closing the socket ends it
+                using CancellationTokenRegistration registration = AbortOnCancel(ct);
                 int offset = 0;
                 while (offset < frame.Length)
                 {
-                    int sent = await m_socket.SendAsync(
-                        new ArraySegment<byte>(frame, offset, frame.Length - offset),
-                        SocketFlags.None).ConfigureAwait(false);
+                    int sent;
+                    try
+                    {
+                        sent = await m_socket.SendAsync(
+                            new ArraySegment<byte>(frame, offset, frame.Length - offset),
+                            SocketFlags.None).ConfigureAwait(false);
+                    }
+                    catch (Exception) when (ct.IsCancellationRequested)
+                    {
+                        throw new OperationCanceledException(ct);
+                    }
                     if (sent <= 0)
                     {
                         throw new IOException("The socket closed while sending.");
@@ -519,6 +601,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     offset += sent;
                     ct.ThrowIfCancellationRequested();
                 }
+            }
+
+            private CancellationTokenRegistration AbortOnCancel(CancellationToken ct)
+            {
+                return ct.Register(static state => ((Socket)state!).Dispose(), m_socket);
             }
 
             private async Task<byte[]> ReadFrameAsync(CancellationToken ct)
@@ -534,13 +621,22 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             private async Task<byte[]> ReadExactlyAsync(int count, CancellationToken ct)
             {
+                using CancellationTokenRegistration registration = AbortOnCancel(ct);
                 byte[] buffer = new byte[count];
                 int offset = 0;
                 while (offset < count)
                 {
-                    int read = await m_socket.ReceiveAsync(
-                        new ArraySegment<byte>(buffer, offset, count - offset),
-                        SocketFlags.None).ConfigureAwait(false);
+                    int read;
+                    try
+                    {
+                        read = await m_socket.ReceiveAsync(
+                            new ArraySegment<byte>(buffer, offset, count - offset),
+                            SocketFlags.None).ConfigureAwait(false);
+                    }
+                    catch (Exception) when (ct.IsCancellationRequested)
+                    {
+                        throw new OperationCanceledException(ct);
+                    }
                     if (read <= 0)
                     {
                         throw new IOException("The socket closed while reading.");

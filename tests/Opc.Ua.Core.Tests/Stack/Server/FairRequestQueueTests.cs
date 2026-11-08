@@ -761,34 +761,55 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         }
 
         /// <summary>
-        /// A held Publish drops its decoded payload when it parks and returns its decoded-request
-        /// cost, but keeps its parked slot until it completes.
+        /// A held Publish drops its decoded payload when it parks and replaces its decoded-request
+        /// cost with a charge for what it still retains (its acknowledgement results and their
+        /// diagnostics, its audit entry id), but keeps its parked slot until it completes. A
+        /// Publish that retains as much as its full cost, such as one with many acknowledgements
+        /// and operation diagnostics, keeps the full cost.
         /// </summary>
-        [TestCase(false, false)]
-        [TestCase(true, false)]
-        [TestCase(true, true)]
-        public async Task ParkedPublishReturnsItsRequestCostAndKeepsItsParkedSlotAsync(
+        [TestCase(false, false, false)]
+        [TestCase(true, false, false)]
+        [TestCase(true, true, false)]
+        [TestCase(true, false, true)]
+        [TestCase(true, true, true)]
+        public async Task ParkedPublishIsChargedWhatItRetainsAndKeepsItsParkedSlotAsync(
             bool useFairScheduling,
-            bool reservations)
+            bool reservations,
+            bool largeRetainedState)
         {
-            TestProvider provider = reservations ? new ReservingTestProvider() : new TestProvider();
+            const long requestCost = 5000;
+            TestProvider provider = reservations
+                ? new ReservingTestProvider(costCapacity: 1_000_000)
+                : new TestProvider(costCapacity: 1_000_000);
             provider.UseFairScheduling = useFairScheduling;
             NodeId token = provider.AddOwner("A");
-            using var server = new QueueServer(provider, workers: 1);
+            using var server = new QueueServer(provider, workers: 1, requestCost: requestCost);
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            var publish = new PublishRequest
+            var acknowledgements = new SubscriptionAcknowledgement[largeRetainedState ? 1000 : 1];
+            for (int ii = 0; ii < acknowledgements.Length; ii++)
             {
-                SubscriptionAcknowledgements = [new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 2 }]
-            };
+                acknowledgements[ii] = new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = (uint)ii };
+            }
+            var publish = new PublishRequest { SubscriptionAcknowledgements = acknowledgements };
             var request = new TestRequest(token, serviceRequest: publish, payloadReleasingSink: true);
             publish.RequestHeader.AdditionalHeader = new ExtensionObject(new AdditionalParametersType());
+            if (largeRetainedState)
+            {
+                publish.RequestHeader.ReturnDiagnostics = (uint)DiagnosticsMasks.OperationAll;
+            }
+            long retained = request.ParkSink.EstimateRetainedBytes();
+            Assert.That(retained, largeRetainedState ? Is.GreaterThan(requestCost) : Is.LessThan(requestCost / 2));
+            long expected = largeRetainedState ? requestCost : retained;
+
             server.Enqueue(request);
             await request.Started.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
-
-            while (provider.Used(ResourceIsolationStage.RequestQueueBytes) != 0)
+            for (int ii = 0; ii < 500 && (provider.Used(ResourceIsolationStage.RequestExecution) != 0 ||
+                provider.Used(ResourceIsolationStage.RequestQueueBytes) != expected); ii++)
             {
                 await Task.Delay(10, deadline.Token).ConfigureAwait(false);
             }
+            Assert.That(provider.Used(ResourceIsolationStage.RequestExecution), Is.Zero);
+            Assert.That(provider.Used(ResourceIsolationStage.RequestQueueBytes), Is.EqualTo(expected));
             Assert.That(provider.Used(ResourceIsolationStage.ParkedRequest), Is.EqualTo(1));
             Assert.That(publish.RequestHeader.AdditionalHeader.IsNull, Is.True);
             Assert.That(publish.SubscriptionAcknowledgements.Count, Is.Zero);

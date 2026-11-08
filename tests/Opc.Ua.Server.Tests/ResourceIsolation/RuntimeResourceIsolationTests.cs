@@ -1180,6 +1180,30 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(held + server.MaxPublishRequestCount));
         }
 
+        /// <summary>
+        /// Without a configured Publish quota a Session may still keep one more Publish request
+        /// than it has subscriptions, so the parked stage counts at least one per Session.
+        /// </summary>
+        [Test]
+        public void ParkedStageCoversSubscriptionsPlusOneWithoutAPublishQuota()
+        {
+            var options = new ServerResourceIsolationOptions { MaxRetainedMessageBytes = 10 };
+            ApplicationConfiguration configuration = Configuration();
+            ServerConfiguration server = configuration.ServerConfiguration!;
+            server.MaxQueuedRequestCount = 150;
+            server.MaxRequestThreadCount = 120;
+            server.MaxSessionCount = 8;
+            server.MaxPublishRequestCount = 0;
+            server.MaxSubscriptionCount = 8;
+            ServerResourceIsolationPlan plan = options.CreateRuntimePlan(
+                configuration, new ServerRateLimitOptions(), new ChunkReassemblyBudget(100));
+
+            // eight Sessions with one subscription each may keep two Publish requests each
+            ResourceIsolationStagePlan parked = plan.GetStage(ResourceIsolationStage.ParkedRequest);
+            Assert.That(parked.SharedCapacity, Is.EqualTo(150 + 8 + 8));
+            Assert.That(parked.SharedCapacity - 150, Is.GreaterThanOrEqualTo(8 * 2));
+        }
+
         [Test]
         public void ExplicitQueueCapacityStillIncludesTheFloors()
         {

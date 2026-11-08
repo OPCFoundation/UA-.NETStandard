@@ -184,6 +184,10 @@ queued responses retain more than four of the largest messages the channel
 exchanges (four times the larger of the negotiated maximum message size and the
 send buffer size). It reads again once the queue has drained to half of both
 marks. A peer that reads slowly is only slowed down; nothing is discarded.
+Requests read before the pause still complete, for example held Publish requests,
+and queue their responses. When the queued responses exceed four times the byte
+mark (16 of the largest messages), the channel is closed with
+`BadTcpNotEnoughResources`, and the server logs a warning.
 
 A send that waits longer than `ChannelLifetime` for the peer to read closes the
 channel. This also applies to a channel that serves a Session: Session activity

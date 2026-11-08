@@ -1602,19 +1602,55 @@ namespace Opc.Ua.Bindings
             var write = new PendingWrite(transport, in message, state);
             long retained = write.RetainedBytes;
 
+            long queued;
+            bool startWriter;
             lock (m_writeQueueLock)
             {
                 m_unsealedWriteQueue.Enqueue(write);
-                Volatile.Write(ref m_queuedWriteBytes, m_queuedWriteBytes + retained);
-                if (m_writerRunning)
-                {
-                    return true;
-                }
+                queued = m_queuedWriteBytes + retained;
+                Volatile.Write(ref m_queuedWriteBytes, queued);
+                startWriter = !m_writerRunning;
                 m_writerRunning = true;
             }
 
-            ScheduleWriter();
+            if (startWriter)
+            {
+                ScheduleWriter();
+            }
+            if (AppliesReceiveBackpressure && queued > kWriteQueueHardLimitFactor * WriteQueueByteLimit)
+            {
+                ReportWriteQueueOverflow(transport, queued);
+            }
             return true;
+        }
+
+        /// <summary>
+        /// How many times <see cref="WriteQueueByteLimit"/> the queued responses of a server
+        /// channel may retain before the channel is faulted.
+        /// </summary>
+        /// <remarks>
+        /// Pausing the receive loop stops new requests, but handlers of requests read
+        /// before the pause (held Publish requests, slow reads) still queue their responses.
+        /// A peer that pipelines such requests and stops reading would otherwise grow the
+        /// queue with every response that completes.
+        /// </remarks>
+        private const long kWriteQueueHardLimitFactor = 4;
+
+        /// <summary>
+        /// Faults the channel once its queued responses exceed the hard limit. The fault
+        /// takes the gate, so it runs on the pool, as a failed write is reported.
+        /// </summary>
+        private void ReportWriteQueueOverflow(IUaSCByteTransport transport, long queued)
+        {
+            if (ReferenceEquals(Interlocked.Exchange(ref m_writeQueueOverflowTransport, transport), transport))
+            {
+                return;
+            }
+            m_logger.UaSCChannelWriteQueueOverflow(ChannelId, queued, WriteQueueByteLimit);
+            var failure = ServiceResult.Create(
+                StatusCodes.BadTcpNotEnoughResources,
+                "The peer does not read the responses queued for it.");
+            _ = Task.Run(() => OnTransportError(transport, failure, CancellationToken.None));
         }
 
         /// <summary>
@@ -2928,6 +2964,11 @@ namespace Opc.Ua.Bindings
         private int m_sendWaiting;
 
         /// <summary>
+        /// The transport on which the queued responses exceeded the hard limit, faulted once.
+        /// </summary>
+        private IUaSCByteTransport? m_writeQueueOverflowTransport;
+
+        /// <summary>
         /// The transport on which a message failed after taking sequence numbers;
         /// nothing more is numbered for it. Changed under <see cref="SendOrder"/>.
         /// </summary>
@@ -3314,5 +3355,14 @@ namespace Opc.Ua.Bindings
             Exception exception,
             uint channelId,
             uint requestId);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryChannel + 19, Level = LogLevel.Warning,
+            Message = "ChannelId {ChannelId}: {QueuedBytes} bytes of responses are queued for a peer that " +
+                "does not read them (limit {LimitBytes} bytes); the channel is closed.")]
+        public static partial void UaSCChannelWriteQueueOverflow(
+            this ILogger logger,
+            uint channelId,
+            long queuedBytes,
+            long limitBytes);
     }
 }
