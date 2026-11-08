@@ -112,6 +112,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await Assert.ThatAsync(async () => await lifecycle.BeginAsync(revision - 1).ConfigureAwait(false),
                 Throws.InvalidOperationException).ConfigureAwait(false);
             Assert.That(harness.Writer.ActiveOperationCount, Is.Zero);
+            await using (ILifecycleWriter admitted = await lifecycle.BeginAsync(revision).ConfigureAwait(false))
+            {
+                Assert.That(admitted.IsCurrent, Is.True);
+                Assert.That(harness.Writer.ActiveOperationCount, Is.EqualTo(1));
+            }
+            Assert.That(harness.Writer.ActiveOperationCount, Is.Zero);
             using var cancellation = new CancellationTokenSource();
             await cancellation.CancelAsync().ConfigureAwait(false);
             await Assert.ThatAsync(async () => await lifecycle.BeginAsync(cancellationToken: cancellation.Token)
