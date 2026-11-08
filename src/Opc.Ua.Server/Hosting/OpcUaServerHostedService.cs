@@ -688,7 +688,7 @@ namespace Opc.Ua.Server.Hosting
                 return;
             }
 
-            m_application.ApplicationConfiguration.CertificateManager = certificateManager;
+            m_application.ApplicationConfiguration.SetBorrowedCertificateManager(certificateManager);
         }
 
         private static async Task<bool> HasApplicationCertificateAsync(

@@ -122,14 +122,14 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         /// <summary>
-        /// Verifies that a loaded certificate manager remains owned after configuration replacement.
+        /// Verifies that loaded and directly configured certificate managers remain owned after configuration replacement.
         /// </summary>
         [Test]
-        public async Task LoadedCertificateManagerRemainsOwnedAfterConfigurationOverrideAsync()
+        public async Task LoadedAndConfiguredCertificateManagersRemainOwnedAfterConfigurationOverrideAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            using var injectedManager = new CertificateManager(telemetry);
+            var replacementManager = new CertificateManager(telemetry);
             string? configPath = Utils.GetAbsoluteFilePath(
                 "Opc.Ua.Configuration.Tests.Config.xml",
                 checkCurrentDirectory: true,
@@ -148,19 +148,19 @@ namespace Opc.Ua.Configuration.Tests
                 securityConfiguration = configuration.SecurityConfiguration;
                 Assert.That(applicationInstance.CertificateManager, Is.SameAs(loadedManager));
 
-                configuration.CertificateManager = injectedManager;
+                configuration.CertificateManager = replacementManager;
                 Assert.That(
                     await applicationInstance.CheckApplicationInstanceCertificatesAsync(true)
                         .ConfigureAwait(false),
                     Is.True);
-                Assert.That(configuration.CertificateManager, Is.SameAs(injectedManager));
+                Assert.That(configuration.CertificateManager, Is.SameAs(replacementManager));
+                configuration.CertificateManager = Mock.Of<ICertificateManager>();
             }
 
             await Assert.ThrowsAsync<ObjectDisposedException>(
                 () => loadedManager.LoadApplicationCertificatesAsync(securityConfiguration)).ConfigureAwait(false);
-            using ICertificateStore store = injectedManager.OpenCertificateStore(
-                securityConfiguration.ApplicationCertificates[0].StorePath!,
-                CertificateStoreType.Directory);
+            await Assert.ThrowsAsync<ObjectDisposedException>(
+                () => replacementManager.LoadApplicationCertificatesAsync(securityConfiguration)).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -197,6 +197,252 @@ namespace Opc.Ua.Configuration.Tests
 
             await Assert.ThrowsAsync<ObjectDisposedException>(
                 () => createdManager.LoadApplicationCertificatesAsync(securityConfiguration)).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Verifies that a manager created by validation after configuration assignment is owned by the instance.
+        /// </summary>
+        [Test]
+        public async Task CertificateManagerCreatedAfterConfigurationAssignmentRemainsOwnedAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            CertificateManager createdManager;
+            SecurityConfiguration securityConfiguration;
+
+            await using (applicationInstance.ConfigureAwait(false))
+            {
+                ArrayOf<CertificateIdentifier> applicationCertificates =
+                    ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                        SubjectName,
+                        CertificateStoreType.Directory,
+                        m_pkiRoot);
+                applicationInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfiguration(applicationCertificates, m_pkiRoot);
+
+                ApplicationConfiguration configuration = applicationInstance.ApplicationConfiguration!;
+                Assert.That(configuration.CertificateManager, Is.Null);
+                await configuration.ValidateAsync(applicationInstance.ApplicationType).ConfigureAwait(false);
+
+                createdManager = configuration.CertificateManager as CertificateManager ??
+                    throw new InvalidOperationException("Configuration validation did not create a certificate manager.");
+                securityConfiguration = configuration.SecurityConfiguration;
+                Assert.That(applicationInstance.CertificateManager, Is.Null);
+                Assert.That(
+                    await applicationInstance.CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait(false),
+                    Is.True);
+                Assert.That(applicationInstance.CertificateManager, Is.SameAs(createdManager));
+            }
+
+            await Assert.ThrowsAsync<ObjectDisposedException>(
+                () => createdManager.LoadApplicationCertificatesAsync(securityConfiguration)).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Verifies that direct validation after assigning the configuration leaves its manager owned by the instance.
+        /// </summary>
+        [Test]
+        public async Task DirectConfigurationValidationManagerIsDisposedWithApplicationInstanceAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            CertificateManager createdManager;
+            SecurityConfiguration securityConfiguration;
+
+            await using (applicationInstance.ConfigureAwait(false))
+            {
+                applicationInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfiguration(
+                        ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                            SubjectName, CertificateStoreType.Directory, m_pkiRoot),
+                        m_pkiRoot);
+
+                ApplicationConfiguration configuration = applicationInstance.ApplicationConfiguration!;
+                securityConfiguration = configuration.SecurityConfiguration;
+                await configuration.ValidateAsync(applicationInstance.ApplicationType).ConfigureAwait(false);
+                createdManager = configuration.CertificateManager as CertificateManager ??
+                    throw new InvalidOperationException("Configuration validation did not create a certificate manager.");
+            }
+
+            await Assert.ThrowsAsync<ObjectDisposedException>(
+                () => createdManager.LoadApplicationCertificatesAsync(securityConfiguration)).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Verifies ownership of every assignment even when no application operation observes a replacement.
+        /// </summary>
+        [Test]
+        public async Task IntermediateManagersRemainOwnedAfterConfigurationReplacementAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var firstManager = new CertificateManager(telemetry);
+            var secondManager = new CertificateManager(telemetry);
+            var configuration = new ApplicationConfiguration(telemetry);
+            await using (var application = new ApplicationInstance(configuration, telemetry))
+            {
+                configuration.CertificateManager = firstManager;
+                configuration.CertificateManager = secondManager;
+                configuration.CertificateManager = Mock.Of<ICertificateManager>();
+                application.ApplicationConfiguration = new ApplicationConfiguration(telemetry);
+            }
+
+            await Assert.ThrowsAsync<ObjectDisposedException>(
+                () => firstManager.LoadApplicationCertificatesAsync(configuration.SecurityConfiguration));
+            await Assert.ThrowsAsync<ObjectDisposedException>(
+                () => secondManager.LoadApplicationCertificatesAsync(configuration.SecurityConfiguration));
+        }
+
+        /// <summary>
+        /// Verifies that validation-created managers are retained when both the manager and configuration change.
+        /// </summary>
+        [Test]
+        public async Task ValidationCreatedManagerRemainsOwnedWithoutCertificateCheckAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var application = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            CertificateManager createdManager;
+            SecurityConfiguration securityConfiguration;
+            await using (application.ConfigureAwait(false))
+            {
+                application.Build(ApplicationUri, ProductUri).AsClient().AddSecurityConfiguration(
+                    ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                        SubjectName, CertificateStoreType.Directory, m_pkiRoot),
+                    m_pkiRoot);
+                ApplicationConfiguration configuration = application.ApplicationConfiguration!;
+                await configuration.ValidateAsync(ApplicationType.Client);
+                createdManager = configuration.CertificateManager as CertificateManager ??
+                    throw new InvalidOperationException("Validation did not create a certificate manager.");
+                securityConfiguration = configuration.SecurityConfiguration;
+                configuration.CertificateManager = Mock.Of<ICertificateManager>();
+                application.ApplicationConfiguration = new ApplicationConfiguration(telemetry);
+            }
+
+            await Assert.ThrowsAsync<ObjectDisposedException>(
+                () => createdManager.LoadApplicationCertificatesAsync(securityConfiguration));
+        }
+
+        /// <summary>
+        /// Verifies borrowed provenance across replacement, reassignment, template copying, and repeated disposal.
+        /// </summary>
+        [Test]
+        public async Task BorrowedManagerRemainsBorrowedAcrossConfigurationReplacementAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            await using var borrowedManager = new CertificateManager(telemetry);
+            var ownedManager = new CertificateManager(telemetry);
+            var configuration = new ApplicationConfiguration(telemetry) { CertificateManager = borrowedManager };
+            var application = new ApplicationInstance(configuration, telemetry);
+            application.MarkCertificateManagerBorrowed();
+            var templateCopy = new ApplicationConfiguration(configuration);
+            await using var copyApplication = new ApplicationInstance(templateCopy, telemetry);
+            configuration.CertificateManager = ownedManager;
+            configuration.CertificateManager = borrowedManager;
+            application.ApplicationConfiguration = new ApplicationConfiguration(telemetry)
+            {
+                CertificateManager = borrowedManager
+            };
+
+            await application.DisposeAsync();
+            await application.DisposeAsync();
+            await copyApplication.DisposeAsync();
+            using ICertificateStore store = borrowedManager.OpenCertificateStore(
+                m_pkiRoot, CertificateStoreType.Directory, false);
+            Assert.That(store, Is.Not.Null);
+            await Assert.ThrowsAsync<ObjectDisposedException>(
+                () => ownedManager.LoadApplicationCertificatesAsync(configuration.SecurityConfiguration));
+        }
+
+        /// <summary>
+        /// Verifies cleanup of the exact validation-created manager after a custom validator replaces it and fails.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task LoaderDisposesCreatedManagerWhenValidatorReplacesItBeforeFailureAsync(
+            bool loadFile,
+            bool cancel)
+        {
+            await VerifyLoadFailureManagerLifetimeAsync(loadFile, cancel, markReplacementBorrowed: true);
+        }
+
+        /// <summary>
+        /// Verifies that unmarked external replacements survive failed loading while base-created managers are disposed.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task LoaderPreservesExternalReplacementAndDisposesBaseCreatedManagerAsync(
+            bool loadFile,
+            bool cancel)
+        {
+            await VerifyLoadFailureManagerLifetimeAsync(loadFile, cancel, markReplacementBorrowed: false);
+        }
+
+        /// <summary>
+        /// Checks both manager identities and the original failure after file or stream loading fails.
+        /// </summary>
+        private async Task VerifyLoadFailureManagerLifetimeAsync(
+            bool loadFile,
+            bool cancel,
+            bool markReplacementBorrowed)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            await using var borrowedManager = new CertificateManager(telemetry);
+            var token = new CancellationToken(canceled: cancel);
+            Exception failure = cancel
+                ? new OperationCanceledException(token)
+                : new InvalidOperationException("Custom validation failed.");
+            var scenario = new LoadFailureScenario(telemetry, borrowedManager, failure, markReplacementBorrowed);
+            ReplacingValidationConfiguration.CurrentScenario.Value = scenario;
+            await using var application = new ApplicationInstance(telemetry)
+            {
+                ApplicationType = ApplicationType.Client,
+                ConfigurationType = typeof(ReplacingValidationConfiguration)
+            };
+            string? configPath = Utils.GetAbsoluteFilePath(
+                "Opc.Ua.Configuration.Tests.Config.xml", checkCurrentDirectory: true, createAlways: false);
+            Assert.That(configPath, Is.Not.Null);
+            try
+            {
+                Exception? observed;
+                if (loadFile)
+                {
+                    observed = await Assert.CatchAsync<Exception>(
+                        async () => await application.LoadApplicationConfigurationAsync(configPath!, cancel, token));
+                }
+                else
+                {
+                    using var stream = File.OpenRead(configPath!);
+                    observed = await Assert.CatchAsync<Exception>(
+                        async () => await application.LoadApplicationConfigurationAsync(stream, cancel, token));
+                }
+
+                Assert.That(cancel || !loadFile ? observed : observed!.InnerException, Is.SameAs(failure));
+                if (cancel)
+                {
+                    Assert.That(((OperationCanceledException)observed!).CancellationToken, Is.EqualTo(token));
+                }
+                Assert.That(application.ApplicationConfiguration, Is.Null);
+                Assert.That(scenario.CreatedManager, Is.Not.Null.And.Not.SameAs(borrowedManager));
+                await Assert.ThrowsAsync<ObjectDisposedException>(
+                    () => scenario.CreatedManager!.LoadApplicationCertificatesAsync(
+                        scenario.Configuration!.SecurityConfiguration));
+                using ICertificateStore store = borrowedManager.OpenCertificateStore(
+                    m_pkiRoot, CertificateStoreType.Directory, false);
+                Assert.That(store, Is.Not.Null);
+            }
+            finally
+            {
+                ReplacingValidationConfiguration.CurrentScenario.Value = null;
+                if (scenario.BorrowingApplication != null)
+                {
+                    await scenario.BorrowingApplication.DisposeAsync();
+                }
+            }
         }
 
         [Test]
@@ -240,12 +486,14 @@ namespace Opc.Ua.Configuration.Tests
             for (int iteration = 0; iteration < 2; iteration++)
             {
                 var application = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+                CertificateManager certificateManager;
+                SecurityConfiguration security;
                 await using (application.ConfigureAwait(false))
                 {
                     var builder = application.Build(ApplicationUri, ProductUri).AsClient()
                         .AddSecurityConfiguration(ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                             SubjectName, CertificateStoreType.Directory, m_pkiRoot), m_pkiRoot);
-                    SecurityConfiguration security = application.ApplicationConfiguration!.SecurityConfiguration;
+                    security = application.ApplicationConfiguration!.SecurityConfiguration;
                     if (customProvider)
                     {
                         foreach (CertificateIdentifier identifier in security.ApplicationCertificates)
@@ -259,7 +507,7 @@ namespace Opc.Ua.Configuration.Tests
                         security.TrustedIssuerCertificates.StoreType = provider.StoreTypeName;
                     }
                     security.AddAppCertToTrustedStore = true;
-                    application.ApplicationConfiguration.CertificateManager = CertificateManagerFactory.Create(security,
+                    certificateManager = CertificateManagerFactory.Create(security,
                         telemetry, options =>
                         {
                             if (customProvider)
@@ -267,6 +515,7 @@ namespace Opc.Ua.Configuration.Tests
                                 options.AddStoreProvider(provider);
                             }
                         });
+                    application.ApplicationConfiguration.CertificateManager = certificateManager;
                     ApplicationConfiguration configuration = await builder.CreateAsync().ConfigureAwait(false);
                     bool valid = await application.CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait(false);
                     Assert.That(valid, Is.True);
@@ -295,6 +544,8 @@ namespace Opc.Ua.Configuration.Tests
                         Assert.That(trustedAfterDelete, Is.Empty);
                     }
                 }
+                await Assert.ThrowsAsync<ObjectDisposedException>(
+                    () => certificateManager.LoadApplicationCertificatesAsync(security)).ConfigureAwait(false);
             }
             Assert.That(provider.OpenCount, customProvider ? Is.GreaterThan(0) : Is.Zero);
         }
@@ -313,7 +564,7 @@ namespace Opc.Ua.Configuration.Tests
             };
             await certificate.AddToStoreAsync(identifier.StoreType, identifier.StorePath, null, telemetry)
                 .ConfigureAwait(false);
-            using var manager = new CertificateManager(telemetry);
+            var manager = new CertificateManager(telemetry);
             var application = new ApplicationInstance(telemetry)
             {
                 ApplicationConfiguration = new ApplicationConfiguration(telemetry)
@@ -1954,6 +2205,93 @@ namespace Opc.Ua.Configuration.Tests
                 // Default to RSA for unknown types
                 return builder.SetRSAKeySize(CertificateFactory.DefaultKeySize).CreateForRSA();
             }
+        }
+
+        /// <summary>
+        /// Replaces the manager created by base validation before returning a controlled failure.
+        /// </summary>
+        public sealed class ReplacingValidationConfiguration : ApplicationConfiguration
+        {
+            /// <summary>
+            /// Creates a configuration using the scenario in the current test's asynchronous context.
+            /// </summary>
+            public ReplacingValidationConfiguration(ITelemetryContext telemetry)
+                : base(telemetry)
+            {
+                m_scenario = CurrentScenario.Value ??
+                    throw new InvalidOperationException("No load-failure scenario was supplied.");
+            }
+
+            /// <summary>
+            /// Supplies isolated scenario state to the configuration loader's reflection-based constructor.
+            /// </summary>
+            internal static AsyncLocal<LoadFailureScenario?> CurrentScenario { get; } = new();
+
+            /// <inheritdoc/>
+            public override async Task ValidateAsync(ApplicationType applicationType, CancellationToken ct = default)
+            {
+                await base.ValidateAsync(applicationType, CancellationToken.None);
+                m_scenario.CreatedManager = CertificateManager as CertificateManager ??
+                    throw new InvalidOperationException("Base validation did not create a certificate manager.");
+                m_scenario.Configuration = this;
+                CertificateManager = m_scenario.BorrowedManager;
+                if (m_scenario.MarkReplacementBorrowed)
+                {
+                    m_scenario.BorrowingApplication = new ApplicationInstance(this, m_scenario.Telemetry);
+                    m_scenario.BorrowingApplication.MarkCertificateManagerBorrowed();
+                }
+                throw m_scenario.Failure;
+            }
+
+            /// <summary>
+            /// The scenario retained before validation crosses an asynchronous boundary.
+            /// </summary>
+            private readonly LoadFailureScenario m_scenario;
+        }
+
+        /// <summary>
+        /// Carries manager identities and the expected error for one failed configuration load.
+        /// </summary>
+        internal sealed class LoadFailureScenario(
+            ITelemetryContext telemetry,
+            CertificateManager borrowedManager,
+            Exception failure,
+            bool markReplacementBorrowed)
+        {
+            /// <summary>
+            /// The telemetry used by the borrowing application.
+            /// </summary>
+            public ITelemetryContext Telemetry { get; } = telemetry;
+
+            /// <summary>
+            /// The externally supplied replacement, optionally marked as container-owned.
+            /// </summary>
+            public CertificateManager BorrowedManager { get; } = borrowedManager;
+
+            /// <summary>
+            /// Whether the validator explicitly registers the replacement as borrowed.
+            /// </summary>
+            public bool MarkReplacementBorrowed { get; } = markReplacementBorrowed;
+
+            /// <summary>
+            /// The exact error returned by custom validation.
+            /// </summary>
+            public Exception Failure { get; } = failure;
+
+            /// <summary>
+            /// The manager created by base validation, before replacement.
+            /// </summary>
+            public CertificateManager? CreatedManager { get; set; }
+
+            /// <summary>
+            /// The failed configuration, retained to inspect its security settings after loader cleanup.
+            /// </summary>
+            public ApplicationConfiguration? Configuration { get; set; }
+
+            /// <summary>
+            /// The application that marks replacement provenance without cleaning up before the assertions.
+            /// </summary>
+            public ApplicationInstance? BorrowingApplication { get; set; }
         }
 
         private string m_pkiRoot;

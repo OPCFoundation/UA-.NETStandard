@@ -111,8 +111,72 @@ namespace Opc.Ua
         /// <c>ICertificateManager</c> aggregates registry, trust-list,
         /// validation, lifecycle, and trust-list-file capabilities; use it
         /// directly for validation, lifecycle, and trust-list operations.
+        /// Directly assigned concrete managers are disposed by the surrounding
+        /// <c>ApplicationInstance</c>, including replacements. Dependency-injection
+        /// providers borrow injected managers from their container.
         /// </remarks>
-        public ICertificateManager CertificateManager { get; set; } = null!;
+        public ICertificateManager CertificateManager
+        {
+            get
+            {
+                lock (m_certificateManagerLock)
+                {
+                    return m_certificateManager;
+                }
+            }
+            set
+            {
+                lock (m_certificateManagerLock)
+                {
+                    if (value is CertificateManager manager)
+                    {
+                        m_certificateManagers.Add(manager);
+                    }
+                    m_certificateManager = value;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Records container ownership before publishing an injected manager to application consumers.
+        /// </summary>
+        internal void SetBorrowedCertificateManager(ICertificateManager certificateManager)
+        {
+            if (certificateManager is null)
+            {
+                throw new ArgumentNullException(nameof(certificateManager));
+            }
+            lock (m_certificateManagerLock)
+            {
+                if (certificateManager is CertificateManager manager)
+                {
+                    m_borrowedCertificateManagers.Add(manager);
+                }
+                CertificateManager = certificateManager;
+            }
+        }
+
+        /// <summary>
+        /// Returns all concrete managers assigned to this configuration, including replaced managers.
+        /// </summary>
+        internal ArrayOf<CertificateManager> GetCertificateManagers()
+        {
+            lock (m_certificateManagerLock)
+            {
+                return new List<CertificateManager>(m_certificateManagers);
+            }
+        }
+
+        /// <summary>
+        /// Determines whether a manager was supplied by a dependency-injection container.
+        /// </summary>
+        internal bool IsCertificateManagerBorrowed(CertificateManager certificateManager)
+        {
+            lock (m_certificateManagerLock)
+            {
+                return m_borrowedCertificateManagers.Contains(certificateManager);
+            }
+        }
 
         /// <summary>
         /// Returns the domain names which the server is configured to use.
@@ -472,6 +536,10 @@ namespace Opc.Ua
                     certificatePasswordProvider,
                     ct).ConfigureAwait(false);
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception e)
             {
                 throw ServiceResultException.ConfigurationError(
@@ -537,7 +605,7 @@ namespace Opc.Ua
             _ = applyTraceSettings;
             systemType ??= typeof(ApplicationConfiguration);
 
-            ApplicationConfiguration configuration;
+            ApplicationConfiguration? configuration = null;
             try
             {
                 using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry!);
@@ -556,23 +624,75 @@ namespace Opc.Ua
                 configuration.ServerConfiguration?.ValidateSecurityPolicies();
                 configuration.DiscoveryServerConfiguration?.ValidateSecurityPolicies();
             }
+            catch (OperationCanceledException e)
+            {
+                if (configuration != null)
+                {
+                    await configuration.DisposeCertificateManagersOnLoadFailureAsync(e).ConfigureAwait(false);
+                }
+                throw;
+            }
             catch (Exception e)
             {
+                if (configuration != null)
+                {
+                    await configuration.DisposeCertificateManagersOnLoadFailureAsync(e).ConfigureAwait(false);
+                }
                 throw ServiceResultException.ConfigurationError(
                     e,
                     "Configuration could not be loaded.\nError is: {0}",
                     e.Message);
             }
 
-            if (certificatePasswordProvider != null)
+            try
             {
-                configuration.SecurityConfiguration.CertificatePasswordProvider
-                    = certificatePasswordProvider;
+                if (certificatePasswordProvider != null)
+                {
+                    configuration.SecurityConfiguration.CertificatePasswordProvider = certificatePasswordProvider;
+                }
+                await configuration.ValidateAsync(applicationType, ct).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                await configuration.DisposeCertificateManagersOnLoadFailureAsync(e).ConfigureAwait(false);
+                throw;
             }
 
-            await configuration.ValidateAsync(applicationType, ct).ConfigureAwait(false);
-
             return configuration;
+        }
+
+        /// <summary>
+        /// Cleans up managers created by base validation, preserving externally assigned replacements and load errors.
+        /// </summary>
+        private async ValueTask DisposeCertificateManagersOnLoadFailureAsync(Exception failure)
+        {
+            List<Exception>? failures = null;
+            ArrayOf<CertificateManager> createdManagers;
+            lock (m_certificateManagerLock)
+            {
+                createdManagers = new List<CertificateManager>(m_validationCreatedCertificateManagers);
+            }
+            for (int i = 0; i < createdManagers.Count; i++)
+            {
+                CertificateManager certificateManager = createdManagers[i];
+                if (IsCertificateManagerBorrowed(certificateManager))
+                {
+                    continue;
+                }
+                try
+                {
+                    await certificateManager.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    failures ??= [failure];
+                    failures.Add(e);
+                }
+            }
+            if (failures != null)
+            {
+                throw new AggregateException(failures);
+            }
         }
 
         /// <summary>
@@ -724,10 +844,18 @@ namespace Opc.Ua
             // the configuration was not built through ApplicationInstance.
             // The lifetime of this instance is owned by the surrounding
             // ApplicationInstance (or the test fixture), which disposes
-            // the configuration's CertificateManager on shutdown.
-            CertificateManager ??= CertificateManagerFactory.Create(
-                SecurityConfiguration,
-                m_telemetry);
+            // every directly assigned concrete manager on shutdown.
+            if (CertificateManager == null)
+            {
+                CertificateManager createdManager = CertificateManagerFactory.Create(
+                    SecurityConfiguration,
+                    m_telemetry);
+                lock (m_certificateManagerLock)
+                {
+                    m_validationCreatedCertificateManagers.Add(createdManager);
+                    CertificateManager = createdManager;
+                }
+            }
 
             // Eagerly load configured application certificates into the
             // manager registry so consumers (Session, validator, etc) can
@@ -902,6 +1030,31 @@ namespace Opc.Ua
         {
             Utils.UpdateExtension(ref m_extensions, elementName, value, m_telemetry);
         }
+
+        /// <summary>
+        /// Protects certificate-manager assignment provenance.
+        /// </summary>
+        private readonly Lock m_certificateManagerLock = new();
+
+        /// <summary>
+        /// Records every concrete manager assigned to the configuration.
+        /// </summary>
+        private readonly HashSet<CertificateManager> m_certificateManagers = [];
+
+        /// <summary>
+        /// Records exact factory-created managers for cleanup when configuration loading fails.
+        /// </summary>
+        private readonly HashSet<CertificateManager> m_validationCreatedCertificateManagers = [];
+
+        /// <summary>
+        /// Records container-owned managers independently of the current assignment.
+        /// </summary>
+        private readonly HashSet<CertificateManager> m_borrowedCertificateManagers = [];
+
+        /// <summary>
+        /// The currently configured certificate manager.
+        /// </summary>
+        private ICertificateManager m_certificateManager = null!;
     }
 
     /// <summary>

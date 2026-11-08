@@ -126,13 +126,21 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async ValueTask DisposeAsync()
+        public ValueTask DisposeAsync()
         {
-            if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+            lock (m_lock)
             {
-                return;
+                Volatile.Write(ref m_disposed, 1);
+                m_disposeTask ??= DisposeCoreAsync();
+                return new ValueTask(m_disposeTask);
             }
+        }
 
+        /// <summary>
+        /// Waits for configuration loading before releasing the application and reports failed initialization.
+        /// </summary>
+        private async Task DisposeCoreAsync()
+        {
             Task<ApplicationConfiguration>? loadTask;
             lock (m_lock)
             {
@@ -143,16 +151,24 @@ namespace Opc.Ua.Client
             {
                 if (loadTask != null)
                 {
-                    // Wait for a load in flight so the application is not
-                    // disposed under it; a failed load has already surfaced
-                    // to the GetAsync caller and must not fail disposal too.
+                    // Keep the application alive until loading and certificate setup finish.
                     await loadTask.ConfigureAwait(false);
                 }
             }
-            catch (Exception)
+            catch (Exception failure)
             {
+                try
+                {
+                    await Application.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception cleanupFailure)
+                {
+                    throw new AggregateException(failure, cleanupFailure);
+                }
+                throw;
             }
-            finally
+
+            try
             {
                 if (loadTask == null)
                 {
@@ -160,6 +176,9 @@ namespace Opc.Ua.Client
                     // provider and would otherwise leak.
                     m_configurationStream?.Dispose();
                 }
+            }
+            finally
+            {
                 await Application.DisposeAsync().ConfigureAwait(false);
             }
         }
@@ -192,7 +211,7 @@ namespace Opc.Ua.Client
             Application.ApplicationName = configuration.ApplicationName;
             if (m_certificateManager != null)
             {
-                configuration.CertificateManager = m_certificateManager;
+                configuration.SetBorrowedCertificateManager(m_certificateManager);
             }
             m_configureLoadedConfiguration?.Invoke(configuration);
 
@@ -237,6 +256,11 @@ namespace Opc.Ua.Client
         private readonly ICertificateManager? m_certificateManager;
         private readonly Lock m_lock = new();
         private Task<ApplicationConfiguration>? m_loadTask;
+
+        /// <summary>
+        /// The cleanup task awaited by every disposal caller.
+        /// </summary>
+        private Task? m_disposeTask;
         private ApplicationConfiguration? m_configuration;
         private int m_disposed;
     }

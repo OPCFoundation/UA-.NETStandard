@@ -47,7 +47,19 @@ namespace Opc.Ua.Configuration
     public class ApplicationInstance : IApplicationInstance
     {
         /// <inheritdoc/>
-        public async ValueTask DisposeAsync()
+        public ValueTask DisposeAsync()
+        {
+            lock (m_disposalLock)
+            {
+                m_disposeTask ??= DisposeCoreAsync();
+                return new ValueTask(m_disposeTask);
+            }
+        }
+
+        /// <summary>
+        /// Stops the server and releases owned managers once for all asynchronous disposal callers.
+        /// </summary>
+        private async Task DisposeCoreAsync()
         {
             if (Server != null)
             {
@@ -63,13 +75,36 @@ namespace Opc.Ua.Configuration
                 Server = null;
             }
 
+            SetCertificateManagerOwnership();
+            foreach (ApplicationConfiguration configuration in m_certificateManagerConfigurations)
+            {
+                foreach (CertificateManager certificateManager in configuration.GetCertificateManagers())
+                {
+                    m_ownedCertificateManagers.Add(certificateManager);
+                }
+            }
+            m_ownedCertificateManagers.RemoveWhere(IsCertificateManagerBorrowed);
+            List<Exception>? disposalFailures = null;
             foreach (CertificateManager certificateManager in m_ownedCertificateManagers)
             {
-                certificateManager.Dispose();
+                try
+                {
+                    await certificateManager.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    disposalFailures ??= [];
+                    disposalFailures.Add(e);
+                }
             }
             m_ownedCertificateManagers.Clear();
+            m_certificateManagerConfigurations.Clear();
 
             GC.SuppressFinalize(this);
+            if (disposalFailures != null)
+            {
+                throw new AggregateException(disposalFailures);
+            }
         }
 
         /// <summary>
@@ -136,7 +171,7 @@ namespace Opc.Ua.Configuration
             set
             {
                 m_applicationConfiguration = value;
-                SetCertificateManagerOwnership(takeOwnership: false);
+                SetCertificateManagerOwnership();
             }
         }
 
@@ -373,7 +408,6 @@ namespace Opc.Ua.Configuration
                 m_ownedCertificateManagers.Add(manager);
                 certificateManager = manager;
             }
-
             CertificateManager = certificateManager as CertificateManager;
             configuration.CertificateManager = certificateManager;
             if (certificateManager is CertificateManager concreteManager)
@@ -593,15 +627,42 @@ namespace Opc.Ua.Configuration
         }
 
         /// <summary>
-        /// Sets the configured concrete manager and optionally records instance ownership.
+        /// Tracks configurations so assignments made later by validation or callbacks retain their provenance.
         /// </summary>
-        internal void SetCertificateManagerOwnership(bool takeOwnership = true)
+        internal void SetCertificateManagerOwnership()
         {
             CertificateManager = ApplicationConfiguration?.CertificateManager as CertificateManager;
-            if (takeOwnership && CertificateManager is { } certificateManager)
+            if (ApplicationConfiguration is { } configuration)
             {
-                m_ownedCertificateManagers.Add(certificateManager);
+                m_certificateManagerConfigurations.Add(configuration);
             }
+        }
+
+        /// <summary>
+        /// Marks the configured certificate manager as owned by its dependency-injection container.
+        /// </summary>
+        internal void MarkCertificateManagerBorrowed()
+        {
+            if (ApplicationConfiguration?.CertificateManager is { } certificateManager)
+            {
+                ApplicationConfiguration.SetBorrowedCertificateManager(certificateManager);
+            }
+            SetCertificateManagerOwnership();
+        }
+
+        /// <summary>
+        /// Keeps container ownership when a borrowed manager is reassigned through another tracked configuration.
+        /// </summary>
+        private bool IsCertificateManagerBorrowed(CertificateManager certificateManager)
+        {
+            foreach (ApplicationConfiguration configuration in m_certificateManagerConfigurations)
+            {
+                if (configuration.IsCertificateManagerBorrowed(certificateManager))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -631,6 +692,10 @@ namespace Opc.Ua.Configuration
                         certificatePasswordProvider,
                         ct)
                     .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception e)
             {
@@ -679,6 +744,10 @@ namespace Opc.Ua.Configuration
                         certificatePasswordProvider,
                         ct)
                     .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception e)
             {
@@ -1284,7 +1353,26 @@ namespace Opc.Ua.Configuration
         private readonly ITelemetryContext? m_telemetry;
         private readonly ILogger m_logger;
         private ApplicationConfiguration? m_applicationConfiguration;
+
+        /// <summary>
+        /// Tracks concrete certificate managers owned and disposed by this instance.
+        /// </summary>
         private readonly HashSet<CertificateManager> m_ownedCertificateManagers = [];
+
+        /// <summary>
+        /// Tracks configuration provenance even after the application's configuration has been replaced.
+        /// </summary>
+        private readonly HashSet<ApplicationConfiguration> m_certificateManagerConfigurations = [];
+
+        /// <summary>
+        /// Serializes creation of the shared asynchronous disposal task.
+        /// </summary>
+        private readonly Lock m_disposalLock = new();
+
+        /// <summary>
+        /// The cleanup task awaited by every disposal caller.
+        /// </summary>
+        private Task? m_disposeTask;
         private IKeyPairGenerator? m_keyPairGenerator;
     }
 
