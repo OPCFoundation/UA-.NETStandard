@@ -653,7 +653,10 @@ can produce a value with the same uncertain status.
 After the product recorder is initialized, a supported native or OPC UA Value
 write to `NominalWeight` recomputes `GiveAway` before releasing cache-write
 admission. The derived notification follows after writer ownership is released,
-so an asynchronous callback may await another same-scale write. Recalculation
+while notification admission keeps unrelated asynchronous writers queued.
+An asynchronous callback may await another same-scale write. Synchronous
+observers run inline before asynchronous observers, and exceptions from either
+kind propagate to the caller. Recalculation
 does not depend on clearing the nominal node's change masks or on the manager's
 monitored-item implementation. Assigning `WrappedValue` directly bypasses this
 write path; the next accepted or rejected report then refreshes the result.
