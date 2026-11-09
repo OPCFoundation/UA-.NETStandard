@@ -643,14 +643,25 @@ commit with the lower delivery (0edc3b55a: 98 %, 2.8 µs per notification;
 65a67dd2f: 6 %, 94 µs). The 10-session row above may be affected as well:
 its CPU per notification is about twice the value reported in #4829.
 
-The lock-free admission, cached exact-source verdict and shared subscriber
-context changes from draft #4874 target this regression. Its paired runs on a
+The lock-free admission, cached exact-source verdict, and shared subscriber
+context changes proposed in #4874 targeted this regression. Its paired runs on a
 Ryzen AI 9 HX 370 reported 98.4–98.8 % delivery at 4.7–4.8 µs of server CPU
 per notification. A validation run on another machine after applying those
 changes delivered 88.8 % and 91.7 % at 3.2 and 3.1 µs, respectively. These
-results are not directly comparable across machines; rerun the paired harness
-scenario below on the target hardware before treating the delivery percentage
-as an acceptance threshold.
+results are not directly comparable across machines.
+
+In [#4869](https://github.com/OPCFoundation/UA-.NETStandard/issues/4869), a
+remeasurement on November 5, 2026, used #4982 at `acbae3a8a` with five rounds
+per configuration. The issue's command used the managed client with workstation GC
+on both the client and server. It delivered a median of 74.7 % of expected
+notifications (68.4–80.7 %) at 5.1 µs of server CPU per notification
+(4.9–5.3 µs). With the classic client and server GC on both sides, delivery was
+99.0 % (98.7–99.9 %) at 3.7 µs (3.6–4.4 µs). The earlier 93 % result used
+the classic-client configuration, not the managed-client command. These
+results describe `acbae3a8a` and do not qualify later builds. To repeat either
+configuration on the target hardware, use the `sub` line in
+[`gc-scenarios.txt`](../perf/benchmarks/gc-scenarios.txt), set the client and
+GC modes, and follow the [A/B comparison](../perf/README.md#ab-comparison).
 
 Results of the individual pull requests, measured as paired A/B rounds
 against the previous `master` when each was merged, are recorded in
