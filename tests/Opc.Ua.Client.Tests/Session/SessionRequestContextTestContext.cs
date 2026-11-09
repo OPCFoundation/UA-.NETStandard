@@ -84,6 +84,16 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 engineFactory: DefaultSubscriptionEngineFactory.Instance,
                 timeProvider: TimeProvider);
             InnerSession.SessionCreated(NodeId.Parse("s=original-session"), NodeId.Parse("s=original-token"));
+            SetField(
+                InnerSession,
+                typeof(Session),
+                "m_lastKeepAliveTimestamp",
+                TimeProvider.GetTimestamp());
+            SetField(
+                InnerSession,
+                typeof(Session),
+                "m_lastKeepAliveTime",
+                TimeProvider.GetUtcNow().UtcDateTime.Ticks);
 
             var factory = new Mock<ISessionFactory>();
             factory.SetupGet(value => value.Telemetry).Returns(Telemetry);

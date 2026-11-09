@@ -137,21 +137,39 @@ public sealed class PubSubWorkspaceTests
     public async Task CallerCancellationAfterStartStillStopsTheWholeOwnedWorkload()
     {
         var runtime = new PubSubTestRuntime();
-        var workspace = runtime.CreateWorkspace();
+        var terminalPhasePublished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseRun = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var workspace = runtime.CreateWorkspace(runCompletionBarrier: async () =>
+        {
+            terminalPhasePublished.TrySetResult();
+            await releaseRun.Task.ConfigureAwait(false);
+        });
         await using (workspace.ConfigureAwait(false))
         {
             using var cancellation = new CancellationTokenSource();
-            await workspace.ConfigureAsync(PubSubTestRuntime.Configuration).ConfigureAwait(false);
-            await workspace.StartAsync(PubSubTestRuntime.ReceiveAuthorization, cancellation.Token)
-                .ConfigureAwait(false);
-            await cancellation.CancelAsync().ConfigureAwait(false);
-            await runtime.Stopped.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
-            await workspace.StopAsync().ConfigureAwait(false);
+            Task stop;
+            try
+            {
+                await workspace.ConfigureAsync(PubSubTestRuntime.Configuration).ConfigureAwait(false);
+                await workspace.StartAsync(PubSubTestRuntime.ReceiveAuthorization, cancellation.Token)
+                    .ConfigureAwait(false);
+                await cancellation.CancelAsync().ConfigureAwait(false);
+                await runtime.Stopped.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                await terminalPhasePublished.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
 
-            Assert.That(runtime.Disposed.Task.IsCompletedSuccessfully, Is.True);
+                Assert.That(runtime.Disposed.Task.IsCompletedSuccessfully, Is.True);
+                Assert.That(workspace.Snapshot().Phase, Is.EqualTo(PubSubDocumentPhase.Offline));
+                Assert.That(workspace.Snapshot().Observations.Evidence.Contains(entry => entry.Area == "Lifecycle"),
+                    Is.True);
+                stop = workspace.StopAsync();
+                Assert.That(workspace.Snapshot().Phase, Is.EqualTo(PubSubDocumentPhase.Offline));
+            }
+            finally
+            {
+                releaseRun.TrySetResult();
+            }
+            await stop.ConfigureAwait(false);
             Assert.That(workspace.Snapshot().Phase, Is.EqualTo(PubSubDocumentPhase.Offline));
-            Assert.That(workspace.Snapshot().Observations.Evidence.Contains(entry => entry.Area == "Lifecycle"),
-                Is.True);
         }
     }
 

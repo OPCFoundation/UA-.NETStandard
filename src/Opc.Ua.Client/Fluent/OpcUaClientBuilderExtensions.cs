@@ -1417,6 +1417,10 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 builder.WithPoolNotifications();
             }
+            if (!sessionOptions.DeferNotificationDecoding)
+            {
+                builder.WithoutDeferredNotificationDecoding();
+            }
             if (sessionOptions.ModelChangeTracking)
             {
                 builder.WithModelChangeTracking();

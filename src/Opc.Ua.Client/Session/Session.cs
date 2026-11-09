@@ -68,7 +68,7 @@ namespace Opc.Ua.Client
     /// caller-supplied policy URI is unknown.
     /// </para>
     /// </remarks>
-    public partial class Session : SessionClientBatched, ISession,
+    public partial class Session : SessionClientBatched, ISession, IExpectedServerApplicationUriSession,
         ModelChange.INamespaceTableRefresher,
         ISnapshotRestore<SessionState>, ISnapshotRestore<SessionConfiguration>
     {
@@ -188,6 +188,7 @@ namespace Opc.Ua.Client
             // dispose their respective references in Dispose.
             m_instanceCertificateEntry = template.m_instanceCertificateEntry?.AddRef();
             m_effectiveEndpoint = template.m_effectiveEndpoint;
+            m_expectedServerApplicationUri = template.m_expectedServerApplicationUri;
             SessionFactory = template.SessionFactory;
             if (template.m_defaultSubscription != null)
             {
@@ -202,6 +203,7 @@ namespace Opc.Ua.Client
             DeleteSubscriptionsOnClose = template.DeleteSubscriptionsOnClose;
             TransferSubscriptionsOnReconnect = template.TransferSubscriptionsOnReconnect;
             EnableTokenReuseFailover = template.EnableTokenReuseFailover;
+            DeferNotificationBodies = template.DeferNotificationBodies;
             PublishRequestCancelDelayOnCloseSession = template.PublishRequestCancelDelayOnCloseSession;
             m_sessionTimeout = template.m_sessionTimeout;
             m_maxRequestMessageSize = template.m_maxRequestMessageSize;
@@ -905,6 +907,38 @@ namespace Opc.Ua.Client
         public bool EnableTokenReuseFailover { get; set; }
 
         /// <summary>
+        /// Whether this session wants notification bodies decoded on first use.
+        /// </summary>
+        /// <remarks>
+        /// The decoder reads this from the message context of the transport, which
+        /// sessions on one channel manager can share and which a replaced transport
+        /// starts anew. So a session only ever turns it on, and does again before each
+        /// Publish. A session that does not want it cannot turn it off for others: it
+        /// reads deferred bodies like any other, because they decode on first read.
+        /// </remarks>
+        internal bool DeferNotificationBodies
+        {
+            get => m_deferNotificationBodies;
+            set
+            {
+                m_deferNotificationBodies = value;
+                ApplyDeferNotificationBodies();
+            }
+        }
+
+        /// <summary>
+        /// Applies <see cref="DeferNotificationBodies"/> to the current transport.
+        /// </summary>
+        internal void ApplyDeferNotificationBodies()
+        {
+            if (m_deferNotificationBodies &&
+                NullableTransportChannel?.MessageContext is ServiceMessageContext { DeferNotificationBodies: false } context)
+            {
+                context.DeferNotificationBodies = true;
+            }
+        }
+
+        /// <summary>
         /// Whether the endpoint Url domain is checked in the certificate.
         /// </summary>
         public bool CheckDomain => m_checkDomain;
@@ -1388,6 +1422,38 @@ namespace Opc.Ua.Client
                 this, sessionName, sessionTimeout, identity, preferredLocales, checkDomain, closeChannel, ct);
         }
 
+        /// <inheritdoc/>
+        public void RequireServerApplicationUri(string expectedApplicationUri)
+        {
+            if (string.IsNullOrWhiteSpace(expectedApplicationUri) ||
+                !Uri.TryCreate(expectedApplicationUri, UriKind.Absolute, out _))
+            {
+                throw new ArgumentException(
+                    "An absolute server application URI is required.",
+                    nameof(expectedApplicationUri));
+            }
+
+            lock (m_lock)
+            {
+                if (string.Equals(
+                    m_expectedServerApplicationUri,
+                    expectedApplicationUri,
+                    StringComparison.Ordinal))
+                {
+                    return;
+                }
+
+                if (m_expectedServerApplicationUri != null || m_openStarted || !SessionId.IsNull)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidState,
+                        "The expected server application URI must be configured before opening the session.");
+                }
+
+                m_expectedServerApplicationUri = expectedApplicationUri;
+            }
+        }
+
         private async Task OpenCoreAsync(
             SessionClient serviceClient,
             string sessionName,
@@ -1401,6 +1467,13 @@ namespace Opc.Ua.Client
         {
             ThrowIfDisposed();
             using Activity? activity = CachedActivitySource.StartActivity();
+            string? selectedApplicationUri = m_endpoint.Description.Server.ApplicationUri;
+            string? expectedServerApplicationUri;
+            lock (m_lock)
+            {
+                m_openStarted = true;
+                expectedServerApplicationUri = m_expectedServerApplicationUri;
+            }
 
             ArrayOf<EndpointDescription> discoveryServerEndpoints = refreshedEndpoints.IsEmpty
                 ? m_endpoint.DiscoveryEndpoints
@@ -1456,11 +1529,6 @@ namespace Opc.Ua.Client
                     certificateData,
                     m_telemetry);
 
-                if (serverCertificateChain.Count > 0)
-                {
-                    serverCertificate = serverCertificateChain[0].AddRef();
-                }
-
                 if (requireEncryption)
                 {
                     ICertificateValidatorEx validator = m_configuration.CertificateManager;
@@ -1478,6 +1546,11 @@ namespace Opc.Ua.Client
                     }
                     // save for reconnect
                     m_checkDomain = checkDomain;
+                }
+
+                if (serverCertificateChain.Count > 0)
+                {
+                    serverCertificate = serverCertificateChain[0].AddRef();
                 }
             }
 
@@ -1529,7 +1602,7 @@ namespace Opc.Ua.Client
                         response = await serviceClient.CreateSessionAsync(
                             requestHeader,
                             clientDescription,
-                            m_endpoint.Description.Server.ApplicationUri,
+                            selectedApplicationUri,
                             m_endpoint.EndpointUrl!.ToString(),
                             sessionName,
                             clientNonce,
@@ -1552,7 +1625,7 @@ namespace Opc.Ua.Client
                     response = await serviceClient.CreateSessionAsync(
                         requestHeader,
                         clientDescription,
-                        m_endpoint.Description.Server.ApplicationUri,
+                        selectedApplicationUri,
                         m_endpoint.EndpointUrl!.ToString(),
                         sessionName,
                         clientNonce,
@@ -1617,7 +1690,10 @@ namespace Opc.Ua.Client
                 ValidateServerCertificateData(serverCertificateData);
 
                 EndpointDescription authenticatedEndpoint = ValidateServerEndpoints(
-                    serverEndpoints, discoveryServerEndpoints, discoveryProfileUris);
+                    serverEndpoints,
+                    discoveryServerEndpoints,
+                    discoveryProfileUris,
+                    expectedServerApplicationUri);
                 if (!authenticatedEndpoint.UserIdentityTokens.Contains(
                     policy => AreEquivalentUserTokenPolicies(policy, identityPolicy)))
                 {
@@ -6355,9 +6431,12 @@ namespace Opc.Ua.Client
                         Utils.ParseCertificateChainBlob(
                             m_endpoint.Description.ServerCertificate,
                             m_telemetry);
+                    using CertificateCollection returnedCertificateChain =
+                        Utils.ParseCertificateChainBlob(serverCertificateData, m_telemetry);
 
-                    if (serverCertificateChain.Count > 0 &&
-                        !Utils.IsEqual(serverCertificateData, serverCertificateChain[0].RawData))
+                    if (serverCertificateChain.Count == 0 || returnedCertificateChain.Count == 0 ||
+                        !serverCertificateChain[0].RawData.AsSpan()
+                            .SequenceEqual(returnedCertificateChain[0].RawData))
                     {
                         throw ServiceResultException.Create(
                             StatusCodes.BadCertificateInvalid,
@@ -6469,7 +6548,8 @@ namespace Opc.Ua.Client
         private EndpointDescription ValidateServerEndpoints(
             ArrayOf<EndpointDescription> serverEndpoints,
             ArrayOf<EndpointDescription> discoveryServerEndpoints,
-            ArrayOf<string> discoveryProfileUris)
+            ArrayOf<string> discoveryProfileUris,
+            string? expectedServerApplicationUri)
         {
             if (!discoveryServerEndpoints.IsEmpty)
             {
@@ -6514,7 +6594,7 @@ namespace Opc.Ua.Client
 
             // find the matching description (TBD - check domains against certificate).
             // could be a security risk.
-            return (FindMatchingDescription(
+            EndpointDescription authenticatedEndpoint = (FindMatchingDescription(
                 serverEndpoints,
                 m_endpoint.Description,
                 true) ??
@@ -6526,6 +6606,19 @@ namespace Opc.Ua.Client
                     StatusCodes.BadSecurityChecksFailed,
                     "Server did not return an EndpointDescription " +
                     "that matched the one used to create the secure channel.");
+
+            if (!string.IsNullOrEmpty(expectedServerApplicationUri) &&
+                !string.Equals(
+                    authenticatedEndpoint.Server?.ApplicationUri,
+                    expectedServerApplicationUri,
+                    StringComparison.Ordinal))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "Server returned an EndpointDescription for a different application URI.");
+            }
+
+            return authenticatedEndpoint;
         }
 
         private static bool HaveEquivalentServerEndpoints(
@@ -7228,6 +7321,9 @@ namespace Opc.Ua.Client
         /// </summary>
         protected ConfiguredEndpoint m_effectiveEndpoint;
 
+        private string? m_expectedServerApplicationUri;
+        private bool m_openStarted;
+
         /// <summary>
         /// The instance certificate together with its issuer chain.
         /// </summary>
@@ -7394,6 +7490,7 @@ namespace Opc.Ua.Client
 
         /// <summary>Namespace provenance of subscriptions loaded before the session reconnects.</summary>
         private ServiceMessageContext? m_restoredSubscriptionContext;
+        private bool m_deferNotificationBodies;
         private readonly SessionSystemContext m_systemContext;
 #pragma warning disable CA2213 // Disposed in DisposeAsyncCore/Dispose
         private readonly NodeCache m_nodeCache;

@@ -30,8 +30,11 @@ The SDK provides full or partial support for these core areas:
   transports, with platform-dependent DTLS profile limits.
 - Parts 16-20 and 23: state machines, aliases, roles, dictionary references,
   file transfer and common reference types.
-- Part 21: registrar ticket administration; the complete device-facing
-  onboarding state machine is outside the implemented scope.
+- Part 21: [ticket validation, registrar runtime and pull/push workflows](GDS.md#opc-10000-21-onboardingclient),
+  with retained device credentials, security reset, managed Client provisioning,
+  provider-backed Server/ClientAndServer push and a Part 22 `Resources` parent reference.
+  FDO protocols and credential installation remain external; the GDS guide
+  describes the remaining recovery and `ConfigurationFile` gaps.
 - Part 22: [Base Network Model](BaseNetworkModel.md) runtime, typed clients and
   an in-memory simulator, including defined optional capabilities when supplied
   by the provider; applications supply production network providers.
@@ -43,6 +46,13 @@ describes the supported Devices, Asset Management Basics, Industrial Automation,
 Positioning, ISA-95, WoT, AutoID, PackML, PA-DIM, LADS, Energy Consumption
 Management, Machinery, Robotics, Cranes and Hoists, plastics/rubber, extrusion,
 Machine Vision, weighing, measurement, Pumps and MachineTool families.
+Weighing includes registered catchweigher and price-labeler observations,
+completed hopper fills, piece-count registration and product totals, and opt-in
+recipe condition waits; equipment operation and recipe-file parsing remain
+application responsibilities.
+Scales provides native async service writes for product targets/tolerances,
+recipe condition settings and notification category/ID enums with
+`ValueAsText`. Custom synchronous-only handlers must provide native async behavior.
 Source-generation tooling also implements selected modelling checks relevant
 to OPC 11030.
 
@@ -180,11 +190,13 @@ canonical URI string before claiming a facet):
   `src/Opc.Ua.Server/StateMachines/`. The reference server's
   `BoilerStateMachineState` is an end-to-end sample. See
   [State Machines](StateMachines.md).
-- **File Access** (Part 20) — Server-side `FileSystemNodeManager` +
+- **File Access** (Part 20, partial) — Server-side `FileSystemNodeManager` +
   `IFileSystemProvider` in `src/Opc.Ua.Server/FileSystem/`. The
   reference server enables it via the `EnableFileSystemNodeManager`
   option. The matching System.IO-style client lives in
-  [`FileSystemClient`](FileSystemClient.md).
+  [`FileSystemClient`](FileSystemClient.md). The shared file handler rejects
+  combined Read + Write opens. A conflicting write-only open on a writable file
+  can return `Bad_InvalidState` where Part 20 requires `Bad_NotWritable`.
 - **Node Management** (Part 4 service set) —
   `INodeManagementAsyncNodeManager` opt-in plus a per-NodeManager
   `AllowNodeManagement` gate for `AddNodes` / `DeleteNodes` /
@@ -307,7 +319,7 @@ support gap.
 | [Cranes and Hoists](CranesHoists.md), OPC 40020-1 | Full | Robotics-derived topology, load/protection observations and authorized limit requests; not a motion or safety controller |
 | [Pumps](Pumps.md), OPC 40223 | Full | Fluent builders, typed identity writes, retained identification, DI NE107/limit conditions, event notification, shared raw/aggregate/event history and files; profile advertisement follows configured inherited facets; Table 155's Base dependency uses the Table 153 Pump Base URI while the CAS Base link remains a publication discrepancy; no physical pump executor |
 | [AutoID Devices](AutoID.md), OPC 30010 | Full | Reader hosting, RuntimeParameters/ScanActive, diagnostic formatting, typed clients, RFID/RTLS operations, verifier scans, provider-published image files and application-defined IOData composition. Devices expose configured capabilities; Full Server Facet is available for qualifying readers. Undefined optional RTLS GetUnits is omitted; mandatory unit properties remain available |
-| [Scales](Scales.md), OPC 40200 | Partial | Weighing, zero/tare, products, statistics, recipes and clients; dedicated catchweigher, price-labeler and totalizing-hopper controllers are missing, as is server evaluation of recipe sleep thresholds |
+| [Scales](Scales.md), OPC 40200 | Partial | Weighing, products, registered catchweigher/price-labeler items, completed hopper fills, piece-count registration and opt-in product totals, recipes, PackML, per-vehicle signed/absolute totals, typed clients and opt-in analog/edge waits over registered local sources. Without PackML, recipe starts require explicit application release or an allowing callback. Notification metadata, statistical equations and immediate GiveAway refresh after nominal writes are implemented. Ordinary notification reentry permits writes from overlapping callbacks. Existing mixed-category reporting and measured-only totals are preserved; Weighed does not represent fixed category participation. Physical equipment operation remains application-owned |
 | [ISA-95](ISA95.md), OPC 10030 and OPC 10031-4 | Full | Common resources and Job Control V1/V2 server/client interfaces; providers supply execution, catalogues and persistence |
 | [Positioning](Positioning.md), OPC 10000-210/-211 | Full | RSL/GPOS models, spatial lists, model changes, positions, locations, zones and transforms; hardware observations require providers |
 | [Robotics](Robotics.md), OPC 40010-1 | Full | Released motion-device topology and controller/program interfaces; physical motion and safety behavior remain equipment responsibilities |
@@ -641,9 +653,33 @@ OPC UA Part 12 areas:
 - **[KeyCredentialService](KeyCredentialService.md)** (OPC 10000-12 §8) —
   Credential issuance for non-OPC UA services such as MQTT brokers and
   REST APIs, backed by `IKeyCredentialRequestStore` / `ISecretStore`.
-- **Registrar ticket administration** (OPC 10000-21) -
-  `OnboardingClient`, `ITicketStore` and the declared registrar methods.
-  This is not the complete device-facing onboarding state machine; see
+- **Device registrar components** (OPC 10000-21) -
+  Validated ticket administration, ticket signing, composite-aware identity
+  selection, ticket-scoped identity trust, registrar authorization and shared
+  certificate issuance, typed pull/push workflows, and a singleton device host
+  with retained factory credentials and security reset. Providers own software
+  approval and state retention; restart durability depends on selecting a
+  durable provider. The bounded push scheduler accepts work in process and does
+  not persist the queue. Registrar push provisions managed Client
+  applications and supports managed Server/ClientAndServer applications when
+  the host supplies authoritative discovery URLs, installed certificates,
+  endpoints, user identities and explicit client trust. The default managed-
+  application verifier supports UA-TCP and HTTPS with independently validated
+  TLS and application identities. The sample can be configured for
+  one managed Server or ClientAndServer application after DCA proof. The
+  provisionable-device factory adds a Part 22 `Resources` parent reference, but
+  shared Resources manager integration is not implemented. Registrar push uses
+  the configured certificate type by default and permits a host-selected type
+  for each managed application; the selected type must be advertised by its
+  certificate group. Per-entry remote `ConfigurationFile`
+  update/confirm and restart recovery use optional application-scoped Part 12
+  providers. The originally selected certificate type is retained during recovery.
+  The optional external-authentication handoff uses an injectable provider for
+  dedicated CA trust and configured product/DCA approval; typed external pull
+  and registrar push reuse the existing lifecycle. FDO protocols and credential
+  installation remain external.
+  Connected recovery fixtures are present; their execution status is tracked
+  separately. See
   [the implemented scope](GDS.md#opc-10000-21-onboardingclient).
 
 See the [GDS Developer Guide](GDS.md) for the implemented facets, provider-dependent
@@ -883,7 +919,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 10000-9: Alarms and Conditions](https://reference.opcfoundation.org/specs/OPC-10000-9) | 1.05.06 | Full | - |
 | [OPC 10000-10: Programs](https://reference.opcfoundation.org/specs/OPC-10000-10) | 1.05.00 | Full | - |
 | [OPC 10000-11: Historical Access](https://reference.opcfoundation.org/specs/OPC-10000-11) | 1.05.04 | Full | - |
-| [OPC 10000-12: Discovery and Global Services](https://reference.opcfoundation.org/specs/OPC-10000-12) | 1.05.07 | Partial | GDS remote-application proxy incomplete; AuthorizationServices configuration folder absent |
+| [OPC 10000-12: Discovery and Global Services](https://reference.opcfoundation.org/specs/OPC-10000-12) | 1.05.07 | Partial | `ConfigurationFile` transfer and open-handle behavior are incomplete. Shorter replacement semantics are unresolved, and `AuthorizationServices` is absent. [Details](GDS.md#remaining-optional--unsupported-part-12-items) |
 | [OPC 10000-13: Aggregates](https://reference.opcfoundation.org/specs/OPC-10000-13) | 1.05.07 | Full | - |
 | [OPC 10000-14: PubSub](https://reference.opcfoundation.org/specs/OPC-10000-14) | 1.05.06 | Partial | Curve25519/Curve448 DTLS profiles unavailable; other DTLS profiles depend on platform probes |
 | [OPC 10000-15: Safety](https://reference.opcfoundation.org/specs/OPC-10000-15) | 1.05.04 | No | - |
@@ -891,8 +927,8 @@ does not establish executable management, serialization or logging methods.
 | [OPC 10000-17: Alias Names](https://reference.opcfoundation.org/specs/OPC-10000-17) | 1.05.07 | Full | - |
 | [OPC 10000-18: Role-Based Security](https://reference.opcfoundation.org/specs/OPC-10000-18) | 1.05.06 | Full | - |
 | [OPC 10000-19: Dictionary Reference](https://reference.opcfoundation.org/specs/OPC-10000-19) | 1.05.03 | Full | - |
-| [OPC 10000-20: File Transfer](https://reference.opcfoundation.org/specs/OPC-10000-20) | 1.05.06 | Full | - |
-| [OPC 10000-21: Device Onboarding](https://reference.opcfoundation.org/specs/OPC-10000-21) | 1.05.04 | Partial | Registrar tickets only; complete device-facing onboarding state machine missing |
+| [OPC 10000-20: File Transfer](https://reference.opcfoundation.org/specs/OPC-10000-20) | 1.05.06 | Partial | Combined Read + Write opens are rejected. A conflicting write open can return `Bad_InvalidState` instead of `Bad_NotWritable`. |
+| [OPC 10000-21: Device Onboarding](https://reference.opcfoundation.org/specs/OPC-10000-21) | 1.05.04 | Partial | Initial pull cannot request a new key pair, and §7.2 recovery after a lost accepted response is incomplete. Managed-application updates and restart recovery depend on host providers. The Part 22 `Resources` integration is absent, and `ConfigurationFile` transfer is partial. Push acceptance is process-local. Hosts must reconcile registrar and device state before retrying after a restart or interruption. [Details](GDS.md#opc-10000-21-onboardingclient) |
 | [OPC 10000-22: Base Network Model](https://reference.opcfoundation.org/specs/OPC-10000-22) | 1.05.04 | Full | Defined optional interface, mapping, TSN and LLDP capabilities are provider-backed; production adapters remain application-supplied |
 | [OPC 10000-23: Common ReferenceTypes](https://reference.opcfoundation.org/specs/OPC-10000-23) | 1.05.02 | Full | - |
 | [OPC 10000-24: Scheduler](https://reference.opcfoundation.org/specs/OPC-10000-24) | 1.05.02 | No | - |
@@ -974,7 +1010,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 40092-1: Flexible PUR Foam - Cutting Machines](https://reference.opcfoundation.org/specs/OPC-40092-1) | 1.0.0 | No | - |
 | [OPC 40100-1: Machine Vision - Control, Configuration, Recipe and Result Management](https://reference.opcfoundation.org/specs/OPC-40100-1) | 1.0 | Full | - |
 | [OPC 40100-2: Machine Vision - Asset Management and Condition Monitoring](https://reference.opcfoundation.org/specs/OPC-40100-2) | 1.00.0 | Full | - |
-| [OPC 40200: Weighing Technology](https://reference.opcfoundation.org/specs/OPC-40200) | 2.00 | Partial | Catchweigher/price-labeler/hopper controllers and server recipe sleep-threshold evaluation missing |
+| [OPC 40200: Weighing Technology](https://reference.opcfoundation.org/specs/OPC-40200) | 2.00 | Partial | Notification metadata, statistical equations and immediate GiveAway refresh after nominal writes are implemented. Ordinary notification reentry permits writes from overlapping callbacks. Existing mixed-category reporting and measured-only totals are preserved; Weighed does not represent fixed category participation |
 | [OPC 40210: Geometric Measurement Systems](https://reference.opcfoundation.org/specs/OPC-40210) | 1.0.1 | Partial | Production facet withheld: required GMS_ProductionStatisticsType undefined upstream |
 | [OPC 40223: Pumps and Vacuum Pumps](https://reference.opcfoundation.org/specs/OPC-40223) | 1.0 | Full | Pump Base and Advanced profiles follow verified configured capabilities; Table 155's dependency uses the Table 153 Pump Base URI, while the CAS Base link remains a publication discrepancy |
 | [OPC 40250-1: Compressed Air Systems - Main Control Systems](https://reference.opcfoundation.org/specs/OPC-40250-1) | 1.00.1 | No | - |

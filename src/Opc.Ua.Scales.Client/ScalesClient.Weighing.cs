@@ -355,6 +355,14 @@ namespace Opc.Ua.Scales.Client
             // One Read for the weight and its properties, so the reading and
             // its flags describe the same moment.
             DataValue[] results = await ReadDataValuesAsync(ids, ct).ConfigureAwait(false);
+            return DecodeWeightItem(results);
+        }
+
+        /// <summary>
+        /// Decodes a weight structure and its optional properties from one read.
+        /// </summary>
+        private ScaleReading DecodeWeightItem(DataValue[] results)
+        {
             DataValue data = results[0];
             var v = new Variant[results.Length];
             for (int ii = 1; ii < results.Length; ii++)

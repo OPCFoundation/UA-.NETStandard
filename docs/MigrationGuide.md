@@ -8,6 +8,9 @@ covers cross-cutting changes.
 ## Contents
 
 - [General principles](#general-principles)
+- [Migrating custom node write overrides](#migrating-custom-node-write-overrides)
+- [Correcting preview onboarding ticket APIs](#correcting-preview-onboarding-ticket-apis)
+- [Migrating confirmation-enabled ConfigurationFile providers](#migrating-confirmation-enabled-configurationfile-providers)
 - [Program state numbers and managed execution](#program-state-numbers-and-managed-execution)
 - [Empty LocalizedText fields in 2.0](#empty-localizedtext-fields-in-20)
 - [Per-version migration index](#per-version-migration-index)
@@ -71,6 +74,131 @@ for use in any repository:
 copilot plugin marketplace add OPCFoundation/UA-.NETStandard
 copilot plugin install opcua-v20-migration@opcua-dotnet
 ```
+
+## Migrating custom node write overrides
+
+**Breaking change:** `NodeState.WriteAttributeAsync` is no longer virtual.
+Move custom implementations to the protected virtual `WriteAttributeCoreAsync`
+hook. Existing callers keep the same public method and parameters; derived node
+types that override the public method require a source change and recompilation.
+
+The public entrypoint now owns Value-write admission through validation, the
+custom hook, callback dispatch and the correlated value/status/timestamp cache
+commit. A public override could previously bypass that operation by not calling
+base, or run custom behavior outside it. Making the public method non-virtual
+prevents that bypass without exposing synchronization to derived types.
+
+Before:
+
+```csharp
+public override ValueTask<ServiceResult> WriteAttributeAsync(
+    ISystemContext context,
+    uint attributeId,
+    NumericRange indexRange,
+    DataValue value,
+    CancellationToken cancellationToken = default)
+{
+    return base.WriteAttributeAsync(
+        context, attributeId, indexRange, value, cancellationToken);
+}
+```
+
+After:
+
+```csharp
+protected override ValueTask<ServiceResult> WriteAttributeCoreAsync(
+    ISystemContext context,
+    uint attributeId,
+    NumericRange indexRange,
+    DataValue value,
+    CancellationToken cancellationToken = default)
+{
+    return base.WriteAttributeCoreAsync(
+        context, attributeId, indexRange, value, cancellationToken);
+}
+```
+
+Keep custom validation and write behavior inside the core hook. Call the protected
+base hook to retain native behavior; do not call the public `WriteAttributeAsync`
+on the same node from that hook. When admission is bound, the nested public call
+waits behind the operation that invoked the hook until its cancellation token is
+cancelled. Cancellation unwinds that wait and releases the outer operation's
+admission. There is no invocation identity that distinguishes this call from an
+independent queued writer, so ordinary overlapping asynchronous writers continue
+to wait and serialize.
+
+The synchronous `WriteAttribute` entrypoint is non-virtual and keeps its
+synchronous implementation, including protected `WriteValueAttribute`
+customization. It does not block on the asynchronous hook. Both public paths
+apply the same Value-write admission where an owning runtime binds it.
+
+On an executor-bound node, an asynchronous Value write no longer falls back to
+the synchronous implementation. Configure `OnWriteValueAsync` or
+`OnSimpleWriteValueAsync` on a `BaseVariableState`, or implement the asynchronous
+core yourself. When no native asynchronous implementation handles the write, it
+returns `BadNotSupported` without invoking synchronous handlers or changing the
+cached value, status or timestamp. This includes variables with no write
+handlers. Calling the synchronous entrypoint remains supported; wrapping it in
+an asynchronous core would violate this rule.
+
+Scales supplies a native async cache-write policy for its stock writable
+variables, including product targets, tolerances and recipe condition settings.
+That policy retains native validation and correlated cache commit. Custom
+synchronous-only handlers require an asynchronous implementation; they are
+neither invoked nor silently bypassed by the policy.
+Stock `MultiStateValueDiscreteState` notification settings use a separate native
+async enum policy, including `ValueAsText` updates after a successful cache
+commit. Native validation checks access/type before enum membership; the
+synchronous implementation checks enum membership first. Application-defined
+subclasses, `SelectionListState` and `MultiStateDiscreteState` do not receive
+these policies; provide their native async behavior explicitly.
+
+Unbound nodes retain their existing synchronous fallback. Non-Value attributes
+still dispatch to the protected core without Value-write admission.
+
+Direct assignments to node properties do not pass through these methods and
+require application serialization. See [Scales write coordination](Scales.md)
+for the runtime-specific rejection and publication behavior.
+
+## Correcting preview onboarding ticket APIs
+
+Part 21 `EncodedTicket` is a String subtype. Applications using the earlier
+2.0 preview onboarding APIs must pass signed JSON envelopes as
+`ArrayOf<string>`, not `ArrayOf<ByteString>`. The obsolete `OnboardingClient`
+byte-input overloads decode UTF-8 before sending String values; invalid UTF-8
+throws locally. They do not preserve the incorrect ByteString wire format.
+This correction does not replace an onboarding API from 1.5.378.
+
+Server hosts must pass an `IOnboardingTicketValidator` when calling
+`BindToTicketStore`. The obsolete overload without a validator rejects
+registration with `BadConfigurationError` instead of storing unverified
+tickets. Register authority stores through `AddOnboardingTickets` and resolve
+the validator from dependency injection, or construct it with an explicit
+trust provider. See [onboarding configuration](GDS.md#opc-10000-21-onboardingclient).
+
+## Migrating confirmation-enabled ConfigurationFile providers
+
+Providers that set `IApplicationConfigurationFileProvider.RequiresConfirmation`
+to `true` must now implement `IRecoverableApplicationConfigurationFileProvider`.
+Without it, the server rejects `CloseAndUpdate` with `Bad_NotSupported` before
+calling validation or changing provider state. Providers that do not require
+confirmation are unaffected.
+
+The new interface requires durable storage for the previous configuration, the
+proposed configuration and targets, the update identifier, apply time and
+optional revert deadline. Implement `ApplyPendingUpdateAsync`,
+`ConfirmPendingUpdateAsync` and `RevertPendingUpdateAsync` as atomic,
+idempotent operations scoped to that identifier. `GetPendingUpdateAsync` must
+return the transaction state after process restart so the server can apply,
+confirm or revert it before exposing `ConfigurationFile`.
+
+Persist the rollback snapshot and revert deadline in the provider's durable
+transaction store. The server owns timer scheduling; the provider supplies the
+pending state used to recover after restart. A provider must not report
+successful staging until the new configuration and prior state can be
+recovered. See the [ConfigurationFile provider contract in
+CertificateManager.md](CertificateManager.md#optional-serverconfiguration-surface-opc-ua-part-12-7103-71013-71020)
+for the full behavior and registration guidance.
 
 ## Program state numbers and managed execution
 

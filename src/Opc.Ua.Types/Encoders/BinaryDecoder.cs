@@ -183,16 +183,19 @@ namespace Opc.Ua
         /// The end of the ExtensionObject body when the whole buffer of this
         /// decoder is such a body, -1 when unknown.
         /// </param>
+        /// <param name="recoveries">The recoveries of the response, if shared.</param>
         internal void InheritDecodingState(
             ushort[]? namespaceMappings,
             ushort[]? serverMappings,
             uint nestingLevel,
-            int bodyEnd = -1)
+            int bodyEnd = -1,
+            DecoderRecoveries? recoveries = null)
         {
             m_namespaceMappings = namespaceMappings;
             m_serverMappings = serverMappings;
             m_nestingLevel = nestingLevel;
             m_bodyEnd = bodyEnd;
+            m_recoveries = recoveries;
         }
 
         /// <summary>
@@ -542,7 +545,12 @@ namespace Opc.Ua
                 {
                     utf8StringLength--;
                 }
-                return Encoding.UTF8.GetString(bytes[..utf8StringLength]);
+
+                // short strings repeat across the values of a message (event source names,
+                // messages, locales, string node ids): reuse the instance decoded last.
+                return utf8StringLength <= DecodedStringCache.MaxUtf8Length
+                    ? DecodedStringCache.GetOrAdd(bytes[..utf8StringLength])
+                    : Encoding.UTF8.GetString(bytes[..utf8StringLength]);
             }
             finally
             {
@@ -1079,7 +1087,7 @@ namespace Opc.Ua
                         // up to MaxDecoderRecoveries times and logged once, so a
                         // message cannot flood the log with its own content.
                         if (typeId.NamespaceIndex == 0 ||
-                            m_encodeablesRecovered >= Context.MaxDecoderRecoveries)
+                            !(m_recoveries ??= new DecoderRecoveries()).TryReserve(Context.MaxDecoderRecoveries))
                         {
                             if (e is ServiceResultException)
                             {
@@ -1093,12 +1101,10 @@ namespace Opc.Ua
                                 extension.TypeId);
                         }
 
-                        if (m_encodeablesRecovered == 0)
+                        if (m_recoveries.TryLogFailure())
                         {
                             Logger.CouldNotDecodeKnownTypeXml(activator.XmlName, e.Message);
                         }
-
-                        m_encodeablesRecovered++;
                     }
                 }
 
@@ -1109,6 +1115,18 @@ namespace Opc.Ua
             // Allow a length of -1 to support legacy devices that don't fill the length correctly
             int length = SafeReadInt32();
 
+            // A notification body is only needed when it is dispatched: keep the bytes
+            // flat until then, so that messages waiting for dispatch cost the GC nothing.
+            // A forward-only stream cannot tell that the length is available up front.
+            if (activator != null &&
+                length > 0 &&
+                DeferredExtensionObjectBody.IsDeferred(Context, typeId) &&
+                m_namespaceMappings == null &&
+                m_serverMappings == null &&
+                (m_hasBuffer || BaseStream.CanSeek))
+            {
+                return ReadDeferredExtensionObject(extension.TypeId, activator, length);
+            }
             if (!m_hasBuffer && !BaseStream.CanSeek)
             {
                 if (length < 0)
@@ -1141,19 +1159,59 @@ namespace Opc.Ua
                 byte[] body = SafeReadStreamBytes(length, nameof(ReadExtensionObject));
                 using var bodyDecoder = new BinaryDecoder(body, Context);
                 bodyDecoder.InheritDecodingState(
-                    m_namespaceMappings, m_serverMappings, m_nestingLevel, body.Length);
-                bodyDecoder.m_encodeablesRecovered = m_encodeablesRecovered;
-                try
-                {
-                    return bodyDecoder.ReadBinaryExtensionObject(typeId, extension, activator, length);
-                }
-                finally
-                {
-                    m_encodeablesRecovered = bodyDecoder.m_encodeablesRecovered;
-                }
+                    m_namespaceMappings,
+                    m_serverMappings,
+                    m_nestingLevel,
+                    body.Length,
+                    m_recoveries ??= new DecoderRecoveries());
+                return bodyDecoder.ReadBinaryExtensionObject(typeId, extension, activator, length);
             }
 
             return ReadBinaryExtensionObject(typeId, extension, activator, length);
+        }
+
+        /// <summary>
+        /// Copies a body that is decoded on first use into a rented buffer.
+        /// </summary>
+        private ExtensionObject ReadDeferredExtensionObject(
+            ExpandedNodeId typeId,
+            IEncodeableType activator,
+            int length)
+        {
+            // the eager path enforces the limit when it starts on the body, and a body
+            // without nested structures would never reach another check.
+            CheckNestingLevel();
+
+            // never rent a length the input cannot satisfy.
+            CheckRemainingBytes(length, nameof(ReadExtensionObject));
+            if (Context.MaxMessageSize > 0 && Context.MaxMessageSize < length)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxMessageSize exceeded in ExtensionObject: {0} < {1}",
+                    Context.MaxMessageSize,
+                    length);
+            }
+            byte[] buffer = DeferredExtensionObjectBody.Rent(length);
+            try
+            {
+                ReadRawBytes(buffer.AsSpan(0, length));
+            }
+            catch
+            {
+                DeferredExtensionObjectBody.Return(buffer);
+                throw;
+            }
+            return new ExtensionObject(
+                typeId,
+                new DeferredExtensionObjectBody(
+                    typeId,
+                    buffer,
+                    length,
+                    activator,
+                    Context,
+                    m_nestingLevel + 1,
+                    m_recoveries ??= new DecoderRecoveries()));
         }
 
         /// <summary>
@@ -1241,7 +1299,7 @@ namespace Opc.Ua
                     // reset stream to return ExtensionObject if configured to do so!
                     // decoding failure of a known type in ns=0 is always a decoding error.
                     if (typeId.NamespaceIndex == 0 ||
-                        m_encodeablesRecovered >= Context.MaxDecoderRecoveries)
+                        !(m_recoveries ??= new DecoderRecoveries()).TryReserve(Context.MaxDecoderRecoveries))
                     {
                         throw exception
                             ?? ServiceResultException.Create(
@@ -1251,7 +1309,8 @@ namespace Opc.Ua
                                 activator!.XmlName,
                                 extension.TypeId);
                     }
-                    else if (m_encodeablesRecovered == 0)
+
+                    if (m_recoveries.TryLogFailure())
                     {
                         // log the error only once to avoid flooding the log.
                         Logger.DecodeEncodeableRecovered(
@@ -1264,9 +1323,6 @@ namespace Opc.Ua
                     // reset the stream to the begin of the ExtensionObject body.
                     SetPosition(start);
                     encodeable = null;
-
-                    // count number of recoveries
-                    m_encodeablesRecovered++;
                 }
             }
 
@@ -3185,6 +3241,17 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private void CheckAndIncrementNestingLevel()
         {
+            CheckNestingLevel();
+            EncodingLimits.EnsureSufficientStack();
+            m_nestingLevel++;
+        }
+
+        /// <summary>
+        /// Test the nesting level.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void CheckNestingLevel()
+        {
             if (m_nestingLevel > Context.MaxEncodingNestingLevels)
             {
                 throw ServiceResultException.Create(
@@ -3192,8 +3259,6 @@ namespace Opc.Ua
                     "Maximum nesting level of {0} was exceeded",
                     Context.MaxEncodingNestingLevels);
             }
-            EncodingLimits.EnsureSufficientStack();
-            m_nestingLevel++;
         }
 
         /// <summary>
@@ -3257,7 +3322,9 @@ namespace Opc.Ua
         // The end position of the ExtensionObject body being decoded, or -1
         // when none is. See TryReadRemainingBodyBytes.
         private int m_bodyEnd = -1;
-        private uint m_encodeablesRecovered;
+
+        // Shared with the decoders of the bodies of the same response.
+        private DecoderRecoveries? m_recoveries;
 
         // The most bytes allocated up front for an array read element by
         // element, see ReadArrayElements. Below the large object heap limit.

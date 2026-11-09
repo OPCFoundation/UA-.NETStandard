@@ -56,7 +56,7 @@ namespace Opc.Ua.Server
     /// so the shutdown does not block their thread.
     /// </remarks>
     public class StandardServer : SessionServerBase, IStandardServer, IAsyncDisposable, IServerSessionBindingProvider,
-        IRequestParkingPolicySource
+        IRequestParkingPolicySource, IServerApplicationCertificateActivator
     {
         /// <inheritdoc/>
         public StandardServer(ITelemetryContext telemetry)
@@ -214,6 +214,54 @@ namespace Opc.Ua.Server
         /// time / duration calculations and timer scheduling.
         /// </summary>
         protected TimeProvider TimeProvider { get; }
+
+        /// <inheritdoc/>
+        public ValueTask ActivateAsync(
+            NodeId certificateType,
+            string expectedThumbprint,
+            CancellationToken cancellationToken = default)
+        {
+            ActivateCertificate(certificateType, expectedThumbprint, cancellationToken);
+            return default;
+        }
+
+        /// <summary>
+        /// Applies the current certificate-manager entry to listeners before releasing its registry lease.
+        /// </summary>
+        private void ActivateCertificate(
+            NodeId certificateType,
+            string expectedThumbprint,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (certificateType.IsNull || string.IsNullOrWhiteSpace(expectedThumbprint))
+            {
+                throw new ArgumentException("A certificate type and thumbprint are required.");
+            }
+
+            if (CertificateManager is not ICertificateRegistry registry ||
+                CertificateManager is not ICertificateValidatorEx validator)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported,
+                    "The server certificate manager cannot activate application certificates.");
+            }
+
+            using CertificateEntry? entry = registry.AcquireApplicationCertificateByType(certificateType);
+            if (entry == null ||
+                !string.Equals(entry.Certificate.Thumbprint, expectedThumbprint, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The requested application certificate is not the active certificate-manager entry.");
+            }
+
+            // Unlike the observer notification path, this explicit activation path propagates listener
+            // failures to its caller. The listener contract is synchronous: a completed call has applied
+            // the new registry reference and endpoint certificate before this method returns.
+            RefreshCertificateReferences(validator, registry);
+            cancellationToken.ThrowIfCancellationRequested();
+        }
 
         /// <summary>
         /// Gets or sets the optional redundant server-set provider consulted by
@@ -2551,11 +2599,18 @@ namespace Opc.Ua.Server
                     requestHeader.RequestHandle,
                     requestHeader.Timestamp);
 
-                PublishResponse response = await ServerInternal.SubscriptionManager.PublishAsync(
+#pragma warning disable CA2025 // awaited below, before the context is disposed
+                Task<PublishResponse> publish = ServerInternal.SubscriptionManager.PublishAsync(
                     context,
                     subscriptionAcknowledgements,
                     requestLifetime.ParkSink,
-                    requestLifetime.CancellationToken).ConfigureAwait(false);
+                    requestLifetime.CancellationToken);
+#pragma warning restore CA2025
+
+                // The acknowledgements are applied before the request waits: the state
+                // machine does not keep them for the whole wait of a held Publish.
+                subscriptionAcknowledgements = default;
+                PublishResponse response = await publish.ConfigureAwait(false);
 
                 response.ResponseHeader = CreateResponse(requestHeader, context);
 
