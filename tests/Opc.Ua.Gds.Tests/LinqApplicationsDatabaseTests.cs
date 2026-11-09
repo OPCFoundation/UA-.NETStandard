@@ -591,9 +591,10 @@ namespace Opc.Ua.Gds.Tests
             {
                 var database = JsonApplicationsDatabase.Load(fileName);
                 NodeId application = database.RegisterApplication(CreateServerApplication("urn:test:a", "ServerA"));
-                NodeId request = database.StartNewKeyPairRequest(
+                ByteString fingerprint = CreateFingerprint(1);
+                NodeId request = database.StartBoundNewKeyPairRequest(
                     application, "DefaultApplicationGroup", "RsaSha256ApplicationCertificateType",
-                    "CN=ServerA", ["localhost"], "PFX", "secret-password".AsSpan(), "admin");
+                    "CN=ServerA", ["localhost"], "PFX", "secret-password".AsSpan(), fingerprint, "admin");
                 database.ApproveRequest(request, false);
 
                 Assert.That(File.ReadAllText(fileName), Does.Not.Contain("secret-password"));
@@ -607,7 +608,13 @@ namespace Opc.Ua.Gds.Tests
                 // completed with an unprotected private key.
                 database = JsonApplicationsDatabase.Load(fileName);
                 Assert.That(
-                    database.FinishRequest(application, request, out _, out _, out _, out _),
+                    () => database.FinishRequest(application, request, out _, out _, out _, out _),
+                    Throws.TypeOf<ServiceResultException>()
+                        .With.Property(nameof(ServiceResultException.StatusCode))
+                        .EqualTo(StatusCodes.BadUserAccessDenied));
+                Assert.That(
+                    database.FinishBoundRequest(
+                        application, request, fingerprint, out _, out _, out _, out _),
                     Is.EqualTo(CertificateRequestState.Rejected));
             }
             finally
