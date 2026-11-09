@@ -32,6 +32,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -53,8 +54,8 @@ namespace Opc.Ua.Tools.Tests
     public sealed class CiPathRelevanceTests
     {
         /// <summary>
-        /// Anything that is not documentation has to be built. These are the
-        /// build inputs an extension allow-list would have missed.
+        /// Paths outside the designated documentation locations require a build,
+        /// including Markdown files consumed by analyzers and packages.
         /// </summary>
         [TestCase("src/Opc.Ua.Types/BuiltIn/NodeId.cs", TestName = "Source")]
         [TestCase("src/Opc.Ua.WotCon/Design/Opc.Ua.WotCon.NodeSet2.xml", TestName = "GeneratorNodeSet")]
@@ -68,20 +69,30 @@ namespace Opc.Ua.Tools.Tests
         [TestCase("fuzzing/Common/Fuzz.Tests/FuzzTargetTestsBase.cs", TestName = "Fuzz")]
         [TestCase("docs.txt", TestName = "FileNamedLikeTheDocsDirectory")]
         [TestCase("src/readme.markdown", TestName = "NotMarkdownByExtension")]
+        [TestCase("tools/Opc.Ua.MigrationAnalyzer/AnalyzerReleases.Unshipped.md", TestName = "AnalyzerReleaseInput")]
+        [TestCase(@"tools\Opc.Ua.SourceGeneration\AnalyzerReleases.Shipped.md", TestName = "AnalyzerInputWindowsPath")]
+        [TestCase("src/Opc.Ua.Client/NugetREADME.md", TestName = "PackageReadme")]
+        [TestCase("tools/Opc.Ua.Mcp/McpREADME.md", TestName = "ToolPackageReadme")]
+        [TestCase("nuget/MetaPackageREADME.md", TestName = "MetaPackageReadme")]
+        [TestCase("src/Opc.Ua.Client/README.md", TestName = "NestedMarkdown")]
+        [TestCase("notes.md", TestName = "UnrecognizedRootMarkdown")]
+        [TestCase("readme.md", TestName = "DistinctRootDocumentCase")]
+        [TestCase("DOCS/Generated.cs", TestName = "DistinctDocumentationDirectoryCase")]
+        [TestCase(" ", TestName = "WhitespaceOnlyFileName")]
         public async Task ChangeIsBuildRelevantAsync(string path)
         {
             Assert.That(await EvaluateAsync(path).ConfigureAwait(false), Is.True);
         }
 
         /// <summary>
-        /// The only skippable class is documentation: Markdown anywhere, and the
-        /// docs/ tree, which holds nothing but Markdown and images.
+        /// The documentation tree and the designated root documents are skippable.
         /// </summary>
         [TestCase("README.md", TestName = "RootMarkdown")]
         [TestCase("docs/ReleaseProcess.md", TestName = "DocsMarkdown")]
         [TestCase("docs/images/architecture.png", TestName = "DocsImage")]
-        [TestCase("src/Opc.Ua.Client/README.md", TestName = "NestedMarkdown")]
-        [TestCase("CONTRIBUTING.MD", TestName = "UppercaseExtension")]
+        [TestCase("CONTRIBUTING.md", TestName = "RootContributionGuide")]
+        [TestCase("SECURITY.md", TestName = "RootSecurityPolicy")]
+        [TestCase(@"docs\images\architecture.png", TestName = "DocsWindowsPath")]
         public async Task ChangeIsSkippableAsync(string path)
         {
             Assert.That(await EvaluateAsync(path).ConfigureAwait(false), Is.False);
@@ -101,6 +112,29 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
+        /// A build-relevant path remains relevant regardless of its position among documentation paths.
+        /// </summary>
+        [TestCase("src/Opc.Ua.Types/Guid.cs", "README.md")]
+        [TestCase("README.md", "src/Opc.Ua.Types/Guid.cs")]
+        [TestCase("src/it's,code.cs", "README.md")]
+        [TestCase("README.md", "src/Opc.Ua.Client/NugetREADME.md")]
+        [TestCase("nuget/MetaPackageREADME.md", "docs/Profiles.md")]
+        public async Task RelevantFileWithDocumentationStillBuildsAsync(string first, string second)
+        {
+            Assert.That(await EvaluateAsync(first, second).ConfigureAwait(false), Is.True);
+        }
+
+        /// <summary>
+        /// Multiple documentation paths do not require a build.
+        /// </summary>
+        [Test]
+        public async Task MultipleDocumentationFilesAreSkippableAsync()
+        {
+            Assert.That(await EvaluateAsync("README.md", "docs/images/architecture.png").ConfigureAwait(false),
+                Is.False);
+        }
+
+        /// <summary>
         /// An empty diff changes nothing, so there is nothing to rebuild.
         /// </summary>
         [Test]
@@ -113,13 +147,53 @@ namespace Opc.Ua.Tools.Tests
         /// The workflow has to call this script rather than carry a second copy
         /// of the rule, because only this one is tested.
         /// </summary>
-        [Test]
-        public async Task WorkflowDelegatesTheDecisionToThisScriptAsync()
+        [TestCase("buildandtest.yml")]
+        [TestCase("nuget-publish.yml")]
+        public async Task WorkflowDelegatesTheDecisionToThisScriptAsync(string workflowName)
         {
-            string workflow = Path.Combine(FindRepositoryRoot(), ".github", "workflows", "buildandtest.yml");
+            string workflow = Path.Combine(FindRepositoryRoot(), ".github", "workflows", workflowName);
             string source = await File.ReadAllTextAsync(workflow).ConfigureAwait(false);
 
             Assert.That(source, Does.Contain("./.github/scripts/get-path-relevance.ps1 -ChangedFile $changed"));
+        }
+
+        /// <summary>
+        /// Renames report the old and new paths so removing a build input cannot skip the relevant jobs.
+        /// </summary>
+        [TestCase("buildandtest.yml")]
+        [TestCase("nuget-publish.yml")]
+        [TestCase("docker-image.yml")]
+        public async Task WorkflowIncludesBothPathsOfRenamesAsync(string workflowName)
+        {
+            string workflow = Path.Combine(FindRepositoryRoot(), ".github", "workflows", workflowName);
+            string source = await File.ReadAllTextAsync(workflow).ConfigureAwait(false);
+
+            Assert.That(source, Does.Contain("git diff --name-only --no-renames"));
+        }
+
+        /// <summary>
+        /// Runs the build, package, and image relevance steps with available and unavailable Git comparisons.
+        /// </summary>
+        [Test]
+        public async Task WorkflowRelevanceHandlesGitResultsAsync()
+        {
+            string root = FindRepositoryRoot();
+            using var process = new Process();
+            process.StartInfo.FileName = "pwsh";
+            process.StartInfo.WorkingDirectory = root;
+            process.StartInfo.UseShellExecute = false;
+            process.StartInfo.RedirectStandardOutput = true;
+            process.StartInfo.RedirectStandardError = true;
+            PowerShellScriptOutput.ConfigureDeterministicOutput(process.StartInfo);
+            process.StartInfo.ArgumentList.Add("-NoLogo");
+            process.StartInfo.ArgumentList.Add("-NoProfile");
+            process.StartInfo.ArgumentList.Add("-NonInteractive");
+            process.StartInfo.ArgumentList.Add("-File");
+            process.StartInfo.ArgumentList.Add(Path.Combine(
+                root, "tests", "Opc.Ua.Tools.Tests", "TestCiWorkflowRelevance.ps1"));
+
+            (int exitCode, string output, string error) = await RunProcessAsync(process).ConfigureAwait(false);
+            Assert.That(exitCode, Is.Zero, output + error);
         }
 
         /// <summary>
@@ -158,33 +232,50 @@ namespace Opc.Ua.Tools.Tests
             using var process = new Process();
             process.StartInfo.FileName = "pwsh";
             process.StartInfo.WorkingDirectory = root;
+            process.StartInfo.UseShellExecute = false;
             process.StartInfo.RedirectStandardOutput = true;
             process.StartInfo.RedirectStandardError = true;
             PowerShellScriptOutput.ConfigureDeterministicOutput(process.StartInfo);
+            process.StartInfo.Environment["OPCUA_TEST_CHANGED_FILES"] = JsonSerializer.Serialize(changedFiles);
+            process.StartInfo.ArgumentList.Add("-NoLogo");
             process.StartInfo.ArgumentList.Add("-NoProfile");
-            process.StartInfo.ArgumentList.Add("-File");
-            process.StartInfo.ArgumentList.Add(Path.Combine(root, ".github", "scripts", "get-path-relevance.ps1"));
-            if (changedFiles.Length != 0)
-            {
-                // 'pwsh -File' binds one argument per parameter, so an array has
-                // to arrive as a single comma-separated value. Omitting the
-                // parameter entirely is how an empty diff is expressed.
-                process.StartInfo.ArgumentList.Add("-ChangedFile");
-                process.StartInfo.ArgumentList.Add(string.Join(',', changedFiles));
-            }
+            process.StartInfo.ArgumentList.Add("-NonInteractive");
+            process.StartInfo.ArgumentList.Add("-Command");
+            process.StartInfo.ArgumentList.Add(
+                "& ./.github/scripts/get-path-relevance.ps1 -ChangedFile " +
+                "@(ConvertFrom-Json -InputObject $env:OPCUA_TEST_CHANGED_FILES)");
 
-            Assert.That(process.Start(), Is.True);
-            Task<string> standardOutput = process.StandardOutput.ReadToEndAsync();
-            Task<string> standardError = process.StandardError.ReadToEndAsync();
-            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
-            await process.WaitForExitAsync(timeout.Token).ConfigureAwait(false);
-
-            string output = PowerShellScriptOutput.Normalize(await standardOutput.ConfigureAwait(false));
-            string error = await standardError.ConfigureAwait(false);
-            Assert.That(process.ExitCode, Is.Zero, output + error);
+            (int exitCode, string output, string error) = await RunProcessAsync(process).ConfigureAwait(false);
+            Assert.That(exitCode, Is.Zero, output + error);
 
             string verdict = output.Split('\n', StringSplitOptions.RemoveEmptyEntries).Last().Trim();
             return bool.Parse(verdict);
+        }
+
+        private static async Task<(int ExitCode, string Output, string Error)> RunProcessAsync(Process process)
+        {
+            Assert.That(process.Start(), Is.True);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+            Task<string> standardOutput = process.StandardOutput.ReadToEndAsync(timeout.Token);
+            Task<string> standardError = process.StandardError.ReadToEndAsync(timeout.Token);
+            try
+            {
+                await process.WaitForExitAsync(timeout.Token).ConfigureAwait(false);
+            }
+            finally
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill(entireProcessTree: true);
+                    using var cleanupTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                    await process.WaitForExitAsync(cleanupTimeout.Token).ConfigureAwait(false);
+                }
+            }
+
+            return (
+                process.ExitCode,
+                PowerShellScriptOutput.Normalize(await standardOutput.ConfigureAwait(false)),
+                await standardError.ConfigureAwait(false));
         }
 
         private static string FindRepositoryRoot()

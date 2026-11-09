@@ -69,13 +69,66 @@ jobs:
           if ($env:EVENT_NAME -eq 'push' -and $env:PROTECTED_REF -ne 'true') {
               # Triple-dot: everything the branch changed since it left master,
               # ignoring what landed on master afterwards.
-              $changed = @(& git diff --name-only "origin/master...$($env:GITHUB_SHA)" 2>$null)
-              if ($LASTEXITCODE -eq 0) {
+              # Include both paths when a package input is moved into the docs tree.
+              $diffOutput = @(& git diff --name-only --no-renames "origin/master...$($env:GITHUB_SHA)" 2>&1)
+              $diffExitCode = $LASTEXITCODE
+              if ($diffExitCode -eq 0) {
+                  $changed = @($diffOutput | Where-Object { $_ -isnot [System.Management.Automation.ErrorRecord] })
+                  $diffWarnings = @($diffOutput | Where-Object {
+                      $_ -is [System.Management.Automation.ErrorRecord]
+                  })
+                  foreach ($warning in $diffWarnings) {
+                      Write-Warning $warning.ToString()
+                  }
                   $relevant = [bool](& ./.github/scripts/get-path-relevance.ps1 -ChangedFile $changed)
                   Write-Host "Changed files since the merge base with master: $($changed.Count); package-relevant: $relevant"
               }
               else {
+                  & git show-ref --verify --quiet refs/remotes/origin/master
+                  $refExitCode = $LASTEXITCODE
+                  if ($refExitCode -ne 0 -and $refExitCode -ne 1) {
+                      throw "Could not inspect origin/master (git exit code $refExitCode)."
+                  }
+                  $missingBase = $refExitCode -eq 1
+                  if (-not $missingBase) {
+                      & git merge-base origin/master $env:GITHUB_SHA | Out-Null
+                      $mergeBaseExitCode = $LASTEXITCODE
+                      if ($mergeBaseExitCode -ne 0 -and $mergeBaseExitCode -ne 1) {
+                          throw "Could not determine the merge base with master (git exit code $mergeBaseExitCode)."
+                      }
+                      $missingBase = $mergeBaseExitCode -eq 1
+                  }
+                  if (-not $missingBase) {
+                      $detail = ($diffOutput | Out-String).Trim()
+                      throw (
+                          "Could not diff origin/master against $($env:GITHUB_SHA) (git exit code $diffExitCode): " +
+                          $detail)
+                  }
+                  if ($env:GITHUB_SHA -notmatch '^[0-9a-f]{40}$') {
+                      throw "Could not verify branch commit '$($env:GITHUB_SHA)': invalid commit ID."
+                  }
+                  $verifyOutput = @(& git diff --name-only --no-renames "$($env:GITHUB_SHA)..$($env:GITHUB_SHA)" 2>&1)
+                  $verifyExitCode = $LASTEXITCODE
+                  if ($verifyExitCode -ne 0) {
+                      $detail = ($verifyOutput | Out-String).Trim()
+                      throw (
+                          "Could not verify branch commit '$($env:GITHUB_SHA)' (git exit code $verifyExitCode): " +
+                          $detail)
+                  }
+                  $unexpectedPaths = @($verifyOutput | Where-Object {
+                      $_ -isnot [System.Management.Automation.ErrorRecord]
+                  })
+                  if ($unexpectedPaths.Count -ne 0) {
+                      throw "Could not verify branch commit '$($env:GITHUB_SHA)': unexpected Git diff output."
+                  }
+                  $verifyWarnings = @($verifyOutput | Where-Object {
+                      $_ -is [System.Management.Automation.ErrorRecord]
+                  })
+                  foreach ($warning in $verifyWarnings) {
+                      Write-Warning $warning.ToString()
+                  }
                   Write-Host 'Could not resolve the merge base with master; packing.'
+                  $LASTEXITCODE = 0
               }
           }
           "relevant=$($relevant.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
