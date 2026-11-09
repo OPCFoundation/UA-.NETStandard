@@ -329,6 +329,73 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Audit #10 (review): deferring the audit report must not defer its action time.
+        /// A slow delivery of the first audit event must not move the ActionTimeStamp of
+        /// the later writes of the same request past that delay.
+        /// </summary>
+        [Test]
+        public void ClassicWriteAuditActionTimeIsTheTimeOfTheWrite()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                server.Setup(s => s.Auditing).Returns(true);
+                const string ns = "http://test.org/UA/ClassicWriteAuditTime/";
+                using var nodeManager = new TestableCustomNodeManger2(server.Object, ns);
+                ushort index = (ushort)server.Object.NamespaceUris.GetIndex(ns);
+
+                const int count = 3;
+                var nodesToWrite = new WriteValue[count];
+                for (int ii = 0; ii < count; ii++)
+                {
+                    var variable = new BaseDataVariableState(null)
+                    {
+                        NodeId = new NodeId((uint)(ii + 1), index),
+                        BrowseName = new QualifiedName("V" + ii, index),
+                        DataType = DataTypeIds.Int32,
+                        ValueRank = ValueRanks.Scalar,
+                        AccessLevel = AccessLevels.CurrentReadOrWrite,
+                        UserAccessLevel = AccessLevels.CurrentReadOrWrite,
+                        Value = new Variant(0)
+                    };
+                    nodeManager.AddPredefinedNode(nodeManager.SystemContext, variable);
+                    nodesToWrite[ii] = new WriteValue
+                    {
+                        NodeId = variable.NodeId,
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue(new Variant(ii + 1))
+                    };
+                }
+
+                var actionTimes = new List<DateTime>();
+                DateTime firstReportDone = DateTime.MaxValue;
+                server
+                    .Setup(s => s.ReportAuditEvent(It.IsAny<ISystemContext>(), It.IsAny<AuditEventState>()))
+                    .Callback<ISystemContext, AuditEventState>((_, e) =>
+                    {
+                        actionTimes.Add(e.ActionTimeStamp!.Value.ToDateTime());
+                        if (actionTimes.Count == 1)
+                        {
+                            // a slow delivery of the first audit event.
+                            Thread.Sleep(200);
+                            firstReportDone = DateTime.UtcNow;
+                        }
+                    });
+
+                var identity = new UserIdentity(new AnonymousIdentityToken());
+                using var context = new OperationContext(
+                    new RequestHeader(), null, RequestType.Write, RequestLifetime.None, identity);
+                var errors = new ServiceResult[count];
+
+                nodeManager.Write(context, [.. nodesToWrite], errors);
+
+                Assert.That(actionTimes, Has.Count.EqualTo(count));
+                Assert.That(actionTimes, Has.All.LessThan(firstReportDone),
+                    "the action time of every audit is taken at the write, before the reports");
+            }
+        }
+
         private static MonitoredItem CreateUnresolvedItem(
             ITelemetryContext telemetry,
             object subscriptionLock,

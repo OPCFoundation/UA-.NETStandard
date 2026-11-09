@@ -3110,13 +3110,15 @@ namespace Opc.Ua.Server
                         nodeToWrite.ParsedIndexRange,
                         valueToWrite);
 
-                    // the write value audit event is reported after the lock is released.
+                    // the write value audit event is reported after the lock is released;
+                    // its action time is the time of the write, not of the report.
                     if (Server?.Auditing == true)
                     {
                         (auditsToReport ??= []).Add(new PendingWriteAudit(
                             nodeToWrite,
                             oldValue.WrappedValue,
-                            errors[ii]?.StatusCode ?? StatusCodes.Good));
+                            errors[ii]?.StatusCode ?? StatusCodes.Good,
+                            DateTime.UtcNow));
                     }
 
                     if (!ServiceResult.IsGood(errors[ii]))
@@ -3164,6 +3166,7 @@ namespace Opc.Ua.Server
                         audit.NodeToWrite,
                         audit.OldValue,
                         audit.StatusCode,
+                        audit.ActionTimeStamp,
                         m_logger);
                 }
             }
@@ -3197,16 +3200,18 @@ namespace Opc.Ua.Server
         /// </summary>
         private readonly struct PendingWriteAudit
         {
-            public PendingWriteAudit(WriteValue nodeToWrite, Variant oldValue, StatusCode statusCode)
+            public PendingWriteAudit(WriteValue nodeToWrite, Variant oldValue, StatusCode statusCode, DateTime actionTimeStamp)
             {
                 NodeToWrite = nodeToWrite;
                 OldValue = oldValue;
                 StatusCode = statusCode;
+                ActionTimeStamp = actionTimeStamp;
             }
 
             public WriteValue NodeToWrite { get; }
             public Variant OldValue { get; }
             public StatusCode StatusCode { get; }
+            public DateTime ActionTimeStamp { get; }
         }
 
         /// <summary>
