@@ -831,7 +831,7 @@ namespace Opc.Ua.Tools.Tests
                 """).ConfigureAwait(false);
 
             string[] exemptions = [.. result.EnumerateArray().Select(e => e.GetString()!)];
-            Assert.That(exemptions, Has.All.Matches<string>(v => v.Length > 0 && v.Trim() == v));
+            Assert.That(exemptions, Has.All.Matches<string>(v => v is { Length: > 0 } && v.Trim() == v));
             Assert.That(exemptions, Has.All.Contains("-preview."));
         }
 
