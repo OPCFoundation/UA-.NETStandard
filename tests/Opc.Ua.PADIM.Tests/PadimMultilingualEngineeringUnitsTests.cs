@@ -173,7 +173,8 @@ namespace Opc.Ua.PADIM.Tests
                         Assert.That(ServiceResult.IsGood(errors[0]), Is.True);
                         Assert.That(values.Count, Is.EqualTo(1));
                         Assert.That(StatusCode.IsGood(values[0].StatusCode), Is.True);
-                        EUInformation units = values[0].WrappedValue.TryGetStructure<EUInformation>(out var decoded)
+                        EUInformation units = values[0].WrappedValue
+                            .TryGetStructure<EUInformation>(out EUInformation? decoded)
                             && decoded is not null ? decoded
                             : throw new InvalidOperationException("The wire value must decode as EUInformation.");
                         Assert.That(units.NamespaceUri, Is.EqualTo("urn:padim:locale-test"));
