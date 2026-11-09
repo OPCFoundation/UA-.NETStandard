@@ -1845,6 +1845,15 @@ markers and `ISyncNodeManagerReadinessNotification` were not declared or
 forwarded by the 2.0.1 Server assembly on net48 or net10.0. Compatibility with
 consumers of later previews has not been assessed.
 
+The 2.0.1 `RuntimeNodeSetLifecycleExtensions` methods
+`AddRuntimeNodeSetAsync`, `ReloadRuntimeNodeSetAsync`,
+`ShadowReloadRuntimeNodeSetAsync` and `ImmediateReloadRuntimeNodeSetAsync` remain
+available but are obsolete. The add and reload overloads accepting
+`callerContext` ignore it. `ShadowReloadRuntimeNodeSetAsync` uses the `Migrate`
+transition; it does not retain the previous generation for existing
+MonitoredItems. Use `LifecycleChange` with `RuntimeNodeSetNodeManagerFactory`
+for new code; see [Runtime NodeSets](RuntimeNodeSets.md#startup-and-live-lifecycle-semantics).
+
 `RuntimeNodeSetOptions.AllowLifecycleFromRequestCallback` and
 `RuntimeNodeSetNodeManagerFactory.AllowLifecycleFromRequestCallback` were
 public in 2.0.1 and are absent from the current types. The option allowed
