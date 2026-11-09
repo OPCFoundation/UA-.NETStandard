@@ -2971,6 +2971,8 @@ namespace Opc.Ua.Server
             IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
             var nodesToValidate = new List<NodeHandle>();
             var nodesToNotify = new List<NodeState>();
+            List<PendingWriteAudit>? auditsToReport = null;
+            List<PendingSemanticCheck>? semanticChecks = null;
 
             lock (Lock)
             {
@@ -3108,13 +3110,14 @@ namespace Opc.Ua.Server
                         nodeToWrite.ParsedIndexRange,
                         valueToWrite);
 
-                    // report the write value audit event
-                    Server.ReportAuditWriteUpdateEvent(
-                        systemContext,
-                        nodeToWrite,
-                        oldValue.WrappedValue,
-                        errors[ii]?.StatusCode ?? StatusCodes.Good,
-                        m_logger);
+                    // the write value audit event is reported after the lock is released.
+                    if (Server?.Auditing == true)
+                    {
+                        (auditsToReport ??= []).Add(new PendingWriteAudit(
+                            nodeToWrite,
+                            oldValue.WrappedValue,
+                            errors[ii]?.StatusCode ?? StatusCodes.Good));
+                    }
 
                     if (!ServiceResult.IsGood(errors[ii]))
                     {
@@ -3125,11 +3128,11 @@ namespace Opc.Ua.Server
                     {
                         // compare the stored value after the write: the written DataValue
                         // (possibly an IndexRange slice) is not comparable with the old value.
-                        CheckIfSemanticsHaveChanged(
-                            systemContext,
+                        // The SemanticChangeEvent is reported after the lock is released.
+                        (semanticChecks ??= []).Add(new PendingSemanticCheck(
                             propertyState,
                             propertyState.Value,
-                            previousPropertyValue);
+                            previousPropertyValue));
                     }
 
                     //not needed for sampling groups
@@ -3137,6 +3140,35 @@ namespace Opc.Ua.Server
                     {
                         nodesToNotify.Add(handle.Node);
                     }
+                }
+            }
+
+            // Events and notifications are reported after releasing the node-manager lock:
+            // the event consumers of a monitored node may need the lock (permission checks
+            // through GetNodeMetadata) while the reporting thread waits for room in their
+            // bounded channel, which would deadlock with the lock held.
+            if (auditsToReport != null)
+            {
+                foreach (PendingWriteAudit audit in auditsToReport)
+                {
+                    Server.ReportAuditWriteUpdateEvent(
+                        systemContext,
+                        audit.NodeToWrite,
+                        audit.OldValue,
+                        audit.StatusCode,
+                        m_logger);
+                }
+            }
+
+            if (semanticChecks != null)
+            {
+                foreach (PendingSemanticCheck check in semanticChecks)
+                {
+                    CheckIfSemanticsHaveChanged(
+                        systemContext,
+                        check.Property,
+                        check.NewValue,
+                        check.PreviousValue);
                 }
             }
 
@@ -3154,6 +3186,41 @@ namespace Opc.Ua.Server
 
             // validates the nodes and writes the value to the underlying system.
             Write(systemContext, nodesToWrite, errors, nodesToValidate, operationCache);
+        }
+
+        /// <summary>
+        /// A write audit event that is reported once the node-manager lock is released.
+        /// </summary>
+        private readonly struct PendingWriteAudit
+        {
+            public PendingWriteAudit(WriteValue nodeToWrite, Variant oldValue, StatusCode statusCode)
+            {
+                NodeToWrite = nodeToWrite;
+                OldValue = oldValue;
+                StatusCode = statusCode;
+            }
+
+            public WriteValue NodeToWrite { get; }
+            public Variant OldValue { get; }
+            public StatusCode StatusCode { get; }
+        }
+
+        /// <summary>
+        /// A written property whose semantic change is checked once the node-manager lock
+        /// is released.
+        /// </summary>
+        private readonly struct PendingSemanticCheck
+        {
+            public PendingSemanticCheck(PropertyState property, Variant newValue, Variant previousValue)
+            {
+                Property = property;
+                NewValue = newValue;
+                PreviousValue = previousValue;
+            }
+
+            public PropertyState Property { get; }
+            public Variant NewValue { get; }
+            public Variant PreviousValue { get; }
         }
 
         /// <summary>
