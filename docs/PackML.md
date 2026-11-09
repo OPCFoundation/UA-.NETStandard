@@ -13,10 +13,10 @@ defines the wire types and conformance units.
 The runtime, typed clients, fluent hosting and sample implement PackML 1.01
 capabilities, including defined optional server and client capabilities.
 Individual units expose their configured capabilities. Support is partial:
-standalone units are not organized under `PackMLObjects` as required by
-[§6.2](https://reference.opcfoundation.org/specs/OPC-30050/v1.01/6.2).
-The implemented functionality does not establish certification or the result
-of a particular test run.
+the runtime does not advertise a PackML server profile URI. Applications
+must also satisfy the inherited server-facet requirements. The implemented
+functionality does not establish certification or the result of a particular
+test run.
 
 ## Packages and ownership
 
@@ -83,17 +83,20 @@ certificate acceptance policy is not a production trust policy.
 For composition inside another asynchronous node manager, load
 `new NodeStateCollection().AddOpcUaPackML(context)` once and construct
 `new PackMLRuntime(manager)`. Call `AddUnitAsync` with an application-qualified
-name and the chosen parent; a null parent places the unit directly under
-Objects. A non-null parent must be an indexed node owned by the runtime's node
-manager. `AddUnitAsync` rejects a parent from another manager before invoking
-configuration or creating the unit. Keep the runtime until the owner shuts down,
-then await `DisposeAsync` before deleting its nodes. This path does not require
-Machinery, DI, Scales or a PackML-specific global folder.
+name and the chosen parent. The runtime adds an `Organizes` reference from
+`PackMLObjects` to the unit, as required by
+[§6.2](https://reference.opcfoundation.org/specs/OPC-30050/v1.01/6.2).
+A null parent also places the unit directly under Objects. A non-null parent
+must be an indexed node owned by the runtime's node manager. `AddUnitAsync`
+rejects a parent from another manager before invoking configuration or
+creating the unit. Keep the runtime until the owner shuts down, then await
+`DisposeAsync` before deleting its nodes. This path does not require Machinery,
+DI, or Scales.
 
-During lifecycle preparation, the unit's references from Objects and from the
-Enumeration DataType remain private until publication. A failed unit addition
-discards its staged references without changing references owned by the serving
-generation.
+During lifecycle preparation, the references from Objects, `PackMLObjects`,
+and the Enumeration DataType remain private until publication. A failed unit
+addition discards its staged references without changing references owned by
+the serving generation.
 
 A parentless unit has no parent notifier to carry its events, so `AddUnitAsync`
 registers it as a Server event root through
