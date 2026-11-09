@@ -203,6 +203,8 @@ to `EUInformation` elements in `ExtensionObject` arrays and multidimensional
 matrices, preserving their dimensions.
 Translated copies retain each original `ExtensionObject.TypeId`. Envelopes with
 no type identifier or an unsupported encoded body remain unchanged.
+The shared extension-object clone path also preserves envelope identifiers when
+copying decoded bodies into array and matrix variants.
 Other structure types, including derived types with additional fields, remain
 unchanged. This is not a general traversal of arbitrary nested structures.
 Read and notification routing invokes a custom `ResourceManager.TranslateValue`

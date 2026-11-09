@@ -315,6 +315,92 @@ namespace Opc.Ua.Types.Tests.Utils
             Assert.That(cloned.Value, Is.EqualTo(99));
         }
 
+        /// <summary>
+        /// Keeps envelope identifiers and container shape while copying mutable encodeable bodies.
+        /// </summary>
+        [TestCase(0, false)]
+        [TestCase(0, true)]
+        [TestCase(1, false)]
+        [TestCase(1, true)]
+        [TestCase(2, false)]
+        [TestCase(2, true)]
+        public void CloneExtensionObjectPreservesEnvelopeAndBodyOwnership(int rank, bool nullTypeId)
+        {
+            var body = new Argument { Name = "Original", DataType = DataTypeIds.String };
+            ExpandedNodeId typeId = nullTypeId ? ExpandedNodeId.Null : new ExpandedNodeId("argument", "urn:clone");
+#pragma warning disable CS0618 // The compatibility constructor is required to retain a null ID with a decoded body.
+            var source = new ExtensionObject(typeId, (object)body);
+#pragma warning restore CS0618
+            ExtensionObject cloned;
+            if (rank == 0)
+            {
+                cloned = CoreUtils.Clone(source);
+            }
+            else
+            {
+                ArrayOf<ExtensionObject> elements = [source, ExtensionObject.Null];
+                if (rank == 1)
+                {
+                    ArrayOf<ExtensionObject> copy = CoreUtils.Clone(elements);
+                    Variant variant = Variant.From(elements);
+                    Assert.That(variant.TryGetValue(out ArrayOf<ExtensionObject> wrapped), Is.True);
+                    Assert.That(copy.Count, Is.EqualTo(2));
+                    Assert.That(copy[1].IsNull, Is.True);
+                    Assert.That(wrapped[0].TypeId, Is.EqualTo(typeId));
+                    Assert.That(wrapped[1].IsNull, Is.True);
+                    cloned = copy[0];
+                }
+                else
+                {
+                    MatrixOf<ExtensionObject> matrix = elements.ToMatrix(1, 2);
+                    MatrixOf<ExtensionObject> copy = CoreUtils.Clone(matrix);
+                    Variant variant = Variant.From(matrix);
+                    Assert.That(variant.TryGetValue(out MatrixOf<ExtensionObject> wrapped), Is.True);
+                    Assert.That(copy.Dimensions, Is.EqualTo(new[] { 1, 2 }));
+                    Assert.That(wrapped.Dimensions, Is.EqualTo(new[] { 1, 2 }));
+                    Assert.That(copy.Span[1].IsNull, Is.True);
+                    Assert.That(wrapped.Span[0].TypeId, Is.EqualTo(typeId));
+                    Assert.That(wrapped.Span[1].IsNull, Is.True);
+                    cloned = copy.Span[0];
+                }
+            }
+            Assert.That(cloned.TypeId, Is.EqualTo(typeId));
+            Assert.That(cloned.Encoding, Is.EqualTo(ExtensionObjectEncoding.EncodeableObject));
+            Assert.That(cloned.TryGetValue(out Argument? copiedBody), Is.True);
+            Assert.That(copiedBody, Is.Not.SameAs(body));
+            Assert.That(copiedBody!.Name, Is.EqualTo("Original"));
+            body.Name = "Changed";
+            Assert.That(copiedBody.Name, Is.EqualTo("Original"));
+            copiedBody.Name = "Copy changed";
+            Assert.That(body.Name, Is.EqualTo("Changed"));
+            Assert.That(source.TypeId, Is.EqualTo(typeId));
+        }
+
+        /// <summary>
+        /// Leaves undecoded envelopes and their encoding representations unchanged.
+        /// </summary>
+        [Test]
+        public void CloneExtensionObjectPreservesEncodedBodies()
+        {
+            var typeId = new ExpandedNodeId("encoded", "urn:clone");
+            ExtensionObject[] sources =
+            [
+                new(typeId),
+                new(typeId, ByteString.From(new byte[] { 1, 2, 3 }.AsSpan())),
+                new(typeId, "{\"value\":42}"),
+                new(typeId, XmlElement.From("<Value>42</Value>")),
+                ExtensionObject.Null
+            ];
+            foreach (ExtensionObject source in sources)
+            {
+                ExtensionObject copy = CoreUtils.Clone(source);
+                Assert.That(copy.TypeId, Is.EqualTo(source.TypeId));
+                Assert.That(copy.Encoding, Is.EqualTo(source.Encoding));
+                Assert.That(copy, Is.EqualTo(source));
+                Assert.That(copy.TryGetValue(out IEncodeable? _), Is.False);
+            }
+        }
+
         [Test]
         public void IsEqualStructEqualValuesReturnsTrue()
         {
