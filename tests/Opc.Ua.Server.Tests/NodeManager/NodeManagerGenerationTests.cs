@@ -275,23 +275,32 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(readinessPending, Is.True);
             Assert.That(generation.CaptureSourceEmission(1, out readinessPending), Is.True);
             Assert.That(readinessPending, Is.True);
-            Assert.That(generation.TryDeferEvent(1, () => Task.CompletedTask, 1, out _), Is.True);
+            int deliveries = 0;
+            Assert.That(generation.TryDeferEvent(1, () =>
+            {
+                Interlocked.Increment(ref deliveries);
+                return Task.CompletedTask;
+            }, 1, out _), Is.True);
 
             InvalidOperationException? notReady = await Assert.ThrowsAsync<InvalidOperationException>(
                 () => generation.FlushDeferredEventsAsync()).ConfigureAwait(false);
             Assert.That(notReady!.Message, Does.Contain("readiness succeeds"));
             Assert.That(generation.IsDeferringEvents, Is.True);
+            Assert.That(Volatile.Read(ref deliveries), Is.Zero);
 
             generation.ReadinessPending = false;
 
             Task flush = generation.FlushDeferredEventsAsync();
 
             Assert.That(flush.IsCompleted, Is.False);
+            Assert.That(Volatile.Read(ref deliveries), Is.Zero);
             generation.ReleaseSourceEmission(1);
             Assert.That(flush.IsCompleted, Is.False);
+            Assert.That(Volatile.Read(ref deliveries), Is.Zero);
             generation.ReleaseSourceEmission(1);
             await flush.ConfigureAwait(false);
             Assert.That(generation.IsDeferringEvents, Is.False);
+            Assert.That(Volatile.Read(ref deliveries), Is.EqualTo(1));
         }
 
         /// <summary>
